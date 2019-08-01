@@ -20,12 +20,12 @@ import zio._
 import zio.random.Random
 
 trait MockRandom extends Random {
-  val random: MockRandom.Service[Any]
+  val random: MockRandom.Service
 }
 
 object MockRandom {
 
-  trait Service[R] extends Random.Service[R] {
+  trait Service extends Random.Service {
     def feedInts(ints: Int*): UIO[Unit]
     def feedBooleans(booleans: Boolean*): UIO[Unit]
     def feedDoubles(doubles: Double*): UIO[Unit]
@@ -44,7 +44,7 @@ object MockRandom {
     def clearBytes: UIO[Unit]
   }
 
-  case class Mock(randomState: Ref[MockRandom.Data]) extends MockRandom.Service[Any] {
+  case class Mock(randomState: Ref[MockRandom.Data]) extends MockRandom.Service {
 
     val nextBoolean: UIO[Boolean] = nextRandom(shiftBooleans)
 

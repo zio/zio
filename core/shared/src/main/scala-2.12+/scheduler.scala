@@ -18,8 +18,8 @@ package zio
 
 import zio.internal.{ Scheduler => IScheduler }
 
-package object scheduler extends Scheduler.Service[Scheduler] {
-  final val schedulerService: ZIO[Scheduler, Nothing, Scheduler.Service[Any]] =
+package object scheduler {
+  final val schedulerService: ZIO[Scheduler, Nothing, Scheduler.Service] =
     ZIO.access(_.scheduler)
 
   def scheduler: ZIO[Scheduler, Nothing, IScheduler] =

@@ -1,15 +1,15 @@
 package zio.test.mock
 
-import zio.{ Ref, UIO, ZIO }
+import zio.{ Ref, UIO, IO, ZIO }
 import zio.system.System
 
 trait MockSystem extends System {
-  val system: MockSystem.Service[Any]
+  val system: MockSystem.Service
 }
 
 object MockSystem {
 
-  trait Service[R] extends System.Service[R] {
+  trait Service extends System.Service {
     def putEnv(name: String, value: String): UIO[Unit]
     def putProperty(name: String, value: String): UIO[Unit]
     def setLineSeparator(lineSep: String): UIO[Unit]
@@ -17,15 +17,15 @@ object MockSystem {
     def clearProperty(prop: String): UIO[Unit]
   }
 
-  case class Mock(systemState: Ref[MockSystem.Data]) extends MockSystem.Service[Any] {
+  case class Mock(systemState: Ref[MockSystem.Data]) extends MockSystem.Service {
 
-    override def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
+    override def env(variable: String): IO[SecurityException, Option[String]] =
       systemState.get.map(_.envs.get(variable))
 
-    override def property(prop: String): ZIO[Any, Throwable, Option[String]] =
+    override def property(prop: String): IO[Throwable, Option[String]] =
       systemState.get.map(_.properties.get(prop))
 
-    override val lineSeparator: ZIO[Any, Nothing, String] =
+    override val lineSeparator: IO[Nothing, String] =
       systemState.get.map(_.lineSeparator)
 
     def putEnv(name: String, value: String): UIO[Unit] =

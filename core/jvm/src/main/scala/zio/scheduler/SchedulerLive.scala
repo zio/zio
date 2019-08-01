@@ -16,7 +16,7 @@
 
 package zio.scheduler
 
-import zio.ZIO
+import zio.UIO
 import zio.duration.Duration
 import zio.internal.{ NamedThreadFactory, Scheduler => IScheduler }
 
@@ -66,8 +66,8 @@ private[scheduler] object internal {
 }
 
 trait SchedulerLive extends Scheduler {
-  val scheduler: Scheduler.Service[Any] = new Scheduler.Service[Any] {
-    val scheduler = ZIO.succeed(internal.GlobalScheduler)
+  val scheduler: Scheduler.Service = new Scheduler.Service {
+    val scheduler = UIO.succeed(internal.GlobalScheduler)
   }
 }
 object SchedulerLive extends SchedulerLive

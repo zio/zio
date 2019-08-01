@@ -25,12 +25,12 @@ import zio.clock.Clock
 import java.time.{ Instant, OffsetDateTime }
 
 trait MockClock extends Clock {
-  val clock: MockClock.Service[Any]
+  val clock: MockClock.Service
 }
 
 object MockClock {
 
-  trait Service[R] extends Clock.Service[R] {
+  trait Service extends Clock.Service {
     def sleeps: UIO[List[Duration]]
     def adjust(duration: Duration): UIO[Unit]
     def setTime(duration: Duration): UIO[Unit]
@@ -38,7 +38,7 @@ object MockClock {
     def timeZone: UIO[ZoneId]
   }
 
-  case class Mock(clockState: Ref[MockClock.Data]) extends MockClock.Service[Any] {
+  case class Mock(clockState: Ref[MockClock.Data]) extends MockClock.Service {
 
     final def currentTime(unit: TimeUnit): UIO[Long] =
       clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))

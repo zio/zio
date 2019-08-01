@@ -21,8 +21,8 @@ import zio.duration.Duration
 import java.util.concurrent.TimeUnit
 import java.time.OffsetDateTime
 
-package object clock extends Clock.Service[Clock] {
-  final val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
+package object clock {
+  final val clockService: ZIO[Clock, Nothing, Clock.Service] =
     ZIO.access(_.clock)
 
   /**

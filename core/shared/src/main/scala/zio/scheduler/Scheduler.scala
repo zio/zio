@@ -16,15 +16,15 @@
 
 package zio.scheduler
 
-import zio.ZIO
-import zio.internal.{ Scheduler => IScheduler }
+import zio.UIO
+import zio.internal.{Scheduler => IScheduler}
 
 trait Scheduler extends Serializable {
-  val scheduler: Scheduler.Service[Any]
+  val scheduler: Scheduler.Service
 }
 
 object Scheduler extends Serializable {
-  trait Service[R] extends Serializable {
-    def scheduler: ZIO[R, Nothing, IScheduler]
+  trait Service extends Serializable {
+    def scheduler: UIO[IScheduler]
   }
 }

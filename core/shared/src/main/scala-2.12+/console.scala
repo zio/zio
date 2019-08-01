@@ -18,8 +18,8 @@ package zio
 
 import java.io.IOException
 
-package object console extends Console.Service[Console] {
-  final val consoleService: ZIO[Console, Nothing, Console.Service[Any]] =
+package object console {
+  final val consoleService: ZIO[Console, Nothing, Console.Service] =
     ZIO.access(_.console)
 
   /**

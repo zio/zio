@@ -284,7 +284,7 @@ object RandomSpec extends DefaultRuntime {
   def nextBytesWithClear =
     checkClear(_.clearBytes, MockRandom.defaultBytes)(_.nextBytes(1))
 
-  def checkWith[A](data: Data, expected: List[A])(f: Random.Service[Any] => UIO[A]) =
+  def checkWith[A](data: Data, expected: List[A])(f: Random.Service => UIO[A]) =
     unsafeRun(
       for {
         mockRandom    <- MockRandom.makeMock(data)
@@ -343,7 +343,7 @@ object RandomSpec extends DefaultRuntime {
     )
   }
 
-  def checkFeed[A](feed: MockRandom.Mock => Seq[A] => UIO[Unit], expected: List[A])(f: Random.Service[Any] => UIO[A]) =
+  def checkFeed[A](feed: MockRandom.Mock => Seq[A] => UIO[Unit], expected: List[A])(f: Random.Service => UIO[A]) =
     unsafeRun(
       for {
         mockRandom <- MockRandom.makeMock(Data())
@@ -352,7 +352,7 @@ object RandomSpec extends DefaultRuntime {
       } yield results == expected
     )
 
-  def checkClear[A](clear: MockRandom.Mock => UIO[Unit], default: A)(f: Random.Service[Any] => UIO[A]) =
+  def checkClear[A](clear: MockRandom.Mock => UIO[Unit], default: A)(f: Random.Service => UIO[A]) =
     unsafeRun(
       for {
         mockRandom <- MockRandom.makeMock(Data())

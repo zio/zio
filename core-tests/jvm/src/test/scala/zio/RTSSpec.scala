@@ -594,11 +594,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(IO.effectAsyncM[Throwable, Int](k => IO.effectTotal(k(IO.succeed(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
-    def stackIOs(clock: Clock.Service[Any], count: Int): UIO[Int] =
+    def stackIOs(clock: Clock.Service, count: Int): UIO[Int] =
       if (count <= 0) IO.succeed(42)
       else asyncIO(clock, stackIOs(clock, count - 1))
 
-    def asyncIO(clock: Clock.Service[Any], cont: UIO[Int]): UIO[Int] =
+    def asyncIO(clock: Clock.Service, cont: UIO[Int]): UIO[Int] =
       IO.effectAsyncM[Nothing, Int] { k =>
         clock.sleep(5.millis) *> cont *> IO.effectTotal(k(IO.succeed(42)))
       }

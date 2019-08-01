@@ -12,11 +12,11 @@ import zio.test.mock.MockScheduler._
  * Implementation of Scheduler.Service for testing. The passed Ref[TestClock.Data] will be used to determine when
  * to run the scheduled runnables. Make sure to call shutdown() to force execution of all remaining tasks.
  */
-final case class MockScheduler(ref: Ref[MockClock.Data], runtime: Runtime[Clock]) extends Scheduler.Service[Any] {
+final case class MockScheduler(ref: Ref[MockClock.Data], runtime: Runtime[Clock]) extends Scheduler.Service {
 
   private[this] val ConstFalse = () => false
 
-  override def scheduler: ZIO[Any, Nothing, TestIScheduler] =
+  def scheduler: UIO[TestIScheduler] =
     for {
       tasksRef   <- Ref.make[List[(Long, Promise[Nothing, Unit], Runnable)]](Nil)
       shouldExit <- Ref.make(false)

@@ -23,31 +23,31 @@ import zio.console._
 import zio._
 
 trait MockConsole extends Console {
-  val console: MockConsole.Service[Any]
+  val console: MockConsole.Service
 }
 
 object MockConsole {
 
-  trait Service[R] extends Console.Service[R] {
+  trait Service extends Console.Service {
     def feedLines(lines: String*): UIO[Unit]
     def output: UIO[Vector[String]]
     def clearInput: UIO[Unit]
     def clearOutput: UIO[Unit]
   }
 
-  case class Mock(consoleState: Ref[MockConsole.Data]) extends MockConsole.Service[Any] {
+  case class Mock(consoleState: Ref[MockConsole.Data]) extends MockConsole.Service {
 
     override def putStr(line: String): UIO[Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ line)
       }.unit
 
-    override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
+    override def putStrLn(line: String): UIO[Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ s"$line\n")
       }.unit
 
-    val getStrLn: ZIO[Any, IOException, String] = {
+    val getStrLn: IO[IOException, String] = {
       for {
         input <- consoleState.get.flatMap(
                   d =>

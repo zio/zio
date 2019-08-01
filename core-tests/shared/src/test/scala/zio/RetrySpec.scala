@@ -243,7 +243,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
     } yield (v must beNone) and (finalizerV.isDefined must beTrue)
 
   object TestRandom extends Random {
-    object random extends Random.Service[Any] {
+    object random extends Random.Service {
       val nextBoolean: UIO[Boolean] = UIO.succeed(false)
       def nextBytes(length: Int): UIO[Chunk[Byte]] =
         UIO.succeed(Chunk.empty)

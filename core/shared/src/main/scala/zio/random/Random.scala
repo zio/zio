@@ -19,27 +19,27 @@ package zio.random
 import zio.{ Chunk, Ref, UIO, ZIO }
 
 trait Random extends Serializable {
-  val random: Random.Service[Any]
+  val random: Random.Service
 }
 object Random extends Serializable {
-  trait Service[R] extends Serializable {
-    val nextBoolean: ZIO[R, Nothing, Boolean]
-    def nextBytes(length: Int): ZIO[R, Nothing, Chunk[Byte]]
-    val nextDouble: ZIO[R, Nothing, Double]
-    val nextFloat: ZIO[R, Nothing, Float]
-    val nextGaussian: ZIO[R, Nothing, Double]
-    def nextInt(n: Int): ZIO[R, Nothing, Int]
-    val nextInt: ZIO[R, Nothing, Int]
-    val nextLong: ZIO[R, Nothing, Long]
-    val nextPrintableChar: ZIO[R, Nothing, Char]
-    def nextString(length: Int): ZIO[R, Nothing, String]
-    def shuffle[A](list: List[A]): ZIO[R, Nothing, List[A]]
+  trait Service extends Serializable {
+    val nextBoolean: UIO[Boolean]
+    def nextBytes(length: Int): UIO[Chunk[Byte]]
+    val nextDouble: UIO[Double]
+    val nextFloat: UIO[Float]
+    val nextGaussian: UIO[Double]
+    def nextInt(n: Int): UIO[Int]
+    val nextInt: UIO[Int]
+    val nextLong: UIO[Long]
+    val nextPrintableChar: UIO[Char]
+    def nextString(length: Int): UIO[String]
+    def shuffle[A](list: List[A]): UIO[List[A]]
   }
   trait Live extends Random {
-    val random: Service[Any] = new Service[Any] {
+    val random: Service = new Service {
       import scala.util.{ Random => SRandom }
 
-      val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
+      val nextBoolean: UIO[Boolean] = UIO.effectTotal(SRandom.nextBoolean())
       def nextBytes(length: Int): UIO[Chunk[Byte]] =
         ZIO.effectTotal {
           val array = Array.ofDim[Byte](length)
@@ -48,14 +48,14 @@ object Random extends Serializable {
 
           Chunk.fromArray(array)
         }
-      val nextDouble: UIO[Double]                 = ZIO.effectTotal(SRandom.nextDouble())
-      val nextFloat: UIO[Float]                   = ZIO.effectTotal(SRandom.nextFloat())
-      val nextGaussian: UIO[Double]               = ZIO.effectTotal(SRandom.nextGaussian())
-      def nextInt(n: Int): UIO[Int]               = ZIO.effectTotal(SRandom.nextInt(n))
-      val nextInt: UIO[Int]                       = ZIO.effectTotal(SRandom.nextInt())
-      val nextLong: UIO[Long]                     = ZIO.effectTotal(SRandom.nextLong())
-      val nextPrintableChar: UIO[Char]            = ZIO.effectTotal(SRandom.nextPrintableChar())
-      def nextString(length: Int): UIO[String]    = ZIO.effectTotal(SRandom.nextString(length))
+      val nextDouble: UIO[Double]                 = UIO.effectTotal(SRandom.nextDouble())
+      val nextFloat: UIO[Float]                   = UIO.effectTotal(SRandom.nextFloat())
+      val nextGaussian: UIO[Double]               = UIO.effectTotal(SRandom.nextGaussian())
+      def nextInt(n: Int): UIO[Int]               = UIO.effectTotal(SRandom.nextInt(n))
+      val nextInt: UIO[Int]                       = UIO.effectTotal(SRandom.nextInt())
+      val nextLong: UIO[Long]                     = UIO.effectTotal(SRandom.nextLong())
+      val nextPrintableChar: UIO[Char]            = UIO.effectTotal(SRandom.nextPrintableChar())
+      def nextString(length: Int): UIO[String]    = UIO.effectTotal(SRandom.nextString(length))
       def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
     }
   }
@@ -66,14 +66,13 @@ object Random extends Serializable {
       bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
       _         <- bufferRef.update(_ ++= list)
       swap = (i1: Int, i2: Int) =>
-        bufferRef.update {
-          case buffer =>
+        bufferRef.update { buffer =>
             val tmp = buffer(i1)
             buffer(i1) = buffer(i2)
             buffer(i2) = tmp
             buffer
         }
-      _ <- ZIO.traverse(list.length to 2 by -1) { n: Int =>
+      _ <- UIO.traverse(list.length to 2 by -1) { n: Int =>
             nextInt(n).flatMap { k =>
               swap(n - 1, k)
             }

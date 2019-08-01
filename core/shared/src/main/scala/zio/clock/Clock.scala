@@ -24,19 +24,19 @@ import zio.{ IO, UIO, ZIO }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
 trait Clock extends Serializable {
-  val clock: Clock.Service[Any]
+  val clock: Clock.Service
 }
 
 object Clock extends Serializable {
-  trait Service[R] extends Serializable {
-    def currentTime(unit: TimeUnit): ZIO[R, Nothing, Long]
-    def currentDateTime: ZIO[R, Nothing, OffsetDateTime]
-    val nanoTime: ZIO[R, Nothing, Long]
-    def sleep(duration: Duration): ZIO[R, Nothing, Unit]
+  trait Service extends Serializable {
+    def currentTime(unit: TimeUnit): UIO[Long]
+    def currentDateTime: UIO[OffsetDateTime]
+    val nanoTime: UIO[Long]
+    def sleep(duration: Duration): UIO[Unit]
   }
 
   trait Live extends SchedulerLive with Clock {
-    val clock: Service[Any] = new Service[Any] {
+    val clock: Service = new Service {
       def currentTime(unit: TimeUnit): UIO[Long] =
         IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
@@ -45,15 +45,15 @@ object Clock extends Serializable {
       def sleep(duration: Duration): UIO[Unit] =
         scheduler.scheduler.flatMap(
           scheduler =>
-            ZIO.effectAsyncInterrupt[Any, Nothing, Unit] { k =>
+            UIO.effectAsyncInterrupt[Unit] { k =>
               val canceler = scheduler
-                .schedule(() => k(ZIO.unit), duration)
+                .schedule(() => k(UIO.unit), duration)
 
-              Left(ZIO.effectTotal(canceler()))
+              Left(UIO.effectTotal(canceler()))
             }
         )
 
-      def currentDateTime: ZIO[Any, Nothing, OffsetDateTime] =
+      def currentDateTime: UIO[OffsetDateTime] =
         for {
           millis <- currentTime(TimeUnit.MILLISECONDS)
           zone   <- ZIO.effectTotal(ZoneId.systemDefault)

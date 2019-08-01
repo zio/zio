@@ -16,8 +16,8 @@
 
 package zio
 
-package object random extends Random.Service[Random] {
-  final val randomService: ZIO[Random, Nothing, Random.Service[Any]] =
+package object random {
+  final val randomService: ZIO[Random, Nothing, Random.Service] =
     ZIO.access(_.random)
 
   val nextBoolean: ZIO[Random, Nothing, Boolean]                = ZIO.accessM(_.random.nextBoolean)

@@ -16,9 +16,9 @@
 
 package zio
 
-package object system extends System.Service[System] {
+package object system {
 
-  def systemService: ZIO[System, Nothing, System.Service[Any]] = ZIO.access(_.system)
+  def systemService: ZIO[System, Nothing, System.Service] = ZIO.access(_.system)
 
   /** Retrieve the value of an environment variable **/
   def env(variable: String): ZIO[System, SecurityException, Option[String]] =
