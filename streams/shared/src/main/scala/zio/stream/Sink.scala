@@ -137,7 +137,7 @@ object Sink {
   /**
    * see [[ZSink.identity]]
    */
-  final def identity[A]: Sink[Unit, A, A, A] =
+  final def identity[A]: Sink[Unit, Nothing, A, A] =
     ZSink.identity
 
   /**
@@ -175,32 +175,32 @@ object Sink {
   /**
    * see [[ZSink.throttleEnforce]]
    */
-  final def throttleEnforce[A](units: Long, duration: Duration)(
+  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
-    ZSink.throttleEnforce(units, duration)(costFn)
+    ZSink.throttleEnforce(units, duration, burst)(costFn)
 
   /**
    * see [[ZSink.throttleEnforceM]]
    */
-  final def throttleEnforceM[E, A](units: Long, duration: Duration)(
+  final def throttleEnforceM[E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, Option[A]]] =
-    ZSink.throttleEnforceM[Any, E, A](units, duration)(costFn)
+    ZSink.throttleEnforceM[Any, E, A](units, duration, burst)(costFn)
 
   /**
    * see [[ZSink.throttleShape]]
    */
-  final def throttleShape[A](units: Long, duration: Duration)(
+  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
-    ZSink.throttleShape(units, duration)(costFn)
+    ZSink.throttleShape(units, duration, burst)(costFn)
 
   /**
    * see [[ZSink.throttleShapeM]]
    */
-  final def throttleShapeM[E, A](units: Long, duration: Duration)(
+  final def throttleShapeM[E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, A]] =
-    ZSink.throttleShapeM[Any, E, A](units, duration)(costFn)
+    ZSink.throttleShapeM[Any, E, A](units, duration, burst)(costFn)
 }

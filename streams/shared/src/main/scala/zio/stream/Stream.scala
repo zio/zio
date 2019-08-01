@@ -61,7 +61,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsync]]
    */
   final def effectAsync[E, A](
-    register: (IO[E, A] => Unit) => Unit,
+    register: (IO[Option[E], A] => Unit) => Unit,
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsync(register, outputBuffer)
@@ -70,7 +70,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncMaybe]]
    */
   final def effectAsyncMaybe[E, A](
-    register: (IO[E, A] => Unit) => Option[Stream[E, A]],
+    register: (IO[Option[E], A] => Unit) => Option[Stream[E, A]],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncMaybe(register, outputBuffer)
@@ -79,7 +79,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncM]]
    */
   final def effectAsyncM[E, A](
-    register: (IO[E, A] => Unit) => IO[E, _],
+    register: (IO[Option[E], A] => Unit) => IO[E, _],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncM(register, outputBuffer)
@@ -88,7 +88,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncInterrupt]]
    */
   final def effectAsyncInterrupt[E, A](
-    register: (IO[E, A] => Unit) => Either[Canceler, Stream[E, A]],
+    register: (IO[Option[E], A] => Unit) => Either[Canceler, Stream[E, A]],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncInterrupt(register, outputBuffer)
@@ -114,7 +114,7 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.flattenPar]]
    */
-  final def flattenPar[E, A](n: Long, outputBuffer: Int = 16)(
+  final def flattenPar[E, A](n: Int, outputBuffer: Int = 16)(
     fa: Stream[E, Stream[E, A]]
   ): Stream[E, A] =
     ZStream.flattenPar(n, outputBuffer)(fa)
@@ -171,7 +171,7 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.mergeAll]]
    */
-  final def mergeAll[E, A](n: Long, outputBuffer: Int = 16)(
+  final def mergeAll[E, A](n: Int, outputBuffer: Int = 16)(
     streams: Stream[E, A]*
   ): Stream[E, A] =
     ZStream.mergeAll[Any, E, A](n, outputBuffer)(streams: _*)
