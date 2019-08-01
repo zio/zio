@@ -62,6 +62,8 @@ lazy val root = project
     coreTestsJVM,
     coreTestsJS,
     docs,
+    examplesJS,
+    examplesJVM,
     streamsJVM,
     streamsJS,
     streamsTestsJVM,
@@ -118,6 +120,14 @@ lazy val coreTestsJS = coreTests.js
   .settings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
   )
+
+lazy val examples = crossProject(JSPlatform, JVMPlatform)
+  .in(file("zio-examples"))
+  .dependsOn(test % "test->test;compile->compile")
+  .settings(stdSettings("zio-examples"))
+
+lazy val examplesJS = examples.js
+lazy val examplesJVM = examples.jvm
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
