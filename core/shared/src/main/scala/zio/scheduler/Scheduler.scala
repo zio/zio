@@ -17,7 +17,7 @@
 package zio.scheduler
 
 import zio.UIO
-import zio.internal.{Scheduler => IScheduler}
+import zio.internal.{ Scheduler => IScheduler }
 
 trait Scheduler extends Serializable {
   val scheduler: Scheduler.Service

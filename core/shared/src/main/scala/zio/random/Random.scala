@@ -67,10 +67,10 @@ object Random extends Serializable {
       _         <- bufferRef.update(_ ++= list)
       swap = (i1: Int, i2: Int) =>
         bufferRef.update { buffer =>
-            val tmp = buffer(i1)
-            buffer(i1) = buffer(i2)
-            buffer(i2) = tmp
-            buffer
+          val tmp = buffer(i1)
+          buffer(i1) = buffer(i2)
+          buffer(i2) = tmp
+          buffer
         }
       _ <- UIO.traverse(list.length to 2 by -1) { n: Int =>
             nextInt(n).flatMap { k =>

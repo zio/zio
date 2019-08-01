@@ -16,7 +16,7 @@
 
 package zio.system
 
-import zio.{ UIO, IO }
+import zio.{ IO, UIO }
 
 trait System extends Serializable {
   val system: System.Service
