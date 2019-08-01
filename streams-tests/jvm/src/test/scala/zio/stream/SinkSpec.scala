@@ -28,12 +28,10 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     collectAll
       happy path    $collectAllHappyPath
       init error    $collectAllInitError
-      step error    $collectAllStepError
       extract error $collectAllExtractError
 
     collectAllWhile
       happy path      $collectAllWhileHappyPath
-      false predicate $collectAllWhileFalsePredicate
       init error      $collectAllWhileInitError
       step error      $collectAllWhileStepError
       extract error   $collectAllWhileExtractError
@@ -150,8 +148,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       extract error   $takeWhileExtractError
 
     untilOutput
-      happy path      $untilOutputHappyPath
-      false predicate $untilOutputFalsePredicate
       init error      $untilOutputInitError
       step error      $untilOutputStepError
       extract error   $untilOutputExtractError
@@ -275,12 +271,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
-  private def collectAllStepError = {
-    // This test needs to be verified for correctness.
-    val sink = stepErrorSink.collectAll
-    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Nil))
-  }
-
   private def collectAllExtractError = {
     val sink = extractErrorSink.collectAll
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
@@ -289,15 +279,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def collectAllWhileHappyPath = {
     val sink = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 10)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
-  }
-
-  private def collectAllWhileFalsePredicate = {
-    // This test needs to be verified for correctness.
-    // I find this behavior to be surprising.
-    val sink = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 0)
-    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(())))
-    // Fails instead of returning empty list.
-    // I would presume that sinkIteration(sink, 1).map(_ must_=== Nil) is the correct behavior.
   }
 
   private def collectAllWhileInitError = {
@@ -708,18 +689,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def takeWhileExtractError = {
     val sink = extractErrorSink.takeWhile[Int](_ < 5)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
-  }
-
-  private def untilOutputHappyPath = {
-    // This test needs to be verified for correctness.
-    val sink = ZSink.identity[Int].untilOutput(_ % 2 == 0)
-    unsafeRun(sinkIteration(sink, 1).map(_ must_=== 1))
-  }
-
-  private def untilOutputFalsePredicate = {
-    // This test needs to be verified for correctness.
-    val sink = ZSink.identity[Int].untilOutput(_ % 2 != 0)
-    unsafeRun(sinkIteration(sink, 1).map(_ must_=== 1))
   }
 
   private def untilOutputInitError = {
