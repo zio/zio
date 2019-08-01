@@ -22,6 +22,9 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Constructs an uninterruptible Managed value. $uninterruptible
   ZManaged.reserve
     Interruption is possible when using this form. $interruptible
+  ZManaged.makeExit
+    Invokes with the failure of the use. $invokesWithUseFailure
+    Invokes with the failure of the subsequent acquire. $invokesWithAcquireFailure
   ZManaged.ensuring
     Runs on successes $ensuringSuccess
     Runs on failures $ensuringFailure
@@ -156,7 +159,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   // unlike make, reserve allows interruption
   private def interruptible =
-    doInterrupt(io => ZManaged.reserve(Reservation(io, IO.unit)), Some(Failure(Interrupt)))
+    doInterrupt(io => ZManaged.reserve(Reservation(io, _ => IO.unit)), Some(Failure(Interrupt)))
 
   private def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
@@ -171,6 +174,39 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     } yield interruption
 
     unsafeRun(program) must be_===(Right(expected))
+  }
+
+  private def invokesWithUseFailure = unsafeRun {
+    val ex = new RuntimeException("Use died")
+
+    def res(exits: Ref[List[Exit[_, _]]]) =
+      for {
+        _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
+        _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
+      } yield ()
+
+    for {
+      exits  <- Ref.make[List[Exit[_, _]]](Nil)
+      _      <- res(exits).use_(ZIO.die(ex)).run
+      result <- exits.get
+    } yield result must_=== List(Exit.Failure(Cause.Die(ex)), Exit.Failure(Cause.Die(ex)))
+  }
+
+  private def invokesWithAcquireFailure = unsafeRun {
+    val useEx     = new RuntimeException("Use died")
+    val acquireEx = new RuntimeException("Acquire died")
+
+    def res(exits: Ref[List[Exit[_, _]]]) =
+      for {
+        _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
+        _ <- ZManaged.makeExit(ZIO.die(acquireEx))((_, e) => exits.update(e :: _))
+      } yield ()
+
+    for {
+      exits  <- Ref.make[List[Exit[_, _]]](Nil)
+      _      <- res(exits).use_(ZIO.die(useEx)).run
+      result <- exits.get
+    } yield result must_=== List(Exit.Failure(Cause.Die(acquireEx)))
   }
 
   private def ensuringSuccess = unsafeRun {
@@ -341,7 +377,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.reserve(Reservation(ZIO.effectTotal(retries += 1) *> {
       if (retries == 3) ZIO.unit else ZIO.fail(())
-    }, ZIO.unit))
+    }, _ => ZIO.unit))
 
     unsafeRun(managed.retry(Schedule.recurs(3)).use(_ => ZIO.unit))
     retries must be_===(3)
@@ -357,7 +393,10 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
         if (retries1 < 3) ZIO.fail(())
         else
           ZIO.succeed {
-            Reservation(ZIO.effectTotal(retries2 += 1) *> { if (retries2 == 3) ZIO.unit else ZIO.fail(()) }, ZIO.unit)
+            Reservation(
+              ZIO.effectTotal(retries2 += 1) *> { if (retries2 == 3) ZIO.unit else ZIO.fail(()) },
+              _ => ZIO.unit
+            )
           }
       }
 
@@ -372,7 +411,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       for {
         latch  <- Promise.make[Nothing, Unit]
         first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
-        second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), ZIO.unit))
+        second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
         _      <- first.zipPar(second).use_(ZIO.unit)
       } yield ()
     } must be_===(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.Interrupt)))
@@ -390,7 +429,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def zipParFailAcquisitionRelease = {
     var releases = 0
     val first    = ZManaged.unit
-    val second   = ZManaged.reserve(Reservation(ZIO.fail(()), ZIO.effectTotal(releases += 1)))
+    val second   = ZManaged.reserve(Reservation(ZIO.fail(()), _ => ZIO.effectTotal(releases += 1)))
 
     unsafeRunSync(first.zipPar(second).use(_ => ZIO.unit))
     releases must be_===(1)
@@ -401,7 +440,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       for {
         reserveLatch <- Promise.make[Nothing, Unit]
         releases     <- Ref.make[Int](0)
-        first        = ZManaged.reserve(Reservation(reserveLatch.succeed(()), releases.update(_ + 1)))
+        first        = ZManaged.reserve(Reservation(reserveLatch.succeed(()), _ => releases.update(_ + 1)))
         second       = ZManaged.fromEffect(reserveLatch.await *> ZIO.fail(()))
         _            <- first.zipPar(second).use_(ZIO.unit).orElse(ZIO.unit)
         count        <- releases.get
@@ -445,7 +484,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     unsafeRun {
       for {
         latch   <- Promise.make[Nothing, Unit]
-        managed = ZManaged.reserve(Reservation(latch.await, ZIO.unit))
+        managed = ZManaged.reserve(Reservation(latch.await, _ => ZIO.unit))
         res     <- managed.timeout(Duration.Zero).use(res => ZIO.succeed(res must_=== (None)))
         _       <- latch.succeed(())
       } yield res
@@ -456,7 +495,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       for {
         reserveLatch <- Promise.make[Nothing, Unit]
         releaseLatch <- Promise.make[Nothing, Unit]
-        managed      = ZManaged.reserve(Reservation(reserveLatch.await, releaseLatch.succeed(())))
+        managed      = ZManaged.reserve(Reservation(reserveLatch.await, _ => releaseLatch.succeed(())))
         res          <- managed.timeout(Duration.Zero).use(ZIO.succeed)
         _            <- reserveLatch.succeed(())
         _            <- releaseLatch.await
@@ -468,7 +507,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       for {
         acquireLatch <- Promise.make[Nothing, Unit]
         releaseLatch <- Promise.make[Nothing, Unit]
-        managed      = ZManaged(acquireLatch.await *> ZIO.succeed(Reservation(ZIO.unit, releaseLatch.succeed(()))))
+        managed      = ZManaged(acquireLatch.await *> ZIO.succeed(Reservation(ZIO.unit, _ => releaseLatch.succeed(()))))
         res          <- managed.timeout(Duration.Zero).use(ZIO.succeed)
         _            <- acquireLatch.succeed(())
         _            <- releaseLatch.await
@@ -477,7 +516,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   private def timed = {
     val managed = ZManaged(
-      clock.sleep(20.milliseconds) *> ZIO.succeed(Reservation(clock.sleep(20.milliseconds), ZIO.unit))
+      clock.sleep(20.milliseconds) *> ZIO.succeed(Reservation(clock.sleep(20.milliseconds), _ => ZIO.unit))
     )
     unsafeRun {
       managed.timed.use { case (duration, _) => ZIO.succeed(duration must be_>=(40.milliseconds)) }
@@ -601,7 +640,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       finalized <- Ref.make(false)
       latch     <- Promise.make[Nothing, Unit]
       _ <- ZManaged
-            .reserve(Reservation(latch.succeed(()) *> ZIO.never, finalized.set(true)))
+            .reserve(Reservation(latch.succeed(()) *> ZIO.never, _ => finalized.set(true)))
             .fork
             .use_(latch.await)
       result <- finalized.get
@@ -617,7 +656,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
               .reserve(
                 Reservation(
                   acquireLatch.succeed(()) *> ZIO.never,
-                  finalized.set(true)
+                  _ => finalized.set(true)
                 )
               )
               .fork
@@ -834,7 +873,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       effects      <- Ref.make(0)
       reserveLatch <- Promise.make[Nothing, Unit]
       baseRes = ZManaged.reserve(
-        Reservation(effects.update(_ + 1) *> ZIO.effectTotal(latch.countDown()) *> reserveLatch.await, ZIO.unit)
+        Reservation(effects.update(_ + 1) *> ZIO.effectTotal(latch.countDown()) *> reserveLatch.await, _ => ZIO.unit)
       )
       res   = f(baseRes)
       _     <- res.use_(ZIO.unit).fork *> ZIO.effectTotal(latch.await())

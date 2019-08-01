@@ -77,34 +77,3 @@ val combined: Managed[IOException, (Queue[Int], File)] = for {
 val usedCombinedRes: IO[IOException, Unit] = combined.use { case (queue, file) => doSomething(queue, file) }
 
 ```
-
-## Reservation
-
-Unlike `Managed`, `Reservation` does not bind `release` to `acquire` allowing interruptible resource acquisition. 
-
-```scala mdoc:invisible
-import java.io.{ File, IOException, InterruptedIOException }
-import scala.util.Try
-
-def openFile(name: String, p: Promise[IOException, File]): IO[IOException, File] = UIO.succeedLazy(new File(name))
-def closeFile(p: Promise[IOException, File]): UIO[Unit] = UIO.unit
-def readFile(file: File): IO[IOException, String] = IO.succeedLazy("Don't forget to clean up!")
-```
-
-```scala mdoc:silent
-import zio._
-```
-
-Whilst having more control, a concurrency primitive such as `Promise` may be needed to help properly manage resource state and clean up.
-
-```scala mdoc:silent
-val data: IO[IOException, String] = for {
-  p <- Promise.make[IOException,File]
-  res = Reservation(openFile("x", p), closeFile(p))
-  result <- (for {
-      fiber  <- res.acquire.fork
-      ex     <- fiber.interrupt
-      data   <- ex.toEither.fold(e => IO.fail(new InterruptedIOException("Stop!")), file => readFile(file))
-    } yield data).ensuring(res.release)
-} yield result
-```
