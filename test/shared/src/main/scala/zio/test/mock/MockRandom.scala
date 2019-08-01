@@ -31,7 +31,6 @@ object MockRandom {
 
   trait Service[R] extends Random.Service[R] {
     def setSeed(seed: Long): UIO[Unit]
-    def nextLong(n: Long): UIO[Long]
   }
 
   /**
@@ -121,21 +120,7 @@ object MockRandom {
       } yield ((i1.toLong << 32) + i2)
 
     def nextLong(n: Long): UIO[Long] =
-      if (n <= 0)
-        UIO.die(new IllegalArgumentException("n must be positive"))
-      else {
-        nextLong.flatMap { r =>
-          val m = n - 1
-          if ((n & m) == 0L)
-            UIO.succeed(r & m)
-          else {
-            def loop(u: Long): UIO[Long] =
-              if (u + m - u % m < 0L) nextLong.flatMap(r => loop(r >>> 1))
-              else UIO.succeed(u % n)
-            loop(r >>> 1)
-          }
-        }
-      }
+      Random.nextLongWith(nextLong, n)
 
     val nextPrintableChar: UIO[Char] =
       nextInt(127 - 33).map(i => (i + 33).toChar)
@@ -146,24 +131,7 @@ object MockRandom {
     }
 
     def shuffle[A](list: List[A]): UIO[List[A]] =
-      for {
-        bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
-        _         <- bufferRef.update(_ ++= list)
-        swap = (i1: Int, i2: Int) =>
-          bufferRef.update {
-            case buffer =>
-              val tmp = buffer(i1)
-              buffer(i1) = buffer(i2)
-              buffer(i2) = tmp
-              buffer
-          }
-        _ <- ZIO.traverse(list.length to 2 by -1) { n: Int =>
-              nextInt(n).flatMap { k =>
-                swap(n - 1, k)
-              }
-            }
-        buffer <- bufferRef.get
-      } yield buffer.toList
+      Random.shuffleWith(nextInt, list)
 
     def setSeed(seed: Long): UIO[Unit] =
       randomState.set {
