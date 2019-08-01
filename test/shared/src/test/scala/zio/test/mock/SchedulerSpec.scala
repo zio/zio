@@ -1,19 +1,19 @@
 package zio.test.mock
 
-import org.specs2.specification.core.SpecStructure
+import scala.Predef.{ assert => SAssert }
+
 import zio._
-import SchedulerSpec._
 import zio.clock.Clock
 import zio.duration._
 
-class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+object SchedulerSpec extends DefaultRuntime {
 
-  override def is: SpecStructure = "SchedulerSpec".title ^ s2"""
-    Scheduled tasks get executed $e1
-    Scheduled tasks only get executed when time has passed $e2
-    Scheduled tasks can be canceled $e3
-    Tasks that are cancelled after completion are not reported as interrupted $e4
-    """
+  def run(): Unit = {
+    SAssert(e1, "MockScheduler scheduled tasks get executed")
+    SAssert(e2, "MockScheduler scheduled tasks only get executed when time has passed")
+    SAssert(e3, "MockScheduler scheduled tasks can be canceled")
+    SAssert(e4, "MockScheduler tasks that are cancelled after completion are not reported as interrupted")
+  }
 
   def e1 =
     unsafeRun(
@@ -28,7 +28,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         _        <- clock.sleep(10.seconds)
         _        <- scheduler.safeShutdown()
         executed <- promise.poll.map(_.nonEmpty)
-      } yield executed must beTrue
+      } yield executed
     )
 
   def e2 =
@@ -44,7 +44,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         _        <- clock.sleep(10.seconds)
         _        <- scheduler.safeShutdown()
         executed <- promise.poll.map(_.nonEmpty)
-      } yield executed must beFalse
+      } yield !executed
     )
 
   def e3 =
@@ -61,7 +61,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         _        <- clock.sleep(10.seconds)
         _        <- scheduler.safeShutdown()
         executed <- promise.poll.map(_.nonEmpty)
-      } yield (!executed && canceled) must beTrue
+      } yield !executed && canceled
     )
 
   def e4 =
@@ -78,17 +78,12 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         _        <- scheduler.safeShutdown()
         canceled <- ZIO.effectTotal(cancel())
         executed <- promise.poll.map(_.nonEmpty)
-      } yield (executed && !canceled) must beTrue
+      } yield executed && !canceled
     )
-
-}
-
-object SchedulerSpec {
 
   def mkScheduler(runtime: Runtime[Clock]): UIO[(MockClock.Mock, MockScheduler)] =
     for {
       clock     <- MockClock.makeMock(MockClock.DefaultData)
       scheduler = MockScheduler(clock.clockState, runtime)
     } yield (clock, scheduler)
-
 }

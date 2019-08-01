@@ -1,5 +1,6 @@
 /*
  * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2014-2019 EPFL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +17,10 @@
 
 package zio.test.mock
 
-import zio._
+import scala.collection.immutable.Queue
+import scala.math.{ log, sqrt }
+
+import zio.{ Chunk, Ref, UIO, ZIO }
 import zio.random.Random
 
 trait MockRandom extends Random {
@@ -26,146 +30,141 @@ trait MockRandom extends Random {
 object MockRandom {
 
   trait Service[R] extends Random.Service[R] {
-    def feedInts(ints: Int*): UIO[Unit]
-    def feedBooleans(booleans: Boolean*): UIO[Unit]
-    def feedDoubles(doubles: Double*): UIO[Unit]
-    def feedFloats(floats: Float*): UIO[Unit]
-    def feedLongs(longs: Long*): UIO[Unit]
-    def feedChars(chars: Char*): UIO[Unit]
-    def feedStrings(strings: String*): UIO[Unit]
-    def feedBytes(bytes: Chunk[Byte]*): UIO[Unit]
-    def clearInts: UIO[Unit]
-    def clearBooleans: UIO[Unit]
-    def clearDoubles: UIO[Unit]
-    def clearFloats: UIO[Unit]
-    def clearLongs: UIO[Unit]
-    def clearChars: UIO[Unit]
-    def clearStrings: UIO[Unit]
-    def clearBytes: UIO[Unit]
+    def setSeed(seed: Long): UIO[Unit]
   }
 
-  case class Mock(randomState: Ref[MockRandom.Data]) extends MockRandom.Service[Any] {
+  /**
+   * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
+   */
+  case class Mock(randomState: Ref[Data]) extends MockRandom.Service[Any] {
 
-    val nextBoolean: UIO[Boolean] = nextRandom(shiftBooleans)
+    val nextBoolean: UIO[Boolean] =
+      next(1).map(_ != 0)
 
-    def nextBytes(length: Int): UIO[Chunk[Byte]] = nextRandom(shiftBytes(length))
-
-    val nextDouble: UIO[Double] = nextRandom(shiftDoubles)
-
-    val nextFloat: UIO[Float] = nextRandom(shiftFloats)
-
-    val nextGaussian: UIO[Double] = nextDouble
-
-    def nextInt(n: Int): UIO[Int] = nextRandom(shiftIntWithLimit(n))
-
-    val nextInt: UIO[Int] = nextRandom(shiftIntegers)
-
-    val nextLong: UIO[Long] = nextRandom(shiftLongs)
-
-    val nextPrintableChar: UIO[Char] = nextRandom(shiftChars)
-
-    def nextString(length: Int): UIO[String] = nextRandom(shiftStrings(length))
-
-    def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
-
-    def feedInts(ints: Int*): UIO[Unit] =
-      randomState.update(data => data.copy(integers = ints.toList ::: data.integers)).unit
-
-    def feedBooleans(booleans: Boolean*): UIO[Unit] =
-      randomState.update(data => data.copy(booleans = booleans.toList ::: data.booleans)).unit
-
-    def feedDoubles(doubles: Double*): UIO[Unit] =
-      randomState.update(data => data.copy(doubles = doubles.toList ::: data.doubles)).unit
-
-    def feedFloats(floats: Float*): UIO[Unit] =
-      randomState.update(data => data.copy(floats = floats.toList ::: data.floats)).unit
-
-    def feedLongs(longs: Long*): UIO[Unit] =
-      randomState.update(data => data.copy(longs = longs.toList ::: data.longs)).unit
-
-    def feedChars(chars: Char*): UIO[Unit] =
-      randomState.update(data => data.copy(chars = chars.toList ::: data.chars)).unit
-
-    def feedStrings(strings: String*): UIO[Unit] =
-      randomState.update(data => data.copy(strings = strings.toList ::: data.strings)).unit
-
-    def feedBytes(bytes: Chunk[Byte]*): UIO[Unit] =
-      randomState.update(data => data.copy(bytes = bytes.toList ::: data.bytes)).unit
-
-    val clearInts: UIO[Unit] =
-      randomState.update(data => data.copy(integers = List.empty)).unit
-
-    val clearBooleans: UIO[Unit] =
-      randomState.update(data => data.copy(booleans = List.empty)).unit
-
-    val clearDoubles: UIO[Unit] =
-      randomState.update(data => data.copy(doubles = List.empty)).unit
-
-    val clearFloats: UIO[Unit] =
-      randomState.update(data => data.copy(floats = List.empty)).unit
-
-    val clearLongs: UIO[Unit] =
-      randomState.update(data => data.copy(longs = List.empty)).unit
-
-    val clearChars: UIO[Unit] =
-      randomState.update(data => data.copy(chars = List.empty)).unit
-
-    val clearStrings: UIO[Unit] =
-      randomState.update(data => data.copy(strings = List.empty)).unit
-
-    val clearBytes: UIO[Unit] =
-      randomState.update(data => data.copy(bytes = List.empty)).unit
-
-    private def nextRandom[T](shift: Data => (T, Data)) =
+    val nextDouble: UIO[Double] =
       for {
-        data            <- randomState.get
-        (next, shifted) = shift(data)
-        _               <- randomState.update(_ => shifted)
-      } yield next
+        i1 <- next(26)
+        i2 <- next(27)
+      } yield ((i1.toDouble * (1L << 27).toDouble) + i2.toDouble) / (1L << 53).toDouble
 
-    private def shiftBooleans(data: Data) =
-      (
-        data.booleans.headOption.fold(MockRandom.defaultBoolean)(identity),
-        data.copy(booleans = shiftLeft(data.booleans))
-      )
+    def nextBytes(length: Int): UIO[Chunk[Byte]] = {
+      //  Our RNG generates 32 bit integers so to maximize efficieny we want to
+      //  pull 8 bit bytes from the current integer until it is exhausted
+      //  before generating another random integer
+      def loop(i: Int, rnd: UIO[Int], n: Int, acc: UIO[List[Byte]]): UIO[List[Byte]] =
+        if (i == length)
+          acc.map(_.reverse)
+        else if (n > 0)
+          rnd.flatMap(rnd => loop(i + 1, UIO.succeed(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
+        else
+          loop(i, nextInt, (length - i) min 4, acc)
 
-    private def shiftIntegers(data: Data) =
-      (
-        data.integers.headOption.fold(MockRandom.defaultInteger)(identity),
-        data.copy(integers = shiftLeft(data.integers))
-      )
-
-    private def shiftIntWithLimit(limit: Int)(data: Data) = {
-      val next = data.integers.headOption.fold(MockRandom.defaultInteger)(identity)
-      (Math.min(limit, next), data.copy(integers = shiftLeft(data.integers)))
+      loop(0, nextInt, length min 4, UIO.succeed(List.empty[Byte])).map(Chunk.fromIterable)
     }
 
-    private def shiftDoubles(data: Data) =
-      (data.doubles.headOption.fold(MockRandom.defaultDouble)(identity), data.copy(doubles = shiftLeft(data.doubles)))
+    val nextFloat: UIO[Float] =
+      next(24).map(i => (i.toDouble / (1 << 24).toDouble).toFloat)
 
-    private def shiftFloats(data: Data) =
-      (data.floats.headOption.fold(MockRandom.defaultFloat)(identity), data.copy(floats = shiftLeft(data.floats)))
+    val nextGaussian: UIO[Double] =
+      //  The Box-Muller transform generates two normally distributed random
+      //  doubles, so we store the second double in a queue and check the
+      //  queue before computing a new pair of values to avoid wasted work.
+      randomState.modify {
+        case Data(seed1, seed2, queue) =>
+          queue.dequeueOption.fold { (Option.empty[Double], Data(seed1, seed2, queue)) } {
+            case (d, queue) => (Some(d), Data(seed1, seed2, queue))
+          }
+      }.flatMap {
+        case Some(nextNextGaussian) => UIO.succeed(nextNextGaussian)
+        case None =>
+          def loop: UIO[(Double, Double, Double)] =
+            nextDouble.zip(nextDouble).flatMap {
+              case (d1, d2) =>
+                val x      = 2 * d1 - 1
+                val y      = 2 * d2 - 1
+                val radius = x * x + y * y
+                if (radius >= 1 || radius == 0) loop else UIO.succeed((x, y, radius))
+            }
+          loop.flatMap {
+            case (x, y, radius) =>
+              val c = sqrt(-2 * log(radius) / radius)
+              randomState.modify {
+                case Data(seed1, seed2, queue) =>
+                  (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
+              }
+          }
+      }
 
-    private def shiftLongs(data: Data) =
-      (data.longs.headOption.fold(MockRandom.defaultLong)(identity), data.copy(longs = shiftLeft(data.longs)))
+    val nextInt: UIO[Int] =
+      next(32)
 
-    private def shiftChars(data: Data) =
-      (data.chars.headOption.fold(MockRandom.defaultChar)(identity), data.copy(chars = shiftLeft(data.chars)))
+    def nextInt(n: Int): UIO[Int] =
+      if (n <= 0)
+        UIO.die(new IllegalArgumentException("n must be positive"))
+      else if ((n & -n) == n)
+        next(31).map(_ >> Integer.numberOfLeadingZeros(n))
+      else {
+        def loop: UIO[Int] =
+          next(31).flatMap { i =>
+            val value = i % n
+            if (i - value + (n - 1) < 0) loop
+            else UIO.succeed(value)
+          }
+        loop
+      }
 
-    private def shiftStrings(length: Int)(data: Data) = {
-      val next = data.strings.headOption.fold(MockRandom.defaultString)(identity)
-      (next.substring(0, Math.min(length, next.length)), data.copy(strings = shiftLeft(data.strings)))
+    val nextLong: UIO[Long] =
+      for {
+        i1 <- next(32)
+        i2 <- next(32)
+      } yield ((i1.toLong << 32) + i2)
+
+    def nextLong(n: Long): UIO[Long] =
+      Random.nextLongWith(nextLong, n)
+
+    val nextPrintableChar: UIO[Char] =
+      nextInt(127 - 33).map(i => (i + 33).toChar)
+
+    def nextString(length: Int): UIO[String] = {
+      val safeChar = nextInt(0xD800 - 1).map(i => (i + 1).toChar)
+      UIO.collectAll(List.fill(length)(safeChar)).map(_.mkString)
     }
 
-    private def shiftBytes(length: Int)(data: Data) = {
-      val next = data.bytes.headOption.fold(MockRandom.defaultBytes)(identity)
-      (next.take(length), data.copy(bytes = shiftLeft(data.bytes)))
-    }
+    def shuffle[A](list: List[A]): UIO[List[A]] =
+      Random.shuffleWith(nextInt, list)
 
-    private def shiftLeft[T](l: List[T]): List[T] = l match {
-      case x :: xs => xs :+ x
-      case _       => l
-    }
+    def setSeed(seed: Long): UIO[Unit] =
+      randomState.set {
+        val newSeed = (seed ^ 0X5DEECE66DL) & ((1L << 48) - 1)
+        val seed1   = (newSeed >>> 24).toInt
+        val seed2   = newSeed.toInt & ((1 << 24) - 1)
+        Data(seed1, seed2, Queue.empty)
+      }
+
+    private def next(bits: Int): UIO[Int] =
+      randomState.modify { data =>
+        val multiplier  = 0X5DEECE66DL
+        val multiplier1 = (multiplier >>> 24).toInt
+        val multiplier2 = multiplier.toInt & ((1 << 24) - 1)
+        val product1    = data.seed2.toDouble * multiplier1.toDouble + data.seed1.toDouble * multiplier2.toDouble
+        val product2    = data.seed2.toDouble * multiplier2.toDouble + 0xB
+        val newSeed1    = (mostSignificantBits(product2) + leastSignificantBits(product1)) & ((1 << 24) - 1)
+        val newSeed2    = leastSignificantBits(product2)
+        val result      = (newSeed1 << 8) | (newSeed2 >> 16)
+        (result >>> (32 - bits), Data(newSeed1, newSeed2, data.nextNextGaussians))
+      }
+
+    @inline
+    private def mostSignificantBits(x: Double): Int =
+      toInt((x / (1 << 24).toDouble))
+
+    @inline
+    private def leastSignificantBits(x: Double): Int =
+      toInt(x) & ((1 << 24) - 1)
+
+    @inline
+    private def toInt(x: Double): Int =
+      (x.asInstanceOf[Long] | 0.asInstanceOf[Long]).asInstanceOf[Int]
   }
 
   def make(data: Data): UIO[MockRandom] =
@@ -178,90 +177,17 @@ object MockRandom {
   def makeMock(data: Data): UIO[Mock] =
     Ref.make(data).map(Mock(_))
 
-  def feedInts(ints: Int*): ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedInts(ints: _*))
+  def setSeed(seed: Long): ZIO[MockRandom, Nothing, Unit] =
+    ZIO.accessM(_.random.setSeed(seed))
 
-  def feedBooleans(booleans: Boolean*): ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedBooleans(booleans: _*))
+  def nextLong(n: Long): ZIO[MockRandom, Nothing, Long] =
+    ZIO.accessM(_.random.nextLong(n))
 
-  def feedDoubles(doubles: Double*): ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedDoubles(doubles: _*))
-
-  def feedFloats(floats: Float*): ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedFloats(floats: _*))
-
-  def feedLongs(longs: Long*): ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedLongs(longs: _*))
-
-  def feedChars(chars: Char*): ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedChars(chars: _*))
-
-  def feedStrings(strings: String*): ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedStrings(strings: _*))
-
-  def feedBytes(bytes: Chunk[Byte]*): ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedBytes(bytes: _*))
-
-  val clearInts: ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearInts)
-
-  val clearBooleans: ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearBooleans)
-
-  val clearDoubles: ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearDoubles)
-
-  val clearFloats: ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearFloats)
-
-  val clearLongs: ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearLongs)
-
-  val clearChars: ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearChars)
-
-  val clearStrings: ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearStrings)
-
-  val clearBytes: ZIO[MockRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearBytes)
-
-  val defaultInteger = 1
-  val randomIntegers = defaultInteger :: 2 :: 3 :: 4 :: 5 :: Nil
-  val defaultBoolean = true
-  val randomBooleans = defaultBoolean :: false :: Nil
-  val defaultDouble  = (defaultInteger / 10).toDouble
-  val randomDoubles  = randomIntegers.map(_.toDouble / 10)
-  val defaultFloat   = (defaultInteger / 10).toFloat
-  val randomFloats   = randomIntegers.map(_.toFloat / 10)
-  val defaultLong    = defaultInteger.toLong
-  val randomLongs    = randomIntegers.map(_.toLong)
-  val defaultChar    = 'a'
-  val randomChars    = defaultChar :: 'b' :: 'c' :: 'd' :: 'e' :: Nil
-  val defaultString  = defaultChar.toString
-  val randomStrings  = randomChars.map(_.toString)
-  val defaultBytes   = Chunk(defaultInteger.toByte)
-  val randomBytes    = randomIntegers.map(i => Chunk(i.toByte))
-
-  val DefaultData: Data = Data(
-    randomIntegers,
-    randomBooleans,
-    randomDoubles,
-    randomFloats,
-    randomLongs,
-    randomChars,
-    randomStrings,
-    randomBytes
-  )
+  val DefaultData: Data = Data(1071905196, 1911589680)
 
   final case class Data(
-    integers: List[Int] = randomIntegers,
-    booleans: List[Boolean] = randomBooleans,
-    doubles: List[Double] = randomDoubles,
-    floats: List[Float] = randomFloats,
-    longs: List[Long] = randomLongs,
-    chars: List[Char] = randomChars,
-    strings: List[String] = randomStrings,
-    bytes: List[Chunk[Byte]] = randomBytes
+    seed1: Int,
+    seed2: Int,
+    private[MockRandom] val nextNextGaussians: Queue[Double] = Queue.empty
   )
 }

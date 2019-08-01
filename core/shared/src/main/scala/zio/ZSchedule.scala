@@ -593,6 +593,26 @@ object ZSchedule {
   final def collectAll[A]: Schedule[A, List[A]] = identity[A].collectAll
 
   /**
+   * A schedule that recurs as long as the condition f holds, collecting all inputs into a list.
+   */
+  final def collectWhile[A](f: A => Boolean): Schedule[A, List[A]] = this.doWhile(f).collectAll
+
+  /**
+   * A schedule that recurs as long as the effectful condition holds, collecting all inputs into a list.
+   */
+  final def collectWhileM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = this.doWhileM(f).collectAll
+
+  /**
+   * A schedule that recurs until the condition f failes, collecting all inputs into a list.
+   */
+  final def collectUntil[A](f: A => Boolean): Schedule[A, List[A]] = this.doUntil(f).collectAll
+
+  /**
+   * A schedule that recurs until the effectful condition f failes, collecting all inputs into a list.
+   */
+  final def collectUntilM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = this.doUntilM(f).collectAll
+
+  /**
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */

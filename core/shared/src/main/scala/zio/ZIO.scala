@@ -257,6 +257,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
+   * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
+   */
+  final def eventually: ZIO[R, Nothing, A] = self orElse eventually
+
+  /**
    * Applies `f` if the predicate fails.
    */
   final def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
@@ -1548,7 +1553,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * Unlike `foreachAllPar`, this method will use at most `n` fibers.
    */
-  final def collectAllParN[R, E, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+  final def collectAllParN[R, E, A](n: Int)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
 
   /**
@@ -1789,7 +1794,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    */
   final def foreachParN[R, E, A, B](
-    n: Long
+    n: Int
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     Queue
       .bounded[(Promise[E, B], A)](n.toInt)
@@ -1812,10 +1817,10 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
   final def foreachParN_[R, E, A](
-    n: Long
+    n: Int
   )(as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     Semaphore
-      .make(n)
+      .make(n.toLong)
       .flatMap { semaphore =>
         ZIO.foreachPar_(as) { a =>
           semaphore.withPermit(f(a))
@@ -2101,7 +2106,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    *  Alias for [[ZIO.collectAllParN]]
    */
-  final def sequenceParN[R, E, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+  final def sequenceParN[R, E, A](n: Int)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     collectAllParN[R, E, A](n)(as)
 
   /**
@@ -2203,7 +2208,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Alias for [[ZIO.foreachParN]]
    */
   final def traverseParN[R, E, A, B](
-    n: Long
+    n: Int
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreachParN[R, E, A, B](n)(as)(fn)
 
@@ -2211,7 +2216,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Alias for [[ZIO.foreachParN_]]
    */
   final def traverseParN_[R, E, A](
-    n: Long
+    n: Int
   )(as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     foreachParN_[R, E, A](n)(as)(f)
 

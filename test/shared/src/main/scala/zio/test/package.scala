@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stream.{ ZSink, ZStream }
+
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
  *
@@ -40,25 +42,34 @@ package zio
  * }}}
  */
 package object test {
-  type PredicateResult = AssertResult[PredicateValue]
-  type TestResult      = AssertResult[FailureDetails]
-
-  type ExecutedSpec[+L] = Spec[TestResult, L]
+  type PredicateResult = Assertion[PredicateValue]
+  type TestResult      = Assertion[FailureDetails]
 
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
   /**
+   * A `ZTest[R, E]` is an effectfully produced test that requires an `R`
+   * and may fail with an `E`.
+   */
+  type ZTest[-R, +E] = ZIO[R, E, TestResult]
+
+  /**
    * A `ZSpec[R, E, L]` is the canonical spec for testing ZIO programs. The
    * spec's test type is a ZIO effect that requires an `R`, might fail with
-   * an `E`, might succeed with a `TestResulot`, and whose nodes are
+   * an `E`, might succeed with a `TestResult`, and whose nodes are
    * annotated with labels `L`.
    */
-  type ZSpec[-R, +E, +L] = Spec[ZIO[R, E, TestResult], L]
+  type ZSpec[-R, +E, +L] = Spec[L, ZTest[R, E]]
+
+  /**
+   * An `ExecutedSpec` is a spec that has been run to produce test rresults.
+   */
+  type ExecutedSpec[+L] = Spec[L, TestResult]
 
   /**
    * Asserts the given value satisfies the given predicate.
    */
-  final def assert[A](value: A, predicate: Predicate[A]): TestResult =
+  final def assert[A](value: => A, predicate: Predicate[A]): TestResult =
     predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
 
   /**
@@ -68,14 +79,34 @@ package object test {
     value.map(assert(_, predicate))
 
   /**
+   * Checks the predicate holds for "sufficient" numbers of samples from the
+   * given random variable.
+   */
+  final def check[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+    checkSome(200)(rv)(predicate)
+
+  /**
+   * Checks the predicate holds for all values from the given random variable.
+   */
+  final def checkAll[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+    checkStream(rv.sample)(predicate)
+
+  /**
+   * Checks the predicate holds for the specified number of samples from the
+   * given random variable.
+   */
+  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+    checkStream(rv.sample.forever.take(n))(predicate)
+
+  /**
    * Creates a failed test result with the specified runtime cause.
    */
-  def fail[E](cause: Cause[E]): TestResult = AssertResult.failure(FailureDetails.Runtime(cause))
+  final def fail[E](cause: Cause[E]): TestResult = Assertion.failure(FailureDetails.Runtime(cause))
 
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = Spec.Suite(label, specs.toVector)
+  final def suite[L, T](label: L)(specs: Spec[L, T]*): Spec[L, T] = Spec.suite(label, specs.toVector, None)
 
   /**
    * Builds a spec with a single pure test.
@@ -86,5 +117,47 @@ package object test {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = Spec.Test(label, assertion)
+  final def testM[L, T](label: L)(assertion: T): Spec[L, T] = Spec.test(label, assertion)
+
+  /**
+   * Adds syntax for adding aspects.
+   * {{{
+   * test("foo") { assert(42, equals(42)) } @@ ignore
+   * }}}
+   */
+  implicit class ZSpecSyntax[R, E, L](spec: ZSpec[R, E, L]) {
+    def @@[LowerR <: R, UpperR >: R, LowerE <: E, UpperE >: E](
+      aspect: TestAspect[LowerR, UpperR, LowerE, UpperE]
+    ): ZSpec[R, E, L] =
+      aspect(spec)
+  }
+
+  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], shrinkSearch: Int = 1000)(
+    predicate: Predicate[A]
+  ): ZIO[R, Nothing, TestResult] = {
+    def checkValue(value: A): TestResult =
+      predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
+
+    stream.map { sample: Sample[R, A] =>
+      (checkValue(sample.value), sample.shrink)
+    }.dropWhile(v => !v._1.failure) // Drop until we get to a failure
+      .collect {
+        case ((failure @ Assertion.Failure(_), shrink)) => (failure, shrink)
+      }        // Collect the failures and their shrinkers
+      .take(1) // Get the first failure
+      .flatMap {
+        case (failure, shrink) =>
+          ZStream(failure) ++ shrink
+            .map(checkValue)
+            .collect {
+              case failure @ Assertion.Failure(_) => failure
+            }
+            .take(shrinkSearch)
+      }
+      .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
+      .map { failures =>
+        // Get the "last" failure, the smallest according to the shrinker:
+        failures.reverse.headOption.fold[TestResult](Assertion.Success)(identity)
+      }
+  }
 }
