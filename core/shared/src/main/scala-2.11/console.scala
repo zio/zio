@@ -20,7 +20,7 @@ import java.io.IOException
 
 // This cannot extend Console.Service[Console] because of Scala 2.11 support
 package object console {
-  final val consoleService: ZIO[Console, Nothing, Console.Service[Any]] =
+  final val consoleService: ZIO[Console, Nothing, Console.Service] =
     ZIO.access(_.console)
 
   /**
