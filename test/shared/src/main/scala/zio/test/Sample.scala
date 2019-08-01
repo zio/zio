@@ -36,5 +36,5 @@ object Sample {
   /**
    * A sample without shrinking.
    */
-  def apply[A](a: => A): Sample[Any, A] = Sample(a, ZStream.empty)
+  def noShrink[A](a: => A): Sample[Any, A] = Sample(a, ZStream.empty)
 }

@@ -42,7 +42,7 @@ object Gen {
   /**
    * A constant generator of the specified value.
    */
-  final def const[A](a: => A): Gen[Any, A] = Gen(ZStream.succeedLazy(Sample(a)))
+  final def const[A](a: => A): Gen[Any, A] = Gen(ZStream.succeedLazy(Sample.noShrink(a)))
 
   /**
    * A constant generator of the specified sample.
@@ -64,7 +64,8 @@ object Gen {
     Gen(ZStream.fromIterable(as).map(a => Sample(a, shrinker(a))))
 
   /**
-   * A generator of integral values inside the specified range: [start, end)
+   * A generator of integral values inside the specified range: [start, end).
+   * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   final def integral[A](range: Range)(implicit I: Integral[A]): Gen[Random, A] =
     fromEffect(
@@ -81,6 +82,8 @@ object Gen {
 
   /**
    * A generator of uniformly distributed doubles between [0, 1].
+   *
+   * TODO: Make Shrinker go toward `0`
    */
-  final def uniform: Gen[Random, Double] = Gen(ZStream.fromEffect(nextDouble.map(Sample(_))))
+  final def uniform: Gen[Random, Double] = Gen(ZStream.fromEffect(nextDouble.map(Sample.noShrink(_))))
 }
