@@ -83,7 +83,7 @@ object Random extends Serializable {
       buffer <- bufferRef.get
     } yield buffer.toList
 
-  def nextLongWith(nextLong: UIO[Long], n: Long): UIO[Long] =
+  protected[zio] def nextLongWith(nextLong: UIO[Long], n: Long): UIO[Long] =
     if (n <= 0)
       UIO.die(new IllegalArgumentException("n must be positive"))
     else {
