@@ -77,6 +77,13 @@ object Gen {
     Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random)).map(Sample.noShrink(_))))
 
   /**
+   * Constructs a generator from a function that uses randomness to produce a
+   * sample.
+   */
+  final def fromRandomSample[R <: Random, A](f: Random.Service[Any] => UIO[Sample[R, A]]): Gen[R, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random))))
+
+  /**
    * A generator of integral values inside the specified range: [start, end).
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
