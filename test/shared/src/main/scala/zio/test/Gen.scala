@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.ZIO
+import zio.{ UIO, ZIO }
 import zio.random._
 import zio.stream.ZStream
 
@@ -42,17 +42,23 @@ object Gen {
   /**
    * A constant generator of the specified value.
    */
-  final def const[A](a: => A): Gen[Any, A] = Gen(ZStream.succeedLazy(Sample(a)))
+  final def const[A](a: => A): Gen[Any, A] = Gen(ZStream.succeedLazy(Sample.noShrink(a)))
 
   /**
    * A constant generator of the specified sample.
    */
-  final def constSample[R, A](sample: => Sample[R, A]): Gen[R, A] = fromEffect(ZIO.succeedLazy(sample))
+  final def constSample[R, A](sample: => Sample[R, A]): Gen[R, A] = fromEffectSample(ZIO.succeedLazy(sample))
+
+  /**
+   * Constructs a generator from an effect that constructs a value.
+   */
+  final def fromEffect[R, A](effect: ZIO[R, Nothing, A]): Gen[R, A] =
+    Gen(ZStream.fromEffect(effect.map(Sample.noShrink(_))))
 
   /**
    * Constructs a generator from an effect that constructs a sample.
    */
-  final def fromEffect[R, A](effect: ZIO[R, Nothing, Sample[R, A]]): Gen[R, A] = Gen(ZStream.fromEffect(effect))
+  final def fromEffectSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]]): Gen[R, A] = Gen(ZStream.fromEffect(effect))
 
   /**
    * Constructs a deterministic generator that only generates the specified fixed values.
@@ -64,10 +70,25 @@ object Gen {
     Gen(ZStream.fromIterable(as).map(a => Sample(a, shrinker(a))))
 
   /**
-   * A generator of integral values inside the specified range: [start, end)
+   * Constructs a generator from a function that uses randomness. The returned
+   * generator will not have any shrinking.
+   */
+  final def fromRandom[A](f: Random.Service[Any] => UIO[A]): Gen[Random, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random)).map(Sample.noShrink(_))))
+
+  /**
+   * Constructs a generator from a function that uses randomness to produce a
+   * sample.
+   */
+  final def fromRandomSample[R <: Random, A](f: Random.Service[Any] => UIO[Sample[R, A]]): Gen[R, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random))))
+
+  /**
+   * A generator of integral values inside the specified range: [start, end).
+   * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   final def integral[A](range: Range)(implicit I: Integral[A]): Gen[Random, A] =
-    fromEffect(
+    fromEffectSample(
       nextInt(range.end - range.start)
         .map(r => I.fromInt(r + range.start))
         .map(int => Sample(int, ZStream.fromIterable(range.drop(1).reverse).map(I.fromInt(_))))
@@ -81,6 +102,8 @@ object Gen {
 
   /**
    * A generator of uniformly distributed doubles between [0, 1].
+   *
+   * TODO: Make Shrinker go toward `0`
    */
-  final def uniform: Gen[Random, Double] = Gen(ZStream.fromEffect(nextDouble.map(Sample(_))))
+  final def uniform: Gen[Random, Double] = Gen(ZStream.fromEffect(nextDouble.map(Sample.noShrink(_))))
 }
