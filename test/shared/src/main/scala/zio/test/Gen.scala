@@ -61,13 +61,6 @@ object Gen {
   final def fromEffectSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]]): Gen[R, A] = Gen(ZStream.fromEffect(effect))
 
   /**
-   * Constructs a generator from a function that uses randomness. The returned
-   * generator will not have any shrinking.
-   */
-  final def fromRandom[A](f: Random.Service[Any] => UIO[A]): Gen[Random, A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random)).map(Sample.noShrink(_))))
-
-  /**
    * Constructs a deterministic generator that only generates the specified fixed values.
    */
   final def fromIterable[R, A](
@@ -75,6 +68,13 @@ object Gen {
     shrinker: (A => ZStream[R, Nothing, A]) = (_: A) => ZStream.empty
   ): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample(a, shrinker(a))))
+
+  /**
+   * Constructs a generator from a function that uses randomness. The returned
+   * generator will not have any shrinking.
+   */
+  final def fromRandom[A](f: Random.Service[Any] => UIO[A]): Gen[Random, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random)).map(Sample.noShrink(_))))
 
   /**
    * A generator of integral values inside the specified range: [start, end).
