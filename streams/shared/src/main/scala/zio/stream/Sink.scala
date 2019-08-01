@@ -137,7 +137,7 @@ object Sink {
   /**
    * see [[ZSink.identity]]
    */
-  final def identity[A]: Sink[Unit, A, A, A] =
+  final def identity[A]: Sink[Unit, Nothing, A, A] =
     ZSink.identity
 
   /**
