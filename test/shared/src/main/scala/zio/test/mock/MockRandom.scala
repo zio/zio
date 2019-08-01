@@ -1,5 +1,6 @@
 /*
  * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2014-2019 EPFL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,8 +34,10 @@ object MockRandom {
     def nextLong(n: Long): UIO[Long]
   }
 
+  /**
+   * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
+   */
   case class Mock(randomState: Ref[Data]) extends MockRandom.Service[Any] {
-    import Mock._
 
     val nextBoolean: UIO[Boolean] =
       next(1).map(_ != 0)
@@ -43,7 +46,7 @@ object MockRandom {
       for {
         i1 <- next(26)
         i2 <- next(27)
-      } yield ((i1.toLong << 27) + i2) / (1L << 53).toDouble
+      } yield ((i1.toDouble * (1L << 27).toDouble) + i2.toDouble) / (1L << 53).toDouble
 
     def nextBytes(length: Int): UIO[Chunk[Byte]] = {
       //  Our RNG generates 32 bit integers so to maximize efficieny we want to
@@ -61,16 +64,16 @@ object MockRandom {
     }
 
     val nextFloat: UIO[Float] =
-      next(24).map(_ / (1 << 24).toFloat)
+      next(24).map(i => (i.toDouble / (1 << 24).toDouble).toFloat)
 
     val nextGaussian: UIO[Double] =
       //  The Box-Muller transform generates two normally distributed random
       //  doubles, so we store the second double in a queue and check the
       //  queue before computing a new pair of values to avoid wasted work.
       randomState.modify {
-        case Data(seed, queue) =>
-          queue.dequeueOption.fold { (Option.empty[Double], Data(seed, queue)) } {
-            case (d, queue) => (Some(d), Data(seed, queue))
+        case Data(seed1, seed2, queue) =>
+          queue.dequeueOption.fold { (Option.empty[Double], Data(seed1, seed2, queue)) } {
+            case (d, queue) => (Some(d), Data(seed1, seed2, queue))
           }
       }.flatMap {
         case Some(nextNextGaussian) => UIO.succeed(nextNextGaussian)
@@ -78,17 +81,17 @@ object MockRandom {
           def loop: UIO[(Double, Double, Double)] =
             nextDouble.zip(nextDouble).flatMap {
               case (d1, d2) =>
-                val v1 = 2 * d1 - 1
-                val v2 = 2 * d2 - 1
-                val s  = v1 * v1 + v2 * v2
-                if (s >= 1 || s == 0) loop else UIO.succeed((v1, v2, s))
+                val x      = 2 * d1 - 1
+                val y      = 2 * d2 - 1
+                val radius = x * x + y * y
+                if (radius >= 1 || radius == 0) loop else UIO.succeed((x, y, radius))
             }
           loop.flatMap {
-            case (v1, v2, s) =>
-              val multiplier = sqrt(-2 * log(s) / s)
+            case (x, y, radius) =>
+              val c = sqrt(-2 * log(radius) / radius)
               randomState.modify {
-                case Data(seed, queue) =>
-                  (v1 * multiplier, Data(seed, queue.enqueue(v2 * multiplier)))
+                case Data(seed1, seed2, queue) =>
+                  (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
               }
           }
       }
@@ -98,14 +101,14 @@ object MockRandom {
 
     def nextInt(n: Int): UIO[Int] =
       if (n <= 0)
-        UIO.die(new IllegalArgumentException("bound must be positive"))
+        UIO.die(new IllegalArgumentException("n must be positive"))
       else if ((n & -n) == n)
-        next(31).map(x => (n * x.toLong >> 31).toInt)
+        next(31).map(_ >> Integer.numberOfLeadingZeros(n))
       else {
         def loop: UIO[Int] =
           next(31).flatMap { i =>
             val value = i % n
-            if (i - value + n - 1 < 0) loop
+            if (i - value + (n - 1) < 0) loop
             else UIO.succeed(value)
           }
         loop
@@ -119,7 +122,7 @@ object MockRandom {
 
     def nextLong(n: Long): UIO[Long] =
       if (n <= 0)
-        UIO.die(new IllegalArgumentException("bound must be positive"))
+        UIO.die(new IllegalArgumentException("n must be positive"))
       else {
         nextLong.flatMap { r =>
           val m = n - 1
@@ -163,24 +166,37 @@ object MockRandom {
       } yield buffer.toList
 
     def setSeed(seed: Long): UIO[Unit] =
-      randomState.set(Data(initialScramble(seed), Queue.empty))
+      randomState.set {
+        val newSeed = (seed ^ 0X5DEECE66DL) & ((1L << 48) - 1)
+        val seed1   = (newSeed >>> 24).toInt
+        val seed2   = newSeed.toInt & ((1 << 24) - 1)
+        Data(seed1, seed2, Queue.empty)
+      }
 
     private def next(bits: Int): UIO[Int] =
       randomState.modify { data =>
-        val newSeed = (data.seed * multiplier + addend) & mask
-        val newData = Data(newSeed)
-        val n       = (newSeed >>> (48 - bits)).toInt
-        (n, newData)
+        val multiplier  = 0X5DEECE66DL
+        val multiplier1 = (multiplier >>> 24).toInt
+        val multiplier2 = multiplier.toInt & ((1 << 24) - 1)
+        val product1    = data.seed2.toDouble * multiplier1.toDouble + data.seed1.toDouble * multiplier2.toDouble
+        val product2    = data.seed2.toDouble * multiplier2.toDouble + 0xB
+        val newSeed1    = (mostSignificantBits(product2) + leastSignificantBits(product1)) & ((1 << 24) - 1)
+        val newSeed2    = leastSignificantBits(product2)
+        val result      = (newSeed1 << 8) | (newSeed2 >> 16)
+        (result >>> (32 - bits), Data(newSeed1, newSeed2, data.nextNextGaussians))
       }
-  }
 
-  object Mock {
-    private val multiplier = 0X5DEECE66DL
-    private val addend     = 0XBL
-    private val mask       = (1L << 48) - 1
+    @inline
+    private def mostSignificantBits(x: Double): Int =
+      toInt((x / (1 << 24).toDouble))
 
-    private[MockRandom] def initialScramble(seed: Long): Long =
-      (seed ^ multiplier) & mask
+    @inline
+    private def leastSignificantBits(x: Double): Int =
+      toInt(x) & ((1 << 24) - 1)
+
+    @inline
+    private def toInt(x: Double): Int =
+      (x.asInstanceOf[Long] | 0.asInstanceOf[Long]).asInstanceOf[Int]
   }
 
   def make(data: Data): UIO[MockRandom] =
@@ -191,7 +207,7 @@ object MockRandom {
     }
 
   def makeMock(data: Data): UIO[Mock] =
-    Ref.make(data.copy(Mock.initialScramble(data.seed))).map(Mock(_))
+    Ref.make(data).map(Mock(_))
 
   def setSeed(seed: Long): ZIO[MockRandom, Nothing, Unit] =
     ZIO.accessM(_.random.setSeed(seed))
@@ -199,10 +215,11 @@ object MockRandom {
   def nextLong(n: Long): ZIO[MockRandom, Nothing, Long] =
     ZIO.accessM(_.random.nextLong(n))
 
-  val DefaultData: Data = Data(7505117374955035541L)
+  val DefaultData: Data = Data(1071905196, 1911589680)
 
   final case class Data(
-    seed: Long,
+    seed1: Int,
+    seed2: Int,
     private[MockRandom] val nextNextGaussians: Queue[Double] = Queue.empty
   )
 }

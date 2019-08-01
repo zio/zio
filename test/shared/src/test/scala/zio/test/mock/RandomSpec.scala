@@ -6,7 +6,7 @@ import scala.Predef.{ assert => SAssert, _ }
 import scala.util.{ Random => SRandom }
 
 import zio.{ Chunk, DefaultRuntime, UIO }
-import zio.test.mock.MockRandom.{ Data, Mock }
+import zio.test.mock.MockRandom.{ DefaultData, Mock }
 
 object RandomSpec extends DefaultRuntime {
 
@@ -30,8 +30,7 @@ object RandomSpec extends DefaultRuntime {
   }
 
   def referentiallyTransparent: Boolean = {
-    val seed = SRandom.nextLong()
-    val mock = MockRandom.makeMock(Data(seed))
+    val mock = MockRandom.makeMock(DefaultData)
     val x    = unsafeRun(mock.flatMap[Any, Nothing, Int](_.nextInt))
     val y    = unsafeRun(mock.flatMap[Any, Nothing, Int](_.nextInt))
     x == y
@@ -42,7 +41,8 @@ object RandomSpec extends DefaultRuntime {
     val sRandom = new SRandom(seed)
     unsafeRun {
       for {
-        mockRandom <- MockRandom.makeMock(Data(seed))
+        mockRandom <- MockRandom.makeMock(DefaultData)
+        _          <- mockRandom.setSeed(seed)
         actual     <- UIO.foreach(List.fill(100)(()))(_ => f(mockRandom))
         expected   = List.fill(100)(g(sRandom))
       } yield actual == expected
@@ -54,7 +54,8 @@ object RandomSpec extends DefaultRuntime {
     val sRandom = new SRandom(seed)
     unsafeRun {
       for {
-        mockRandom <- MockRandom.makeMock(Data(seed))
+        mockRandom <- MockRandom.makeMock(DefaultData)
+        _          <- mockRandom.setSeed(seed)
         actual     <- UIO.foreach(List.range(0, 100))(mockRandom.nextBytes(_))
         expected = List.range(0, 100).map(new Array[Byte](_)).map { arr =>
           sRandom.nextBytes(arr)
@@ -69,7 +70,8 @@ object RandomSpec extends DefaultRuntime {
     val sRandom = new SRandom(seed)
     unsafeRun {
       for {
-        mockRandom <- MockRandom.makeMock(Data(seed))
+        mockRandom <- MockRandom.makeMock(DefaultData)
+        _          <- mockRandom.setSeed(seed)
         actual     <- UIO.foreach(List.fill(100)(()))(_ => mockRandom.nextGaussian)
         expected   = List.fill(100)(sRandom.nextGaussian)
       } yield actual.zip(expected).forall { case (x, y) => math.abs(x - y) < 0.01 }
@@ -81,7 +83,8 @@ object RandomSpec extends DefaultRuntime {
     val sRandom = new SRandom(seed)
     unsafeRun {
       for {
-        mockRandom <- MockRandom.makeMock(Data(seed))
+        mockRandom <- MockRandom.makeMock(DefaultData)
+        _          <- mockRandom.setSeed(seed)
         actual     <- UIO.foreach(1 to 100)(f(mockRandom, _))
         expected   = (1 to 100).map(g(sRandom, _))
       } yield actual == expected
@@ -93,7 +96,8 @@ object RandomSpec extends DefaultRuntime {
     val seed    = jRandom.nextLong()
     unsafeRun {
       for {
-        mockRandom <- MockRandom.makeMock(Data(seed))
+        mockRandom <- MockRandom.makeMock(DefaultData)
+        _          <- mockRandom.setSeed(seed)
         bounds     = List.fill(100)(math.abs(jRandom.nextLong()) max 1)
         actual     <- UIO.foreach(bounds)(mockRandom.nextLong(_))
         _          = jRandom.setSeed(seed)
@@ -107,7 +111,8 @@ object RandomSpec extends DefaultRuntime {
     val sRandom = new SRandom(seed)
     unsafeRun {
       for {
-        mockRandom <- MockRandom.makeMock(Data(seed))
+        mockRandom <- MockRandom.makeMock(DefaultData)
+        _          <- mockRandom.setSeed(seed)
         actual     <- UIO.foreach(List.range(0, 100).map(List.range(0, _)))(f(mockRandom, _))
         expected   = List.range(0, 100).map(List.range(0, _)).map(g(sRandom, _))
       } yield actual == expected
@@ -121,7 +126,8 @@ object RandomSpec extends DefaultRuntime {
     val sRandom = new SRandom(seed)
     unsafeRun {
       for {
-        mockRandom <- MockRandom.makeMock(Data(seed))
+        mockRandom <- MockRandom.makeMock(DefaultData)
+        _          <- mockRandom.setSeed(seed)
         bounds     = List.fill(100)(num.abs(bound(sRandom)) max one)
         actual     <- UIO.foreach(bounds)(f(mockRandom, _))
       } yield actual.zip(bounds).forall { case (a, n) => zero <= a && a < n }
