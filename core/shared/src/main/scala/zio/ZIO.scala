@@ -471,12 +471,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, new ZIO.MapFn(f))
 
   /**
+   * Returns an effect whose success is replaced by the specified `v` value.
+   */
+  final def as[B](v: B): ZIO[R, E, B] = map(_ => v)
+
+  /**
    * Returns an effect with its error channel mapped using the specified
    * function. This can be used to lift a "smaller" error into a "larger"
    * error.
    */
   final def mapError[E2](f: E => E2): ZIO[R, E2, A] =
     self.foldCauseM(new ZIO.MapErrorFn(f), new ZIO.SucceedFn(f))
+
+  /**
+   * Returns an effect whose error channel is replaced by the specified `v` error.
+   * This can be used to lift a "smaller" error into a "larger" error.
+   */
+  final def asError[E2](v: E2): ZIO[R, E2, A] = mapError(_ => v)
 
   /**
    * Returns an effect with its full cause of failure mapped using the
@@ -1347,6 +1358,45 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     val g = (b: B, a: A) => f(a, b)
     (self raceWith that)(coordinate(f), coordinate(g))
   }
+
+  /**
+   * Alias for `map`.
+   *
+   * {{{
+   * val answerToLife = UIO.succeed(21) +> (_ * 2)
+   * }}}
+   */
+  final def +>[B](f: A => B): ZIO[R, E, B] = map(f)
+
+  /**
+   * Alias for `as`.
+   *
+   * {{{
+   * val answerToLife = console.getStrLn *+> "42"
+   * }}}
+   */
+  final def *+>[B](v: B): ZIO[R, E, B] = as(v)
+
+  /**
+   * Alias for `mapError`.
+   *
+   * {{{
+   * val result = writeToDisk #> {
+   *   case _: IOException      => WriteFailed(retry = true)
+   *   case _: RuntimeException => WriteFailed(retry = false)
+   * }
+   * }}}
+   */
+  final def #>[E2](f: E => E2): ZIO[R, E2, A] = mapError(f)
+
+  /**
+   * Alias for `asError`.
+   *
+   * {{{
+   * val result = writeToDisk *#> WriteFailed(retry = false)
+   * }}}
+   */
+  final def *#>[E2](v: E2): ZIO[R, E2, A] = asError(v)
 
   /**
    * Alias for `flatMap`.
