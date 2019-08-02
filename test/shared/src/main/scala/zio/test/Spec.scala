@@ -101,7 +101,7 @@ final case class Spec[+L, +T](caseValue: SpecCase[L, T, Spec[L, T]]) { self =>
    * reconstructing the spec with the same structure.
    */
   final def foreach[R, E, A](f: T => ZIO[R, E, A]): ZIO[R, E, Spec[L, A]] =
-    foreachExec(ExecutionStrategy.Parallel)(f)
+    foreachExec(ExecutionStrategy.Sequential)(f)
 
   /**
    * Iterates over the spec with the parallel strategy as the default, and
