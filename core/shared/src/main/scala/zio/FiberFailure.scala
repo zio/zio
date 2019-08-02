@@ -24,4 +24,6 @@ package zio
  * This class is used to wrap ZIO failures into something that can be thrown,
  * to better integrate with Scala exception handling.
  */
-final case class FiberFailure(cause: Cause[Any]) extends Throwable(cause.toString, null, true, false)
+final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, true, false) {
+  override final def getMessage: String = cause.prettyPrint
+}
