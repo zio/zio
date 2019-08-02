@@ -8,7 +8,7 @@ import zio.blocking._
 trait ZStreamPlatformSpecific {
 
   /**
-   * Uses the provided `TaskR` value to create a [[ZStream]] of byte chunks, backed by
+   * Uses the provided `RIO` value to create a [[ZStream]] of byte chunks, backed by
    * the resulting `InputStream`. When data from the `InputStream` is exhausted,
    * the stream will close it.
    */

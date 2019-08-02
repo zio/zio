@@ -485,6 +485,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def untilInput[A1 <: A](f: A1 => Boolean): ZSchedule[R, A1, B] = !whileInput(f)
 
   /**
+   * Returns a new schedule that continues the schedule only until the effectful predicate
+   * is satisfied on the input of the schedule.
+   */
+  final def untilInputM[A1 <: A](f: A1 => UIO[Boolean]): ZSchedule[R, A1, B] = !whileInputM(f)
+
+  /**
    * Returns a new schedule that continues the schedule only until the predicate
    * is satisfied on the output value of the schedule.
    */
@@ -501,7 +507,14 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * predicate is satisfied on the input of the schedule.
    */
   final def whileInput[A1 <: A](f: A1 => Boolean): ZSchedule[R, A1, B] =
-    check((a, _) => IO.succeed(f(a)))
+    whileInputM(a => IO.succeed(f(a)))
+
+  /**
+   * Returns a new schedule that continues this schedule so long as the
+   * effectful predicate is satisfied on the input of the schedule.
+   */
+  final def whileInputM[A1 <: A](f: A1 => UIO[Boolean]): ZSchedule[R, A1, B] =
+    check((a, _) => f(a))
 
   /**
    * Returns a new schedule that continues this schedule so long as the predicate
@@ -580,6 +593,26 @@ object ZSchedule {
   final def collectAll[A]: Schedule[A, List[A]] = identity[A].collectAll
 
   /**
+   * A schedule that recurs as long as the condition f holds, collecting all inputs into a list.
+   */
+  final def collectWhile[A](f: A => Boolean): Schedule[A, List[A]] = this.doWhile(f).collectAll
+
+  /**
+   * A schedule that recurs as long as the effectful condition holds, collecting all inputs into a list.
+   */
+  final def collectWhileM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = this.doWhileM(f).collectAll
+
+  /**
+   * A schedule that recurs until the condition f failes, collecting all inputs into a list.
+   */
+  final def collectUntil[A](f: A => Boolean): Schedule[A, List[A]] = this.doUntil(f).collectAll
+
+  /**
+   * A schedule that recurs until the effectful condition f failes, collecting all inputs into a list.
+   */
+  final def collectUntilM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = this.doUntilM(f).collectAll
+
+  /**
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */
@@ -590,13 +623,25 @@ object ZSchedule {
    * A schedule that recurs for as long as the predicate evaluates to true.
    */
   final def doWhile[A](f: A => Boolean): Schedule[A, A] =
-    identity[A].whileInput(f)
+    doWhileM(a => ZIO.succeed(f(a)))
+
+  /**
+   * A schedule that recurs for as long as the effectful predicate evaluates to true.
+   */
+  final def doWhileM[A](f: A => UIO[Boolean]): Schedule[A, A] =
+    identity[A].whileInputM(f)
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
-    identity[A].untilInput(f)
+    doUntilM(a => ZIO.succeed(f(a)))
+
+  /**
+   * A schedule that recurs for until the predicate evaluates to true.
+   */
+  final def doUntilM[A](f: A => UIO[Boolean]): Schedule[A, A] =
+    identity[A].untilInputM(f)
 
   /**
    * A schedule that recurs for until the input value becomes applicable to partial function

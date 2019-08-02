@@ -7,6 +7,10 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Combining ZIO and Akka to enable distributed FP in Scala](https://medium.com/@ghostdogpr/combining-zio-and-akka-to-enable-distributed-fp-in-scala-61ffb81e3283) by Pierre Ricadat (July 2019)
+- [tAPIr’s Endpoint meets ZIO’s IO](https://blog.softwaremill.com/tapirs-endpoint-meets-zio-s-io-3278099c5e10) by Adam Warski (July 2019)
+- [ZIO with http4s and doobie](https://medium.com/@wiemzin/zio-with-http4s-and-doobie-952fba51d089) by Wiem Zine Elabadine (June 2019)
+- [Thread shifting in cats-effect and ZIO](https://blog.softwaremill.com/thread-shifting-in-cats-effect-and-zio-9c184708067b) by Adam Warski (June 2019)
 - [Exploring the STM functionality in ZIO](https://freskog.github.io/blog/2019/05/30/explore-zio-stm/) by Fredrik Skogberg (May 2019)
 - [Performant Functional Programming to the Max with ZIO](https://cloudmark.github.io/A-Journey-To-Zio/) by Mark Galea (May 2019)
 - [Using 47 Degree's Fetch library with ZIO](http://justinhj.github.io/2019/05/05/using-47degs-fetch-with-zio.html) by Justin Heyes-Jones (May 2019)
@@ -21,6 +25,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Talks
 
+- [Functional Concurrency in Scala with ZIO](https://www.youtube.com/watch?v=m5nas4Hndqo) by Itamar Ravid (June 2019)
 - [Error Management: Future vs ZIO](https://www.youtube.com/watch?v=mGxcaQs3JWI) by John De Goes and Kai (May 2019)
 - [Atomically { Delete Your Actors }](https://www.youtube.com/watch?v=d6WWmia0BPM) by John De Goes and Wiem Zine Elabadine (April 2019)
 - [Thinking Functionally](https://www.youtube.com/watch?v=-KA3BSdqYug) by John De Goes (March 2019)
@@ -39,10 +44,11 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
-- [STM Partitioning - Code for the 'Exploring the STM functionality in ZIO' blog post)(https://github.com/freskog/stm-partitioning)
+- [STM Partitioning - Code for the 'Exploring the STM functionality in ZIO' blog post](https://github.com/freskog/stm-partitioning)
 - [ZIO Todo Backend](https://github.com/mschuwalow/zio-todo-backend) by [mschuwalow](https://github.com/mschuwalow)
 - [Event Driven Messenger](https://github.com/edvmorango/event-driven-messenger) by [edvmorango](https://github.com/edvmorango)
 - [Zorechka Bot](https://github.com/wix-incubator/zorechka-bot) by [wix-incubator](https://github.com/wix-incubator)
+- [A ZIO + http4s + Circe + Quill + Tapir giter8 template](https://github.com/pandaforme/ultron.g8) by [pandaforme](https://github.com/pandaforme)
 
 ## Projects using ZIO
 

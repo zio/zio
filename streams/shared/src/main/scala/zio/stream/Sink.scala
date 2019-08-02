@@ -16,10 +16,12 @@
 
 package zio.stream
 
-import zio.stream.ZSink.Step
-import zio.IO
+import zio._
+import zio.clock.Clock
+import zio.duration.Duration
 
 object Sink {
+  import ZSink.Step
 
   /**
    * see [[ZSink.await]]
@@ -44,6 +46,18 @@ object Sink {
    */
   final def collectAllWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, List[A]] =
     ZSink.collectAllWhileM(p)
+
+  /**
+   * see [[ZSink.die]]
+   */
+  final def die(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
+    ZSink.die(e)
+
+  /**
+   * see [[ZSink.dieMessage]]
+   */
+  final def dieMessage(m: String): Sink[Nothing, Nothing, Any, Nothing] =
+    ZSink.dieMessage(m)
 
   /**
    * see [[ZSink.drain]]
@@ -76,6 +90,33 @@ object Sink {
     ZSink.foldM(z)(f)
 
   /**
+   * see [[ZSink.foldUntilM]]
+   */
+  final def foldUntilM[E, S, A](z: S, max: Long)(f: (S, A) => IO[E, S]): Sink[E, A, A, S] =
+    ZSink.foldUntilM(z, max)(f)
+
+  /**
+   * see [[ZSink.foldUntil]]
+   */
+  final def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): Sink[Nothing, A, A, S] =
+    ZSink.foldUntil(z, max)(f)
+
+  /**
+   * see [[ZSink.foldWeightedM]]
+   */
+  final def foldWeightedM[E, E1 >: E, A, S](
+    z: S
+  )(costFn: A => IO[E, Long], max: Long)(f: (S, A) => IO[E1, S]): Sink[E1, A, A, S] =
+    ZSink.foldWeightedM[Any, Any, E, E1, A, S](z)(costFn, max)(f)
+
+  /**
+   * see [[ZSink.foldWeighted]]
+   */
+  final def foldWeighted[A, S](
+    z: S
+  )(costFn: A => Long, max: Long)(f: (S, A) => S): Sink[Nothing, A, A, S] = ZSink.foldWeighted(z)(costFn, max)(f)
+
+  /**
    * see [[ZSink.fromEffect]]
    */
   final def fromEffect[E, B](b: => IO[E, B]): Sink[E, Nothing, Any, B] =
@@ -88,9 +129,15 @@ object Sink {
     ZSink.fromFunction(f)
 
   /**
+   * see [[ZSink.halt]]
+   */
+  final def halt[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
+    ZSink.halt(e)
+
+  /**
    * see [[ZSink.identity]]
    */
-  final def identity[A]: Sink[Unit, A, A, A] =
+  final def identity[A]: Sink[Unit, Nothing, A, A] =
     ZSink.identity
 
   /**
@@ -125,4 +172,35 @@ object Sink {
   final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
     ZSink.succeedLazy(b)
 
+  /**
+   * see [[ZSink.throttleEnforce]]
+   */
+  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
+    ZSink.throttleEnforce(units, duration, burst)(costFn)
+
+  /**
+   * see [[ZSink.throttleEnforceM]]
+   */
+  final def throttleEnforceM[E, A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => IO[E, Long]
+  ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, Option[A]]] =
+    ZSink.throttleEnforceM[Any, E, A](units, duration, burst)(costFn)
+
+  /**
+   * see [[ZSink.throttleShape]]
+   */
+  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
+    ZSink.throttleShape(units, duration, burst)(costFn)
+
+  /**
+   * see [[ZSink.throttleShapeM]]
+   */
+  final def throttleShapeM[E, A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => IO[E, Long]
+  ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, A]] =
+    ZSink.throttleShapeM[Any, E, A](units, duration, burst)(costFn)
 }
