@@ -137,17 +137,6 @@ object DefaultTestReporterSpec extends DefaultRuntime {
       val zio = for {
         _      <- MockTestRunner(r).run(spec)
         output <- MockConsole.output
-        // _      <- ZIO.effectTotal {
-        //   if (output != expected) {
-        //     output.zip(expected)
-        //       .filter { case (x, y) => x != y }
-        //       .foreach { case (x, y) =>
-        //         println(x)
-        //         println(y)
-        //       }
-
-        //   }
-        // }
       } yield output == expected
       zio.provide(r)
     }
