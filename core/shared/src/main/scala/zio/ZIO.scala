@@ -277,8 +277,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def filterOrFail[E1 >: E](p: A => Boolean)(e: => E1): ZIO[R, E1, A] =
     filterOrElse_[R, E1, A](p)(ZIO.fail(e))
 
-  final def first[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] = self &&& ZIO.identity[R1]
-
   /**
    * Returns an effect that races this effect with all the specified effects,
    * yielding the value of the first effect to succeed with a value.
@@ -514,6 +512,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         }
     )(_ => self)
 
+  final def onFirst[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] =
+    self &&& ZIO.identity[R1]
+
   /**
    * Runs the specified effect if this effect is interrupted.
    */
@@ -521,6 +522,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.ensuring(
       ZIO.descriptorWith(descriptor => if (descriptor.interrupted) cleanup else ZIO.unit)
     )
+
+  final def onLeft[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] =
+    self +++ ZIO.identity[C]
+
+  final def onRight[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] =
+    ZIO.identity[C] +++ self
+
+  final def onSecond[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] =
+    ZIO.identity[R1] &&& self
 
   /**
    * Runs the specified effect if this effect is terminated, either because of
@@ -1035,8 +1045,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B]): ZIO[R1, E2, B] =
     ZIO.unsandbox(f(self.sandbox))
 
-  final def second[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] = ZIO.identity[R1] &&& self
-
   /**
    * Summarizes a effect by computing some value before and after execution, and
    * then combining the values to produce a summary, together with the result of
@@ -1204,11 +1212,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * interruption of an inner effect that has been made interruptible).
    */
   final def uninterruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Uninterruptible)
-
-  /**
-   *  Returns an effect with the value on the left part.
-   */
-  final def left[A](a: A): UIO[Either[A, Nothing]] = succeed(Left(a))
 
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.
