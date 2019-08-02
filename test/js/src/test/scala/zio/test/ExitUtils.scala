@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.concurrent. { ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future }
 
 object ExitUtils {
 
