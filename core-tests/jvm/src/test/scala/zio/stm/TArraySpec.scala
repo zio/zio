@@ -21,9 +21,9 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
   def is = "TArraySpec".title ^ s2"""
         apply:
           happy-path $applyHappy
-          returns None when index is out of bounds $applyOutOfBounds
+          dies with ArrayIndexOutOfBounds when index is out of bounds $applyOutOfBounds
         collect:
-          is atomic $collectAtomic $collectAtomic
+          is atomic $collectAtomic
           is safe for empty array $collectEmpty
         fold:
           is atomic $foldAtomic
@@ -42,9 +42,13 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
         transformM:
           updates values atomically $transformMAtomically
           updates all or nothing $transformMTransactionally
-        update`:
+        update:
           happy-path $updateHappy
-          returns None when index is out of bounds $updateOutOfBounds
+          dies with ArrayIndexOutOfBounds when index is out of bounds $updateOutOfBounds
+        updateM:
+          happy-path $updateMHappy
+          dies with ArrayIndexOutOfBounds when index is out of bounds $updateMOutOfBounds
+          updateM failure $updateMFailure
           """
 
   def applyHappy =
@@ -53,15 +57,15 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
         tArray <- makeTArray(1)(42)
         value  <- tArray(0).commit
       } yield value
-    ) mustEqual Some(42)
+    ) mustEqual 42
 
   def applyOutOfBounds =
     unsafeRun(
       for {
         tArray <- makeTArray(1)(42)
-        value  <- tArray(-1).commit
-      } yield value
-    ) mustEqual None
+        _      <- tArray(-1).commit
+      } yield ()
+    ) must throwA[FiberFailure]
 
   def collectAtomic =
     unsafeRun(
@@ -183,15 +187,39 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
         tArray <- makeTArray(1)(42)
         v      <- tArray.update(0, a => -a).commit
       } yield v
-    ) mustEqual Some(-42)
+    ) mustEqual -42
 
   def updateOutOfBounds =
     unsafeRun(
       for {
         tArray <- makeTArray(1)(42)
-        value  <- tArray.update(-1, identity).commit
-      } yield value
-    ) mustEqual None
+        _      <- tArray.update(-1, identity).commit
+      } yield ()
+    ) must throwA[FiberFailure]
+
+  def updateMHappy =
+    unsafeRun(
+      for {
+        tArray <- makeTArray(1)(42)
+        v      <- tArray.updateM(0, a => STM.succeedLazy(-a)).commit
+      } yield v
+    ) mustEqual -42
+
+  def updateMOutOfBounds =
+    unsafeRun(
+      for {
+        tArray <- makeTArray(10)(0)
+        _      <- tArray.updateM(10, STM.succeed(_)).commit
+      } yield ()
+    ) must throwA[FiberFailure]
+
+  def updateMFailure =
+    unsafeRun(
+      for {
+        tArray <- makeTArray(n)(0)
+        result <- tArray.updateM(0, _ => STM.fail(boom)).commit.either
+      } yield result.fold(_.getMessage, _ => "unexpected")
+    ) mustEqual ("Boom!")
 
   private val N    = 1000
   private val n    = 10

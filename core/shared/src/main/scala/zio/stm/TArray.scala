@@ -21,12 +21,12 @@ package zio.stm
  * */
 class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
 
-  /** Extracts value from ref in array. Returns None when index is out of bounds. */
-  def apply(index: Int): STM[Nothing, Option[A]] =
-    if (0 <= index && index < array.size) array(index).get.map(Some(_))
-    else STM.succeed(None)
+  /** Extracts value from ref in array. */
+  final def apply(index: Int): STM[Nothing, A] =
+    if (0 <= index && index < array.size) array(index).get
+    else STM.die(new ArrayIndexOutOfBoundsException(index))
 
-  def collect[B](pf: PartialFunction[A, B]): STM[Nothing, TArray[B]] =
+  final def collect[B](pf: PartialFunction[A, B]): STM[Nothing, TArray[B]] =
     this
       .foldM(List.empty[TRef[B]]) {
         case (acc, a) =>
@@ -36,12 +36,12 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
       .map(l => TArray(l.reverse.toArray))
 
   /* Atomically folds [[TArray]] with pure function. */
-  def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
+  final def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
     if (array.isEmpty) STM.succeed(acc)
     else array.head.get.flatMap(a => new TArray(array.tail).fold(op(acc, a))(op))
 
   /** Atomically folds [[TArray]] with STM function. */
-  def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
+  final def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
     if (array.isEmpty) STM.succeed(acc)
     else
       for {
@@ -51,44 +51,44 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
       } yield res
 
   /** Atomically performs side-effect for each item in array */
-  def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
+  final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
     this.foldM(())((_, a) => f(a))
 
   /** Creates [[TArray]] of new [[TRef]]s, mapped with pure function. */
-  def map[B](f: A => B): STM[Nothing, TArray[B]] =
+  final def map[B](f: A => B): STM[Nothing, TArray[B]] =
     this.mapM(f andThen STM.succeed)
 
   /** Creates [[TArray]] of new [[TRef]]s, mapped with transactional effect. */
-  def mapM[E, B](f: A => STM[E, B]): STM[E, TArray[B]] =
+  final def mapM[E, B](f: A => STM[E, B]): STM[E, TArray[B]] =
     STM.foreach(array)(_.get.flatMap(f).flatMap(b => TRef.make(b))).map(l => new TArray(l.toArray))
 
   /** Atomically updates all [[TRef]]s inside this array using pure function. */
-  def transform(f: A => A): STM[Nothing, Unit] =
+  final def transform(f: A => A): STM[Nothing, Unit] =
     (0 to array.size - 1).foldLeft(STM.succeed(())) {
       case (tx, idx) => array(idx).update(f) *> tx
     }
 
   /** Atomically updates all elements using transactional effect. */
-  def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
+  final def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
     (0 to array.size - 1).foldLeft[STM[E, Unit]](STM.succeed(())) {
       case (tx, idx) =>
         val ref = array(idx)
         ref.get.flatMap(f).flatMap(a => ref.set(a)).flatMap(_ => tx)
     }
 
-  /** Updates element in the array with given function. None signals index out of bounds. */
-  def update(index: Int, fn: A => A): STM[Nothing, Option[A]] =
-    if (0 <= index && index < array.size) array(index).update(fn).map(Some(_))
-    else STM.succeed(None)
+  /** Updates element in the array with given function. */
+  final def update(index: Int, fn: A => A): STM[Nothing, A] =
+    if (0 <= index && index < array.size) array(index).update(fn)
+    else STM.die(new ArrayIndexOutOfBoundsException(index))
 
-  /** Atomically updates element in the array with given transactionall effect. None signals index out of bounds. */
-  def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, Option[A]] =
-    if (0 <= index && index < array.size) array(index).get.flatMap(fn).map(Some(_))
-    else STM.succeed(None)
+  /** Atomically updates element in the array with given transactionall effect. */
+  final def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, A] =
+    if (0 <= index && index < array.size) array(index).get.flatMap(fn)
+    else STM.die(new ArrayIndexOutOfBoundsException(index))
 }
 
 object TArray {
 
-  def apply[A](array: Array[TRef[A]]): TArray[A] = new TArray(array)
+  final def apply[A](array: Array[TRef[A]]): TArray[A] = new TArray(array)
 
 }
