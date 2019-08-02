@@ -1093,7 +1093,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
       withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
 
-    unsafeRun(
+    flaky(
       (for {
         ref   <- Ref.make(List.empty[Fiber[_, _]])
         fibs0 <- ZIO.children
@@ -1106,7 +1106,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testSupervisingUnsupervised =
-    unsafeRun(
+    flaky(
       for {
         ref  <- Ref.make(Option.empty[Fiber[_, _]])
         _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
