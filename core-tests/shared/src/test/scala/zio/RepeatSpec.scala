@@ -98,7 +98,7 @@ class RepeatSpec extends BaseCrossPlatformSpec {
     def cond: Int => Boolean = _ < 10
     for {
       ref <- Ref.make(0)
-      i   <- ref.update(_ + 1).repeat(Schedule.doUntil(cond))
+      i   <- ref.update(_ + 1).repeat(Schedule.doUntil(cond).immediately)
     } yield i must_=== 1
   }
 
@@ -106,7 +106,7 @@ class RepeatSpec extends BaseCrossPlatformSpec {
     def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
     for {
       ref <- Ref.make(0)
-      i   <- ref.update(_ + 1).repeat(Schedule.doUntilM(cond))
+      i   <- ref.update(_ + 1).repeat(Schedule.doUntilM(cond).immediately)
     } yield i must_=== 11
   }
 
@@ -114,7 +114,7 @@ class RepeatSpec extends BaseCrossPlatformSpec {
     def cond: Int => Boolean = _ < 10
     for {
       ref <- Ref.make(0)
-      i   <- ref.update(_ + 1).repeat(Schedule.doWhile(cond))
+      i   <- ref.update(_ + 1).repeat(Schedule.doWhile(cond).immediately)
     } yield i must_=== 10
   }
 
@@ -122,7 +122,7 @@ class RepeatSpec extends BaseCrossPlatformSpec {
     def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
     for {
       ref <- Ref.make(0)
-      i   <- ref.update(_ + 1).repeat(Schedule.doWhileM(cond))
+      i   <- ref.update(_ + 1).repeat(Schedule.doWhileM(cond).immediately)
     } yield i must_=== 1
   }
 
