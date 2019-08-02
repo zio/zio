@@ -106,7 +106,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  final def collectAllParN[R, A](n: Long)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
+  final def collectAllParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
@@ -214,7 +214,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  final def foreachParN[R, A, B](n: Long)(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
+  final def foreachParN[R, A, B](n: Int)(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
@@ -232,7 +232,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[R, A, B](n: Long)(as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
+  final def foreachParN_[R, A, B](n: Int)(as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -380,6 +380,12 @@ object RIO {
     ZIO.reduceAllPar(a, as)(f)
 
   /**
+   * @see See [[zio.ZIO.replicate]]
+   */
+  def replicate[R, A](n: Int)(effect: RIO[R, A]): Iterable[RIO[R, A]] =
+    ZIO.replicate(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.require]]
    */
   final def require[R, A](error: Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
@@ -451,7 +457,7 @@ object RIO {
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
-  final def sequenceParN[R, A](n: Long)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
+  final def sequenceParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequenceParN(n)(as)
 
   /**
@@ -510,7 +516,7 @@ object RIO {
    * Alias for [[ZIO.foreachParN]]
    */
   final def traverseParN[R, A, B](
-    n: Long
+    n: Int
   )(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.traverseParN(n)(as)(fn)
 
@@ -530,7 +536,7 @@ object RIO {
    * @see See [[zio.ZIO.traverseParN_]]
    */
   final def traverseParN_[R, A](
-    n: Long
+    n: Int
   )(as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
     ZIO.traverseParN_(n)(as)(f)
 
@@ -572,6 +578,18 @@ object RIO {
    */
   final def when[R](b: Boolean)(rio: RIO[R, _]): RIO[R, Unit] =
     ZIO.when(b)(rio)
+
+  /**
+   * @see See [[zio.ZIO.whenCase]]
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.ZIO.whenCaseM]]
+   */
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenM]]

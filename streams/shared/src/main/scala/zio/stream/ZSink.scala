@@ -20,7 +20,6 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 import scala.language.postfixOps
-import java.util.concurrent.TimeUnit
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -127,7 +126,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     zip(that)
 
   /**
-   * Takes a `Sink`, and lifts it to be chunked in its input and output. This
+   * Takes a `Sink`, and lifts it to be chunked in its input. This
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
    */
@@ -1069,12 +1068,12 @@ object ZSink extends ZSinkPlatformSpecific {
   /**
    * Creates a sink by that merely passes on incoming values.
    */
-  final def identity[A]: ZSink[Any, Unit, A, A, A] =
-    new SinkPure[Unit, A, A, A] {
+  final def identity[A]: ZSink[Any, Unit, Nothing, A, A] =
+    new SinkPure[Unit, Nothing, A, A] {
       type State = Option[A]
-      val initialPure                                  = Step.more(None)
-      def stepPure(state: State, a: A): Step[State, A] = Step.done(Some(a), Chunk.empty)
-      def extractPure(state: State): Either[Unit, A]   = state.fold[Either[Unit, A]](Left(()))(a => Right(a))
+      val initialPure                  = Step.more(None)
+      def stepPure(state: State, a: A) = Step.done(Some(a), Chunk.empty)
+      def extractPure(state: State)    = state.fold[Either[Unit, A]](Left(()))(a => Right(a))
     }
 
   /**
@@ -1200,7 +1199,7 @@ object ZSink extends ZSinkPlatformSpecific {
       def step(state: State, a: A) =
         for {
           weight  <- costFn(a)
-          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          current <- clock.nanoTime
           result <- state._1.modify {
                      case (tokens, timestamp) =>
                        val elapsed   = current - timestamp
@@ -1221,7 +1220,7 @@ object ZSink extends ZSinkPlatformSpecific {
     val sink = for {
       _       <- assertNonNegative(units)
       _       <- assertNonNegative(burst)
-      current <- clock.currentTime(TimeUnit.NANOSECONDS)
+      current <- clock.nanoTime
       bucket  <- Ref.make((units, current))
     } yield bucketSink(bucket)
 
@@ -1260,7 +1259,7 @@ object ZSink extends ZSinkPlatformSpecific {
       def step(state: State, a: A) =
         for {
           weight  <- costFn(a)
-          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          current <- clock.nanoTime
           delay <- state._1.modify {
                     case (tokens, timestamp) =>
                       val elapsed    = current - timestamp
@@ -1283,7 +1282,7 @@ object ZSink extends ZSinkPlatformSpecific {
     val sink = for {
       _       <- assertPositive(units)
       _       <- assertNonNegative(burst)
-      current <- clock.currentTime(TimeUnit.NANOSECONDS)
+      current <- clock.nanoTime
       bucket  <- Ref.make((units, current))
     } yield bucketSink(bucket)
 

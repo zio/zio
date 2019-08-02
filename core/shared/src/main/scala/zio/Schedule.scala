@@ -68,6 +68,26 @@ object Schedule {
   final def collectAll[A]: Schedule[A, List[A]] = ZSchedule.collectAll
 
   /**
+   * See [[ZSchedule.collectWhile]]
+   */
+  final def collectWhile[A](f: A => Boolean): Schedule[A, List[A]] = ZSchedule.collectWhile(f)
+
+  /**
+   * See [[ZSchedule.collectWhileM]]
+   */
+  final def collectWhileM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = ZSchedule.collectWhileM(f)
+
+  /**
+   * See [[ZSchedule.collectUntil]]
+   */
+  final def collectUntil[A](f: A => Boolean): Schedule[A, List[A]] = ZSchedule.collectUntil(f)
+
+  /**
+   * See [[ZSchedule.collectUntilM]]
+   */
+  final def collectUntilM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = ZSchedule.collectUntilM(f)
+
+  /**
    * See [[ZSchedule.delayed]]
    */
   final def delayed[A](s: Schedule[A, Delay]): Schedule[A, Delay] =
@@ -80,10 +100,22 @@ object Schedule {
     ZSchedule.doWhile(f)
 
   /**
+   * See [[ZSchedule.doWhileM]]
+   */
+  final def doWhileM[A](f: A => UIO[Boolean]): Schedule[A, A] =
+    ZSchedule.doWhileM(f)
+
+  /**
    * See [[[ZSchedule.doUntil[A](f:* ZSchedule.doUntil]]]
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
     ZSchedule.doUntil(f)
+
+  /**
+   * See [[ZSchedule.doUntilM]]
+   */
+  final def doUntilM[A](f: A => UIO[Boolean]): Schedule[A, A] =
+    ZSchedule.doUntilM(f)
 
   /**
    * See [[ZSchedule.doUntil[A,B](pf:* ZSchedule.doUntil]]]
