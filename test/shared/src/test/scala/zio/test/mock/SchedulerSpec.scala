@@ -1,22 +1,23 @@
 package zio.test.mock
 
-import scala.Predef.{ assert => SAssert }
+import scala.concurrent.{ ExecutionContext, Future }
 
 import zio._
 import zio.clock.Clock
 import zio.duration._
+import zio.test.TestUtils.label
 
 object SchedulerSpec extends DefaultRuntime {
 
-  def run(): Unit = {
-    SAssert(e1, "MockScheduler scheduled tasks get executed")
-    SAssert(e2, "MockScheduler scheduled tasks only get executed when time has passed")
-    SAssert(e3, "MockScheduler scheduled tasks can be canceled")
-    SAssert(e4, "MockScheduler tasks that are cancelled after completion are not reported as interrupted")
-  }
+  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+    label(e1, "MockScheduler scheduled tasks get executed"),
+    label(e2, "MockScheduler scheduled tasks only get executed when time has passed"),
+    label(e3, "MockScheduler scheduled tasks can be canceled"),
+    label(e4, "MockScheduler tasks that are cancelled after completion are not reported as interrupted")
+  )
 
   def e1 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         res       <- mkScheduler(this)
         clock     = res._1
@@ -32,7 +33,7 @@ object SchedulerSpec extends DefaultRuntime {
     )
 
   def e2 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         res       <- mkScheduler(this)
         clock     = res._1
@@ -48,7 +49,7 @@ object SchedulerSpec extends DefaultRuntime {
     )
 
   def e3 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         res       <- mkScheduler(this)
         clock     = res._1
@@ -65,7 +66,7 @@ object SchedulerSpec extends DefaultRuntime {
     )
 
   def e4 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         res       <- mkScheduler(this)
         clock     = res._1

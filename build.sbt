@@ -32,7 +32,7 @@ addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias("testJVM", ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run")
-addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test")
+addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run")
 
 lazy val root = project
   .in(file("."))
@@ -125,7 +125,10 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio-test"))
 
 lazy val testJVM = test.jvm
-lazy val testJS  = test.js
+lazy val testJS  = test.js.settings(
+  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC2" % Test,
+  scalaJSUseMainModuleInitializer in Test := true
+)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
