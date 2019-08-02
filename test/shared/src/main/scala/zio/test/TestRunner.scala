@@ -35,9 +35,15 @@ abstract class TestRunner[L, -T](
    * Runs the spec, producing the execution results.
    */
   final def run(spec: Spec[L, T]): UIO[ExecutedSpec[L]] =
-    executor.execute(spec, ExecutionStrategy.ParallelN(4)).flatMap { results =>
-      reporter.report(results) *> ZIO.succeed(results)
+    executor(spec, ExecutionStrategy.ParallelN(4)).flatMap { results =>
+      reporter(results) *> ZIO.succeed(results)
     }
+
+  /**
+   * An unsafe, synchronous run of the specified spec.
+   */
+  final def unsafeRun(spec: Spec[L, T]): ExecutedSpec[L] =
+    Runtime((), platform).unsafeRun(run(spec))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
@@ -47,4 +53,10 @@ abstract class TestRunner[L, -T](
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
+
+  /**
+   * An unsafe, synchronous run of the specified spec.
+   */
+  final def unsafeRunSync(spec: Spec[L, T]): Exit[Nothing, ExecutedSpec[L]] =
+    Runtime((), platform).unsafeRunSync(run(spec))
 }

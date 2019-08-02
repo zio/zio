@@ -29,6 +29,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
+- [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 
 ## ZIO Compatible Libraries
 

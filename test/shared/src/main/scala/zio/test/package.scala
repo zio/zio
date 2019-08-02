@@ -45,6 +45,22 @@ package object test {
   type PredicateResult = Assertion[PredicateValue]
   type TestResult      = Assertion[FailureDetails]
 
+  /**
+   * A `TestReporter[L]` is capable of reporting test results annotated with
+   * labels `L`.
+   */
+  type TestReporter[-L] = ExecutedSpec[L] => UIO[Unit]
+
+  /**
+   * A `TestExecutor[L, T]` is capable of executing specs containing tests of
+   * type `T`, annotated with labels of type `L`.
+   */
+  type TestExecutor[L, -T] = (Spec[L, T], ExecutionStrategy) => UIO[ExecutedSpec[L]]
+
+  /**
+   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
+   * having no requirements on error or environment.
+   */
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
   /**
@@ -62,7 +78,7 @@ package object test {
   type ZSpec[-R, +E, +L] = Spec[L, ZTest[R, E]]
 
   /**
-   * An `ExecutedSpec` is a spec that has been run to produce test rresults.
+   * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
   type ExecutedSpec[+L] = Spec[L, TestResult]
 
@@ -75,27 +91,29 @@ package object test {
   /**
    * Asserts the given effectfully-computed value satisfies the given predicate.
    */
-  final def assertM[R, A](value: ZIO[R, Nothing, A], predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+  final def assertM[R, A](value: ZIO[R, Nothing, A], predicate: Predicate[A]): ZTest[R, Nothing] =
     value.map(assert(_, predicate))
 
   /**
    * Checks the predicate holds for "sufficient" numbers of samples from the
    * given random variable.
    */
-  final def check[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+  final def check[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
     checkSome(200)(rv)(predicate)
 
   /**
    * Checks the predicate holds for all values from the given random variable.
+   * This is useful for deterministic `Gen` that comprehensively explore all
+   * possibilities in a given domain.
    */
-  final def checkAll[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+  final def checkAll[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
     checkStream(rv.sample)(predicate)
 
   /**
    * Checks the predicate holds for the specified number of samples from the
    * given random variable.
    */
-  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
     checkStream(rv.sample.forever.take(n))(predicate)
 
   /**

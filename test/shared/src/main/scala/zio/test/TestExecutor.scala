@@ -16,17 +16,13 @@
 
 package zio.test
 
-import zio.{ Managed, UIO }
+import zio.Managed
 
-trait TestExecutor[L, -T] {
-  def execute(spec: Spec[L, T], defExec: ExecutionStrategy): UIO[ExecutedSpec[L]]
-}
 object TestExecutor {
   def managed[R, E, L](environment: Managed[E, R]): TestExecutor[L, ZTest[R, E]] =
-    new TestExecutor[L, ZTest[R, E]] {
-      def execute(spec: ZSpec[R, E, L], defExec: ExecutionStrategy): UIO[ExecutedSpec[L]] =
-        spec.foreachExec(defExec) { test =>
-          test.provideManaged(environment).foldCause(fail(_), identity(_))
-        }
+    (spec: ZSpec[R, E, L], defExec: ExecutionStrategy) => {
+      spec.foreachExec(defExec) { test =>
+        test.provideManaged(environment).foldCause(fail(_), identity(_))
+      }
     }
 }
