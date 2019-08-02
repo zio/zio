@@ -1,7 +1,6 @@
 package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.Success
 
 object TestUtils {
 
