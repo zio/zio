@@ -63,7 +63,10 @@ case class DefaultTestReporter(console: Console) extends TestReporter[String] {
     whole: PredicateValue,
     offset: Int
   ): ZIO[Console, Nothing, Unit] =
-    reportWhole(fragment, whole, offset) *> reportFragment(fragment, offset)
+    if (whole.predicate == fragment.predicate)
+      reportFragment(fragment, offset)
+    else
+      reportWhole(fragment, whole, offset) *> reportFragment(fragment, offset)
 
   private def reportWhole(fragment: PredicateValue, whole: PredicateValue, offset: Int): ZIO[Console, Nothing, Unit] =
     putStrLn {

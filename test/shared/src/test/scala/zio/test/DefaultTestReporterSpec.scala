@@ -14,6 +14,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     SAssert(reportSuite1, "DefaultTestReporter correctly reports successful test suite")
     SAssert(reportSuite2, "DefaultTestReporter correctly reports failed test suite")
     SAssert(reportSuites, "DefaultTestReporter correctly reports multiple test suites")
+    SAssert(simplePredicate, "DefaultTestReporter correctly reports failure of simple predicate")
   }
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
@@ -55,6 +56,15 @@ object DefaultTestReporterSpec extends DefaultRuntime {
       withOffset(2)("No ZIO Trace available.\n")
   )
 
+  val test5 = makeTest("Addition works fine") {
+    assert(1 + 1, Predicate.equals(3))
+  }
+
+  val test5Expected = Vector(
+    expectedFailure("Addition works fine"),
+    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equals(3)")}\n")
+  )
+
   val suite1 = suite("Suite1")(test1, test2)
 
   val suite1Expected = Vector(
@@ -90,6 +100,12 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     check(
       suite("Suite3")(suite1, test3),
       Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected.map(withOffset(2))
+    )
+
+  def simplePredicate =
+    check(
+      test5,
+      test5Expected
     )
 
   def expectedSuccess(label: String): String =
