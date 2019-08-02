@@ -31,7 +31,7 @@ inThisBuild(
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
-addCommandAlias("testJVM", ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test")
+addCommandAlias("testJVM", ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run")
 addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test")
 
 lazy val root = project
