@@ -30,7 +30,7 @@ object RandomSpec extends DefaultRuntime {
     val mock = MockRandom.makeMock(DefaultData)
     val x    = unsafeRunToFuture(mock.flatMap[Any, Nothing, Int](_.nextInt))
     val y    = unsafeRunToFuture(mock.flatMap[Any, Nothing, Int](_.nextInt))
-    x.zipWith(y)(_ == _)
+    x.zip(y).map { case (x, y) => x == y }
   }
 
   def forAllEqual[A](f: Mock => UIO[A])(g: SRandom => A): Future[Boolean] = {

@@ -6,11 +6,7 @@ import scala.util.Success
 object TestUtils {
 
   def label(f: Future[Boolean], s: String)(implicit ec: ExecutionContext): Future[(Boolean, String)] =
-    f.transform {
-      case Success(p) => Success((p, s))
-      case _          => Success((false, s))
-
-    }
+    f.map(p => (p, s)).recover { case e: Throwable => (false, s) }
 
   def report(ps: List[Future[(Boolean, String)]])(implicit ec: ExecutionContext): Unit = {
     val f = Future
