@@ -18,32 +18,33 @@ package zio.test
 
 import scala.{ Console => SConsole }
 
-import zio.{ Cause, UIO, ZIO }
+import zio.{ Cause, ZIO }
 import zio.console.{ putStrLn, Console }
 
-case class DefaultTestReporter(console: Console) extends TestReporter[String] {
+object DefaultTestReporter {
+  def apply(console: Console): TestReporter[String] = { (executedSpec: ExecutedSpec[String]) =>
+    {
+      def loop(executedSpec: ExecutedSpec[String], offset: Int): ZIO[Console, Nothing, Unit] =
+        executedSpec.caseValue match {
+          case Spec.SuiteCase(label, executedSpecs, _) =>
+            val reportSuite =
+              if (executedSpecs.exists(_.exists { case Spec.TestCase(_, test) => test.failure; case _ => false }))
+                reportFailure(label, offset)
+              else reportSuccess(label, offset)
+            reportSuite *> ZIO.foreach_(executedSpecs)(loop(_, offset + tabSize))
+          case Spec.TestCase(label, result) =>
+            result match {
+              case Assertion.Success =>
+                reportSuccess(label, offset)
+              case Assertion.Failure(details) =>
+                reportFailure(label, offset) *> reportFailureDetails(details, offset)
+              case Assertion.Ignore =>
+                ZIO.unit
+            }
+        }
 
-  def report(executedSpec: ExecutedSpec[String]): UIO[Unit] = {
-    def loop(executedSpec: ExecutedSpec[String], offset: Int): ZIO[Console, Nothing, Unit] =
-      executedSpec.caseValue match {
-        case Spec.SuiteCase(label, executedSpecs, _) =>
-          val reportSuite =
-            if (executedSpecs.exists(_.exists { case Spec.TestCase(_, test) => test.failure; case _ => false }))
-              reportFailure(label, offset)
-            else reportSuccess(label, offset)
-          reportSuite *> ZIO.foreach_(executedSpecs)(loop(_, offset + tabSize))
-        case Spec.TestCase(label, result) =>
-          result match {
-            case Assertion.Success =>
-              reportSuccess(label, offset)
-            case Assertion.Failure(details) =>
-              reportFailure(label, offset) *> reportFailureDetails(details, offset)
-            case Assertion.Ignore =>
-              ZIO.unit
-          }
-      }
-
-    loop(executedSpec, 0).provide(console)
+      loop(executedSpec, 0).provide(console)
+    }
   }
 
   private def reportSuccess(label: String, offset: Int): ZIO[Console, Nothing, Unit] =
@@ -113,9 +114,4 @@ case class DefaultTestReporter(console: Console) extends TestReporter[String] {
     string.replace(substring, yellow(substring))
 
   private val tabSize = 2
-}
-
-object DefaultTestReporter {
-
-  def make: TestReporter[String] = new DefaultTestReporter(Console.Live) {}
 }

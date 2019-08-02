@@ -1093,7 +1093,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
       withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
 
-    unsafeRun(
+    flaky(
       (for {
         ref   <- Ref.make(List.empty[Fiber[_, _]])
         fibs0 <- ZIO.children
@@ -1106,7 +1106,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testSupervisingUnsupervised =
-    unsafeRun(
+    flaky(
       for {
         ref  <- Ref.make(Option.empty[Fiber[_, _]])
         _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
@@ -1115,19 +1115,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     )
 
   def testSupervise = {
-    var counter = 0
-    unsafeRun((for {
-      ref <- Ref.make(List.empty[Fiber[_, _]])
-      _   <- (clock.sleep(200.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
-      _   <- (clock.sleep(400.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
-    } yield ()).handleChildrenWith { fs =>
-      fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> IO.effectTotal(counter += 1))
-    })
-    counter must_=== 2
+    def makeChild(n: Int, fibers: Ref[List[Fiber[_, _]]]) =
+      (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork.tap(fiber => fibers.update(fiber :: _))
+
+    flaky(for {
+      fibers  <- Ref.make(List.empty[Fiber[_, _]])
+      counter <- Ref.make(0)
+      _ <- (makeChild(1, fibers) *> makeChild(2, fibers)).handleChildrenWith { fs =>
+            fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> counter.update(_ + 1).unit)
+          }
+      value <- counter.get
+    } yield value must_=== 2)
   }
 
   def testSuperviseRace =
-    unsafeRun(for {
+    flaky(for {
       pa <- Promise.make[Nothing, Int]
       pb <- Promise.make[Nothing, Int]
 
@@ -1143,7 +1145,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
       _ <- f.interrupt
       r <- pa.await zip pb.await
-    } yield r) must_=== (1 -> 2)
+    } yield r must_=== (1 -> 2))
 
   def testSuperviseFork =
     flaky(for {
