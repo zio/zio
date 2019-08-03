@@ -5,7 +5,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 object TestUtils {
 
   def label(f: Future[Boolean], s: String)(implicit ec: ExecutionContext): Future[(Boolean, String)] =
-    f.map(p => (p, s)).recover { case e: Throwable => (false, s) }
+    f.map(p => (p, s)).recover { case _ => (false, s) }
 
   def report(ps: List[Future[(Boolean, String)]])(implicit ec: ExecutionContext): Unit = {
     val f = Future
