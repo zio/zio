@@ -17,10 +17,12 @@
 package zio.test
 
 import zio.UIO
+import zio.test.reflect.Reflect.EnableReflectiveInstantiation
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
+@EnableReflectiveInstantiation
 abstract class RunnableSpec[+L, +T](runner: TestRunner[L, T])(spec: => Spec[L, T]) {
 
   /**

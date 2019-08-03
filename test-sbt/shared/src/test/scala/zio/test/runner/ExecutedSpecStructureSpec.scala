@@ -22,7 +22,6 @@ import zio.console._
 import zio.test._
 import zio.test.mock.{MockConsole, MockEnvironment, mockEnvironmentManaged}
 import zio.test.runner.ExecutedSpecStructure.Stats
-import zio.test.runner.ExecutedSpecStructureSpec.SimpleFailingSpec
 import zio.{RIO, TestRuntime, ZIO}
 
 class ExecutedSpecStructureSpec(implicit ee: ExecutionEnv) extends TestRuntime {
@@ -33,7 +32,7 @@ class ExecutedSpecStructureSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def failingSpec = {
     val output = unsafeRun(withEnvironment {
       for {
-        results <- SimpleFailingSpec.run
+        results <- ExecutedSpecStructureSpec.SimpleFailingSpec.run
         _ <- ExecutedSpecStructure.from(results).traverse(handleSuite, handleTest)
         output <- MockConsole.output
       } yield output

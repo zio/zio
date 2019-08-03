@@ -124,6 +124,9 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
+  .settings(libraryDependencies ++= Seq(
+    "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
+  ))
 
 lazy val testJVM = test.jvm
 lazy val testJS = test.js.settings(
@@ -148,13 +151,14 @@ lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
 
-lazy val testRunner = crossProject(JVMPlatform)
+lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(
     libraryDependencies ++= Seq(
       "org.scala-sbt"  % "test-interface" % "1.0",
-      "org.scala-lang" % "scala-reflect"  % scalaVersion.value
+      "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -162,13 +166,14 @@ lazy val testRunner = crossProject(JVMPlatform)
   .dependsOn(coreTests % "test->test;compile->compile")
 
 lazy val testRunnerJVM = testRunner.jvm
+lazy val testRunnerJS = testRunner.js
 
 lazy val testRunnerTesting = crossProject(JVMPlatform)
   .in(file("test-sbt-testing"))
   .settings(stdSettings("zio-test-sbt-testing"))
   .settings(testFrameworks += new TestFramework("zio.test.runner.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
-  
+
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
