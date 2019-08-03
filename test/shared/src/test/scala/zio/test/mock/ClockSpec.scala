@@ -3,34 +3,36 @@ package zio.test.mock
 import java.util.concurrent.TimeUnit
 import java.time.ZoneId
 
-import scala.Predef.{ assert => SAssert }
-
 import zio._
 import zio.duration._
 import zio.test.mock.MockClock.DefaultData
+import zio.test.TestUtils.label
+
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 object ClockSpec extends DefaultRuntime {
 
-  def run(): Unit = {
-    SAssert(e1, "MockClock sleep does sleep instantly")
-    SAssert(e2, "MockClock sleep passes nanotime correctly")
-    SAssert(e3, "MockClock sleep passes currentTime correctly")
-    SAssert(e4, "MockClock sleep passes currentDateTime correctly")
-    SAssert(e5, "MockClock sleep correctly records sleeps")
-    SAssert(e6, "MockClock adjust correctly advances nanotime")
-    SAssert(e7, "MockClock adjust correctly advances currentTime")
-    SAssert(e8, "MockClock adjust correctly advances currentDateTime")
-    SAssert(e9, "MockClock adjust does not produce sleeps ")
-    SAssert(e10, "MockClock setTime correctly sets nanotime")
-    SAssert(e11, "MockClock setTime correctly sets currentTime")
-    SAssert(e12, "MockClock setTime correctly sets currentDateTime")
-    SAssert(e13, "MockClock setTime does not produce sleeps ")
-    SAssert(e14, "MockClock setTimeZone correctly sets timeZone")
-    SAssert(e15, "MockClock setTimeZone does not produce sleeps ")
-  }
+  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+    label(e1, "MockClock sleep does sleep instantly"),
+    label(e2, "MockClock sleep passes nanotime correctly"),
+    label(e3, "MockClock sleep passes currentTime correctly"),
+    label(e4, "MockClock sleep passes currentDateTime correctly"),
+    label(e5, "MockClock sleep correctly records sleeps"),
+    label(e6, "MockClock adjust correctly advances nanotime"),
+    label(e7, "MockClock adjust correctly advances currentTime"),
+    label(e8, "MockClock adjust correctly advances currentDateTime"),
+    label(e9, "MockClock adjust does not produce sleeps "),
+    label(e10, "MockClock setTime correctly sets nanotime"),
+    label(e11, "MockClock setTime correctly sets currentTime"),
+    label(e12, "MockClock setTime correctly sets currentDateTime"),
+    label(e13, "MockClock setTime does not produce sleeps "),
+    label(e14, "MockClock setTimeZone correctly sets timeZone"),
+    label(e15, "MockClock setTimeZone does not produce sleeps ")
+  )
 
   def e1 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         result    <- mockClock.sleep(10.hours).timeout(100.milliseconds)
@@ -38,7 +40,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e2 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         time1     <- mockClock.nanoTime
@@ -48,7 +50,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e3 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
@@ -58,7 +60,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e4 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         time1     <- mockClock.currentDateTime
@@ -68,7 +70,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e5 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.sleep(1.millis)
@@ -77,7 +79,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e6 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         time1     <- mockClock.nanoTime
@@ -87,7 +89,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e7 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
@@ -97,7 +99,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e8 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         time1     <- mockClock.currentDateTime
@@ -107,7 +109,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e9 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.adjust(1.millis)
@@ -116,7 +118,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e10 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTime(1.millis)
@@ -125,7 +127,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e11 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTime(1.millis)
@@ -134,7 +136,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e12 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTime(1.millis)
@@ -143,7 +145,7 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e13 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTime(1.millis)
@@ -152,19 +154,19 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e14 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
-        _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
+        _         <- mockClock.setTimeZone(ZoneId.of("UTC"))
         timeZone  <- mockClock.timeZone
-      } yield timeZone == ZoneId.of("America/New_York")
+      } yield timeZone == ZoneId.of("UTC")
     )
 
   def e15 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
-        _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
+        _         <- mockClock.setTimeZone(ZoneId.of("UTC"))
         sleeps    <- mockClock.sleeps
       } yield sleeps == Nil
     )

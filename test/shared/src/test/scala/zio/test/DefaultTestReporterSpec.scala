@@ -1,21 +1,22 @@
 package zio.test
 
-import scala.Predef.{ assert => SAssert, _ }
+import scala.concurrent.{ ExecutionContext, Future }
 
 import zio._
 import zio.test.mock._
+import zio.test.TestUtils.label
 
 object DefaultTestReporterSpec extends DefaultRuntime {
 
-  def run(): Unit = {
-    SAssert(reportSuccess, "DefaultTestReporter correctly reports a successful test")
-    SAssert(reportFailure, "DefaultTestReporter correctly reports a failed test")
-    SAssert(reportError, "DefaultTestReporter correctly reports an error in a test")
-    SAssert(reportSuite1, "DefaultTestReporter correctly reports successful test suite")
-    SAssert(reportSuite2, "DefaultTestReporter correctly reports failed test suite")
-    SAssert(reportSuites, "DefaultTestReporter correctly reports multiple test suites")
-    SAssert(simplePredicate, "DefaultTestReporter correctly reports failure of simple predicate")
-  }
+  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+    label(reportSuccess, "DefaultTestReporter correctly reports a successful test"),
+    label(reportFailure, "DefaultTestReporter correctly reports a failed test"),
+    label(reportError, "DefaultTestReporter correctly reports an error in a test"),
+    label(reportSuite1, "DefaultTestReporter correctly reports successful test suite"),
+    label(reportSuite2, "DefaultTestReporter correctly reports failed test suite"),
+    label(reportSuites, "DefaultTestReporter correctly reports multiple test suites"),
+    label(simplePredicate, "DefaultTestReporter correctly reports failure of simple predicate")
+  )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
     zio.test.test(label)(assertion)
@@ -132,7 +133,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def yellow(s: String): String =
     Console.YELLOW + s + Console.CYAN
 
-  def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Boolean =
+  def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>
       val zio = for {
         _      <- MockTestRunner(r).run(spec)
@@ -141,8 +142,8 @@ object DefaultTestReporterSpec extends DefaultRuntime {
       zio.provide(r)
     }
 
-  def unsafeRunWith[R, E, A](r: Managed[Nothing, R])(f: R => IO[E, A]): A =
-    unsafeRun(r.use[Any, E, A](f))
+  def unsafeRunWith[R, E <: Throwable, A](r: Managed[Nothing, R])(f: R => IO[E, A]): Future[A] =
+    unsafeRunToFuture(r.use[Any, E, A](f))
 
   case class MockTestRunner(mockEnvironment: MockEnvironment)
       extends TestRunner[String, ZTest[MockEnvironment, Any]](

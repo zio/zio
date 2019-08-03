@@ -2,28 +2,29 @@ package zio.test.mock
 
 import java.io.{ ByteArrayOutputStream, PrintStream }
 
-import scala.Predef.{ assert => SAssert, _ }
+import scala.concurrent.{ ExecutionContext, Future }
 
 import zio._
 import zio.test.mock.MockConsole.Data
+import zio.test.TestUtils.label
 
 object ConsoleSpec extends DefaultRuntime {
 
-  def run(): Unit = {
-    SAssert(emptyOutput, "MockConsole outputs nothing")
-    SAssert(putStr, "MockConsole writes to output")
-    SAssert(putStrLn, "MockConsole writes line to output")
-    SAssert(getStr1, "MockConsole reads from input")
-    SAssert(getStr2, "MockConsole fails on empty input")
-    SAssert(feedLine, "MockConsole feeds lines to input")
-    SAssert(clearInput, "MockConsole clears lines from input")
-    SAssert(clearOutput, "MockConsole clears lines from output")
-  }
+  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+    label(emptyOutput, "MockConsole outputs nothing"),
+    label(putStr, "MockConsole writes to output"),
+    label(putStrLn, "MockConsole writes line to output"),
+    label(getStr1, "MockConsole reads from input"),
+    label(getStr2, "MockConsole fails on empty input"),
+    label(feedLine, "MockConsole feeds lines to input"),
+    label(clearInput, "MockConsole clears lines from input"),
+    label(clearOutput, "MockConsole clears lines from output")
+  )
 
   def stream(): PrintStream = new PrintStream(new ByteArrayOutputStream())
 
   def emptyOutput =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockConsole <- MockConsole.makeMock(Data())
         output      <- mockConsole.output
@@ -31,7 +32,7 @@ object ConsoleSpec extends DefaultRuntime {
     )
 
   def putStr =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockConsole <- MockConsole.makeMock(Data())
         _           <- mockConsole.putStr("First line")
@@ -41,7 +42,7 @@ object ConsoleSpec extends DefaultRuntime {
     )
 
   def putStrLn =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockConsole <- MockConsole.makeMock(Data())
         _           <- mockConsole.putStrLn("First line")
@@ -51,7 +52,7 @@ object ConsoleSpec extends DefaultRuntime {
     )
 
   def getStr1 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockConsole <- MockConsole.makeMock(Data(List("Input 1", "Input 2"), Vector.empty))
         input1      <- mockConsole.getStrLn
@@ -60,7 +61,7 @@ object ConsoleSpec extends DefaultRuntime {
     )
 
   def getStr2 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockConsole <- MockConsole.makeMock(Data())
         failed      <- mockConsole.getStrLn.either
@@ -69,7 +70,7 @@ object ConsoleSpec extends DefaultRuntime {
     )
 
   def feedLine =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockConsole <- MockConsole.makeMock(Data())
         _           <- mockConsole.feedLines("Input 1", "Input 2")
@@ -79,7 +80,7 @@ object ConsoleSpec extends DefaultRuntime {
     )
 
   def clearInput =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockConsole <- MockConsole.makeMock(Data(List("Input 1", "Input 2"), Vector.empty))
         _           <- mockConsole.clearInput
@@ -89,7 +90,7 @@ object ConsoleSpec extends DefaultRuntime {
     )
 
   def clearOutput =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockConsole <- MockConsole.makeMock(Data(List.empty, Vector("First line", "Second line")))
         _           <- mockConsole.clearOutput
