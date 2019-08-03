@@ -282,8 +282,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def filterOrFail[E1 >: E](p: A => Boolean)(e: => E1): ZIO[R, E1, A] =
     filterOrElse_[R, E1, A](p)(ZIO.fail(e))
 
-  final def first[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] = self &&& ZIO.identity[R1]
-
   /**
    * Returns an effect that races this effect with all the specified effects,
    * yielding the value of the first effect to succeed with a value.
@@ -417,6 +415,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.handleChildrenWith[R1, E, A](self)(supervisor)
 
   /**
+   * Returns a successful effect with the head of the list if the list is
+   * non-empty or fails with the error `None` if the list is empty.
+   */
+  def head[B](implicit ev: A <:< List[B]): ZIO[R, Option[E], B] =
+    self.foldM(
+      e => ZIO.fail(Some(e)),
+      a => ev(a).headOption.fold[ZIO[R, Option[E], B]](ZIO.fail(None))(ZIO.succeed)
+    )
+
+  /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
   final def ignore: ZIO[R, Nothing, Unit] = self.foldCauseM(_ => ZIO.unit, _ => ZIO.unit)
@@ -518,6 +526,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         }
     )(_ => self)
 
+  final def onFirst[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] =
+    self &&& ZIO.identity[R1]
+
   /**
    * Runs the specified effect if this effect is interrupted.
    */
@@ -525,6 +536,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.ensuring(
       ZIO.descriptorWith(descriptor => if (descriptor.interrupted) cleanup else ZIO.unit)
     )
+
+  final def onLeft[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] =
+    self +++ ZIO.identity[C]
+
+  final def onRight[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] =
+    ZIO.identity[C] +++ self
+
+  final def onSecond[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] =
+    ZIO.identity[R1] &&& self
 
   /**
    * Runs the specified effect if this effect is terminated, either because of
@@ -666,6 +686,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     } yield r
 
   /**
+   * Returns a successful effect if the value is `Left`, or fails with the error `None`.
+   */
+  def left[B, C](implicit ev: A <:< Either[B, C]): ZIO[R, Option[E], B] =
+    self.foldM(
+      e => ZIO.fail(Some(e)),
+      a => ev(a).fold(ZIO.succeed, _ => ZIO.fail(None))
+    )
+
+  /**
    * Returns a successful effect if the value is `Left`, or fails with the error e.
    */
   def leftOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, B] =
@@ -684,6 +713,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.foldM(
       e => ZIO.fail(ev2(e)),
       a => ev(a).fold(ZIO.succeed(_), _ => ZIO.fail(new NoSuchElementException("Either.left.get on Right")))
+    )
+
+  /**
+   * Returns a succesful effect if the value is `Right`, or fails with the error `None`.
+   */
+  def right[B, C](implicit ev: A <:< Either[B, C]): ZIO[R, Option[E], C] =
+    self.foldM(
+      e => ZIO.fail(Some(e)),
+      a => ev(a).fold(_ => ZIO.fail(None), ZIO.succeed)
     )
 
   /**
@@ -927,8 +965,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     policy.initial.flatMap(loop)
   }
 
-  final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] = ZIO.identity[C] +++ self
-
   /**
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
@@ -1034,8 +1070,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B]): ZIO[R1, E2, B] =
     ZIO.unsandbox(f(self.sandbox))
-
-  final def second[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] = ZIO.identity[R1] &&& self
 
   /**
    * Summarizes a effect by computing some value before and after execution, and
@@ -1204,11 +1238,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * interruption of an inner effect that has been made interruptible).
    */
   final def uninterruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Uninterruptible)
-
-  /**
-   *  Returns an effect with the value on the left part.
-   */
-  final def left[A](a: A): UIO[Either[A, Nothing]] = succeed(Left(a))
 
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.
