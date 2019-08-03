@@ -153,8 +153,8 @@ lazy val testRunner = crossProject(JVMPlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.scala-sbt" % "test-interface" % "1.0",
-      "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
+      "org.scala-sbt"  % "test-interface" % "1.0",
+      "org.scala-lang" % "scala-reflect"  % scalaVersion.value
     )
   )
   .dependsOn(core % "test->test;compile->compile")
