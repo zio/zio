@@ -1,11 +1,9 @@
 package zio.stm
 
-import java.util.concurrent.CountDownLatch
-
 import zio.Cause
 import zio._
 
-final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+final class STMSpec extends BaseCrossPlatformSpec {
   def is = "STMSpec".title ^ s2"""
         Using `STM.atomically` to perform different computations and call:
           `STM.succeed` to make a successful computation and check the value $e1
@@ -187,28 +185,24 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       .repeat(Schedule.recurs(n) *> Schedule.identity)
 
   def e15 =
-    unsafeRun(
-      for {
-        tVar  <- TRef.makeCommit(0)
-        fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
-        _     <- fiber.join
-        value <- tVar.get.commit
-      } yield value
-    ) must_=== 1000
+    for {
+      tVar  <- TRef.makeCommit(0)
+      fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
+      _     <- fiber.join
+      value <- tVar.get.commit
+    } yield value must_=== 1000
 
   def e16 =
-    unsafeRun(
-      for {
-        tVars <- STM
-                  .atomically(
-                    TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
-                  )
-        tvar1 <*> tvar2 <*> tvar3 = tVars
-        fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
-        _                         <- fiber.join
-        value                     <- tvar3.get.commit
-      } yield value
-    ) must_=== 10000
+    for {
+      tVars <- STM
+                .atomically(
+                  TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
+                )
+      tvar1 <*> tvar2 <*> tvar3 = tVars
+      fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
+      _                         <- fiber.join
+      value                     <- tvar3.get.commit
+    } yield value must_=== 10000
 
   def e19 =
     unsafeRun {
@@ -235,156 +229,138 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     }
 
   def e21 =
-    unsafeRun {
-      val latch = new CountDownLatch(1)
-
-      for {
-        done  <- Promise.make[Nothing, Unit]
-        tvar1 <- TRef.makeCommit(0)
-        tvar2 <- TRef.makeCommit("Failed!")
-        fiber <- (STM.atomically {
-                  for {
-                    v1 <- tvar1.get
-                    _  <- STM.succeedLazy(latch.countDown())
-                    _  <- STM.check(v1 > 42)
-                    _  <- tvar2.set("Succeeded!")
-                    v2 <- tvar2.get
-                  } yield v2
-                } <* done.succeed(())).fork
-        _    <- UIO(latch.await())
-        old  <- tvar2.get.commit
-        _    <- tvar1.set(43).commit
-        _    <- done.await
-        newV <- tvar2.get.commit
-        join <- fiber.join
-      } yield (old must_=== "Failed!") and (newV must_=== join)
-    }
+    for {
+      done  <- Promise.make[Nothing, Unit]
+      latch <- Promise.make[Nothing, Unit]
+      tvar1 <- TRef.makeCommit(0)
+      tvar2 <- TRef.makeCommit("Failed!")
+      fiber <- (STM.atomically {
+                for {
+                  v1 <- tvar1.get
+                  _  <- STM.succeedLazy(unsafeRun(latch.succeed(())))
+                  _  <- STM.check(v1 > 42)
+                  _  <- tvar2.set("Succeeded!")
+                  v2 <- tvar2.get
+                } yield v2
+              } <* done.succeed(())).fork
+      _    <- latch.await
+      old  <- tvar2.get.commit
+      _    <- tvar1.set(43).commit
+      _    <- done.await
+      newV <- tvar2.get.commit
+      join <- fiber.join
+    } yield (old must_=== "Failed!") and (newV must_=== join)
 
   def e22 =
-    unsafeRun {
-      for {
-        sender    <- TRef.makeCommit(100)
-        receiver  <- TRef.makeCommit(0)
-        _         <- transfer(receiver, sender, 150).fork
-        _         <- sender.update(_ + 100).commit
-        _         <- sender.get.filter(_ == 50).commit
-        senderV   <- sender.get.commit
-        receiverV <- receiver.get.commit
-      } yield (senderV must_=== 50) and (receiverV must_=== 150)
-    }
+    for {
+      sender    <- TRef.makeCommit(100)
+      receiver  <- TRef.makeCommit(0)
+      _         <- transfer(receiver, sender, 150).fork
+      _         <- sender.update(_ + 100).commit
+      _         <- sender.get.filter(_ == 50).commit
+      senderV   <- sender.get.commit
+      receiverV <- receiver.get.commit
+    } yield (senderV must_=== 50) and (receiverV must_=== 150)
 
   def e23 =
-    unsafeRun {
-      for {
-        sender     <- TRef.makeCommit(100)
-        receiver   <- TRef.makeCommit(0)
-        toReceiver = transfer(receiver, sender, 150)
-        toSender   = transfer(sender, receiver, 150)
-        f          <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
-        _          <- sender.update(_ + 50).commit
-        _          <- f.join
-        senderV    <- sender.get.commit
-        receiverV  <- receiver.get.commit
-      } yield (senderV must_=== 150) and (receiverV must_=== 0)
-    }
+    for {
+      sender     <- TRef.makeCommit(100)
+      receiver   <- TRef.makeCommit(0)
+      toReceiver = transfer(receiver, sender, 150)
+      toSender   = transfer(sender, receiver, 150)
+      f          <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
+      _          <- sender.update(_ + 50).commit
+      _          <- f.join
+      senderV    <- sender.get.commit
+      receiverV  <- receiver.get.commit
+    } yield (senderV must_=== 150) and (receiverV must_=== 0)
 
   def e24 =
-    unsafeRun {
-      for {
-        sender     <- TRef.makeCommit(50)
-        receiver   <- TRef.makeCommit(0)
-        toReceiver = transfer(receiver, sender, 100)
-        toSender   = transfer(sender, receiver, 100)
-        f1         <- IO.forkAll(List.fill(10)(toReceiver))
-        f2         <- IO.forkAll(List.fill(10)(toSender))
-        _          <- sender.update(_ + 50).commit
-        _          <- f1.join
-        _          <- f2.join
-        senderV    <- sender.get.commit
-        receiverV  <- receiver.get.commit
-      } yield (senderV must_=== 100) and (receiverV must_=== 0)
-    }
+    for {
+      sender     <- TRef.makeCommit(50)
+      receiver   <- TRef.makeCommit(0)
+      toReceiver = transfer(receiver, sender, 100)
+      toSender   = transfer(sender, receiver, 100)
+      f1         <- IO.forkAll(List.fill(10)(toReceiver))
+      f2         <- IO.forkAll(List.fill(10)(toSender))
+      _          <- sender.update(_ + 50).commit
+      _          <- f1.join
+      _          <- f2.join
+      senderV    <- sender.get.commit
+      receiverV  <- receiver.get.commit
+    } yield (senderV must_=== 100) and (receiverV must_=== 0)
 
   def e25 =
-    unsafeRun {
-      for {
-        sender       <- TRef.makeCommit(50)
-        receiver     <- TRef.makeCommit(0)
-        toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
-        toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
-        f            <- toReceiver10.zipPar(toSender10).fork
-        _            <- sender.update(_ + 50).commit
-        _            <- f.join
-        senderV      <- sender.get.commit
-        receiverV    <- receiver.get.commit
-      } yield (senderV must_=== 100) and (receiverV must_=== 0)
-    }
+    for {
+      sender       <- TRef.makeCommit(50)
+      receiver     <- TRef.makeCommit(0)
+      toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
+      toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
+      f            <- toReceiver10.zipPar(toSender10).fork
+      _            <- sender.update(_ + 50).commit
+      _            <- f.join
+      senderV      <- sender.get.commit
+      receiverV    <- receiver.get.commit
+    } yield (senderV must_=== 100) and (receiverV must_=== 0)
 
   def e26 =
-    unsafeRun(
-      for {
-        tvar <- TRef.makeCommit(0)
-        fiber <- IO.forkAll(
-                  (0 to 20).map(
-                    i =>
-                      (for {
-                        v <- tvar.get
-                        _ <- STM.check(v == i)
-                        _ <- tvar.update(_ + 1)
-                      } yield ()).commit
-                  )
+    for {
+      tvar <- TRef.makeCommit(0)
+      fiber <- IO.forkAll(
+                (0 to 20).map(
+                  i =>
+                    (for {
+                      v <- tvar.get
+                      _ <- STM.check(v == i)
+                      _ <- tvar.update(_ + 1)
+                    } yield ()).commit
                 )
-        _ <- fiber.join
-        v <- tvar.get.commit
-      } yield v must_=== 21
-    )
+              )
+      _ <- fiber.join
+      v <- tvar.get.commit
+    } yield v must_=== 21
+
   import zio.duration._
 
   def e27 =
-    unsafeRun {
-      val latch = new CountDownLatch(1)
-      for {
-        tvar <- TRef.makeCommit(0)
-        fiber <- (for {
-                  v <- tvar.get
-                  _ <- STM.succeedLazy(latch.countDown())
-                  _ <- STM.check(v > 0)
-                  _ <- tvar.update(10 / _)
-                } yield ()).commit.fork
-        _ <- UIO(latch.await())
-        _ <- fiber.interrupt
-        _ <- tvar.set(10).commit
-        v <- clock.sleep(10.millis) *> tvar.get.commit
-      } yield v must_=== 10
-    }
+    for {
+      latch <- Promise.make[Nothing, Unit]
+      tvar  <- TRef.makeCommit(0)
+      fiber <- (for {
+                v <- tvar.get
+                _ <- STM.succeedLazy(unsafeRun(latch.succeed(())))
+                _ <- STM.check(v > 0)
+                _ <- tvar.update(10 / _)
+              } yield ()).commit.fork
+      _ <- latch.await
+      _ <- fiber.interrupt
+      _ <- tvar.set(10).commit
+      v <- clock.sleep(10.millis) *> tvar.get.commit
+    } yield v must_=== 10
 
   def e28 =
-    unsafeRun {
-      val latch = new CountDownLatch(1)
-      for {
-        tvar <- TRef.makeCommit(0)
-        fiber <- IO.forkAll(List.fill(100)((for {
-                  v <- tvar.get
-                  _ <- STM.succeedLazy(latch.countDown())
-                  _ <- STM.check(v < 0)
-                  _ <- tvar.set(10)
-                } yield ()).commit))
-        _ <- UIO(latch.await())
-        _ <- fiber.interrupt
-        _ <- tvar.set(-1).commit
-        v <- tvar.get.commit.delay(10.millis)
-      } yield v must_=== -1
-    }
+    for {
+      latch <- Promise.make[Nothing, Unit]
+      tvar  <- TRef.makeCommit(0)
+      fiber <- IO.forkAll(List.fill(100)((for {
+                v <- tvar.get
+                _ <- STM.succeedLazy(unsafeRun(latch.succeed(())))
+                _ <- STM.check(v < 0)
+                _ <- tvar.set(10)
+              } yield ()).commit))
+      _ <- latch.await
+      _ <- fiber.interrupt
+      _ <- tvar.set(-1).commit
+      v <- tvar.get.commit.delay(10.millis)
+    } yield v must_=== -1
 
   def e29 =
-    unsafeRun(
-      for {
-        v       <- TRef.makeCommit(1)
-        f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
-        _       <- f.interrupt
-        observe <- f.poll
-      } yield observe must be some Exit.Failure(Cause.interrupt)
-    )
+    for {
+      v       <- TRef.makeCommit(1)
+      f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
+      _       <- f.interrupt
+      observe <- f.poll
+    } yield observe must be some Exit.Failure(Cause.interrupt)
 
   def e30 =
     unsafeRun(
@@ -403,27 +379,23 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     )
 
   def e32 =
-    unsafeRun(
-      for {
-        tvar1 <- TRef.makeCommit(1)
-        tvar2 <- TRef.makeCommit(2)
-        oldV1 <- tvar1.get.commit
-        oldV2 <- tvar2.get.commit
-        f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).commit))
-        _     <- f.join
-        v1    <- tvar1.get.commit
-        v2    <- tvar2.get.commit
-      } yield (v1 must_=== oldV1) and (v2 must_=== oldV2)
-    )
+    for {
+      tvar1 <- TRef.makeCommit(1)
+      tvar2 <- TRef.makeCommit(2)
+      oldV1 <- tvar1.get.commit
+      oldV2 <- tvar2.get.commit
+      f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).commit))
+      _     <- f.join
+      v1    <- tvar1.get.commit
+      v2    <- tvar2.get.commit
+    } yield (v1 must_=== oldV1) and (v2 must_=== oldV2)
 
   def e33 =
-    unsafeRun(
-      for {
-        it    <- UIO((1 to 100).map(TRef.make(_)))
-        tvars <- STM.collectAll(it).commit
-        res   <- UIO.collectAllPar(tvars.map(_.get.commit))
-      } yield res must_=== (1 to 100).toList
-    )
+    for {
+      it    <- UIO((1 to 100).map(TRef.make(_)))
+      tvars <- STM.collectAll(it).commit
+      res   <- UIO.collectAllPar(tvars.map(_.get.commit))
+    } yield res must_=== (1 to 100).toList
 
   def e34 =
     unsafeRun(
