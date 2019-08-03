@@ -1,56 +1,58 @@
 package examples
 
 
+import examples.Suites._
 import zio.test.{test, _}
 
-object PredicatesExampleSpecRunner extends DefaultRunnableSpec(PredicateExampleSpec.spec1)
 
 
-object PredicateExampleSpec {
 
-  val spec1: ZSpec[Any, Nothing, String] =  test("(1 + 1) must be 2") {
-    assert[Int](1 + 1, Predicate.equals(2))
-  }
+private object Suites {
 
-  val spec2: Spec[String, ZTest[Any, Nothing]] = suite("That")(spec1)
+  val operationsSuite = suite("Basic Operations")(
+    test("Addition operator") {
+      assert(1 + 1, Predicate.equals(2))
+    }
+    ,
+    test("Subtraction operator") {
+      assert(10 - 5, Predicate.equals(5))
+    },
+    test("Multiplication operator") {
+      assert(10 * 2, Predicate.equals(20))
+    },
+    test("Division operator") {
+      assert(25 / 5, Predicate.equals(5))
+    }
+  )
 
-  val spec: Spec[String, ZTest[Any, Nothing]] = suite("Operations")(
-      test("(1 + 1) must be 2") {
-        assert[Int](1 + 1, Predicate.equals(2))
-      },
-      test("(10 - 5) must be 5") {
-        assert[Int](10 - 5, Predicate.equals(5))
-      },
-      test("(2 * 5) must be 10") {
-        assert[Int](1 + 1, Predicate.equals(10))
-      },
-      test("(25 / 5) must be 5") {
-        assert[Int](25 / 5, Predicate.equals(5))
-      })
+
+  val listSuite = suite("List operations")(
+    test("Iterable contains") {
+      assert(List(1,2,3), Predicate.contains(1))
+    },
+    test("Iterable exists"){
+      assert(List('z', 'i', 'o'), Predicate.exists(Predicate.equals('o')) )
+    },
+    test("Iterable forall") {
+      assert(List("zio", "zmanaged", "zstream", "ztrace", "zschedule").map(_.nonEmpty), Predicate.forall(Predicate.equals(true)))
+    },
+    test("Iterable hasSize"){
+      assert(List(1,2,3,4,5), Predicate.hasSize(Predicate.equals(5)))
+    }
+  )
 
 
 }
 
 
-object PredicateExampleSpec2  extends DefaultRunnableSpec({
 
-   suite("Operations")(
-     test("(1 + 1) must be 2") {
-       assert[Int](1 + 1, Predicate.equals(2))
-     }
-      ,
-     test("(10 - 5) must be 5") {
-       assert[Int](10 - 5, Predicate.equals(5))
-     },
-     test("(2 * 5) must be 10") {
-       assert[Int](1 + 1, Predicate.equals(10))
-     },
-     test("(25 / 5) must be 5") {
-       assert[Int](25 / 5, Predicate.equals(5))
-     }
-   )
+object PredicateExampleSpec  extends DefaultRunnableSpec (
 
-})
+  suite("Predicate examples")(operationsSuite, listSuite)
+
+
+
+)
 
 
 
