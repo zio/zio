@@ -413,7 +413,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def head[B](implicit ev: A <:< List[B]): ZIO[R, Option[E], B] =
     self.foldM(
       e => ZIO.fail(Some(e)),
-      a => ev(a).headOption.fold[ZIO[R, Option[E], B]](ZIO.fail(None))(ZIO.succeed(_))
+      a => ev(a).headOption.fold[ZIO[R, Option[E], B]](ZIO.fail(None))(ZIO.succeed)
     )
 
   /**
@@ -671,7 +671,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def left[B, C](implicit ev: A <:< Either[B, C]): ZIO[R, Option[E], B] =
     self.foldM(
       e => ZIO.fail(Some(e)),
-      a => ev(a).fold(ZIO.succeed(_), _ => ZIO.fail(None))
+      a => ev(a).fold(ZIO.succeed, _ => ZIO.fail(None))
     )
 
   /**
@@ -701,7 +701,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def right[B, C](implicit ev: A <:< Either[B, C]): ZIO[R, Option[E], C] =
     self.foldM(
       e => ZIO.fail(Some(e)),
-      a => ev(a).fold(_ => ZIO.fail(None), ZIO.succeed(_))
+      a => ev(a).fold(_ => ZIO.fail(None), ZIO.succeed)
     )
 
   /**
