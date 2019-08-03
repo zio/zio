@@ -114,7 +114,7 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.flattenPar]]
    */
-  final def flattenPar[E, A](n: Long, outputBuffer: Int = 16)(
+  final def flattenPar[E, A](n: Int, outputBuffer: Int = 16)(
     fa: Stream[E, Stream[E, A]]
   ): Stream[E, A] =
     ZStream.flattenPar(n, outputBuffer)(fa)
@@ -171,7 +171,7 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.mergeAll]]
    */
-  final def mergeAll[E, A](n: Long, outputBuffer: Int = 16)(
+  final def mergeAll[E, A](n: Int, outputBuffer: Int = 16)(
     streams: Stream[E, A]*
   ): Stream[E, A] =
     ZStream.mergeAll[Any, E, A](n, outputBuffer)(streams: _*)

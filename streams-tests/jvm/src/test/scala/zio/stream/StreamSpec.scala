@@ -100,6 +100,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     associativity             $flatMapAssociativity
 
   Stream.flatMapPar/flattenPar/mergeAll
+    guarantee ordering                 $flatMapParGuaranteeOrdering
     consistent with flatMap            $flatMapParConsistency
     short circuiting                   $flatMapParShortCircuiting
     interruption propagation           $flatMapParInterruptionPropagation
@@ -110,13 +111,15 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     finalizer ordering                 $flatMapParFinalizerOrdering
 
   Stream.flatMapParSwitch
-    short circuiting                   $flatMapParSwitchShortCircuiting
-    interruption propagation           $flatMapParSwitchInterruptionPropagation
-    inner errors interrupt all fibers  $flatMapParSwitchInnerErrorsInterruptAllFibers
-    outer errors interrupt all fibers  $flatMapParSwitchOuterErrorsInterruptAllFibers
-    inner defects interrupt all fibers $flatMapParSwitchInnerDefectsInterruptAllFibers
-    outer defects interrupt all fibers $flatMapParSwitchOuterDefectsInterruptAllFibers
-    finalizer ordering                 $flatMapParSwitchFinalizerOrdering
+    guarantee ordering no parallelism   $flatMapParSwitchGuaranteeOrderingNoParallelism
+    guarantee ordering with parallelism $flatMapParSwitchGuaranteeOrderingWithParallelism
+    short circuiting                    $flatMapParSwitchShortCircuiting
+    interruption propagation            $flatMapParSwitchInterruptionPropagation
+    inner errors interrupt all fibers   $flatMapParSwitchInnerErrorsInterruptAllFibers
+    outer errors interrupt all fibers   $flatMapParSwitchOuterErrorsInterruptAllFibers
+    inner defects interrupt all fibers  $flatMapParSwitchInnerDefectsInterruptAllFibers
+    outer defects interrupt all fibers  $flatMapParSwitchOuterDefectsInterruptAllFibers
+    finalizer ordering                  $flatMapParSwitchFinalizerOrdering
 
   Stream.foreach/foreachWhile
     foreach                     $foreach
@@ -707,7 +710,13 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       slurp(leftStream) must_=== slurp(rightStream)
     }
 
-  private def flatMapParConsistency = prop { (n: Long, m: List[Int]) =>
+  private def flatMapParGuaranteeOrdering = prop { m: List[Int] =>
+    val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i))
+    val flatMapPar = Stream.fromIterable(m).flatMapPar(1)(i => Stream(i, i))
+    slurp(flatMap) must_=== slurp(flatMapPar)
+  }
+
+  private def flatMapParConsistency = prop { (n: Int, m: List[Int]) =>
     val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i))
     val flatMapPar = Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i))
 
@@ -812,6 +821,34 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
                  .run
       cancelled <- substreamCancelled.get
     } yield (cancelled must_=== true) and (result must_=== Exit.die(ex))
+  }
+
+  private def flatMapParSwitchGuaranteeOrderingNoParallelism = unsafeRun {
+    for {
+      lastExecuted <- Ref.make(false)
+      semaphore    <- Semaphore.make(1)
+      _ <- Stream(1, 2, 3, 4)
+            .flatMapParSwitch(1) { i =>
+              if (i > 3) Stream.bracket(UIO.unit)(_ => lastExecuted.set(true)).flatMap(_ => Stream.empty)
+              else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+            }
+            .runDrain
+      result <- semaphore.withPermit(lastExecuted.get)
+    } yield result must_=== true
+  }
+
+  private def flatMapParSwitchGuaranteeOrderingWithParallelism = unsafeRun {
+    for {
+      lastExecuted <- Ref.make(0)
+      semaphore    <- Semaphore.make(4)
+      _ <- Stream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+            .flatMapParSwitch(4) { i =>
+              if (i > 8) Stream.bracket(UIO.unit)(_ => lastExecuted.update(_ + 1)).flatMap(_ => Stream.empty)
+              else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+            }
+            .runDrain
+      result <- semaphore.withPermits(4)(lastExecuted.get)
+    } yield result must_=== 4
   }
 
   private def flatMapParSwitchShortCircuiting = unsafeRun {

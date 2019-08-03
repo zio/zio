@@ -17,36 +17,21 @@
 package zio.test
 
 import zio.UIO
-import scala.util.control.NonFatal
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-abstract class RunnableSpec[R, L](runner: TestRunner[ZTest[R, Any], L])(spec: => ZSpec[R, Nothing, L]) {
+abstract class RunnableSpec[+L, +T](runner: TestRunner[L, T])(spec: => Spec[L, T]) {
 
   /**
    * A simple main function that can be used to run the spec.
    *
    * TODO: Parse command line options.
    */
-  final def main(args: Array[String]): Unit =
-    runner.unsafeRunAsync(spec) { results =>
-      try {
-        if (results.exists { case Spec.TestCase(_, test) => test.failure; case _ => false }) System.exit(1)
-        else System.exit(0)
-      } catch { case NonFatal(_) => }
-    }
+  final def main(args: Array[String]): Unit = { val _ = runner.unsafeRunSync(spec) }
 
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final val run: UIO[ExecutedSpec[L]] =
-    runner.run(spec)
-
-  /**
-   * Side-effectfully executes the spec, asynchronously passing results to the
-   * specified callback.
-   */
-  final def unsafeRunAsync(k: ExecutedSpec[L] => Unit): Unit =
-    runner.unsafeRunAsync(spec)(k)
+  final val run: UIO[ExecutedSpec[L]] = runner.run(spec)
 }

@@ -25,8 +25,8 @@ import zio.internal.{ Platform, PlatformLive }
  * require an environment `R` and may fail with an error `E`, using labels of
  * type `L`. Test runners require a test executor, a platform, and a reporter.
  */
-abstract class TestRunner[T, L](
-  executor: TestExecutor[T, L],
+abstract class TestRunner[L, -T](
+  executor: TestExecutor[L, T],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[L] = DefaultTestReporter(Console.Live)
 ) { self =>
@@ -35,9 +35,15 @@ abstract class TestRunner[T, L](
    * Runs the spec, producing the execution results.
    */
   final def run(spec: Spec[L, T]): UIO[ExecutedSpec[L]] =
-    executor.execute(spec, ExecutionStrategy.ParallelN(4)).flatMap { results =>
-      reporter.report(results) *> ZIO.succeed(results)
+    executor(spec, ExecutionStrategy.ParallelN(4)).flatMap { results =>
+      reporter(results) *> ZIO.succeed(results)
     }
+
+  /**
+   * An unsafe, synchronous run of the specified spec.
+   */
+  final def unsafeRun(spec: Spec[L, T]): ExecutedSpec[L] =
+    Runtime((), platform).unsafeRun(run(spec))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
@@ -47,4 +53,10 @@ abstract class TestRunner[T, L](
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
+
+  /**
+   * An unsafe, synchronous run of the specified spec.
+   */
+  final def unsafeRunSync(spec: Spec[L, T]): Exit[Nothing, ExecutedSpec[L]] =
+    Runtime((), platform).unsafeRunSync(run(spec))
 }

@@ -12,7 +12,7 @@ import zio.clock.Clock
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
-class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
+class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.matcher.EventuallyMatchers {
 
   def is = {
     s2"""
@@ -1093,7 +1093,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
       withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
 
-    unsafeRun(
+    flaky(
       (for {
         ref   <- Ref.make(List.empty[Fiber[_, _]])
         fibs0 <- ZIO.children
@@ -1106,7 +1106,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testSupervisingUnsupervised =
-    unsafeRun(
+    flaky(
       for {
         ref  <- Ref.make(Option.empty[Fiber[_, _]])
         _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
@@ -1115,19 +1115,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     )
 
   def testSupervise = {
-    var counter = 0
-    unsafeRun((for {
-      ref <- Ref.make(List.empty[Fiber[_, _]])
-      _   <- (clock.sleep(200.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
-      _   <- (clock.sleep(400.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
-    } yield ()).handleChildrenWith { fs =>
-      fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> IO.effectTotal(counter += 1))
-    })
-    counter must_=== 2
+    def makeChild(n: Int, fibers: Ref[List[Fiber[_, _]]]) =
+      (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork.tap(fiber => fibers.update(fiber :: _))
+
+    flaky(for {
+      fibers  <- Ref.make(List.empty[Fiber[_, _]])
+      counter <- Ref.make(0)
+      _ <- (makeChild(1, fibers) *> makeChild(2, fibers)).handleChildrenWith { fs =>
+            fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> counter.update(_ + 1).unit)
+          }
+      value <- counter.get
+    } yield value must_=== 2)
   }
 
   def testSuperviseRace =
-    unsafeRun(for {
+    flaky(for {
       pa <- Promise.make[Nothing, Int]
       pb <- Promise.make[Nothing, Int]
 
@@ -1143,10 +1145,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
       _ <- f.interrupt
       r <- pa.await zip pb.await
-    } yield r) must_=== (1 -> 2)
+    } yield r must_=== (1 -> 2))
 
   def testSuperviseFork =
-    unsafeRun(for {
+    flaky(for {
       pa <- Promise.make[Nothing, Int]
       pb <- Promise.make[Nothing, Int]
 
@@ -1164,27 +1166,25 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
       _ <- f.interrupt
       r <- pa.await zip pb.await
-    } yield r) must_=== (1 -> 2)
+    } yield r must_=== (1 -> 2))
 
   def testSupervised =
-    nonFlaky {
-      for {
-        pa <- Promise.make[Nothing, Int]
-        pb <- Promise.make[Nothing, Int]
-        _ <- (for {
-              p1 <- Promise.make[Nothing, Unit]
-              p2 <- Promise.make[Nothing, Unit]
-              _ <- p1
-                    .succeed(())
-                    .bracket_[Any, Nothing]
-                    .apply[Any](pa.succeed(1).unit)(IO.never)
-                    .fork //    TODO: Dotty doesn't infer this properly
-              _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
-              _ <- p1.await *> p2.await
-            } yield ()).interruptChildren
-        r <- pa.await zip pb.await
-      } yield r must_=== (1 -> 2)
-    }
+    flaky(for {
+      pa <- Promise.make[Nothing, Int]
+      pb <- Promise.make[Nothing, Int]
+      _ <- (for {
+            p1 <- Promise.make[Nothing, Unit]
+            p2 <- Promise.make[Nothing, Unit]
+            _ <- p1
+                  .succeed(())
+                  .bracket_[Any, Nothing]
+                  .apply[Any](pa.succeed(1).unit)(IO.never)
+                  .fork //    TODO: Dotty doesn't infer this properly
+            _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
+            _ <- p1.await *> p2.await
+          } yield ()).interruptChildren
+      r <- pa.await zip pb.await
+    } yield r must_=== (1 -> 2))
 
   def testRaceChoosesWinner =
     unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
@@ -1465,4 +1465,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       case (acc, _) =>
         acc and unsafeRun(v)
     }
+
+  def flaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
+    eventually(unsafeRun(v.timeout(1.second)).get)
 }

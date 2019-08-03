@@ -14,6 +14,11 @@ class RepeatSpec extends BaseCrossPlatformSpec {
       for 'doWhileM(cond)' repeats while the effectul cond still holds $repeatWhileM
       for 'doUntil(cond)' repeats until the cond is satisfied $repeatUntil
       for 'doUntilM(cond)' repeats until the effectful cond is satisfied $repeatUntilM
+   Collect all inputs into a list
+      as long as the condition f holds $collectWhile
+      as long as the effectful condition f holds $collectWhile
+      until the effectful condition f failes $collectUntil
+      until the effectful condition f failes $collectUntilM
    Repeat on failure does not actually repeat $repeatFail
    Repeat a scheduled repeat repeats the whole number $repeatRepeat
 
@@ -119,6 +124,38 @@ class RepeatSpec extends BaseCrossPlatformSpec {
       ref <- Ref.make(0)
       i   <- ref.update(_ + 1).repeat(Schedule.doWhileM(cond))
     } yield i must_=== 1
+  }
+
+  def collectWhile = {
+    def cond: Int => Boolean = _ < 10
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.collectWhile(cond))
+    } yield i must_=== List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+  }
+
+  def collectWhileM = {
+    def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.collectWhileM(cond))
+    } yield i must_=== List(1)
+  }
+
+  def collectUntil = {
+    def cond: Int => Boolean = _ < 10
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.collectUntil(cond))
+    } yield i must_=== List(1)
+  }
+
+  def collectUntilM = {
+    def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.collectUntilM(cond))
+    } yield i must_=== List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
   }
 
   def ensuring =

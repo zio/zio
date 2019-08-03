@@ -21,7 +21,7 @@ import zio.ZIO
 import Spec._
 
 /**
- * A `Spec[T, L]` is the backbone of _ZIO Test_. Every spec is either a suite,
+ * A `Spec[L, T]` is the backbone of _ZIO Test_. Every spec is either a suite,
  * which contains other specs, or a test of type `T`. All specs are annotated
  * with labels of type `L`.
  */
@@ -66,7 +66,7 @@ final case class Spec[+L, +T](caseValue: SpecCase[L, T, Spec[L, T]]) { self =>
             ZIO.foreachPar(specs)(_.foldM(defExec)(f)).flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
           case ExecutionStrategy.ParallelN(n) =>
             ZIO
-              .foreachParN(n.toLong)(specs)(_.foldM(defExec)(f))
+              .foreachParN(n)(specs)(_.foldM(defExec)(f))
               .flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
           case ExecutionStrategy.Sequential =>
             ZIO.foreach(specs)(_.foldM(defExec)(f)).flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
@@ -83,6 +83,41 @@ final case class Spec[+L, +T](caseValue: SpecCase[L, T, Spec[L, T]]) { self =>
       case c @ SuiteCase(_, specs, _) => specs.forall(identity) && f(c.map(_ => ()))
       case c @ TestCase(_, _)         => f(c)
     }
+
+  /**
+   * Iterates over the spec with the specified default execution strategy, and
+   * effectfully transforming every test with the provided function, finally
+   * reconstructing the spec with the same structure.
+   */
+  final def foreachExec[R, E, A](defExec: ExecutionStrategy)(f: T => ZIO[R, E, A]): ZIO[R, E, Spec[L, A]] =
+    foldM[R, E, Spec[L, A]](defExec) {
+      case s @ SuiteCase(_, _, _) => ZIO.succeed(Spec(s))
+      case TestCase(label, test)  => f(test).map(test => Spec.test(label, test))
+    }
+
+  /**
+   * Iterates over the spec with the sequential strategy as the default, and
+   * effectfully transforming every test with the provided function, finally
+   * reconstructing the spec with the same structure.
+   */
+  final def foreach[R, E, A](f: T => ZIO[R, E, A]): ZIO[R, E, Spec[L, A]] =
+    foreachExec(ExecutionStrategy.Sequential)(f)
+
+  /**
+   * Iterates over the spec with the parallel strategy as the default, and
+   * effectfully transforming every test with the provided function, finally
+   * reconstructing the spec with the same structure.
+   */
+  final def foreachPar[R, E, A](f: T => ZIO[R, E, A]): ZIO[R, E, Spec[L, A]] =
+    foreachExec(ExecutionStrategy.Parallel)(f)
+
+  /**
+   * Iterates over the spec with the parallel (`n`) strategy as the default, and
+   * effectfully transforming every test with the provided function, finally
+   * reconstructing the spec with the same structure.
+   */
+  final def foreachParN[R, E, A](f: T => ZIO[R, E, A]): ZIO[R, E, Spec[L, A]] =
+    foreachExec(ExecutionStrategy.Parallel)(f)
 
   /**
    * Returns a new spec with remapped labels.
@@ -153,11 +188,11 @@ object Spec {
   }
   final case class SuiteCase[+L, +A](label: L, specs: Vector[A], exec: Option[ExecutionStrategy])
       extends SpecCase[L, Nothing, A]
-  final case class TestCase[+T, +L](label: L, test: T) extends SpecCase[L, T, Nothing]
+  final case class TestCase[+L, +T](label: L, test: T) extends SpecCase[L, T, Nothing]
 
-  final def suite[T, L](label: L, specs: Vector[Spec[L, T]], exec: Option[ExecutionStrategy]): Spec[L, T] =
+  final def suite[L, T](label: L, specs: Vector[Spec[L, T]], exec: Option[ExecutionStrategy]): Spec[L, T] =
     Spec(SuiteCase(label, specs, exec))
 
-  final def test[T, L](label: L, test: T): Spec[L, T] =
+  final def test[L, T](label: L, test: T): Spec[L, T] =
     Spec(TestCase(label, test))
 }
