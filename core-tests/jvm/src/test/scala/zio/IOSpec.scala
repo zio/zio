@@ -55,14 +55,23 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `someOrFail` method fails when given a None. $testSomeOrFailWithNone
    Check `someOrFailException` method extracts the optional value. $testSomeOrFailExceptionOnOptionalValue
    Check `someOrFailException` method fails when given a None. $testSomeOrFailExceptionOnEmptyValue
+   Check `right` method extracts the Right value. $testRightOnRightValue
+   Check `right` method fails with `None` when given a Left value. $testRightOnLeftValue
+   Check `right` method fails with `Some(exception)` when given an exception. $testRightOnException
    Check `rightOrFail` method extracts the Right value. $testRightOrFailExtractsRightValue
    Check `rightOrFail` method fails when given a Left. $testRightOrFailWithLeft
    Check `rightOrFailException` method extracts the Right value. $testRightOrFailExceptionOnRightValue
    Check `rightOrFailException` method fails when given a Left. $testRightOrFailExceptionOnLeftValue
+   Check `left` method extracts the Left value. $testLeftOnLeftValue
+   Check `left` method fails with `None` when given a Right value. $testLeftOnRightValue
+   Check `left` method fails with `Some(exception)` when given an exception. $testLeftOnException
    Check `leftOrFail` method extracts the Left value. $testLeftOrFailExtractsLeftValue
    Check `leftOrFail` method fails when given a Right. $testLeftOrFailWithRight
    Check `leftOrFailException` method extracts the Left value. $testLeftOrFailExceptionOnLeftValue
    Check `leftOrFailException` method fails when given a Right. $testLeftOrFailExceptionOnRightValue
+   Check `head` method extracts the head of a non-empty list. $testHeadOnNonEmptyList
+   Check `head` method fails with `None` when given an empty list. $testHeadOnEmptyList
+   Check `head` method fails with `Some(exception)` when given an exception. $testHeadOnException
    Check `replicate` method returns empty list when given non positive number. $testReplicateNonPositiveNumber
    Check `replicate` method returns list of the same effect. $testReplicate
    Check uncurried `bracket`. $testUncurriedBracket
@@ -357,6 +366,21 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun(task) must throwA[FiberFailure]
   }
 
+  def testRightOnRightValue = {
+    val task = ZIO.succeed(Right("Right")).right.either
+    unsafeRun(task) must_=== Right("Right")
+  }
+
+  def testRightOnLeftValue = {
+    val task = ZIO.succeed(Left("Left")).right.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testRightOnException = {
+    val task = ZIO.fail("Fail").right.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
+  }
+
   def testRightOrFailExceptionOnRightValue = unsafeRun(ZIO.succeed(Right(42)).rightOrFailException) must_=== 42
 
   def testRightOrFailExceptionOnLeftValue = {
@@ -372,6 +396,21 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testRightOrFailWithLeft = {
     val task: Task[Int] = UIO(Left(1)).rightOrFail(exampleError)
     unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOnLeftValue = {
+    val task = ZIO.succeed(Left("Left")).left.either
+    unsafeRun(task) must_=== Right("Left")
+  }
+
+  def testLeftOnRightValue = {
+    val task = ZIO.succeed(Right("Right")).left.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testLeftOnException = {
+    val task = ZIO.fail("Fail").left.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
   }
 
   def testLeftOrFailExceptionOnLeftValue = unsafeRun(ZIO.succeed(Left(42)).leftOrFailException) must_=== 42
@@ -402,6 +441,21 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testLeftOrFailWithRight = {
     val task: Task[Int] = UIO(Right(12)).leftOrFail(exampleError)
     unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testHeadOnNonEmptyList = {
+    val task = ZIO.succeed(List(1, 2, 3)).head.either
+    unsafeRun(task) must_=== Right(1)
+  }
+
+  def testHeadOnEmptyList = {
+    val task = ZIO.succeed(List.empty).head.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testHeadOnException = {
+    val task = ZIO.fail("Fail").head.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
   }
 
   def testUncurriedBracket =
