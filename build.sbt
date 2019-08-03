@@ -93,7 +93,7 @@ lazy val coreTestsJVM = coreTests.jvm
 
 lazy val coreTestsJS = coreTests.js
   .settings(
-    libraryDependencies += "org.scala-js" %%% "scalajs-java-time" % "0.2.5" % Test
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
   )
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
