@@ -5,17 +5,17 @@ import java.util.concurrent.atomic.AtomicBoolean
 class LockedRef[A](var ref: A) {
   var locked = new AtomicBoolean(false)
 
-  def get: A = this.ref
+  def get: A = ref
 
   def set(a: A): A = {
-    this.ref = a
-    this.ref
+    ref = a
+    ref
   }
 
-  def exclusiveSet(a: A): Unit = {
+  def synchronized(f: => Unit): Unit = {
     lock()
-    this.ref = a
-    unlock()
+    try f
+    finally unlock()
   }
 
   def lock(): Unit = {

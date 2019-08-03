@@ -507,17 +507,16 @@ object STM {
         }
       }
 
-      done.lock()
-      if (!done.get) {
-        if (journal ne null) suspend(journal, journal)
-        else
-          tryCommit(platform, stm) match {
-            case TryCommit.Done(io)         => complete(io)
-            case TryCommit.Suspend(journal) => suspend(journal, journal)
-          }
+      done.synchronized {
+        if (!done.get) {
+          if (journal ne null) suspend(journal, journal)
+          else
+            tryCommit(platform, stm) match {
+              case TryCommit.Done(io)         => complete(io)
+              case TryCommit.Suspend(journal) => suspend(journal, journal)
+            }
+        }
       }
-      done.unlock()
-
     }
 
     final def tryCommit[E, A](platform: Platform, stm: STM[E, A]): TryCommit[E, A] = {
@@ -538,10 +537,9 @@ object STM {
           value match {
             case _: TRez.Succeed[_] =>
               if (analysis eq JournalAnalysis.ReadWrite) {
-                globalLock.lock()
-
-                try if (isValid(journal)) commitJournal(journal) else loop = true
-                finally globalLock.unlock()
+                globalLock.synchronized {
+                  if (isValid(journal)) commitJournal(journal) else loop = true
+                }
               }
 
             case _ =>
@@ -666,7 +664,7 @@ object STM {
         case TryCommit.Suspend(journal) =>
           val txnId     = makeTxnId()
           val done      = new zio.internal.LockedRef(false)
-          val interrupt = UIO(done.exclusiveSet(true))
+          val interrupt = UIO(done.synchronized(done.set(true)))
           val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, stm, txnId, done))
 
           async ensuring interrupt
