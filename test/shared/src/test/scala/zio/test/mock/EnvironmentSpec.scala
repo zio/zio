@@ -2,26 +2,27 @@ package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 
-import scala.Predef.{ assert => SAssert }
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Random => SRandom }
 
 import zio._
 import zio.duration._
+import zio.test.TestUtils.label
 
 object EnvironmentSpec extends DefaultRuntime {
 
-  def run(): Unit = {
-    SAssert(currentTime, "MockEnvironment Clock returns time when it is set")
-    SAssert(putStrLn, "MockEnvironment Console writes line to output")
-    SAssert(getStrLn, "MockEnvironment Console reads line from input")
-    SAssert(nextInt, "MockEnvironment Random returns next integer when data is fed")
-    SAssert(env, "MockEnvironment System returns an environment variable when it is set")
-    SAssert(property, "MockEnvironment System returns a property when it is set ")
-    SAssert(lineSeparator, "MockEnvironment System returns the line separator when it is set ")
-  }
+  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+    label(currentTime, "MockEnvironment Clock returns time when it is set"),
+    label(putStrLn, "MockEnvironment Console writes line to output"),
+    label(getStrLn, "MockEnvironment Console reads line from input"),
+    label(nextInt, "MockEnvironment Random returns next integer when data is fed"),
+    label(env, "MockEnvironment System returns an environment variable when it is set"),
+    label(property, "MockEnvironment System returns a property when it is set "),
+    label(lineSeparator, "MockEnvironment System returns the line separator when it is set ")
+  )
 
-  def withEnvironment[E, A](zio: ZIO[MockEnvironment, E, A]): A =
-    unsafeRun(mockEnvironmentManaged.use[Any, E, A](r => zio.provide(r)))
+  def withEnvironment[E <: Throwable, A](zio: ZIO[MockEnvironment, E, A]): Future[A] =
+    unsafeRunToFuture(mockEnvironmentManaged.use[Any, E, A](r => zio.provide(r)))
 
   def currentTime =
     withEnvironment {
