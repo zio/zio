@@ -166,8 +166,9 @@ lazy val testRunnerJVM = testRunner.jvm
 lazy val testRunnerTesting = crossProject(JVMPlatform)
   .in(file("test-sbt-testing"))
   .settings(stdSettings("zio-test-sbt-testing"))
-  .settings(testFrameworks += new TestFramework("scalaz.zio.testkit.runner.TestFramework"))
+  .settings(testFrameworks += new TestFramework("zio.test.runner.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
+  
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)

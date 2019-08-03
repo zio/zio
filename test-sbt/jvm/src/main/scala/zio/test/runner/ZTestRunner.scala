@@ -36,6 +36,8 @@ object ZTestRunner {
 
 class ZTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
 
+  println(s"created ZTestTask for ${taskDef.fullyQualifiedName}")
+
   private val platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
 
   override def tags(): Array[String] = Array.empty
