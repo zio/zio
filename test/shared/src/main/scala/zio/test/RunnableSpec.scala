@@ -38,7 +38,7 @@ abstract class RunnableSpec[+L, +T](runner: TestRunner[L, T])(spec: => Spec[L, T
   final val run: UIO[ExecutedSpec[L]] = runner.run(spec)
 
   /**
-    * the platform used by the runner
-    */
+   * the platform used by the runner
+   */
   final def platform = runner.platform
 }
