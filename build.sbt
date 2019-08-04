@@ -55,7 +55,9 @@ lazy val root = project
     testJVM,
     testJS,
     stacktracerJS,
-    stacktracerJVM
+    stacktracerJVM,
+    testRunnerJS,
+    testRunnerJVM
   )
   .enablePlugins(ScalaJSPlugin)
 

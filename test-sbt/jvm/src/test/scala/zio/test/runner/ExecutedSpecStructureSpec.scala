@@ -17,14 +17,13 @@
 
 package zio.test.runner
 
-import org.specs2.concurrent.ExecutionEnv
 import zio.console._
 import zio.test._
 import zio.test.mock.{MockConsole, MockEnvironment, mockEnvironmentManaged}
 import zio.test.runner.ExecutedSpecStructure.Stats
-import zio.{RIO, TestRuntime, ZIO}
+import zio.{BaseCrossPlatformSpec, RIO, ZIO}
 
-class ExecutedSpecStructureSpec(implicit ee: ExecutionEnv) extends TestRuntime {
+class ExecutedSpecStructureSpec extends BaseCrossPlatformSpec {
   def is = "ExecutedSpecStructure".title ^ s2"""
     Traverse failing spec results $failingSpec
   """

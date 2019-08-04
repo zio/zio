@@ -20,13 +20,13 @@ package zio.test.runner
 import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
-import zio.TestRuntime
-import zio.test.runner.ZTestFrameworkSpec._
+import zio.BaseCrossPlatformSpec
 import zio.test.{DefaultRunnableSpec, Predicate, TestAspect, assert, suite, test}
+import ZTestFrameworkSpec._
 
 import scala.collection.mutable.ArrayBuffer
 
-class ZTestFrameworkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+class ZTestFrameworkSpec extends BaseCrossPlatformSpec {
 
   override def is = "ZTestFramework".title ^
     s2"""
