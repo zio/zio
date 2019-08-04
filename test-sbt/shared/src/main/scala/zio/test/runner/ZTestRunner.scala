@@ -18,10 +18,9 @@ package zio.test.runner
 
 import com.github.ghik.silencer.silent
 import sbt.testing._
-import zio.internal.{ Platform, PlatformLive }
-import zio.{ RIO, Runtime, ZIO }
 import zio.test._
 import zio.test.runner.ExecutedSpecStructure.Stats
+import zio.{ RIO, Runtime, ZIO }
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
@@ -31,9 +30,6 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
 }
 
 class ZTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
-
-  private val platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
-
   override def tags(): Array[String] = Array.empty
 
   private def loadSpec[R, L]: RunnableSpec[R, L] = {
@@ -59,7 +55,7 @@ class ZTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task
             )
     } yield ()
 
-    Runtime((), platform).unsafeRunSync(handle)
+    Runtime((), spec.platform).unsafeRunSync(handle)
     Array.empty
   }
 

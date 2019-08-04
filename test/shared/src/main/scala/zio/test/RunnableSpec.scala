@@ -36,4 +36,9 @@ abstract class RunnableSpec[+L, +T](runner: TestRunner[L, T])(spec: => Spec[L, T
    * Returns an effect that executes the spec, producing the results of the execution.
    */
   final val run: UIO[ExecutedSpec[L]] = runner.run(spec)
+
+  /**
+    * the platform used by the runner
+    */
+  final def platform = runner.platform
 }
