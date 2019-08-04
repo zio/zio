@@ -25,20 +25,12 @@ import zio.test.runner.ExecutedSpecStructure.Stats
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
-  def done(): String                           = "Done"
-  def tasks(defs: Array[TaskDef]): Array[Task] = {
+  def done(): String = "Done"
+  def tasks(defs: Array[TaskDef]): Array[Task] =
     defs.map(new ZTestTask(_, testClassLoader))
-  }
-}
-
-object ZTestRunner {
-  def apply(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunner =
-    new ZTestRunner(args, remoteArgs, testClassLoader)
 }
 
 class ZTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
-
-  println(s"created ZTestTask for ${taskDef.fullyQualifiedName}")
 
   private val platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
 
@@ -47,9 +39,11 @@ class ZTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task
   private def loadSpec[R, L]: RunnableSpec[R, L] = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
-    Reflect.lookupLoadableModuleClass(fqn, testClassLoader)
+    Reflect
+      .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
-      .loadModule().asInstanceOf[RunnableSpec[R, L]]
+      .loadModule()
+      .asInstanceOf[RunnableSpec[R, L]]
   }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {

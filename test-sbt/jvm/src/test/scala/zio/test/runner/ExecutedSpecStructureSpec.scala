@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-
 package zio.test.runner
 
 import zio.console._
 import zio.test._
-import zio.test.mock.{MockConsole, MockEnvironment, mockEnvironmentManaged}
+import zio.test.mock.{ mockEnvironmentManaged, MockConsole, MockEnvironment }
 import zio.test.runner.ExecutedSpecStructure.Stats
-import zio.{BaseCrossPlatformSpec, RIO, ZIO}
+import zio.{ BaseCrossPlatformSpec, RIO, ZIO }
 
 class ExecutedSpecStructureSpec extends BaseCrossPlatformSpec {
   def is = "ExecutedSpecStructure".title ^ s2"""
@@ -32,8 +31,8 @@ class ExecutedSpecStructureSpec extends BaseCrossPlatformSpec {
     val output = unsafeRun(withEnvironment {
       for {
         results <- ExecutedSpecStructureSpec.SimpleFailingSpec.run
-        _ <- ExecutedSpecStructure.from(results).traverse(handleSuite, handleTest)
-        output <- MockConsole.output
+        _       <- ExecutedSpecStructure.from(results).traverse(handleSuite, handleTest)
+        output  <- MockConsole.output
       } yield output
     })
 
@@ -47,29 +46,27 @@ class ExecutedSpecStructureSpec extends BaseCrossPlatformSpec {
   def withEnvironment[E, A](zio: ZIO[MockEnvironment, E, A]): ZIO[Any, E, A] =
     mockEnvironmentManaged.use[Any, E, A](r => zio.provide(r))
 
-
-  def handleSuite(label: String, stats: Stats): RIO[MockEnvironment, Unit] = {
+  def handleSuite(label: String, stats: Stats): RIO[MockEnvironment, Unit] =
     for {
       _ <- putStr(s"SUITE: $label: $stats")
     } yield ()
-  }
 
-  def handleTest(label: String, testResult: ZTestResult): RIO[MockEnvironment, Unit] = {
+  def handleTest(label: String, testResult: ZTestResult): RIO[MockEnvironment, Unit] =
     for {
       _ <- putStr(s"TEST: $label: ${testResult.rendered}")
     } yield ()
-  }
 }
 
 object ExecutedSpecStructureSpec {
-  private object SimpleFailingSpec extends DefaultRunnableSpec(
-      suite("some suite") (
-        test("failing test") {
-          assert(1, Predicate.equals(2))
-        },
-        test("passing test") {
-          assert(1, Predicate.equals(1))
-        }
+  private object SimpleFailingSpec
+      extends DefaultRunnableSpec(
+        suite("some suite")(
+          test("failing test") {
+            assert(1, Predicate.equals(2))
+          },
+          test("passing test") {
+            assert(1, Predicate.equals(1))
+          }
+        )
       )
-    )
 }

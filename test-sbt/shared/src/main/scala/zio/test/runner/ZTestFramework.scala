@@ -25,7 +25,7 @@ final class ZTestFramework extends Framework {
   val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
 
   override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunner =
-    ZTestRunner(args, remoteArgs, testClassLoader)
+    new ZTestRunner(args, remoteArgs, testClassLoader)
 }
 
 object RunnableSpecFingerprint extends SubclassFingerprint {
