@@ -203,6 +203,15 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       infinite bandwidth $throttleShapeInfiniteBandwidth
       with burst         $throttleShapeWithBurst
 
+    utf8Decode $utf8Decode
+
+    utf8DecodeChunk
+      regular strings     $utf8DecodeChunk
+      incomplete chunk 1  $utf8DecodeChunkIncomplete1
+      incomplete chunk 2  $utf8DecodeChunkIncomplete2
+      incomplete chunk 3  $utf8DecodeChunkIncomplete3
+      chunk with leftover $utf8DecodeChunkWithLeftover
+
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
     Number array parsing with combinators $jsonNumArrayParsingSinkWithCombinators
@@ -1123,5 +1132,66 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
                  .provide(clock)
       } yield test
     }
+  }
+
+  private def utf8Decode = prop { (s: String) =>
+    unsafeRun {
+      Stream
+        .fromIterable(s.getBytes("UTF-8"))
+        .transduce(ZSink.utf8Decode())
+        .runCollect
+        .map(_.mkString must_=== s)
+    }
+  }
+
+  private def utf8DecodeChunk = prop { (s: String) =>
+    unsafeRun {
+      Stream(Chunk.fromArray(s.getBytes("UTF-8")))
+        .transduce(ZSink.utf8DecodeChunk)
+        .runCollect
+        .map(_.mkString must_=== s)
+    }
+  }
+
+  private def utf8DecodeChunkIncomplete1 = unsafeRun {
+    for {
+      init   <- ZSink.utf8DecodeChunk.initial.map(Step.state(_))
+      state1 <- ZSink.utf8DecodeChunk.step(init, Chunk(0xC2.toByte))
+      state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0xA2.toByte))
+      string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
+    } yield (Step.cont(state1) must_=== true) and
+      (Step.cont(state2) must_=== false) and
+      (string.getBytes("UTF-8") must_=== Array(0xC2.toByte, 0xA2.toByte))
+  }
+
+  private def utf8DecodeChunkIncomplete2 = unsafeRun {
+    for {
+      init   <- ZSink.utf8DecodeChunk.initial.map(Step.state(_))
+      state1 <- ZSink.utf8DecodeChunk.step(init, Chunk(0xE0.toByte, 0xA4.toByte))
+      state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0xB9.toByte))
+      string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
+    } yield (Step.cont(state1) must_=== true) and
+      (Step.cont(state2) must_=== false) and
+      (string.getBytes("UTF-8") must_=== Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte))
+  }
+
+  private def utf8DecodeChunkIncomplete3 = unsafeRun {
+    for {
+      init   <- ZSink.utf8DecodeChunk.initial.map(Step.state(_))
+      state1 <- ZSink.utf8DecodeChunk.step(init, Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte))
+      state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0x88.toByte))
+      string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
+    } yield (Step.cont(state1) must_=== true) and
+      (Step.cont(state2) must_=== false) and
+      (string.getBytes("UTF-8") must_=== Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte))
+  }
+
+  private def utf8DecodeChunkWithLeftover = unsafeRun {
+    for {
+      init <- ZSink.utf8DecodeChunk.initial.map(Step.state(_))
+      state1 <- ZSink.utf8DecodeChunk
+                 .step(init, Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte))
+    } yield (Step.cont(state1) must_=== false) and
+      (Step.leftover(state1).flatMap(identity).toArray[Byte] must_=== Array(0xF0.toByte, 0x90.toByte))
   }
 }
