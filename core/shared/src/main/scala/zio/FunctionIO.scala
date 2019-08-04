@@ -214,7 +214,7 @@ object FunctionIO extends Serializable {
   private[zio] final class Pure[E, A, B](val run: A => IO[E, B]) extends FunctionIO[E, A, B] {}
   private[zio] final class Impure[E, A, B](val apply0: A => B) extends FunctionIO[E, A, B] {
     val run: A => IO[E, B] = a =>
-      IO.suspend {
+      IO.effectSuspendTotal {
         try IO.succeed[B](apply0(a))
         catch {
           case e: FunctionIOError[_] => IO.fail[E](e.unsafeCoerce[E])
