@@ -16,10 +16,9 @@
 
 package zio.test.runner
 
-import com.github.ghik.silencer.silent
 import sbt.testing._
+import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
 import zio.test._
-import zio.test.runner.ExecutedSpecStructure.Stats
 import zio.{ RIO, Runtime, ZIO }
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
@@ -43,37 +42,33 @@ class ZTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task
   }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-
     val spec = loadSpec[Any, Any]
     val handle = for {
       result <- spec.run
-      _ <- ExecutedSpecStructure
-            .from(result)
-            .traverse(
-              handleSuite = handleSuite(eventHandler, loggers),
-              handleTestResult = handleTest(eventHandler, loggers)
-            )
+      _      <- result.foldM[Any, Throwable, Unit](ExecutionStrategy.Sequential)(handleSpecCase(eventHandler, loggers))
     } yield ()
 
     Runtime((), spec.platform).unsafeRunSync(handle)
     Array.empty
   }
 
-  @silent
-  private def handleSuite[R](
-    eventHandler: EventHandler,
-    loggers: Array[Logger]
-  )(label: String, stats: Stats): RIO[R, Unit] =
-    effects(loggers)(
-      _.info(s"SUITE: $label, passed: ${stats.passed}, failed: ${stats.failed}, ignored: ${stats.ignored}")
-    )
+  private def handleSpecCase(eventHandler: EventHandler, loggers: Array[Logger])(
+    specCase: SpecCase[Any, TestResult, Unit]
+  ) =
+    specCase match {
+      case SuiteCase(label, _, _)      => handleSuite(loggers)(label.toString)
+      case TestCase(label, testResult) => handleTest(eventHandler, loggers)(label.toString, testResult)
+    }
+
+  private def handleSuite[R](loggers: Array[Logger])(label: String): RIO[R, Unit] =
+    effects(loggers)(_.info(s"SUITE: $label"))
 
   private def handleTest[R](
     eventHandler: EventHandler,
     loggers: Array[Logger]
-  )(label: String, result: ZTestResult): RIO[R, Unit] =
+  )(label: String, result: TestResult): RIO[R, Unit] =
     for {
-      _ <- effects(loggers)(_.info(s"TEST: $label: ${result.rendered}"))
+      _ <- effects(loggers)(_.info(s"TEST: $label: ${ZTestTask.describeResult(result)}"))
       _ <- ZIO.effect(eventHandler.handle(ZTestEvent.fromSpec(label, result, taskDef.fullyQualifiedName)))
     } yield ()
 
@@ -97,7 +92,7 @@ case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def fromSpec(label: String, testResult: ZTestResult, fullyQualifiedName: String): Event =
+  def fromSpec(label: String, testResult: TestResult, fullyQualifiedName: String): Event =
     ZTestEvent(
       fullyQualifiedName,
       new TestSelector(label),
@@ -106,8 +101,8 @@ object ZTestEvent {
       0L
     )
 
-  private def maybeThrowable(testResult: ZTestResult) = testResult match {
-    case ZTestResult.Failure(FailureDetails.Runtime(cause), _) =>
+  private def maybeThrowable(testResult: TestResult) = testResult match {
+    case Assertion.Failure(FailureDetails.Runtime(cause)) =>
       Some(cause.squashWith {
         case t: Throwable => t
         case other        => new IllegalStateException(s"cause is not throwable, but: ${other.getClass.getName}")
@@ -115,9 +110,23 @@ object ZTestEvent {
     case _ => None
   }
 
-  private def toStatus(testResult: ZTestResult) = testResult match {
-    case _: ZTestResult.Failure => Status.Failure
-    case ZTestResult.Success    => Status.Success
-    case ZTestResult.Ignored    => Status.Ignored
+  private def toStatus(testResult: TestResult) = testResult match {
+    case Assertion.Failure(_) => Status.Failure
+    case Assertion.Success    => Status.Success
+    case Assertion.Ignore     => Status.Ignored
+  }
+}
+
+object ZTestTask {
+
+  private def describeResult(testResult: TestResult) = testResult match {
+    case f: Assertion.Failure[FailureDetails] => describeFailure(f.message)
+    case Assertion.Success                    => "SUCCESS"
+    case Assertion.Ignore                     => "IGNORED"
+  }
+
+  private def describeFailure(failureDetails: FailureDetails) = failureDetails match {
+    case FailureDetails.Runtime(cause)         => cause.prettyPrint
+    case FailureDetails.Predicate(fragment, _) => s"FAILURE: ${fragment.value} did not satisfy ${fragment.predicate}"
   }
 }

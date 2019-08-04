@@ -63,7 +63,7 @@ class ZTestFrameworkSpec extends BaseCrossPlatformSpec {
           "info: TEST: failing test: FAILURE: 1 did not satisfy equals(2)",
           "info: TEST: passing test: SUCCESS",
           "info: TEST: ignored test: IGNORED",
-          "info: SUITE: some suite, passed: 1, failed: 1, ignored: 1"
+          "info: SUITE: some suite"
         )
       )
     )
