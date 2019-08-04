@@ -66,97 +66,80 @@ final class STMSpec extends BaseCrossPlatformSpec {
     """
 
   def e1 =
-    unsafeRun(
-      STM.succeed("Hello World").commit
-    ) must_=== "Hello World"
+    for {
+      s <- STM.succeed("Hello World").commit
+    } yield s must_=== "Hello World"
 
   def e2 =
-    unsafeRun(
-      STM.fail("Bye bye World").commit.either
-    ) must left("Bye bye World")
+    for {
+      f <- STM.fail("Bye bye World").commit.either
+    } yield f must left("Bye bye World")
 
   def e3 =
-    unsafeRun(
-      STM.succeed(42).either.commit
-    ) must right(42)
+    for {
+      s <- STM.succeed(42).either.commit
+    } yield s must right(42)
 
   def e4 =
-    unsafeRun(
-      STM.fail("oh no!").either.commit
-    ) must left("oh no!")
+    for {
+      f <- STM.fail("oh no!").either.commit
+    } yield f must left("oh no!")
 
-  def e5 = unsafeRun(
+  def e5 =
     (for {
       s <- STM.succeed("Yes!").fold(_ => -1, _ => 1)
       f <- STM.fail("No!").fold(_ => -1, _ => 1)
     } yield (s must_=== 1) and (f must_== -1)).commit
-  )
 
   def e6 =
-    unsafeRun(
-      (for {
-        s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
-        f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
-      } yield (s must_=== "Yes!") and (f must_== "No!")).commit
-    )
+    (for {
+      s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
+      f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
+    } yield (s must_=== "Yes!") and (f must_== "No!")).commit
 
   def e7 =
-    unsafeRun(
-      STM.fail(-1).mapError(_ => "oh no!").commit.either
-    ) must left("oh no!")
+    for {
+      f <- STM.fail(-1).mapError(_ => "oh no!").commit.either
+    } yield f must left("oh no!")
 
   def e8 =
-    unsafeRun(
-      (
-        for {
-          s <- STM.succeed(1) orElse STM.succeed(2)
-          f <- STM.fail("failed") orElse STM.succeed("try this")
-        } yield (s must_=== 1) and (f must_=== "try this")
-      ).commit
-    )
+    (for {
+      s <- STM.succeed(1) orElse STM.succeed(2)
+      f <- STM.fail("failed") orElse STM.succeed("try this")
+    } yield (s must_=== 1) and (f must_=== "try this")).commit
 
   def e9 =
-    unsafeRun(
-      STM.succeed(42).option.commit
-    ) must some(42)
+    for {
+      s <- STM.succeed(42).option.commit
+    } yield s must some(42)
 
   def e10 =
-    unsafeRun(
-      STM.fail("oh no!").option.commit
-    ) must none
+    for {
+      f <- STM.fail("oh no!").option.commit
+    } yield f must none
 
   def e11 =
-    unsafeRun(
-      (
-        STM.succeed(1) <*> STM.succeed('A')
-      ).commit
-    ) must_=== ((1, 'A'))
+    for {
+      t <- (STM.succeed(1) <*> STM.succeed('A')).commit
+    } yield t must_=== ((1, 'A'))
 
   def e12 =
-    unsafeRun(
-      STM.succeed(578).zipWith(STM.succeed(2))(_ + _).commit
-    ) must_=== 580
+    for {
+      s <- STM.succeed(578).zipWith(STM.succeed(2))(_ + _).commit
+    } yield s must_=== 580
 
   def e13 =
-    unsafeRun(
-      (
-        for {
-          intVar <- TRef.make(14)
-          v      <- intVar.get
-        } yield v must_== 14
-      ).commit
-    )
+    (for {
+      intVar <- TRef.make(14)
+      v      <- intVar.get
+    } yield v must_== 14).commit
 
   def e14 =
-    unsafeRun(
-      (
-        for {
-          intVar <- TRef.make(14)
-          _      <- intVar.set(42)
-          v      <- intVar.get
-        } yield v must_== 42
-      ).commit
-    )
+    (for {
+      intVar <- TRef.make(14)
+      _      <- intVar.set(42)
+      v      <- intVar.get
+    } yield v must_== 42).commit
 
   private def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[clock.Clock, Nothing, Int] =
     STM
@@ -205,28 +188,24 @@ final class STMSpec extends BaseCrossPlatformSpec {
     } yield value must_=== 10000
 
   def e19 =
-    unsafeRun {
-      for {
-        tvar1 <- TRef.makeCommit(10)
-        tvar2 <- TRef.makeCommit("Failed!")
-        join <- (for {
-                 v1 <- tvar1.get
-                 _  <- STM.check(v1 > 0)
-                 _  <- tvar2.set("Succeeded!")
-                 v2 <- tvar2.get
-               } yield v2).commit
-      } yield join must_=== "Succeeded!"
-    }
+    for {
+      tvar1 <- TRef.makeCommit(10)
+      tvar2 <- TRef.makeCommit("Failed!")
+      join <- (for {
+               v1 <- tvar1.get
+               _  <- STM.check(v1 > 0)
+               _  <- tvar2.set("Succeeded!")
+               v2 <- tvar2.get
+             } yield v2).commit
+    } yield join must_=== "Succeeded!"
 
   def e20 =
-    unsafeRun {
-      for {
-        tvar <- TRef.makeCommit(42)
-        join <- tvar.get.filter(_ == 42).commit
-        _    <- tvar.set(9).commit
-        v    <- tvar.get.commit
-      } yield (v must_=== 9) and (join must_=== 42)
-    }
+    for {
+      tvar <- TRef.makeCommit(42)
+      join <- tvar.get.filter(_ == 42).commit
+      _    <- tvar.set(9).commit
+      v    <- tvar.get.commit
+    } yield (v must_=== 9) and (join must_=== 42)
 
   def e21 =
     for {
@@ -363,20 +342,18 @@ final class STMSpec extends BaseCrossPlatformSpec {
     } yield observe must be some Exit.Failure(Cause.interrupt)
 
   def e30 =
-    unsafeRun(
-      STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.commit
-    ) must_=== "Positive"
+    for {
+      s <- STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.commit
+    } yield s must_=== "Positive"
 
   def e31 =
-    unsafeRun(
-      for {
-        tvar1 <- TRef.makeCommit(1)
-        tvar2 <- TRef.makeCommit(2)
-        _     <- permutation(tvar1, tvar2).commit
-        v1    <- tvar1.get.commit
-        v2    <- tvar2.get.commit
-      } yield (v1 must_=== 2) and (v2 must_=== 1)
-    )
+    for {
+      tvar1 <- TRef.makeCommit(1)
+      tvar2 <- TRef.makeCommit(2)
+      _     <- permutation(tvar1, tvar2).commit
+      v1    <- tvar1.get.commit
+      v2    <- tvar2.get.commit
+    } yield (v1 must_=== 2) and (v2 must_=== 1)
 
   def e32 =
     for {
@@ -398,75 +375,63 @@ final class STMSpec extends BaseCrossPlatformSpec {
     } yield res must_=== (1 to 100).toList
 
   def e34 =
-    unsafeRun(
-      for {
-        tvar      <- TRef.makeCommit(0)
-        _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).commit
-        expectedV = (1 to 100).sum
-        v         <- tvar.get.commit
-      } yield v must_=== expectedV
-    )
+    for {
+      tvar      <- TRef.makeCommit(0)
+      _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).commit
+      expectedV = (1 to 100).sum
+      v         <- tvar.get.commit
+    } yield v must_=== expectedV
 
   def e35 =
-    unsafeRun(
-      for {
-        rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).commit
-        leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
-        leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
-        failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
-      } yield (rightV must beRight(42)) and (leftV1 must beLeft(1)) and (leftV2 must beLeft(2)) and (failedV must beLeft(
-        -2
-      ))
-    )
+    for {
+      rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).commit
+      leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
+      leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
+      failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
+    } yield (rightV must beRight(42)) and (leftV1 must beLeft(1)) and (leftV2 must beLeft(2)) and (failedV must beLeft(
+      -2
+    ))
 
   def e36 =
-    unsafeRun(
-      for {
-        tvar <- TRef.makeCommit(0)
-        e <- (for {
-              _ <- tvar.update(_ + 10)
-              _ <- STM.fail("Error!")
-            } yield ()).commit.either
-        v <- tvar.get.commit
-      } yield (e must be left "Error!") and
-        (v must_=== 0)
-    )
+    for {
+      tvar <- TRef.makeCommit(0)
+      e <- (for {
+            _ <- tvar.update(_ + 10)
+            _ <- STM.fail("Error!")
+          } yield ()).commit.either
+      v <- tvar.get.commit
+    } yield (e must be left "Error!") and (v must_=== 0)
 
   def e37 =
-    unsafeRun(
-      for {
-        tvar <- TRef.makeCommit(0)
-        e <- (for {
-              _ <- tvar.update(_ + 10)
-              _ <- STM.fail("Error!")
-            } yield ()).commit.ignore
-        v <- tvar.get.commit
-      } yield (e must be_==(())) and (v must_=== 0)
-    )
+    for {
+      tvar <- TRef.makeCommit(0)
+      e <- (for {
+            _ <- tvar.update(_ + 10)
+            _ <- STM.fail("Error!")
+          } yield ()).commit.ignore
+      v <- tvar.get.commit
+    } yield (e must be_==(())) and (v must_=== 0)
+
   def e38 =
-    unsafeRun(
-      for {
-        tvar  <- TRef.makeCommit(0)
-        left  = tvar.update(_ + 100) *> STM.retry
-        right = tvar.update(_ + 100).unit
-        _     <- (left orElse right).commit
-        v     <- tvar.get.commit
-      } yield v must_=== 100
-    )
+    for {
+      tvar  <- TRef.makeCommit(0)
+      left  = tvar.update(_ + 100) *> STM.retry
+      right = tvar.update(_ + 100).unit
+      _     <- (left orElse right).commit
+      v     <- tvar.get.commit
+    } yield v must_=== 100
 
   def e39 =
-    unsafeRun(
-      for {
-        tvar  <- TRef.makeCommit(0)
-        left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
-        right = tvar.update(_ + 100).unit
-        _     <- (left orElse right).commit
-        v     <- tvar.get.commit
-      } yield v must_=== 100
-    )
+    for {
+      tvar  <- TRef.makeCommit(0)
+      left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
+      right = tvar.update(_ + 100).unit
+      _     <- (left orElse right).commit
+      v     <- tvar.get.commit
+    } yield v must_=== 100
 
   def e40 =
-    unsafeRun(for {
+    for {
       ref <- TRef.make(0).commit
       result <- STM.atomically(for {
                  _       <- ref.set(2)
@@ -474,7 +439,7 @@ final class STMSpec extends BaseCrossPlatformSpec {
                  _       <- STM.partial(throw new RuntimeException).orElse(STM.unit)
                  newVal2 <- ref.get
                } yield (newVal1, newVal2))
-    } yield result must_=== (2 -> 2))
+    } yield result must_=== (2 -> 2)
 
   private def transfer(receiver: TRef[Int], sender: TRef[Int], much: Int): UIO[Int] =
     STM.atomically {
