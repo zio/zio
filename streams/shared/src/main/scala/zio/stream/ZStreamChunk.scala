@@ -49,9 +49,10 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    */
   final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
+      def foldMapError[R1 <: R, E1, A1 >: Chunk[A], S](e: E => E1): Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
           self
+            .mapError(e)
             .foldChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
               case ((true, s), as) =>
                 val remaining = as.dropWhile(pred)
@@ -90,6 +91,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * Returns a stream made of the concatenation of all the chunks in this stream
    */
   final def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
+
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -153,6 +155,12 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
     ZStreamChunk(chunks.map(_.flatMap(f)))
 
   /**
+   * Maps all errors using the provided function.
+   */
+  final def mapError[E1](fe: E => E1): ZStreamChunk[R, E1, A] =
+    ZStreamChunk(chunks.mapError(fe))
+
+  /**
    * Maps over elements of the stream with the specified effectful function.
    */
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
@@ -170,9 +178,10 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    */
   final def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
+      override def foldMapError[R1 <: R, E1, A1 >: Chunk[A], S](e: E => E1): Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
           self
+            .mapError(e)
             .foldChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) { (s, as) =>
               val remaining = as.takeWhile(pred)
 
@@ -214,9 +223,9 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   final def zipWithIndex: ZStreamChunk[R, E, (A, Int)] =
     ZStreamChunk(
       new ZStream[R, E, Chunk[(A, Int)]] {
-        override def fold[R1 <: R, E1 >: E, A1 >: Chunk[(A, Int)], S]: Fold[R1, E1, A1, S] =
+        def foldMapError[R1 <: R, E1, A1 >: Chunk[(A, Int)], S](e: E => E1): Fold[R1, E1, A1, S] =
           ZManaged.succeedLazy { (s, cont, f) =>
-            chunks.fold[R1, E1, Chunk[A], (S, Int)].flatMap { fold =>
+            chunks.mapError(e).fold[R1, E1, Chunk[A], (S, Int)].flatMap { fold =>
               fold((s, 0), tp => cont(tp._1), {
                 case ((s, index), as) =>
                   val zipped = as.zipWithIndexFrom(index)
