@@ -23,7 +23,13 @@ import zio.test.reflect.Reflect.EnableReflectiveInstantiation
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
 @EnableReflectiveInstantiation
-abstract class RunnableSpec[+L, +T](runner: TestRunner[L, T])(spec: => Spec[L, T]) {
+abstract class RunnableSpec {
+
+  type Label
+  type Test
+
+  def runner: TestRunner[Label, Test]
+  def spec: Spec[Label, Test]
 
   /**
    * A simple main function that can be used to run the spec.
@@ -35,7 +41,7 @@ abstract class RunnableSpec[+L, +T](runner: TestRunner[L, T])(spec: => Spec[L, T
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final val run: UIO[ExecutedSpec[L]] = runner.run(spec)
+  final def run: UIO[ExecutedSpec[Label]] = runner.run(spec)
 
   /**
    * the platform used by the runner

@@ -31,14 +31,14 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
 class ZTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
   override def tags(): Array[String] = Array.empty
 
-  private def loadSpec[R, L]: RunnableSpec[R, L] = {
+  private def loadSpec[R, L]: RunnableSpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
     Reflect
       .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
       .loadModule()
-      .asInstanceOf[RunnableSpec[R, L]]
+      .asInstanceOf[RunnableSpec]
   }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {

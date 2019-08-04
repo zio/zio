@@ -19,55 +19,59 @@ package zio.test.runner
 import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
-import zio.BaseCrossPlatformSpec
-import zio.test.{ assert, suite, test, DefaultRunnableSpec, Predicate, TestAspect }
-import ZTestFrameworkSpec._
+import zio.test.{ suite, test, DefaultRunnableSpec, Predicate, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
 
-class ZTestFrameworkSpec extends BaseCrossPlatformSpec {
+object ZTestFrameworkSpec {
 
-  override def is =
-    "ZTestFramework".title ^
-      s2"""
-      return fingerprint for RunnableSpec  $fingerprint
-      getTask.execute() should
-        Report events for failing spec $reportEvents
-        Log messages for failing spec $logMessages
-    """
+  def main(args: Array[String]): Unit = {
+    testFingerprints()
+    testReportEvents()
+    testLogMessages()
+    println("Success!")
+  }
 
-  def fingerprint =
-    new ZTestFramework().fingerprints === Array(RunnableSpecFingerprint)
+  def testFingerprints() = {
+    val fingerprints = new ZTestFramework().fingerprints.toSeq
+    assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint))
+  }
 
-  def reportEvents = {
+  def testReportEvents() = {
     val reported = ArrayBuffer[Event]()
     loadAndExecute(failingSpecFQN, reported.append(_))
 
-    reported should containTheSameElementsAs(
-      Seq(
-        ZTestEvent(failingSpecFQN, new TestSelector("failing test"), Status.Failure, None, 0),
-        ZTestEvent(failingSpecFQN, new TestSelector("passing test"), Status.Success, None, 0),
-        ZTestEvent(failingSpecFQN, new TestSelector("ignored test"), Status.Ignored, None, 0)
-      )
+    val expected = Set(
+      ZTestEvent(failingSpecFQN, new TestSelector("failing test"), Status.Failure, None, 0),
+      ZTestEvent(failingSpecFQN, new TestSelector("passing test"), Status.Success, None, 0),
+      ZTestEvent(failingSpecFQN, new TestSelector("ignored test"), Status.Ignored, None, 0)
     )
+
+    assertEquals("reported events", reported.toSet, expected)
   }
 
-  def logMessages = {
+  def testLogMessages() = {
     val loggers = Seq.fill(3)(new MockLogger)
 
     loadAndExecute(failingSpecFQN, loggers = loggers)
 
-    loggers.map(_.messages) should forall(
-      containTheSameElementsAs(
-        Seq(
-          "info: TEST: failing test: FAILURE: 1 did not satisfy equals(2)",
-          "info: TEST: passing test: SUCCESS",
-          "info: TEST: ignored test: IGNORED",
-          "info: SUITE: some suite"
+    loggers.map(_.messages) foreach (
+      messages =>
+        assertEquals(
+          "logged messages",
+          messages,
+          Seq(
+            "info: TEST: failing test: FAILURE: 1 did not satisfy equals(2)",
+            "info: TEST: passing test: SUCCESS",
+            "info: TEST: ignored test: IGNORED",
+            "info: SUITE: some suite"
+          )
         )
       )
-    )
   }
+
+  def assertEquals(what: String, actual: => Any, expected: Any) =
+    assert(actual == expected, s"$what: expected `$expected` actual: `$expected`")
 
   private def loadAndExecute(fqn: String, eventHandler: EventHandler = _ => (), loggers: Seq[Logger] = Nil) = {
     val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array())
@@ -78,21 +82,19 @@ class ZTestFrameworkSpec extends BaseCrossPlatformSpec {
 
     task.execute(eventHandler, loggers.toArray)
   }
-}
 
-object ZTestFrameworkSpec {
-  val failingSpecFQN = SimpleFailingSpec.getClass.getName
+  lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
   object SimpleFailingSpec
       extends DefaultRunnableSpec(
         suite("some suite")(
           test("failing test") {
-            assert(1, Predicate.equals(2))
+            zio.test.assert(1, Predicate.equals(2))
           },
           test("passing test") {
-            assert(1, Predicate.equals(1))
+            zio.test.assert(1, Predicate.equals(1))
           },
           test("ignored test") {
-            assert(1, Predicate.equals(2))
+            zio.test.assert(1, Predicate.equals(2))
           } @@ TestAspect.ignore
         )
       )
