@@ -17,7 +17,7 @@
 package zio.test.runner
 
 import sbt.testing._
-import zio.test.RunnableSpec
+import zio.test.DefaultRunnableSpec
 
 final class ZTestFramework extends Framework {
   override val name = s"${Console.UNDERLINED}ZIO-Test${Console.RESET}"
@@ -29,7 +29,7 @@ final class ZTestFramework extends Framework {
 }
 
 object RunnableSpecFingerprint extends SubclassFingerprint {
-  val superclassName: String  = classOf[RunnableSpec[_, _]].getCanonicalName
+  val superclassName: String  = classOf[DefaultRunnableSpec].getCanonicalName
   val isModule                = true
   val requireNoArgConstructor = false
 }
