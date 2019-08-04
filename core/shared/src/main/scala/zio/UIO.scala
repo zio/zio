@@ -142,6 +142,16 @@ object UIO {
     ZIO.effectAsyncInterrupt(register)
 
   /**
+   * @see See [[zio.ZIO.effectSuspendTotal]]
+   */
+  final def effectSuspendTotal[A](uio: => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(_ => uio)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotalWith]]
+   */
+  final def effectSuspendTotalWith[A](p: Platform => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(p)
+
+  /**
    * @see See [[zio.ZIO.flatten]]
    */
   final def flatten[A](uio: UIO[UIO[A]]): UIO[A] =
@@ -371,17 +381,11 @@ object UIO {
   final def superviseStatus[A](status: SuperviseStatus)(uio: UIO[A]): UIO[A] =
     ZIO.superviseStatus(status)(uio)
 
-  /**
-   * @see See [[zio.ZIO.suspend]]
-   */
-  final def suspend[A](uio: => UIO[A]): UIO[A] =
-    ZIO.suspend(uio)
+  @deprecated("use effectSuspendTotal", "1.0.0")
+  final def suspend[A](uio: => UIO[A]): UIO[A] = effectSuspendTotalWith(_ => uio)
 
-  /**
-   * [[zio.ZIO.suspendWith]]
-   */
-  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(io)
+  @deprecated("use effectSuspendTotalWith", "1.0.0")
+  final def suspendWith[A](p: Platform => UIO[A]): UIO[A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]

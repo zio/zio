@@ -17,162 +17,165 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   def is = {
     s2"""
   RTS synchronous correctness
-    widen Nothing                           $testWidenNothing
-    evaluation of point                     $testPoint
-    blocking caches threads                 $testBlockingThreadCaching
-    point must be lazy                      $testPointIsLazy
-    now must be eager                       $testNowIsEager
-    suspend must be lazy                    $testSuspendIsLazy
-    suspend must be evaluatable             $testSuspendIsEvaluatable
-    point, bind, map                        $testSyncEvalLoop
-    effect, bind, map                       $testSyncEvalLoopEffect
-    effect, bind, map, redeem               $testSyncEvalLoopEffectThrow
-    sync effect                             $testEvalOfSyncEffect
-    sync on defer                           $testManualSyncOnDefer
-    deep effects                            $testEvalOfDeepSyncEffect
-    flip must make error into value         $testFlipError
-    flip must make value into error         $testFlipValue
-    flipping twice returns identical value  $testFlipDouble
+    widen Nothing                                 $testWidenNothing
+    evaluation of point                           $testPoint
+    blocking caches threads                       $testBlockingThreadCaching
+    point must be lazy                            $testPointIsLazy
+    now must be eager                             $testNowIsEager
+    effectSuspend must be lazy                    $testSuspendIsLazy
+    effectSuspendTotal must not catch throwable   $testSuspendTotalThrowable
+    effectSuspend must catch throwable            $testSuspendCatchThrowable
+    effectSuspendWith must catch throwable        $testSuspendWithCatchThrowable
+    suspend must be evaluatable                   $testSuspendIsEvaluatable
+    point, bind, map                              $testSyncEvalLoop
+    effect, bind, map                             $testSyncEvalLoopEffect
+    effect, bind, map, redeem                     $testSyncEvalLoopEffectThrow
+    sync effect                                   $testEvalOfSyncEffect
+    sync on defer                                 $testManualSyncOnDefer
+    deep effects                                  $testEvalOfDeepSyncEffect
+    flip must make error into value               $testFlipError
+    flip must make value into error               $testFlipValue
+    flipping twice returns identical value        $testFlipDouble
 
   RTS failure
-    error in sync effect                    $testEvalOfRedeemOfSyncEffectError
-    attempt . fail                          $testEvalOfAttemptOfFail
-    deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
-    deep attempt fail error                 $testAttemptOfDeepFailError
-    attempt . sandbox . terminate           $testSandboxAttemptOfTerminate
-    fold . sandbox . terminate              $testSandboxFoldOfTerminate
-    catch sandbox terminate                 $testSandboxTerminate
-    uncaught fail                           $testEvalOfUncaughtFail
-    uncaught fail supervised                $testEvalOfUncaughtFailSupervised
-    uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
-    uncaught supervised sync effect error   $testEvalOfUncaughtThrownSupervisedSyncEffect
-    deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
-    deep uncaught fail                      $testEvalOfDeepUncaughtFail
-    catch failing finalizers with fail      $testFailOfMultipleFailingFinalizers
-    catch failing finalizers with terminate $testTerminateOfMultipleFailingFinalizers
-    run preserves interruption status       $testRunInterruptIsInterrupted
-    run swallows inner interruption         $testRunSwallowsInnerInterrupt
-    timeout a long computation              $testTimeoutOfLongComputation
-    catchAllCause                           $testCatchAllCause
+    error in sync effect                          $testEvalOfRedeemOfSyncEffectError
+    attempt . fail                                $testEvalOfAttemptOfFail
+    deep attempt sync effect error                $testAttemptOfDeepSyncEffectError
+    deep attempt fail error                       $testAttemptOfDeepFailError
+    attempt . sandbox . terminate                 $testSandboxAttemptOfTerminate
+    fold . sandbox . terminate                    $testSandboxFoldOfTerminate
+    catch sandbox terminate                       $testSandboxTerminate
+    uncaught fail                                 $testEvalOfUncaughtFail
+    uncaught fail supervised                      $testEvalOfUncaughtFailSupervised
+    uncaught sync effect error                    $testEvalOfUncaughtThrownSyncEffect
+    uncaught supervised sync effect error         $testEvalOfUncaughtThrownSupervisedSyncEffect
+    deep uncaught sync effect error               $testEvalOfDeepUncaughtThrownSyncEffect
+    deep uncaught fail                            $testEvalOfDeepUncaughtFail
+    catch failing finalizers with fail            $testFailOfMultipleFailingFinalizers
+    catch failing finalizers with terminate       $testTerminateOfMultipleFailingFinalizers
+    run preserves interruption status             $testRunInterruptIsInterrupted
+    run swallows inner interruption               $testRunSwallowsInnerInterrupt
+    timeout a long computation                    $testTimeoutOfLongComputation
+    catchAllCause                                 $testCatchAllCause
 
   RTS finalizers
-    fail ensuring                           $testEvalOfFailEnsuring
-    fail on error                           $testEvalOfFailOnError
-    finalizer errors not caught             $testErrorInFinalizerCannotBeCaught
-    finalizer errors reported               $testErrorInFinalizerIsReported
-    bracket exit is usage result            $testExitIsUsageResult
-    error in just acquisition               $testBracketErrorInAcquisition
-    error in just release                   $testBracketErrorInRelease
-    error in just usage                     $testBracketErrorInUsage
-    rethrown caught error in acquisition    $testBracketRethrownCaughtErrorInAcquisition
-    rethrown caught error in release        $testBracketRethrownCaughtErrorInRelease
-    rethrown caught error in usage          $testBracketRethrownCaughtErrorInUsage
-    test eval of async fail                 $testEvalOfAsyncAttemptOfFail
-    bracket regression 1                    $testBracketRegression1
-    interrupt waits for finalizer           $testInterruptWaitsForFinalizer
+    fail ensuring                                 $testEvalOfFailEnsuring
+    fail on error                                 $testEvalOfFailOnError
+    finalizer errors not caught                   $testErrorInFinalizerCannotBeCaught
+    finalizer errors reported                     $testErrorInFinalizerIsReported
+    bracket exit is usage result                  $testExitIsUsageResult
+    error in just acquisition                     $testBracketErrorInAcquisition
+    error in just release                         $testBracketErrorInRelease
+    error in just usage                           $testBracketErrorInUsage
+    rethrown caught error in acquisition          $testBracketRethrownCaughtErrorInAcquisition
+    rethrown caught error in release              $testBracketRethrownCaughtErrorInRelease
+    rethrown caught error in usage                $testBracketRethrownCaughtErrorInUsage
+    test eval of async fail                       $testEvalOfAsyncAttemptOfFail
+    bracket regression 1                          $testBracketRegression1
+    interrupt waits for finalizer                 $testInterruptWaitsForFinalizer
 
   RTS synchronous stack safety
-    deep map of point                       $testDeepMapOfPoint
-    deep map of now                         $testDeepMapOfNow
-    deep map of sync effect                 $testDeepMapOfSyncEffectIsStackSafe
-    deep attempt                            $testDeepAttemptIsStackSafe
-    deep flatMap                            $testDeepFlatMapIsStackSafe
-    deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
-    deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
+    deep map of point                             $testDeepMapOfPoint
+    deep map of now                               $testDeepMapOfNow
+    deep map of sync effect                       $testDeepMapOfSyncEffectIsStackSafe
+    deep attempt                                  $testDeepAttemptIsStackSafe
+    deep flatMap                                  $testDeepFlatMapIsStackSafe
+    deep absolve/attempt is identity              $testDeepAbsolveAttemptIsIdentity
+    deep async absolve/attempt is identity        $testDeepAsyncAbsolveAttemptIsIdentity
 
   RTS asynchronous correctness
-    simple async must return                $testAsyncEffectReturns
-    simple asyncIO must return              $testAsyncIOEffectReturns
-    deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
-    interrupt of asyncPure register         $testAsyncPureInterruptRegister
-    sleep 0 must return                     $testSleepZeroReturns
-    shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
-    effectAsyncM can fail before registering $testEffectAsyncMCanFail
+    simple async must return                      $testAsyncEffectReturns
+    simple asyncIO must return                    $testAsyncIOEffectReturns
+    deep asyncIO doesn't block threads            $testDeepAsyncIOThreadStarvation
+    interrupt of asyncPure register               $testAsyncPureInterruptRegister
+    sleep 0 must return                           $testSleepZeroReturns
+    shallow bind of async chain                   $testShallowBindOfAsyncChainIsCorrect
+    effectAsyncM can fail before registering      $testEffectAsyncMCanFail
 
   RTS concurrency correctness
-    shallow fork/join identity              $testForkJoinIsId
-    deep fork/join identity                 $testDeepForkJoinIsId
-    asyncPure creation is interruptible     $testAsyncPureCreationIsInterruptible
-    asyncInterrupt runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
-    supervising returns fiber refs          $testSupervising
-    supervising in unsupervised returns Nil $testSupervisingUnsupervised
-    supervise fibers                        $testSupervise
-    supervise fibers in supervised          $testSupervised
-    supervise fibers in race                $testSuperviseRace
-    supervise fibers in fork                $testSuperviseFork
-    race of fail with success               $testRaceChoosesWinner
-    race of terminate with success          $testRaceChoosesWinnerInTerminate
-    race of fail with fail                  $testRaceChoosesFailure
-    race of value & never                   $testRaceOfValueNever
-    raceAll of values                       $testRaceAllOfValues
-    raceAll of failures                     $testRaceAllOfFailures
-    raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
-    firstSuccessOf of values                $testFirstSuccessOfValues
-    firstSuccessOf of failures              $testFirstSuccessOfFailures
-    firstSuccessOF of failures & 1 success  $testFirstSuccessOfFailuresOneSuccess
-    raceAttempt interrupts loser on success $testRaceAttemptInterruptsLoserOnSuccess
-    raceAttempt interrupts loser on failure $testRaceAttemptInterruptsLoserOnFailure
-    par regression                          $testPar
-    par of now values                       $testRepeatedPar
-    mergeAll                                $testMergeAll
-    mergeAllEmpty                           $testMergeAllEmpty
-    reduceAll                               $testReduceAll
-    reduceAll Empty List                    $testReduceAllEmpty
-    timeout of failure                      $testTimeoutFailure
-    timeout of terminate                    $testTimeoutTerminate
+    shallow fork/join identity                    $testForkJoinIsId
+    deep fork/join identity                       $testDeepForkJoinIsId
+    asyncPure creation is interruptible           $testAsyncPureCreationIsInterruptible
+    asyncInterrupt runs cancel token on interrupt $testAsync0RunsCancelTokenOnInterrupt
+    supervising returns fiber refs                $testSupervising
+    supervising in unsupervised returns Nil       $testSupervisingUnsupervised
+    supervise fibers                              $testSupervise
+    supervise fibers in supervised                $testSupervised
+    supervise fibers in race                      $testSuperviseRace
+    supervise fibers in fork                      $testSuperviseFork
+    race of fail with success                     $testRaceChoosesWinner
+    race of terminate with success                $testRaceChoosesWinnerInTerminate
+    race of fail with fail                        $testRaceChoosesFailure
+    race of value & never                         $testRaceOfValueNever
+    raceAll of values                             $testRaceAllOfValues
+    raceAll of failures                           $testRaceAllOfFailures
+    raceAll of failures & one success             $testRaceAllOfFailuresOneSuccess
+    firstSuccessOf of values                      $testFirstSuccessOfValues
+    firstSuccessOf of failures                    $testFirstSuccessOfFailures
+    firstSuccessOF of failures & 1 success        $testFirstSuccessOfFailuresOneSuccess
+    raceAttempt interrupts loser on success       $testRaceAttemptInterruptsLoserOnSuccess
+    raceAttempt interrupts loser on failure       $testRaceAttemptInterruptsLoserOnFailure
+    par regression                                $testPar
+    par of now values                             $testRepeatedPar
+    mergeAll                                      $testMergeAll
+    mergeAllEmpty                                 $testMergeAllEmpty
+    reduceAll                                     $testReduceAll
+    reduceAll Empty List                          $testReduceAllEmpty
+    timeout of failure                            $testTimeoutFailure
+    timeout of terminate                          $testTimeoutTerminate
 
   RTS regression tests
-    deadlock regression 1                   $testDeadlockRegression
-    check interruption regression 1         $testInterruptionRegression1
-    manual sync interruption                $testManualSyncInterruption
+    deadlock regression 1                         $testDeadlockRegression
+    check interruption regression 1               $testInterruptionRegression1
+    manual sync interruption                      $testManualSyncInterruption
 
   RTS option tests
-    lifting a value to an option            $testLiftingOptionalValue
-    using the none value                    $testLiftingNoneValue
+    lifting a value to an option                  $testLiftingOptionalValue
+    using the none value                          $testLiftingNoneValue
 
   RTS either helper tests
-      lifting a value into right            $liftValueIntoRight
-      lifting a value into left             $liftValueIntoLeft
+      lifting a value into right                  $liftValueIntoRight
+      lifting a value into left                   $liftValueIntoLeft
 
   RTS interruption
-    blocking IO is effect blocking          $testBlockingIOIsEffectBlocking
-    sync forever is interruptible           $testInterruptSyncForever
-    interrupt of never                      $testNeverIsInterruptible
-    asyncPure is interruptible              $testAsyncPureIsInterruptible
-    async is interruptible                  $testAsyncIsInterruptible
-    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
-    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
-    bracket use is interruptible            $testBracketUseIsInterruptible
-    bracket0 use is interruptible           $testBracket0UseIsInterruptible
-    bracket release called on interrupt     $testBracketReleaseOnInterrupt
-    bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
-    redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
-    finalizer can detect interruption       $testFinalizerCanDetectInterruption
-    interruption of raced                   $testInterruptedOfRaceInterruptsContestents
-    cancelation is guaranteed               $testCancelationIsGuaranteed
-    interruption of unending bracket        $testInterruptionOfUnendingBracket
-    recovery of error in finalizer          $testRecoveryOfErrorInFinalizer
-    recovery of interruptible               $testRecoveryOfInterruptible
-    sandbox of interruptible                $testSandboxOfInterruptible
-    run of interruptible                    $testRunOfInterruptible
-    alternating interruptibility            $testAlternatingInterruptibility
-    interruption after defect               $testInterruptionAfterDefect
-    interruption after defect 2             $testInterruptionAfterDefect2
-    cause reflects interruption             $testCauseReflectsInterruption
-    bracket use inherits interrupt status   $testUseInheritsInterruptStatus
-    bracket use inherits interrupt status 2 $testCauseUseInheritsInterruptStatus
-    async can be uninterruptible            $testAsyncCanBeUninterruptible
+    blocking IO is effect blocking                $testBlockingIOIsEffectBlocking
+    sync forever is interruptible                 $testInterruptSyncForever
+    interrupt of never                            $testNeverIsInterruptible
+    asyncPure is interruptible                    $testAsyncPureIsInterruptible
+    async is interruptible                        $testAsyncIsInterruptible
+    bracket is uninterruptible                    $testBracketAcquireIsUninterruptible
+    bracket0 is uninterruptible                   $testBracket0AcquireIsUninterruptible
+    bracket use is interruptible                  $testBracketUseIsInterruptible
+    bracket0 use is interruptible                 $testBracket0UseIsInterruptible
+    bracket release called on interrupt           $testBracketReleaseOnInterrupt
+    bracket0 release called on interrupt          $testBracket0ReleaseOnInterrupt
+    redeem + ensuring + interrupt                 $testRedeemEnsuringInterrupt
+    finalizer can detect interruption             $testFinalizerCanDetectInterruption
+    interruption of raced                         $testInterruptedOfRaceInterruptsContestents
+    cancelation is guaranteed                     $testCancelationIsGuaranteed
+    interruption of unending bracket              $testInterruptionOfUnendingBracket
+    recovery of error in finalizer                $testRecoveryOfErrorInFinalizer
+    recovery of interruptible                     $testRecoveryOfInterruptible
+    sandbox of interruptible                      $testSandboxOfInterruptible
+    run of interruptible                          $testRunOfInterruptible
+    alternating interruptibility                  $testAlternatingInterruptibility
+    interruption after defect                     $testInterruptionAfterDefect
+    interruption after defect 2                   $testInterruptionAfterDefect2
+    cause reflects interruption                   $testCauseReflectsInterruption
+    bracket use inherits interrupt status         $testUseInheritsInterruptStatus
+    bracket use inherits interrupt status 2       $testCauseUseInheritsInterruptStatus
+    async can be uninterruptible                  $testAsyncCanBeUninterruptible
 
   RTS environment
-    provide is modular                      $testProvideIsModular
-    provideManaged is modular               $testProvideManagedIsModular
-    effectAsync can use environment         $testAsyncCanUseEnvironment
+    provide is modular                            $testProvideIsModular
+    provideManaged is modular                     $testProvideManagedIsModular
+    effectAsync can use environment               $testAsyncCanUseEnvironment
 
   RTS forking inheritability
-    interruption status is heritable        $testInterruptStatusIsHeritable
-    executor is hereditble                  $testExecutorIsHeritable
-    supervision is heritable                $testSupervisionIsHeritable
-    supervision inheritance                 $testSupervisingInheritance
+    interruption status is heritable              $testInterruptStatusIsHeritable
+    executor is hereditble                        $testExecutorIsHeritable
+    supervision is heritable                      $testSupervisionIsHeritable
+    supervision inheritance                       $testSupervisingInheritance
   """
   }
 
@@ -199,10 +202,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     IO.succeed(throw new Error("Eager")) must (throwA[Error])
 
   def testSuspendIsLazy =
-    IO.suspend(throw new Error("Eager")) must not(throwA[Throwable])
+    IO.effectSuspendTotal(throw new Error("Eager")) must not(throwA[Throwable])
+
+  def testSuspendTotalThrowable =
+    unsafeRun(ZIO.effectSuspendTotal[Any, Nothing, Any](throw ExampleError).sandbox.either) must_=== Left(
+      die(ExampleError)
+    )
+
+  def testSuspendCatchThrowable =
+    unsafeRun(ZIO.effectSuspend[Any, Nothing](throw ExampleError).either) must_=== Left(ExampleError)
+
+  def testSuspendWithCatchThrowable =
+    unsafeRun(ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either) must_=== Left(ExampleError)
 
   def testSuspendIsEvaluatable =
-    unsafeRun(IO.suspend(IO.succeedLazy[Int](42))) must_=== 42
+    unsafeRun(IO.effectSuspendTotal(IO.succeedLazy[Int](42))) must_=== 42
 
   def testSyncEvalLoop = {
     def fibIo(n: Int): Task[BigInt] =
@@ -286,7 +300,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testEvalOfAttemptOfFail = Seq(
     unsafeRun(TaskExampleError.either) must_=== Left(ExampleError),
-    unsafeRun(IO.suspend(IO.suspend(TaskExampleError).either)) must_=== Left(
+    unsafeRun(IO.effectSuspendTotal(IO.effectSuspendTotal(TaskExampleError).either)) must_=== Left(
       ExampleError
     )
   )

@@ -1709,6 +1709,35 @@ private[zio] trait ZIOFunctions extends Serializable {
     new ZIO.EffectAsync(register)
 
   /**
+   * Returns a lazily constructed effect, whose construction may itself require effects.
+   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+   */
+  final def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(_ => rio)
+
+  /**
+   *  Returns a lazily constructed effect, whose construction may itself require
+   * effects. The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
+   * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
+   * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].
+   */
+  final def effectSuspendTotal[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] = new ZIO.EffectSuspendTotalWith(_ => zio)
+
+  /**
+   * Returns a lazily constructed effect, whose construction may itself require effects.
+   * The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
+   * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
+   * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].
+   */
+  final def effectSuspendTotalWith[R, E, A](p: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.EffectSuspendTotalWith(p)
+
+  /**
+   * Returns a lazily constructed effect, whose construction may itself require effects.
+   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+   */
+  final def effectSuspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(p)
+
+  /**
    * Imports a total synchronous effect into a pure `ZIO` value.
    * The effect must not throw any exceptions. If you wonder if the effect
    * throws exceptions, then do not use this method, use [[Task.effect]],
@@ -2117,7 +2146,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def runtime[R]: ZIO[R, Nothing, Runtime[R]] =
     for {
       environment <- environment[R]
-      platform    <- suspendWith(ZIO.succeed)
+      platform    <- effectSuspendTotalWith(ZIO.succeed)
     } yield Runtime(environment, platform)
 
   /**
@@ -2178,19 +2207,12 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def superviseStatus[R, E, A](status: SuperviseStatus)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.SuperviseStatus(zio, status)
 
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. This is a shortcut for `flatten(effectTotal(io))`.
-   */
-  final def suspend[R, E, A](io: => ZIO[R, E, A]): ZIO[R, E, A] =
-    suspendWith(_ => io)
+  @deprecated("use effectSuspendTotal", "1.0.0")
+  final def suspend[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] = effectSuspendTotalWith(_ => zio)
 
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. This is a shortcut for `flatten(effectTotal(io))`.
-   */
-  final def suspendWith[R, E, A](io: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.SuspendWith(io)
+  @deprecated("use effectSuspendTotalWith", "1.0.0")
+  final def suspendWith[R, E, A](p: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.EffectSuspendTotalWith(p)
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
@@ -2500,28 +2522,29 @@ object ZIO extends ZIOFunctions {
   }
 
   private[zio] object Tags {
-    final val FlatMap         = 0
-    final val Succeed         = 1
-    final val EffectTotal     = 2
-    final val Fail            = 3
-    final val Fold            = 4
-    final val InterruptStatus = 5
-    final val CheckInterrupt  = 6
-    final val EffectPartial   = 7
-    final val EffectAsync     = 8
-    final val Fork            = 9
-    final val SuperviseStatus = 10
-    final val Descriptor      = 11
-    final val Lock            = 12
-    final val Yield           = 13
-    final val Access          = 14
-    final val Provide         = 15
-    final val SuspendWith     = 16
-    final val FiberRefNew     = 17
-    final val FiberRefModify  = 18
-    final val Trace           = 19
-    final val TracingStatus   = 20
-    final val CheckTracing    = 21
+    final val FlatMap                  = 0
+    final val Succeed                  = 1
+    final val EffectTotal              = 2
+    final val Fail                     = 3
+    final val Fold                     = 4
+    final val InterruptStatus          = 5
+    final val CheckInterrupt           = 6
+    final val EffectPartial            = 7
+    final val EffectAsync              = 8
+    final val Fork                     = 9
+    final val SuperviseStatus          = 10
+    final val Descriptor               = 11
+    final val Lock                     = 12
+    final val Yield                    = 13
+    final val Access                   = 14
+    final val Provide                  = 15
+    final val EffectSuspendPartialWith = 16
+    final val FiberRefNew              = 17
+    final val FiberRefModify           = 18
+    final val Trace                    = 19
+    final val TracingStatus            = 20
+    final val CheckTracing             = 21
+    final val EffectSuspendTotalWith   = 22
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2607,8 +2630,12 @@ object ZIO extends ZIOFunctions {
     override def tag = Tags.Provide
   }
 
-  private[zio] final class SuspendWith[R, E, A](val f: Platform => ZIO[R, E, A]) extends ZIO[R, E, A] {
-    override def tag = Tags.SuspendWith
+  private[zio] final class EffectSuspendPartialWith[R, A](val f: Platform => RIO[R, A]) extends RIO[R, A] {
+    override def tag = Tags.EffectSuspendPartialWith
+  }
+
+  private[zio] final class EffectSuspendTotalWith[R, E, A](val f: Platform => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.EffectSuspendTotalWith
   }
 
   private[zio] final class FiberRefNew[A](val initialValue: A) extends UIO[FiberRef[A]] {
