@@ -1288,4 +1288,80 @@ object ZSink extends ZSinkPlatformSpecific {
 
     ZManaged.fromEffect(sink)
   }
+
+  /**
+   * Decodes individual bytes into a String using UTF-8. Up to `bufferSize` bytes
+   * will be buffered by the sink.
+   *
+   * This sink uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): ZSink[Any, Nothing, Byte, Byte, String] =
+    foldUntil(List[Byte](), bufferSize.toLong)((chunk, byte: Byte) => byte :: chunk).mapM { bytes =>
+      val chunk = Chunk.fromIterable(bytes.reverse)
+
+      for {
+        init   <- utf8DecodeChunk.initial.map(Step.state(_))
+        state  <- utf8DecodeChunk.step(init, chunk)
+        string <- utf8DecodeChunk.extract(Step.state(state))
+      } yield string
+    }
+
+  /**
+   * Decodes chunks of bytes into a String.
+   *
+   * This sink uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val utf8DecodeChunk: ZSink[Any, Nothing, Chunk[Byte], Chunk[Byte], String] =
+    new SinkPure[Nothing, Chunk[Byte], Chunk[Byte], String] {
+      type State = (String, Chunk[Byte])
+
+      override def initialPure: Step[State, Nothing] = Step.more(("", Chunk.empty))
+
+      def is2ByteSequenceStart(b: Byte) = (b & 0xE0) == 0xC0
+      def is3ByteSequenceStart(b: Byte) = (b & 0xF0) == 0xE0
+      def is4ByteSequenceStart(b: Byte) = (b & 0xF8) == 0xF0
+
+      def computeSplit(chunk: Chunk[Byte]) = {
+        // There are 3 bad patterns we need to check to detect an incomplete chunk:
+        // - 2/3/4 byte sequences that start on the last byte
+        // - 3/4 byte sequences that start on the second-to-last byte
+        // - 4 byte sequences that start on the third-to-last byte
+        //
+        // Otherwise, we can convert the entire concatenated chunk to a string.
+        val len = chunk.length
+
+        if (len >= 1 &&
+            (is2ByteSequenceStart(chunk(len - 1)) ||
+            is3ByteSequenceStart(chunk(len - 1)) ||
+            is4ByteSequenceStart(chunk(len - 1))))
+          len - 1
+        else if (len >= 2 &&
+                 (is3ByteSequenceStart(chunk(len - 2)) ||
+                 is4ByteSequenceStart(chunk(len - 2))))
+          len - 2
+        else if (len >= 3 && is4ByteSequenceStart(chunk(len - 3)))
+          len - 3
+        else len
+      }
+
+      override def stepPure(s: State, a: Chunk[Byte]): Step[State, Chunk[Byte]] =
+        if (a.length == 0) Step.done(s, Chunk.empty)
+        else {
+          val (accumulatedString, prevLeftovers) = s
+          val concat                             = prevLeftovers ++ a
+          val (toConvert, leftovers)             = concat.splitAt(computeSplit(concat))
+
+          if (toConvert.length == 0) Step.more((accumulatedString, leftovers))
+          else
+            Step.done(
+              (accumulatedString ++ new String(toConvert.toArray[Byte], "UTF-8"), Chunk.empty),
+              Chunk.single(leftovers)
+            )
+        }
+
+      override def extractPure(s: State): Either[Nothing, String] =
+        Right(s._1)
+    }
 }

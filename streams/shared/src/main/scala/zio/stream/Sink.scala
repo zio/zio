@@ -203,4 +203,16 @@ object Sink {
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, A]] =
     ZSink.throttleShapeM[Any, E, A](units, duration, burst)(costFn)
+
+  /**
+   * see [[ZSink.utf8Decode]]
+   */
+  final def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): Sink[Nothing, Byte, Byte, String] =
+    ZSink.utf8Decode(bufferSize)
+
+  /**
+   * see [[ZSink.utf8DecodeChunk]]
+   */
+  final val utf8DecodeChunk: Sink[Nothing, Chunk[Byte], Chunk[Byte], String] =
+    ZSink.utf8DecodeChunk
 }
