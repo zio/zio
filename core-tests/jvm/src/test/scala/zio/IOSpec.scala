@@ -51,10 +51,22 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
    Check `eventually` method succeeds eventually. $testEventually
+   Check `some` method extracts the value from Some. $testSomeOnSomeOption
+   Check `some` method fails on None. $testSomeOnNoneOption
+   Check `some` method fails when given an exception. $testSomeOnException
    Check `someOrFail` method extracts the optional value. $testSomeOrFailExtractOptionalValue
    Check `someOrFail` method fails when given a None. $testSomeOrFailWithNone
    Check `someOrFailException` method extracts the optional value. $testSomeOrFailExceptionOnOptionalValue
    Check `someOrFailException` method fails when given a None. $testSomeOrFailExceptionOnEmptyValue
+   Check `none` method extracts the value from Some. $testNoneOnSomeOption
+   Check `none` method fails on None. $testNoneOnNoneOption
+   Check `none` method fails when given an exception. $testNoneOnException
+   Check `flattenErrorOption` method fails when given Some error. $testFlattenErrorOptionOnSomeError
+   Check `flattenErrorOption` method fails with Default when given None error. $testFlattenErrorOptionOnNoneError
+   Check `flattenErrorOption` method succeeds when given a value. $testFlattenErrorOptionOnSomeValue
+   Check `optional` method fails when given Some error. $testOptionalOnSomeError
+   Check `optional` method succeeds with None given None error. $testOptionalOnNoneError
+   Check `optional` method succeeds with Some given a value. $testOptionalOnSomeValue
    Check `right` method extracts the Right value. $testRightOnRightValue
    Check `right` method fails with `None` when given a Left value. $testRightOnLeftValue
    Check `right` method fails with `Some(exception)` when given an exception. $testRightOnException
@@ -347,6 +359,66 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     } yield n
 
     unsafeRun(test) must_=== 10
+  }
+
+  def testSomeOnSomeOption = {
+    val task: IO[Option[Throwable], Int] = Task(Some(1)).some
+    unsafeRun(task) must_=== 1
+  }
+
+  def testSomeOnNoneOption = {
+    val task: IO[Option[Throwable], Int] = Task(None).some
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testSomeOnException = {
+    val task: IO[Option[Throwable], Int] = Task.fail(new RuntimeException("Failed Task")).some
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testNoneOnSomeOption = {
+    val task: IO[Option[Throwable], Unit] = Task(Some(1)).none
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testNoneOnNoneOption = {
+    val task: IO[Option[Throwable], Unit] = Task(None).none
+    unsafeRun(task) must_=== (())
+  }
+
+  def testNoneOnException = {
+    val task: IO[Option[Throwable], Unit] = Task.fail(new RuntimeException("Failed Task")).none
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testFlattenErrorOptionOnSomeError = {
+    val task: IO[String, Int] = IO.fail(Some("Error")).flattenErrorOption("Default")
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testFlattenErrorOptionOnNoneError = {
+    val task: IO[String, Int] = IO.fail(None).flattenErrorOption("Default")
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testFlattenErrorOptionOnSomeValue = {
+    val task: IO[String, Int] = IO.succeed(1).flattenErrorOption("Default")
+    unsafeRun(task) must_=== 1
+  }
+
+  def testOptionalOnSomeError = {
+    val task: IO[String, Option[Int]] = IO.fail(Some("Error")).optional
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testOptionalOnNoneError = {
+    val task: IO[String, Option[Int]] = IO.fail(None).optional
+    unsafeRun(task) must_=== None
+  }
+
+  def testOptionalOnSomeValue = {
+    val task: IO[String, Option[Int]] = IO.succeed(1).optional
+    unsafeRun(task) must_=== Some(1)
   }
 
   def testSomeOrFailWithNone = {

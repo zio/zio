@@ -398,6 +398,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber[E, A]] =
     self.on(ec).fork
 
+  final def flattenErrorOption[E1, E2 <: E1](default: E2)(implicit ev: E <:< Option[E1]): ZIO[R, E1, A] =
+    self.mapError(e => ev(e).getOrElse(default))
+
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
@@ -497,6 +500,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       _ <- (l.await *> ((self provide r) to p)).fork
     } yield l.succeed(()) *> p.await
 
+  final def none[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], Unit] =
+    self.foldM(
+      e => ZIO.fail(Some(e)),
+      a => a.fold[ZIO[R, Option[E], Unit]](ZIO.succeed(()))(_ => ZIO.fail(None))
+    )
+
   /**
    * Executes the effect on the specified `ExecutionContext` and then shifts back
    * to the default one.
@@ -555,6 +564,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def option: ZIO[R, Nothing, Option[A]] =
     self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
+
+  final def optional[E1](implicit ev: E <:< Option[E1]): ZIO[R, E1, Option[A]] =
+    self.foldM(
+      e => e.fold[ZIO[R, E1, Option[A]]](ZIO.succeed(Option.empty[A]))(ZIO.fail(_)),
+      a => ZIO.succeed(Some(a))
+    )
 
   /**
    * Translates effect failure into death of the fiber, making all failures unchecked and
@@ -991,6 +1006,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    *  Returns an effect with the optional value.
    */
   def some[A](a: A): UIO[Option[A]] = succeed(Some(a))
+
+  final def some[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], B] =
+    self.foldM(
+      e => ZIO.fail(Some(e)),
+      a => a.fold[ZIO[R, Option[E], B]](ZIO.fail(Option.empty[E]))(ZIO.succeed(_).mapError(_ => Option.empty[E]))
+    )
 
   /**
    * Extracts the optional value, or fails with the given error 'e'.
