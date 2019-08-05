@@ -2074,9 +2074,9 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def provide[R, E, A](r: R): ZIO[R, E, A] => IO[E, A] =
     (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
 
-  /**
-   * Evaluate each effect in the structure in parallel, and collect
-   * the results. For a sequential version, see `collectAll`.
+  /**  
+   * Returns a effect that will never produce anything. The moral
+   * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
   final val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
 
