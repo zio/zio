@@ -11,7 +11,7 @@ class ExitSpec extends Specification with ScalaCheck {
       `Cause#died` and `Cause#stripFailures` are consistent $e1
       `Cause.equals` is symmetric $e2
       `Cause.equals` and `Cause.hashCode` satisfy the contract $e3
-      `Cause#untraced` satisfy the contract $e8
+      `Cause#untraced` removes all traces $e8
     Then 
       `Then.equals` satisfies associativity $e4
       `Then.equals` satisfies distributivity $e5
