@@ -10,10 +10,10 @@ import zio.test.TestUtils.label
 object SchedulerSpec extends DefaultRuntime {
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
-    label(e1, "MockScheduler scheduled tasks get executed"),
-    label(e2, "MockScheduler scheduled tasks only get executed when time has passed"),
-    label(e3, "MockScheduler scheduled tasks can be canceled"),
-    label(e4, "MockScheduler tasks that are cancelled after completion are not reported as interrupted")
+    label(e1, "scheduled tasks get executed"),
+    label(e2, "scheduled tasks only get executed when time has passed"),
+    label(e3, "scheduled tasks can be canceled"),
+    label(e4, "tasks that are cancelled after completion are not reported as interrupted")
   )
 
   def e1 =

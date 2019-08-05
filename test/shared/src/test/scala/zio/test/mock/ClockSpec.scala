@@ -14,21 +14,21 @@ import scala.concurrent.ExecutionContext
 object ClockSpec extends DefaultRuntime {
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
-    label(e1, "MockClock sleep does sleep instantly"),
-    label(e2, "MockClock sleep passes nanotime correctly"),
-    label(e3, "MockClock sleep passes currentTime correctly"),
-    label(e4, "MockClock sleep passes currentDateTime correctly"),
-    label(e5, "MockClock sleep correctly records sleeps"),
-    label(e6, "MockClock adjust correctly advances nanotime"),
-    label(e7, "MockClock adjust correctly advances currentTime"),
-    label(e8, "MockClock adjust correctly advances currentDateTime"),
-    label(e9, "MockClock adjust does not produce sleeps "),
-    label(e10, "MockClock setTime correctly sets nanotime"),
-    label(e11, "MockClock setTime correctly sets currentTime"),
-    label(e12, "MockClock setTime correctly sets currentDateTime"),
-    label(e13, "MockClock setTime does not produce sleeps "),
-    label(e14, "MockClock setTimeZone correctly sets timeZone"),
-    label(e15, "MockClock setTimeZone does not produce sleeps ")
+    label(e1, "sleep does sleep instantly"),
+    label(e2, "sleep passes nanotime correctly"),
+    label(e3, "sleep passes currentTime correctly"),
+    label(e4, "sleep passes currentDateTime correctly"),
+    label(e5, "sleep correctly records sleeps"),
+    label(e6, "adjust correctly advances nanotime"),
+    label(e7, "adjust correctly advances currentTime"),
+    label(e8, "adjust correctly advances currentDateTime"),
+    label(e9, "adjust does not produce sleeps "),
+    label(e10, "setTime correctly sets nanotime"),
+    label(e11, "setTime correctly sets currentTime"),
+    label(e12, "setTime correctly sets currentDateTime"),
+    label(e13, "setTime does not produce sleeps "),
+    label(e14, "setTimeZone correctly sets timeZone"),
+    label(e15, "setTimeZone does not produce sleeps ")
   )
 
   def e1 =
