@@ -16,10 +16,10 @@
 
 package zio.stm
 
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import zio.{ IO, UIO }
-import zio.internal.Platform
+import zio.internal.{ Platform, Sync }
 import java.util.{ HashMap => MutableMap }
 
 import com.github.ghik.silencer.silent
@@ -494,7 +494,7 @@ object STM {
       platform: Platform,
       stm: STM[E, A],
       txnId: TxnId,
-      done: zio.internal.LockedRef[Boolean]
+      done: AtomicBoolean
     )(
       k: IO[E, A] => Unit
     ): Unit = {
@@ -517,7 +517,7 @@ object STM {
         }
       }
 
-      done.synchronized {
+      Sync(done) {
         if (!done.get) {
           if (journal ne null) suspend(journal, journal)
           else
@@ -547,7 +547,7 @@ object STM {
           value match {
             case _: TRez.Succeed[_] =>
               if (analysis eq JournalAnalysis.ReadWrite) {
-                globalLock.synchronized {
+                Sync(globalLock) {
                   if (isValid(journal)) commitJournal(journal) else loop = true
                 }
               }
@@ -570,7 +570,7 @@ object STM {
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()
 
-    final val globalLock = new zio.internal.LockedRef(1)
+    final val globalLock = new AnyRef {}
 
     sealed trait TRez[+A, +B] extends Serializable with Product
     object TRez {
@@ -673,8 +673,8 @@ object STM {
         case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
         case TryCommit.Suspend(journal) =>
           val txnId     = makeTxnId()
-          val done      = new zio.internal.LockedRef(false)
-          val interrupt = UIO(done.synchronized(done.set(true)))
+          val done      = new AtomicBoolean(false)
+          val interrupt = UIO(Sync(done) { done.set(true) })
           val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, stm, txnId, done))
 
           async ensuring interrupt
