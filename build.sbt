@@ -80,9 +80,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(publishArtifact in (Test, packageBin) := true)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -136,9 +136,9 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
     )
   )
 
