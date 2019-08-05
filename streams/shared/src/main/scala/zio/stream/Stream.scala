@@ -163,6 +163,12 @@ object Stream extends ZStreamPlatformSpecific {
   final def halt[E](cause: Cause[E]): Stream[E, Nothing] = fromEffect(ZIO.halt(cause))
 
   /**
+   * See [[ZStream.interleave]]
+   */
+  final def interleave[E, A](b: Stream[E, Boolean], s1: Stream[E, A], s2: Stream[E, A]): Stream[E, A] =
+    ZStream.interleave(b, s1, s2)
+
+  /**
    * See [[ZStream.managed]]
    */
   final def managed[E, A](managed: Managed[E, A]): Stream[E, A] =

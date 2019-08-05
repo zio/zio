@@ -1721,6 +1721,61 @@ object ZStream extends ZStreamPlatformSpecific {
     }
 
   /**
+   * Combines two streams `s1` and `s2` deterministically using the stream of
+   * boolean values `b` to control which stream to pull from next. `true`
+   * indicates to pull from the left stream and `right` indicates to pull from
+   * the right stream. Only consumes as many elements as requested by `b`. If
+   * either `s1` or `s2` are exhausted further requests for values from them
+   * will be ignored.
+   */
+  final def interleave[R, E, A](b: ZStream[R, E, Boolean], s1: ZStream[R, E, A], s2: ZStream[R, E, A]): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+
+          def loop(leftDone: Boolean, rightDone: Boolean, s: S, driver: Queue[Take[E, Boolean]], leftQueue: Queue[Take[E, A]], rightQueue: Queue[Take[E, A]]): ZIO[R1, E1, S] =
+            if (!cont(s)) ZIO.succeed(s)
+            else
+              driver.take.flatMap {
+                case Take.Fail(e) => IO.halt(e)
+                case Take.Value(b) =>
+                  if (b && !leftDone) leftQueue.take.flatMap {
+                    case Take.Fail(e) => IO.halt(e)
+                    case Take.Value(a) =>
+                      f(s, a).flatMap { s =>
+                        if (cont(s)) loop(leftDone, rightDone, s, driver, leftQueue, rightQueue)
+                        else IO.succeed(s)
+                      }
+                    case Take.End =>
+                      if (rightDone) IO.succeed(s)
+                      else loop(true, rightDone, s, driver, leftQueue, rightQueue)
+                  } else if (!b && !rightDone) rightQueue.take.flatMap {
+                    case Take.Fail(e) => IO.halt(e)
+                    case Take.Value(a) =>
+                      f(s, a).flatMap { s =>
+                        if (cont(s)) loop(leftDone, rightDone, s, driver, leftQueue, rightQueue)
+                        else IO.succeed(s)
+                      }
+                    case Take.End     =>
+                      if (leftDone) IO.succeed(s)
+                      else loop(leftDone, true, s, driver, leftQueue, rightQueue)
+                  } else loop(leftDone, rightDone, s, driver, leftQueue, rightQueue)
+                case Take.End     => IO.succeed(s)
+              }
+              
+          val resources = for {
+            queue <- b.toQueue()
+            leftQueue <- s1.toQueue()
+            rightQueue <- s2.toQueue()
+          } yield (queue, leftQueue, rightQueue)
+
+          ZManaged.fromEffect {
+            resources.use { case (b, s1, s2) => loop(false, false, s, b, s1, s2) }
+          }
+        }
+    }
+
+  /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
    */
   final def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
