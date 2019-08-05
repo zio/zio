@@ -1728,12 +1728,22 @@ object ZStream extends ZStreamPlatformSpecific {
    * either `s1` or `s2` are exhausted further requests for values from them
    * will be ignored.
    */
-  final def interleave[R, E, A](b: ZStream[R, E, Boolean], s1: ZStream[R, E, A], s2: ZStream[R, E, A]): ZStream[R, E, A] =
+  final def interleave[R, E, A](
+    b: ZStream[R, E, Boolean],
+    s1: ZStream[R, E, A],
+    s2: ZStream[R, E, A]
+  ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
-
-          def loop(leftDone: Boolean, rightDone: Boolean, s: S, driver: Queue[Take[E, Boolean]], leftQueue: Queue[Take[E, A]], rightQueue: Queue[Take[E, A]]): ZIO[R1, E1, S] =
+          def loop(
+            leftDone: Boolean,
+            rightDone: Boolean,
+            s: S,
+            driver: Queue[Take[E, Boolean]],
+            leftQueue: Queue[Take[E, A]],
+            rightQueue: Queue[Take[E, A]]
+          ): ZIO[R1, E1, S] =
             if (!cont(s)) ZIO.succeed(s)
             else
               driver.take.flatMap {
@@ -1756,16 +1766,16 @@ object ZStream extends ZStreamPlatformSpecific {
                         if (cont(s)) loop(leftDone, rightDone, s, driver, leftQueue, rightQueue)
                         else IO.succeed(s)
                       }
-                    case Take.End     =>
+                    case Take.End =>
                       if (leftDone) IO.succeed(s)
                       else loop(leftDone, true, s, driver, leftQueue, rightQueue)
                   } else loop(leftDone, rightDone, s, driver, leftQueue, rightQueue)
-                case Take.End     => IO.succeed(s)
+                case Take.End => IO.succeed(s)
               }
-              
+
           val resources = for {
-            queue <- b.toQueue()
-            leftQueue <- s1.toQueue()
+            queue      <- b.toQueue()
+            leftQueue  <- s1.toQueue()
             rightQueue <- s2.toQueue()
           } yield (queue, leftQueue, rightQueue)
 
