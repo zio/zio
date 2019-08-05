@@ -678,6 +678,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
         }
     }
 
+  /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
   final def zipPar[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A2, A1, C]
   ): ZSink[R1, E1, A2, A1, (B, C)] =
