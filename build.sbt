@@ -53,6 +53,7 @@ lazy val root = project
     streamsTestsJS,
     benchmarks,
     testJVM,
+    testJS,
     stacktracerJS,
     stacktracerJVM
   )
