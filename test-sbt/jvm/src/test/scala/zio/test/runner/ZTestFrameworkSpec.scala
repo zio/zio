@@ -62,19 +62,16 @@ object ZTestFrameworkSpec {
       messages =>
         assertEquals(
           "logged messages",
-          messages,
-          Seq(
-            "info: TEST: failing test: FAILURE: 1 did not satisfy equals(2)",
-            "info: TEST: passing test: SUCCESS",
-            "info: TEST: ignored test: IGNORED",
-            "info: SUITE: some suite"
+          messages.toList,
+          List(
+            s"info: ${red("- some suite")}",
+            s"info:   ${red("- failing test")}",
+            s"info:     ${blue("1")} did not satisfy ${cyan("equals(2)")}",
+            s"info:   ${green("+")} passing test"
           )
         )
       )
   }
-
-  def assertEquals(what: String, actual: => Any, expected: Any) =
-    assert(actual == expected, s"$what: expected `$expected` actual: `$expected`")
 
   private def loadAndExecute(fqn: String, eventHandler: EventHandler = _ => (), loggers: Seq[Logger] = Nil) = {
     val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array())
@@ -127,7 +124,7 @@ object TestingSupport {
       println(s"${green("+")} $l")
     }.recoverWith {
       case NonFatal(e) =>
-        println(s"${green("-")} $l: ${red(e.getMessage)}")
+        println(s"${red("-")} $l: ${e.getMessage}")
         e.printStackTrace()
         Failure(e)
     }
@@ -142,7 +139,12 @@ object TestingSupport {
       throw new AssertionError(s"$failed tests failed")
   }
 
+  def assertEquals(what: String, actual: => Any, expected: Any) =
+    assert(actual == expected, s"$what:\n  expected: `$expected`\n  actual  : `$actual`")
+
   def colored(code: String)(str: String) = s"$code$str${Console.RESET}"
   lazy val red                           = colored(Console.RED) _
   lazy val green                         = colored(Console.GREEN) _
+  lazy val cyan                          = colored(Console.CYAN) _
+  lazy val blue                          = colored(Console.BLUE) _
 }

@@ -17,9 +17,9 @@
 package zio.test.runner
 
 import sbt.testing._
-import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
+import zio.test.RenderedResult.CaseType
 import zio.test._
-import zio.{ RIO, Runtime, ZIO }
+import zio.{ Runtime, ZIO }
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
@@ -43,41 +43,40 @@ class ZTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     val spec = loadSpec[Any, Any]
+
+    def logResult[R, E](result: RenderedResult): zio.Task[Unit] =
+      ZIO
+        .sequence[Any, Throwable, Unit](
+          for {
+            log  <- loggers.toSeq
+            line <- result.rendered
+          } yield ZIO.effect(log.info(line))
+        )
+        .unit
+
+    def reportResults(results: Seq[RenderedResult]) =
+      ZIO.foreach(results) { result =>
+        logResult(result) *> {
+          result.caseType match {
+            case CaseType.Test =>
+              ZIO.effect(
+                eventHandler.handle(ZTestEvent.from(result, taskDef.fullyQualifiedName))
+              )
+            case CaseType.Suite => ZIO.unit
+          }
+        }
+      }
+
     val handle = for {
-      result <- spec.run
-      _      <- result.foldM[Any, Throwable, Unit](ExecutionStrategy.Sequential)(handleSpecCase(eventHandler, loggers))
+      result   <- spec.run
+      rendered = DefaultTestReporter.render(result.mapLabel(_.toString))
+      _        <- reportResults(rendered)
     } yield ()
 
     Runtime((), spec.platform).unsafeRunSync(handle)
     Array.empty
   }
 
-  private def handleSpecCase(eventHandler: EventHandler, loggers: Array[Logger])(
-    specCase: SpecCase[Any, TestResult, Unit]
-  ) =
-    specCase match {
-      case SuiteCase(label, _, _)      => handleSuite(loggers)(label.toString)
-      case TestCase(label, testResult) => handleTest(eventHandler, loggers)(label.toString, testResult)
-    }
-
-  private def handleSuite[R](loggers: Array[Logger])(label: String): RIO[R, Unit] =
-    effects(loggers)(_.info(s"SUITE: $label"))
-
-  private def handleTest[R](
-    eventHandler: EventHandler,
-    loggers: Array[Logger]
-  )(label: String, result: TestResult): RIO[R, Unit] =
-    for {
-      _ <- effects(loggers)(_.info(s"TEST: $label: ${ZTestTask.describeResult(result)}"))
-      _ <- ZIO.effect(eventHandler.handle(ZTestEvent.fromSpec(label, result, taskDef.fullyQualifiedName)))
-    } yield ()
-
-  private def effects(loggers: Array[Logger])(effect: Logger => Unit): RIO[Any, Unit] =
-    ZIO
-      .sequence[Any, Throwable, Unit](loggers.map { l =>
-        ZIO.effect(effect(l))
-      })
-      .unit
 }
 
 case class ZTestEvent(
@@ -101,6 +100,15 @@ object ZTestEvent {
       0L
     )
 
+  def from(renderedResult: RenderedResult, fullyQualifiedName: String) = {
+    val status = renderedResult.status match {
+      case RenderedResult.Status.Failed  => Status.Failure
+      case RenderedResult.Status.Passed  => Status.Success
+      case RenderedResult.Status.Ignored => Status.Ignored
+    }
+    ZTestEvent(fullyQualifiedName, new TestSelector(renderedResult.label), status, None, 0)
+  }
+
   private def maybeThrowable(testResult: TestResult) = testResult match {
     case Assertion.Failure(FailureDetails.Runtime(cause)) =>
       Some(cause.squashWith {
@@ -114,19 +122,5 @@ object ZTestEvent {
     case Assertion.Failure(_) => Status.Failure
     case Assertion.Success    => Status.Success
     case Assertion.Ignore     => Status.Ignored
-  }
-}
-
-object ZTestTask {
-
-  private def describeResult(testResult: TestResult) = testResult match {
-    case f: Assertion.Failure[FailureDetails] => describeFailure(f.message)
-    case Assertion.Success                    => "SUCCESS"
-    case Assertion.Ignore                     => "IGNORED"
-  }
-
-  private def describeFailure(failureDetails: FailureDetails) = failureDetails match {
-    case FailureDetails.Runtime(cause)         => cause.prettyPrint
-    case FailureDetails.Predicate(fragment, _) => s"FAILURE: ${fragment.value} did not satisfy ${fragment.predicate}"
   }
 }
