@@ -21,7 +21,7 @@ import zio.clock.Clock
 import zio.duration.Duration
 
 /**
- * A `Reservation[-R, +E, +A]` encapsulates resource aquisition and disposal
+ * A `Reservation[-R, +E, +A]` encapsulates resource acquisition and disposal
  * without specifying when or how that resource might be used.
  *
  * See [[ZManaged#reserve]] and [[ZIO#reserve]] for details of usage.
