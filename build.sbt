@@ -31,7 +31,10 @@ inThisBuild(
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
-addCommandAlias("testJVM", ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run")
+addCommandAlias(
+  "testJVM",
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run"
+)
 addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run")
 
 lazy val root = project
@@ -174,11 +177,11 @@ lazy val testRunnerJVM = testRunner.jvm
 lazy val testRunnerJS  = testRunner.js
 
 /**
-  * this subproject is used to manually test SBT running zio test RunnableSpecs
-  * it is not included in the root project. 
-  * To run tests:
-  * `sbt "testRunnerTestingJVM/test"`
-  */
+ * this subproject is used to manually test SBT running zio test RunnableSpecs
+ * it is not included in the root project.
+ * To run tests:
+ * `sbt "testRunnerTestingJVM/test"`
+ */
 lazy val testRunnerTesting = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt-testing"))
   .settings(stdSettings("zio-test-sbt-testing"))

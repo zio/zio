@@ -20,21 +20,20 @@ import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
 import zio.test.runner.TestingSupport._
-import zio.test.{DefaultRunnableSpec, Predicate, TestAspect}
+import zio.test.{ DefaultRunnableSpec, Predicate, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
-import scala.util.{Failure, Try}
+import scala.util.{ Failure, Try }
 
 object ZTestFrameworkSpec {
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     run(
       test("should return correct fingerprints")(testFingerprints()),
       test("should report events")(testReportEvents()),
-      test("should log messages")(testLogMessages()),
+      test("should log messages")(testLogMessages())
     )
-  }
 
   def testFingerprints() = {
     val fingerprints = new ZTestFramework().fingerprints.toSeq
@@ -119,11 +118,10 @@ object ZTestFrameworkSpec {
     override def trace(t: Throwable): Unit     = log(s"trace: $t")
   }
 
-
 }
 
 object TestingSupport {
-  def test[T](l: String)(body: => Unit): Try[Unit] = {
+  def test[T](l: String)(body: => Unit): Try[Unit] =
     Try {
       body
       println(s"${green("+")} $l")
@@ -133,20 +131,18 @@ object TestingSupport {
         e.printStackTrace()
         Failure(e)
     }
-  }
 
   def run(tests: Try[Unit]*) = {
-    val failed = tests.count(_.isFailure)
-    val successful = tests.count(_.isSuccess)
-    val failedCount = if(failed > 0) red(s"failed: $failed") else s"failed: $failed"
-    val successCount = if(successful > 0) green(s"successful: $successful") else s"successful: $successful"
+    val failed       = tests.count(_.isFailure)
+    val successful   = tests.count(_.isSuccess)
+    val failedCount  = if (failed > 0) red(s"failed: $failed") else s"failed: $failed"
+    val successCount = if (successful > 0) green(s"successful: $successful") else s"successful: $successful"
     println(s"Summary: $failedCount, $successCount")
-    if(failed > 0)
+    if (failed > 0)
       throw new AssertionError(s"$failed tests failed")
   }
 
   def colored(code: String)(str: String) = s"$code$str${Console.RESET}"
-  lazy val red = colored(Console.RED) _
-  lazy val green = colored(Console.GREEN) _
+  lazy val red                           = colored(Console.RED) _
+  lazy val green                         = colored(Console.GREEN) _
 }
-
