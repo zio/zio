@@ -678,6 +678,95 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
         }
     }
 
+  final def zipPar[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A2, A1, C]
+  ): ZSink[R1, E1, A2, A1, (B, C)] =
+    new ZSink[R1, E1, A2, A1, (B, C)] {
+      type State = (Either[B, self.State], Either[C, that.State])
+
+      override def extract(state: State): ZIO[R1, E1, (B, C)] = {
+        val b: ZIO[R, E, B]   = state._1.fold(ZIO.succeed, self.extract)
+        val c: ZIO[R1, E1, C] = state._2.fold(ZIO.succeed, that.extract)
+        b.zip(c)
+      }
+
+      override def initial: ZIO[R1, E1, Step[State, Nothing]] =
+        self.initial.flatMap { s1 =>
+          that.initial.flatMap { s2 =>
+            (Step.cont(s1), Step.cont(s2)) match {
+              case (false, false) =>
+                val zb = self.extract(Step.state(s1))
+                val zc = that.extract(Step.state(s2))
+                zb.zipWith(zc)((b, c) => Step.done((Left(b), Left(c)), Chunk.empty))
+
+              case (false, true) =>
+                val zb = self.extract(Step.state(s1))
+                zb.map(b => Step.more((Left(b), Right(Step.state(s2)))))
+
+              case (true, false) =>
+                val zc = that.extract(Step.state(s2))
+                zc.map(c => Step.more((Right(Step.state(s1)), Left(c))))
+
+              case (true, true) =>
+                ZIO.succeed(Step.more((Right(Step.state(s1)), Right(Step.state(s2)))))
+            }
+          }
+        }
+
+      override def step(state: State, a: A1): ZIO[R1, E1, Step[State, A2]] = {
+        val firstResult: ZIO[R, E, Either[(B, Option[Chunk[A2]]), self.State]] = state._1.fold(
+          b => ZIO.succeed(Left((b, None))),
+          s =>
+            self
+              .step(s, a)
+              .flatMap { (st: Step[ZSink.this.State, A0]) =>
+                if (Step.cont(st))
+                  ZIO.succeed(Right(Step.state(st)))
+                else
+                  self
+                    .extract(Step.state(st))
+                    .map(b => Left((b, Some(Step.leftover(st)))))
+              }
+        )
+
+        val secondResult: ZIO[R1, E1, Either[(C, Option[Chunk[A2]]), that.State]] = state._2.fold(
+          c => ZIO.succeed(Left((c, None))),
+          s =>
+            that
+              .step(s, a)
+              .flatMap { st =>
+                if (Step.cont(st))
+                  ZIO.succeed(Right(Step.state(st)))
+                else
+                  that
+                    .extract(Step.state(st))
+                    .map(c => {
+                      val leftover: Chunk[A2] = (Step.leftover(st))
+                      Left((c, Some(leftover)))
+                    })
+              }
+        )
+
+        for {
+          r1 <- firstResult
+          r2 <- secondResult
+        } yield {
+          (r1, r2) match {
+            case (Left((b, rem1)), Left((c, rem2))) =>
+              val minLeftover =
+                if (rem1.isEmpty && rem2.isEmpty) Chunk.empty else (rem1.toList ++ rem2.toList).minBy(_.length)
+              Step.done((Left(b), Left(c)), minLeftover)
+
+            case (Left((b, _)), Right(s2)) =>
+              Step.more((Left(b), Right(s2)))
+
+            case (r: Right[_, _], Left((c, _))) => Step.more((r.asInstanceOf[Either[B, self.State]], Left(c)))
+            case rights @ (Right(_), Right(_))  => Step.more(rights.asInstanceOf[State])
+          }
+        }
+      }
+    }
+
   /**
    * Produces a sink consuming all the elements of type `A` as long as
    * they verify the predicate `pred`.

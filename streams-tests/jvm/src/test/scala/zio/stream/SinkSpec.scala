@@ -8,6 +8,8 @@ import zio.clock.Clock
 import zio.duration._
 import zio.test.mock.MockClock
 import java.util.concurrent.TimeUnit
+import org.specs2.matcher.MatchResult
+import org.specs2.matcher.describe.Diffable
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -167,6 +169,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     zipLeft (<*)
       happy path $zipLeftHappyPath
 
+    zipPar
+       happy path 1 $zipParHappyPathBothDone
+       happy path 2 $zipParHappyPathOneNonterm
+       happy path 3 $zipParHappyPathBothNonterm
+       extract error $zipParErrorExtract
+       step error $zipParErrorStep
+       init error $zipParErrorInit
+       both error $zipParErrorBoth
+       remainder corner case 1 $zipParRemainderWhenCompleteSeparately
+       remainder corner case 2 $zipParRemainderWhenCompleteTogether
+
     zipRight (*>)
       happy path $zipRightHappyPath
 
@@ -236,6 +249,31 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val initial                    = UIO.succeed(Step.more(()))
     def step(state: State, a: Int) = UIO.succeed(Step.done((), Chunk.empty))
     def extract(state: State)      = IO.fail("Ouch")
+  }
+
+  /** Searches for the `target` element in the stream.
+   * When met - accumulates next `accumulateAfterMet` elements and returns as `leftover`
+   * If `target` is not met - returns `default` with empty `leftover`
+   */
+  private def sinkWithLeftover[A](target: A, accumulateAfterMet: Int, default: A) = new ZSink[Any, String, A, A, A] {
+    override type State = Option[List[A]]
+
+    override def extract(state: Option[List[A]]): ZIO[Any, String, A] =
+      UIO.succeed(if (state.isEmpty) default else target)
+
+    override def initial: ZIO[Any, String, Step[Option[List[A]], Nothing]] = UIO.succeed(Step.more(None))
+
+    override def step(state: Option[List[A]], a: A): ZIO[Any, String, Step[Option[List[A]], A]] =
+      state match {
+        case None =>
+          val st = if (a == target) Some(Nil) else None
+          UIO.succeed(Step.more(st))
+        case Some(acc) =>
+          if (acc.length >= accumulateAfterMet)
+            UIO.succeed(Step.done(state, Chunk.fromIterable(acc)))
+          else
+            UIO.succeed(Step.more(Some(acc :+ a)))
+      }
   }
 
   private def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], a: A) =
@@ -778,6 +816,116 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def zipWithHappyPath = {
     val sink = ZSink.identity[Int].zipWith(ZSink.succeedLazy("Hello"))((x, y) => x.toString + y.toString)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== "1Hello"))
+  }
+
+  private object ZipParLaws {
+    def coherence[A, B: Diffable, C: Diffable](
+      s: Stream[String, A],
+      sink1: ZSink[Any, String, A, A, B],
+      sink2: ZSink[Any, String, A, A, C]
+    ): MatchResult[Either[String, Any]] =
+      unsafeRun {
+        for {
+          zb  <- s.run(sink1).either
+          zc  <- s.run(sink2).either
+          zbc <- s.run(sink1.zipPar(sink2)).either
+        } yield {
+          zbc match {
+            case Left(e)       => (zb must beLeft(e)) or (zc must beLeft(e))
+            case Right((b, c)) => (zb must beRight(b)) and (zc must beRight(c))
+          }
+        }
+      }
+
+    def swap[A, B: Diffable, C: Diffable](
+      s: Stream[String, A],
+      sink1: ZSink[Any, String, A, A, B],
+      sink2: ZSink[Any, String, A, A, C]
+    ) =
+      unsafeRun {
+        for {
+          res     <- s.run(sink1.zipPar(sink2).zip(ZSink.collectAll[A])).either
+          swapped <- s.run(sink2.zipPar(sink1).zip(ZSink.collectAll[A])).either
+        } yield {
+          swapped must_=== res.map {
+            case ((b, c), rem) => ((c, b), rem)
+          }
+        }
+      }
+
+    def remainders[A, B: Diffable, C: Diffable](
+      s: Stream[String, A],
+      sink1: ZSink[Any, String, A, A, B],
+      sink2: ZSink[Any, String, A, A, C]
+    ): MatchResult[AnyVal] =
+      unsafeRun {
+        val maybeProp = for {
+          rem1 <- s.run(sink1.zipRight(ZSink.collectAll[A]))
+          rem2 <- s.run(sink2.zipRight(ZSink.collectAll[A]))
+          rem  <- s.run(sink1.zipPar(sink2).zipRight(ZSink.collectAll[A]))
+        } yield {
+          val (longer, shorter) = if (rem1.length <= rem2.length) (rem2, rem1) else (rem1, rem2)
+          longer must_=== rem
+          rem.endsWith(shorter) must_=== true
+        }
+        //irrelevant if an error occurred
+        maybeProp.catchAll(_ => UIO.succeed(1 must_=== 1))
+      }
+
+    def laws[A, B: Diffable, C: Diffable](
+      s: Stream[String, A],
+      sink1: ZSink[Any, String, A, A, B],
+      sink2: ZSink[Any, String, A, A, C]
+    ): MatchResult[Any] =
+      coherence(s, sink1, sink2) and remainders(s, sink1, sink2) and swap(s, sink1, sink2)
+  }
+
+  private def zipParHappyPathBothDone = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    val sink2 = ZSink.collectAllWhile[Int](_ < 3)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
+  private def zipParHappyPathOneNonterm = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    val sink2 = ZSink.collectAllWhile[Int](_ < 30)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
+  private def zipParHappyPathBothNonterm = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 50)
+    val sink2 = ZSink.collectAllWhile[Int](_ < 30)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
+  private def zipParErrorExtract = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, extractErrorSink)
+  }
+
+  private def zipParErrorStep = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, stepErrorSink)
+  }
+
+  private def zipParErrorInit = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, initErrorSink)
+  }
+
+  private def zipParErrorBoth =
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), stepErrorSink, initErrorSink)
+
+  private def zipParRemainderWhenCompleteTogether = {
+    val sink1 = sinkWithLeftover(2, 3, -42)
+    val sink2 = sinkWithLeftover(2, 4, -42)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
+  private def zipParRemainderWhenCompleteSeparately = {
+    val sink1 = sinkWithLeftover(3, 1, -42)
+    val sink2 = sinkWithLeftover(2, 4, -42)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
   }
 
   private def foldLeft =
