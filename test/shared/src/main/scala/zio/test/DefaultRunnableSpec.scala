@@ -22,12 +22,4 @@ import zio.DefaultRuntime
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
  */
-abstract class DefaultRunnableSpec(_spec: => ZSpec[DefaultRuntime#Environment, Nothing, String]) extends RunnableSpec {
-
-  override type Label = String
-  override type Test  = ZTest[DefaultRuntime#Environment, Any]
-
-  override def spec: Spec[Label, Test] = _spec
-
-  override val runner: TestRunner[Label, Test] = DefaultTestRunner
-}
+abstract class DefaultRunnableSpec(spec: => ZSpec[DefaultRuntime#Environment, Nothing, String]) extends AbstractRunnableSpec(DefaultTestRunner)(spec)

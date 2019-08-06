@@ -48,3 +48,11 @@ abstract class RunnableSpec {
    */
   final def platform = runner.platform
 }
+
+abstract class AbstractRunnableSpec[L, T](runner0: TestRunner[L, T])(spec0: => Spec[L, T]) extends RunnableSpec {
+  override type Label = L
+  override type Test = T
+
+  override def runner = runner0
+  override def spec =spec0
+}
