@@ -45,13 +45,16 @@ object ZTestFrameworkSpec {
     loadAndExecute(failingSpecFQN, reported.append(_))
 
     val expected = Set(
-      ZTestEvent(failingSpecFQN, new TestSelector("failing test"), Status.Failure, None, 0),
-      ZTestEvent(failingSpecFQN, new TestSelector("passing test"), Status.Success, None, 0),
-      ZTestEvent(failingSpecFQN, new TestSelector("ignored test"), Status.Ignored, None, 0)
+      sbtEvent(failingSpecFQN, "failing test", Status.Failure),
+      sbtEvent(failingSpecFQN, "passing test", Status.Success),
+      sbtEvent(failingSpecFQN, "ignored test", Status.Ignored)
     )
 
     assertEquals("reported events", reported.toSet, expected)
   }
+
+  private def sbtEvent(fqn: String, label: String, status: Status) =
+    ZTestEvent(fqn, new TestSelector(label), status, None, 0, RunnableSpecFingerprint)
 
   def testLogMessages() = {
     val loggers = Seq.fill(3)(new MockLogger)

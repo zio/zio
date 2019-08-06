@@ -17,19 +17,12 @@
 package zio.test.runner
 
 import sbt.testing._
-import zio.test.DefaultRunnableSpec
 
-final class ZTestFramework extends Framework {
-  override val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
-
-  val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
-
-  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunner =
-    new ZTestRunner(args, remoteArgs, testClassLoader)
+final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
+    extends Runner {
+  def done(): String = "Done"
+  def tasks(defs: Array[TaskDef]): Array[Task] = defs.map(new ZTestTask(_, testClassLoader))
 }
 
-object RunnableSpecFingerprint extends SubclassFingerprint {
-  val superclassName: String  = classOf[DefaultRunnableSpec].getCanonicalName
-  val isModule                = true
-  val requireNoArgConstructor = false
-}
+class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader) extends BaseTestTask(taskDef, testClassLoader)
+

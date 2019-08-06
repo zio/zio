@@ -163,12 +163,13 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.scala-sbt"      % "test-interface"           % "1.0",
       "org.scala-lang"     % "scala-reflect"            % scalaVersion.value,
       "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
     ),
     mainClass in (Test, run) := Some("zio.test.runner.ZTestFrameworkSpec")
   )
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.28"))
+  .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core % "test->test;compile->compile")
   .dependsOn(test % "test->test;compile->compile")
   .dependsOn(coreTests % "test->test;compile->compile")
@@ -186,7 +187,6 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("examples"))
   .settings(testFrameworks += new TestFramework("zio.test.runner.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
-  .jsSettings(scalaJSUseMainModuleInitializer in Test := true)
 
 lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm
