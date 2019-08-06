@@ -26,5 +26,3 @@ final class ZTestFramework extends Framework {
   override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunner =
     new ZTestRunner(args, remoteArgs, testClassLoader)
 }
-
-

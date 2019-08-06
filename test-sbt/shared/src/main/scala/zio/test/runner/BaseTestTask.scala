@@ -1,9 +1,9 @@
 package zio.test.runner
 
-import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.{Runtime, ZIO}
+import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
+import zio.{ Runtime, ZIO }
 import zio.test.RenderedResult.CaseType
-import zio.test.{DefaultTestReporter, RenderedResult, RunnableSpec}
+import zio.test.{ DefaultTestReporter, RenderedResult, RunnableSpec }
 
 abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
   protected lazy val spec = {
@@ -21,11 +21,11 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
     def logResult[R, E](result: RenderedResult): zio.Task[Unit] =
       ZIO
         .sequence[Any, Throwable, Unit](
-        for {
-          log  <- loggers.toSeq
-          line <- result.rendered
-        } yield ZIO.effect(log.info(line))
-      )
+          for {
+            log  <- loggers.toSeq
+            line <- result.rendered
+          } yield ZIO.effect(log.info(line))
+        )
         .unit
 
     def reportResults(results: Seq[RenderedResult]) =

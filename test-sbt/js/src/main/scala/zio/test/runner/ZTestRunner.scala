@@ -17,38 +17,36 @@
 package zio.test.runner
 
 import sbt.testing._
-import zio.{Exit, Runtime}
+import zio.{ Exit, Runtime }
 
-final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader, runnerType: String)
-    extends Runner {
+final class ZTestRunner(
+  val args: Array[String],
+  val remoteArgs: Array[String],
+  testClassLoader: ClassLoader,
+  runnerType: String
+) extends Runner {
   def done(): String = "Done"
   def tasks(defs: Array[TaskDef]): Array[Task] =
     defs.map(new ZTestTask(_, testClassLoader, runnerType))
 
   override def receiveMessage(msg: String): Option[String] = None
 
-  override def serializeTask(task: Task,
-                             serializer: TaskDef => String): String = {
+  override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef)
-  }
 
-  override def deserializeTask(task: String,
-                               deserializer: String => TaskDef): Task = {
+  override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
     new ZTestTask(deserializer(task), testClassLoader, runnerType)
-  }
 }
 
 class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, runnerType: String)
-  extends BaseTestTask(taskDef, testClassLoader) {
+    extends BaseTestTask(taskDef, testClassLoader) {
 
-  def execute(eventHandler: EventHandler, loggers: Array[Logger],
-              continuation: Array[Task] => Unit): Unit = {
+  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     Runtime((), spec.platform).unsafeRunAsync(run(eventHandler, loggers)) { exit =>
       exit match {
         case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-        case _ =>
+        case _                   =>
       }
       continuation(Array())
     }
-  }
 }
