@@ -139,9 +139,6 @@ object GenSpec extends DefaultRuntime {
   def shrinks[A](gen: Gen[Random, A]): ZIO[Random, Nothing, List[A]] =
     gen.sample.flatMap(sample => ZStream(sample.value) ++ sample.shrink).take(1000).runCollect
 
-  def summarize[A](as: List[A]): List[(A, Int)] =
-    as.groupBy(identity).mapValues(_.length).toList
-
   def equal[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
 
