@@ -126,7 +126,7 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(test % "test->test;compile->compile")
   .settings(stdSettings("zio-examples"))
 
-lazy val examplesJS = examples.js
+lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
