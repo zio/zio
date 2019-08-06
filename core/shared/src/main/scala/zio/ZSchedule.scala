@@ -184,6 +184,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
 
   /**
+   * Returns a new schedule that maps this schedule to a constant output.
+   */
+  final def as[C](c: => C): ZSchedule[R, A, C] = map(_ => c)
+
+  /**
    * A named alias for `&&`.
    */
   final def both[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self && that
@@ -234,11 +239,6 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 
   @deprecated("use as", "1.0.0")
   final def const[C](c: => C): ZSchedule[R, A, C] = as(c)
-
-  /**
-   * Returns a new schedule that maps this schedule to a constant output.
-   */
-  final def as[C](c: => C): ZSchedule[R, A, C] = map(_ => c)
 
   /**
    * Returns a new schedule that deals with a narrower class of inputs than

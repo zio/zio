@@ -619,7 +619,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Return unit while running the effect
    */
   lazy final val unit: ZManaged[R, E, Unit] =
-    const(())
+    as(())
 
   /**
    * The inverse operation `ZManaged.sandboxed`

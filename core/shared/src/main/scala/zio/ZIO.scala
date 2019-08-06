@@ -97,6 +97,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self >>> that
 
   /**
+   * Maps the success value of this effect to the specified constant value.
+   */
+  final def as[B](b: B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
+
+  /**
+   * Maps the error value of this effect to the specified constant value.
+   */
+  final def asError[E1](e1: E1): ZIO[R, E1, A] = mapError(_ => e1)
+
+  /**
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
@@ -468,23 +478,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, new ZIO.MapFn(f))
 
   /**
-   * Returns an effect whose success is replaced by the specified `b` value.
-   */
-  final def as[B](b: B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
-
-  /**
    * Returns an effect with its error channel mapped using the specified
    * function. This can be used to lift a "smaller" error into a "larger"
    * error.
    */
   final def mapError[E2](f: E => E2): ZIO[R, E2, A] =
     self.foldCauseM(new ZIO.MapErrorFn(f), new ZIO.SucceedFn(f))
-
-  /**
-   * Returns an effect whose error channel is replaced by the specified `e2` error.
-   * This can be used to lift a "smaller" error into a "larger" error.
-   */
-  final def asError[E2](e2: E2): ZIO[R, E2, A] = mapError(_ => e2)
 
   /**
    * Returns an effect with its full cause of failure mapped using the

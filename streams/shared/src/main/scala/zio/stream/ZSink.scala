@@ -126,6 +126,27 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     zip(that)
 
   /**
+   * Creates a sink that always produces `c`
+   */
+  final def as[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
+
+  /**
+   * Replaces any error produced by this sink.
+   */
+  final def asError[E1](e1: E1): ZSink[R, E1, A0, A, B] =
+    new ZSink[R, E1, A0, A, B] {
+      type State = self.State
+
+      val initial = self.initial.asError(e1)
+
+      def step(state: State, a: A): ZIO[R, E1, Step[State, A0]] =
+        self.step(state, a).asError(e1)
+
+      def extract(state: State): ZIO[R, E1, B] =
+        self.extract(state).asError(e1)
+    }
+
+  /**
    * Takes a `Sink`, and lifts it to be chunked in its input. This
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
@@ -265,11 +286,6 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
   @deprecated("use as", "1.0.0")
   final def const[C](c: => C): ZSink[R, E, A0, A, C] = as(c)
-
-  /**
-   * Creates a sink that always produces `c`
-   */
-  final def as[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
 
   /**
    * Creates a sink that transforms entering values with `f` and
