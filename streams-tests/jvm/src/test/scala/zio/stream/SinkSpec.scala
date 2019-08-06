@@ -346,22 +346,22 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def constHappyPath = {
-    val sink = ZSink.identity[Int].const("const")
+    val sink = ZSink.identity[Int].as("const")
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== "const"))
   }
 
   private def constInitError = {
-    val sink = initErrorSink.const("const")
+    val sink = initErrorSink.as("const")
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def constStepError = {
-    val sink = stepErrorSink.const("const")
+    val sink = stepErrorSink.as("const")
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def constExtractError = {
-    val sink = extractErrorSink.const("const")
+    val sink = extractErrorSink.as("const")
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 

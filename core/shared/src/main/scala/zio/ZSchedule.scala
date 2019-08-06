@@ -232,10 +232,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def compose[R1 <: R, C](that: ZSchedule[R1, C, A]): ZSchedule[R1, C, B] = self <<< that
 
+  @deprecated("use as", "1.0.0")
+  final def const[C](c: => C): ZSchedule[R, A, C] = as(c)
+
   /**
    * Returns a new schedule that maps this schedule to a constant output.
    */
-  final def const[C](c: => C): ZSchedule[R, A, C] = map(_ => c)
+  final def as[C](c: => C): ZSchedule[R, A, C] = map(_ => c)
 
   /**
    * Returns a new schedule that deals with a narrower class of inputs than
@@ -476,7 +479,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Returns a new schedule that maps this schedule to a Unit output.
    */
-  final def unit: ZSchedule[R, A, Unit] = const(())
+  final def unit: ZSchedule[R, A, Unit] = as(())
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
@@ -722,12 +725,12 @@ object ZSchedule {
   /**
    * A schedule that recurs forever, returning the constant for every output.
    */
-  final def succeed[A](a: A): Schedule[Any, A] = forever.const(a)
+  final def succeed[A](a: A): Schedule[Any, A] = forever.as(a)
 
   /**
    * A schedule that recurs forever, returning the constant for every output (by-name version).
    */
-  final def succeedLazy[A](a: => A): Schedule[Any, A] = forever.const(a)
+  final def succeedLazy[A](a: => A): Schedule[Any, A] = forever.as(a)
 
   /**
    * A schedule that always recurs without delay, and computes the output

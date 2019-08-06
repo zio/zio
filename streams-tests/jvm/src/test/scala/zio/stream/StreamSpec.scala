@@ -770,7 +770,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       inner = Stream
         .bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
       _ <- Stream
-            .bracket(execution.update("OuterAcquire" :: _).const(inner))(_ => execution.update("OuterRelease" :: _))
+            .bracket(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
             .flatMapPar(2)(identity)
             .runDrain
       results <- execution.get
@@ -892,7 +892,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       execution <- Ref.make(List.empty[String])
       inner     = Stream.bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
       _ <- Stream
-            .bracket(execution.update("OuterAcquire" :: _).const(inner))(_ => execution.update("OuterRelease" :: _))
+            .bracket(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
             .flatMapParSwitch(2)(identity)
             .runDrain
       results <- execution.get
@@ -1421,7 +1421,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val stream = ZStream(1, 2, 3, 4)
     val test = for {
       resource <- Ref.make(0)
-      sink     = ZManaged.make(resource.set(1000).const(new TestSink(resource)))(_ => resource.set(2000))
+      sink     = ZManaged.make(resource.set(1000).as(new TestSink(resource)))(_ => resource.set(2000))
       result   <- stream.transduceManaged(sink).runCollect
       i        <- resource.get
       _        <- if (i != 2000) IO.fail(new IllegalStateException(i.toString)) else IO.unit

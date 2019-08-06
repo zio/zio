@@ -203,11 +203,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
 
-  /**
-   * Maps this effect to the specified constant while preserving the
-   * effects of this effect.
-   */
-  final def const[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: => B): ZIO[R, E, B] = as(b)
 
   /**
    * Returns an effect that is delayed from this effect by the specified
@@ -471,9 +468,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, new ZIO.MapFn(f))
 
   /**
-   * Returns an effect whose success is replaced by the specified `v` value.
+   * Returns an effect whose success is replaced by the specified `b` value.
    */
-  final def as[B](v: B): ZIO[R, E, B] = map(_ => v)
+  final def as[B](b: B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
 
   /**
    * Returns an effect with its error channel mapped using the specified
@@ -484,10 +481,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.foldCauseM(new ZIO.MapErrorFn(f), new ZIO.SucceedFn(f))
 
   /**
-   * Returns an effect whose error channel is replaced by the specified `v` error.
+   * Returns an effect whose error channel is replaced by the specified `e2` error.
    * This can be used to lift a "smaller" error into a "larger" error.
    */
-  final def asError[E2](v: E2): ZIO[R, E2, A] = mapError(_ => v)
+  final def asError[E2](e2: E2): ZIO[R, E2, A] = mapError(_ => e2)
 
   /**
    * Returns an effect with its full cause of failure mapped using the
@@ -1253,7 +1250,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
-  final def unit: ZIO[R, E, Unit] = const(())
+  final def unit: ZIO[R, E, Unit] = as(())
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -2470,7 +2467,7 @@ object ZIO extends ZIOFunctions {
 
   final class ZipLeftFn[R, E, A, B](override val underlying: () => ZIO[R, E, A]) extends ZIOFn1[B, ZIO[R, E, B]] {
     def apply(a: B): ZIO[R, E, B] =
-      underlying().const(a)
+      underlying().as(a)
   }
 
   final class ZipRightFn[R, E, A, B](override val underlying: () => ZIO[R, E, B]) extends ZIOFn1[A, ZIO[R, E, B]] {
@@ -2482,7 +2479,7 @@ object ZIO extends ZIOFunctions {
 
   final class TapFn[R, E, A](override val underlying: A => ZIO[R, E, _]) extends ZIOFn1[A, ZIO[R, E, A]] {
     def apply(a: A): ZIO[R, E, A] =
-      underlying(a).const(a)
+      underlying(a).as(a)
   }
 
   final class MapFn[R, E, A, B](override val underlying: A => B) extends ZIOFn1[A, ZIO[R, E, B]] {
