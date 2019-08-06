@@ -23,4 +23,4 @@ import zio.DefaultRuntime
  * modules in ZIO (Clock, Random, etc).
  */
 abstract class DefaultRunnableSpec(spec: => ZSpec[DefaultRuntime#Environment, Nothing, String])
-    extends AbstractRunnableSpec(DefaultTestRunner)(spec)
+    extends RunnableSpec(DefaultTestRunner)(spec)

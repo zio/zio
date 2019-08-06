@@ -1,19 +1,19 @@
 package zio.test.runner
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
-import zio.{ Runtime, ZIO }
 import zio.test.RenderedResult.CaseType
-import zio.test.{ DefaultTestReporter, RenderedResult, RunnableSpec }
+import zio.test.{ AbstractRunnableSpec, DefaultTestReporter, RenderedResult }
+import zio.{ Runtime, ZIO }
 
 abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
-  protected lazy val spec = {
+  protected lazy val spec: AbstractRunnableSpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
     Reflect
       .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
       .loadModule()
-      .asInstanceOf[RunnableSpec]
+      .asInstanceOf[AbstractRunnableSpec]
   }
 
   protected def run(eventHandler: EventHandler, loggers: Array[Logger]) = {

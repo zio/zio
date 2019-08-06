@@ -23,7 +23,7 @@ import zio.test.reflect.Reflect.EnableReflectiveInstantiation
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
 @EnableReflectiveInstantiation
-abstract class RunnableSpec {
+abstract class AbstractRunnableSpec {
 
   type Label
   type Test
@@ -49,7 +49,7 @@ abstract class RunnableSpec {
   final def platform = runner.platform
 }
 
-abstract class AbstractRunnableSpec[L, T](runner0: TestRunner[L, T])(spec0: => Spec[L, T]) extends RunnableSpec {
+abstract class RunnableSpec[L, T](runner0: TestRunner[L, T])(spec0: => Spec[L, T]) extends AbstractRunnableSpec {
   override type Label = L
   override type Test  = T
 
