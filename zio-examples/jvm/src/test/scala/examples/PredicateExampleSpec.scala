@@ -58,10 +58,10 @@ private object Suites {
 
   case class User(name: String, email: String)
 
-  sealed trait Semaphore
-  case object Green  extends Semaphore
-  case object Yellow extends Semaphore
-  case object Red    extends Semaphore
+  sealed trait Color
+  case object Red   extends Color
+  case object Green extends Color
+  case object Blue  extends Color
 
   val user = User("John Doe", "johndoe@zio.com")
 
@@ -84,14 +84,31 @@ private object Suites {
     test("Either is right") {
       assert(Right("Success"), Predicate.isRight(Predicate.equals("Success")))
     },
-    test("Yellow is a Semaphore") {
-      assert(Yellow, Predicate.isSubtype[Semaphore](Predicate.equals(Yellow)))
+    test("Blue is a Color") {
+      assert(Blue, Predicate.isSubtype[Color](Predicate.equals(Blue)))
     },
-    test("Semaphore is not green") {
-      assert(Red, Predicate.isSubtype[Semaphore](Predicate.not(Predicate.equals(Green))))
+    test("Color is not green") {
+      assert(Red, Predicate.isSubtype[Color](Predicate.not(Predicate.equals(Green))))
+    },
+    test("Option content is `zio` ") {
+      val predicate: Predicate[Some[String]] = Predicate.isCase("Some", Some.unapply, Predicate.equals("zio"))
+      assert(Some("zio"), predicate)
     }
   )
-
+//  val othersSuite = suite("Other operations")(
+//    test("Custom predicate operation"){
+//      def nonEmptyString = Predicate.predicate[String]("String is not empty"){a =>
+//        if (!a.isEmpty)
+//          Assertion.success
+//        else
+//          Assertion
+//      }
+//
+//      assert("Some string", nonEmptyString)
+//    }
+//
+//
+//  )
 }
 
 object PredicateExampleSpec
