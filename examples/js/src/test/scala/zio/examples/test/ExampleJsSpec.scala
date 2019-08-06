@@ -1,8 +1,8 @@
-package zio.test.runner
+package zio.examples.test
 
 import zio.test.{DefaultRunnableSpec, Predicate, assert, suite, test}
 
-object DummyJSSpec extends DefaultRunnableSpec (
+object ExampleJsSpec extends DefaultRunnableSpec (
   suite("some suite")(
     test("failing test") {
       assert(1, Predicate.equals(2))

@@ -177,19 +177,19 @@ lazy val testRunnerJVM = testRunner.jvm
 lazy val testRunnerJS  = testRunner.js
 
 /**
- * this subproject is used to manually test SBT running zio test RunnableSpecs
- * it is not included in the root project.
- * To run tests:
- * `sbt "testRunnerTestingJVM/test"`
+ * Examples sub-project that is not included in the root project.
+ * To run tests :
+ * `sbt "examplesJVM/test"`
  */
-lazy val testRunnerTesting = crossProject(JVMPlatform, JSPlatform)
-  .in(file("test-sbt-testing"))
-  .settings(stdSettings("zio-test-sbt-testing"))
+lazy val examples = crossProject(JVMPlatform, JSPlatform)
+  .in(file("examples"))
+  .settings(stdSettings("examples"))
   .settings(testFrameworks += new TestFramework("zio.test.runner.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
+  .jsSettings(scalaJSUseMainModuleInitializer in Test := true)
 
-lazy val testRunnerTestingJS  = testRunnerTesting.js
-lazy val testRunnerTestingJVM = testRunnerTesting.jvm
+lazy val examplesJS  = examples.js
+lazy val examplesJVM = examples.jvm
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
