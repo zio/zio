@@ -26,7 +26,7 @@ object SchedulerSpec extends DefaultRuntime {
         _ <- ZIO.effectTotal(scheduler.schedule(new Runnable {
               override def run(): Unit = unsafeRun(promise.complete(ZIO.unit).unit)
             }, 10.seconds))
-        _        <- clock.sleep(10.seconds)
+        _        <- clock.adjust(10.seconds)
         _        <- scheduler.safeShutdown()
         executed <- promise.poll.map(_.nonEmpty)
       } yield executed
@@ -42,7 +42,7 @@ object SchedulerSpec extends DefaultRuntime {
         _ <- ZIO.effectTotal(scheduler.schedule(new Runnable {
               override def run(): Unit = unsafeRun(promise.complete(ZIO.unit).unit)
             }, 10.seconds + 1.nanosecond))
-        _        <- clock.sleep(10.seconds)
+        _        <- clock.adjust(10.seconds)
         _        <- scheduler.safeShutdown()
         executed <- promise.poll.map(_.nonEmpty)
       } yield !executed
@@ -59,7 +59,7 @@ object SchedulerSpec extends DefaultRuntime {
                    override def run(): Unit = unsafeRun(promise.complete(ZIO.unit).unit)
                  }, 10.seconds))
         canceled <- ZIO.effectTotal(cancel())
-        _        <- clock.sleep(10.seconds)
+        _        <- clock.adjust(10.seconds)
         _        <- scheduler.safeShutdown()
         executed <- promise.poll.map(_.nonEmpty)
       } yield !executed && canceled
@@ -75,7 +75,7 @@ object SchedulerSpec extends DefaultRuntime {
         cancel <- ZIO.effectTotal(scheduler.schedule(new Runnable {
                    override def run(): Unit = unsafeRun(promise.complete(ZIO.unit).unit)
                  }, 10.seconds))
-        _        <- clock.sleep(10.seconds)
+        _        <- clock.adjust(10.seconds)
         _        <- scheduler.safeShutdown()
         canceled <- ZIO.effectTotal(cancel())
         executed <- promise.poll.map(_.nonEmpty)

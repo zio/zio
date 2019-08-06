@@ -50,28 +50,51 @@ object MockClock {
       clockState.get.map(_.nanoTime)
 
     final def sleep(duration: Duration): UIO[Unit] =
-      adjust(duration) *> clockState.update(data => data.copy(sleeps0 = duration :: data.sleeps0)).unit
+      for {
+        latch <- Promise.make[Nothing, Unit]
+        await <- clockState.modify { data =>
+                  if (duration > Duration.fromNanos(data.nanoTime))
+                    (true, data.copy(sleeps = (duration, latch) :: data.sleeps))
+                  else
+                    (false, data)
+                }
+        _ <- if (await) latch.await else latch.succeed(())
+      } yield ()
 
-    val sleeps: UIO[List[Duration]] = clockState.get.map(_.sleeps0.reverse)
+    val sleeps: UIO[List[Duration]] = clockState.get.map(_.sleeps.map(_._1))
 
     final def adjust(duration: Duration): UIO[Unit] =
       clockState.update { data =>
         Data(
           data.nanoTime + duration.toNanos,
           data.currentTimeMillis + duration.toMillis,
-          data.sleeps0,
+          data.sleeps,
           data.timeZone
         )
-      }.unit
+      } *> wakeUp
 
     final def setTime(duration: Duration): UIO[Unit] =
-      clockState.update(_.copy(nanoTime = duration.toNanos, currentTimeMillis = duration.toMillis)).unit
+      clockState.update { data =>
+        data.copy(
+          nanoTime = duration.toNanos,
+          currentTimeMillis = duration.toMillis
+        )
+      } *> wakeUp
 
     final def setTimeZone(zone: ZoneId): UIO[Unit] =
       clockState.update(_.copy(timeZone = zone)).unit
 
     val timeZone: UIO[ZoneId] =
       clockState.get.map(_.timeZone)
+
+    private val wakeUp: UIO[Unit] =
+      clockState.modify { data =>
+        val (wakes, sleeps) =
+          data.sleeps.partition(_._1 <= Duration.fromNanos(data.nanoTime))
+        (wakes, data.copy(sleeps = sleeps))
+      }.flatMap { wakes =>
+        UIO.foreachPar_(wakes.sortBy(_._1))(_._2.succeed(())).fork.unit
+      }
   }
 
   def make(data: Data): UIO[MockClock] =
@@ -107,7 +130,7 @@ object MockClock {
   case class Data(
     nanoTime: Long,
     currentTimeMillis: Long,
-    sleeps0: List[Duration],
+    sleeps: List[(Duration, Promise[Nothing, Unit])],
     timeZone: ZoneId
   )
 }

@@ -994,7 +994,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         step1 <- sink.step(Step.state(init1), 1)
         res1  <- sink.extract(Step.state(step1))
         init2 <- sink.initial
-        _     <- clock.sleep(23.milliseconds)
+        _     <- MockClock.adjust(23.milliseconds)
         step2 <- sink.step(Step.state(init2), 2)
         res2  <- sink.extract(Step.state(step2))
         init3 <- sink.initial
@@ -1003,7 +1003,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         init4 <- sink.initial
         step4 <- sink.step(Step.state(init4), 4)
         res4  <- sink.extract(Step.state(step4))
-        _     <- clock.sleep(11.milliseconds)
+        _     <- MockClock.adjust(11.milliseconds)
         init5 <- sink.initial
         step5 <- sink.step(Step.state(init5), 5)
         res5  <- sink.extract(Step.state(step5))
@@ -1028,7 +1028,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         step1 <- sink.step(Step.state(init1), 1)
         res1  <- sink.extract(Step.state(step1))
         init2 <- sink.initial
-        _     <- clock.sleep(23.milliseconds)
+        _     <- MockClock.adjust(23.milliseconds)
         step2 <- sink.step(Step.state(init2), 2)
         res2  <- sink.extract(Step.state(step2))
         init3 <- sink.initial
@@ -1037,7 +1037,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         init4 <- sink.initial
         step4 <- sink.step(Step.state(init4), 4)
         res4  <- sink.extract(Step.state(step4))
-        _     <- clock.sleep(11.milliseconds)
+        _     <- MockClock.adjust(11.milliseconds)
         init5 <- sink.initial
         step5 <- sink.step(Step.state(init5), 5)
         res5  <- sink.extract(Step.state(step5))
@@ -1058,26 +1058,28 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
       for {
-        init1   <- sink.initial
-        step1   <- sink.step(Step.state(init1), 1)
-        res1    <- sink.extract(Step.state(step1))
-        init2   <- sink.initial
-        step2   <- sink.step(Step.state(init2), 2)
-        res2    <- sink.extract(Step.state(step2))
-        init3   <- sink.initial
-        _       <- clock.sleep(4.seconds)
-        step3   <- sink.step(Step.state(init3), 3)
-        res3    <- sink.extract(Step.state(step3))
-        elapsed <- clock.currentTime(TimeUnit.SECONDS)
-      } yield (elapsed must_=== 8) and (List(res1, res2, res3) must_=== List(1, 2, 3))
+        init1 <- sink.initial
+        step1 <- sink.step(Step.state(init1), 1)
+        res1  <- sink.extract(Step.state(step1))
+        init2 <- sink.initial
+        step2 <- sink.step(Step.state(init2), 2)
+        res2  <- sink.extract(Step.state(step2))
+        init3 <- sink.initial
+        _     <- clock.sleep(4.seconds)
+        step3 <- sink.step(Step.state(init3), 3)
+        res3  <- sink.extract(Step.state(step3))
+      } yield List(res1, res2, res3) must_=== List(1, 2, 3)
 
     unsafeRun {
       for {
         clock <- MockClock.make(MockClock.DefaultData)
-        test <- ZSink
-                 .throttleShape[Int](1, 1.second)(_.toLong)
-                 .use(sinkTest)
-                 .provide(clock)
+        fiber <- ZSink
+                  .throttleShape[Int](1, 1.second)(_.toLong)
+                  .use(sinkTest)
+                  .provide(clock)
+                  .fork
+        _    <- clock.clock.adjust(8.seconds)
+        test <- fiber.join
       } yield test
     }
   }
@@ -1110,26 +1112,28 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
       for {
-        init1   <- sink.initial
-        step1   <- sink.step(Step.state(init1), 1)
-        res1    <- sink.extract(Step.state(step1))
-        init2   <- sink.initial
-        step2   <- sink.step(Step.state(init2), 2)
-        res2    <- sink.extract(Step.state(step2))
-        init3   <- sink.initial
-        _       <- clock.sleep(4.seconds)
-        step3   <- sink.step(Step.state(init3), 3)
-        res3    <- sink.extract(Step.state(step3))
-        elapsed <- clock.currentTime(TimeUnit.SECONDS)
-      } yield (elapsed must_=== 6) and (List(res1, res2, res3) must_=== List(1, 2, 3))
+        init1 <- sink.initial
+        step1 <- sink.step(Step.state(init1), 1)
+        res1  <- sink.extract(Step.state(step1))
+        init2 <- sink.initial
+        step2 <- sink.step(Step.state(init2), 2)
+        res2  <- sink.extract(Step.state(step2))
+        init3 <- sink.initial
+        _     <- clock.sleep(4.seconds)
+        step3 <- sink.step(Step.state(init3), 3)
+        res3  <- sink.extract(Step.state(step3))
+      } yield List(res1, res2, res3) must_=== List(1, 2, 3)
 
     unsafeRun {
       for {
         clock <- MockClock.make(MockClock.DefaultData)
-        test <- ZSink
-                 .throttleShape[Int](1, 1.second, 2)(_.toLong)
-                 .use(sinkTest)
-                 .provide(clock)
+        fiber <- ZSink
+                  .throttleShape[Int](1, 1.second, 2)(_.toLong)
+                  .use(sinkTest)
+                  .provide(clock)
+                  .fork
+        _    <- clock.clock.adjust(6.seconds)
+        test <- fiber.join
       } yield test
     }
   }
