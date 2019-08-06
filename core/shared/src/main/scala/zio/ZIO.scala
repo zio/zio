@@ -1360,45 +1360,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
-   * Alias for `map`.
-   *
-   * {{{
-   * val answerToLife = UIO.succeed(21) +> (_ * 2)
-   * }}}
-   */
-  final def +>[B](f: A => B): ZIO[R, E, B] = map(f)
-
-  /**
-   * Alias for `as`.
-   *
-   * {{{
-   * val answerToLife = console.getStrLn *+> "42"
-   * }}}
-   */
-  final def *+>[B](v: B): ZIO[R, E, B] = as(v)
-
-  /**
-   * Alias for `mapError`.
-   *
-   * {{{
-   * val result = writeToDisk #> {
-   *   case _: IOException      => WriteFailed(retry = true)
-   *   case _: RuntimeException => WriteFailed(retry = false)
-   * }
-   * }}}
-   */
-  final def #>[E2](f: E => E2): ZIO[R, E2, A] = mapError(f)
-
-  /**
-   * Alias for `asError`.
-   *
-   * {{{
-   * val result = writeToDisk *#> WriteFailed(retry = false)
-   * }}}
-   */
-  final def *#>[E2](v: E2): ZIO[R, E2, A] = asError(v)
-
-  /**
    * Alias for `flatMap`.
    *
    * {{{
