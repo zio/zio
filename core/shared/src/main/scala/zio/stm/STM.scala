@@ -121,10 +121,13 @@ final class STM[+E, +A] private[stm] (
    */
   final def commit: IO[E, A] = STM.atomically(self)
 
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: => B): STM[E, B] = as(b)
+
   /**
    * Maps the success value of this effect to the specified constant value.
    */
-  final def const[B](b: => B): STM[E, B] = self map (_ => b)
+  final def as[B](b: => B): STM[E, B] = self map (_ => b)
 
   /**
    * Converts the failure channel into an `Either`.
@@ -261,7 +264,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Maps the success value of this effect to unit.
    */
-  final def unit: STM[E, Unit] = const(())
+  final def unit: STM[E, Unit] = as(())
 
   /**
    * Maps the success value of this effect to unit.

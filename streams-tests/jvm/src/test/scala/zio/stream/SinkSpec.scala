@@ -47,12 +47,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       init error    $contramapMInitError
       step error    $contramapMStepError
       extract error $contramapMExtractError
-    
-    const
-      happy path    $constHappyPath
-      init error    $constInitError
-      step error    $constStepError
-      extract error $constExtractError
+
+    as
+      happy path    $asHappyPath
+      init error    $asInitError
+      step error    $asStepError
+      extract error $asExtractError
 
     dimap
       happy path    $dimapHappyPath
@@ -345,22 +345,22 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(sinkIteration(sink, "1").either.map(_ must_=== Left("Ouch")))
   }
 
-  private def constHappyPath = {
+  private def asHappyPath = {
     val sink = ZSink.identity[Int].as("const")
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== "const"))
   }
 
-  private def constInitError = {
+  private def asInitError = {
     val sink = initErrorSink.as("const")
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
-  private def constStepError = {
+  private def asStepError = {
     val sink = stepErrorSink.as("const")
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
-  private def constExtractError = {
+  private def asExtractError = {
     val sink = extractErrorSink.as("const")
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }

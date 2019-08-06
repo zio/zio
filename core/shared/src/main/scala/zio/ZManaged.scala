@@ -168,11 +168,15 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   final def compose[R1, E1 >: E](that: ZManaged[R1, E1, R]): ZManaged[R1, E1, A] =
     self <<< that
 
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: => B): ZManaged[R, E, B] =
+    as(b)
+
   /**
    * Maps this effect to the specified constant while preserving the
    * effects of this effect.
    */
-  final def const[B](b: => B): ZManaged[R, E, B] =
+  final def as[B](b: => B): ZManaged[R, E, B] =
     map(_ => b)
 
   /**

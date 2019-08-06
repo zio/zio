@@ -23,10 +23,13 @@ package zio.test
 sealed trait Assertion[+A] { self =>
   import Assertion._
 
+  @deprecated("use as", "1.0.0")
+  final def const[L2](l2: L2): Assertion[L2] = as(l2)
+
   /**
    * Returns a new result, with the message mapped to the specified constant.
    */
-  final def const[L2](l2: L2): Assertion[L2] = self.map(_ => l2)
+  final def as[L2](l2: L2): Assertion[L2] = self.map(_ => l2)
 
   /**
    * Combines this result with the specified result.
