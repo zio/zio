@@ -187,6 +187,16 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     foldM            $foldM
       short circuits $foldMShortCircuits
 
+    collectAllN $collectAllN
+
+    collectAllToSet $collectAllToSet
+
+    collectAllToSetN $collectAllToSetN
+
+    collectAllToMap $collectAllToMap
+
+    collectAllToMapN $collectAllToMapN
+
     collectAllWhile $collectAllWhile
 
     foldWeighted $foldWeighted
@@ -884,6 +894,36 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
       listResult.succeeded ==> (sinkResult must_=== listResult)
     }
+
+  private def collectAllN = unsafeRun {
+    Stream[Int](1, 2, 3)
+      .run(Sink.collectAllN[Int](2))
+      .map(_ must_=== List(1, 2))
+  }
+
+  private def collectAllToSet = unsafeRun {
+    Stream[Int](1, 2, 3, 3, 4)
+      .run(Sink.collectAllToSet[Int])
+      .map(_ must_=== Set(1, 2, 3, 4))
+  }
+
+  private def collectAllToSetN = unsafeRun {
+    Stream[Int](1, 2, 1, 2, 3, 3, 4)
+      .run(Sink.collectAllToSetN[Int](3))
+      .map(_ must_=== Set(1, 2, 3))
+  }
+
+  private def collectAllToMap = unsafeRun {
+    Stream[Int](1, 2, 3)
+      .run(Sink.collectAllToMap[Int, Int](value => value))
+      .map(_ must_=== Map[Int, Int](1 -> 1, 2 -> 2, 3 -> 3))
+  }
+
+  private def collectAllToMapN = unsafeRun {
+    Stream[Int](1, 2, 3, 4, 5, 6)
+      .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 2))
+      .map(_ must_=== Map[Int, Int](1 -> 1, 0 -> 2))
+  }
 
   private def foldWeighted = unsafeRun {
     Stream[Long](1, 5, 2, 3)

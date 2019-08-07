@@ -899,6 +899,52 @@ object ZSink extends ZSinkPlatformSpecific {
     fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
 
   /**
+   * Creates a sink accumulating incoming values into a list of maximum size `n`.
+   */
+  def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
+    foldUntil[List[A], A](List.empty[A], n)((list, element) => element :: list).map(_.reverse)
+
+  /**
+   * Creates a sink accumulating incoming values into a set.
+   */
+  def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
+    fold[Nothing, A, Set[A]](Set.empty[A])((set, element) => Step.more(set + element))
+
+  /**
+   * Creates a sink accumulating incoming values into a set of maximum size `n`.
+   */
+  def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] = {
+    def f(set: Set[A], element: A): ZSink.Step[Set[A], A] = {
+      val newSet = set + element
+      if (newSet.size > n) Step.done(set, Chunk.single(element))
+      else if (newSet.size == n) Step.done[Set[A], A](newSet, Chunk.empty)
+      else Step.more(newSet)
+    }
+    fold[A, A, Set[A]](Set.empty[A])(f)
+  }
+
+  /**
+   * Creates a sink accumulating incoming values into a map.
+   * Key of each element is determined by supplied function.
+   */
+  def collectAllToMap[K, A](key: A => K): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
+    fold[Nothing, A, Map[K, A]](Map.empty[K, A])((map, element) => Step.more(map + (key(element) -> element)))
+
+  /**
+   * Creates a sink accumulating incoming values into a map of maximum size `n`.
+   * Key of each element is determined by supplied function.
+   */
+  def collectAllToMapN[K, A](n: Long)(key: A => K): ZSink[Any, Nothing, A, A, Map[K, A]] = {
+    def f(map: Map[K, A], element: A): ZSink.Step[Map[K, A], A] = {
+      val newMap = map + (key(element) -> element)
+      if (newMap.size > n) Step.done(map, Chunk.single(element))
+      else if (newMap.size == n) Step.done[Map[K, A], A](newMap, Chunk.empty)
+      else Step.more(newMap)
+    }
+    fold[A, A, Map[K, A]](Map.empty[K, A])(f)
+  }
+
+  /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
    */
   final def collectAllWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
