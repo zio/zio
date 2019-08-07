@@ -89,7 +89,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         for {
           s <- ref.get
           a <- f(s).flatMap {
-                case (a, s2) => ref.set(s2).const(a)
+                case (a, s2) => ref.set(s2).as(a)
               }
         } yield a
       }
@@ -104,7 +104,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             result <- if (Step.cont(step))
                        UIO.succeed(
                          // Notify the consumer so they won't busy wait
-                         (notifyConsumer.succeed(()).const(true), State.BatchMiddle(Step.state(step), notifyProducer))
+                         (notifyConsumer.succeed(()).as(true), State.BatchMiddle(Step.state(step), notifyProducer))
                        )
                      else
                        UIO.succeed(
@@ -138,7 +138,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
         // The producer shouldn't actually see these states, but we still use sane
         // transitions here anyway.
-        case s @ State.BatchEnd(_, batchTaken) => UIO.succeed((batchTaken.await.const(true), s))
+        case s @ State.BatchEnd(_, batchTaken) => UIO.succeed((batchTaken.await.as(true), s))
         case State.Error(e)                    => ZIO.halt(e)
         case State.End                         => UIO.succeed((UIO.succeed(true), State.End))
       }.flatten
@@ -147,7 +147,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     def consume(stateVar: Ref[State], permits: Semaphore): ZIO[R1, E1, Option[Chunk[B]]] =
       withStateVar(stateVar, permits) {
         // If the state is empty, wait for a notification from the producer
-        case s @ State.Empty(_, notify) => UIO.succeed((notify.await.const(Some(Chunk.empty)), s))
+        case s @ State.Empty(_, notify) => UIO.succeed((notify.await.as(Some(Chunk.empty)), s))
 
         case State.BatchMiddle(state, notifyProducer) =>
           for {
@@ -266,7 +266,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         for {
           s <- ref.get
           a <- f(s).flatMap {
-                case (a, s2) => ref.set(s2).const(a)
+                case (a, s2) => ref.set(s2).as(a)
               }
         } yield a
       }
@@ -319,7 +319,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
         // The producer shouldn't actually see these states, but we do whatever is sensible anyway
         case s @ State.BatchEnd(_, notifyProducer) =>
-          UIO.succeed(notifyProducer.await.const(true) -> s)
+          UIO.succeed(notifyProducer.await.as(true) -> s)
 
         case s @ State.Error(c) =>
           UIO.succeed(ZIO.halt(c) -> s)
@@ -368,7 +368,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                                s              = State.Empty(sinkInitial, notifyConsumer)
                                action = notifyProducer
                                  .succeed(())
-                                 .const(
+                                 .as(
                                    Some(
                                      Chunk
                                        .single(Right(batch)) -> UnfoldState(Some(batch), decision.state, notifyConsumer)
@@ -385,7 +385,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                                s              = State.Empty(sinkInitial, notifyConsumer)
                                action = notifyProducer
                                  .succeed(())
-                                 .const(
+                                 .as(
                                    Some(
                                      Chunk
                                        .single(Right(batch)) -> UnfoldState(Some(batch), decision.state, notifyConsumer)
@@ -791,14 +791,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Consumes all elements of the stream, passing them to the specified callback.
    */
   final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
-    foreachWhile(f.andThen(_.const(true)))
+    foreachWhile(f.andThen(_.as(true)))
 
   /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
   final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZManaged[R1, E1, Unit] =
-    foreachWhileManaged(f.andThen(_.const(true)))
+    foreachWhileManaged(f.andThen(_.as(true)))
 
   /**
    * Consumes elements of the stream, passing them to the specified callback,

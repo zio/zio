@@ -166,10 +166,14 @@ trait Fiber[+E, +A] { self =>
       def inheritFiberRefs: UIO[Unit]   = self.inheritFiberRefs
     }
 
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: => B): Fiber[E, B] =
+    as(b)
+
   /**
    * Maps the output of this fiber to the specified constant.
    */
-  final def const[B](b: => B): Fiber[E, B] =
+  final def as[B](b: => B): Fiber[E, B] =
     map(_ => b)
 
   /**
@@ -181,7 +185,7 @@ trait Fiber[+E, +A] { self =>
   /**
    * Maps the output of this fiber to `()`.
    */
-  final def unit: Fiber[E, Unit] = const(())
+  final def unit: Fiber[E, Unit] = as(())
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]].

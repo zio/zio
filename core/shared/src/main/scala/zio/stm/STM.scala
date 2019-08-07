@@ -104,6 +104,16 @@ final class STM[+E, +A] private[stm] (
     self flatMap f
 
   /**
+   * Maps the success value of this effect to the specified constant value.
+   */
+  final def as[B](b: => B): STM[E, B] = self map (_ => b)
+
+  /**
+   * Maps the error value of this effect to the specified constant value.
+   */
+  final def asError[E1](e: => E1): STM[E1, A] = self mapError (_ => e)
+
+  /**
    * Simultaneously filters and maps the value produced by this effect.
    */
   final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
@@ -121,10 +131,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def commit: IO[E, A] = STM.atomically(self)
 
-  /**
-   * Maps the success value of this effect to the specified constant value.
-   */
-  final def const[B](b: => B): STM[E, B] = self map (_ => b)
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: => B): STM[E, B] = as(b)
 
   /**
    * Converts the failure channel into an `Either`.
@@ -261,7 +269,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Maps the success value of this effect to unit.
    */
-  final def unit: STM[E, Unit] = const(())
+  final def unit: STM[E, Unit] = as(())
 
   /**
    * Maps the success value of this effect to unit.

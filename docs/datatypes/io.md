@@ -172,7 +172,7 @@ object Main extends App {
 
   // run my bracket
   def run(args: List[String]) =
-    mybracket.orDie.const(0)
+    mybracket.orDie.as(0)
 
   def closeStream(is: FileInputStream) =
     UIO(is.close())
