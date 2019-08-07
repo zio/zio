@@ -100,14 +100,8 @@ object Predicate {
       else Assertion.success
     }
 
-  /**
-   * Makes a new predicate that requires a value equal the specified value.
-   */
-  final def equals[A](expected: A): Predicate[A] =
-    Predicate.predicate(s"equals(${expected})") { actual =>
-      if (actual == expected) Assertion.success
-      else Assertion.failure(())
-    }
+  @deprecated("use isEqual", "1.0.0")
+  final def equals[A](expected: A): Predicate[A] = isEqual(expected)
 
   /**
    * Makes a new predicate that requires an iterable contain one element
@@ -183,6 +177,15 @@ object Predicate {
     Predicate.predicateRec[Sum]("isCase(\"" + termName + "\", " + s"${termName}.unapply, ${predicate})") {
       (self, actual) =>
         term(actual).fold(Assertion.failure(PredicateValue(self, actual)))(predicate(_))
+    }
+
+  /**
+   * Makes a new predicate that requires a value equal the specified value.
+   */
+  final def isEqual[A](expected: A): Predicate[A] =
+    Predicate.predicate(s"isEqual(${expected})") { actual =>
+      if (actual == expected) Assertion.success
+      else Assertion.failure(())
     }
 
   /**
