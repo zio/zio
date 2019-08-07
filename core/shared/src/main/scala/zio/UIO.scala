@@ -19,7 +19,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
+  final def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
    * @see See bracket [[zio.ZIO]]
