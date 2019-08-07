@@ -25,6 +25,12 @@ object Managed {
     ZManaged.absolve(v)
 
   /**
+   * See [[zio.ZManaged]]
+   */
+  final def apply[E, A](reserve: IO[E, Reservation[Any, E, A]]): Managed[E, A] =
+    ZManaged.apply(reserve)
+
+  /**
    * See [[zio.ZManaged.collectAll]]
    */
   final def collectAll[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
@@ -287,6 +293,12 @@ object Managed {
    */
   final def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverseParN_(n)(as)(f)
+
+  /**
+   * See [[zio.ZManaged]]
+   */
+  final def unapply[E, A](v: Managed[E, A]): Option[IO[E, Reservation[Any, E, A]]] =
+    ZManaged.unapply(v)
 
   /**
    * See [[zio.ZManaged.unit]]
