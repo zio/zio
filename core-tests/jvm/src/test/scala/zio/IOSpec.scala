@@ -46,7 +46,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
    Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
    Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
-   Check `memoizeTimed` method on IO[E, A] returns new instances after duration. $testMemoizeTimed
+   Check `cached` method on IO[E, A] returns new instances after duration. $testCached
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
    Check `firstSuccessOf` method returns the same IO[E, A] as `IO.firstSuccessOf` does. $testfirstSuccessOf
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
@@ -307,19 +307,17 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
   }
 
-  def testMemoizeTimed = {
+  def testCached = {
     def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.modify(n => (n + 1, n + 1))
     unsafeRun {
       for {
-        ref             <- Ref.make(0)
-        memoized        <- incrementAndGet(ref).memoizeTimed(100.milliseconds)
-        (cache, cancel) = memoized
-        a               <- cache
-        b               <- cache
-        _               <- clock.sleep(100.milliseconds)
-        c               <- cache
-        d               <- cache
-        _               <- cancel
+        ref   <- Ref.make(0)
+        cache <- incrementAndGet(ref).cached(100.milliseconds)
+        a     <- cache
+        b     <- cache
+        _     <- clock.sleep(100.milliseconds)
+        c     <- cache
+        d     <- cache
       } yield (a must_=== b) && (b must_!== c) && (c must_=== d)
     }
   }

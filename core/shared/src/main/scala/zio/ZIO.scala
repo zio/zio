@@ -148,6 +148,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )(use)
 
   /**
+   * Returns an effect that, if evaluated, will return the cached result of
+   * this effect. Cached results will expire after `timeToLive` duration.
+   */
+  final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] = {
+
+    def get(cache: RefM[Option[Promise[E, A]]]): ZIO[R with Clock, E, A] =
+      cache.update {
+        case Some(p) =>
+          ZIO.succeed(Some(p))
+        case None =>
+          for {
+            p <- Promise.make[E, A]
+            _ <- self.to(p)
+            _ <- p.await.delay(timeToLive).flatMap(_ => cache.set(None)).fork
+          } yield Some(p)
+      }.flatMap(_.get.await)
+
+    for {
+      r     <- ZIO.environment[R with Clock]
+      cache <- RefM.make[Option[Promise[E, A]]](None)
+    } yield get(cache).provide(r)
+  }
+
+  /**
    * Recovers from all errors.
    *
    * {{{
@@ -499,25 +523,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       l <- Promise.make[Nothing, Unit]
       _ <- (l.await *> ((self provide r) to p)).fork
     } yield l.succeed(()) *> p.await
-
-  /**
-   * Returns an effect that, if evaluated, will return the lazily computed result
-   * of this effect. The result of this effect will be recomputed with a fixed
-   * duration `d`. Also returns a canceler, which can be used to cancel the
-   * recomputation.
-   */
-  final def memoizeTimed(d: Duration): URIO[R with Clock, (IO[E, A], Canceler)] = {
-    def compute(cache: Ref[Option[Either[E, A]]]): ZIO[R, Nothing, Unit] =
-      self.foldM(e => cache.set(Some(Left(e))), a => cache.set(Some(Right(a))))
-
-    for {
-      cache <- Ref.make[Option[Either[E, A]]](None)
-      latch <- Promise.make[Nothing, Unit]
-      _     <- compute(cache).flatMap(_ => latch.succeed(())).fork
-      _     <- latch.await
-      fiber <- compute(cache).delay(d).forever.fork
-    } yield (cache.get.flatMap(a => IO.fromEither(a.get)), fiber.interrupt)
-  }
 
   final def none[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], Unit] =
     self.foldM(
