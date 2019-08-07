@@ -690,7 +690,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       override def extract(state: State): ZIO[R1, E1, (B, C)] = {
         val b: ZIO[R, E, B]   = state._1.fold(ZIO.succeed, self.extract)
         val c: ZIO[R1, E1, C] = state._2.fold(ZIO.succeed, that.extract)
-        b.zip(c)
+        b.zipPar(c)
       }
 
       override def initial: ZIO[R1, E1, Step[State, Nothing]] =
@@ -700,7 +700,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
               case (false, false) =>
                 val zb = self.extract(Step.state(s1))
                 val zc = that.extract(Step.state(s2))
-                zb.zipWith(zc)((b, c) => Step.done((Left(b), Left(c)), Chunk.empty))
+                zb.zipWithPar(zc)((b, c) => Step.done((Left(b), Left(c)), Chunk.empty))
 
               case (false, true) =>
                 val zb = self.extract(Step.state(s1))
@@ -750,22 +750,17 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
               }
         )
 
-        for {
-          r1 <- firstResult
-          r2 <- secondResult
-        } yield {
-          (r1, r2) match {
-            case (Left((b, rem1)), Left((c, rem2))) =>
-              val minLeftover =
-                if (rem1.isEmpty && rem2.isEmpty) Chunk.empty else (rem1.toList ++ rem2.toList).minBy(_.length)
-              Step.done((Left(b), Left(c)), minLeftover)
+        firstResult.zipPar(secondResult).map {
+          case (Left((b, rem1)), Left((c, rem2))) =>
+            val minLeftover =
+              if (rem1.isEmpty && rem2.isEmpty) Chunk.empty else (rem1.toList ++ rem2.toList).minBy(_.length)
+            Step.done((Left(b), Left(c)), minLeftover)
 
-            case (Left((b, _)), Right(s2)) =>
-              Step.more((Left(b), Right(s2)))
+          case (Left((b, _)), Right(s2)) =>
+            Step.more((Left(b), Right(s2)))
 
-            case (r: Right[_, _], Left((c, _))) => Step.more((r.asInstanceOf[Either[B, self.State]], Left(c)))
-            case rights @ (Right(_), Right(_))  => Step.more(rights.asInstanceOf[State])
-          }
+          case (r: Right[_, _], Left((c, _))) => Step.more((r.asInstanceOf[Either[B, self.State]], Left(c)))
+          case rights @ (Right(_), Right(_))  => Step.more(rights.asInstanceOf[State])
         }
       }
     }
