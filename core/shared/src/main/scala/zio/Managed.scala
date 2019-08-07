@@ -297,8 +297,7 @@ object Managed {
   /**
    * See [[zio.ZManaged]]
    */
-  final def unapply[E, A](v: Managed[E, A]): Option[IO[E, Reservation[Any, E, A]]] =
-    ZManaged.unapply(v)
+  final def unapply[E, A](v: Managed[E, A]) = ZManaged.unapply(v)
 
   /**
    * See [[zio.ZManaged.unit]]
