@@ -6,7 +6,7 @@ import scala.{ Console => SConsole }
 import zio.clock.Clock
 import zio.test.mock._
 import zio.test.TestUtils.label
-import zio.test.Predicate.{isEqual, isGreaterThan, isLessThan}
+import zio.test.Predicate.{ isEqual, isGreaterThan, isLessThan }
 
 object DefaultTestReporterSpec extends DefaultRuntime {
 
