@@ -97,6 +97,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self >>> that
 
   /**
+   * Maps the success value of this effect to the specified constant value.
+   */
+  final def as[B](b: B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
+
+  /**
+   * Maps the error value of this effect to the specified constant value.
+   */
+  final def asError[E1](e1: E1): ZIO[R, E1, A] = mapError(_ => e1)
+
+  /**
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
@@ -203,11 +213,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
 
-  /**
-   * Maps this effect to the specified constant while preserving the
-   * effects of this effect.
-   */
-  final def const[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: => B): ZIO[R, E, B] = as(b)
 
   /**
    * Returns an effect that is delayed from this effect by the specified
@@ -1242,7 +1249,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
-  final def unit: ZIO[R, E, Unit] = const(())
+  final def unit: ZIO[R, E, Unit] = as(())
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -2459,7 +2466,7 @@ object ZIO extends ZIOFunctions {
 
   final class ZipLeftFn[R, E, A, B](override val underlying: () => ZIO[R, E, A]) extends ZIOFn1[B, ZIO[R, E, B]] {
     def apply(a: B): ZIO[R, E, B] =
-      underlying().const(a)
+      underlying().as(a)
   }
 
   final class ZipRightFn[R, E, A, B](override val underlying: () => ZIO[R, E, B]) extends ZIOFn1[A, ZIO[R, E, B]] {
@@ -2471,7 +2478,7 @@ object ZIO extends ZIOFunctions {
 
   final class TapFn[R, E, A](override val underlying: A => ZIO[R, E, _]) extends ZIOFn1[A, ZIO[R, E, A]] {
     def apply(a: A): ZIO[R, E, A] =
-      underlying(a).const(a)
+      underlying(a).as(a)
   }
 
   final class MapFn[R, E, A, B](override val underlying: A => B) extends ZIOFn1[A, ZIO[R, E, B]] {
