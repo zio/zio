@@ -16,21 +16,24 @@
 
 package zio.test.mock
 
+import java.time.{ Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
-import java.time.ZoneId
 
 import zio._
-import zio.duration.Duration
 import zio.clock.Clock
-import java.time.{ Instant, OffsetDateTime }
+import zio.duration.Duration
+import zio.internal.{ Scheduler => IScheduler }
+import zio.internal.Scheduler.CancelToken
+import zio.scheduler.Scheduler
 
-trait MockClock extends Clock {
+trait MockClock extends Clock with Scheduler {
   val clock: MockClock.Service[Any]
+  val scheduler: MockClock.Service[Any]
 }
 
 object MockClock {
 
-  trait Service[R] extends Clock.Service[R] {
+  trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] {
     def sleeps: UIO[List[Duration]]
     def adjust(duration: Duration): UIO[Unit]
     def setTime(duration: Duration): UIO[Unit]
@@ -87,6 +90,40 @@ object MockClock {
     val timeZone: UIO[ZoneId] =
       clockState.get.map(_.timeZone)
 
+    val scheduler: ZIO[Any, Nothing, IScheduler] =
+      ZIO.runtime[Any].flatMap { runtime =>
+        ZIO.succeed {
+          new IScheduler {
+            final def schedule(task: Runnable, duration: Duration): CancelToken =
+              duration match {
+                case Duration.Infinity =>
+                  ConstFalse
+                case Duration.Zero =>
+                  task.run()
+                  ConstFalse
+                case duration: Duration =>
+                  runtime.unsafeRun {
+                    for {
+                      latch <- Promise.make[Nothing, Unit]
+                      _     <- latch.await.flatMap(_ => ZIO.effect(task.run())).fork
+                      _ <- clockState.update { data =>
+                            data.copy(
+                              sleeps =
+                                (Duration.fromNanos(data.nanoTime) + duration, latch) ::
+                                  data.sleeps
+                            )
+                          }
+                    } yield () => runtime.unsafeRun(cancel(latch))
+                  }
+              }
+            final def shutdown(): Unit = ()
+            final def size: Int =
+              runtime.unsafeRun(clockState.get.map(_.sleeps.length))
+            private val ConstFalse = () => false
+          }
+        }
+      }
+
     private val wakeUp: UIO[Unit] =
       clockState.modify { data =>
         val (wakes, sleeps) =
@@ -95,12 +132,19 @@ object MockClock {
       }.flatMap { wakes =>
         UIO.foreachPar_(wakes.sortBy(_._1))(_._2.succeed(())).fork.unit
       }
+
+    private def cancel(p: Promise[Nothing, Unit]): UIO[Boolean] =
+      clockState.modify { data =>
+        val (cancels, sleeps) = data.sleeps.partition(_._2 == p)
+        (cancels, data.copy(sleeps = sleeps))
+      }.map(_.nonEmpty)
   }
 
   def make(data: Data): UIO[MockClock] =
     makeMock(data).map { mock =>
       new MockClock {
-        val clock = mock
+        val clock     = mock
+        val scheduler = mock
       }
     }
 
