@@ -21,7 +21,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): Task[A] = ZIO.apply(a)
+  final def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
    * @see See bracket [[zio.ZIO]]
