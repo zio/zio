@@ -38,7 +38,7 @@ import scala.annotation.tailrec
  *
  */
 trait ZStream[-R, +E, +A] extends Serializable { self =>
-  import ZStream.Fold
+  import ZStream._
 
   /**
    * Executes an effectful fold over the stream of values, transforming errors with `ep`.
@@ -60,6 +60,28 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def buffer(capacity: Int): ZStream[R, E, A] =
     ZStream.managed(self.toQueue(capacity)).flatMap { queue =>
       ZStream.fromQueue(queue).unTake
+    }
+
+  /**
+   * Handels producer errors with the provided Stream
+   */
+  final def catchAll[R1 <: R, E1, A1 >: A](catcher: E => ZStream[R1, E1, A1], capacity: Int = 12): ZStream[R1, E1, A1] =
+    new ZStream[R1, E1, A1] {
+      def foldMapError[R2 <: R1, E2, A2 >: A1, S](e: E1 => E2): ZStream.Fold[R2, E2, A2, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          for {
+            out    <- Queue.bounded[Take[E1, A2]](capacity).toManaged(_.shutdown)
+            _      <- self.foreach(a => out.offer(Take.Value(a)).unit).foldM(
+                        err =>
+                          catcher(err).foreach(a => out.offer(Take.Value(a)).unit).foldCauseM(
+                            cause => out.offer(Take.Fail(cause)),
+                            _     => out.offer(Take.End)
+                          ),
+                        _ => out.offer(Take.End)
+                      ).fork.toManaged(_.interrupt)
+            s      <- ZStream.fromQueue(out).unTake.foldMapError[R2, E2, A2, S](e).flatMap(fold => fold(s, cont, f))
+          } yield s
+        }
     }
 
   /**
@@ -156,6 +178,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
       }
   }
+
+  final def either: ZStream[R, Nothing, Either[E, A]] =
+    self.map(s => Right(s)).catchAll(e => ZStream.succeed(Left(e)))
 
   /**
    * Executes the provided finalizer after this stream's finalizers run.
@@ -424,19 +449,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Effectfully maps each element to a chunk, and flattens the chunks into
+   * the output of this stream.
+   */
+  def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Chunk[B]]): ZStream[R1, E1, B] =
+    mapM(f).mapConcat(identity)
+
+  /**
    * Returns a stream with its error mapped using the provided function.
    */
   final def mapError[E1](fe: E => E1): ZStream[R, E1, A] = new ZStream[R, E1, A] {
     def foldMapError[R1 <: R, E2, A1 >: A, S](e: E1 => E2): ZStream.Fold[R1, E2, A1, S] =
       self.foldMapError[R1, E2, A1, S](fe andThen e)
   }
-
-  /**
-   * Effectfully maps each element to a chunk, and flattens the chunks into
-   * the output of this stream.
-   */
-  def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Chunk[B]]): ZStream[R1, E1, B] =
-    mapM(f).mapConcat(identity)
 
   /**
    * Maps over elements of the stream with the specified effectful function.
@@ -570,6 +595,24 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           } yield s
         }
     }
+
+  /**
+   * Begin with the first stream and continue with the other stream
+   * if the first fails.
+   */
+  final def orElse[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+    new ZStream[R1, E1, A1] {
+      def foldMapError[R2 <: R1, E2, A2 >: A1, S](e: E1 => E2): Fold[R2, E2, A2, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.foldMapError[R2, E2, A2, S](e).flatMap { foldThis =>
+            foldThis(s, cont, f).orElse {
+              that.foldMapError[R2, E2, A2, S](e).flatMap { foldThat =>
+                foldThat(s, cont, f)
+              }
+            }
+          }
+        }
+  }
 
   /**
    * Peels off enough material from the stream to construct an `R` using the
@@ -1075,7 +1118,7 @@ object ZStream extends ZStreamPlatformSpecific {
       def foldMapError[R1 <: R, E1, A1 >: A, S](e: E => E1): Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
           if (!cont(s)) ZManaged.succeed(s)
-          else ZManaged.fromEffect(fa).mapError(e).mapM(f(s, _))
+          else ZManaged.fromEffect(fa.mapError(e)).mapM(f(s, _))
         }
     }
 
