@@ -1402,7 +1402,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       )
     }
 
-    ZStream.combine(self, that, lc = lc, rc = rc) { (left, right, dest) =>
+    ZStream.combine[R1, E1, A, B, C](self, that, lc = lc, rc = rc) { (left, right, dest) =>
       loop(false, false, left, right, dest)
     }
   }
