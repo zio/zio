@@ -54,14 +54,22 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
   /**
+   * Replaces the success value with the one provided.
+   */
+  final def as[B](b: B): Exit[E, B] = map(_ => b)
+
+  /**
+   * Replaces the error value with the one provided.
+   */
+  final def asError[E1](e1: E1): Exit[E1, A] = mapError(_ => e1)
+
+  /**
    * Maps over both the error and value type.
    */
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
 
-  /**
-   * Replaces the value with the one provided.
-   */
-  final def const[B](b: B): Exit[E, B] = map(_ => b)
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: B): Exit[E, B] = as(b)
 
   /**
    * Flat maps over the value type.
@@ -144,7 +152,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Discards the value.
    */
-  final def unit: Exit[E, Unit] = const(())
+  final def unit: Exit[E, Unit] = as(())
 
   /**
    * Named alias for `<*>`.

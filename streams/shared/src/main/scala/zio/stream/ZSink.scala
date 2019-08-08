@@ -20,7 +20,6 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 import scala.language.postfixOps
-import java.util.concurrent.TimeUnit
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -127,7 +126,17 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     zip(that)
 
   /**
-   * Takes a `Sink`, and lifts it to be chunked in its input and output. This
+   * Creates a sink that always produces `c`
+   */
+  final def as[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
+
+  /**
+   * Replaces any error produced by this sink.
+   */
+  final def asError[E1](e1: E1): ZSink[R, E1, A0, A, B] = self.mapError(_ => e1)
+
+  /**
+   * Takes a `Sink`, and lifts it to be chunked in its input. This
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
    */
@@ -264,10 +273,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R1, E1, B] = self.extract(state)
     }
 
-  /**
-   * Creates a sink that always produces `c`
-   */
-  final def const[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
+  @deprecated("use as", "1.0.0")
+  final def const[C](c: => C): ZSink[R, E, A0, A, C] = as(c)
 
   /**
    * Creates a sink that transforms entering values with `f` and
@@ -372,7 +379,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Effectfully filters the inputs fed to this sink.
    */
-  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
+  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
     new ZSink[R1, E1, A0, A1, B] {
       type State = self.State
 
@@ -680,6 +687,93 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
+  final def zipPar[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A2, A1, C]
+  ): ZSink[R1, E1, A2, A1, (B, C)] =
+    new ZSink[R1, E1, A2, A1, (B, C)] {
+      type State = (Either[B, self.State], Either[C, that.State])
+
+      override def extract(state: State): ZIO[R1, E1, (B, C)] = {
+        val b: ZIO[R, E, B]   = state._1.fold(ZIO.succeed, self.extract)
+        val c: ZIO[R1, E1, C] = state._2.fold(ZIO.succeed, that.extract)
+        b.zipPar(c)
+      }
+
+      override def initial: ZIO[R1, E1, Step[State, Nothing]] =
+        self.initial.flatMap { s1 =>
+          that.initial.flatMap { s2 =>
+            (Step.cont(s1), Step.cont(s2)) match {
+              case (false, false) =>
+                val zb = self.extract(Step.state(s1))
+                val zc = that.extract(Step.state(s2))
+                zb.zipWithPar(zc)((b, c) => Step.done((Left(b), Left(c)), Chunk.empty))
+
+              case (false, true) =>
+                val zb = self.extract(Step.state(s1))
+                zb.map(b => Step.more((Left(b), Right(Step.state(s2)))))
+
+              case (true, false) =>
+                val zc = that.extract(Step.state(s2))
+                zc.map(c => Step.more((Right(Step.state(s1)), Left(c))))
+
+              case (true, true) =>
+                ZIO.succeed(Step.more((Right(Step.state(s1)), Right(Step.state(s2)))))
+            }
+          }
+        }
+
+      override def step(state: State, a: A1): ZIO[R1, E1, Step[State, A2]] = {
+        val firstResult: ZIO[R, E, Either[(B, Option[Chunk[A2]]), self.State]] = state._1.fold(
+          b => ZIO.succeed(Left((b, None))),
+          s =>
+            self
+              .step(s, a)
+              .flatMap { (st: Step[ZSink.this.State, A0]) =>
+                if (Step.cont(st))
+                  ZIO.succeed(Right(Step.state(st)))
+                else
+                  self
+                    .extract(Step.state(st))
+                    .map(b => Left((b, Some(Step.leftover(st)))))
+              }
+        )
+
+        val secondResult: ZIO[R1, E1, Either[(C, Option[Chunk[A2]]), that.State]] = state._2.fold(
+          c => ZIO.succeed(Left((c, None))),
+          s =>
+            that
+              .step(s, a)
+              .flatMap { st =>
+                if (Step.cont(st))
+                  ZIO.succeed(Right(Step.state(st)))
+                else
+                  that
+                    .extract(Step.state(st))
+                    .map(c => {
+                      val leftover: Chunk[A2] = (Step.leftover(st))
+                      Left((c, Some(leftover)))
+                    })
+              }
+        )
+
+        firstResult.zipPar(secondResult).map {
+          case (Left((b, rem1)), Left((c, rem2))) =>
+            val minLeftover =
+              if (rem1.isEmpty && rem2.isEmpty) Chunk.empty else (rem1.toList ++ rem2.toList).minBy(_.length)
+            Step.done((Left(b), Left(c)), minLeftover)
+
+          case (Left((b, _)), Right(s2)) =>
+            Step.more((Left(b), Right(s2)))
+
+          case (r: Right[_, _], Left((c, _))) => Step.more((r.asInstanceOf[Either[B, self.State]], Left(c)))
+          case rights @ (Right(_), Right(_))  => Step.more(rights.asInstanceOf[State])
+        }
+      }
+    }
+
+  /**
    * Produces a sink consuming all the elements of type `A` as long as
    * they verify the predicate `pred`.
    */
@@ -699,7 +793,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Creates a sink that ignores all produced elements.
    */
-  final def unit: ZSink[R, E, A0, A, Unit] = const(())
+  final def unit: ZSink[R, E, A0, A, Unit] = as(())
 
   /**
    * Creates a sink that produces values until one verifies
@@ -783,7 +877,13 @@ object ZSink extends ZSinkPlatformSpecific {
       if (n < 0) UIO.die(new NegativeArgument(s"Unexpected negative unit value `$n`"))
       else UIO.unit
 
+    def assertPositive(n: Long): UIO[Unit] =
+      if (n <= 0) UIO.die(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
+      else UIO.unit
+
     class NegativeArgument(message: String) extends IllegalArgumentException(message)
+
+    class NonpositiveArgument(message: String) extends IllegalArgumentException(message)
   }
 
   trait StepModule {
@@ -886,6 +986,52 @@ object ZSink extends ZSinkPlatformSpecific {
     fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
 
   /**
+   * Creates a sink accumulating incoming values into a list of maximum size `n`.
+   */
+  def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
+    foldUntil[List[A], A](List.empty[A], n)((list, element) => element :: list).map(_.reverse)
+
+  /**
+   * Creates a sink accumulating incoming values into a set.
+   */
+  def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
+    fold[Nothing, A, Set[A]](Set.empty[A])((set, element) => Step.more(set + element))
+
+  /**
+   * Creates a sink accumulating incoming values into a set of maximum size `n`.
+   */
+  def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] = {
+    def f(set: Set[A], element: A): ZSink.Step[Set[A], A] = {
+      val newSet = set + element
+      if (newSet.size > n) Step.done(set, Chunk.single(element))
+      else if (newSet.size == n) Step.done[Set[A], A](newSet, Chunk.empty)
+      else Step.more(newSet)
+    }
+    fold[A, A, Set[A]](Set.empty[A])(f)
+  }
+
+  /**
+   * Creates a sink accumulating incoming values into a map.
+   * Key of each element is determined by supplied function.
+   */
+  def collectAllToMap[K, A](key: A => K): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
+    fold[Nothing, A, Map[K, A]](Map.empty[K, A])((map, element) => Step.more(map + (key(element) -> element)))
+
+  /**
+   * Creates a sink accumulating incoming values into a map of maximum size `n`.
+   * Key of each element is determined by supplied function.
+   */
+  def collectAllToMapN[K, A](n: Long)(key: A => K): ZSink[Any, Nothing, A, A, Map[K, A]] = {
+    def f(map: Map[K, A], element: A): ZSink.Step[Map[K, A], A] = {
+      val newMap = map + (key(element) -> element)
+      if (newMap.size > n) Step.done(map, Chunk.single(element))
+      else if (newMap.size == n) Step.done[Map[K, A], A](newMap, Chunk.empty)
+      else Step.more(newMap)
+    }
+    fold[A, A, Map[K, A]](Map.empty[K, A])(f)
+  }
+
+  /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
    */
   final def collectAllWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
@@ -900,6 +1046,19 @@ object ZSink extends ZSinkPlatformSpecific {
         p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
       }
       .map(_.reverse)
+
+  /**
+   * Creates a sink halting with the specified `Throwable`.
+   */
+  final def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(e))
+
+  /**
+   * Creates a sink halting with the specified message, wrapped in a
+   * `RuntimeException`.
+   */
+  final def dieMessage(m: String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(new RuntimeException(m)))
 
   /**
    * Creates a sink consuming all incoming values until completion.
@@ -952,6 +1111,69 @@ object ZSink extends ZSinkPlatformSpecific {
     }
 
   /**
+   * Creates a sink that effectfully folds elements of type `A` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   */
+  final def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
+    z: S
+  )(costFn: A => ZIO[R, E, Long], max: Long)(f: (S, A) => ZIO[R1, E1, S]): ZSink[R1, E1, A, A, S] =
+    new ZSink[R1, E1, A, A, S] {
+      type State = (S, Long)
+      val initial: UIO[Step[State, Nothing]] = UIO.succeed(Step.more(z -> 0))
+      def step(s: (S, Long), a: A): ZIO[R1, E1, Step[(S, Long), A]] =
+        costFn(a) flatMap { cost =>
+          val newCost = cost + s._2
+
+          if (newCost > max) UIO.succeed(Step.done(s, Chunk.single(a)))
+          else if (newCost == max) {
+            f(s._1, a).map(s => Step.done(s -> newCost, Chunk.empty))
+          } else f(s._1, a).map(s => Step.more(s -> newCost))
+        }
+      def extract(state: (S, Long)): ZIO[R1, E1, S] = UIO.succeed(state._1)
+    }
+
+  /**
+   * Creates a sink that folds elements of type `A` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`)
+   * have been folded.
+   */
+  final def foldWeighted[A, S](
+    z: S
+  )(costFn: A => Long, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
+    new SinkPure[Nothing, A, A, S] {
+      type State = (S, Long)
+      def initialPure: Step[(S, Long), Nothing] = Step.more(z -> 0)
+      def stepPure(s: (S, Long), a: A): Step[(S, Long), A] = {
+        val newCost = costFn(a) + s._2
+
+        if (newCost > max) Step.done(s, Chunk.single(a))
+        else if (newCost == max) {
+          Step.done(f(s._1, a) -> newCost, Chunk.empty)
+        } else Step.more((f(s._1, a), newCost))
+      }
+      def extractPure(s: (S, Long)): Either[Nothing, S] = Right(s._1)
+    }
+
+  /**
+   * Creates a sink that effectfully folds elements of type `A` into a structure
+   * of type `S` until `max` elements have been folded.
+   *
+   * Like [[ZSink.foldWeightedM]], but with a constant cost function of 1.
+   */
+  final def foldUntilM[R, E, S, A](z: S, max: Long)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, A, A, S] =
+    foldWeightedM[R, R, E, E, A, S](z)((_: A) => UIO.succeed(1), max)(f)
+
+  /**
+   * Creates a sink that folds elements of type `A` into a structure
+   * of type `S` until `max` elements have been folded.
+   *
+   * Like [[ZSink.foldWeighted]], but with a constant cost function of 1.
+   */
+  final def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
+    foldWeighted[A, S](z)((_: A) => 1, max)(f)
+
+  /**
    * Creates a single-value sink produced from an effect
    */
   final def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
@@ -974,14 +1196,25 @@ object ZSink extends ZSinkPlatformSpecific {
     }
 
   /**
+   * Creates a sink halting with a specified cause.
+   */
+  final def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+    new Sink[E, Nothing, Any, Nothing] {
+      type State = Unit
+      val initial                                               = UIO.succeed(Step.done((), Chunk.empty))
+      def step(state: State, a: Any): UIO[Step[State, Nothing]] = UIO.succeed(Step.done(state, Chunk.empty))
+      def extract(state: State): IO[E, Nothing]                 = IO.halt(e)
+    }
+
+  /**
    * Creates a sink by that merely passes on incoming values.
    */
-  final def identity[A]: ZSink[Any, Unit, A, A, A] =
-    new SinkPure[Unit, A, A, A] {
+  final def identity[A]: ZSink[Any, Unit, Nothing, A, A] =
+    new SinkPure[Unit, Nothing, A, A] {
       type State = Option[A]
-      val initialPure                                  = Step.more(None)
-      def stepPure(state: State, a: A): Step[State, A] = Step.done(Some(a), Chunk.empty)
-      def extractPure(state: State): Either[Unit, A]   = state.fold[Either[Unit, A]](Left(()))(a => Right(a))
+      val initialPure                  = Step.more(None)
+      def stepPure(state: State, a: A) = Step.done(Some(a), Chunk.empty)
+      def extractPure(state: State)    = state.fold[Either[Unit, A]](Left(()))(a => Right(a))
     }
 
   /**
@@ -1075,25 +1308,29 @@ object ZSink extends ZSinkPlatformSpecific {
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
-   * using the token bucket algorithm. Elements that do not meet the bandwidth constraints are dropped.
-   * The weight of each element is determined by the `costFn` function. Elements are mapped to
-   * `Option[A]`, and `None` denotes that a given element has been dropped.
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. Elements that do not meet the
+   * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` function.
+   * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
    */
-  final def throttleEnforce[A](units: Long, duration: Duration)(
+  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
-    throttleEnforceM[Any, Nothing, A](units, duration)(a => UIO.succeed(costFn(a)))
+    throttleEnforceM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
-   * using the token bucket algorithm. Elements that do not meet the bandwidth constraints are dropped.
-   * The weight of each element is determined by the `costFn` effectful function. Elements are mapped to
-   * `Option[A]`, and `None` denotes that a given element has been dropped.
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. Elements that do not meet the
+   * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` effectful function.
+   * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
    */
-  final def throttleEnforceM[R, E, A](units: Long, duration: Duration)(
+  final def throttleEnforceM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R, E, Long]
-  ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
+  ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
     import ZSink.internal._
+
+    val maxTokens = if (units + burst < 0) Long.MaxValue else units + burst
 
     def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, Option[A]] {
       type State = (Ref[(Long, Long)], Option[A])
@@ -1103,29 +1340,169 @@ object ZSink extends ZSinkPlatformSpecific {
       def step(state: State, a: A) =
         for {
           weight  <- costFn(a)
-          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          current <- clock.nanoTime
           result <- state._1.modify {
                      case (tokens, timestamp) =>
-                       val elapsed = Duration.Finite(current - timestamp)
-                       val (available, refillTimestamp) =
-                         if (elapsed > duration)
-                           (units, timestamp + duration.toNanos)
-                         else
-                           (tokens, timestamp)
+                       val elapsed   = current - timestamp
+                       val cycles    = elapsed.toDouble / duration.toNanos
+                       val available = checkTokens(tokens + (cycles * units).toLong, maxTokens)
                        if (weight <= available)
-                         (Step.done((state._1, Some(a)), Chunk.empty), (available - weight, refillTimestamp))
+                         (Step.done((state._1, Some(a)), Chunk.empty), (available - weight, current))
                        else
-                         (Step.done((state._1, None), Chunk.empty), (available, refillTimestamp))
+                         (Step.done((state._1, None), Chunk.empty), (available, current))
                    }
         } yield result
 
       def extract(state: State) = UIO.succeed(state._2)
     }
 
-    for {
-      _       <- assertNonNegative(units).toManaged_
-      current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
-      bucket  <- Ref.make((units, current)).toManaged_
+    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max else math.min(sum, max)
+
+    val sink = for {
+      _       <- assertNonNegative(units)
+      _       <- assertNonNegative(burst)
+      current <- clock.nanoTime
+      bucket  <- Ref.make((units, current))
     } yield bucketSink(bucket)
+
+    ZManaged.fromEffect(sink)
   }
+
+  /**
+   * Creates a sink which delays input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
+   * determined by the `costFn` function.
+   */
+  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
+    throttleShapeM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Creates a sink which delays input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
+   * determined by the `costFn` effectful function.
+   */
+  final def throttleShapeM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => ZIO[R, E, Long]
+  ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, A]] = {
+    import ZSink.internal._
+
+    val maxTokens = if (units + burst < 0) Long.MaxValue else units + burst
+
+    def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, A] {
+      type State = (Ref[(Long, Long)], Promise[Nothing, A])
+
+      val initial = Promise.make[Nothing, A].map(promise => Step.more((bucket, promise)))
+
+      def step(state: State, a: A) =
+        for {
+          weight  <- costFn(a)
+          current <- clock.nanoTime
+          delay <- state._1.modify {
+                    case (tokens, timestamp) =>
+                      val elapsed    = current - timestamp
+                      val cycles     = elapsed.toDouble / duration.toNanos
+                      val available  = checkTokens(tokens + (cycles * units).toLong, maxTokens)
+                      val remaining  = available - weight
+                      val waitCycles = if (remaining >= 0) 0 else -remaining.toDouble / units
+                      val delay      = Duration.Finite((waitCycles * duration.toNanos).toLong)
+                      (delay, (remaining, current))
+                  }
+          _ <- if (delay <= Duration.Zero) UIO.unit else clock.sleep(delay)
+          _ <- state._2.succeed(a)
+        } yield Step.done(state, Chunk.empty)
+
+      def extract(state: State) = state._2.await
+    }
+
+    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max else math.min(sum, max)
+
+    val sink = for {
+      _       <- assertPositive(units)
+      _       <- assertNonNegative(burst)
+      current <- clock.nanoTime
+      bucket  <- Ref.make((units, current))
+    } yield bucketSink(bucket)
+
+    ZManaged.fromEffect(sink)
+  }
+
+  /**
+   * Decodes individual bytes into a String using UTF-8. Up to `bufferSize` bytes
+   * will be buffered by the sink.
+   *
+   * This sink uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): ZSink[Any, Nothing, Byte, Byte, String] =
+    foldUntil(List[Byte](), bufferSize.toLong)((chunk, byte: Byte) => byte :: chunk).mapM { bytes =>
+      val chunk = Chunk.fromIterable(bytes.reverse)
+
+      for {
+        init   <- utf8DecodeChunk.initial.map(Step.state(_))
+        state  <- utf8DecodeChunk.step(init, chunk)
+        string <- utf8DecodeChunk.extract(Step.state(state))
+      } yield string
+    }
+
+  /**
+   * Decodes chunks of bytes into a String.
+   *
+   * This sink uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val utf8DecodeChunk: ZSink[Any, Nothing, Chunk[Byte], Chunk[Byte], String] =
+    new SinkPure[Nothing, Chunk[Byte], Chunk[Byte], String] {
+      type State = (String, Chunk[Byte])
+
+      override def initialPure: Step[State, Nothing] = Step.more(("", Chunk.empty))
+
+      def is2ByteSequenceStart(b: Byte) = (b & 0xE0) == 0xC0
+      def is3ByteSequenceStart(b: Byte) = (b & 0xF0) == 0xE0
+      def is4ByteSequenceStart(b: Byte) = (b & 0xF8) == 0xF0
+
+      def computeSplit(chunk: Chunk[Byte]) = {
+        // There are 3 bad patterns we need to check to detect an incomplete chunk:
+        // - 2/3/4 byte sequences that start on the last byte
+        // - 3/4 byte sequences that start on the second-to-last byte
+        // - 4 byte sequences that start on the third-to-last byte
+        //
+        // Otherwise, we can convert the entire concatenated chunk to a string.
+        val len = chunk.length
+
+        if (len >= 1 &&
+            (is2ByteSequenceStart(chunk(len - 1)) ||
+            is3ByteSequenceStart(chunk(len - 1)) ||
+            is4ByteSequenceStart(chunk(len - 1))))
+          len - 1
+        else if (len >= 2 &&
+                 (is3ByteSequenceStart(chunk(len - 2)) ||
+                 is4ByteSequenceStart(chunk(len - 2))))
+          len - 2
+        else if (len >= 3 && is4ByteSequenceStart(chunk(len - 3)))
+          len - 3
+        else len
+      }
+
+      override def stepPure(s: State, a: Chunk[Byte]): Step[State, Chunk[Byte]] =
+        if (a.length == 0) Step.done(s, Chunk.empty)
+        else {
+          val (accumulatedString, prevLeftovers) = s
+          val concat                             = prevLeftovers ++ a
+          val (toConvert, leftovers)             = concat.splitAt(computeSplit(concat))
+
+          if (toConvert.length == 0) Step.more((accumulatedString, leftovers))
+          else
+            Step.done(
+              (accumulatedString ++ new String(toConvert.toArray[Byte], "UTF-8"), Chunk.empty),
+              Chunk.single(leftovers)
+            )
+        }
+
+      override def extractPure(s: State): Either[Nothing, String] =
+        Right(s._1)
+    }
 }

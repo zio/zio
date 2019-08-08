@@ -121,7 +121,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * Consumes all elements of the stream, passing them to the specified callback.
    */
   final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
-    foreachWhile[R1, E1](f(_).const(true))
+    foreachWhile[R1, E1](f(_).as(true))
 
   /**
    * Consumes elements of the stream, passing them to the specified callback,
