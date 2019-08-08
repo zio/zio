@@ -95,23 +95,64 @@ private object Suites {
       assert(Some("zio"), predicate)
     }
   )
-//  val othersSuite = suite("Other operations")(
-//    test("Custom predicate operation"){
-//      def nonEmptyString = Predicate.predicate[String]("String is not empty"){a =>
-//        if (!a.isEmpty)
-//          Assertion.success
-//        else
-//          Assertion
-//      }
-//
-//      assert("Some string", nonEmptyString)
-//    }
-//
-//
-//  )
+
+  val customPredicatesSuite = suite("Custom predicates")(
+    test("String is not empty predicate") {
+      def nonEmptyString = Predicate.predicate[String]("String is not empty") { a =>
+        if (!a.isEmpty)
+          Assertion.success
+        else
+          Assertion.failure(())
+      }
+
+      assert("Some string", nonEmptyString)
+    },
+    test("String is empty predicate (direct)") {
+
+      def emptyString = Predicate.predicate[String]("String is empty") { a =>
+        if (a.isEmpty)
+          Assertion.success
+        else
+          Assertion.failure(())
+      }
+
+      val predicateDirect = Predicate.predicateDirect[String]("String is empty (direct)") { a =>
+        emptyString.run(a)
+      }
+
+      assert("", predicateDirect)
+
+    }
+  )
+
+  val compositionSuite = suite("Predicates composition")(
+    test("List contains an element and have a defined size") {
+
+      val composition = Predicate.contains(1) && Predicate.hasSize(Predicate.equals(5))
+
+      assert(List(1, 2, 3, 4, 5), composition)
+
+    },
+    test("All elements are Green or the list is empty") {
+
+      val composition = Predicate.forall(Predicate.isSome(Predicate.equals(Green))) || Predicate.hasSize(
+        Predicate.equals(0)
+      )
+
+      assert(Nil, composition)
+
+    }
+  )
+
 }
 
 object PredicateExampleSpec
     extends DefaultRunnableSpec(
-      suite("Predicate examples")(operationsSuite, listSuite, patternMatchSuite)
+      suite("Predicate examples")(
+        operationsSuite,
+        listSuite,
+        patternMatchSuite,
+        customPredicatesSuite,
+        compositionSuite
+      )
     )
