@@ -1176,7 +1176,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       (Stream.range(0, 2) ++ Stream.fail(e) ++ Stream.range(2, 4))
         .orElse(Stream.range(4, 6))
         .run(Sink.collectAll[Int])
-    ) must_== Success(List(4, 5, 6))
+    ) must_== Success(List(0, 1, 2, 4, 5, 6))
   }
 
   private def peel = {

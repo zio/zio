@@ -1102,10 +1102,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     new ZStream[R1, E1, A1] {
       def foldMapError[R2 <: R1, E2, A2 >: A1, S](e: E1 => E2): Fold[R2, E2, A2, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
-          self.foldMapError[R2, E2, A2, S](e).flatMap { foldThis =>
-            foldThis(s, cont, (s, a) => f(s, a)).orElse {
-              that.foldMapError[R2, E2, A2, S](e).flatMap { foldThat =>
-                foldThat(s, cont, (s, a) => f(s, a))
+          Ref.make[S](s).toManaged_.flatMap { ref =>
+            self.foldMapError[R2, E2, A2, S](e).flatMap { foldThis =>
+              foldThis(s, cont, (s, a) => f(s, a).tap(ref.set)).orElse {
+                that.foldMapError[R2, E2, A2, S](e).flatMap { foldThat =>
+                  ref.get.toManaged_.flatMap(foldThat(_, cont, (s, a) => f(s, a)))
+                }
               }
             }
           }
