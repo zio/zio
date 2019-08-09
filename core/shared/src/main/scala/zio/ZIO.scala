@@ -2552,6 +2552,7 @@ object ZIO extends ZIOFunctions {
     final val TracingStatus            = 20
     final val CheckTracing             = 21
     final val EffectSuspendTotalWith   = 22
+    final val Resume                   = 23
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2663,5 +2664,9 @@ object ZIO extends ZIOFunctions {
 
   private[zio] final class CheckTracing[R, E, A](val k: TrasingS => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.CheckTracing
+  }
+
+  private[zio] object Resume extends UIO[Unit] {
+    override def tag: Int = Tags.Resume
   }
 }

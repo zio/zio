@@ -243,6 +243,7 @@ private[zio] final class FiberContext[E, A](
         var opcount: Int = 0
 
         while (curZio ne null) {
+          while (curZio.tag == ZIO.Tags.Resume) { curZio = nextInstr(()) }
           val tag = curZio.tag
 
           // Check to see if the fiber should continue executing or not:
@@ -252,10 +253,9 @@ private[zio] final class FiberContext[E, A](
               // Cannot capture `curZio` since it will be boxed into `ObjectRef`,
               // which destroys performance. So put `curZio` into a temp val:
               val tmpIo = curZio
-
-              curZio = ZIO.yieldNow *> tmpIo
-
-              opcount = 0
+              pushContinuation(_ => tmpIo)
+              evaluateLater(ZIO.Resume)
+              curZio = null
             } else {
               // Fiber is neither being interrupted nor needs to yield. Execute
               // the next instruction in the program:
