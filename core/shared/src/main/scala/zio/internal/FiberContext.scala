@@ -238,12 +238,12 @@ private[zio] final class FiberContext[E, A](
         kTrace
       } else null
 
+    while ((curZio ne null) && (curZio.tag == ZIO.Tags.Resume)) { curZio = nextInstr(()) }
     while (curZio ne null) {
       try {
         var opcount: Int = 0
 
         while (curZio ne null) {
-          while (curZio.tag == ZIO.Tags.Resume) { curZio = nextInstr(()) }
           val tag = curZio.tag
 
           // Check to see if the fiber should continue executing or not:
