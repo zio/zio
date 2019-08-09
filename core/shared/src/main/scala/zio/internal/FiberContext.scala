@@ -238,7 +238,6 @@ private[zio] final class FiberContext[E, A](
         kTrace
       } else null
 
-    while ((curZio ne null) && (curZio.tag == ZIO.Tags.Resume)) { curZio = nextInstr(()) }
     while (curZio ne null) {
       try {
         var opcount: Int = 0
@@ -253,8 +252,7 @@ private[zio] final class FiberContext[E, A](
               // Cannot capture `curZio` since it will be boxed into `ObjectRef`,
               // which destroys performance. So put `curZio` into a temp val:
               val tmpIo = curZio
-              pushContinuation(_ => tmpIo)
-              evaluateLater(ZIO.Resume)
+              evaluateLater(tmpIo)
               curZio = null
             } else {
               // Fiber is neither being interrupted nor needs to yield. Execute
