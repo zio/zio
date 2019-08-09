@@ -507,6 +507,36 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Combines this stream and the specified stream by converting both streams
+   * to queues and repeatedly applying the function `f0` to extract
+   * an element from the queues and conceptually "offer" it to the destination
+   * stream. `f0` can maintain some internal state to control the combining
+   * process, with the initial state being specified by `s1`.
+   */
+  final def combine[R1 <: R, E1 >: E, A1 >: A, S1, B, C](that: ZStream[R1, E1, B], lc: Int = 2, rc: Int = 2)(
+    s1: S1
+  )(f0: (S1, Queue[Take[E1, A1]], Queue[Take[E1, B]]) => ZIO[R1, E1, (S1, Take[E1, C])]): ZStream[R1, E1, C] =
+    new ZStream[R1, E1, C] {
+      def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          for {
+            left  <- self.toQueue[E1, A1](lc)
+            right <- that.toQueue(rc)
+            result <- ZStream
+                       .unfoldM((s1, left, right)) {
+                         case (s1, left, right) =>
+                           f0(s1, left, right).flatMap {
+                             case (s1, take) =>
+                               Take.option(UIO.succeed(take)).map(_.map((_, (s1, left, right))))
+                           }
+                       }
+                       .fold[R2, E2, C1, S]
+                       .flatMap(_.apply(s, cont, f))
+          } yield result
+        }
+    }
+
+  /**
    * Appends another stream to this stream. The concatenated stream will first emit the
    * elements of this stream, and then emit the elements of the `other` stream.
    */
@@ -835,6 +865,65 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Interleaves this stream and the specified stream deterministically by
+   * alternating pulling values from this stream and the specified stream.
+   * When one stream is exhausted all remaining values in the other stream
+   * will be pulled.
+   */
+  final def interleave[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+    self.interleaveWith(that)(Stream(true, false).forever)
+
+  /**
+   * Combines this stream and the specified stream deterministically using the
+   * stream of boolean values `b` to control which stream to pull from next.
+   * `true` indicates to pull from this stream and `false` indicates to pull
+   * from the specified stream. Only consumes as many elements as requested by
+   * `b`. If either this stream or the specified stream are exhausted further
+   * requests for values from that stream will be ignored.
+   */
+  final def interleaveWith[R1 <: R, E1 >: E, A1 >: A](
+    that: ZStream[R1, E1, A1]
+  )(b: ZStream[R1, E1, Boolean]): ZStream[R1, E1, A1] = {
+
+    def loop(
+      leftDone: Boolean,
+      rightDone: Boolean,
+      s: Queue[Take[E1, Boolean]],
+      left: Queue[Take[E1, A]],
+      right: Queue[Take[E1, A1]]
+    ): ZIO[Any, Nothing, ((Boolean, Boolean, Queue[Take[E1, Boolean]]), Take[E1, A1])] =
+      s.take.flatMap {
+        case Take.Fail(e) => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
+        case Take.Value(b) =>
+          if (b && !leftDone) {
+            left.take.flatMap {
+              case Take.Fail(e)  => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
+              case Take.Value(a) => ZIO.succeed(((leftDone, rightDone, s), Take.Value(a)))
+              case Take.End =>
+                if (rightDone) ZIO.succeed(((leftDone, rightDone, s), Take.End))
+                else loop(true, rightDone, s, left, right)
+            }
+          } else if (!b && !rightDone)
+            right.take.flatMap {
+              case Take.Fail(e)  => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
+              case Take.Value(a) => ZIO.succeed(((leftDone, rightDone, s), Take.Value(a)))
+              case Take.End =>
+                if (leftDone) ZIO.succeed(((leftDone, rightDone, s), Take.End))
+                else loop(leftDone, true, s, left, right)
+            } else loop(leftDone, rightDone, s, left, right)
+        case Take.End => ZIO.succeed(((leftDone, rightDone, s), Take.End))
+      }
+
+    for {
+      s <- ZStream.managed(b.toQueue())
+      result <- self.combine(that)((false, false, s)) {
+                 case ((leftDone, rightDone, s), left, right) =>
+                   loop(leftDone, rightDone, s, left, right)
+               }
+    } yield result
+  }
+
+  /**
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
    * signalled.
    */
@@ -978,58 +1067,53 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Merges this stream and the specified stream together.
    */
-  final def merge[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1], capacity: Int = 2): ZStream[R1, E1, A1] =
-    self.mergeWith[R1, E1, A1, A1](that, capacity)(identity, identity) // TODO: Dotty doesn't infer this properly
+  final def merge[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+    self.mergeWith[R1, E1, A1, A1](that)(identity, identity) // TODO: Dotty doesn't infer this properly
 
   /**
    * Merges this stream and the specified stream together to produce a stream of
    * eithers.
    */
-  final def mergeEither[R1 <: R, E1 >: E, B](
-    that: ZStream[R1, E1, B],
-    capacity: Int = 2
-  ): ZStream[R1, E1, Either[A, B]] =
-    self.mergeWith(that, capacity)(Left(_), Right(_))
+  final def mergeEither[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, Either[A, B]] =
+    self.mergeWith(that)(Left(_), Right(_))
 
   /**
    * Merges this stream and the specified stream together to a common element
    * type with the specified mapping functions.
    */
-  final def mergeWith[R1 <: R, E1 >: E, B, C](
-    that: ZStream[R1, E1, B],
-    capacity: Int = 2
-  )(l: A => C, r: B => C): ZStream[R1, E1, C] = {
+  final def mergeWith[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B])(l: A => C, r: B => C): ZStream[R1, E1, C] = {
+    type Loser = Either[Fiber[Nothing, Take[E1, A]], Fiber[Nothing, Take[E1, B]]]
 
-    def coordinate(ref: Ref[Boolean], dest: Queue[Take[E1, C]]): ZIO[Any, Nothing, Unit] =
-      ref.modify((_, true)).flatMap(p => if (p) dest.offer(Take.End).unit else ZIO.unit)
+    def race(left: UIO[Take[E1, A]], right: UIO[Take[E1, B]]): UIO[(Take[E1, C], Loser)] =
+      left.raceWith(right)(
+        (exit, right) => ZIO.done(exit).map(a => (a.map(l), Right(right))),
+        (exit, left) => ZIO.done(exit).map(b => (b.map(r), Left(left)))
+      )
 
-    val queue = for {
-      ref   <- ZManaged.fromEffect(Ref.make(false))
-      queue <- ZManaged.make(Queue.bounded[Take[E1, C]](capacity))(_.shutdown)
-      _ <- self.fold[R1, E1, A, Unit].flatMap { fold =>
-            fold((), _ => true, (_, a) => queue.offer(Take.Value(l(a))).unit)
-              .foldCauseM(
-                e => ZManaged.fromEffect(queue.offer(Take.Fail(e))),
-                _ => ZManaged.fromEffect(coordinate(ref, queue))
-              )
-              .unit
-              .fork
+    self.combine(that)((false, false, Option.empty[Loser])) {
+      case ((leftDone, rightDone, loser), left, right) =>
+        if (leftDone) {
+          right.take.map(_.map(r)).map(take => ((leftDone, rightDone, None), take))
+        } else if (rightDone) {
+          left.take.map(_.map(l)).map(take => ((leftDone, rightDone, None), take))
+        } else {
+          val result = loser match {
+            case None               => race(left.take, right.take)
+            case Some(Left(loser))  => race(loser.join, right.take)
+            case Some(Right(loser)) => race(left.take, loser.join)
           }
-      _ <- that.fold[R1, E1, B, Unit].flatMap { fold =>
-            fold((), _ => true, (_, b) => queue.offer(Take.Value(r(b))).unit)
-              .foldCauseM(
-                e => ZManaged.fromEffect(queue.offer(Take.Fail(e))),
-                _ => ZManaged.fromEffect(coordinate(ref, queue))
-              )
-              .unit
-              .fork
+          result.flatMap {
+            case (Take.End, Left(loser)) =>
+              loser.join.map(_.map(l)).map(take => ((leftDone, true, None), take))
+            case (Take.End, Right(loser)) =>
+              loser.join.map(_.map(r)).map(take => ((true, rightDone, None), take))
+            case (Take.Value(c), loser) =>
+              ZIO.succeed(((leftDone, rightDone, Some(loser)), Take.Value(c)))
+            case (Take.Fail(e), loser) =>
+              loser.merge.interrupt *> ZIO.succeed(((leftDone, rightDone, None), Take.Fail(e)))
           }
-    } yield queue
-
-    for {
-      queue  <- ZStream.managed(queue)
-      result <- ZStream.combine(self, that)((_, _) => queue.take)
-    } yield result
+        }
+    }
   }
 
   /**
@@ -1383,44 +1467,39 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def zipWith[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B], lc: Int = 2, rc: Int = 2)(
     f0: (Option[A], Option[B]) => Option[C]
   ): ZStream[R1, E1, C] = {
-
     def loop(
-      leftDone: Ref[Boolean],
-      rightDone: Ref[Boolean],
+      leftDone: Boolean,
+      rightDone: Boolean,
       q1: Queue[Take[E1, A]],
       q2: Queue[Take[E1, B]]
-    ): ZIO[R1, E1, Take[E1, C]] = {
-      val takeLeft: ZIO[R1, E1, Option[A]] =
-        leftDone.get.flatMap(p => if (p) IO.succeed(None) else Take.option(q1.take))
-      val takeRight: ZIO[R1, E1, Option[B]] =
-        rightDone.get.flatMap(p => if (p) IO.succeed(None) else Take.option(q2.take))
+    ): ZIO[R1, E1, ((Boolean, Boolean), Take[E1, C])] = {
+      val takeLeft: ZIO[R1, E1, Option[A]]  = if (leftDone) IO.succeed(None) else Take.option(q1.take)
+      val takeRight: ZIO[R1, E1, Option[B]] = if (rightDone) IO.succeed(None) else Take.option(q2.take)
 
-      def handleSuccess(left: Option[A], right: Option[B]): ZIO[R1, E1, Take[E1, C]] =
+      def handleSuccess(left: Option[A], right: Option[B]): ZIO[Any, Nothing, ((Boolean, Boolean), Take[E1, C])] =
         f0(left, right) match {
-          case None => ZIO.succeed(Take.End)
-          case Some(c) =>
-            leftDone.set(left.isEmpty) *> rightDone.set(right.isEmpty) *> ZIO.succeed(Take.Value(c))
+          case None    => ZIO.succeed(((leftDone, rightDone), Take.End))
+          case Some(c) => ZIO.succeed(((left.isEmpty, right.isEmpty), Take.Value(c)))
         }
 
       takeLeft.raceWith(takeRight)(
         (leftResult, rightFiber) =>
           leftResult.fold(
-            e => rightFiber.interrupt *> ZIO.succeed(Take.Fail(e)),
+            e => rightFiber.interrupt *> ZIO.succeed(((leftDone, rightDone), Take.Fail(e))),
             l => rightFiber.join.flatMap(r => handleSuccess(l, r))
           ),
         (rightResult, leftFiber) =>
           rightResult.fold(
-            e => leftFiber.interrupt *> ZIO.succeed(Take.Fail(e)),
+            e => leftFiber.interrupt *> ZIO.succeed(((leftDone, rightDone), Take.Fail(e))),
             r => leftFiber.join.flatMap(l => handleSuccess(l, r))
           )
       )
     }
 
-    for {
-      leftDone  <- ZStream.fromEffect(Ref.make(false))
-      rightDone <- ZStream.fromEffect(Ref.make(false))
-      result    <- ZStream.combine(self, that, lc = lc, rc = rc)(loop(leftDone, rightDone, _, _))
-    } yield result
+    self.combine(that, lc = lc, rc = rc)((false, false)) {
+      case ((leftDone, rightDone), left, right) =>
+        loop(leftDone, rightDone, left, right)
+    }
   }
 
   /**
@@ -1487,27 +1566,6 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZStream[R, E, A] =
     managed(ZManaged.make(acquire)(release))
-
-  final def combine[R, E, A, B, C](s1: ZStream[R, E, A], s2: ZStream[R, E, B], lc: Int = 2, rc: Int = 2)(
-    f0: (Queue[Take[E, A]], Queue[Take[E, B]]) => ZIO[R, E, Take[E, C]]
-  ): ZStream[R, E, C] =
-    new ZStream[R, E, C] {
-      def fold[R1 <: R, E1 >: E, C1 >: C, S]: Fold[R1, E1, C1, S] =
-        ZManaged.succeedLazy { (s, cont, f) =>
-          for {
-            left  <- s1.toQueue(lc)
-            right <- s2.toQueue(rc)
-            result <- ZStream
-                       .unfoldM((left, right)) {
-                         case (left, right) =>
-                           f0(left, right).map(take => Some((take, (left, right))))
-                       }
-                       .unTake
-                       .fold[R1, E1, C1, S]
-                       .flatMap(_.apply(s, cont, f))
-          } yield result
-        }
-    }
 
   /**
    * The stream that always dies with `ex`.
@@ -1712,60 +1770,6 @@ object ZStream extends ZStreamPlatformSpecific {
           else ZManaged.fromEffect(fa).mapM(f(s, _))
         }
     }
-
-  /**
-   * Combines two streams `s1` and `s2` deterministically using the stream of
-   * boolean values `b` to control which stream to pull from next. `true`
-   * indicates to pull from the left stream and `right` indicates to pull from
-   * the right stream. Only consumes as many elements as requested by `b`. If
-   * either `s1` or `s2` are exhausted further requests for values from them
-   * will be ignored.
-   */
-  final def interleave[R, E, A](
-    b: ZStream[R, E, Boolean],
-    s1: ZStream[R, E, A],
-    s2: ZStream[R, E, A]
-  ): ZStream[R, E, A] = {
-
-    def loop(
-      leftVar: Ref[Boolean],
-      rightVar: Ref[Boolean],
-      s: Queue[Take[E, Boolean]],
-      left: Queue[Take[E, A]],
-      right: Queue[Take[E, A]]
-    ): ZIO[R, E, Take[E, A]] =
-      (leftVar.get <*> rightVar.get).flatMap {
-        case (leftDone, rightDone) =>
-          s.take.flatMap {
-            case Take.Fail(e) => ZIO.succeed(Take.Fail(e))
-            case Take.Value(b) =>
-              if (b && !leftDone) {
-                left.take.flatMap {
-                  case Take.Fail(e)  => ZIO.succeed(Take.Fail(e))
-                  case Take.Value(a) => ZIO.succeed(Take.Value(a))
-                  case Take.End =>
-                    if (rightDone) ZIO.succeed(Take.End)
-                    else leftVar.set(true) *> loop(leftVar, rightVar, s, left, right)
-                }
-              } else if (!b && !rightDone)
-                right.take.flatMap {
-                  case Take.Fail(e)  => ZIO.succeed(Take.Fail(e))
-                  case Take.Value(a) => ZIO.succeed(Take.Value(a))
-                  case Take.End =>
-                    if (leftDone) ZIO.succeed(Take.End)
-                    else rightVar.set(true) *> loop(leftVar, rightVar, s, left, right)
-                } else loop(leftVar, rightVar, s, left, right)
-            case Take.End => ZIO.succeed(Take.End)
-          }
-      }
-
-    for {
-      leftDone  <- ZStream.fromEffect(Ref.make(false))
-      rightDone <- ZStream.fromEffect(Ref.make(false))
-      s         <- ZStream.managed(b.toQueue())
-      result    <- combine(s1, s2)(loop(leftDone, rightDone, s, _, _))
-    } yield result
-  }
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
