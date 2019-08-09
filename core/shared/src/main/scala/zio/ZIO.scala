@@ -2664,5 +2664,4 @@ object ZIO extends ZIOFunctions {
   private[zio] final class CheckTracing[R, E, A](val k: TrasingS => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.CheckTracing
   }
-
 }
