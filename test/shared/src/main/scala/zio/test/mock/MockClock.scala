@@ -116,7 +116,17 @@ object MockClock {
                     } yield () => runtime.unsafeRun(cancel(latch))
                   }
               }
-            final def shutdown(): Unit = ()
+            final def shutdown(): Unit =
+              runtime.unsafeRunAsync_ {
+                clockState.modify { data =>
+                  if (data.sleeps.isEmpty)
+                    (Nil, data)
+                  else {
+                    val duration = data.sleeps.map(_._1).max
+                    (data.sleeps, Data(duration.toNanos, duration.toMillis, Nil, data.timeZone))
+                  }
+                }.flatMap(run)
+              }
             final def size: Int =
               runtime.unsafeRun(clockState.get.map(_.sleeps.length))
             private val ConstFalse = () => false
@@ -129,9 +139,10 @@ object MockClock {
         val (wakes, sleeps) =
           data.sleeps.partition(_._1 <= Duration.fromNanos(data.nanoTime))
         (wakes, data.copy(sleeps = sleeps))
-      }.flatMap { wakes =>
-        UIO.foreachPar_(wakes.sortBy(_._1))(_._2.succeed(())).fork.unit
-      }
+      }.flatMap(run)
+
+    private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
+      UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
 
     private def cancel(p: Promise[Nothing, Unit]): UIO[Boolean] =
       clockState.modify { data =>

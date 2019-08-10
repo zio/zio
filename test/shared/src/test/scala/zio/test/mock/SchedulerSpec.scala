@@ -14,7 +14,8 @@ object SchedulerSpec extends DefaultRuntime {
     label(e1, "MockScheduler scheduled tasks get executed"),
     label(e2, "MockScheduler scheduled tasks only get executed when time has passed"),
     label(e3, "MockScheduler scheduled tasks can be canceled"),
-    label(e4, "MockScheduler tasks that are cancelled after completion are not reported as interrupted")
+    label(e4, "MockScheduler tasks that are cancelled after completion are not reported as interrupted"),
+    label(e5, "MockScheduler scheduled tesks get executed before shutdown")
   )
 
   def e1 =
@@ -65,6 +66,19 @@ object SchedulerSpec extends DefaultRuntime {
         _         <- promise.await
         canceled  <- ZIO.effectTotal(cancel())
       } yield !canceled
+    )
+
+  def e5 =
+    unsafeRunToFuture(
+      for {
+        clock     <- MockClock.makeMock(MockClock.DefaultData)
+        scheduler <- clock.scheduler
+        promise   <- Promise.make[Nothing, Unit]
+        _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
+        _         <- ZIO.effectTotal(scheduler.shutdown())
+        _         <- promise.await
+        time      <- clock.nanoTime
+      } yield time == 10000000000L
     )
 
   private def runTask(scheduler: IScheduler, promise: Promise[Nothing, Unit], duration: Duration): CancelToken =
