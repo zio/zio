@@ -57,6 +57,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     run swallows inner interruption               $testRunSwallowsInnerInterrupt
     timeout a long computation                    $testTimeoutOfLongComputation
     catchAllCause                                 $testCatchAllCause
+    exception in fromFuture does not kill fiber   $testFromFutureDoesNotKillFibre 
 
   RTS finalizers
     fail ensuring                                 $testEvalOfFailEnsuring
@@ -540,6 +541,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       _ <- ZIO succeed 42
       f <- ZIO fail "Uh oh!"
     } yield f) catchAllCause ZIO.succeed) must_=== Fail("Uh oh!")
+
+  def testFromFutureDoesNotKillFibre  = {
+    val e = new RuntimeException("Foo")
+    unsafeRun(ZIO.fromFuture(_ => throw e).either) must_=== Left(e)
+  }
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): Task[Int] =
