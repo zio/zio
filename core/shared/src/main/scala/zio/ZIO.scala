@@ -1954,7 +1954,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     Task.descriptorWith { d =>
       val ec = d.executor.asEC
-      effect(make(ec)).flatMap { f => 
+      effect(make(ec)).flatMap { f =>
         f.value
           .fold(
             Task.effectAsync { (cb: Task[A] => Unit) =>

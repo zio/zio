@@ -542,7 +542,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       f <- ZIO fail "Uh oh!"
     } yield f) catchAllCause ZIO.succeed) must_=== Fail("Uh oh!")
 
-  def testFromFutureDoesNotKillFibre  = {
+  def testFromFutureDoesNotKillFibre = {
     val e = new RuntimeException("Foo")
     unsafeRun(ZIO.fromFuture(_ => throw e).either) must_=== Left(e)
   }
