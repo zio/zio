@@ -1,9 +1,9 @@
 package examples
 
-import examples.Suites._
+import examples.PredicateSuites._
 import zio.test.{ test, _ }
 
-private object Suites {
+private object PredicateSuites {
 
   val operationsSuite = suite("Basic Operations")(
     test("Addition operation") {
