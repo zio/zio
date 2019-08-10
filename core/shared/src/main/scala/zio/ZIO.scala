@@ -154,16 +154,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] = {
 
     def get(cache: RefM[Option[Promise[E, A]]]): ZIO[R with Clock, E, A] =
-      cache.update {
-        case Some(p) =>
-          ZIO.succeed(Some(p))
-        case None =>
-          for {
-            p <- Promise.make[E, A]
-            _ <- self.to(p)
-            _ <- p.await.delay(timeToLive).flatMap(_ => cache.set(None)).fork
-          } yield Some(p)
-      }.flatMap(_.get.await)
+      ZIO.uninterruptibleMask { restore =>
+        cache.updateSome {
+          case None =>
+            for {
+              p <- Promise.make[E, A]
+              _ <- self.to(p)
+              _ <- p.await.delay(timeToLive).flatMap(_ => cache.set(None)).fork
+            } yield Some(p)
+        }.flatMap(a => restore(a.get.await))
+      }
 
     for {
       r     <- ZIO.environment[R with Clock]

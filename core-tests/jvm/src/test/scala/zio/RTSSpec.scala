@@ -1473,13 +1473,4 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(
       IO.mergeAll(List.empty[UIO[Int]])(0)(_ + _)
     ) must_=== 0
-
-  def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
-    (1 to 100).foldLeft[org.specs2.matcher.MatchResult[Any]](true must_=== true) {
-      case (acc, _) =>
-        acc and unsafeRun(v)
-    }
-
-  def flaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
-    eventually(unsafeRun(v.timeout(1.second)).get)
 }

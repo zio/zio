@@ -307,19 +307,17 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
   }
 
-  def testCached = {
-    def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.modify(n => (n + 1, n + 1))
-    unsafeRun {
-      for {
-        ref   <- Ref.make(0)
-        cache <- incrementAndGet(ref).cached(100.milliseconds)
-        a     <- cache
-        b     <- cache
-        _     <- clock.sleep(100.milliseconds)
-        c     <- cache
-        d     <- cache
-      } yield (a must_=== b) && (b must_!== c) && (c must_=== d)
-    }
+  def testCached = flaky {
+    def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
+    for {
+      ref   <- Ref.make(0)
+      cache <- incrementAndGet(ref).cached(100.milliseconds)
+      a     <- cache
+      b     <- cache
+      _     <- clock.sleep(100.milliseconds)
+      c     <- cache
+      d     <- cache
+    } yield (a must_=== b) and (b must_!== c) and (c must_=== d)
   }
 
   def testRaceAll = {
