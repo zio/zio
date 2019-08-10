@@ -478,22 +478,26 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Handle producer errors with the provided Stream
    */
-  final def catchAll[R1 <: R, E1, A1 >: A](catcher: E => ZStream[R1, E1, A1], capacity: Int = 12): ZStream[R1, E1, A1] =
+  final def catchAll[R1 <: R, E1, A1 >: A](catcher: E => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     new ZStream[R1, E1, A1] {
       def foldMapError[R2 <: R1, E2, A2 >: A1, S](e: E1 => E2): ZStream.Fold[R2, E2, A2, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
-          for {
-            out    <- Queue.bounded[Take[E1, A2]](capacity).toManaged(_.shutdown)
-            _      <- self.foreach(a => out.offer(Take.Value(a)).unit).foldM(
-                        err =>
-                          catcher(err).foreach(a => out.offer(Take.Value(a)).unit).foldCauseM(
-                            cause => out.offer(Take.Fail(cause)),
-                            _     => out.offer(Take.End)
-                          ),
-                        _ => out.offer(Take.End)
-                      ).fork.toManaged(_.interrupt)
-            s      <- ZStream.fromQueue(out).unTake.foldMapError[R2, E2, A2, S](e).flatMap(fold => fold(s, cont, f))
-          } yield s
+          Ref.make[S](s).toManaged_.flatMap { ref =>
+            self.foldEither[R2, E2, E, A2, S].flatMap { fold =>
+              fold(s, cont, (s, a) => f(s, a).tap(ref.set)).foldM(
+                {
+                  case Left(ec) => ZManaged.fail(ec) // dont handle errors by consumer
+                  case Right(ep) =>
+                    ref.get.toManaged_.flatMap { s1 =>
+                      catcher(ep).foldMapError[R2, E2, A2, S](e).flatMap { foldCatcher =>
+                        foldCatcher(s1, cont, (s, a) => f(s, a))
+                      }
+                    }
+                },
+                ZManaged.succeed
+              )
+            }
+          }
         }
     }
 
@@ -578,7 +582,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * evaluates to `true`.
    */
   def dropWhile(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
-    override def foldMapError[R1 <: R, E1, A1 >: A, S](e: E => E1): Fold[R1, E1, A1, S] =
+    def foldMapError[R1 <: R, E1, A1 >: A, S](e: E => E1): Fold[R1, E1, A1, S] =
       ZManaged.succeedLazy { (s, cont, f) =>
         self.foldMapError[R1, E1, A, (Boolean, S)](e).flatMap { fold =>
           def loop(tp: (Boolean, S), a: A): ZIO[R1, E1, (Boolean, S)] =
@@ -811,7 +815,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Executes an effectful fold over the stream of values.
    */
   def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-    foldMapError(identity)
+    foldMapError[R1, E1, A1, S](identity)
+
+  def foldEither[R1 <: R, EC, EP >: E, A1 >: A, S]: Fold0[R1, EC, EP, A1, S] =
+    ZManaged.succeedLazy { (s, cont, f) =>
+      self.foldMapError[R1, Either[EC, EP], A1, S](Right(_)).flatMap { fold =>
+        fold(s, cont, (s, a) => f(s, a).mapError(Left(_)))
+      }
+    }
 
   /**
    * Reduces the elements in the stream to a value of type `S`
@@ -1233,11 +1244,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     for {
       state <- sink.initial
       result <- self
-                 .fold[R1, E1, A1, ZSink.Step[sink.State, A0]]
-                 .flatMap(fold => fold(state, ZSink.Step.cont, (s, a) => sink.step(ZSink.Step.state(s), a)))
-                 .use { step =>
-                   sink.extract(ZSink.Step.state(step))
-                 }
+                .fold[R1, E1, A1, ZSink.Step[sink.State, A0]]
+                .flatMap(fold => fold(state, ZSink.Step.cont, (s, a) => sink.step(ZSink.Step.state(s), a)))
+                .use { step =>
+                  sink.extract(ZSink.Step.state(step))
+                }
     } yield result
 
   /**
@@ -1539,6 +1550,7 @@ object ZStream extends ZStreamPlatformSpecific {
    *      the current stream element and effectfully produces the next state.
    */
   type Fold[R, E, +A, S] = ZManaged[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZManaged[R, E, S]]
+  type Fold0[R, EC, +EP, +A, S] = ZManaged[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, EC, S]) => ZManaged[R, Either[EC, EP], S]]
 
   implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
     def unTake: ZStream[R, E, A] =
