@@ -128,7 +128,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.succeed[Int](x.toInt))))
+    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.effect[Int](x.toInt))))
     res must beAFailedTry.withThrowable[FiberFailure]
   }
 
@@ -289,7 +289,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testNonMemoizationRT = forAll(Gen.alphaStr) { str =>
-    val io: UIO[Option[String]] = IO.succeed(Some(str)) // using `Some` for object allocation
+    val io: UIO[Option[String]] = IO.effectTotal(Some(str)) // using `Some` for object allocation
     unsafeRun(
       (io <*> io)
         .map(tuple => tuple._1 must not beTheSameAs (tuple._2))

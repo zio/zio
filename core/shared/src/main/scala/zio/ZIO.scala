@@ -1816,7 +1816,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * the list of results.
    */
   final def foreach_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
-    ZIO.succeed(as.iterator).flatMap { i =>
+    ZIO.effectTotal(as.iterator).flatMap { i =>
       def loop: ZIO[R, E, Unit] =
         if (i.hasNext) f(i.next) *> loop
         else ZIO.unit

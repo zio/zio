@@ -872,7 +872,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(for {
       ref <- Ref.make(false)
       fiber <- withLatch { release =>
-                (ZIO.succeed(throw new Error).run *> release *> ZIO.never)
+                (ZIO.effect(throw new Error).run *> release *> ZIO.never)
                   .ensuring(ref.set(true))
                   .fork
               }
@@ -884,7 +884,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(for {
       ref <- Ref.make(false)
       fiber <- withLatch { release =>
-                (ZIO.succeed(throw new Error).run *> release *> ZIO.unit.forever)
+                (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
                   .ensuring(ref.set(true))
                   .fork
               }
