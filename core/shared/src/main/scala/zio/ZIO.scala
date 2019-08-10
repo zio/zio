@@ -158,6 +158,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )(use)
 
   /**
+   * Returns an effect that, if evaluated, will return the cached result of
+   * this effect. Cached results will expire after `timeToLive` duration.
+   */
+  final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] = {
+
+    def get(cache: RefM[Option[Promise[E, A]]]): ZIO[R with Clock, E, A] =
+      ZIO.uninterruptibleMask { restore =>
+        cache.updateSome {
+          case None =>
+            for {
+              p <- Promise.make[E, A]
+              _ <- self.to(p)
+              _ <- p.await.delay(timeToLive).flatMap(_ => cache.set(None)).fork
+            } yield Some(p)
+        }.flatMap(a => restore(a.get.await))
+      }
+
+    for {
+      r     <- ZIO.environment[R with Clock]
+      cache <- RefM.make[Option[Promise[E, A]]](None)
+    } yield get(cache).provide(r)
+  }
+
+  /**
    * Recovers from all errors.
    *
    * {{{
