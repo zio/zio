@@ -246,11 +246,9 @@ object Managed {
   final def succeed[A](r: A): Managed[Nothing, A] =
     ZManaged.succeed(r)
 
-  /**
-   * See [[zio.ZManaged.succeedLazy]]
-   */
+  @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](r: => A): Managed[Nothing, A] =
-    ZManaged.succeedLazy(r)
+    succeed(r)
 
   /**
    * See [[zio.ZManaged.suspend]]

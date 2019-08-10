@@ -1295,16 +1295,9 @@ object ZSink extends ZSinkPlatformSpecific {
         }
     }
 
-  /**
-   * Creates a single-value sink from a lazily-evaluated value.
-   */
+  @deprecated("use succeed", "1.0.0")
   final def succeedLazy[B](b: => B): ZSink[Any, Nothing, Nothing, Any, B] =
-    new SinkPure[Nothing, Nothing, Any, B] {
-      type State = Unit
-      val initialPure                                          = Step.done((), Chunk.empty)
-      def stepPure(state: State, a: Any): Step[State, Nothing] = Step.done(state, Chunk.empty)
-      def extractPure(state: State): Either[Nothing, B]        = Right(b)
-    }
+    succeed(a)
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters

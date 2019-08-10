@@ -513,7 +513,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         fiber <- ZStream
                   .effectAsyncM[Any, Throwable, Int] { k =>
                     latch.succeed(()) *>
-                      Task.succeedLazy {
+                      Task.succeed {
                         list.foreach(a => k(Task.succeed(a)))
                       }
                   }
@@ -688,11 +688,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def flatMapStackSafety = {
     def fib(n: Int): Stream[Nothing, Int] =
-      if (n <= 1) Stream.succeedLazy(n)
+      if (n <= 1) Stream.succeed(n)
       else
         fib(n - 1).flatMap { a =>
           fib(n - 2).flatMap { b =>
-            Stream.succeedLazy(a + b)
+            Stream.succeed(a + b)
           }
         }
 

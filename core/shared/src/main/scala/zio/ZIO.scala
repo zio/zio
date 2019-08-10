@@ -1050,6 +1050,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
    * partial effects.
    */
+  @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
 
   /**
@@ -1815,7 +1816,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * the list of results.
    */
   final def foreach_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
-    ZIO.succeedLazy(as.iterator).flatMap { i =>
+    ZIO.succeed(as.iterator).flatMap { i =>
       def loop: ZIO[R, E, Unit] =
         if (i.hasNext) f(i.next) *> loop
         else ZIO.unit
@@ -1842,7 +1843,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     ZIO
-      .succeedLazy(as.iterator)
+      .succeed(as.iterator)
       .flatMap { i =>
         def loop(a: A): ZIO[R, E, Unit] =
           if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
@@ -1898,7 +1899,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * composite fiber that produces a list of their results, in order.
    */
   final def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Fiber[E, List[A]]] =
-    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeedLazy[E, List[A]](List()))) {
+    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeed[E, List[A]](List()))) {
       (aIO, asFiberIO) =>
         asFiberIO.zip(aIO.fork).map {
           case (asFiber, aFiber) =>
@@ -2192,13 +2193,9 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
 
-  /**
-   * Returns an effect that models success with the specified lazily-evaluated
-   * value. This method should not be used to capture effects. See
-   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
-   * partial effects.
-   */
-  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[A](a: => A): UIO[A] =
+    succeed(a)
 
   /**
    * Enables supervision for this effect. This will cause fibers forked by

@@ -228,10 +228,9 @@ object FunctionIO extends Serializable {
    */
   final def succeed[B](b: B): FunctionIO[Nothing, Any, B] = fromFunction((_: Any) => b)
 
-  /**
-   * Lifts a non-strictly evaluated value into the monad formed by `FunctionIO`.
-   */
-  final def succeedLazy[B](b: => B): FunctionIO[Nothing, Any, B] = fromFunction((_: Any) => b)
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[B](b: => B): FunctionIO[Nothing, Any, B] =
+    succeed(b)
 
   /**
    * Returns a `FunctionIO` representing a failure with the specified `E`.

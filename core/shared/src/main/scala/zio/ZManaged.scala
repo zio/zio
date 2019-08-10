@@ -879,7 +879,7 @@ object ZManaged {
    * the list of results.
    */
   final def foreach_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, _]): ZManaged[R, E, Unit] =
-    ZManaged.succeedLazy(as.iterator).flatMap { i =>
+    ZManaged.succeed(as.iterator).flatMap { i =>
       def loop: ZManaged[R, E, Unit] =
         if (i.hasNext) f(i.next) *> loop
         else ZManaged.unit
@@ -893,7 +893,7 @@ object ZManaged {
    * For a sequential version of this method, see `foreach_`.
    */
   final def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, _]): ZManaged[R, E, Unit] =
-    ZManaged.succeedLazy(as.iterator).flatMap { i =>
+    ZManaged.succeed(as.iterator).flatMap { i =>
       def loop: ZManaged[R, E, Unit] =
         if (i.hasNext) f(i.next).zipWithPar(loop)((_, _) => ())
         else ZManaged.unit
@@ -982,13 +982,13 @@ object ZManaged {
    * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   final def mergeAll[R, E, A, B](in: Iterable[ZManaged[R, E, A]])(zero: B)(f: (B, A) => B): ZManaged[R, E, B] =
-    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeedLazy(zero))((acc, a) => acc.zip(a).map(f.tupled))
+    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeed(zero))((acc, a) => acc.zip(a).map(f.tupled))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
    */
   final def mergeAllPar[R, E, A, B](in: Iterable[ZManaged[R, E, A]])(zero: B)(f: (B, A) => B): ZManaged[R, E, B] =
-    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeedLazy(zero))((acc, a) => acc.zipPar(a).map(f.tupled))
+    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeed(zero))((acc, a) => acc.zipPar(a).map(f.tupled))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
@@ -1029,7 +1029,7 @@ object ZManaged {
                             _    <- queue.offer((a, prom))
                           } yield prom
                         }
-                b <- proms.foldLeft[ZIO[R, E, B]](ZIO.succeedLazy(zero)) { (acc, prom) =>
+                b <- proms.foldLeft[ZIO[R, E, B]](ZIO.succeed(zero)) { (acc, prom) =>
                       acc.zip(prom.await).map(f.tupled)
                     }
               } yield b).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
@@ -1168,11 +1168,9 @@ object ZManaged {
   final def succeed[R, A](r: A): ZManaged[R, Nothing, A] =
     ZManaged(IO.succeed(Reservation(IO.succeed(r), _ => IO.unit)))
 
-  /**
-   * Lifts a by-name, pure value into a Managed.
-   */
+  @deprecated("use succeed", "1.0.0")
   final def succeedLazy[R, A](r: => A): ZManaged[R, Nothing, A] =
-    ZManaged(IO.succeed(Reservation(IO.succeedLazy(r), _ => IO.unit)))
+    succeed(a)
 
   /**
    * Returns a lazily constructed Managed.

@@ -400,10 +400,9 @@ object IO {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  /**
-   * @see See [[zio.ZIO.succeedLazy]]
-   */
-  final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[A](a: => A): UIO[A] =
+    succeed(a)
 
   /**
    * @see See [[zio.ZIO.interruptChildren]]

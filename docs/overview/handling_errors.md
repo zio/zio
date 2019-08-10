@@ -38,7 +38,7 @@ If you want to catch and recover from all types of errors and effectfully attemp
 import java.io.{ FileNotFoundException, IOException }
 
 def openFile(s: String): IO[IOException, Array[Byte]] =   
-  IO.succeedLazy(???)
+  IO.succeed(???)
 ```
 
 ```scala mdoc:silent
@@ -110,7 +110,7 @@ def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldM(
-    error   => IO.succeedLazy(NoContent(error)), 
+    error   => IO.succeed(NoContent(error)), 
     success => fetchContent(success)
   )
 ```

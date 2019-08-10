@@ -62,8 +62,8 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def t1 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
-      a <- lazyStr.succeedLazy
-      b <- IO.succeedLazy(lazyStr)
+      a <- lazyStr.succeed
+      b <- IO.succeed(lazyStr)
     } yield a must ===(b))
   }
 
