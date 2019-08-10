@@ -255,7 +255,13 @@ object ZStreamChunk {
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
     StreamChunkPure(StreamPure.fromIterable(as))
 
+  /**
+   * Creates a `ZStreamChunk` from a chunk
+   */
+  final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
+    StreamChunkPure(StreamPure.succeed(as))
+
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
-    succeed(a)
+    succeed(as)
 }

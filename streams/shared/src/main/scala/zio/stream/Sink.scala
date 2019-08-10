@@ -196,9 +196,15 @@ object Sink {
   final def read1[E, A](e: Option[A] => E)(p: A => Boolean): Sink[E, A, A, A] =
     ZSink.read1(e)(p)
 
+  /**
+   * see [[ZSink.succeed]]
+   */
+  final def succeed[B](b: B): Sink[Nothing, Nothing, Any, B] =
+    ZSink.succeed(b)
+
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
-    succeed(a)
+    succeed(b)
 
   /**
    * see [[ZSink.throttleEnforce]]
