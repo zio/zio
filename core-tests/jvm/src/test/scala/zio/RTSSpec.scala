@@ -20,7 +20,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     widen Nothing                                 $testWidenNothing
     evaluation of point                           $testPoint
     blocking caches threads                       $testBlockingThreadCaching
-    point must be lazy                            $testPointIsLazy
     now must be eager                             $testNowIsEager
     effectSuspend must be lazy                    $testSuspendIsLazy
     effectSuspendTotal must not catch throwable   $testSuspendTotalThrowable
@@ -193,9 +192,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
     unsafeRun(result) must_=== "12"
   }
-
-  def testPointIsLazy =
-    IO.succeed(throw new Error("Not lazy")) must not(throwA[Throwable])
 
   @silent
   def testNowIsEager =
