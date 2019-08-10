@@ -149,7 +149,7 @@ package object test {
   /**
    * Adds syntax for adding aspects.
    * {{{
-   * test("foo") { assert(42, isEqual(42)) } @@ ignore
+   * test("foo") { assert(42, isEqualTo(42)) } @@ ignore
    * }}}
    */
   implicit class ZSpecSyntax[R, E, L](spec: ZSpec[R, E, L]) {
