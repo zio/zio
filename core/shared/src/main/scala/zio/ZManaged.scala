@@ -1170,7 +1170,7 @@ object ZManaged {
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[R, A](r: => A): ZManaged[R, Nothing, A] =
-    succeed(a)
+    succeed(r)
 
   /**
    * Returns a lazily constructed Managed.
