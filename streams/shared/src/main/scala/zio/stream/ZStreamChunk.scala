@@ -64,6 +64,16 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
         }
     })
 
+  final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
+    ZStreamChunk(new ZStream[R, E, Chunk[B]] {
+      override def fold[R1 <: R, E1 >: E, B1 >: Chunk[B], S]: Fold[R1, E1, B1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.fold[R1, E1, A, S].flatMap { fold =>
+            fold(s, cont, (s, a) => if (p.isDefinedAt(a)) f(s, Chunk(p(a))) else IO.succeed(s))
+          }
+        }
+    })
+
   /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
