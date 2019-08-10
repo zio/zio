@@ -26,7 +26,7 @@ As shown in the previous example, a `Managed` can be created by passing an `acqu
 It can also be created from an effect. In this case the release function will do nothing.
 ```scala mdoc:silent
 import zio._
-def acquire: IO[String, Int] = IO.succeed(???)
+def acquire: IO[String, Int] = IO.effect(???).refineToOrDie[String]
 
 val managedFromEffect: Managed[String, Int] = Managed.fromEffect(acquire)
 ```
@@ -60,9 +60,9 @@ import zio._
 ```scala mdoc:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.succeed(???)
-def closeFile(f: File): UIO[Unit] = IO.succeed(???)
-def doSomething(queue: Queue[Int], file: File): UIO[Unit] = IO.succeed(???)
+def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)
+def doSomething(queue: Queue[Int], file: File): UIO[Unit] = IO.effectTotal(???)
 ```
 
 ```scala mdoc:silent

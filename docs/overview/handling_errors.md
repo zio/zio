@@ -37,8 +37,8 @@ If you want to catch and recover from all types of errors and effectfully attemp
 ```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
 
-def openFile(s: String): IO[IOException, Array[Byte]] =   
-  IO.succeed(???)
+def openFile(s: String): IO[IOException, Array[Byte]] = 
+  ZIO.effect(???).refineToOrDie[IOException]
 ```
 
 ```scala mdoc:silent

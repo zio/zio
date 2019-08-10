@@ -23,16 +23,16 @@ You can also create use methods in the companion objects of the `ZIO` type alias
 val s2: Task[Int] = Task.succeed(42)
 ```
 
-The `succeed` method is eager, which means the value passed to `succeed` will be constructed _before_ the method is invoked. Although this is the most common way to construct a successful effect, you can achieve lazy construction using the `ZIO.succeed` method:
+The `succeed` method is eager, which means the value passed to `succeed` will be constructed _before_ the method is invoked. Although this is the most common way to construct a successful effect, you can achieve lazy construction using the `ZIO.effectTotal` method:
 
 ```scala mdoc:silent
 lazy val bigList = (0 to 1000000).toList
 lazy val bigString = bigList.map(_.toString).mkString("\n")
 
-val s3 = ZIO.succeed(bigString)
+val s3 = ZIO.effectTotal(bigString)
 ```
 
-The value inside a successful effect constructed with `ZIO.succeed` will only be constructed if absolutely required.
+The value inside a successful effect constructed with `ZIO.effectTotal` will only be constructed if absolutely required.
 
 ## From Failure Values
 

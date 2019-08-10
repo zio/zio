@@ -18,14 +18,6 @@ You can lift pure values into `IO` with `IO.succeed`:
 ```scala mdoc:silent
 import zio._
 
-val lazyValue: UIO[String] = IO.succeed("Hello World")
-```
-
-The constructor uses non-strict evaluation, so the parameter will not be evaluated until when and if the `IO` action is executed at runtime, which is useful if the construction is costly and the value may never be needed.
-
-Alternately, you can use the `IO.succeed` constructor to perform strict evaluation of the value:
-
-```scala mdoc:silent
 val value: UIO[String] = IO.succeed("Hello World")
 ```
 
@@ -91,7 +83,7 @@ You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a
 ```scala mdoc:silent
 import zio._
 
-val mappedLazyValue: UIO[Int] = IO.succeed(21).map(_ * 2)
+val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
 
 You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`:
@@ -136,8 +128,8 @@ import zio._
 ```scala mdoc:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.succeed(???)
-def closeFile(f: File): UIO[Unit] = IO.succeed(???)
+def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)
 def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
