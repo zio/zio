@@ -8,6 +8,7 @@ import scala.collection.mutable
 import scala.util.Try
 import zio.Cause.{ die, fail, interrupt, Both }
 import zio.duration._
+import zio.test.mock.MockClock
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -307,15 +308,18 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
   }
 
-  def testCached = flaky {
+  def testCached = unsafeRunWith(MockClock.make(MockClock.DefaultData)) {
     def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
     for {
       ref   <- Ref.make(0)
-      cache <- incrementAndGet(ref).cached(100.milliseconds)
+      cache <- incrementAndGet(ref).cached(60.minutes)
       a     <- cache
+      _     <- MockClock.adjust(59.minutes)
       b     <- cache
-      _     <- clock.sleep(100.milliseconds)
+      _     <- MockClock.adjust(1.minute)
+      _     <- MockClock.setTime(0.minutes)
       c     <- cache
+      _     <- MockClock.adjust(59.minutes)
       d     <- cache
     } yield (a must_=== b) and (b must_!== c) and (c must_=== d)
   }
