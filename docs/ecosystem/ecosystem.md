@@ -31,23 +31,10 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 
-## ZIO Compatible Libraries
-
-If you know a useful library that works with ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
-
-- [Cats](https://github.com/typelevel/cats), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://github.com/typelevel/cats-effect)
-- [Scalaz](https://github.com/scalaz/scalaz)
-- [Monix](https://github.com/monix/monix)
-- [Doobie](https://github.com/tpolecat/doobie)
-- [Http4s](https://github.com/http4s/http4s)
-- [FS2](https://github.com/functional-streams-for-scala/fs2)
-- [Circe](https://github.com/circe/circe)
-- [Reactive Streams](https://github.com/reactive-streams/reactive-streams-jvm)
-- [Twitter Futures](https://github.com/twitter/util)
 
 ## ZIO Interoperability Libraries
 
-- [`interop-cats`](https://github.com/zio/interop-cats) for [`cats`](https://typelevel.org/cats/) and [`cats-effect`](https://typelevel.org/cats-effect/)
+- [`interop-cats`](https://github.com/zio/interop-cats) for [Cats](https://typelevel.org/cats/), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://typelevel.org/cats-effect/), and by extension [Doobie](https://github.com/tpolecat/doobie), [Http4s](https://github.com/http4s/http4s), [FS2](https://github.com/functional-streams-for-scala/fs2) and [Circe](https://github.com/circe/circe)
 - [`interop-reactive-streams`](https://github.com/zio/interop-reactive-streams) for [Reactive Streams](http://www.reactive-streams.org/)
 - [`interop-java`](https://github.com/zio/interop-java) for [`java.util.concurrent.CompletionStage`](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletionStage.html), [`java.util.concurrent.Future`](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Future.html) and [`java.nio.channels.CompletionHandler`](https://docs.oracle.com/javase/8/docs/api/java/nio/channels/CompletionHandler.html) ([`java.util.concurrent.Flow`](https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/Flow.html) TODO)
 - [`interop-scalaz`](https://github.com/zio/interop-scalaz) for [ScalaZ 7](https://scalaz.github.io/7/)
