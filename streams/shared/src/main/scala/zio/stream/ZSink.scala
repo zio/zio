@@ -774,40 +774,27 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-   * Produces a sink consuming all the elements of type `A` for up to d duration.
-   * The underlying sink will be interrupted if it has not be fully consumed then.
+   * Times the invocation of the sink
    */
-  final def timeout(d: Duration): ZSink[R with Clock, E, A0, A, B] =
-    new ZSink[R with Clock, E, A0, A, B] {
-      type State = (self.State, Long)
-      val maxTime = d.toNanos
-      val initial = self.initial.map(s => Step.leftMap(s)((_, 0L)))
+  final def timed: ZSink[R with Clock, E, A0, A, (Duration, B)] =
+    new ZSink[R with Clock, E, A0, A, (Duration, B)] {
+      type State = (Long, Long, self.State)
+      val initial = for {
+        step <- self.initial
+        t    <- zio.clock.nanoTime
+      } yield Step.leftMap(step)((t, 0, _))
 
       def step(state: State, a: A): ZIO[R with Clock, E, Step[State, A0]] = state match {
-        case (st, t) =>
-          if (t >= maxTime) ZIO.interrupt
-          else
-            for {
-              startT <- zio.clock.nanoTime
-              r <- self
-                    .step(st, a)
-                    .raceWith(ZIO.sleep(Duration.fromNanos(maxTime - t)))(
-                      {
-                        case (ld, rf) =>
-                          rf.interrupt *>
-                            ld.foldM(
-                              ZIO.halt,
-                              st => clock.nanoTime.map(endT => Step.leftMap(st)((_, endT - startT)))
-                            )
-                      }, {
-                        case (_, lf) =>
-                          lf.interrupt.foldM(ZIO.halt, _ => ZIO.interrupt)
-                      }
-                    )
-            } yield r
+        case (t, total, st) =>
+          for {
+            step <- self
+                     .step(st, a)
+            now <- zio.clock.nanoTime
+            t1  = now - t
+          } yield Step.leftMap(step)((now, total + t1, _))
       }
 
-      def extract(s: State) = self.extract(s._1)
+      def extract(s: State) = self.extract(s._3).map((Duration.fromNanos(s._2), _))
     }
 
   /**
