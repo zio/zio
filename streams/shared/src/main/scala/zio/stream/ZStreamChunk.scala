@@ -44,6 +44,12 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
     ZStreamChunk(chunks ++ that.chunks)
 
   /**
+   * Collects a filtered, mapped subset of the stream.
+   */
+  final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
+    ZStreamChunk(self.chunks.map(chunk => chunk.collect(p)))
+
+  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
@@ -63,9 +69,6 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
             .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
         }
     })
-
-  final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
-    ZStreamChunk(self.chunks.map(chunk => chunk.collect(p)))
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
