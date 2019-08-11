@@ -44,3 +44,14 @@ If you know a useful library that works with ZIO, please consider [submitting a 
 - [Circe](https://github.com/circe/circe)
 - [Reactive Streams](https://github.com/reactive-streams/reactive-streams-jvm)
 - [Twitter Futures](https://github.com/twitter/util)
+
+## ZIO Interoperability Libraries
+
+- [`interop-cats`](https://github.com/zio/interop-cats) for [`cats`](https://typelevel.org/cats/) and [`cats-effect`](https://typelevel.org/cats-effect/)
+- [`interop-reactive-streams`](https://github.com/zio/interop-reactive-streams) for [Reactive Streams](http://www.reactive-streams.org/)
+- [`interop-java`](https://github.com/zio/interop-java) for [`java.util.concurrent.CompletionStage`](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletionStage.html), [`java.util.concurrent.Future`](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Future.html) and [`java.nio.channels.CompletionHandler`](https://docs.oracle.com/javase/8/docs/api/java/nio/channels/CompletionHandler.html) ([`java.util.concurrent.Flow`](https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/Flow.html) TODO)
+- [`interop-scalaz`](https://github.com/zio/interop-scalaz) for [ScalaZ 7](https://scalaz.github.io/7/)
+- [`interop-future`](https://github.com/zio/interop-future) for [Scala's own `scala.concurrent.Future`](https://www.scala-lang.org/api/2.12.x/scala/concurrent/Future.html)
+- [`interop-twitter`](https://github.com/zio/interop-twitter) for [Twitter's `com.twitter.util.Future`](https://twitter.github.io/util/docs/com/twitter/util/Future.html)
+- [`interop-monix`](https://github.com/zio/interop-monix) for [Monix's `monix.eval.Task` and `monix.eval.Coeval`](https://monix.io/docs/3x/)
+- [`interop-guava`](https://github.com/zio/interop-guava) for [Guava's `com.google.common.util.concurrent.ListenableFuture`](https://github.com/google/guava/wiki/ListenableFutureExplained)
