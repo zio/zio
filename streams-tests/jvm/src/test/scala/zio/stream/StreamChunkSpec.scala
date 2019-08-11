@@ -33,6 +33,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   StreamChunk.foldLeft      $foldLeft
   StreamChunk.fold          $fold    
   StreamChunk.flattenChunks $flattenChunks
+  StreamChunk.collect       $collect
   """
 
   import ArbitraryStreamChunk._
@@ -197,5 +198,10 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
         s.flattenChunks.foldLeft[String, List[String]](Nil)((acc, a) => a :: acc).use(IO.succeed).map(_.reverse)
       }
       result must_== slurp(s)
+    }
+
+  private def collect =
+    prop { (s: StreamChunk[String, String], p: PartialFunction[String, String]) =>
+      slurp(s.collect(p)) must_=== slurp(s).map(_.collect(p))
     }
 }
