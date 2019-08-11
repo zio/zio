@@ -122,10 +122,10 @@ class IODeepFlatMapBenchmark {
 
   private[this] def zioDeepFlatMap(runtime: Runtime[Any]): BigInt = {
     def fib(n: Int): UIO[BigInt] =
-      if (n <= 1) ZIO.succeed[BigInt](n)
+      if (n <= 1) ZIO.effectTotal[BigInt](n)
       else
         fib(n - 1).flatMap { a =>
-          fib(n - 2).flatMap(b => ZIO.succeed(a + b))
+          fib(n - 2).flatMap(b => ZIO.effectTotal(a + b))
         }
 
     runtime.unsafeRun(fib(depth))

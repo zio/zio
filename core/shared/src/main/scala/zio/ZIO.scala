@@ -1050,8 +1050,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
    * partial effects.
    */
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
+  @deprecated("use effectTotal", "1.0.0")
+  final def succeedLazy[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
@@ -2192,9 +2192,9 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
 
-  @deprecated("use succeed", "1.0.0")
+  @deprecated("use effectTotal", "1.0.0")
   final def succeedLazy[A](a: => A): UIO[A] =
-    succeed(a)
+    effectTotal(a)
 
   /**
    * Enables supervision for this effect. This will cause fibers forked by

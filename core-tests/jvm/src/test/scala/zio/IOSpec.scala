@@ -122,19 +122,19 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def t2 = {
     val list    = List("1", "2", "3")
     val effects = new mutable.ListBuffer[String]
-    val res     = unsafeRun(IO.foreach(list)(x => IO.effectTotal(effects += x) *> IO.succeed[Int](x.toInt)))
+    val res     = unsafeRun(IO.foreach(list)(x => IO.effectTotal(effects += x) *> IO.effectTotal[Int](x.toInt)))
     (effects.toList, res) must be_===((list, List(1, 2, 3)))
   }
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.effect[Int](x.toInt))))
+    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.effectTotal[Int](x.toInt))))
     res must beAFailedTry.withThrowable[FiberFailure]
   }
 
   def t4 = {
     val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.foreachPar(list)(x => IO.succeed[Int](x.toInt)))
+    val res  = unsafeRun(IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
@@ -144,26 +144,26 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def t6 = {
-    val list = List(1, 2, 3).map(IO.succeed[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.collectAllPar(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t7 = {
-    val list = List(1, 2, 3).map(IO.succeed[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.forkAll(list).flatMap[Any, Nothing, List[Int]](_.join))
     res must be_===(List(1, 2, 3))
   }
 
   def t8 = {
-    val list = List(1, 2, 3).map(IO.succeed[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.collectAllParN(2)(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t9 = {
     val list = List(1, 2, 3)
-    val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.succeed(x.toString)))
+    val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.effectTotal(x.toString)))
     res must be_===(List("1", "2", "3"))
   }
 
@@ -275,8 +275,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testFlatten = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
-      flatten1 <- IO.succeed(IO.succeed(str)).flatten
-      flatten2 <- IO.flatten(IO.succeed(IO.succeed(str)))
+      flatten1 <- IO.effectTotal(IO.effectTotal(str)).flatten
+      flatten2 <- IO.flatten(IO.effectTotal(IO.effectTotal(str)))
     } yield flatten1 must ===(flatten2))
   }
 
@@ -297,7 +297,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testMemoization = forAll(Gen.alphaStr) { str =>
-    val ioMemo: UIO[UIO[Option[String]]] = IO.succeed(Some(str)).memoize // using `Some` for object allocation
+    val ioMemo: UIO[UIO[Option[String]]] = IO.effectTotal(Some(str)).memoize // using `Some` for object allocation
     unsafeRun(
       ioMemo
         .flatMap(io => io <*> io)
@@ -534,7 +534,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun {
       for {
         release  <- Ref.make(false)
-        result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.succeed(a + 1))
+        result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.effectTotal(a + 1))
         released <- release.get
       } yield (result must_=== 43) and (released must_=== true)
     }
@@ -543,7 +543,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun {
       for {
         release  <- Ref.make(false)
-        result   <- IO.succeed(42).bracket_(release.set(true), ZIO.succeed(0))
+        result   <- IO.succeed(42).bracket_(release.set(true), ZIO.effectTotal(0))
         released <- release.get
       } yield (result must_=== 0) and (released must_=== true)
     }

@@ -18,7 +18,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     s2"""
   RTS synchronous correctness
     widen Nothing                                 $testWidenNothing
-    evaluation of point                           $testPoint
     blocking caches threads                       $testBlockingThreadCaching
     now must be eager                             $testNowIsEager
     effectSuspend must be lazy                    $testSuspendIsLazy
@@ -74,7 +73,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     interrupt waits for finalizer                 $testInterruptWaitsForFinalizer
 
   RTS synchronous stack safety
-    deep map of point                             $testDeepMapOfPoint
     deep map of now                               $testDeepMapOfNow
     deep map of sync effect                       $testDeepMapOfSyncEffectIsStackSafe
     deep attempt                                  $testDeepAttemptIsStackSafe
@@ -178,9 +176,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   """
   }
 
-  def testPoint =
-    unsafeRun(IO.succeed(1)) must_=== 1
-
   def testWidenNothing = {
     val op1 = IO.effectTotal[String]("1")
     val op2 = IO.effectTotal[String]("2")
@@ -212,7 +207,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either) must_=== Left(ExampleError)
 
   def testSuspendIsEvaluatable =
-    unsafeRun(IO.effectSuspendTotal(IO.succeed[Int](42))) must_=== 42
+    unsafeRun(IO.effectSuspendTotal(IO.effectTotal[Int](42))) must_=== 42
 
   def testSyncEvalLoop = {
     def fibIo(n: Int): Task[BigInt] =
@@ -558,9 +553,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
     (l must_=== 0) and (r must_=== 1000)
   }
-
-  def testDeepMapOfPoint =
-    unsafeRun(deepMapPoint(10000)) must_=== 10000
 
   def testDeepMapOfNow =
     unsafeRun(deepMapNow(10000)) must_=== 10000
@@ -1206,7 +1198,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(IO.fail(42).race(IO.fail(42)).either) must_=== Left(42)
 
   def testRaceOfValueNever =
-    unsafeRun(IO.succeed(42).race(IO.never)) must_=== 42
+    unsafeRun(IO.effectTotal(42).race(IO.never)) must_=== 42
 
   def testRaceOfFailNever =
     unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
@@ -1281,12 +1273,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testReduceAll =
     unsafeRun(
-      IO.reduceAll(IO.succeed(1), List(2, 3, 4).map(IO.succeed[Int](_)))(_ + _)
+      IO.reduceAll(IO.effectTotal(1), List(2, 3, 4).map(IO.succeed[Int](_)))(_ + _)
     ) must_=== 10
 
   def testReduceAllEmpty =
     unsafeRun(
-      IO.reduceAll(IO.succeed(1), Seq.empty)(_ + _)
+      IO.reduceAll(IO.effectTotal(1), Seq.empty)(_ + _)
     ) must_=== 1
 
   def testTimeoutFailure =
@@ -1406,15 +1398,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   def sum(n: Int): Int =
     if (n <= 0) 0
     else n + sum(n - 1)
-
-  def deepMapPoint(n: Int): UIO[Int] = {
-    @tailrec
-    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
-      if (n <= 0) acc
-      else loop(n - 1, acc.map(_ + 1))
-
-    loop(n, IO.succeed(0))
-  }
 
   def deepMapNow(n: Int): UIO[Int] = {
     @tailrec

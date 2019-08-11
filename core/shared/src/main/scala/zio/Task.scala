@@ -388,9 +388,9 @@ object Task {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  @deprecated("use succeed", "1.0.0")
+  @deprecated("use effectTotal", "1.0.0")
   final def succeedLazy[A](a: => A): UIO[A] =
-    succeed(a)
+    effectTotal(a)
 
   /**
    * @see See [[zio.ZIO.supervised]]

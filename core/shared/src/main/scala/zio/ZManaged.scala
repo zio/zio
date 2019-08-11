@@ -800,6 +800,12 @@ object ZManaged {
     ZManaged.fromEffect(ZIO.done(r))
 
   /**
+   * Lifts a by-name, pure value into a Managed.
+   */
+  final def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+    ZManaged.fromEffect(ZIO.effectTotal(r))
+
+  /**
    * Accesses the whole environment of the effect.
    */
   final def environment[R]: ZManaged[R, Nothing, R] =
@@ -1168,9 +1174,9 @@ object ZManaged {
   final def succeed[R, A](r: A): ZManaged[R, Nothing, A] =
     ZManaged(IO.succeed(Reservation(IO.succeed(r), _ => IO.unit)))
 
-  @deprecated("use succeed", "1.0.0")
+  @deprecated("use effectTotal", "1.0.0")
   final def succeedLazy[R, A](r: => A): ZManaged[R, Nothing, A] =
-    succeed(r)
+    effectTotal(r)
 
   /**
    * Returns a lazily constructed Managed.

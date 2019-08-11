@@ -34,9 +34,9 @@ class IODeepLeftBindBenchmark {
 
   def zioDeepLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     var i  = 0
-    var io = IO.succeed(i)
+    var io = IO.effectTotal(i)
     while (i < depth) {
-      io = io.flatMap(i => IO.succeed(i))
+      io = io.flatMap(i => IO.effectTotal(i))
       i += 1
     }
 
