@@ -1426,8 +1426,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         case q1 :: q2 :: Nil =>
           ZManaged.succeed {
             (
-              ZStream.fromQueue0(q1).unTake.map(_.left.get),
-              ZStream.fromQueue0(q2).unTake.map(_.right.get)
+              ZStream.fromQueue0(q1).unTake.map {
+                case Left(x) => x
+                case Right(_) => throw new IllegalStateException("impossible")
+              },
+              ZStream.fromQueue0(q2).unTake.map {
+                case Left(_) => throw new IllegalStateException("impossible")
+                case Right(x) => x
+              }
             )
           }
         case _ => ZManaged.dieMessage("Internal error.")
