@@ -1118,7 +1118,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def hashPartitionValues =
     unsafeRun {
-      Stream.range(0, 5).hashPartition(_.toLong, 2, 12).map(_._1.map(_._2)).use {
+      Stream.range(0, 5).hashPartition(_.toLong, 2, 12).map(_.map(_._2)).use {
         case s1 :: s2 :: Nil =>
           for {
             out1     <- s1.runCollect
@@ -1131,7 +1131,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def hashPartitionErrors =
     unsafeRun {
-      (Stream.range(0, 1) ++ Stream.fail("Boom")).hashPartition(_.toLong, 2, 12).map(_._1.map(_._2)).use {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).hashPartition(_.toLong, 2, 12).map(_.map(_._2)).use {
         case s1 :: s2 :: Nil =>
           for {
             out1     <- s1.runCollect.either
@@ -1145,7 +1145,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def hashPartitionBackPressure =
     flaky(
-      Stream.range(0, 5).hashPartition(_.toLong, 2, 1).map(_._1.map(_._2)).use {
+      Stream.range(0, 5).hashPartition(_.toLong, 2, 1).map(_.map(_._2)).use {
         case s1 :: _ :: Nil =>
           for {
             ref      <- Ref.make[List[Int]](Nil)

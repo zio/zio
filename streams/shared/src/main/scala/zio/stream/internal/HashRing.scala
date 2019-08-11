@@ -69,7 +69,7 @@ object HashRing {
 
   type HashFunction[A] = A => Long
 
-  def make[T, A](nodes: List[T], elementHash0: HashFunction[A], nodeHash0: HashFunction[T] = (node: T) => node.hashCode().toLong): HashRing[T, A] = {
+  def make[T, A](nodes: List[T], elementHash0: HashFunction[A], nodeHash0: HashFunction[T]): HashRing[T, A] = {
     new HashRing[T, A] {
       val ring = TreeMap(nodes.map(n => (nodeHash0(n) -> n)): _*)
       val nodeHash = nodeHash0
