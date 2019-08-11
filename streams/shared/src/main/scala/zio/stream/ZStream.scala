@@ -832,72 +832,41 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def flatMapParBalanced[R1 <: R, E1 >: E, B](n: Int, outputBuffer: Int = 16)(
     f: A => ZStream[R1, E1, B]
   ): ZStream[R1, E1, B] =
-    new ZStream[R1, E1, B] {
-      override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
-        ZManaged.succeedLazy { (s, cont, g) =>
-          for {
-            out             <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
-            permits         <- Semaphore.make(n.toLong).toManaged_
-            innerFailure    <- Promise.make[Cause[E1], Nothing].toManaged_
-            interruptInners <- Promise.make[Nothing, Unit].toManaged_
-
-            // - The driver stream forks an inner fiber for each stream created
-            //   by f, with an upper bound of n concurrent fibers, enforced by the semaphore.
-            //   - On completion, the driver stream tries to acquire all permits to verify
-            //     that all inner fibers have finished.
-            //     - If one of them failed (signalled by a promise), all other fibers are interrupted
-            //     - If they all succeeded, Take.End is enqueued
-            //   - On error, the driver stream interrupts all inner fibers and emits a
-            //     Take.Fail value
-            //   - Interruption is handled by running the finalizers which take care of cleanup
-            // - Inner fibers enqueue Take values from their streams to the output queue
-            //   - On error, an inner fiber enqueues a Take.Fail value and signals its failure
-            //     with a promise. The driver will pick that up and interrupt all other fibers.
-            //   - On interruption, an inner fiber does nothing
-            //   - On completion, an inner fiber does nothing
-            _ <- self.foreachManaged { a =>
-                  for {
-                    latch <- Promise.make[Nothing, Unit]
-                    innerStream = Stream
-                      .bracket(latch.succeed(()))(_ => UIO.unit)
-                      .usingPermit(permits)
-                      .flatMap(_ => f(a))
-                      .foreach(b => out.offer(Take.Value(b)).unit)
-                      .foldCauseM(
-                        cause => out.offer(Take.Fail(cause)) *> innerFailure.fail(cause).unit,
-                        _ => ZIO.unit
-                      )
-                    _ <- (innerStream race interruptInners.await).fork
-                    // Make sure that the current inner stream has actually succeeded in acquiring
-                    // a permit before continuing. Otherwise we could reach the end of the stream and
-                    // acquire the permits ourselves before the inners had a chance to start.
-                    _ <- latch.await
-                  } yield ()
-                }.foldCauseM(
-                    cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
-                    _ =>
-                      innerFailure.await
-                      // Important to use `withPermits` here because the finalizer below may interrupt
-                      // the driver, and we want the permits to be released in that case
-                        .raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
-                          // One of the inner fibers failed. It already enqueued its failure, so we
-                          // signal the inner fibers to interrupt. The finalizer below will make sure
-                          // that they actually end.
-                          leftDone =
-                            (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt,
-                          // All fibers completed successfully, so we signal that we're done.
-                          rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt
-                        )
-                        .toManaged_
-                  )
-                  // This finalizer makes sure that in all cases, the driver stops spawning new streams
-                  // and the inner fibers are signalled to interrupt and actually exit.
-                  .ensuringFirst(interruptInners.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
-                  .fork
-            s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
-          } yield s
-        }
-    }
+  new ZStream[R1, E1, B] {
+    override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
+      ZManaged.succeedLazy { (s, cont, g) =>
+        for {
+          out             <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
+          permits         <- Semaphore.make(n.toLong).toManaged_
+          fibers          <- Ref.make[Vector[Fiber[Unit, Unit]]](Vector()).toManaged_
+          interruptInners <- Promise.make[Nothing, Unit].toManaged_
+          _ <- self.foreachManaged { a =>
+                  val innerStream = Stream
+                    .succeed(())
+                    .usingPermits(permits)
+                    .flatMap(_ => f(a))
+                    .foreach(b => out.offer(Take.Value(b)).unit)
+                    .foldCauseM(
+                      cause => out.offer(Take.Fail(cause)) *> ZIO.fail(()),
+                      _ => ZIO.unit
+                    )
+                  innerStream
+                    .race(interruptInners.await)
+                    .fork
+                    .flatMap(f => fibers.update(_ :+ f))
+              }.foldCauseM(
+                  cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
+                  _ => fibers.get.flatMap(fs => ZIO.foreach(fs)(_.join)).foldM(
+                    _ => interruptInners.succeed(()),
+                    _ =>  out.offer(Take.End)
+                  ).toManaged_
+                )
+                .ensuringFirst(interruptInners.succeed(()) *> fibers.get.flatMap(fs => ZIO.foreach_(fs)(_.await)))
+                .fork
+          s <- ZStream.fromQueue0(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
+        } yield s
+      }
+  }
 
   /**
    * Reduces the elements in the stream to a value of type `S`
@@ -1725,7 +1694,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
     transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
 
-  final def usingPermit(sema: Semaphore): ZStream[R, E, A] =
+  /**
+   * Acquire a permit for every consumer task.
+   */
+  final def usingPermits(sema: Semaphore): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       def fold[R1 <: R, E1 >: E, A1 >: A, S]: ZStream.Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
