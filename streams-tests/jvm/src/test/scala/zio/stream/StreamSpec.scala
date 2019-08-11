@@ -1,12 +1,14 @@
 package zio.stream
 
 import org.scalacheck.Arbitrary
+import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
 
 import scala.{ Stream => _ }
 import zio._
 import zio.duration._
 import zio.QueueSpec.waitForSize
+import org.scalacheck.Gen
 
 class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -152,8 +154,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.repeatEffectWith   $repeatEffectWith
 
   Stream.mapMPar
-    foreachParN equivalence       $mapMPar
-    interruption propagation      $mapMParInterruptionPropagation
+    foreachParN equivalence  $mapMPar
+    interruption propagation $mapMParInterruptionPropagation
+    guarantee ordering       $mapMParGuaranteeOrdering
 
   Stream merging
     merge                         $merge
@@ -1133,6 +1136,13 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       _      <- fib.interrupt
       result <- interrupted.get
     } yield result must_=== true
+  }
+
+  private def mapMParGuaranteeOrdering = forAll(Gen.choose(0, 1024), Gen.listOf(Arbitrary.arbitrary[Int])) {
+    (n: Int, m: List[Int]) =>
+      val mapM    = Stream.fromIterable(m).mapM[Any, Nothing, Int](UIO.succeed)
+      val mapMPar = Stream.fromIterable(m).mapMPar[Any, Nothing, Int](n)(UIO.succeed)
+      slurp(mapM) must_=== slurp(mapMPar)
   }
 
   private def merge =
