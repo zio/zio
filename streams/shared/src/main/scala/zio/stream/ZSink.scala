@@ -781,39 +781,34 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     new ZSink[R with Clock, E, A0, A, B] {
       type State = (self.State, Long)
       val maxTime = d.toNanos
-      val initial = self.initial.map(s => Step.leftMap(s)((_ ,0L)))
+      val initial = self.initial.map(s => Step.leftMap(s)((_, 0L)))
 
-      def step(state: State, a: A): ZIO[R with Clock, E, Step[State, A0]] = state match { case (st, t) =>
-        if (t >= maxTime) ZIO.interrupt
-        else for {
-          startT <- zio.clock.nanoTime
-          r      <- self.step(st, a).raceWith(ZIO.sleep(Duration.fromNanos(maxTime - t)))(
-                      { case (ld, rf) =>
-                        ZIO.effectTotal {
-                          import java.io._
-                          val pw = new PrintWriter(new File("/tmp/d" ))
-                          pw.append(a.toString)
-                          pw.close
-                        } *>
+      def step(state: State, a: A): ZIO[R with Clock, E, Step[State, A0]] = state match {
+        case (st, t) =>
+          if (t >= maxTime) ZIO.interrupt
+          else
+            for {
+              startT <- zio.clock.nanoTime
+              r <- self
+                    .step(st, a)
+                    .raceWith(ZIO.sleep(Duration.fromNanos(maxTime - t)))(
+                      {
+                        case (ld, rf) =>
                           rf.interrupt *>
-                          ld.foldM(
-                            ZIO.halt,
-                            st => clock.nanoTime.map(endT => Step.leftMap(st)((_, endT - startT)))
-                          )
-                      },
-                      { case (_, lf) => ZIO.effectTotal {
-                        import java.io._
-                        val pw = new PrintWriter(new File("/tmp/i" ))
-                        pw.append("interrupting")
-                        pw.close
-                      } *> lf.interrupt.foldM(ZIO.halt, _ => ZIO.interrupt) }
+                            ld.foldM(
+                              ZIO.halt,
+                              st => clock.nanoTime.map(endT => Step.leftMap(st)((_, endT - startT)))
+                            )
+                      }, {
+                        case (_, lf) =>
+                          lf.interrupt.foldM(ZIO.halt, _ => ZIO.interrupt)
+                      }
                     )
-        } yield r
+            } yield r
       }
 
       def extract(s: State) = self.extract(s._1)
     }
-
 
   /**
    * Produces a sink consuming all the elements of type `A` as long as
@@ -1133,12 +1128,12 @@ object ZSink extends ZSinkPlatformSpecific {
   /**
    * Creates a sink by folding over a structure of type `S`.
    */
-  final def foldLeft[A0, A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, A0, A, S] =
-    new SinkPure[Nothing, A0, A, S] {
+  final def foldLeft[A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, Nothing, A, S] =
+    new SinkPure[Nothing, Nothing, A, S] {
       type State = S
-      val initialPure                           = Step.more(z)
-      def stepPure(s: S, a: A): Step[S, A0]     = Step.more(f(s, a))
-      def extractPure(s: S): Either[Nothing, S] = Right(s)
+      val initialPure                            = Step.more(z)
+      def stepPure(s: S, a: A): Step[S, Nothing] = Step.more(f(s, a))
+      def extractPure(s: S): Either[Nothing, S]  = Right(s)
     }
 
   /**
@@ -1236,17 +1231,6 @@ object ZSink extends ZSinkPlatformSpecific {
       def stepPure(state: State, a: A): Step[State, Nothing] = Step.done(Some(a), Chunk.empty)
       def extractPure(state: State): Either[Unit, B]         = state.fold[Either[Unit, B]](Left(()))(a => Right(f(a)))
     }
-
-  // /**
-  //  * Creates a sink that effectfully transforms incoming values.
-  //  */
-  // final def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, E, Nothing, A, Option[B]] =
-  //   new ZSink[R, E, Nothing, A, B] {
-  //     type State = Option[B]
-  //     val initial                                                     = ZIO.succeed(Step.more(None))
-  //     def step(state: State, a: A): ZIO[R, E, Step[State, Nothing]]   = f(a).map(b => Step.done(Some(b), Chunk.empty))
-  //     def extract(state: State): ZIO[R, E, B]                         = b
-  //   }
 
   /**
    * Creates a sink halting with a specified cause.
