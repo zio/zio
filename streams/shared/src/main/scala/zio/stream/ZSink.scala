@@ -774,6 +774,48 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
+   * Produces a sink consuming all the elements of type `A` for up to d duration.
+   * The underlying sink will be interrupted if it has not be fully consumed then.
+   */
+  final def timeout(d: Duration): ZSink[R with Clock, E, A0, A, B] =
+    new ZSink[R with Clock, E, A0, A, B] {
+      type State = (self.State, Long)
+      val maxTime = d.toNanos
+      val initial = self.initial.map(s => Step.leftMap(s)((_ ,0L)))
+
+      def step(state: State, a: A): ZIO[R with Clock, E, Step[State, A0]] = state match { case (st, t) =>
+        if (t >= maxTime) ZIO.interrupt
+        else for {
+          startT <- zio.clock.nanoTime
+          r      <- self.step(st, a).raceWith(ZIO.sleep(Duration.fromNanos(maxTime - t)))(
+                      { case (ld, rf) =>
+                        ZIO.effectTotal {
+                          import java.io._
+                          val pw = new PrintWriter(new File("/tmp/d" ))
+                          pw.append(a.toString)
+                          pw.close
+                        } *>
+                          rf.interrupt *>
+                          ld.foldM(
+                            ZIO.halt,
+                            st => clock.nanoTime.map(endT => Step.leftMap(st)((_, endT - startT)))
+                          )
+                      },
+                      { case (_, lf) => ZIO.effectTotal {
+                        import java.io._
+                        val pw = new PrintWriter(new File("/tmp/i" ))
+                        pw.append("interrupting")
+                        pw.close
+                      } *> lf.interrupt.foldM(ZIO.halt, _ => ZIO.interrupt) }
+                    )
+        } yield r
+      }
+
+      def extract(s: State) = self.extract(s._1)
+    }
+
+
+  /**
    * Produces a sink consuming all the elements of type `A` as long as
    * they verify the predicate `pred`.
    */
@@ -1194,6 +1236,17 @@ object ZSink extends ZSinkPlatformSpecific {
       def stepPure(state: State, a: A): Step[State, Nothing] = Step.done(Some(a), Chunk.empty)
       def extractPure(state: State): Either[Unit, B]         = state.fold[Either[Unit, B]](Left(()))(a => Right(f(a)))
     }
+
+  // /**
+  //  * Creates a sink that effectfully transforms incoming values.
+  //  */
+  // final def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, E, Nothing, A, Option[B]] =
+  //   new ZSink[R, E, Nothing, A, B] {
+  //     type State = Option[B]
+  //     val initial                                                     = ZIO.succeed(Step.more(None))
+  //     def step(state: State, a: A): ZIO[R, E, Step[State, Nothing]]   = f(a).map(b => Step.done(Some(b), Chunk.empty))
+  //     def extract(state: State): ZIO[R, E, B]                         = b
+  //   }
 
   /**
    * Creates a sink halting with a specified cause.

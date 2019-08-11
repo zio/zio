@@ -626,6 +626,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Fan out the stream, producing a list of streams that have the same elements as this stream.
+   * The driver streamer will only ever advance of the maximumLag values before the
+   * slowest downstream stream.
+   */
+  final def fanOut[E1 >: E, A1 >: A](n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, A]]] =
+    self.toQueues(n, maximumLag).map(_.map(ZStream.fromQueue0(_).unTake))
+
+  /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
@@ -820,14 +828,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
    */
-  final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
+  final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZIO[R1, E1, Unit] =
     foreachWhile(f.andThen(_.as(true)))
 
   /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
-  final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZManaged[R1, E1, Unit] =
+  final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZManaged[R1, E1, Unit] =
     foreachWhileManaged(f.andThen(_.as(true)))
 
   /**
@@ -863,6 +871,44 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           loop(s)
         }
     }
+
+  /**
+   * Split a stream into n streams using a hash function.
+   * The driver streamer will only ever advance of the maximumLag values before the
+   * slowest downstream stream.
+   * That means that the producer may backpressure easily if the partitions are very uneven.
+   * If a stream finishes the keys will be rebalanced in a consistent way.
+   * This returns a stream and an unsubsribe function that can be used to remove a stream manually.
+   * In that case that stream will receive no new elements an run to completion. Manually unsubscribing
+   * and waiting for the stream to finish ensures that no elements are lost.
+   */
+  def hashPartition(hash: A => Long, partitions: Int, buffer: Int = 12): ZManaged[R, Nothing, (List[(UIO[Unit], Stream[E, A])], UIO[(UIO[Unit], Stream[E, A])])] = {
+    import internal.HashRing
+    if (partitions <= 0) ZManaged.dieMessage("Positive number of partitions required.")
+    else
+      for {
+        ring     <- Ref.make[HashRing[(Queue[Take[E, A]], Int), A]](HashRing.default(Nil, hash)).toManaged_
+        decider  <- Promise.make[Nothing, UIO[A => Int => Boolean]].toManaged_
+        q        <- self.toQueuesBalancedDynamic(partitions, buffer, decider.await.flatten)
+        queues    = q._1.zipWithIndex
+        addQueue  = q._2
+        _        <- ring.update(_.addNodes(queues: _*)).toManaged_
+        _        <- decider.succeed {
+                      ring.get.map { r =>
+                        (a: A) => {
+                          r.nodeForKey(a).fold[Int => Boolean](
+                            _ => false
+                          )(
+                            { case (_, idx) => _ == idx }
+                          )
+                        }
+                      }
+                    }.toManaged_
+      } yield {
+        val transform = (q: (Queue[Take[E, A]], Int)) => ((ring.update(_.removeNode(q)) *> q._1.offer(Take.End).unit).uninterruptible, ZStream.fromQueue0(q._1).unTake)
+        (queues.map(transform), addQueue.flatMap(q => ring.update(_.addNode(q)).as(transform(q))).uninterruptible)
+      }
+  }
 
   /**
    * Interleaves this stream and the specified stream deterministically by
@@ -1117,6 +1163,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Partition a stream using a predicate. The first stream will contain all element evaluated to true
+   * and the second one will contain all element evaluated to false.
+   * The faster stream may advance by up to buffer elements further than the slower one.
+   */
+  def partition(p: A => Boolean, buffer: Int = 12): ZManaged[R, E, (ZStream[R, E, A], ZStream[Any, E, A])] =
+    self.split(a => if (p(a)) ZIO.succeed(Left(a)) else ZIO.succeed(Right(a)), buffer)
+
+  /**
    * Peels off enough material from the stream to construct an `R` using the
    * provided `Sink`, and then returns both the `R` and the remainder of the
    * `Stream` in a managed resource. Like all `Managed` resources, the provided
@@ -1228,6 +1282,57 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
     }
 
+  // /**
+  //  * Split a stream into n streams fairly.
+  //  * The driver streamer will only ever advance of the maximumLag values before the
+  //  * slowest downstream stream.
+  //  * That means that the producer may backpressure easily if the partitions are very uneven.
+  //  */
+  // def roundRobinPartition(partitions: Int, buffer: Int = 12): ZManaged[R, Nothing, List[Stream[E, A]]] = {
+  //   trait Counter {
+  //     def next: UIO[Option[Int]]
+  //     def updateMax(f: Int => Int): UIO[Unit]
+  //   }
+  //   val counter = (i: Int) => Ref.make[(Int, Int)]((i, 0)).map { state =>
+  //     new Counter {
+  //       val next = state.modify {
+  //         case (max, _) if max <= 0 =>
+  //           (None, (max, 0))
+  //         case (max, current) =>
+  //           val n = if (max <= current) 0 else current + 1
+  //           (Some(n), (max, current))
+  //       }
+  //       def updateMap(f: Int => Int) = state.update { case (max, current) => (f(max), current) }
+  //     }
+  //   }
+
+  //   if (partitions <= 0) ZManaged.dieMessage("Positive number of partitions required.")
+  //   else
+  //     for {
+  //       counter  <- counter(partitions).toManaged_
+  //       decider   = counter.next.map { n =>
+  //                     (a: A) => (_: Int) == n
+  //                   }
+  //       q        <- self.toQueuesBalancedDynamic(partitions, buffer, decider)
+  //       queues    = q._1.zipWithIndex
+  //       addQueue  = q._2
+  //       _        <- decider.succeed {
+  //                     ring.get.map { r =>
+  //                       (a: A) => {
+  //                         r.nodeForKey(a).fold[Int => Boolean](
+  //                           _ => false
+  //                         )(
+  //                           { case (_, idx) => _ == idx }
+  //                         )
+  //                       }
+  //                     }
+  //                   }.toManaged_
+  //     } yield {
+  //       val transform = (q: (Queue[Take[E, A]], Int)) => ((ring.update(_.removeNode(q)) *> q._1.offer(Take.End).unit).uninterruptible, ZStream.fromQueue0(q._1).unTake)
+  //       (queues.map(transform), addQueue.flatMap(q => ring.update(_.addNode(q)).as(transform(q))).uninterruptible)
+  //     }
+  // }
+
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
@@ -1292,6 +1397,23 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
         }
 
+    }
+
+  /**
+   * Split a stream by a predicate. The faster stream may advance by up to buffer elements further than the slower one.
+   */
+  def split[B, C, R1 <: R, E1 >: E](p: A => ZIO[R1, E1, Either[B, C]], buffer: Int = 12): ZManaged[R1, E1, (ZStream[Any, E1, B], ZStream[Any, E1, C])] =
+    self.mapM(p).toQueuesBalanced(2, buffer, ZIO.succeed{
+      case Left(_) => _ == 0
+      case Right(_) => _ == 1
+    }).flatMap {
+      case q1 :: q2 :: Nil => ZManaged.succeed {
+        (
+          ZStream.fromQueue0(q1).unTake.map(_.left.get),
+          ZStream.fromQueue0(q2).unTake.map(_.right.get)
+        )
+      }
+      case _ => ZManaged.dieMessage("Internal error.")
     }
 
   /**
@@ -1386,14 +1508,109 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     transduceManaged(ZSink.throttleShapeM(units, duration, burst)(costFn))
 
   /**
+   * Interrupts the stream if it does not produce a value after d duration.
+   */
+  final def timeout(d: Duration): ZStream[R with Clock, E, A] =
+    ZStream.managed(self.toQueue()).flatMap { queue =>
+      ZStream.unfoldM(()) { _ =>
+        queue.take.timeout(d).flatMap {
+          case Some(a) => ZIO.succeed(Some((a, ())))
+          case None    => ZIO.interrupt // upstream was too slow
+        }
+      }.unTake
+    }
+
+  /**
    * Converts the stream to a managed queue. After managed queue is used, the
    * queue will never again produce values and should be discarded.
    */
-  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, E1, Queue[Take[E1, A1]]] =
+  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, Nothing, Queue[Take[E1, A1]]] =
     for {
       queue <- ZManaged.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
       _     <- self.intoManaged(queue).fork
     } yield queue
+
+  /**
+   * Converts the stream to a managed list of queues. Every value will replicated to every queue with the
+   * slowest queue being allowed to buffer maximumLag elements before the driver is backpressured.
+   * The downstream queues will be provided with elements in the same order they are returned, so
+   * the fastest queue might have seen up to (maximumLag + 1) elements more than the slowest queue if it
+   * has a lower index than the slowest queue.
+   * After managed queue is used, the queue will never again produce values and should be discarded.
+   */
+  final def toQueues[E1 >: E, A1 >: A](n: Int, maximumLag: Int): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] =
+    toQueuesBalanced(n, maximumLag, ZIO.succeed(_ => _ => true))
+
+  /**
+   * Converts the stream to a managed list of queues. Every value will be passed to every queue
+   * index accepted by the decider function (0 based). The is allowed to buffer maximumLag elements before the driver is backpressured.
+   * The downstream queues will be provided with elements in the same order they are returned, so
+   * the fastest queue might have seen up to (maximumLag + 1) elements more than the slowest queue if it
+   * has a lower index than the slowest queue.
+   * A queue may be unsubscribed from by shutting it down. In that case it will no longer contribute
+   * to backpressure.
+   * After managed queue is used, the queue will never again produce values and should be discarded.
+   */
+  final def toQueuesBalanced[E1 >: E, A1 >: A](n: Int, maximumLag: Int, decide: UIO[A => Int => Boolean]): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] =
+    toQueuesBalancedDynamic[E1, A1](n, maximumLag, decide).map(_._1)
+
+  /**
+   * Converts the stream to a managed list of queues. Every value will be passed to every queue
+   * index accepted by the decider function (0 based). The is allowed to buffer maximumLag elements before the driver is backpressured.
+   * The downstream queues will be provided with elements in the same order they are returned, so
+   * the fastest queue might have seen up to (maximumLag + 1) elements more than the slowest queue if it
+   * has a lower index than the slowest queue.
+   * A queue may be unsubscribed from by shutting it down. In that case it will no longer contribute
+   * to backpressure. Additionally a function is returned that allows to add another queue and will return the queue
+   * and its index
+   * After managed queue is used, the queues will never again produce values and should be discarded. Attempts
+   * to add new queues will be interrupted then.
+   */
+  final def toQueuesBalancedDynamic[E1 >: E, A1 >: A](
+    initialQueues: Int,
+    maximumLag: Int,
+    decide: UIO[A => Int => Boolean]
+  ): ZManaged[R, Nothing, (List[Queue[Take[E1, A1]]], UIO[(Queue[Take[E1, A1]], Int)])] =
+    Ref.make[List[UIO[Unit]]](Nil).toManaged(fin => (fin.get.flatMap(ZIO.collectAll(_)).uninterruptible)).flatMap { finalizers =>
+      val newQueue = (for {
+        queue <- Queue.bounded[Take[E1, A1]](maximumLag)
+        _     <- finalizers.update(queue.shutdown :: _)
+      } yield queue).uninterruptible
+      ZIO.collectAll(List.fill(initialQueues)(newQueue)).flatMap(Ref.make(_)).toManaged_.flatMap { queues =>
+        val broadcast = (a: Take[E1, Nothing]) =>
+          for {
+            queues <- queues.get
+            _      <- ZIO.foreach_(queues)(_.offer(a).foldCauseM(
+                        cause => if (cause.interrupted) ZIO.unit else ZIO.halt(cause), // we don't care if downstream queues shut down
+                        ZIO.succeed
+                      ))
+          } yield ()
+
+        val offer = (a: A) =>
+          for {
+            queues   <- queues.get
+            decider  <- decide.map(_(a))
+            _        <- ZIO.foreach_(queues.zipWithIndex.filter(x => decider(x._2)).map(_._1)) { q =>
+                          q.offer(Take.Value(a)).foldCauseM(
+                            cause => if (cause.interrupted) ZIO.unit else ZIO.halt(cause), // we don't care if downstream queues shut down
+                            ZIO.succeed
+                          )
+                        }
+          } yield ()
+
+        val driver = self
+          .foreachManaged(offer)
+          .foldCauseM(
+            cause => broadcast(Take.Fail(cause)).toManaged_,
+            _ => broadcast(Take.End).toManaged_
+        )
+        for {
+          _        <- driver.fork
+          add      <- Ref.make[UIO[(Queue[Take[E1, A1]], Int)]](newQueue.flatMap(q => queues.modify(old => ((q, old.length), old :+ q)))).toManaged(_.set(ZIO.interrupt))
+          initial  <- queues.get.toManaged_
+        } yield (initial, add.get.flatten)
+      }
+    }
 
   /**
    * Applies a transducer to the stream, converting elements of type `A` into elements of type `C`, with a
@@ -1807,6 +2024,24 @@ object ZStream extends ZStreamPlatformSpecific {
             else ZIO.halt(cause),
           ZIO.succeed
         )
+    }
+
+  /**
+   * Creates a stream from a [[zio.ZQueue]] of values
+   * The queue will be shut down once the stream is finished
+   */
+  final def fromQueue0[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] = {
+        val fold: Fold[R1, E1, A1, S] =
+          ZManaged.succeedLazy { (s, cont, f) =>
+            def loop(s: S): ZIO[R1, E1, S] =
+              if (!cont(s)) ZIO.succeed(s)
+              else queue.take.flatMap(f(s, _).flatMap(loop))
+            loop(s).ensuring(queue.shutdown).toManaged_
+          }
+        fold.ensuringFirst(queue.shutdown)
+      }
     }
 
   /**

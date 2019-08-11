@@ -81,6 +81,12 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   Stream.ensuringFirst $ensuringFirst
 
+  Stream.fanOut
+    Values       $fanOutValues
+    Errors       $fanOutErrors
+    BackPressure $fanOutBackPressure
+    Unsubscribe  $fanOutUnsubscribe
+
   Stream.finalizer $finalizer
 
   Stream.filter
@@ -132,6 +138,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.fromIterable       $fromIterable
   Stream.fromQueue          $fromQueue
 
+  Stream.hashPartition
+    values          $hashPartitionValues
+    errors          $hashPartitionErrors
+    backpressure    $hashPartitionBackPressure
+
   Stream interleaving
     interleave              $interleave
     interleaveWith          $interleaveWith
@@ -170,6 +181,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     short circuits in schedule    $spacedShortCircuitsWhileInSchedule
     short circuits after schedule $spacedShortCircuitsAfterScheduleFinished
 
+  Stream.split
+    values        $splitValues
+    errors        $splitErrors
+    backpressure  $splitBackPressure
+
   Stream.take
     take                     $take
     take short circuits      $takeShortCircuits
@@ -179,6 +195,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     takeWhile short circuits $takeWhileShortCircuits
 
   Stream.tap                $tap
+
+  Stream.timeout
+    should interrupt stream $timeout
 
   Stream.throttleEnforce
     free elements                   $throttleEnforceFreeElements
@@ -628,6 +647,62 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       } yield execution must_=== List("Release", "Ensuring", "Use", "Acquire")
     }
 
+  private def fanOutValues =
+    unsafeRun {
+      Stream.range(0, 5).fanOut(2, 12).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            out1     <- s1.runCollect
+            out2     <- s2.runCollect
+            expected  = List(0, 1, 2, 3, 4, 5)
+          } yield (out1 must_=== expected) && (out2 must_=== expected)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def fanOutErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).fanOut(2, 12).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            out1     <- s1.runCollect.either
+            out2     <- s2.runCollect.either
+            expected  = Left("Boom")
+          } yield (out1 must_=== expected) && (out2 must_=== expected)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def fanOutBackPressure =
+    flaky(
+      Stream.range(0, 5).fanOut(2, 2).use {
+        case s1 :: _ :: Nil =>
+          for {
+            ref      <- Ref.make[List[Int]](Nil)
+            _        <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
+            result   <- ref.get
+            expected  = List(2, 1, 0)
+          } yield result must_=== expected
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    )
+
+  private def fanOutUnsubscribe =
+    unsafeRun {
+      Stream.range(0, 5).fanOut(2, 2).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            _        <- s1.timeout(Duration.Zero).runDrain.ignore
+            out2     <- s2.runCollect
+          } yield out2 must_=== List(0, 1, 2, 3, 4, 5)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
   private def finalizer =
     unsafeRun {
       for {
@@ -1041,6 +1116,48 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     result must_=== Success(c.toSeq.toList)
   }
 
+  private def hashPartitionValues =
+    unsafeRun {
+      Stream.range(0, 5).hashPartition(_.toLong, 2, 12).map(_._1.map(_._2)).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            out1     <- s1.runCollect
+            out2     <- s2.runCollect
+          } yield (out1 must_=== List(0, 2, 4)) && (out2 must_=== List(1, 3, 5))
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def hashPartitionErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).hashPartition(_.toLong, 2, 12).map(_._1.map(_._2)).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            out1     <- s1.runCollect.either
+            out2     <- s2.runCollect.either
+            expected  = Left("Boom")
+          } yield (out1 must_=== expected) && (out2 must_=== expected)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def hashPartitionBackPressure =
+    flaky(
+      Stream.range(0, 5).hashPartition(_.toLong, 2, 1).map(_._1.map(_._2)).use {
+        case s1 :: _ :: Nil =>
+          for {
+            ref      <- Ref.make[List[Int]](Nil)
+            _        <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
+            result   <- ref.get
+            expected  = List(2, 0)
+          } yield result must_=== expected
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    )
+
   private def map =
     prop { (s: Stream[String, Byte], f: Byte => Int) =>
       slurp(s.map(f)) must_=== slurp(s).map(_.map(f))
@@ -1263,6 +1380,46 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .map(_ must_=== List("A", "A", "!", "B"))
     )
 
+  private def splitValues =
+    unsafeRun {
+      Stream.range(0, 5).split { i =>
+       if (i % 2 == 0) ZIO.succeed(Left(i))
+       else ZIO.succeed(Right(i))
+      }.use { case (s1, s2) =>
+        for {
+          out1     <- s1.runCollect
+          out2     <- s2.runCollect
+        } yield (out1 must_=== List(0, 2, 4)) && (out2 must_=== List(1, 3, 5))
+      }
+    }
+
+  private def splitErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).split { i =>
+        if (i % 2 == 0) ZIO.succeed(Left(i))
+        else ZIO.succeed(Right(i))
+      }.use { case (s1, s2) =>
+        for {
+          out1     <- s1.runCollect.either
+          out2     <- s2.runCollect.either
+        } yield (out1 must_=== Left("Boom")) && (out2 must_=== Left("Boom"))
+      }
+    }
+
+  private def splitBackPressure =
+    flaky(
+      Stream.range(0, 2).split { i =>
+        if (i % 2 == 0) ZIO.succeed(Left(i))
+        else ZIO.succeed(Right(i))
+      }.use { case (s1, _) =>
+        for {
+          ref      <- Ref.make[List[Int]](Nil)
+          _        <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
+          result   <- ref.get
+        } yield result must_=== List(2, 0)
+      }
+    )
+
   private def take =
     prop { (s: Stream[String, Byte], n: Int) =>
       val takeStreamesult = slurp(s.take(n))
@@ -1354,6 +1511,16 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       .take(2)
       .runCollect must_=== List(1, 2)
   }
+
+  private def timeout =
+    unsafeRun {
+      Promise.make[Nothing, Unit].flatMap { prom =>
+        Stream.range(0, 5)
+          .tap(_ => ZIO.sleep(Duration.Infinity).ensuring(prom.succeed(())))
+          .timeout(Duration.Zero).runDrain.ignore *>
+        prom.isDone.map(_ must_=== true)
+      }
+    }
 
   private def toQueue = prop { c: Chunk[Int] =>
     val s = Stream.fromChunk(c)

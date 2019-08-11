@@ -791,7 +791,7 @@ object ZManaged {
    * specified text message. This method can be used for terminating a fiber
    * because a defect has been detected in the code.
    */
-  final def dieMessage(message: String): ZManaged[Any, Throwable, Nothing] = die(new RuntimeException(message))
+  final def dieMessage(message: String): ZManaged[Any, Nothing, Nothing] = die(new RuntimeException(message))
 
   /**
    * Returns an effect from a [[zio.Exit]] value.
