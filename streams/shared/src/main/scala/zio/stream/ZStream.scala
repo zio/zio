@@ -832,15 +832,15 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def flatMapParBalanced[R1 <: R, E1 >: E, B](n: Int, outputBuffer: Int = 16)(
     f: A => ZStream[R1, E1, B]
   ): ZStream[R1, E1, B] =
-  new ZStream[R1, E1, B] {
-    override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
-      ZManaged.succeedLazy { (s, cont, g) =>
-        for {
-          out             <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
-          permits         <- Semaphore.make(n.toLong).toManaged_
-          fibers          <- Ref.make[Vector[Fiber[Unit, Unit]]](Vector()).toManaged_
-          interruptInners <- Promise.make[Nothing, Unit].toManaged_
-          _ <- self.foreachManaged { a =>
+    new ZStream[R1, E1, B] {
+      override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            out             <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
+            permits         <- Semaphore.make(n.toLong).toManaged_
+            fibers          <- Ref.make[Vector[Fiber[Unit, Unit]]](Vector()).toManaged_
+            interruptInners <- Promise.make[Nothing, Unit].toManaged_
+            _ <- self.foreachManaged { a =>
                   val innerStream = Stream
                     .succeed(())
                     .usingPermits(permits)
@@ -854,19 +854,23 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                     .race(interruptInners.await)
                     .fork
                     .flatMap(f => fibers.update(_ :+ f))
-              }.foldCauseM(
-                  cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
-                  _ => fibers.get.flatMap(fs => ZIO.foreach(fs)(_.join)).foldM(
-                    _ => interruptInners.succeed(()),
-                    _ =>  out.offer(Take.End)
-                  ).toManaged_
-                )
-                .ensuringFirst(interruptInners.succeed(()) *> fibers.get.flatMap(fs => ZIO.foreach_(fs)(_.await)))
-                .fork
-          s <- ZStream.fromQueue0(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
-        } yield s
-      }
-  }
+                }.foldCauseM(
+                    cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
+                    _ =>
+                      fibers.get
+                        .flatMap(fs => ZIO.foreach(fs)(_.join))
+                        .foldM(
+                          _ => interruptInners.succeed(()),
+                          _ => out.offer(Take.End)
+                        )
+                        .toManaged_
+                  )
+                  .ensuringFirst(interruptInners.succeed(()) *> fibers.get.flatMap(fs => ZIO.foreach_(fs)(_.await)))
+                  .fork
+            s <- ZStream.fromQueue0(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
+          } yield s
+        }
+    }
 
   /**
    * Reduces the elements in the stream to a value of type `S`

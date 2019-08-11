@@ -191,9 +191,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     short circuits after schedule $spacedShortCircuitsAfterScheduleFinished
 
   Stream.split
-    values        splitValues
-    errors        splitErrors
-    backpressure  splitBackPressure
+    values        $splitValues
+    errors        $splitErrors
+    backpressure  $splitBackPressure
 
   Stream.take
     take                     $take
@@ -1038,99 +1038,99 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     } yield (cancelled must_=== true) and (result must_=== Exit.die(ex))
   }
 
-private def flatMapParBalancedShortCircuiting = unsafeRun {
-  Stream(Stream.never, Stream(1))
-    .flatMapParBalanced(2)(identity)
-    .take(1)
-    .runCollect
-    .map(_ must_=== List(1))
-}
+  private def flatMapParBalancedShortCircuiting = unsafeRun {
+    Stream(Stream.never, Stream(1))
+      .flatMapParBalanced(2)(identity)
+      .take(1)
+      .runCollect
+      .map(_ must_=== List(1))
+  }
 
-private def flatMapParBalancedInterruptionPropagation = unsafeRun {
-  for {
-    substreamCancelled <- Ref.make[Boolean](false)
-    latch              <- Promise.make[Nothing, Unit]
-    fiber <- Stream(())
-              .flatMapParBalanced(1)(
-                _ => Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true)))
-              )
-              .runCollect
-              .fork
-    _         <- latch.await
-    _         <- fiber.interrupt
-    cancelled <- substreamCancelled.get
-  } yield cancelled must_=== true
-}
+  private def flatMapParBalancedInterruptionPropagation = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      fiber <- Stream(())
+                .flatMapParBalanced(1)(
+                  _ => Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true)))
+                )
+                .runCollect
+                .fork
+      _         <- latch.await
+      _         <- fiber.interrupt
+      cancelled <- substreamCancelled.get
+    } yield cancelled must_=== true
+  }
 
-private def flatMapParBalancedInnerErrorsInterruptAllFibers = unsafeRun {
-  for {
-    substreamCancelled <- Ref.make[Boolean](false)
-    latch              <- Promise.make[Nothing, Unit]
-    result <- Stream(
-               Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))),
-               Stream.fromEffect(latch.await *> IO.fail("Ouch"))
-             ).flatMapParBalanced(2)(identity).runDrain.either
-    cancelled <- substreamCancelled.get
-  } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
-}
+  private def flatMapParBalancedInnerErrorsInterruptAllFibers = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- Stream(
+                 Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))),
+                 Stream.fromEffect(latch.await *> IO.fail("Ouch"))
+               ).flatMapParBalanced(2)(identity).runDrain.either
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
+  }
 
-private def flatMapParBalancedFinalizerOrdering = unsafeRun {
-  for {
-    execution <- Ref.make(List.empty[String])
-    inner     = Stream.bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
-    _ <- Stream
-          .bracket(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
-          .flatMapParBalanced(2)(identity)
-          .runDrain
-    results <- execution.get
-  } yield results must_=== List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")
-}
+  private def flatMapParBalancedFinalizerOrdering = unsafeRun {
+    for {
+      execution <- Ref.make(List.empty[String])
+      inner     = Stream.bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
+      _ <- Stream
+            .bracket(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
+            .flatMapParBalanced(2)(identity)
+            .runDrain
+      results <- execution.get
+    } yield results must_=== List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")
+  }
 
-private def flatMapParBalancedOuterErrorsInterruptAllFibers = unsafeRun {
-  for {
-    substreamCancelled <- Ref.make[Boolean](false)
-    latch              <- Promise.make[Nothing, Unit]
-    result <- (Stream(()) ++ Stream.fromEffect(latch.await *> IO.fail("Ouch")))
-               .flatMapParBalanced(2) { _ =>
-                 Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true)))
-               }
-               .runDrain
-               .either
-    cancelled <- substreamCancelled.get
-  } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
-}
+  private def flatMapParBalancedOuterErrorsInterruptAllFibers = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- (Stream(()) ++ Stream.fromEffect(latch.await *> IO.fail("Ouch")))
+                 .flatMapParBalanced(2) { _ =>
+                   Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true)))
+                 }
+                 .runDrain
+                 .either
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
+  }
 
-private def flatMapParBalancedInnerDefectsInterruptAllFibers = unsafeRun {
-  val ex = new RuntimeException("Ouch")
+  private def flatMapParBalancedInnerDefectsInterruptAllFibers = unsafeRun {
+    val ex = new RuntimeException("Ouch")
 
-  for {
-    substreamCancelled <- Ref.make[Boolean](false)
-    latch              <- Promise.make[Nothing, Unit]
-    result <- Stream(
-               Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
-               Stream.fromEffect(latch.await *> ZIO.die(ex))
-             ).flatMapParBalanced(2)(identity)
-               .run(Sink.drain)
-               .run
-    cancelled <- substreamCancelled.get
-  } yield (cancelled must_=== true) and (result must_=== Exit.die(ex))
-}
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- Stream(
+                 Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
+                 Stream.fromEffect(latch.await *> ZIO.die(ex))
+               ).flatMapParBalanced(2)(identity)
+                 .run(Sink.drain)
+                 .run
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must_=== Exit.die(ex))
+  }
 
-private def flatMapParBalancedOuterDefectsInterruptAllFibers = unsafeRun {
-  val ex = new RuntimeException()
+  private def flatMapParBalancedOuterDefectsInterruptAllFibers = unsafeRun {
+    val ex = new RuntimeException()
 
-  for {
-    substreamCancelled <- Ref.make[Boolean](false)
-    latch              <- Promise.make[Nothing, Unit]
-    result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.die(ex)))
-               .flatMapParBalanced(2) { _ =>
-                 Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
-               }
-               .run(Sink.drain)
-               .run
-    cancelled <- substreamCancelled.get
-  } yield (cancelled must_=== true) and (result must_=== Exit.die(ex))
-}
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.die(ex)))
+                 .flatMapParBalanced(2) { _ =>
+                   Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
+                 }
+                 .run(Sink.drain)
+                 .run
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must_=== Exit.die(ex))
+  }
 
   private def foreach = {
     var sum = 0
@@ -1229,7 +1229,7 @@ private def flatMapParBalancedOuterDefectsInterruptAllFibers = unsafeRun {
       Stream
         .fromIterable(words)
         .groupByKey(identity, 8192)
-        .flatMapParBalanced(500) {
+        .flatMapParBalanced(2) {
           case (k, s) =>
             s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 }).take(1).map((k -> _))
         }
@@ -1480,45 +1480,55 @@ private def flatMapParBalancedOuterDefectsInterruptAllFibers = unsafeRun {
         .map(_ must_=== List("A", "A", "!", "B"))
     )
 
-  // private def splitValues =
-  //   unsafeRun {
-  //     Stream.range(0, 5).split { i =>
-  //      if (i % 2 == 0) ZIO.succeed(Left(i))
-  //      else ZIO.succeed(Right(i))
-  //     }.use { case (s1, s2) =>
-  //       for {
-  //         out1     <- s1.runCollect
-  //         out2     <- s2.runCollect
-  //       } yield (out1 must_=== List(0, 2, 4)) && (out2 must_=== List(1, 3, 5))
-  //     }
-  //   }
+  private def splitValues =
+    unsafeRun {
+      Stream
+        .range(0, 5)
+        .split { i =>
+          if (i % 2 == 0) ZIO.succeed(Left(i))
+          else ZIO.succeed(Right(i))
+        }
+        .use {
+          case (s1, s2) =>
+            for {
+              out1 <- s1.runCollect
+              out2 <- s2.runCollect
+            } yield (out1 must_=== List(0, 2, 4)) && (out2 must_=== List(1, 3, 5))
+        }
+    }
 
-  // private def splitErrors =
-  //   unsafeRun {
-  //     (Stream.range(0, 1) ++ Stream.fail("Boom")).split { i =>
-  //       if (i % 2 == 0) ZIO.succeed(Left(i))
-  //       else ZIO.succeed(Right(i))
-  //     }.use { case (s1, s2) =>
-  //       for {
-  //         out1     <- s1.runCollect.either
-  //         out2     <- s2.runCollect.either
-  //       } yield (out1 must_=== Left("Boom")) && (out2 must_=== Left("Boom"))
-  //     }
-  //   }
+  private def splitErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).split { i =>
+        if (i % 2 == 0) ZIO.succeed(Left(i))
+        else ZIO.succeed(Right(i))
+      }.use {
+        case (s1, s2) =>
+          for {
+            out1 <- s1.runCollect.either
+            out2 <- s2.runCollect.either
+          } yield (out1 must_=== Left("Boom")) && (out2 must_=== Left("Boom"))
+      }
+    }
 
-  // private def splitBackPressure =
-  //   flaky(
-  //     Stream.range(0, 2).split { i =>
-  //       if (i % 2 == 0) ZIO.succeed(Left(i))
-  //       else ZIO.succeed(Right(i))
-  //     }.use { case (s1, _) =>
-  //       for {
-  //         ref      <- Ref.make[List[Int]](Nil)
-  //         _        <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
-  //         result   <- ref.get
-  //       } yield result must_=== List(2, 0)
-  //     }
-  //   )
+  private def splitBackPressure =
+    flaky {
+      Stream
+        .range(0, 2)
+        .split { i =>
+          if (i % 2 == 0) ZIO.succeed(Left(i))
+          else ZIO.succeed(Right(i))
+        }
+        .use {
+          case (s1, s2) =>
+            for {
+              ref    <- Ref.make[List[Int]](Nil)
+              _      <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
+              result <- ref.get
+              _      <- s2.runDrain
+            } yield result must_=== List(2, 0)
+        }
+    }
 
   private def take =
     prop { (s: Stream[String, Byte], n: Int) =>
