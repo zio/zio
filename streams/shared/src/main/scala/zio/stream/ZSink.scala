@@ -409,6 +409,22 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   final def filterNotM[E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R, E1, A0, A1, B] =
     filterM(a => f(a).map(!_))
 
+  final def keyed[A1 <: A, K](f: A1 => K): ZSink[R, E, (K, A0), A1, Map[K, B]] =
+    new ZSink[R, E, (K, A0), A1, Map[K, B]] {
+      type State = Map[K, self.State]
+
+      val initial: ZIO[R, E, Step[State, Nothing]] =
+        self.initial.map(Step.leftMap(_)(default => Map[K, self.State]().withDefaultValue(default)))
+
+      def step(state: State, a: A1): ZIO[R, E, Step[State, (K, A0)]] = {
+        val k = f(a)
+        self.step(state(k), a).map(Step.bimap(_)(s1 => state + (k -> s1), b => (k, b)))
+      }
+
+      def extract(state: State): ZIO[R, E, Map[K, B]] =
+        ZIO.foreach(state.toList)(s => self.extract(s._2).map((s._1 -> _))).map(_.toMap)
+    }
+
   /**
    * Maps the value produced by this sink.
    */
@@ -782,7 +798,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       val initial = for {
         step <- self.initial
         t    <- zio.clock.nanoTime
-      } yield Step.leftMap(step)((t, 0, _))
+      } yield Step.leftMap(step)((t, 0L, _))
 
       def step(state: State, a: A): ZIO[R with Clock, E, Step[State, A0]] = state match {
         case (t, total, st) =>
