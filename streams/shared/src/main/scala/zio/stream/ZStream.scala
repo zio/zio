@@ -626,6 +626,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       }
   }
 
+  /**
+   * Pulls upstream failures into the output value.
+   */
   final def either: ZStream[R, Nothing, Either[E, A]] =
     self.map(s => Right(s)).catchAll(e => ZStream.succeed(Left(e)))
 
@@ -847,7 +850,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
     foldMapError[R1, E1, A1, S](identity)
 
-  def foldEither[R1 <: R, EC, EP >: E, A1 >: A, S]: Fold0[R1, EC, EP, A1, S] =
+  /**
+   * Version of fold that seperates producer and consumer errors.
+   */
+  def foldEither[R1 <: R, EC, EP >: E, A1 >: A, S]: ZFold[R1, EC, Either[EC, EP], A1, S] =
     ZManaged.succeedLazy { (s, cont, f) =>
       self.foldMapError[R1, Either[EC, EP], A1, S](Right(_)).flatMap { fold =>
         fold(s, cont, (s, a) => f(s, a).mapError(Left(_)))
@@ -1600,9 +1606,8 @@ object ZStream extends ZStreamPlatformSpecific {
    *   3. Effectful step function (`(S, A) => ZIO[R, E, S]`) which takes as arguments the current state,
    *      the current stream element and effectfully produces the next state.
    */
-  type Fold[R, E, +A, S] = ZManaged[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZManaged[R, E, S]]
-  type Fold0[R, EC, +EP, +A, S] =
-    ZManaged[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, EC, S]) => ZManaged[R, Either[EC, EP], S]]
+  type Fold[R, E, +A, S]       = ZFold[R, E, E, A, S]
+  type ZFold[R, EC, +E, +A, S] = ZManaged[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, EC, S]) => ZManaged[R, E, S]]
 
   implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
     def unTake: ZStream[R, E, A] =
