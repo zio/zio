@@ -765,6 +765,27 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Maps each element of this stream to another stream and returns the
+   * non-deterministic merge of those streams, executing all inner streams
+   * concurrently.
+   * A semaphore with n permits is provided to limit the number of
+   * concurrent executions.
+   * Up to `outputBuffer` elements of the produced streams may be
+   * buffered in memory by this operator.
+   */
+  final def flatMapParSema[R1 <: R, E1 >: E, B](
+    n: Long,
+    outputBuffer: Int = 16
+  )(
+    f: (Semaphore, A) => ZStream[R1, E1, B]
+  ): ZStream[R1, E1, B] =
+    ZStream.unwrap {
+      Semaphore.make(n).map { sema =>
+        self.flatMapParUnbounded[R1, E1, B](outputBuffer)(f(sema, _))
+      }
+    }
+
+  /**
    * Maps each element of this stream to another stream and returns the non-deterministic merge
    * of those streams, executing up to `n` inner streams concurrently. When a new stream is created
    * from an element of the source stream, the oldest executing stream is cancelled. Up to `bufferSize`
@@ -823,49 +844,44 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Maps each element of this stream to another stream and returns the
-   * non-deterministic merge of those streams, executing up to `n` inner streams
-   * concurrently. More than n stream may be started at the same time but only up `n`
-   * invocations will run in parallel.
+   * non-deterministic merge of those streams, executing all inner streams
+   * concurrently.
    * Up to `outputBuffer` elements of the produced streams may be
    * buffered in memory by this operator.
    */
-  final def flatMapParBalanced[R1 <: R, E1 >: E, B](n: Int, outputBuffer: Int = 16)(
+  final def flatMapParUnbounded[R1 <: R, E1 >: E, B](
+    outputBuffer: Int = 16
+  )(
     f: A => ZStream[R1, E1, B]
   ): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
       override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
         ZManaged.succeedLazy { (s, cont, g) =>
           for {
-            out             <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
-            permits         <- Semaphore.make(n.toLong).toManaged_
-            fibers          <- Ref.make[Vector[Fiber[Unit, Unit]]](Vector()).toManaged_
-            interruptInners <- Promise.make[Nothing, Unit].toManaged_
+            out       <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
+            fibers    <- Ref.make[Vector[Fiber[Unit, Unit]]](Vector()).toManaged_
+            interrupt = fibers.get.flatMap(ZIO.foreach(_)(_.interrupt))
             _ <- self.foreachManaged { a =>
-                  val innerStream = Stream
-                    .succeed(())
-                    .usingPermits(permits)
-                    .flatMap(_ => f(a))
+                  val innerStream = f(a)
                     .foreach(b => out.offer(Take.Value(b)).unit)
                     .foldCauseM(
                       cause => out.offer(Take.Fail(cause)) *> ZIO.fail(()),
                       _ => ZIO.unit
                     )
-                  innerStream
-                    .race(interruptInners.await)
-                    .fork
+                  innerStream.fork
                     .flatMap(f => fibers.update(_ :+ f))
                 }.foldCauseM(
-                    cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
+                    cause => (interrupt *> out.offer(Take.Fail(cause))).unit.toManaged_,
                     _ =>
                       fibers.get
                         .flatMap(fs => ZIO.foreach(fs)(_.join))
                         .foldM(
-                          _ => interruptInners.succeed(()),
+                          _ => interrupt,
                           _ => out.offer(Take.End)
                         )
                         .toManaged_
                   )
-                  .ensuringFirst(interruptInners.succeed(()) *> fibers.get.flatMap(fs => ZIO.foreach_(fs)(_.await)))
+                  .ensuringFirst(interrupt)
                   .fork
             s <- ZStream.fromQueue0(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
@@ -966,7 +982,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Group a stream using a function. This returns a stream of stream with each stream corresponding
    * to a key value that has occurred. The driver stream will wait for all child streams to finish.
    * Note that both the number of active keys and the number of buffered elements per key are limited.
-   * Prefer to use this with `ZStream#flatMapParBalanced` in order to prevent deadlocks.
+   * Prefer to use this with `ZStream#flatMapParSema` in order to prevent deadlocks.
    */
   def groupByKey[K](f: A => K, buffer: Int = 12): ZStream[R, E, (K, Stream[E, A])] =
     self.groupBy(a => ZIO.succeed((f(a), a)), buffer)
@@ -1048,6 +1064,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         cause => queue.offer(Take.Fail(cause)).unit.toManaged_,
         _ => queue.offer(Take.End).unit.toManaged_
       )
+
+  /**
+   * Adds a shared semaphore with n permits to the stream
+   */
+  final def withSemaphore(n: Long): ZStream[R, E, (Semaphore, A)] =
+    ZStream.unwrap {
+      Semaphore.make(n).map { sema =>
+        self.map((sema, _))
+      }
+    }
 
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
@@ -1427,11 +1453,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           ZManaged.succeed {
             (
               ZStream.fromQueue0(q1).unTake.map {
-                case Left(x) => x
+                case Left(x)  => x
                 case Right(_) => throw new IllegalStateException("impossible")
               },
               ZStream.fromQueue0(q2).unTake.map {
-                case Left(_) => throw new IllegalStateException("impossible")
+                case Left(_)  => throw new IllegalStateException("impossible")
                 case Right(x) => x
               }
             )
