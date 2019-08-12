@@ -20,6 +20,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import zio.Cause
 
   def is = "StreamSpec".title ^ s2"""
+  Stream.process
+    run collect $processRunCollect
+
   Stream.aggregate
     aggregate                            $aggregate
     error propagation                    $aggregateErrorPropagation1
@@ -212,6 +215,18 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
   """
+
+  def processRunCollect = {
+    def loop[E, A](effect: IO[_, A], ref: Ref[List[A]]): IO[Nothing, List[A]] =
+      (effect.flatMap(a => ref.update(a :: _)) *> loop(effect, ref)).catchAll(_ => ref.get)
+
+    unsafeRun {
+      for {
+        ref <- Ref.make(List.empty[Int])
+        res <- Stream(1, 2, 3, 4).process.use(loop(_, ref)).map(_.reverse)
+      } yield res must_=== List(1, 2, 3, 4)
+    }
+  }
 
   def aggregate = unsafeRun {
     Stream(1, 1, 1, 1)
