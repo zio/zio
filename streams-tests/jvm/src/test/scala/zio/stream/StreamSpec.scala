@@ -132,6 +132,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.fromInputStream    $fromInputStream
   Stream.fromIterable       $fromIterable
   Stream.fromQueue          $fromQueue
+
+  Stream interleaving
+    interleave              $interleave
+    interleaveWith          $interleaveWith
+
   Stream.map                $map
   Stream.mapAccum           $mapAccum
   Stream.mapAccumM          $mapAccumM
@@ -1514,4 +1519,42 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       .either
       .map(_ must_=== Left("Ouch"))
   }
+
+  private def interleave = {
+    val s1 = Stream(2, 3)
+    val s2 = Stream(5, 6, 7)
+
+    val interleave = s1.interleave(s2)
+    val list       = slurp(interleave).toEither.fold(_ => List.empty, identity)
+
+    list must_=== List(2, 5, 3, 6, 7)
+  }
+
+  private def interleaveWith =
+    prop { (b: Stream[String, Boolean], s1: Stream[String, Int], s2: Stream[String, Int]) =>
+      def interleave(b: List[Boolean], s1: => List[Int], s2: => List[Int]): List[Int] =
+        b.headOption.map { hd =>
+          if (hd) s1 match {
+            case h :: t =>
+              h :: interleave(b.tail, t, s2)
+            case _ =>
+              if (s2.isEmpty) List.empty
+              else interleave(b.tail, List.empty, s2)
+          } else
+            s2 match {
+              case h :: t =>
+                h :: interleave(b.tail, s1, t)
+              case _ =>
+                if (s1.isEmpty) List.empty
+                else interleave(b.tail, s1, List.empty)
+            }
+        }.getOrElse(List.empty)
+      val interleavedStream = slurp(s1.interleaveWith(s2)(b))
+      val interleavedLists = for {
+        b  <- slurp(b)
+        s1 <- slurp(s1)
+        s2 <- slurp(s2)
+      } yield interleave(b, s1, s2)
+      (!interleavedLists.succeeded) || (interleavedStream must_=== interleavedLists)
+    }
 }

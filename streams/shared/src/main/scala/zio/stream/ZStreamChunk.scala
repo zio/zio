@@ -92,7 +92,6 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    */
   final def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
 
-
   /**
    * Executes an effectful fold over the stream of values.
    */
