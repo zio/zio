@@ -18,8 +18,10 @@ package zio
 
 import zio.clock.Clock
 import zio.duration._
+import zio.effect._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
+
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 import scala.reflect.ClassTag
@@ -1735,133 +1737,135 @@ private[zio] trait ZIOFunctions extends Serializable {
     case Exit.Failure(cause) => halt(cause)
   }
 
-  /**
-   *
-   * Imports a synchronous effect into a pure `ZIO` value, translating any
-   * throwables into a `Throwable` failure in the returned value.
-   *
-   * {{{
-   * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
-   * }}}
-   */
-  final def effect[A](effect: => A): Task[A] = new ZIO.EffectPartial(() => effect)
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value. See `effectAsyncMaybe` for
-   * the more expressive variant of this function that can return a value
-   * synchronously.
-   *
-   * The callback function `ZIO[R, E, A] => Unit` must be called at most once.
-   */
-  final def effectAsync[R, E, A](register: (ZIO[R, E, A] => Unit) => Unit): ZIO[R, E, A] =
-    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
-      register(callback)
-
-      None
-    })
-
-  /**
-   * Imports an asynchronous effect into a pure `IO` value. The effect has the
-   * option of returning the value synchronously, which is useful in cases
-   * where it cannot be determined if the effect is synchronous or asynchronous
-   * until the effect is actually executed. The effect also has the option of
-   * returning a canceler, which will be used by the runtime to cancel the
-   * asynchronous effect if the fiber executing the effect is interrupted.
-   *
-   * If the register function returns a value synchronously then the callback
-   * function `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback
-   * function must be called at most once.
-   */
-  final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
-  ): ZIO[R, E, A] = {
-    import java.util.concurrent.atomic.AtomicBoolean
-    import internal.OneShot
-
-    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
-      case (started, cancel) =>
-        flatten {
-          effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
-            started.set(true)
-
-            try register(io => k(ZIO.succeed(io))) match {
-              case Left(canceler) =>
-                cancel.set(canceler)
-                None
-              case Right(io) => Some(ZIO.succeed(io))
-            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
-          })
-        }.onInterrupt(flatten(effectTotal(if (started.get) cancel.get() else ZIO.unit)))
-    }
-  }
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
-   * necessary when the effect is itself expressed in terms of `ZIO`.
-   */
-  final def effectAsyncM[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _]
-  ): ZIO[R, E, A] =
-    for {
-      p <- Promise.make[E, A]
-      r <- ZIO.runtime[R]
-      a <- ZIO.uninterruptibleMask { restore =>
-            val f = register(k => r.unsafeRunAsync_(k.to(p)))
-            restore(f.catchAllCause(p.halt)).fork.flatMap { f =>
-              restore(p.await).onInterrupt(f.interrupt)
-            }
-          }
-    } yield a
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
-   * the value synchronously.
-   */
-  final def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]
-  ): ZIO[R, E, A] =
-    new ZIO.EffectAsync(register)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require effects.
-   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
-   */
-  final def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(_ => rio)
-
-  /**
-   *  Returns a lazily constructed effect, whose construction may itself require
-   * effects. The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
-   * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
-   * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].
-   */
-  final def effectSuspendTotal[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] = new ZIO.EffectSuspendTotalWith(_ => zio)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require effects.
-   * The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
-   * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
-   * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].
-   */
-  final def effectSuspendTotalWith[R, E, A](p: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.EffectSuspendTotalWith(p)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require effects.
-   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
-   */
-  final def effectSuspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(p)
-
-  /**
-   * Imports a total synchronous effect into a pure `ZIO` value.
-   * The effect must not throw any exceptions. If you wonder if the effect
-   * throws exceptions, then do not use this method, use [[Task.effect]],
-   * [[IO.effect]], or [[ZIO.effect]].
-   *
-   * {{{
-   * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
-   * }}}
-   */
-  final def effectTotal[A](effect: => A): UIO[A] = new ZIO.EffectTotal(() => effect)
+//  /**
+//   *
+//   * Imports a synchronous effect into a pure `ZIO` value, translating any
+//   * throwables into a `Throwable` failure in the returned value.
+//   *
+//   * {{{
+//   * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
+//   * }}}
+//   */
+//  final def effect[A](effect: => A): Task[A] = new ZIO.EffectPartial(() => effect)
+//
+//  /**
+//   * Imports an asynchronous effect into a pure `ZIO` value. See `effectAsyncMaybe` for
+//   * the more expressive variant of this function that can return a value
+//   * synchronously.
+//   *
+//   * The callback function `ZIO[R, E, A] => Unit` must be called at most once.
+//   */
+//  final def effectAsync[R, E, A](register: (ZIO[R, E, A] => Unit) => Unit): ZIO[R, E, A] =
+//    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
+//      register(callback)
+//
+//      None
+//    })
+//
+//  /**
+//   * Imports an asynchronous effect into a pure `IO` value. The effect has the
+//   * option of returning the value synchronously, which is useful in cases
+//   * where it cannot be determined if the effect is synchronous or asynchronous
+//   * until the effect is actually executed. The effect also has the option of
+//   * returning a canceler, which will be used by the runtime to cancel the
+//   * asynchronous effect if the fiber executing the effect is interrupted.
+//   *
+//   * If the register function returns a value synchronously then the callback
+//   * function `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback
+//   * function must be called at most once.
+//   */
+//  final def effectAsyncInterrupt[R, E, A](
+//    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
+//  ): ZIO[R, E, A] = {
+//    import java.util.concurrent.atomic.AtomicBoolean
+//    import internal.OneShot
+//
+//    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
+//      case (started, cancel) =>
+//        flatten {
+//          effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
+//            started.set(true)
+//
+//            try register(io => k(ZIO.succeed(io))) match {
+//              case Left(canceler) =>
+//                cancel.set(canceler)
+//                None
+//              case Right(io) => Some(ZIO.succeed(io))
+//            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+//          })
+//        }.onInterrupt(flatten(effectTotal(if (started.get) cancel.get() else ZIO.unit)))
+//    }
+//  }
+//
+//  /**
+//   * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
+//   * necessary when the effect is itself expressed in terms of `ZIO`.
+//   */
+//  final def effectAsyncM[R, E, A](
+//    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _]
+//  ): ZIO[R, E, A] =
+//    for {
+//      p <- Promise.make[E, A]
+//      r <- ZIO.runtime[R]
+//      a <- ZIO.uninterruptibleMask { restore =>
+//            restore(
+//              register(k => r.unsafeRunAsync_(k.to(p)))
+//                .catchAll(p.fail)
+//            ).fork.flatMap { f =>
+//              restore(p.await).onInterrupt(f.interrupt)
+//            }
+//          }
+//    } yield a
+//
+//  /**
+//   * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
+//   * the value synchronously.
+//   */
+//  final def effectAsyncMaybe[R, E, A](
+//    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]
+//  ): ZIO[R, E, A] =
+//    new ZIO.EffectAsync(register)
+//
+//  /**
+//   * Returns a lazily constructed effect, whose construction may itself require effects.
+//   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+//   */
+//  final def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(_ => rio)
+//
+//  /**
+//   *  Returns a lazily constructed effect, whose construction may itself require
+//   * effects. The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
+//   * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
+//   * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].
+//   */
+//  final def effectSuspendTotal[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] = new ZIO.EffectSuspendTotalWith(_ => zio)
+//
+//  /**
+//   * Returns a lazily constructed effect, whose construction may itself require effects.
+//   * The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
+//   * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
+//   * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].
+//   */
+//  final def effectSuspendTotalWith[R, E, A](p: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
+//    new ZIO.EffectSuspendTotalWith(p)
+//
+//  /**
+//   * Returns a lazily constructed effect, whose construction may itself require effects.
+//   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+//   */
+//  final def effectSuspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(p)
+//
+//  /**
+//   * Imports a total synchronous effect into a pure `ZIO` value.
+//   * The effect must not throw any exceptions. If you wonder if the effect
+//   * throws exceptions, then do not use this method, use [[Task.effect]],
+//   * [[IO.effect]], or [[ZIO.effect]].
+//   *
+//   * {{{
+//   * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
+//   * }}}
+//   */
+//  final def effectTotal[A](effect: => A): UIO[A] = new ZIO.EffectTotal(() => effect)
 
   /**
    * Accesses the whole environment of the effect.
@@ -1910,7 +1914,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * For a parallel version of this method, see `foreachPar`.
    */
   final def foreach[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    in.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil)) { (a, io) =>
+    in.foldRight[ZIO[R, E, List[B]]](ZIO.fromFunctionM[Effect, E, List[B]](_.effect.total(Nil))) { (a, io) =>
       f(a).zipWith(io)((b, bs) => b :: bs)
     }
 
@@ -2470,7 +2474,7 @@ private[zio] trait ZIOFunctions extends Serializable {
 }
 
 object ZIO extends ZIOFunctions {
-  def apply[A](a: => A): Task[A] = effect(a)
+  def apply[A](a: => A): RIO[Effect, A] = ZIO.fromFunctionM[Effect, Throwable, A](_.effect(a))
 
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
