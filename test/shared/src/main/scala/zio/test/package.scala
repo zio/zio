@@ -150,28 +150,17 @@ package object test {
       aspect(spec)
   }
 
-  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], shrinkSearch: Int = 1000)(
+  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
     predicate: Predicate[A]
   ): ZIO[R, Nothing, TestResult] = {
     def checkValue(value: A): TestResult =
       predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
 
-    stream.map { sample: Sample[R, A] =>
-      (checkValue(sample.value), sample.shrink)
-    }.dropWhile(v => !v._1.failure) // Drop until we get to a failure
-      .collect {
-        case ((failure @ Assertion.Failure(_), shrink)) => (failure, shrink)
-      }        // Collect the failures and their shrinkers
-      .take(1) // Get the first failure
-      .flatMap {
-        case (failure, shrink) =>
-          ZStream(failure) ++ shrink
-            .map(checkValue)
-            .collect {
-              case failure @ Assertion.Failure(_) => failure
-            }
-            .take(shrinkSearch)
-      }
+    stream
+      .map(_.map(checkValue))
+      .dropWhile(!_.value.failure) // Drop until we get to a failure
+      .take(1)                     // Get the first failure
+      .flatMap(_.shrinkSearch(_.failure).take(maxShrinks))
       .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
       .map { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
