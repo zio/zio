@@ -25,7 +25,7 @@ private[stream] trait StreamChunkPure[@specialized +A] extends ZStreamChunk[Any,
     StreamChunkPure(chunks.map(_.filter(pred)))
 
   override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[Any, Nothing, S] =
-    ZManaged.succeedLazy(foldPureLazy(s)(_ => true)(f))
+    ZManaged.succeed(foldPureLazy(s)(_ => true)(f))
 
   def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
     chunks.foldPureLazy(s)(cont) { (s, as) =>

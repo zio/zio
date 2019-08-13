@@ -707,7 +707,7 @@ object STM {
   /**
    * Kills the fiber running the effect.
    */
-  final def die(t: Throwable): STM[Nothing, Nothing] = succeedLazy(throw t)
+  final def die(t: Throwable): STM[Nothing, Nothing] = succeed(throw t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
@@ -765,17 +765,14 @@ object STM {
    */
   final def succeed[A](a: A): STM[Nothing, A] = new STM(_ => TRez.Succeed(a))
 
-  /**
-   * Returns an `STM` effect that succeeds with the specified (lazily
-   * evaluated) value.
-   */
-  final def succeedLazy[A](a: => A): STM[Nothing, A] = new STM(_ => TRez.Succeed(a))
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[A](a: => A): STM[Nothing, A] = succeed(a)
 
   /**
    * Suspends creation of the specified transaction lazily.
    */
   final def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
-    STM.succeedLazy(stm).flatten
+    STM.succeed(stm).flatten
 
   /**
    * Returns an `STM` effect that succeeds with `Unit`.

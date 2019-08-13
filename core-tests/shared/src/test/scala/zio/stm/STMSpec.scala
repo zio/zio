@@ -216,7 +216,7 @@ final class STMSpec extends BaseCrossPlatformSpec {
       fiber <- (STM.atomically {
                 for {
                   v1 <- tvar1.get
-                  _  <- STM.succeedLazy(unsafeRun(latch.succeed(())))
+                  _  <- STM.succeed(unsafeRun(latch.succeed(())))
                   _  <- STM.check(v1 > 42)
                   _  <- tvar2.set("Succeeded!")
                   v2 <- tvar2.get
@@ -307,7 +307,7 @@ final class STMSpec extends BaseCrossPlatformSpec {
       tvar  <- TRef.makeCommit(0)
       fiber <- (for {
                 v <- tvar.get
-                _ <- STM.succeedLazy(unsafeRun(latch.succeed(())))
+                _ <- STM.succeed(unsafeRun(latch.succeed(())))
                 _ <- STM.check(v > 0)
                 _ <- tvar.update(10 / _)
               } yield ()).commit.fork
@@ -323,7 +323,7 @@ final class STMSpec extends BaseCrossPlatformSpec {
       tvar  <- TRef.makeCommit(0)
       fiber <- IO.forkAll(List.fill(100)((for {
                 v <- tvar.get
-                _ <- STM.succeedLazy(unsafeRun(latch.succeed(())))
+                _ <- STM.succeed(unsafeRun(latch.succeed(())))
                 _ <- STM.check(v < 0)
                 _ <- tvar.set(10)
               } yield ()).commit))

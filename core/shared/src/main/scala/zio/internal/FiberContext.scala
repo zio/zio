@@ -249,13 +249,8 @@ private[zio] final class FiberContext[E, A](
           if (tag == ZIO.Tags.Fail || !shouldInterrupt) {
             // Fiber does not need to be interrupted, but might need to yield:
             if (opcount == maxopcount) {
-              // Cannot capture `curZio` since it will be boxed into `ObjectRef`,
-              // which destroys performance. So put `curZio` into a temp val:
-              val tmpIo = curZio
-
-              curZio = ZIO.yieldNow *> tmpIo
-
-              opcount = 0
+              evaluateLater(curZio)
+              curZio = null
             } else {
               // Fiber is neither being interrupted nor needs to yield. Execute
               // the next instruction in the program:

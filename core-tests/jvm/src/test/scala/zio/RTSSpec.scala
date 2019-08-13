@@ -7,6 +7,7 @@ import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import zio.Cause.{ die, fail, Fail, Then }
 import zio.duration._
+import zio.internal.PlatformLive
 import zio.clock.Clock
 
 import scala.annotation.tailrec
@@ -18,9 +19,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     s2"""
   RTS synchronous correctness
     widen Nothing                                 $testWidenNothing
-    evaluation of point                           $testPoint
     blocking caches threads                       $testBlockingThreadCaching
-    point must be lazy                            $testPointIsLazy
     now must be eager                             $testNowIsEager
     effectSuspend must be lazy                    $testSuspendIsLazy
     effectSuspendTotal must not catch throwable   $testSuspendTotalThrowable
@@ -57,6 +56,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     run swallows inner interruption               $testRunSwallowsInnerInterrupt
     timeout a long computation                    $testTimeoutOfLongComputation
     catchAllCause                                 $testCatchAllCause
+    exception in fromFuture does not kill fiber   $testFromFutureDoesNotKillFiber 
 
   RTS finalizers
     fail ensuring                                 $testEvalOfFailEnsuring
@@ -75,7 +75,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     interrupt waits for finalizer                 $testInterruptWaitsForFinalizer
 
   RTS synchronous stack safety
-    deep map of point                             $testDeepMapOfPoint
     deep map of now                               $testDeepMapOfNow
     deep map of sync effect                       $testDeepMapOfSyncEffectIsStackSafe
     deep attempt                                  $testDeepAttemptIsStackSafe
@@ -128,7 +127,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     deadlock regression 1                         $testDeadlockRegression
     check interruption regression 1               $testInterruptionRegression1
     manual sync interruption                      $testManualSyncInterruption
-
+    max yield Ops 1                               $testOneMaxYield
+    
   RTS option tests
     lifting a value to an option                  $testLiftingOptionalValue
     using the none value                          $testLiftingNoneValue
@@ -179,9 +179,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   """
   }
 
-  def testPoint =
-    unsafeRun(IO.succeedLazy(1)) must_=== 1
-
   def testWidenNothing = {
     val op1 = IO.effectTotal[String]("1")
     val op2 = IO.effectTotal[String]("2")
@@ -193,9 +190,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
     unsafeRun(result) must_=== "12"
   }
-
-  def testPointIsLazy =
-    IO.succeedLazy(throw new Error("Not lazy")) must not(throwA[Throwable])
 
   @silent
   def testNowIsEager =
@@ -216,11 +210,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either) must_=== Left(ExampleError)
 
   def testSuspendIsEvaluatable =
-    unsafeRun(IO.effectSuspendTotal(IO.succeedLazy[Int](42))) must_=== 42
+    unsafeRun(IO.effectSuspendTotal(IO.effectTotal[Int](42))) must_=== 42
 
   def testSyncEvalLoop = {
     def fibIo(n: Int): Task[BigInt] =
-      if (n <= 1) IO.succeedLazy(n)
+      if (n <= 1) IO.succeed(n)
       else
         for {
           a <- fibIo(n - 1)
@@ -266,7 +260,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testFlipDouble = {
-    val io = IO.succeedLazy(100)
+    val io = IO.succeed(100)
     unsafeRun(io.flip.flip) must_=== unsafeRun(io)
   }
 
@@ -420,7 +414,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     @volatile var reported: Exit[Nothing, Int] = null
 
     unsafeRun {
-      IO.succeedLazy[Int](42)
+      IO.succeed[Int](42)
         .ensuring(IO.die(ExampleError))
         .fork
         .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
@@ -430,7 +424,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testExitIsUsageResult =
-    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeedLazy[Int](42))) must_=== 42
+    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeed[Int](42))) must_=== 42
 
   def testBracketErrorInAcquisition =
     unsafeRunSync(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit)) must_=== Exit.Failure(fail(ExampleError))
@@ -541,6 +535,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       f <- ZIO fail "Uh oh!"
     } yield f) catchAllCause ZIO.succeed) must_=== Fail("Uh oh!")
 
+  def testFromFutureDoesNotKillFiber = {
+    val e = new RuntimeException("Foo")
+    unsafeRun(ZIO.fromFuture(_ => throw e).either) must_=== Left(e)
+  }
+
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): Task[Int] =
       if (n <= 0) ref.get
@@ -562,9 +561,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
     (l must_=== 0) and (r must_=== 1000)
   }
-
-  def testDeepMapOfPoint =
-    unsafeRun(deepMapPoint(10000)) must_=== 10000
 
   def testDeepMapOfNow =
     unsafeRun(deepMapNow(10000)) must_=== 10000
@@ -593,7 +589,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testDeepAbsolveAttemptIsIdentity =
-    unsafeRun((0 until 1000).foldLeft(IO.succeedLazy[Int](42))((acc, _) => IO.absolve(acc.either))) must_=== 42
+    unsafeRun((0 until 1000).foldLeft(IO.succeed[Int](42))((acc, _) => IO.absolve(acc.either))) must_=== 42
 
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafeRun(
@@ -648,7 +644,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(clock.sleep(1.nanos)) must_=== ((): Unit)
 
   def testShallowBindOfAsyncChainIsCorrect = {
-    val result = (0 until 10).foldLeft[Task[Int]](IO.succeedLazy[Int](0)) { (acc, _) =>
+    val result = (0 until 10).foldLeft[Task[Int]](IO.succeed[Int](0)) { (acc, _) =>
       acc.flatMap(n => IO.effectAsync[Throwable, Int](_(IO.succeed(n + 1))))
     }
 
@@ -656,7 +652,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testForkJoinIsId =
-    unsafeRun(IO.succeedLazy[Int](42).fork.flatMap(_.join)) must_=== 42
+    unsafeRun(IO.succeed[Int](42).fork.flatMap(_.join)) must_=== 42
 
   def testDeepForkJoinIsId = {
     val n = 20
@@ -876,7 +872,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(for {
       ref <- Ref.make(false)
       fiber <- withLatch { release =>
-                (ZIO.succeedLazy(throw new Error).run *> release *> ZIO.never)
+                (ZIO.effect(throw new Error).run *> release *> ZIO.never)
                   .ensuring(ref.set(true))
                   .fork
               }
@@ -888,7 +884,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(for {
       ref <- Ref.make(false)
       fiber <- withLatch { release =>
-                (ZIO.succeedLazy(throw new Error).run *> release *> ZIO.unit.forever)
+                (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
                   .ensuring(ref.set(true))
                   .fork
               }
@@ -1210,7 +1206,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(IO.fail(42).race(IO.fail(42)).either) must_=== Left(42)
 
   def testRaceOfValueNever =
-    unsafeRun(IO.succeedLazy(42).race(IO.never)) must_=== 42
+    unsafeRun(IO.effectTotal(42).race(IO.never)) must_=== 42
 
   def testRaceOfFailNever =
     unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
@@ -1285,12 +1281,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testReduceAll =
     unsafeRun(
-      IO.reduceAll(IO.succeedLazy(1), List(2, 3, 4).map(IO.succeedLazy[Int](_)))(_ + _)
+      IO.reduceAll(IO.effectTotal(1), List(2, 3, 4).map(IO.succeed[Int](_)))(_ + _)
     ) must_=== 10
 
   def testReduceAllEmpty =
     unsafeRun(
-      IO.reduceAll(IO.succeedLazy(1), Seq.empty)(_ + _)
+      IO.reduceAll(IO.effectTotal(1), Seq.empty)(_ + _)
     ) must_=== 1
 
   def testTimeoutFailure =
@@ -1363,6 +1359,19 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     )
   }
 
+  def testOneMaxYield = {
+    val rts = new DefaultRuntime {
+      override val Platform = PlatformLive.Default.withExecutor(PlatformLive.ExecutorUtil.makeDefault(1))
+    }
+
+    rts.unsafeRun(
+      for {
+        _ <- UIO.unit
+        _ <- UIO.unit
+      } yield true
+    )
+  }
+
   def testBlockingThreadCaching = {
     import zio.blocking.Blocking
 
@@ -1411,15 +1420,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     if (n <= 0) 0
     else n + sum(n - 1)
 
-  def deepMapPoint(n: Int): UIO[Int] = {
-    @tailrec
-    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
-      if (n <= 0) acc
-      else loop(n - 1, acc.map(_ + 1))
-
-    loop(n, IO.succeedLazy(0))
-  }
-
   def deepMapNow(n: Int): UIO[Int] = {
     @tailrec
     def loop(n: Int, acc: UIO[Int]): UIO[Int] =
@@ -1451,7 +1451,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     else fib(n - 1) + fib(n - 2)
 
   def concurrentFib(n: Int): Task[BigInt] =
-    if (n <= 1) IO.succeedLazy[BigInt](n)
+    if (n <= 1) IO.succeed[BigInt](n)
     else
       for {
         f1 <- concurrentFib(n - 1).fork
@@ -1464,7 +1464,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testMergeAll =
     unsafeRun(
-      IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(0) { (b, a) =>
+      IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeed[String](_)))(0) { (b, a) =>
         b + a.length
       }
     ) must_=== 10

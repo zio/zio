@@ -14,11 +14,11 @@ import scala.concurrent.ExecutionContext
 object ClockSpec extends DefaultRuntime {
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
-    label(e1, "MockClock sleep does sleep instantly"),
-    label(e2, "MockClock sleep passes nanotime correctly"),
-    label(e3, "MockClock sleep passes currentTime correctly"),
-    label(e4, "MockClock sleep passes currentDateTime correctly"),
-    label(e5, "MockClock sleep correctly records sleeps"),
+    label(e1, "MockClock sleep does not require passage of clock time"),
+    label(e2, "MockClock sleep delays effect until time is adjusted"),
+    label(e3, "MockClock sleep correctly handles multiple sleeps"),
+    label(e4, "MockClock sleep correctly handles new set time"),
+    label(e5, "MockClock sleep does sleep instanly when sleep duration less than set time"),
     label(e6, "MockClock adjust correctly advances nanotime"),
     label(e7, "MockClock adjust correctly advances currentTime"),
     label(e8, "MockClock adjust correctly advances currentDateTime"),
@@ -35,47 +35,61 @@ object ClockSpec extends DefaultRuntime {
     unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
-        result    <- mockClock.sleep(10.hours).timeout(100.milliseconds)
-      } yield result.nonEmpty
+        latch     <- Promise.make[Nothing, Unit]
+        _         <- mockClock.sleep(10.hours).flatMap(_ => latch.succeed(())).fork
+        _         <- mockClock.adjust(11.hours)
+        _         <- latch.await
+      } yield true
     )
 
   def e2 =
     unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
-        time1     <- mockClock.nanoTime
-        _         <- mockClock.sleep(1.millis)
-        time2     <- mockClock.nanoTime
-      } yield (time2 - time1) == 1000000L
+        ref       <- Ref.make(true)
+        _         <- mockClock.sleep(10.hours).flatMap(_ => ref.set(false)).fork
+        _         <- mockClock.adjust(9.hours)
+        result    <- ref.get
+      } yield result
     )
 
   def e3 =
     unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
-        time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-        _         <- mockClock.sleep(1.millis)
-        time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-      } yield (time2 - time1) == 1L
+        latch1    <- Promise.make[Nothing, Unit]
+        latch2    <- Promise.make[Nothing, Unit]
+        ref       <- Ref.make("")
+        _         <- mockClock.sleep(3.hours).flatMap(_ => ref.update(_ + "World!")).flatMap(_ => latch2.succeed(())).fork
+        _         <- mockClock.sleep(1.hours).flatMap(_ => ref.update(_ + "Hello, ")).flatMap(_ => latch1.succeed(())).fork
+        _         <- mockClock.adjust(2.hours)
+        _         <- latch1.await
+        _         <- mockClock.adjust(2.hours)
+        _         <- latch2.await
+        result    <- ref.get
+      } yield result == "Hello, World!"
     )
 
   def e4 =
     unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
-        time1     <- mockClock.currentDateTime
-        _         <- mockClock.sleep(1.millis)
-        time2     <- mockClock.currentDateTime
-      } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) == 1L
+        latch     <- Promise.make[Nothing, Unit]
+        _         <- mockClock.sleep(10.hours).flatMap(_ => latch.succeed(())).fork
+        _         <- mockClock.setTime(11.hours)
+        _         <- latch.await
+      } yield true
     )
 
   def e5 =
     unsafeRunToFuture(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
-        _         <- mockClock.sleep(1.millis)
-        sleeps    <- mockClock.sleeps
-      } yield sleeps == List(1.milliseconds)
+        latch     <- Promise.make[Nothing, Unit]
+        _         <- mockClock.setTime(11.hours)
+        _         <- mockClock.sleep(10.hours).flatMap(_ => latch.succeed(()))
+        _         <- latch.await
+      } yield true
     )
 
   def e6 =
