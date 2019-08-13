@@ -131,7 +131,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     Console.CYAN + s + Console.RESET
 
   def yellow(s: String): String =
-    Console.YELLOW + s + Console.CYAN
+    Console.YELLOW + s + Console.RESET
 
   def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>
