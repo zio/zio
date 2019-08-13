@@ -1687,27 +1687,27 @@ object ZStream extends ZStreamPlatformSpecific {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, g) =>
-          for {
-            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
-            runtime <- ZIO.runtime[R].toManaged_
-            _ <- register(
-                  k =>
-                    runtime.unsafeRunAsync_(
-                      k.foldCauseM(
-                        _.failureOrCause match {
-                          case Left(None)    => output.offer(Take.End).unit
-                          case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
-                          case Right(cause)  => output.offer(Take.Fail(cause)).unit
-                        },
-                        a => output.offer(Take.Value(a)).unit
-                      )
+      def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] = foldDefault
+
+      override def process: ZManaged[R, E, InputStream[E, A]] =
+        for {
+          output  <- Queue.bounded[InputStream[E, A]](outputBuffer).toManaged(_.shutdown)
+          runtime <- ZIO.runtime[R].toManaged_
+          _ <- register(
+                k =>
+                  runtime.unsafeRunAsync_(
+                    k.foldCauseM(
+                      _.failureOrCause match {
+                        case Left(None)    => output.offer(IO.fail(None)).unit
+                        case Left(Some(e)) => output.offer(IO.fail(Some(e))).unit
+                        case Right(cause)  => output.offer(IO.halt(cause)).unit
+                      },
+                      a => output.offer(UIO.succeed(a))
                     )
-                ).toManaged_
-            s <- ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
-          } yield s
-        }
+                  )
+              ).toManaged_
+          is <- ZManaged.succeed(output.take.flatten)
+        } yield is
     }
 
   /**
