@@ -1759,15 +1759,14 @@ object ZStream extends ZStreamPlatformSpecific {
     halt(Cause.fail(error))
 
   /**
-   * Creates a stream that emits no elements, never fails and executes
-   * the finalizer before it ends.
+   * Creates an empty stream that never fails and executes the finalizer before it ends.
    */
   final def finalizer[R](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
     new ZStream[R, Nothing, Nothing] {
-      def fold[R1 <: R, E1, A1, S]: ZStream.Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, _, _) =>
-          ZManaged.reserve(Reservation(UIO.succeed(s), _ => finalizer))
-        }
+      def fold[R1 <: R, E, A1, S]: Fold[R1, E, A1, S] = foldDefault
+
+      override def process: ZManaged[R, Nothing, InputStream[Nothing, Nothing]] =
+        ZManaged.succeed(IO.fail(None)).ensuring(finalizer)
     }
 
   /**
