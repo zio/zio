@@ -130,7 +130,7 @@ class RepeatSpec extends BaseCrossPlatformSpec {
     def cond: Int => Boolean = _ < 10
     for {
       ref <- Ref.make(0)
-      i   <- ref.update(_ + 1).repeat(Schedule.collectWhile(cond))
+      i   <- ref.update(_ + 1).repeat(Schedule.collectWhile(cond).immediately)
     } yield i must_=== List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
   }
 
@@ -138,7 +138,7 @@ class RepeatSpec extends BaseCrossPlatformSpec {
     def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
     for {
       ref <- Ref.make(0)
-      i   <- ref.update(_ + 1).repeat(Schedule.collectWhileM(cond))
+      i   <- ref.update(_ + 1).repeat(Schedule.collectWhileM(cond).immediately)
     } yield i must_=== List(1)
   }
 
@@ -146,7 +146,7 @@ class RepeatSpec extends BaseCrossPlatformSpec {
     def cond: Int => Boolean = _ < 10
     for {
       ref <- Ref.make(0)
-      i   <- ref.update(_ + 1).repeat(Schedule.collectUntil(cond))
+      i   <- ref.update(_ + 1).repeat(Schedule.collectUntil(cond).immediately)
     } yield i must_=== List(1)
   }
 
@@ -154,7 +154,7 @@ class RepeatSpec extends BaseCrossPlatformSpec {
     def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
     for {
       ref <- Ref.make(0)
-      i   <- ref.update(_ + 1).repeat(Schedule.collectUntilM(cond))
+      i   <- ref.update(_ + 1).repeat(Schedule.collectUntilM(cond).immediately)
     } yield i must_=== List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
   }
 

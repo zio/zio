@@ -21,7 +21,7 @@ import zio.clock.Clock
 import zio.duration.Duration
 
 /**
- * A `Reservation[-R, +E, +A]` encapsulates resource aquisition and disposal
+ * A `Reservation[-R, +E, +A]` encapsulates resource acquisition and disposal
  * without specifying when or how that resource might be used.
  *
  * See [[ZManaged#reserve]] and [[ZIO#reserve]] for details of usage.
@@ -168,11 +168,15 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   final def compose[R1, E1 >: E](that: ZManaged[R1, E1, R]): ZManaged[R1, E1, A] =
     self <<< that
 
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: => B): ZManaged[R, E, B] =
+    as(b)
+
   /**
    * Maps this effect to the specified constant while preserving the
    * effects of this effect.
    */
-  final def const[B](b: => B): ZManaged[R, E, B] =
+  final def as[B](b: => B): ZManaged[R, E, B] =
     map(_ => b)
 
   /**
@@ -224,11 +228,11 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
         Reservation(
           acquire = for {
             resR <- reserve
-                     .flatMap(res => finalizers.update(res.release :: _).const(res))
+                     .flatMap(res => finalizers.update(res.release :: _).as(res))
                      .uninterruptible
             r <- resR.acquire
             resR1 <- f0(r).reserve
-                      .flatMap(res => finalizers.update(res.release :: _).const(res))
+                      .flatMap(res => finalizers.update(res.release :: _).as(res))
                       .uninterruptible
             r1 <- resR1.acquire
           } yield r1,
@@ -301,19 +305,19 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
             val direct =
               ZIO.uninterruptibleMask { restore =>
                 reserve
-                  .flatMap(res => finalizers.update(res.release :: _).const(res))
+                  .flatMap(res => finalizers.update(res.release :: _).as(res))
                   .flatMap(res => restore(res.acquire))
               }
             val onFailure = (e: E) =>
               ZIO.uninterruptibleMask { restore =>
                 failure(e).reserve
-                  .flatMap(res => finalizers.update(res.release :: _).const(res))
+                  .flatMap(res => finalizers.update(res.release :: _).as(res))
                   .flatMap(res => restore(res.acquire))
               }
             val onSuccess = (a: A) =>
               ZIO.uninterruptibleMask { restore =>
                 success(a).reserve
-                  .flatMap(res => finalizers.update(res.release :: _).const(res))
+                  .flatMap(res => finalizers.update(res.release :: _).as(res))
                   .flatMap(res => restore(res.acquire))
               }
             direct.foldM(onFailure, onSuccess)
@@ -596,7 +600,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
                     )
                   )
                   .uninterruptible
-                cleanup.fork.const(None).uninterruptible
+                cleanup.fork.as(None).uninterruptible
             }
           )
       }
@@ -617,7 +621,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Return unit while running the effect
    */
   lazy final val unit: ZManaged[R, E, Unit] =
-    const(())
+    as(())
 
   /**
    * The inverse operation `ZManaged.sandboxed`
@@ -711,12 +715,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
           acquire = {
             val left = ZIO.uninterruptibleMask { restore =>
               reserve
-                .flatMap(res => finalizers.update(fs => res.release :: fs).const(res))
+                .flatMap(res => finalizers.update(fs => res.release :: fs).as(res))
                 .flatMap(res => restore(res.acquire))
             }
             val right = ZIO.uninterruptibleMask { restore =>
               that.reserve
-                .flatMap(res => finalizers.update(fs => res.release :: fs).const(res))
+                .flatMap(res => finalizers.update(fs => res.release :: fs).as(res))
                 .flatMap(res => restore(res.acquire))
             }
             left.zipWithPar(right)(f0)
@@ -1012,7 +1016,7 @@ object ZManaged {
               case (a, prom) =>
                 ZIO.uninterruptibleMask { restore =>
                   a.reserve
-                    .flatMap(res => finalizers.update(res.release :: _).const(res))
+                    .flatMap(res => finalizers.update(res.release :: _).as(res))
                     .flatMap(res => restore(res.acquire))
                 }.foldCauseM(
                   _.failureOrCause.fold(prom.fail, prom.halt),
@@ -1090,7 +1094,7 @@ object ZManaged {
               case (a, prom) =>
                 ZIO.uninterruptibleMask { restore =>
                   a.reserve
-                    .flatMap(res => finalizers.update(res.release :: _).const(res))
+                    .flatMap(res => finalizers.update(res.release :: _).as(res))
                     .flatMap(res => restore(res.acquire))
                 }.foldCauseM(
                   _.failureOrCause.fold(prom.fail, prom.halt),
@@ -1108,7 +1112,7 @@ object ZManaged {
                           }
                   zero = ZIO.uninterruptibleMask { restore =>
                     a1.reserve
-                      .flatMap(res => finalizers.update(res.release :: _).const(res))
+                      .flatMap(res => finalizers.update(res.release :: _).as(res))
                       .flatMap(res => restore(res.acquire))
                   }
                   result <- proms.foldLeft[ZIO[R, E, A]](zero) { (acc, a) =>

@@ -126,6 +126,16 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     zip(that)
 
   /**
+   * Creates a sink that always produces `c`
+   */
+  final def as[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
+
+  /**
+   * Replaces any error produced by this sink.
+   */
+  final def asError[E1](e1: E1): ZSink[R, E1, A0, A, B] = self.mapError(_ => e1)
+
+  /**
    * Takes a `Sink`, and lifts it to be chunked in its input. This
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
@@ -263,10 +273,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R1, E1, B] = self.extract(state)
     }
 
-  /**
-   * Creates a sink that always produces `c`
-   */
-  final def const[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
+  @deprecated("use as", "1.0.0")
+  final def const[C](c: => C): ZSink[R, E, A0, A, C] = as(c)
 
   /**
    * Creates a sink that transforms entering values with `f` and
@@ -679,6 +687,93 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
+   * Runs both sinks in parallel on the input and combines the results into a Tuple.
+   */
+  final def zipPar[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A2, A1, C]
+  ): ZSink[R1, E1, A2, A1, (B, C)] =
+    new ZSink[R1, E1, A2, A1, (B, C)] {
+      type State = (Either[B, self.State], Either[C, that.State])
+
+      override def extract(state: State): ZIO[R1, E1, (B, C)] = {
+        val b: ZIO[R, E, B]   = state._1.fold(ZIO.succeed, self.extract)
+        val c: ZIO[R1, E1, C] = state._2.fold(ZIO.succeed, that.extract)
+        b.zipPar(c)
+      }
+
+      override def initial: ZIO[R1, E1, Step[State, Nothing]] =
+        self.initial.flatMap { s1 =>
+          that.initial.flatMap { s2 =>
+            (Step.cont(s1), Step.cont(s2)) match {
+              case (false, false) =>
+                val zb = self.extract(Step.state(s1))
+                val zc = that.extract(Step.state(s2))
+                zb.zipWithPar(zc)((b, c) => Step.done((Left(b), Left(c)), Chunk.empty))
+
+              case (false, true) =>
+                val zb = self.extract(Step.state(s1))
+                zb.map(b => Step.more((Left(b), Right(Step.state(s2)))))
+
+              case (true, false) =>
+                val zc = that.extract(Step.state(s2))
+                zc.map(c => Step.more((Right(Step.state(s1)), Left(c))))
+
+              case (true, true) =>
+                ZIO.succeed(Step.more((Right(Step.state(s1)), Right(Step.state(s2)))))
+            }
+          }
+        }
+
+      override def step(state: State, a: A1): ZIO[R1, E1, Step[State, A2]] = {
+        val firstResult: ZIO[R, E, Either[(B, Option[Chunk[A2]]), self.State]] = state._1.fold(
+          b => ZIO.succeed(Left((b, None))),
+          s =>
+            self
+              .step(s, a)
+              .flatMap { (st: Step[ZSink.this.State, A0]) =>
+                if (Step.cont(st))
+                  ZIO.succeed(Right(Step.state(st)))
+                else
+                  self
+                    .extract(Step.state(st))
+                    .map(b => Left((b, Some(Step.leftover(st)))))
+              }
+        )
+
+        val secondResult: ZIO[R1, E1, Either[(C, Option[Chunk[A2]]), that.State]] = state._2.fold(
+          c => ZIO.succeed(Left((c, None))),
+          s =>
+            that
+              .step(s, a)
+              .flatMap { st =>
+                if (Step.cont(st))
+                  ZIO.succeed(Right(Step.state(st)))
+                else
+                  that
+                    .extract(Step.state(st))
+                    .map(c => {
+                      val leftover: Chunk[A2] = (Step.leftover(st))
+                      Left((c, Some(leftover)))
+                    })
+              }
+        )
+
+        firstResult.zipPar(secondResult).map {
+          case (Left((b, rem1)), Left((c, rem2))) =>
+            val minLeftover =
+              if (rem1.isEmpty && rem2.isEmpty) Chunk.empty else (rem1.toList ++ rem2.toList).minBy(_.length)
+            Step.done((Left(b), Left(c)), minLeftover)
+
+          case (Left((b, _)), Right(s2)) =>
+            Step.more((Left(b), Right(s2)))
+
+          case (r: Right[_, _], Left((c, _))) => Step.more((r.asInstanceOf[Either[B, self.State]], Left(c)))
+          case rights @ (Right(_), Right(_))  => Step.more(rights.asInstanceOf[State])
+        }
+      }
+    }
+
+  /**
    * Produces a sink consuming all the elements of type `A` as long as
    * they verify the predicate `pred`.
    */
@@ -698,7 +793,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Creates a sink that ignores all produced elements.
    */
-  final def unit: ZSink[R, E, A0, A, Unit] = const(())
+  final def unit: ZSink[R, E, A0, A, Unit] = as(())
 
   /**
    * Creates a sink that produces values until one verifies
@@ -889,6 +984,52 @@ object ZSink extends ZSinkPlatformSpecific {
    */
   final def collectAll[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
     fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
+
+  /**
+   * Creates a sink accumulating incoming values into a list of maximum size `n`.
+   */
+  def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
+    foldUntil[List[A], A](List.empty[A], n)((list, element) => element :: list).map(_.reverse)
+
+  /**
+   * Creates a sink accumulating incoming values into a set.
+   */
+  def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
+    fold[Nothing, A, Set[A]](Set.empty[A])((set, element) => Step.more(set + element))
+
+  /**
+   * Creates a sink accumulating incoming values into a set of maximum size `n`.
+   */
+  def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] = {
+    def f(set: Set[A], element: A): ZSink.Step[Set[A], A] = {
+      val newSet = set + element
+      if (newSet.size > n) Step.done(set, Chunk.single(element))
+      else if (newSet.size == n) Step.done[Set[A], A](newSet, Chunk.empty)
+      else Step.more(newSet)
+    }
+    fold[A, A, Set[A]](Set.empty[A])(f)
+  }
+
+  /**
+   * Creates a sink accumulating incoming values into a map.
+   * Key of each element is determined by supplied function.
+   */
+  def collectAllToMap[K, A](key: A => K): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
+    fold[Nothing, A, Map[K, A]](Map.empty[K, A])((map, element) => Step.more(map + (key(element) -> element)))
+
+  /**
+   * Creates a sink accumulating incoming values into a map of maximum size `n`.
+   * Key of each element is determined by supplied function.
+   */
+  def collectAllToMapN[K, A](n: Long)(key: A => K): ZSink[Any, Nothing, A, A, Map[K, A]] = {
+    def f(map: Map[K, A], element: A): ZSink.Step[Map[K, A], A] = {
+      val newMap = map + (key(element) -> element)
+      if (newMap.size > n) Step.done(map, Chunk.single(element))
+      else if (newMap.size == n) Step.done[Map[K, A], A](newMap, Chunk.empty)
+      else Step.more(newMap)
+    }
+    fold[A, A, Map[K, A]](Map.empty[K, A])(f)
+  }
 
   /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
@@ -1288,4 +1429,80 @@ object ZSink extends ZSinkPlatformSpecific {
 
     ZManaged.fromEffect(sink)
   }
+
+  /**
+   * Decodes individual bytes into a String using UTF-8. Up to `bufferSize` bytes
+   * will be buffered by the sink.
+   *
+   * This sink uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): ZSink[Any, Nothing, Byte, Byte, String] =
+    foldUntil(List[Byte](), bufferSize.toLong)((chunk, byte: Byte) => byte :: chunk).mapM { bytes =>
+      val chunk = Chunk.fromIterable(bytes.reverse)
+
+      for {
+        init   <- utf8DecodeChunk.initial.map(Step.state(_))
+        state  <- utf8DecodeChunk.step(init, chunk)
+        string <- utf8DecodeChunk.extract(Step.state(state))
+      } yield string
+    }
+
+  /**
+   * Decodes chunks of bytes into a String.
+   *
+   * This sink uses the String constructor's behavior when handling malformed byte
+   * sequences.
+   */
+  val utf8DecodeChunk: ZSink[Any, Nothing, Chunk[Byte], Chunk[Byte], String] =
+    new SinkPure[Nothing, Chunk[Byte], Chunk[Byte], String] {
+      type State = (String, Chunk[Byte])
+
+      override def initialPure: Step[State, Nothing] = Step.more(("", Chunk.empty))
+
+      def is2ByteSequenceStart(b: Byte) = (b & 0xE0) == 0xC0
+      def is3ByteSequenceStart(b: Byte) = (b & 0xF0) == 0xE0
+      def is4ByteSequenceStart(b: Byte) = (b & 0xF8) == 0xF0
+
+      def computeSplit(chunk: Chunk[Byte]) = {
+        // There are 3 bad patterns we need to check to detect an incomplete chunk:
+        // - 2/3/4 byte sequences that start on the last byte
+        // - 3/4 byte sequences that start on the second-to-last byte
+        // - 4 byte sequences that start on the third-to-last byte
+        //
+        // Otherwise, we can convert the entire concatenated chunk to a string.
+        val len = chunk.length
+
+        if (len >= 1 &&
+            (is2ByteSequenceStart(chunk(len - 1)) ||
+            is3ByteSequenceStart(chunk(len - 1)) ||
+            is4ByteSequenceStart(chunk(len - 1))))
+          len - 1
+        else if (len >= 2 &&
+                 (is3ByteSequenceStart(chunk(len - 2)) ||
+                 is4ByteSequenceStart(chunk(len - 2))))
+          len - 2
+        else if (len >= 3 && is4ByteSequenceStart(chunk(len - 3)))
+          len - 3
+        else len
+      }
+
+      override def stepPure(s: State, a: Chunk[Byte]): Step[State, Chunk[Byte]] =
+        if (a.length == 0) Step.done(s, Chunk.empty)
+        else {
+          val (accumulatedString, prevLeftovers) = s
+          val concat                             = prevLeftovers ++ a
+          val (toConvert, leftovers)             = concat.splitAt(computeSplit(concat))
+
+          if (toConvert.length == 0) Step.more((accumulatedString, leftovers))
+          else
+            Step.done(
+              (accumulatedString ++ new String(toConvert.toArray[Byte], "UTF-8"), Chunk.empty),
+              Chunk.single(leftovers)
+            )
+        }
+
+      override def extractPure(s: State): Either[Nothing, String] =
+        Right(s._1)
+    }
 }

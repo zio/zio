@@ -44,6 +44,12 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
     ZStreamChunk(chunks ++ that.chunks)
 
   /**
+   * Collects a filtered, mapped subset of the stream.
+   */
+  final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
+    ZStreamChunk(self.chunks.map(chunk => chunk.collect(p)))
+
+  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
@@ -119,7 +125,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * Consumes all elements of the stream, passing them to the specified callback.
    */
   final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
-    foreachWhile[R1, E1](f(_).const(true))
+    foreachWhile[R1, E1](f(_).as(true))
 
   /**
    * Consumes elements of the stream, passing them to the specified callback,

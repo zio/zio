@@ -249,13 +249,8 @@ private[zio] final class FiberContext[E, A](
           if (tag == ZIO.Tags.Fail || !shouldInterrupt) {
             // Fiber does not need to be interrupted, but might need to yield:
             if (opcount == maxopcount) {
-              // Cannot capture `curZio` since it will be boxed into `ObjectRef`,
-              // which destroys performance. So put `curZio` into a temp val:
-              val tmpIo = curZio
-
-              curZio = ZIO.yieldNow *> tmpIo
-
-              opcount = 0
+              evaluateLater(curZio)
+              curZio = null
             } else {
               // Fiber is neither being interrupted nor needs to yield. Execute
               // the next instruction in the program:
@@ -483,8 +478,19 @@ private[zio] final class FiberContext[E, A](
                   )
                   curZio = push.bracket_(pop, zio.next)
 
-                case ZIO.Tags.SuspendWith =>
-                  val zio = curZio.asInstanceOf[ZIO.SuspendWith[Any, E, Any]]
+                case ZIO.Tags.EffectSuspendPartialWith =>
+                  val zio = curZio.asInstanceOf[ZIO.EffectSuspendPartialWith[Any, Any]]
+
+                  val k = zio.f
+                  if (traceExec && inTracingRegion) addTrace(k)
+
+                  curZio = try k(platform).asInstanceOf[ZIO[Any, E, Any]]
+                  catch {
+                    case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
+                  }
+
+                case ZIO.Tags.EffectSuspendTotalWith =>
+                  val zio = curZio.asInstanceOf[ZIO.EffectSuspendTotalWith[Any, E, Any]]
 
                   val k = zio.f
                   if (traceExec && inTracingRegion) addTrace(k)
@@ -616,7 +622,7 @@ private[zio] final class FiberContext[E, A](
 
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
-  final def inheritFiberRefs: UIO[Unit] = UIO.suspend {
+  final def inheritFiberRefs: UIO[Unit] = UIO.effectSuspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
