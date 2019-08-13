@@ -1213,10 +1213,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   private final def processDefault: ZManaged[R, E, InputStream[E, A]] =
-    for {
-      queue <- Queue.bounded[Take[E, A]](1).toManaged(_.shutdown)
-      _     <- self.intoManaged(queue).fork
-    } yield queue.take.flatMap {
+    toQueue(1).map(_.take.flatMap {
       case Take.Value(a) => UIO.succeed(a)
       case Take.Fail(c) =>
         c.failureOrCause match {
@@ -1224,7 +1221,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           case Right(cause) => UIO.halt(cause)
         }
       case Take.End => IO.fail(None)
-    }
+    })
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
