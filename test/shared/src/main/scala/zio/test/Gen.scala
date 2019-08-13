@@ -42,12 +42,12 @@ object Gen {
   /**
    * A constant generator of the specified value.
    */
-  final def const[A](a: => A): Gen[Any, A] = Gen(ZStream.succeedLazy(Sample.noShrink(a)))
+  final def const[A](a: => A): Gen[Any, A] = Gen(ZStream.succeed(Sample.noShrink(a)))
 
   /**
    * A constant generator of the specified sample.
    */
-  final def constSample[R, A](sample: => Sample[R, A]): Gen[R, A] = fromEffectSample(ZIO.succeedLazy(sample))
+  final def constSample[R, A](sample: => Sample[R, A]): Gen[R, A] = fromEffectSample(ZIO.succeed(sample))
 
   /**
    * Constructs a generator from an effect that constructs a value.

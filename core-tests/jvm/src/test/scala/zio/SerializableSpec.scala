@@ -71,7 +71,7 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
 
   def e5 = {
     val list = List("1", "2", "3")
-    val io   = IO.succeedLazy(list)
+    val io   = IO.succeed(list)
     unsafeRun(
       for {
         returnIO <- serializeAndBack(io)
