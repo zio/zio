@@ -727,17 +727,16 @@ object ZSchedule {
    */
   final def succeed[A](a: A): Schedule[Any, A] = forever.as(a)
 
-  /**
-   * A schedule that recurs forever, returning the constant for every output (by-name version).
-   */
-  final def succeedLazy[A](a: => A): Schedule[Any, A] = forever.as(a)
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[A](a: => A): Schedule[Any, A] =
+    succeed(a)
 
   /**
    * A schedule that always recurs without delay, and computes the output
    * through recured application of a function to a base value.
    */
   final def unfold[A](a: => A)(f: A => A): Schedule[Any, A] =
-    unfoldM(IO.succeedLazy(a))(f.andThen(IO.succeedLazy[A](_)))
+    unfoldM(IO.succeed(a))(f.andThen(IO.succeed[A](_)))
 
   /**
    * A schedule that always recurs without delay, and computes the output

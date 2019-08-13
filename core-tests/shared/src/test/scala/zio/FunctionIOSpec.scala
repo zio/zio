@@ -60,8 +60,8 @@ class FunctionIOSpec extends BaseCrossPlatformSpec {
   def e5 =
     unsafeRun(
       for {
-        v <- succeedLazy(1)
-              .zipWith[Nothing, Int, Int, Int](succeedLazy(2))((a, b) => a + b)
+        v <- succeed(1)
+              .zipWith[Nothing, Int, Int, Int](succeed(2))((a, b) => a + b)
               .run(1)
       } yield v must_=== 3
     )
@@ -99,7 +99,7 @@ class FunctionIOSpec extends BaseCrossPlatformSpec {
     unsafeRun(
       for {
         v1 <- fromFunction[Int, Int](_ * 2).left[Int].run(Left(6))
-        v2 <- succeedLazy(1).left[String].run(Right("hi"))
+        v2 <- succeed(1).left[String].run(Right("hi"))
       } yield (v1 must beLeft(12)) and (v2 must beRight("hi"))
     )
 
@@ -129,11 +129,11 @@ class FunctionIOSpec extends BaseCrossPlatformSpec {
   def e14a =
     unsafeRun(
       for {
-        v1 <- ifThenElse(fromFunction[Int, Boolean](_ > 0))(succeedLazy("is positive"))(
-               succeedLazy("is negative")
+        v1 <- ifThenElse(fromFunction[Int, Boolean](_ > 0))(succeed("is positive"))(
+               succeed("is negative")
              ).run(-1)
-        v2 <- ifThenElse(fromFunction[Int, Boolean](_ > 0))(succeedLazy("is positive"))(
-               succeedLazy("is negative")
+        v2 <- ifThenElse(fromFunction[Int, Boolean](_ > 0))(succeed("is positive"))(
+               succeed("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
     )
@@ -141,11 +141,11 @@ class FunctionIOSpec extends BaseCrossPlatformSpec {
   def e14b =
     unsafeRun(
       for {
-        v1 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
-               succeedLazy("is negative")
+        v1 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeed("is positive"))(
+               succeed("is negative")
              ).run(-1)
-        v2 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
-               succeedLazy("is negative")
+        v2 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeed("is positive"))(
+               succeed("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
     )

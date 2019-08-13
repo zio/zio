@@ -20,7 +20,8 @@ import zio.{ Fiber, IO, Task, UIO }
 
 object IOSyntax {
   final class IOCreationLazySyntax[A](val a: () => A) extends AnyVal {
-    def succeedLazy: UIO[A] = IO.succeedLazy(a())
+    @deprecated("use effectTotal", "1.0.0")
+    def succeedLazy: UIO[A] = IO.effectTotal(a())
     def defer: UIO[A]       = IO.effectTotal(a())
     def sync: Task[A]       = Task.effect(a())
   }
