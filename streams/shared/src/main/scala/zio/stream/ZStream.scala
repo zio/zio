@@ -1790,9 +1790,14 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
     new Stream[Nothing, A] {
-      def fold[R1, E1, A1 >: A, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          ZManaged.fromEffect(c.foldMLazy(s)(cont)(f))
+      def fold[R, E, A1 >: A, S]: Fold[R, E, A1, S] = foldDefault
+
+      override def process: Managed[Nothing, InputStream[Nothing, A]] =
+        for {
+          ref <- Ref.make(c).toManaged_
+        } yield ref.get.flatMap { chunk =>
+          if (chunk.isEmpty) IO.fail(None)
+          else ref.set(chunk.drop(1)) *> UIO.succeed(chunk(0))
         }
     }
 
