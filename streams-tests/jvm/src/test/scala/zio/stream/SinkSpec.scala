@@ -41,10 +41,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     collectAll
       happy path    $collectAllHappyPath
       init error    $collectAllInitError
+      step error    $collectAllStepError
       extract error $collectAllExtractError
 
     collectAllWhile
       happy path      $collectAllWhileHappyPath
+      false predicate $collectAllWhileFalsePredicate
       init error      $collectAllWhileInitError
       step error      $collectAllWhileStepError
       extract error   $collectAllWhileExtractError
@@ -368,6 +370,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
+  private def collectAllStepError = {
+    val sink = stepErrorSink.collectAll
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
   private def collectAllExtractError = {
     val sink = extractErrorSink.collectAll
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
@@ -376,6 +383,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def collectAllWhileHappyPath = {
     val sink = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 10)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
+  }
+
+  private def collectAllWhileFalsePredicate = {
+    val errorMsg = "No elements have been consumed by the sink"
+    val sink     = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 0).mapError(_ => errorMsg)
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(errorMsg)))
   }
 
   private def collectAllWhileInitError = {
