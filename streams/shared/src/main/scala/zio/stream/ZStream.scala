@@ -37,7 +37,14 @@ import zio.duration.Duration
  *
  */
 trait ZStream[-R, +E, +A] extends Serializable { self =>
-  import ZStream.Fold
+  import ZStream.{ Fold, InputStream }
+
+  /**
+   * Obtain a managed input stream that can be used to read from the stream until it is
+   * empty (or possibly forever, if the stream is infinite). The provided `InputStream`
+   * is valid only inside the scope of the managed resource.
+   */
+  def process: ZManaged[R, E, InputStream[E, A]] = processDefault
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -811,6 +818,21 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
     }
 
+  final def foldDefault[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+    ZManaged.succeedLazy { (s, cont, f) =>
+      process.flatMap { is =>
+        def loop(s1: S): ZIO[R1, E1, S] =
+          if (!cont(s1)) UIO.succeed(s1)
+          else
+            is.foldM({
+              case Some(e) => IO.fail(e)
+              case None    => IO.succeed(s1)
+            }, a => f(s1, a).flatMap(loop))
+
+        ZManaged.fromEffect(loop(s))
+      }
+    }
+
   /**
    * Reduces the elements in the stream to a value of type `S`
    */
@@ -1205,6 +1227,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       }
   }
 
+  private final def processDefault: ZManaged[R, E, InputStream[E, A]] =
+    toQueue(1).map(_.take.flatMap {
+      case Take.Value(a) => UIO.succeed(a)
+      case Take.Fail(c) =>
+        c.failureOrCause match {
+          case Left(e)      => IO.fail(Some(e))
+          case Right(cause) => UIO.halt(cause)
+        }
+      case Take.End => IO.fail(None)
+    })
+
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
@@ -1518,6 +1551,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 }
 
 object ZStream extends ZStreamPlatformSpecific {
+
+  /**
+   * Describes an effectful read from a stream. The optionality of the error channel denotes
+   * normal termination of the stream when `None` and an error when `Some(e: E)`.
+   */
+  type InputStream[+E, +A] = IO[Option[E], A]
 
   /**
    * Describes an effectful fold over the elements of the stream. Conceptually it is an effectful state
