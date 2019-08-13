@@ -818,6 +818,21 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
     }
 
+  final def foldDefault[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+    ZManaged.succeedLazy { (s, cont, f) =>
+      process.flatMap { is =>
+        def loop(s1: S): ZIO[R1, E1, S] =
+          if (!cont(s1)) UIO.succeed(s1)
+          else
+            is.foldM({
+              case Some(e) => IO.fail(e)
+              case None    => IO.succeed(s1)
+            }, a => f(s1, a).flatMap(loop))
+
+        ZManaged.fromEffect(loop(s))
+      }
+    }
+
   /**
    * Reduces the elements in the stream to a value of type `S`
    */

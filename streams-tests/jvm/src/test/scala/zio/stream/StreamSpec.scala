@@ -23,6 +23,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.process
     run collect $processRunCollect
 
+  Stream.foldDefault
+    run collect $foldDefaultRunCollect
+
   Stream.aggregate
     aggregate                            $aggregate
     error propagation                    $aggregateErrorPropagation1
@@ -226,6 +229,16 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         res <- Stream(1, 2, 3, 4).process.use(loop(_, ref))
       } yield res must_=== List(1, 2, 3, 4)
     }
+  }
+
+  def foldDefaultRunCollect = unsafeRun {
+    Stream(1, 2, 3, 4)
+      .foldDefault[Any, Nothing, Int, List[Int]]
+      .flatMap { fold =>
+        fold(Nil, _ => true, (l, a) => UIO.succeed(a :: l))
+      }
+      .use[Any, Nothing, List[Int]](l => UIO.succeed(l.reverse))
+      .map(_ must_=== List(1, 2, 3, 4))
   }
 
   def aggregate = unsafeRun {
