@@ -41,6 +41,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     collectAll
       happy path    $collectAllHappyPath
       init error    $collectAllInitError
+      step error    $collectAllStepError
       extract error $collectAllExtractError
 
     collectAllWhile
@@ -365,6 +366,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def collectAllInitError = {
     val sink = initErrorSink.collectAll
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def collectAllStepError = {
+    val sink = stepErrorSink.collectAll
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
