@@ -1587,11 +1587,10 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final val never: Stream[Nothing, Nothing] =
     new Stream[Nothing, Nothing] {
-      def fold[R1, E1, A1, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, _) =>
-          if (!cont(s)) ZManaged.succeed(s)
-          else ZManaged.never
-        }
+      def fold[R, E, A, S]: Fold[R, E, A, S] = foldDefault
+
+      override def process: Managed[Nothing, InputStream[Nothing, Nothing]] =
+        ZManaged.succeed(UIO.never)
     }
 
   /**
