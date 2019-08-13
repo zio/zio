@@ -220,7 +220,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   """
 
   def processRunCollect = {
-    def loop[E, A](effect: IO[_, A], ref: Ref[List[A]]): IO[Nothing, List[A]] =
+    def loop[E, A](effect: IO[_, A], ref: Ref[List[A]]): UIO[List[A]] =
       effect.flatMap(a => ref.update(a :: _)).forever.catchAll(_ => ref.get).map(_.reverse)
 
     unsafeRun {
