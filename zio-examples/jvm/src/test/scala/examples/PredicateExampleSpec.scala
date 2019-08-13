@@ -1,6 +1,7 @@
 package examples
 
 import examples.PredicateSuites._
+import zio.test.Predicate._
 import zio.test.{ test, _ }
 
 private object PredicateSuites {
@@ -19,40 +20,40 @@ private object PredicateSuites {
       assert(25 / 5, Predicate.equals(5))
     },
     test("EQ operation") {
-      assert(1 == 1, Predicate.isTrue)
+      assert(1 == 1, isTrue)
     },
     test("GT operation") {
-      assert(10, Predicate.isGreaterThan(11))
+      assert(10, isGreaterThan(11))
     },
     test("GT or EQ operation") {
-      assert(10, Predicate.isGreaterThanEqual(10))
+      assert(10, isGreaterThanEqual(10))
     },
     test("LT operation") {
-      assert(5, Predicate.isLessThan(4))
+      assert(5, isLessThan(4))
     },
     test("LT or EQ operation") {
-      assert(5, Predicate.isLessThanEqual(5))
+      assert(5, isLessThanEqual(5))
     },
     test("`Between` operation") {
-      assert(5, Predicate.isWithin(0, 10))
+      assert(5, isWithin(0, 10))
     }
   )
 
   val listSuite = suite("Iterable")(
     test("Iterable contains element") {
-      assert(List(1, 2, 3), Predicate.contains(1))
+      assert(List(1, 2, 3), contains(1))
     },
     test("Iterable exists element") {
-      assert(List('z', 'i', 'o'), Predicate.exists(Predicate.equals('o')))
+      assert(List('z', 'i', 'o'), exists(Predicate.equals('o')))
     },
     test("Iterable forall elements") {
       assert(
         List("zio", "zmanaged", "zstream", "ztrace", "zschedule").map(_.head),
-        Predicate.forall(Predicate.equals('z'))
+        forall(Predicate.equals('z'))
       )
     },
     test("Iterable size") {
-      assert(List(1, 2, 3, 4, 5), Predicate.hasSize(Predicate.equals(5)))
+      assert(List(1, 2, 3, 4, 5), hasSize(Predicate.equals(5)))
     }
   )
 
@@ -73,32 +74,32 @@ private object PredicateSuites {
       assert(user, emailPredicate)
     },
     test("User not exists") {
-      assert(Option.empty[User], Predicate.isNone)
+      assert(Option.empty[User], isNone)
     },
     test("User exists and have a name") {
-      assert(Some(user), Predicate.isSome(emailPredicate))
+      assert(Some(user), isSome(emailPredicate))
     },
     test("Either is left") {
-      assert(Left("Failure"), Predicate.isLeft(Predicate.equals("Failure")))
+      assert(Left("Failure"), isLeft(Predicate.equals("Failure")))
     },
     test("Either is right") {
-      assert(Right("Success"), Predicate.isRight(Predicate.equals("Success")))
+      assert(Right("Success"), isRight(Predicate.equals("Success")))
     },
     test("Blue is a Color") {
-      assert(Blue, Predicate.isSubtype[Color](Predicate.equals(Blue)))
+      assert(Blue, isSubtype[Color](Predicate.equals(Blue)))
     },
     test("Color is not green") {
-      assert(Red, Predicate.isSubtype[Color](Predicate.not(Predicate.equals(Green))))
+      assert(Red, isSubtype[Color](Predicate.not(Predicate.equals(Green))))
     },
     test("Option content is `zio` ") {
-      val predicate: Predicate[Some[String]] = Predicate.isCase("Some", Some.unapply, Predicate.equals("zio"))
+      val predicate: Predicate[Some[String]] = isCase("Some", Some.unapply, Predicate.equals("zio"))
       assert(Some("zio"), predicate)
     }
   )
 
   val customPredicatesSuite = suite("Custom predicates")(
     test("String is not empty predicate") {
-      def nonEmptyString = Predicate.predicate[String]("String is not empty") { a =>
+      def nonEmptyString = predicate[String]("String is not empty") { a =>
         if (!a.isEmpty)
           Assertion.success
         else
@@ -109,7 +110,7 @@ private object PredicateSuites {
     },
     test("String is empty predicate (direct)") {
 
-      def emptyString = Predicate.predicate[String]("String is empty") { a =>
+      def emptyString = predicate[String]("String is empty") { a =>
         if (a.isEmpty)
           Assertion.success
         else
@@ -128,14 +129,14 @@ private object PredicateSuites {
   val compositionSuite = suite("Predicates composition")(
     test("List contains an element and have a defined size") {
 
-      val composition = Predicate.contains(1) && Predicate.hasSize(Predicate.equals(5))
+      val composition = contains(1) && hasSize(Predicate.equals(5))
 
       assert(List(1, 2, 3, 4, 5), composition)
 
     },
     test("All elements are Green or the list is empty") {
 
-      val composition = Predicate.forall(Predicate.isSome(Predicate.equals(Green))) || Predicate.hasSize(
+      val composition = forall(isSome(Predicate.equals(Green))) || hasSize(
         Predicate.equals(0)
       )
 
