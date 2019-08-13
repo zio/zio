@@ -8,6 +8,8 @@ import zio.clock.Clock
 import zio.duration._
 import zio.test.mock.MockClock
 import java.util.concurrent.TimeUnit
+import org.specs2.matcher.MatchResult
+import org.specs2.matcher.describe.Diffable
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -18,6 +20,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "SinkSpec".title ^ s2"""
   Combinators
+    as
+      happy path    $asHappyPath
+      init error    $asInitError
+      step error    $asStepError
+      extract error $asExtractError
+
+    asError
+      init error    $asErrorInitError
+      step error    $asErrorStepError
+      extract error $asErrorExtractError
+
     chunked
       happy path    $chunkedHappyPath
       empty         $chunkedEmpty
@@ -47,12 +60,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       init error    $contramapMInitError
       step error    $contramapMStepError
       extract error $contramapMExtractError
-    
-    const
-      happy path    $constHappyPath
-      init error    $constInitError
-      step error    $constStepError
-      extract error $constExtractError
 
     dimap
       happy path    $dimapHappyPath
@@ -167,6 +174,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     zipLeft (<*)
       happy path $zipLeftHappyPath
 
+    zipPar
+       happy path 1 $zipParHappyPathBothDone
+       happy path 2 $zipParHappyPathOneNonterm
+       happy path 3 $zipParHappyPathBothNonterm
+       extract error $zipParErrorExtract
+       step error $zipParErrorStep
+       init error $zipParErrorInit
+       both error $zipParErrorBoth
+       remainder corner case 1 $zipParRemainderWhenCompleteSeparately
+       remainder corner case 2 $zipParRemainderWhenCompleteTogether
+
     zipRight (*>)
       happy path $zipRightHappyPath
 
@@ -175,12 +193,22 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   Constructors
     foldLeft $foldLeft
-    
+
     fold             $fold
       short circuits $foldShortCircuits
 
     foldM            $foldM
       short circuits $foldMShortCircuits
+
+    collectAllN $collectAllN
+
+    collectAllToSet $collectAllToSet
+
+    collectAllToSetN $collectAllToSetN
+
+    collectAllToMap $collectAllToMap
+
+    collectAllToMapN $collectAllToMapN
 
     collectAllWhile $collectAllWhile
 
@@ -202,6 +230,15 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     throttleShape        $throttleShape
       infinite bandwidth $throttleShapeInfiniteBandwidth
       with burst         $throttleShapeWithBurst
+
+    utf8Decode $utf8Decode
+
+    utf8DecodeChunk
+      regular strings     $utf8DecodeChunk
+      incomplete chunk 1  $utf8DecodeChunkIncomplete1
+      incomplete chunk 2  $utf8DecodeChunkIncomplete2
+      incomplete chunk 3  $utf8DecodeChunkIncomplete3
+      chunk with leftover $utf8DecodeChunkWithLeftover
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -229,12 +266,72 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     def extract(state: State)      = IO.fail("Ouch")
   }
 
+  /** Searches for the `target` element in the stream.
+   * When met - accumulates next `accumulateAfterMet` elements and returns as `leftover`
+   * If `target` is not met - returns `default` with empty `leftover`
+   */
+  private def sinkWithLeftover[A](target: A, accumulateAfterMet: Int, default: A) = new ZSink[Any, String, A, A, A] {
+    override type State = Option[List[A]]
+
+    override def extract(state: Option[List[A]]): ZIO[Any, String, A] =
+      UIO.succeed(if (state.isEmpty) default else target)
+
+    override def initial: ZIO[Any, String, Step[Option[List[A]], Nothing]] = UIO.succeed(Step.more(None))
+
+    override def step(state: Option[List[A]], a: A): ZIO[Any, String, Step[Option[List[A]], A]] =
+      state match {
+        case None =>
+          val st = if (a == target) Some(Nil) else None
+          UIO.succeed(Step.more(st))
+        case Some(acc) =>
+          if (acc.length >= accumulateAfterMet)
+            UIO.succeed(Step.done(state, Chunk.fromIterable(acc)))
+          else
+            UIO.succeed(Step.more(Some(acc :+ a)))
+      }
+  }
+
   private def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], a: A) =
     for {
       init   <- sink.initial
       step   <- sink.step(Step.state(init), a)
       result <- sink.extract(Step.state(step))
     } yield result
+
+  private def asHappyPath = {
+    val sink = ZSink.identity[Int].as("const")
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== "const"))
+  }
+
+  private def asInitError = {
+    val sink = initErrorSink.as("const")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def asStepError = {
+    val sink = stepErrorSink.as("const")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def asErrorInitError = {
+    val sink = initErrorSink.asError("Error")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Error")))
+  }
+
+  private def asErrorStepError = {
+    val sink = stepErrorSink.asError("Error")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Error")))
+  }
+
+  private def asErrorExtractError = {
+    val sink = extractErrorSink.asError("Error")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Error")))
+  }
+
+  private def asExtractError = {
+    val sink = extractErrorSink.as("const")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
 
   private def chunkedHappyPath = {
     val sink = ZSink.collectAll[Int].chunked
@@ -334,26 +431,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def contramapMExtractError = {
     val sink = extractErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
     unsafeRun(sinkIteration(sink, "1").either.map(_ must_=== Left("Ouch")))
-  }
-
-  private def constHappyPath = {
-    val sink = ZSink.identity[Int].const("const")
-    unsafeRun(sinkIteration(sink, 1).map(_ must_=== "const"))
-  }
-
-  private def constInitError = {
-    val sink = initErrorSink.const("const")
-    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
-  }
-
-  private def constStepError = {
-    val sink = stepErrorSink.const("const")
-    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
-  }
-
-  private def constExtractError = {
-    val sink = extractErrorSink.const("const")
-    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def dimapHappyPath = {
@@ -771,6 +848,116 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== "1Hello"))
   }
 
+  private object ZipParLaws {
+    def coherence[A, B: Diffable, C: Diffable](
+      s: Stream[String, A],
+      sink1: ZSink[Any, String, A, A, B],
+      sink2: ZSink[Any, String, A, A, C]
+    ): MatchResult[Either[String, Any]] =
+      unsafeRun {
+        for {
+          zb  <- s.run(sink1).either
+          zc  <- s.run(sink2).either
+          zbc <- s.run(sink1.zipPar(sink2)).either
+        } yield {
+          zbc match {
+            case Left(e)       => (zb must beLeft(e)) or (zc must beLeft(e))
+            case Right((b, c)) => (zb must beRight(b)) and (zc must beRight(c))
+          }
+        }
+      }
+
+    def swap[A, B: Diffable, C: Diffable](
+      s: Stream[String, A],
+      sink1: ZSink[Any, String, A, A, B],
+      sink2: ZSink[Any, String, A, A, C]
+    ) =
+      unsafeRun {
+        for {
+          res     <- s.run(sink1.zipPar(sink2).zip(ZSink.collectAll[A])).either
+          swapped <- s.run(sink2.zipPar(sink1).zip(ZSink.collectAll[A])).either
+        } yield {
+          swapped must_=== res.map {
+            case ((b, c), rem) => ((c, b), rem)
+          }
+        }
+      }
+
+    def remainders[A, B: Diffable, C: Diffable](
+      s: Stream[String, A],
+      sink1: ZSink[Any, String, A, A, B],
+      sink2: ZSink[Any, String, A, A, C]
+    ): MatchResult[AnyVal] =
+      unsafeRun {
+        val maybeProp = for {
+          rem1 <- s.run(sink1.zipRight(ZSink.collectAll[A]))
+          rem2 <- s.run(sink2.zipRight(ZSink.collectAll[A]))
+          rem  <- s.run(sink1.zipPar(sink2).zipRight(ZSink.collectAll[A]))
+        } yield {
+          val (longer, shorter) = if (rem1.length <= rem2.length) (rem2, rem1) else (rem1, rem2)
+          longer must_=== rem
+          rem.endsWith(shorter) must_=== true
+        }
+        //irrelevant if an error occurred
+        maybeProp.catchAll(_ => UIO.succeed(1 must_=== 1))
+      }
+
+    def laws[A, B: Diffable, C: Diffable](
+      s: Stream[String, A],
+      sink1: ZSink[Any, String, A, A, B],
+      sink2: ZSink[Any, String, A, A, C]
+    ): MatchResult[Any] =
+      coherence(s, sink1, sink2) and remainders(s, sink1, sink2) and swap(s, sink1, sink2)
+  }
+
+  private def zipParHappyPathBothDone = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    val sink2 = ZSink.collectAllWhile[Int](_ < 3)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
+  private def zipParHappyPathOneNonterm = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    val sink2 = ZSink.collectAllWhile[Int](_ < 30)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
+  private def zipParHappyPathBothNonterm = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 50)
+    val sink2 = ZSink.collectAllWhile[Int](_ < 30)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
+  private def zipParErrorExtract = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, extractErrorSink)
+  }
+
+  private def zipParErrorStep = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, stepErrorSink)
+  }
+
+  private def zipParErrorInit = {
+    val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, initErrorSink)
+  }
+
+  private def zipParErrorBoth =
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), stepErrorSink, initErrorSink)
+
+  private def zipParRemainderWhenCompleteTogether = {
+    val sink1 = sinkWithLeftover(2, 3, -42)
+    val sink2 = sinkWithLeftover(2, 4, -42)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
+  private def zipParRemainderWhenCompleteSeparately = {
+    val sink1 = sinkWithLeftover(3, 1, -42)
+    val sink2 = sinkWithLeftover(2, 4, -42)
+    ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
+  }
+
   private def foldLeft =
     prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
       unsafeRunSync(s.run(ZSink.foldLeft(z)(f))) must_=== slurp(s).map(_.foldLeft(z)(f))
@@ -855,6 +1042,36 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
       listResult.succeeded ==> (sinkResult must_=== listResult)
     }
+
+  private def collectAllN = unsafeRun {
+    Stream[Int](1, 2, 3)
+      .run(Sink.collectAllN[Int](2))
+      .map(_ must_=== List(1, 2))
+  }
+
+  private def collectAllToSet = unsafeRun {
+    Stream[Int](1, 2, 3, 3, 4)
+      .run(Sink.collectAllToSet[Int])
+      .map(_ must_=== Set(1, 2, 3, 4))
+  }
+
+  private def collectAllToSetN = unsafeRun {
+    Stream[Int](1, 2, 1, 2, 3, 3, 4)
+      .run(Sink.collectAllToSetN[Int](3))
+      .map(_ must_=== Set(1, 2, 3))
+  }
+
+  private def collectAllToMap = unsafeRun {
+    Stream[Int](1, 2, 3)
+      .run(Sink.collectAllToMap[Int, Int](value => value))
+      .map(_ must_=== Map[Int, Int](1 -> 1, 2 -> 2, 3 -> 3))
+  }
+
+  private def collectAllToMapN = unsafeRun {
+    Stream[Int](1, 2, 3, 4, 5, 6)
+      .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 2))
+      .map(_ must_=== Map[Int, Int](1 -> 1, 0 -> 2))
+  }
 
   private def foldWeighted = unsafeRun {
     Stream[Long](1, 5, 2, 3)
@@ -985,7 +1202,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         step1 <- sink.step(Step.state(init1), 1)
         res1  <- sink.extract(Step.state(step1))
         init2 <- sink.initial
-        _     <- clock.sleep(23.milliseconds)
+        _     <- MockClock.adjust(23.milliseconds)
         step2 <- sink.step(Step.state(init2), 2)
         res2  <- sink.extract(Step.state(step2))
         init3 <- sink.initial
@@ -994,7 +1211,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         init4 <- sink.initial
         step4 <- sink.step(Step.state(init4), 4)
         res4  <- sink.extract(Step.state(step4))
-        _     <- clock.sleep(11.milliseconds)
+        _     <- MockClock.adjust(11.milliseconds)
         init5 <- sink.initial
         step5 <- sink.step(Step.state(init5), 5)
         res5  <- sink.extract(Step.state(step5))
@@ -1019,7 +1236,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         step1 <- sink.step(Step.state(init1), 1)
         res1  <- sink.extract(Step.state(step1))
         init2 <- sink.initial
-        _     <- clock.sleep(23.milliseconds)
+        _     <- MockClock.adjust(23.milliseconds)
         step2 <- sink.step(Step.state(init2), 2)
         res2  <- sink.extract(Step.state(step2))
         init3 <- sink.initial
@@ -1028,7 +1245,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         init4 <- sink.initial
         step4 <- sink.step(Step.state(init4), 4)
         res4  <- sink.extract(Step.state(step4))
-        _     <- clock.sleep(11.milliseconds)
+        _     <- MockClock.adjust(11.milliseconds)
         init5 <- sink.initial
         step5 <- sink.step(Step.state(init5), 5)
         res5  <- sink.extract(Step.state(step5))
@@ -1049,26 +1266,28 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
       for {
-        init1   <- sink.initial
-        step1   <- sink.step(Step.state(init1), 1)
-        res1    <- sink.extract(Step.state(step1))
-        init2   <- sink.initial
-        step2   <- sink.step(Step.state(init2), 2)
-        res2    <- sink.extract(Step.state(step2))
-        init3   <- sink.initial
-        _       <- clock.sleep(4.seconds)
-        step3   <- sink.step(Step.state(init3), 3)
-        res3    <- sink.extract(Step.state(step3))
-        elapsed <- clock.currentTime(TimeUnit.SECONDS)
-      } yield (elapsed must_=== 8) and (List(res1, res2, res3) must_=== List(1, 2, 3))
+        init1 <- sink.initial
+        step1 <- sink.step(Step.state(init1), 1)
+        res1  <- sink.extract(Step.state(step1))
+        init2 <- sink.initial
+        step2 <- sink.step(Step.state(init2), 2)
+        res2  <- sink.extract(Step.state(step2))
+        init3 <- sink.initial
+        _     <- clock.sleep(4.seconds)
+        step3 <- sink.step(Step.state(init3), 3)
+        res3  <- sink.extract(Step.state(step3))
+      } yield List(res1, res2, res3) must_=== List(1, 2, 3)
 
     unsafeRun {
       for {
         clock <- MockClock.make(MockClock.DefaultData)
-        test <- ZSink
-                 .throttleShape[Int](1, 1.second)(_.toLong)
-                 .use(sinkTest)
-                 .provide(clock)
+        fiber <- ZSink
+                  .throttleShape[Int](1, 1.second)(_.toLong)
+                  .use(sinkTest)
+                  .provide(clock)
+                  .fork
+        _    <- clock.clock.adjust(8.seconds)
+        test <- fiber.join
       } yield test
     }
   }
@@ -1101,27 +1320,90 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
       for {
-        init1   <- sink.initial
-        step1   <- sink.step(Step.state(init1), 1)
-        res1    <- sink.extract(Step.state(step1))
-        init2   <- sink.initial
-        step2   <- sink.step(Step.state(init2), 2)
-        res2    <- sink.extract(Step.state(step2))
-        init3   <- sink.initial
-        _       <- clock.sleep(4.seconds)
-        step3   <- sink.step(Step.state(init3), 3)
-        res3    <- sink.extract(Step.state(step3))
-        elapsed <- clock.currentTime(TimeUnit.SECONDS)
-      } yield (elapsed must_=== 6) and (List(res1, res2, res3) must_=== List(1, 2, 3))
+        init1 <- sink.initial
+        step1 <- sink.step(Step.state(init1), 1)
+        res1  <- sink.extract(Step.state(step1))
+        init2 <- sink.initial
+        step2 <- sink.step(Step.state(init2), 2)
+        res2  <- sink.extract(Step.state(step2))
+        init3 <- sink.initial
+        _     <- clock.sleep(4.seconds)
+        step3 <- sink.step(Step.state(init3), 3)
+        res3  <- sink.extract(Step.state(step3))
+      } yield List(res1, res2, res3) must_=== List(1, 2, 3)
 
     unsafeRun {
       for {
         clock <- MockClock.make(MockClock.DefaultData)
-        test <- ZSink
-                 .throttleShape[Int](1, 1.second, 2)(_.toLong)
-                 .use(sinkTest)
-                 .provide(clock)
+        fiber <- ZSink
+                  .throttleShape[Int](1, 1.second, 2)(_.toLong)
+                  .use(sinkTest)
+                  .provide(clock)
+                  .fork
+        _    <- clock.clock.adjust(6.seconds)
+        test <- fiber.join
       } yield test
     }
+  }
+
+  private def utf8Decode = prop { (s: String) =>
+    unsafeRun {
+      Stream
+        .fromIterable(s.getBytes("UTF-8"))
+        .transduce(ZSink.utf8Decode())
+        .runCollect
+        .map(_.mkString must_=== s)
+    }
+  }
+
+  private def utf8DecodeChunk = prop { (s: String) =>
+    unsafeRun {
+      Stream(Chunk.fromArray(s.getBytes("UTF-8")))
+        .transduce(ZSink.utf8DecodeChunk)
+        .runCollect
+        .map(_.mkString must_=== s)
+    }
+  }
+
+  private def utf8DecodeChunkIncomplete1 = unsafeRun {
+    for {
+      init   <- ZSink.utf8DecodeChunk.initial.map(Step.state(_))
+      state1 <- ZSink.utf8DecodeChunk.step(init, Chunk(0xC2.toByte))
+      state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0xA2.toByte))
+      string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
+    } yield (Step.cont(state1) must_=== true) and
+      (Step.cont(state2) must_=== false) and
+      (string.getBytes("UTF-8") must_=== Array(0xC2.toByte, 0xA2.toByte))
+  }
+
+  private def utf8DecodeChunkIncomplete2 = unsafeRun {
+    for {
+      init   <- ZSink.utf8DecodeChunk.initial.map(Step.state(_))
+      state1 <- ZSink.utf8DecodeChunk.step(init, Chunk(0xE0.toByte, 0xA4.toByte))
+      state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0xB9.toByte))
+      string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
+    } yield (Step.cont(state1) must_=== true) and
+      (Step.cont(state2) must_=== false) and
+      (string.getBytes("UTF-8") must_=== Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte))
+  }
+
+  private def utf8DecodeChunkIncomplete3 = unsafeRun {
+    for {
+      init   <- ZSink.utf8DecodeChunk.initial.map(Step.state(_))
+      state1 <- ZSink.utf8DecodeChunk.step(init, Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte))
+      state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0x88.toByte))
+      string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
+    } yield (Step.cont(state1) must_=== true) and
+      (Step.cont(state2) must_=== false) and
+      (string.getBytes("UTF-8") must_=== Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte))
+  }
+
+  private def utf8DecodeChunkWithLeftover = unsafeRun {
+    for {
+      init <- ZSink.utf8DecodeChunk.initial.map(Step.state(_))
+      state1 <- ZSink.utf8DecodeChunk
+                 .step(init, Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte))
+    } yield (Step.cont(state1) must_=== false) and
+      (Step.leftover(state1).flatMap(identity).toArray[Byte] must_=== Array(0xF0.toByte, 0x90.toByte))
   }
 }

@@ -1,45 +1,42 @@
 package zio.test.mock
 
-import java.util.{ Random => JRandom }
-
-import scala.Predef.{ assert => SAssert, _ }
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Random => SRandom }
 
 import zio.{ Chunk, DefaultRuntime, UIO }
 import zio.test.mock.MockRandom.{ DefaultData, Mock }
+import zio.test.TestUtils.label
 
 object RandomSpec extends DefaultRuntime {
 
-  def run(): Unit = {
-    SAssert(referentiallyTransparent, "MockRandom referential transparency")
-    SAssert(forAllEqual(_.nextBoolean)(_.nextBoolean()), "MockRandom nextBoolean")
-    SAssert(forAllEqualBytes, "MockRandom nextBytes")
-    SAssert(forAllEqual(_.nextDouble)(_.nextDouble()), "MockRandom nextDouble")
-    SAssert(forAllEqual(_.nextFloat)(_.nextFloat()), "MockRandom nextFloat")
-    SAssert(forAllEqualGaussian, "MockRandom nextGaussian")
-    SAssert(forAllEqual(_.nextInt)(_.nextInt()), "MockRandom nextInt")
-    SAssert(forAllEqualN(_.nextInt(_))(_.nextInt(_)), "MockRandom bounded nextInt")
-    SAssert(forAllEqual(_.nextLong)(_.nextLong()), "MockRandom nextLong")
-    SAssert(forAllEqualLong, "MockRandom bounded nextLong")
-    SAssert(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar()), "MockRandom nextPrintableChar")
-    SAssert(forAllEqualN(_.nextString(_))(_.nextString(_)), "MockRandom nextString")
-    SAssert(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_)), "MockRandom shuffle")
+  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+    label(referentiallyTransparent, "MockRandom referential transparency"),
+    label(forAllEqual(_.nextBoolean)(_.nextBoolean()), "MockRandom nextBoolean"),
+    label(forAllEqualBytes, "MockRandom nextBytes"),
+    label(forAllEqual(_.nextDouble)(_.nextDouble()), "MockRandom nextDouble"),
+    label(forAllEqual(_.nextFloat)(_.nextFloat()), "MockRandom nextFloat"),
+    label(forAllEqualGaussian, "MockRandom nextGaussian"),
+    label(forAllEqual(_.nextInt)(_.nextInt()), "MockRandom nextInt"),
+    label(forAllEqualN(_.nextInt(_))(_.nextInt(_)), "MockRandom bounded nextInt"),
+    label(forAllEqual(_.nextLong)(_.nextLong()), "MockRandom nextLong"),
+    label(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar()), "MockRandom nextPrintableChar"),
+    label(forAllEqualN(_.nextString(_))(_.nextString(_)), "MockRandom nextString"),
+    label(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_)), "MockRandom shuffle"),
+    label(forAllBounded(_.nextInt)(_.nextInt(_)), "MockRandom bounded nextInt generates values within the bounds"),
+    label(forAllBounded(_.nextLong)(_.nextLong(_)), "MockRandom bounded nextLong generates values within the bounds")
+  )
 
-    SAssert(forAllBounded(_.nextInt)(_.nextInt(_)), "MockRandom bounded nextInt generates values within the bounds")
-    SAssert(forAllBounded(_.nextLong)(_.nextLong(_)), "MockRandom bounded nextLong generates values within the bounds")
-  }
-
-  def referentiallyTransparent: Boolean = {
+  def referentiallyTransparent(implicit ec: ExecutionContext): Future[Boolean] = {
     val mock = MockRandom.makeMock(DefaultData)
-    val x    = unsafeRun(mock.flatMap[Any, Nothing, Int](_.nextInt))
-    val y    = unsafeRun(mock.flatMap[Any, Nothing, Int](_.nextInt))
-    x == y
+    val x    = unsafeRunToFuture(mock.flatMap[Any, Nothing, Int](_.nextInt))
+    val y    = unsafeRunToFuture(mock.flatMap[Any, Nothing, Int](_.nextInt))
+    x.zip(y).map { case (x, y) => x == y }
   }
 
-  def forAllEqual[A](f: Mock => UIO[A])(g: SRandom => A): Boolean = {
+  def forAllEqual[A](f: Mock => UIO[A])(g: SRandom => A): Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
-    unsafeRun {
+    unsafeRunToFuture {
       for {
         mockRandom <- MockRandom.makeMock(DefaultData)
         _          <- mockRandom.setSeed(seed)
@@ -49,10 +46,10 @@ object RandomSpec extends DefaultRuntime {
     }
   }
 
-  def forAllEqualBytes: Boolean = {
+  def forAllEqualBytes: Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
-    unsafeRun {
+    unsafeRunToFuture {
       for {
         mockRandom <- MockRandom.makeMock(DefaultData)
         _          <- mockRandom.setSeed(seed)
@@ -65,10 +62,10 @@ object RandomSpec extends DefaultRuntime {
     }
   }
 
-  def forAllEqualGaussian: Boolean = {
+  def forAllEqualGaussian: Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
-    unsafeRun {
+    unsafeRunToFuture {
       for {
         mockRandom <- MockRandom.makeMock(DefaultData)
         _          <- mockRandom.setSeed(seed)
@@ -78,10 +75,10 @@ object RandomSpec extends DefaultRuntime {
     }
   }
 
-  def forAllEqualN[A](f: (Mock, Int) => UIO[A])(g: (SRandom, Int) => A): Boolean = {
+  def forAllEqualN[A](f: (Mock, Int) => UIO[A])(g: (SRandom, Int) => A): Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
-    unsafeRun {
+    unsafeRunToFuture {
       for {
         mockRandom <- MockRandom.makeMock(DefaultData)
         _          <- mockRandom.setSeed(seed)
@@ -91,25 +88,12 @@ object RandomSpec extends DefaultRuntime {
     }
   }
 
-  def forAllEqualLong: Boolean = {
-    val jRandom = new JRandom
-    val seed    = jRandom.nextLong()
-    unsafeRun {
-      for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
-        bounds     = List.fill(100)(math.abs(jRandom.nextLong()) max 1)
-        actual     <- UIO.foreach(bounds)(mockRandom.nextLong(_))
-        _          = jRandom.setSeed(seed)
-        expected   = bounds.map(jRandom.longs(0, _).findFirst.getAsLong)
-      } yield actual == expected
-    }
-  }
-
-  def forAllEqualShuffle(f: (Mock, List[Int]) => UIO[List[Int]])(g: (SRandom, List[Int]) => List[Int]): Boolean = {
+  def forAllEqualShuffle(
+    f: (Mock, List[Int]) => UIO[List[Int]]
+  )(g: (SRandom, List[Int]) => List[Int]): Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
-    unsafeRun {
+    unsafeRunToFuture {
       for {
         mockRandom <- MockRandom.makeMock(DefaultData)
         _          <- mockRandom.setSeed(seed)
@@ -119,12 +103,12 @@ object RandomSpec extends DefaultRuntime {
     }
   }
 
-  def forAllBounded[A: Numeric](bound: SRandom => A)(f: (Mock, A) => UIO[A]): Boolean = {
+  def forAllBounded[A: Numeric](bound: SRandom => A)(f: (Mock, A) => UIO[A]): Future[Boolean] = {
     val num = implicitly[Numeric[A]]
     import num._
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
-    unsafeRun {
+    unsafeRunToFuture {
       for {
         mockRandom <- MockRandom.makeMock(DefaultData)
         _          <- mockRandom.setSeed(seed)

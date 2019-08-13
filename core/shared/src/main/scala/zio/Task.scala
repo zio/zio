@@ -21,7 +21,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): Task[A] = ZIO.apply(a)
+  final def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
    * @see See bracket [[zio.ZIO]]
@@ -146,6 +146,26 @@ object Task {
    */
   final def effectAsyncInterrupt[A](register: (Task[A] => Unit) => Either[Canceler, Task[A]]): Task[A] =
     ZIO.effectAsyncInterrupt(register)
+
+  /**
+   * @see See [[zio.RIO.effectSuspend]]
+   */
+  final def effectSuspend[A](task: => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(_ => task)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotal]]
+   */
+  final def effectSuspendTotal[A](task: => Task[A]): Task[A] = new ZIO.EffectSuspendTotalWith(_ => task)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotalWith]]
+   */
+  final def effectSuspendTotalWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendTotalWith(p)
+
+  /**
+   * @see See [[zio.RIO.effectSuspendWith]]
+   */
+  final def effectSuspendWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -420,17 +440,11 @@ object Task {
    */
   def some[A](a: A): Task[Option[A]] = ZIO.some(a)
 
-  /**
-   * @see See [[zio.ZIO.suspend]]
-   */
-  final def suspend[A](task: => Task[A]): Task[A] =
-    ZIO.suspend(task)
+  @deprecated("use effectSuspendTotal", "1.0.0")
+  final def suspend[A](task: => Task[A]): Task[A] = effectSuspendTotalWith(_ => task)
 
-  /**
-   * [[zio.ZIO.suspendWith]]
-   */
-  final def suspendWith[A](task: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(task)
+  @deprecated("use effectSuspendTotalWith", "1.0.0")
+  final def suspendWith[A](p: Platform => Task[A]): Task[A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]

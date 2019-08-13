@@ -23,6 +23,8 @@ import zio.stream.ZStream
  * stream of "shrinkings" used for minimization of "large" failures.
  */
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, A]) { self =>
+  final def <*>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] = self zip that
+
   final def map[B](f: A => B): Sample[R, B] = Sample(f(value), shrink.map(f))
 
   final def zip[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
@@ -36,5 +38,5 @@ object Sample {
   /**
    * A sample without shrinking.
    */
-  def noShrink[A](a: => A): Sample[Any, A] = Sample(a, ZStream.empty)
+  def noShrink[A](a: A): Sample[Any, A] = Sample(a, ZStream.empty)
 }
