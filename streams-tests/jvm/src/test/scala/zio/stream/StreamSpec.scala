@@ -218,12 +218,12 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def processRunCollect = {
     def loop[E, A](effect: IO[_, A], ref: Ref[List[A]]): IO[Nothing, List[A]] =
-      (effect.flatMap(a => ref.update(a :: _)) *> loop(effect, ref)).catchAll(_ => ref.get)
+      effect.flatMap(a => ref.update(a :: _)).forever.catchAll(_ => ref.get).map(_.reverse)
 
     unsafeRun {
       for {
         ref <- Ref.make(List.empty[Int])
-        res <- Stream(1, 2, 3, 4).process.use(loop(_, ref)).map(_.reverse)
+        res <- Stream(1, 2, 3, 4).process.use(loop(_, ref))
       } yield res must_=== List(1, 2, 3, 4)
     }
   }
