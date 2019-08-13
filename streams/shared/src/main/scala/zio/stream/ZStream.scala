@@ -1805,13 +1805,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an effect producing a value of type `A`
    */
   final def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
-    new ZStream[R, E, A] {
-      def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          if (!cont(s)) ZManaged.succeed(s)
-          else ZManaged.fromEffect(fa).mapM(f(s, _))
-        }
-    }
+    managed(fa.toManaged_)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
