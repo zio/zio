@@ -450,8 +450,8 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def testFlatten =
     forAll(Gen.alphaStr) { str =>
       unsafeRun((for {
-        flatten1 <- ZManaged.succeedLazy(ZManaged.succeedLazy(str)).flatten
-        flatten2 <- ZManaged.flatten(ZManaged.succeedLazy(ZManaged.succeedLazy(str)))
+        flatten1 <- ZManaged.succeed(ZManaged.succeed(str)).flatten
+        flatten2 <- ZManaged.flatten(ZManaged.succeed(ZManaged.succeed(str)))
       } yield flatten1 must ===(flatten2)).use[Any, Nothing, MatchResult[String]](result => ZIO.succeed(result)))
     }
 

@@ -7,7 +7,7 @@ trait GenIO {
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.point` constructor.
    */
-  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.succeedLazy[A](_))
+  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.succeed[A](_))
 
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
@@ -105,7 +105,7 @@ trait GenIO {
     gen.map(nextIO => io.flatMap(_ => nextIO))
 
   private def genOfIdentityFlatMaps[E, A](io: IO[E, A]): Gen[IO[E, A]] =
-    Gen.const(io.flatMap(a => IO.succeedLazy(a)))
+    Gen.const(io.flatMap(a => IO.succeed(a)))
 
   private def genOfRace[E, A](io: IO[E, A]): Gen[IO[E, A]] =
     Gen.const(io.race(IO.never))

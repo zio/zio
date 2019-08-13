@@ -130,7 +130,7 @@ package object test {
    * Builds a spec with a single pure test.
    */
   final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
-    testM(label)(ZIO.succeedLazy(assertion))
+    testM(label)(ZIO.succeed(assertion))
 
   /**
    * Builds a spec with a single effectful test.

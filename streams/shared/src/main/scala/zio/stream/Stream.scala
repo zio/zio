@@ -188,11 +188,9 @@ object Stream extends ZStreamPlatformSpecific {
   final def succeed[A](a: A): Stream[Nothing, A] =
     ZStream.succeed(a)
 
-  /**
-   * See [[ZStream.succeedLazy]]
-   */
+  @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    ZStream.succeedLazy(a)
+    succeed(a)
 
   /**
    * See [[ZStream.unfold]]

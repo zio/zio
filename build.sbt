@@ -31,7 +31,10 @@ inThisBuild(
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
-addCommandAlias("testJVM", ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run")
+addCommandAlias(
+  "testJVM",
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run"
+)
 addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run")
 
 lazy val root = project
@@ -55,7 +58,9 @@ lazy val root = project
     testJVM,
     testJS,
     stacktracerJS,
-    stacktracerJVM
+    stacktracerJVM,
+    testRunnerJS,
+    testRunnerJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -124,6 +129,11 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
+    )
+  )
 
 lazy val testJVM = test.jvm
 lazy val testJS = test.js.settings(
@@ -148,6 +158,39 @@ lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
 
+lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
+  .in(file("test-sbt"))
+  .settings(stdSettings("zio-test-sbt"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.scala-lang"     % "scala-reflect"            % scalaVersion.value,
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
+    ),
+    mainClass in (Test, run) := Some("zio.test.runner.ZTestFrameworkSpec")
+  )
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.28"))
+  .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
+  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(coreTests % "test->test;compile->compile")
+
+lazy val testRunnerJVM = testRunner.jvm
+lazy val testRunnerJS  = testRunner.js
+
+/**
+ * Examples sub-project that is not included in the root project.
+ * To run tests :
+ * `sbt "examplesJVM/test"`
+ */
+lazy val examples = crossProject(JVMPlatform, JSPlatform)
+  .in(file("examples"))
+  .settings(stdSettings("examples"))
+  .settings(testFrameworks += new TestFramework("zio.test.runner.ZTestFramework"))
+  .dependsOn(testRunner % "test->test;compile->compile")
+
+lazy val examplesJS  = examples.js
+lazy val examplesJVM = examples.jvm
+
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
   .enablePlugins(JmhPlugin)
@@ -162,7 +205,7 @@ lazy val benchmarks = project.module
         "co.fs2"                   %% "fs2-core"        % "1.1.0-M1",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.24",
         "io.monix"                 %% "monix"           % "3.0.0-RC2",
         "io.projectreactor"        % "reactor-core"     % "3.2.11.RELEASE",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.11",
@@ -207,7 +250,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC4",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC3",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC2",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC3",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC1"
     )
   )

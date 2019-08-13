@@ -7,6 +7,7 @@ import org.specs2.execute.Result
 import scala.collection.mutable
 import scala.util.Try
 import zio.Cause.{ die, fail, interrupt, Both }
+import zio.duration._
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -45,6 +46,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
    Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
    Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
+   Check `cached` method on IO[E, A] returns new instances after duration. $testCached
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
    Check `firstSuccessOf` method returns the same IO[E, A] as `IO.firstSuccessOf` does. $testfirstSuccessOf
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
@@ -122,19 +124,19 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def t2 = {
     val list    = List("1", "2", "3")
     val effects = new mutable.ListBuffer[String]
-    val res     = unsafeRun(IO.foreach(list)(x => IO.effectTotal(effects += x) *> IO.succeedLazy[Int](x.toInt)))
+    val res     = unsafeRun(IO.foreach(list)(x => IO.effectTotal(effects += x) *> IO.effectTotal[Int](x.toInt)))
     (effects.toList, res) must be_===((list, List(1, 2, 3)))
   }
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.succeedLazy[Int](x.toInt))))
+    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.effectTotal[Int](x.toInt))))
     res must beAFailedTry.withThrowable[FiberFailure]
   }
 
   def t4 = {
     val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.foreachPar(list)(x => IO.succeedLazy[Int](x.toInt)))
+    val res  = unsafeRun(IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
@@ -144,26 +146,26 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def t6 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.collectAllPar(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t7 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.forkAll(list).flatMap[Any, Nothing, List[Int]](_.join))
     res must be_===(List(1, 2, 3))
   }
 
   def t8 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.collectAllParN(2)(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t9 = {
     val list = List(1, 2, 3)
-    val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.succeedLazy(x.toString)))
+    val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.effectTotal(x.toString)))
     res must be_===(List("1", "2", "3"))
   }
 
@@ -275,8 +277,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testFlatten = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
-      flatten1 <- IO.succeedLazy(IO.succeedLazy(str)).flatten
-      flatten2 <- IO.flatten(IO.succeedLazy(IO.succeedLazy(str)))
+      flatten1 <- IO.effectTotal(IO.effectTotal(str)).flatten
+      flatten2 <- IO.flatten(IO.effectTotal(IO.effectTotal(str)))
     } yield flatten1 must ===(flatten2))
   }
 
@@ -289,7 +291,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testNonMemoizationRT = forAll(Gen.alphaStr) { str =>
-    val io: UIO[Option[String]] = IO.succeedLazy(Some(str)) // using `Some` for object allocation
+    val io: UIO[Option[String]] = IO.effectTotal(Some(str)) // using `Some` for object allocation
     unsafeRun(
       (io <*> io)
         .map(tuple => tuple._1 must not beTheSameAs (tuple._2))
@@ -297,12 +299,25 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testMemoization = forAll(Gen.alphaStr) { str =>
-    val ioMemo: UIO[UIO[Option[String]]] = IO.succeedLazy(Some(str)).memoize // using `Some` for object allocation
+    val ioMemo: UIO[UIO[Option[String]]] = IO.effectTotal(Some(str)).memoize // using `Some` for object allocation
     unsafeRun(
       ioMemo
         .flatMap(io => io <*> io)
         .map(tuple => tuple._1 must beTheSameAs(tuple._2))
     )
+  }
+
+  def testCached = flaky {
+    def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
+    for {
+      ref   <- Ref.make(0)
+      cache <- incrementAndGet(ref).cached(100.milliseconds)
+      a     <- cache
+      b     <- cache
+      _     <- clock.sleep(100.milliseconds)
+      c     <- cache
+      d     <- cache
+    } yield (a must_=== b) and (b must_!== c) and (c must_=== d)
   }
 
   def testRaceAll = {
@@ -534,7 +549,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun {
       for {
         release  <- Ref.make(false)
-        result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.succeedLazy(a + 1))
+        result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.effectTotal(a + 1))
         released <- release.get
       } yield (result must_=== 43) and (released must_=== true)
     }
@@ -543,7 +558,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun {
       for {
         release  <- Ref.make(false)
-        result   <- IO.succeed(42).bracket_(release.set(true), ZIO.succeedLazy(0))
+        result   <- IO.succeed(42).bracket_(release.set(true), ZIO.effectTotal(0))
         released <- release.get
       } yield (result must_=== 0) and (released must_=== true)
     }
