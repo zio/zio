@@ -1904,19 +1904,23 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def fold[R1 <: R, E1 >: E, A1 >: A, S2]: Fold[R1, E1, A1, S2] =
-        ZManaged.succeed { (s2, cont, f) =>
-          def loop(s: S, s2: S2): ZIO[R1, E1, (S, S2)] =
-            if (!cont(s2)) ZIO.succeed(s -> s2)
-            else
-              f0(s) flatMap {
-                case None => ZIO.succeed(s -> s2)
-                case Some((a, s)) =>
-                  f(s2, a).flatMap(loop(s, _))
-              }
+      def fold[R1 <: R, E1 >: E, A1 >: A, S2]: Fold[R1, E1, A1, S2] = foldDefault
 
-          ZManaged.fromEffect(loop(s, s2).map(_._2))
-        }
+      override def process: ZManaged[R, E, InputStream[E, A]] =
+        for {
+          ref <- Ref.make(s).toManaged_
+          r   <- ZManaged.environment
+        } yield ref.get
+          .flatMap(f0)
+          .provide(r)
+          .foldM(
+            e => IO.fail(Some(e)),
+            opt =>
+              opt match {
+                case Some((a, s)) => ref.set(s) *> UIO.succeed(a)
+                case None         => IO.fail(None)
+              }
+          )
     }
 
   /**
