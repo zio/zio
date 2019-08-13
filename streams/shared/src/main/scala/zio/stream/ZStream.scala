@@ -1861,10 +1861,15 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def managed[R, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          if (!cont(s)) ZManaged.succeed(s)
-          else managed.mapM(f(s, _))
+      def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] = foldDefault
+
+      override def process: ZManaged[R, E, InputStream[E, A]] =
+        for {
+          p <- Promise.make[Nothing, Unit].toManaged_
+          a <- managed
+        } yield p.isDone.flatMap {
+          if (_) IO.fail(None)
+          else p.succeed(()) *> UIO.succeed(a)
         }
     }
 
