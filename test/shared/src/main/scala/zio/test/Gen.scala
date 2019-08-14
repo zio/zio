@@ -16,6 +16,8 @@
 
 package zio.test
 
+import scala.collection.SortedMap
+
 import zio.{ UIO, ZIO }
 import zio.random._
 import zio.stream.{ Stream, ZStream }
@@ -52,8 +54,11 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
 object Gen {
 
-  final val alphaChar: Gen[Random, Char] =
-    char(48, 57)
+  /**
+   * A generator of alphanumeric characters. Shrinks toward '0'.
+   */
+  final val alphaNumericChar: Gen[Random, Char] =
+    weighted((char(48, 57), 10), (char(65, 122), 52))
 
   /**
    * A generator of bytes. Shrinks toward '0'.
@@ -265,4 +270,12 @@ object Gen {
 
   final def vectorOf[R <: Random, A](g: Gen[R, A]): Int => Gen[R, Vector[A]] =
     listOf(g)(_).map(_.toVector)
+
+  final def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
+    val sum = gs.map(_._2).sum
+    val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) {
+      case ((map, acc), (gen, d)) => (map.updated((acc + d) / sum, gen), acc + d)
+    }
+    uniform.flatMap(n => map.from(n).head._2)
+  }
 }

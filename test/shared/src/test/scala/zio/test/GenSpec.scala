@@ -14,6 +14,8 @@ object GenSpec extends DefaultRuntime {
     label(monadLeftIdentity, "monad left identity"),
     label(monadRightIdentity, "monad right identity"),
     label(monadAssociativity, "monad associativity"),
+    label(alphaNumericCharGeneratesValuesInRange, "alphaNumericChar generates values in range"),
+    label(alphaNumericCharShrinksToZero, "alphaNumericChar shrinks to zero"),
     label(anyByteShrinksToZero, "anyByte shrinks to zero"),
     label(anyCharShrinksToZero, "anyChar shrinks to zero"),
     label(anyFloatShrinksToZero, "anyFloat shrinks to zero"),
@@ -48,6 +50,7 @@ object GenSpec extends DefaultRuntime {
     label(uniformShrinksToZero, "uniform shrinks to zero"),
     label(unit, "unit generates the constant unit value"),
     label(vectorOfShrinksToSmallestLength, "vectorOf shrinks to smallest length"),
+    label(weightedGeneratesWeightedDistribution, "weighted generates weighted distribution"),
     label(zipShrinksCorrectly, "zip shrinks correctly"),
     label(zipWithShrinksCorrectly, "zipWith shrinks correctly"),
     label(testBogusReverseProperty, "integration test with bogus reverse property"),
@@ -78,6 +81,14 @@ object GenSpec extends DefaultRuntime {
       Gen.const(p).zipWith(Gen.int(0, 5)) { case ((x, y), z) => (x, y, z) }
     checkEqual(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g)))
   }
+
+  def alphaNumericCharGeneratesValuesInRange: Future[Boolean] =
+    checkSample(Gen.alphaNumericChar)(_.forall { c =>
+      (48 <= c && c <= 57) || (65 <= c && c <= 122)
+    })
+
+  def alphaNumericCharShrinksToZero: Future[Boolean] =
+    checkShrink(Gen.alphaNumericChar)('0')
 
   def anyByteShrinksToZero: Future[Boolean] =
     checkShrink(Gen.anyByte)(0)
@@ -192,6 +203,11 @@ object GenSpec extends DefaultRuntime {
     val gen = Gen.sized(2, 64)(Gen.vectorOf(Gen.uniform))
     val io  = shrinks(gen).map(_.reverse.head == Vector(0.0, 0.0))
     unsafeRunToFuture(io)
+  }
+
+  def weightedGeneratesWeightedDistribution: Future[Boolean] = {
+    val weighted = Gen.weighted((Gen.const(true), 10), (Gen.const(false), 90))
+    checkSample(weighted)(ps => ps.count(!_) > ps.count(identity))
   }
 
   def zipShrinksCorrectly: Future[Boolean] =
