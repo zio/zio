@@ -1709,8 +1709,7 @@ object ZStream extends ZStreamPlatformSpecific {
                     )
                   )
               ).toManaged_
-          is <- ZManaged.succeed(output.take.flatten)
-        } yield is
+        } yield output.take.flatten
     }
 
   /**
@@ -1747,7 +1746,7 @@ object ZStream extends ZStreamPlatformSpecific {
                          ).toManaged_
           is <- eitherStream match {
                  case Left(canceler) =>
-                   ZManaged.succeed(output.take.flatten).ensuring(UIO.effectTotal(println("canceler")) *> canceler)
+                   ZManaged.succeed(output.take.flatten).ensuring(canceler)
                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
                }
         } yield is
