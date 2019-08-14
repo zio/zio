@@ -276,6 +276,6 @@ object Gen {
     val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) {
       case ((map, acc), (gen, d)) => (map.updated((acc + d) / sum, gen), acc + d)
     }
-    uniform.flatMap(n => map.from(n).head._2)
+    uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
 }
