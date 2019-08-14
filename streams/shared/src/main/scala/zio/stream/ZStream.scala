@@ -1667,16 +1667,6 @@ object ZStream extends ZStreamPlatformSpecific {
                  case Some(stream) => output.shutdown.toManaged_ *> stream.process
                  case None         => ZManaged.succeed(output.take.flatten)
                }
-          // versus
-          // is <- maybeStream.fold[ZManaged[R, E, InputStream[E, A]]](output.take.toManaged_)(_.process)
-          // fails with:
-          // [error]     x effectAsyncMaybe None
-          // [error]  Falsified after 5 passed tests.
-          // [error]  > ARG_0: List("0", "1")
-          // [error]  > ARG_0_ORIGINAL: List("-1306328014", "-1603775540", "2147483647")
-          // [error]  The seed is B2orYusG7BefbAZjL66qnPGFuvcrJ6KNv74OgxLU_bA=
-          // [error]
-          // [error]  > Success(List(0, 0)) != Success(List(0, 1)) (StreamSpec.scala:595)
         } yield is
     }
 
