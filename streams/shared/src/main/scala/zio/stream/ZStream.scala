@@ -1860,11 +1860,11 @@ object ZStream extends ZStreamPlatformSpecific {
 
       override def process: ZManaged[R, E, InputStream[E, A]] =
         for {
-          p <- Promise.make[Nothing, Unit].toManaged_
-          a <- managed
-        } yield p.isDone.flatMap {
+          done <- Ref.make(false).toManaged_
+          a    <- managed
+        } yield done.get.flatMap {
           if (_) IO.fail(None)
-          else p.succeed(()) *> UIO.succeed(a)
+          else done.set(true) *> UIO.succeed(a)
         }
     }
 
