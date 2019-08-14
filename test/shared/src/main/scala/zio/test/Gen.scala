@@ -145,7 +145,7 @@ object Gen {
       if (n < max) n else Math.nextAfter(max, Double.NegativeInfinity)
     }
 
-  final def either[R, A, B](left: Gen[R, A], right: Gen[R, B]): Gen[R with Random, Either[A, B]] =
+  final def either[R <: Random, A, B](left: Gen[R, A], right: Gen[R, B]): Gen[R, Either[A, B]] =
     oneOf(left.map(Left(_)), right.map(Right(_)))
 
   final def elements[A](as: A*): Gen[Random, A] =
@@ -207,11 +207,8 @@ object Gen {
         .map(Sample.shrinkIntegral(min))
     }
 
-  final def listOf[R, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R with Random, List[A]] =
-    sized(min, max)(listOfN(_)(g))
-
-  final def listOfN[R, A](n: Int)(gen: Gen[R, A]): Gen[R, List[A]] =
-    List.fill(n)(gen).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+  final def listOf[R <: Random, A](g: Gen[R, A]): Int => Gen[R, List[A]] =
+    List.fill(_)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
 
   /**
    * A constant generator of the empty value.
@@ -222,10 +219,10 @@ object Gen {
   /**
    * A generator of optional values. Shrinks toward `None`.
    */
-  final def option[R, A](gen: Gen[R, A]): Gen[R with Random, Option[A]] =
+  final def option[R <: Random, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     oneOf(none, gen.map(Some(_)))
 
-  final def oneOf[R, A](as: Gen[R, A]*): Gen[R with Random, A] =
+  final def oneOf[R <: Random, A](as: Gen[R, A]*): Gen[R, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
 
   /**
@@ -250,11 +247,8 @@ object Gen {
   final def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
 
-  final def string[R](min: Int, max: Int)(char: Gen[R, Char]): Gen[R with Random, String] =
-    sized(min, max)(stringN(_)(char))
-
-  final def stringN[R](n: Int)(char: Gen[R, Char]): Gen[R, String] =
-    listOfN(n)(char).map(_.mkString)
+  final def string[R <: Random](char: Gen[R, Char]): Int => Gen[R, String] =
+    listOf(char)(_).map(_.mkString)
 
   /**
    * A generator of uniformly distributed doubles between [0, 1].
@@ -269,9 +263,6 @@ object Gen {
   final val unit: Gen[Any, Unit] =
     const(())
 
-  final def vectorOf[R, A](min: Int, max: Int)(gen: Gen[R, A]): Gen[R with Random, Vector[A]] =
-    sized(min, max)(vectorOfN(_)(gen))
-
-  final def vectorOfN[R, A](n: Int)(gen: Gen[R, A]): Gen[R, Vector[A]] =
-    listOfN(n)(gen).map(_.toVector)
+  final def vectorOf[R <: Random, A](g: Gen[R, A]): Int => Gen[R, Vector[A]] =
+    listOf(g)(_).map(_.toVector)
 }

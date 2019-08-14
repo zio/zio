@@ -51,7 +51,8 @@ object GenSpec extends DefaultRuntime {
     label(zipShrinksCorrectly, "zip shrinks correctly"),
     label(zipWithShrinksCorrectly, "zipWith shrinks correctly"),
     label(testBogusReverseProperty, "integration test with bogus reverse property"),
-    label(testShrinkingRespectsInvariants, "integration test with shrinking and invariants")
+    label(testShrinkingNonEmptyList, "integration test with shrinking nonempty list"),
+    label(testBogusEvenProperty, "integration test with bogus even property")
   )
 
   val smallInt = Gen.int(-10, 10)
@@ -143,7 +144,7 @@ object GenSpec extends DefaultRuntime {
     checkShrink(smallInt)(-10)
 
   def listOfShrinksToSmallestLength: Future[Boolean] = {
-    val gen = Gen.listOf(0, 100)(smallInt)
+    val gen = Gen.sized(0, 100)(Gen.listOf(smallInt))
     val io  = shrinks(gen).map(_.reverse.head == List.empty)
     unsafeRunToFuture(io)
   }
@@ -173,7 +174,7 @@ object GenSpec extends DefaultRuntime {
     checkShrink(Gen.some(smallInt))(Some(-10))
 
   def stringShrinksToSmallestString: Future[Boolean] = {
-    val gen = Gen.string(3, 3)(Gen.char(65, 90))
+    val gen = Gen.sized(3, 3)(Gen.string(Gen.char(65, 90)))
     val io  = shrinks(gen).map(_.reverse.head == "AAA")
     unsafeRunToFuture(io)
   }
@@ -188,7 +189,7 @@ object GenSpec extends DefaultRuntime {
     checkSample(Gen.unit)(_.forall(_ => true))
 
   def vectorOfShrinksToSmallestLength: Future[Boolean] = {
-    val gen = Gen.listOf(2, 64)(Gen.uniform)
+    val gen = Gen.sized(2, 64)(Gen.vectorOf(Gen.uniform))
     val io  = shrinks(gen).map(_.reverse.head == Vector(0.0, 0.0))
     unsafeRunToFuture(io)
   }
@@ -201,28 +202,45 @@ object GenSpec extends DefaultRuntime {
 
   def testBogusReverseProperty: Future[Boolean] = {
     val gen = for {
-      as <- Gen.listOf(0, 100)(Gen.anyInt)
-      bs <- Gen.listOf(0, 100)(Gen.anyInt)
+      as <- Gen.sized(0, 100)(Gen.listOf(Gen.anyInt))
+      bs <- Gen.sized(0, 100)(Gen.listOf(Gen.anyInt))
     } yield (as, bs)
     val predicate = Predicate.predicate[(List[Int], List[Int])]("") {
       case (as, bs) =>
-        if (as == bs) Assertion.success else Assertion.Failure(())
+        val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
+        if (p) Assertion.success else Assertion.Failure(())
     }
     val test = checkSome(100)(gen)(predicate).map {
       case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
-        fragment.value.toString == "(List(),List(0))" ||
-          fragment.value.toString == "(List(0),List())"
+        fragment.value.toString == "(List(0),List(1))" ||
+          fragment.value.toString == "(List(1),List(0))" ||
+          fragment.value.toString == "(List(0),List(-1))" ||
+          fragment.value.toString == "(List(-1),List(0))"
       case _ => false
     }
     unsafeRunToFuture(test)
   }
 
-  def testShrinkingRespectsInvariants: Future[Boolean] = {
-    val gen       = Gen.listOf(1, 100)(Gen.anyInt)
+  def testShrinkingNonEmptyList: Future[Boolean] = {
+    val gen       = Gen.sized(1, 100)(Gen.listOf(Gen.anyInt))
     val predicate = Predicate.predicate[List[Int]]("")(_ => Assertion.Failure(()))
     val test = checkSome(100)(gen)(predicate).map {
       case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
         fragment.value.toString == "List(0)"
+      case _ => false
+    }
+    unsafeRunToFuture(test)
+  }
+
+  def testBogusEvenProperty: Future[Boolean] = {
+    val gen = Gen.int(0, 100)
+    val predicate = Predicate.predicate[Int]("") { n =>
+      val p = n % 2 == 0
+      if (p) Assertion.Success else Assertion.Failure(())
+    }
+    val test = checkSome(100)(gen)(predicate).map {
+      case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
+        fragment.value.toString == "1"
       case _ => false
     }
     unsafeRunToFuture(test)
