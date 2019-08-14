@@ -145,8 +145,16 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.fromQueue          $fromQueue
 
   Stream.groupBy
-    values          $groupByValues
-    errors          $groupByErrors
+    values                                                $groupByValues
+    ending outer stream does not interrupt inner streams  $groupByValuesInner
+    outer errors                                          $groupByErrorsOuter
+
+  Stream.hashPartition
+    values          $hashPartitionValues
+    errors          $hashPartitionErrors
+    noNegPartitions $hashPartitionNoNegativePartitionCount
+    noNegReplicas   $hashPartitionNoNegativeReplicaCount
+    backpressure    $hashPartitionBackPressure
 
   Stream interleaving
     interleave              $interleave
@@ -1161,25 +1169,92 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .map(_.toMap must_=== (0 to 100).map((_.toString -> 1000)).toMap)
     }
 
-  private def groupByErrors =
+  private def groupByValuesInner =
+    unsafeRun {
+      val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+      Stream
+        .fromIterable(words)
+        .groupByKey(identity, 1050)
+        .take(2)
+        .flatMapPar(110, 100) {
+          case (k, s) =>
+            s
+            .transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
+            .take(1)
+            .map((k -> _))
+        }
+        .runCollect
+        .map(_.toMap must_=== (0 to 1).map((_.toString -> 1000)).toMap)
+    }
+
+  private def groupByErrorsOuter =
     unsafeRun {
       val words = List("abc", "test", "test", "foo")
-      for {
-        fibers <- Ref.make[List[Fiber[Nothing, Either[String, (String, Int)]]]](Nil)
-        _ <- (Stream.fromIterable(words) ++ Stream.fail("Boom"))
-              .groupByKey(identity)
-              .mapM {
-                case (k, s) =>
-                  s.foldLeft(0) { case (count, _) => count + 1 }
-                    .use(c => ZIO.succeed((k -> c)))
-                    .either
-                    .fork
-                    .flatMap(f => fibers.update(f :: _))
-              }
-              .runDrain
-              .ignore
-        result <- fibers.get.flatMap(ZIO.foreach(_)(_.join))
-      } yield result must_=== List.fill(3)(Left("Boom"))
+      (Stream.fromIterable(words) ++ Stream.fail("Boom"))
+        .groupByKey(identity)
+        .mapM {
+          case (_, s) => s.runDiscard.ignore
+        }
+        .runCollect
+        .either
+        .map(_ must_=== Left("Boom"))
+    }
+
+  private def hashPartitionValues =
+    unsafeRun {
+      Stream.range(0, 5).hashPartition(1)(_.toLong).use {
+        case (_, (_, s1) :: Nil) =>
+          for {
+            out1     <- s1.runCollect
+          } yield (out1 must_=== List(0, 1, 2, 3, 4, 5))
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def hashPartitionErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).hashPartition(2)(_.toLong).use {
+        case (_, (_, s1) :: (_, s2) :: Nil) =>
+          for {
+            out1     <- s1.runCollect.either
+            out2     <- s2.runCollect.either
+            expected  = Left("Boom")
+          } yield (out1 must_=== expected) && (out2 must_=== expected)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def hashPartitionNoNegativePartitionCount =
+    unsafeRun {
+      (Stream.range(0, 1)).hashPartition(-1)(_.toLong).use(_ => ZIO.succeed(false)).catchAllCause {
+        case zio.Cause.Die(_) => ZIO.succeed(true)
+        case c => ZIO.halt(c)
+      }.map(_ must_=== true)
+    }
+
+  private def hashPartitionNoNegativeReplicaCount =
+    unsafeRun {
+      (Stream.range(0, 1)).hashPartition(2, replicas = -1)(_.toLong).use(_ => ZIO.succeed(false)).catchAllCause {
+        case zio.Cause.Die(_) => ZIO.succeed(true)
+        case c => ZIO.halt(c)
+      }.map(_ must_=== true)
+    }
+
+  private def hashPartitionBackPressure =
+    flaky {
+      Stream.range(0, 10).distribute(2, 3).use {
+        case (_, s1) :: (_, s2) :: Nil =>
+          for {
+            ref      <- Ref.make[List[Int]](Nil)
+            _        <- s1.timeout(100.milliseconds).foreach(i => {ref.update(i :: _)}).ignore
+            result   <- ref.get
+            _        <- s2.runDiscard
+          } yield result.size must_=== 5
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
     }
 
   private def map =
