@@ -238,8 +238,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Converts the failure channel into an `Option`.
    */
-  final def option: STM[Nothing, Option[A]] =
-    fold[Option[A]](_ => None, Some(_))
+  final def option: STM[Nothing, Option[A]] = fold(_ => None, Some(_))
 
   /**
    * Tries this effect first, and if it fails, tries the other effect.
