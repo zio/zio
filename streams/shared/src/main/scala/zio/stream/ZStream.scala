@@ -1556,6 +1556,16 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   type InputStream[-R, +E, +A] = ZIO[R, Option[E], A]
 
+  object InputStream {
+    val end: InputStream[Any, Nothing, Nothing]                   = IO.fail(None)
+    def emit[A](a: A): InputStream[Any, Nothing, A]               = UIO.succeed(a)
+    def fail[E](e: E): InputStream[Any, E, Nothing]               = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): InputStream[Any, E, Nothing]        = IO.halt(c).mapError(Some(_))
+    def die(t: Throwable): InputStream[Any, Nothing, Nothing]     = UIO.die(t)
+    def dieMessage(m: String): InputStream[Any, Nothing, Nothing] = UIO.dieMessage(m)
+    def done[E, A](e: Exit[E, A]): InputStream[Any, E, A]         = IO.done(e).mapError(Some(_))
+  }
+
   /**
    * Describes an effectful fold over the elements of the stream. Conceptually it is an effectful state
    * transformation function in the `R` environment that can fail with a checked error `E`. It consumes
@@ -1652,11 +1662,11 @@ object ZStream extends ZStreamPlatformSpecific {
                               runtime.unsafeRunAsync_(
                                 k.foldCauseM(
                                   _.failureOrCause match {
-                                    case Left(None)    => output.offer(IO.fail(None)).unit
-                                    case Left(Some(e)) => output.offer(IO.fail(Some(e))).unit
-                                    case Right(cause)  => output.offer(IO.halt(cause)).unit
+                                    case Left(None)    => output.offer(InputStream.end).unit
+                                    case Left(Some(e)) => output.offer(InputStream.fail(e)).unit
+                                    case Right(cause)  => output.offer(InputStream.halt(cause)).unit
                                   },
-                                  a => output.offer(UIO.succeed(a)).unit
+                                  a => output.offer(InputStream.emit(a)).unit
                                 )
                               )
                           )
@@ -1689,11 +1699,11 @@ object ZStream extends ZStreamPlatformSpecific {
                   runtime.unsafeRunAsync_(
                     k.foldCauseM(
                       _.failureOrCause match {
-                        case Left(None)    => output.offer(IO.fail(None)).unit
-                        case Left(Some(e)) => output.offer(IO.fail(Some(e))).unit
-                        case Right(cause)  => output.offer(IO.halt(cause)).unit
+                        case Left(None)    => output.offer(InputStream.end).unit
+                        case Left(Some(e)) => output.offer(InputStream.fail(e)).unit
+                        case Right(cause)  => output.offer(InputStream.halt(cause)).unit
                       },
-                      a => output.offer(UIO.succeed(a)).unit
+                      a => output.offer(InputStream.emit(a)).unit
                     )
                   )
               ).toManaged_
@@ -1723,11 +1733,11 @@ object ZStream extends ZStreamPlatformSpecific {
                                runtime.unsafeRunAsync_(
                                  k.foldCauseM(
                                    _.failureOrCause match {
-                                     case Left(None)    => output.offer(IO.fail(None)).unit
-                                     case Left(Some(e)) => output.offer(IO.fail(Some(e))).unit
-                                     case Right(cause)  => output.offer(IO.halt(cause)).unit
+                                     case Left(None)    => output.offer(InputStream.end).unit
+                                     case Left(Some(e)) => output.offer(InputStream.fail(e)).unit
+                                     case Right(cause)  => output.offer(InputStream.halt(cause)).unit
                                    },
-                                   a => output.offer(UIO.succeed(a)).unit
+                                   a => output.offer(InputStream.emit(a)).unit
                                  )
                                )
                            )
@@ -1747,14 +1757,14 @@ object ZStream extends ZStreamPlatformSpecific {
     halt(Cause.fail(error))
 
   /**
-   * Creates an empty stream that never fails and executes the finalizer before it ends.
+   * Creates an empty stream that never fails and executes the finalizer when it ends.
    */
   final def finalizer[R](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
     new ZStream[R, Nothing, Nothing] {
       def fold[R1 <: R, E, A1, S]: Fold[R1, E, A1, S] = foldDefault
 
       override def process: ZManaged[R, Nothing, InputStream[R, Nothing, Nothing]] =
-        ZManaged.succeed(IO.fail(None)).ensuring(finalizer)
+        ZManaged.succeed(InputStream.end).ensuring(finalizer)
     }
 
   /**
@@ -1785,8 +1795,8 @@ object ZStream extends ZStreamPlatformSpecific {
           index <- Ref.make(0).toManaged_
           len   = c.length
         } yield index.get.flatMap { i =>
-          if (i >= len) IO.fail(None)
-          else index.set(i + 1) *> UIO.succeed(c(i))
+          if (i >= len) InputStream.end
+          else index.set(i + 1) *> InputStream.emit(c(i))
         }
     }
 
@@ -1851,8 +1861,8 @@ object ZStream extends ZStreamPlatformSpecific {
           done <- Ref.make(false).toManaged_
           a    <- managed
         } yield done.get.flatMap {
-          if (_) IO.fail(None)
-          else done.set(true) *> UIO.succeed(a)
+          if (_) InputStream.end
+          else done.set(true) *> InputStream.emit(a)
         }
     }
 
@@ -1901,11 +1911,11 @@ object ZStream extends ZStreamPlatformSpecific {
         } yield ref.get
           .flatMap(f0)
           .foldM(
-            e => IO.fail(Some(e)),
+            e => InputStream.fail(e),
             opt =>
               opt match {
-                case Some((a, s)) => ref.set(s) *> UIO.succeed(a)
-                case None         => IO.fail(None)
+                case Some((a, s)) => ref.set(s) *> InputStream.emit(a)
+                case None         => InputStream.end
               }
           )
     }
