@@ -11,11 +11,7 @@ import java.util.concurrent.TimeUnit
 import org.specs2.matcher.MatchResult
 import org.specs2.matcher.describe.Diffable
 
-class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends TestRuntime
-    with StreamTestUtils
-    with GenIO
-    with ScalaCheck {
+class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import ArbitraryStream._, ZSink.Step
 
   def is = "SinkSpec".title ^ s2"""
@@ -973,14 +969,14 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def foldLeft =
     prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
-      unsafeRunSync(s.run(ZSink.foldLeft(z)(f))) must_=== slurp(s).map(_.foldLeft(z)(f))
+      unsafeRunSync(s.run(ZSink.foldLeft(z)(f))) must_=== unsafeRunSync(s.runCollect.map(_.foldLeft(z)(f)))
     }
 
   private def fold =
     prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
       val ff = (acc: String, el: Int) => Step.more(f(acc, el))
 
-      unsafeRunSync(s.run(ZSink.fold(z)(ff))) must_=== slurp(s).map(_.foldLeft(z)(f))
+      unsafeRunSync(s.run(ZSink.fold(z)(ff))) must_=== unsafeRunSync(s.runCollect.map(_.foldLeft(z)(f)))
     }
 
   private def foldShortCircuits = {
@@ -1051,7 +1047,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def collectAllWhile =
     prop { (s: Stream[String, String], f: String => Boolean) =>
       val sinkResult = unsafeRunSync(s.run(ZSink.collectAllWhile(f)))
-      val listResult = slurp(s).map(_.takeWhile(f))
+      val listResult = unsafeRunSync(s.runCollect.map(_.takeWhile(f)))
 
       listResult.succeeded ==> (sinkResult must_=== listResult)
     }
