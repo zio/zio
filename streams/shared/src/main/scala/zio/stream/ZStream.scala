@@ -1794,10 +1794,11 @@ object ZStream extends ZStreamPlatformSpecific {
 
       override def process: Managed[Nothing, InputStream[Nothing, A]] =
         for {
-          ref <- Ref.make(c).toManaged_
-        } yield ref.get.flatMap { chunk =>
-          if (chunk.isEmpty) IO.fail(None)
-          else ref.set(chunk.drop(1)) *> UIO.succeed(chunk(0))
+          index <- Ref.make(0).toManaged_
+          len   = c.length
+        } yield index.get.flatMap { i =>
+          if (i >= len) IO.fail(None)
+          else index.set(i + 1) *> UIO.succeed(c(i))
         }
     }
 
