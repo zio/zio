@@ -1,4 +1,4 @@
-package zio.test.runner
+package zio.test.sbt
 
 import sbt.testing._
 import zio.test.RenderedResult

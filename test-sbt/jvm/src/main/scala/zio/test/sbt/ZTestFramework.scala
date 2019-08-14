@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.runner
+package zio.test.sbt
 
 import sbt.testing._
 
