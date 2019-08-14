@@ -2332,7 +2332,7 @@ object ZStream extends ZStreamPlatformSpecific {
     flatten(fromEffect(fa))
 
   /**
-   * Creates a stream produced from a zmanaged
+   * Creates a stream produced from a [[ZManaged]]
    */
   final def unwrapManaged[R, E, A](fa: ZManaged[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
