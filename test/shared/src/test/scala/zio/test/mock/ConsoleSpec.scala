@@ -11,14 +11,14 @@ import zio.test.TestUtils.label
 object ConsoleSpec extends DefaultRuntime {
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
-    label(emptyOutput, "MockConsole outputs nothing"),
-    label(putStr, "MockConsole writes to output"),
-    label(putStrLn, "MockConsole writes line to output"),
-    label(getStr1, "MockConsole reads from input"),
-    label(getStr2, "MockConsole fails on empty input"),
-    label(feedLine, "MockConsole feeds lines to input"),
-    label(clearInput, "MockConsole clears lines from input"),
-    label(clearOutput, "MockConsole clears lines from output")
+    label(emptyOutput, "outputs nothing"),
+    label(putStr, "writes to output"),
+    label(putStrLn, "writes line to output"),
+    label(getStr1, "reads from input"),
+    label(getStr2, "fails on empty input"),
+    label(feedLine, "feeds lines to input"),
+    label(clearInput, "clears lines from input"),
+    label(clearOutput, "clears lines from output")
   )
 
   def stream(): PrintStream = new PrintStream(new ByteArrayOutputStream())
