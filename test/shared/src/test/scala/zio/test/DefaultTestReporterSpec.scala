@@ -9,13 +9,13 @@ import zio.test.TestUtils.label
 object DefaultTestReporterSpec extends DefaultRuntime {
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
-    label(reportSuccess, "DefaultTestReporter correctly reports a successful test"),
-    label(reportFailure, "DefaultTestReporter correctly reports a failed test"),
-    label(reportError, "DefaultTestReporter correctly reports an error in a test"),
-    label(reportSuite1, "DefaultTestReporter correctly reports successful test suite"),
-    label(reportSuite2, "DefaultTestReporter correctly reports failed test suite"),
-    label(reportSuites, "DefaultTestReporter correctly reports multiple test suites"),
-    label(simplePredicate, "DefaultTestReporter correctly reports failure of simple predicate")
+    label(reportSuccess, "correctly reports a successful test"),
+    label(reportFailure, "correctly reports a failed test"),
+    label(reportError, "correctly reports an error in a test"),
+    label(reportSuite1, "correctly reports successful test suite"),
+    label(reportSuite2, "correctly reports failed test suite"),
+    label(reportSuites, "correctly reports multiple test suites"),
+    label(simplePredicate, "correctly reports failure of simple predicate")
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
@@ -131,7 +131,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     Console.CYAN + s + Console.RESET
 
   def yellow(s: String): String =
-    Console.YELLOW + s + Console.CYAN
+    Console.YELLOW + s + Console.RESET
 
   def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>

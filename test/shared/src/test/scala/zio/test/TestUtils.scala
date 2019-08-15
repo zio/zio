@@ -5,7 +5,20 @@ import scala.concurrent.{ ExecutionContext, Future }
 object TestUtils {
 
   def label(f: Future[Boolean], s: String)(implicit ec: ExecutionContext): Future[(Boolean, String)] =
-    f.map(p => (p, s)).recover { case _ => (false, s) }
+    f.map { p =>
+      if (p)
+        (p, succeed(s))
+      else
+        (p, fail(s))
+    }.recover { case _ => (false, fail(s)) }
+
+  def scope(fs: List[Future[(Boolean, String)]], s: String)(
+    implicit ec: ExecutionContext
+  ): List[Future[(Boolean, String)]] = {
+    val p      = Future.sequence(fs).map(_.forall(_._1))
+    val offset = fs.map(_.map { case (p, s) => (p, "  " + s) })
+    p.map(p => if (p) (p, succeed(s)) else (p, fail(s))) :: offset
+  }
 
   def report(ps: List[Future[(Boolean, String)]])(implicit ec: ExecutionContext): Unit = {
     val f = Future
@@ -13,13 +26,7 @@ object TestUtils {
       .map(results => (results.forall(_._1), results))
       .flatMap {
         case (passed, results) =>
-          results.foreach {
-            case (p, s) =>
-              if (p)
-                println(green("+") + " " + s)
-              else
-                println(red(" -" + " " + s))
-          }
+          results.foreach(result => println(result._2))
           if (!passed)
             Future(ExitUtils.fail()).map(_ => false)
           else
@@ -27,6 +34,12 @@ object TestUtils {
       }
     ExitUtils.await(f)
   }
+
+  private def succeed(s: String): String =
+    green("+") + " " + s
+
+  private def fail(s: String): String =
+    red("-" + " " + s)
 
   private def green(s: String): String =
     Console.GREEN + s + Console.RESET

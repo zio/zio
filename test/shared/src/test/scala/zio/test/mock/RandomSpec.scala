@@ -10,20 +10,20 @@ import zio.test.TestUtils.label
 object RandomSpec extends DefaultRuntime {
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
-    label(referentiallyTransparent, "MockRandom referential transparency"),
-    label(forAllEqual(_.nextBoolean)(_.nextBoolean()), "MockRandom nextBoolean"),
-    label(forAllEqualBytes, "MockRandom nextBytes"),
-    label(forAllEqual(_.nextDouble)(_.nextDouble()), "MockRandom nextDouble"),
-    label(forAllEqual(_.nextFloat)(_.nextFloat()), "MockRandom nextFloat"),
-    label(forAllEqualGaussian, "MockRandom nextGaussian"),
-    label(forAllEqual(_.nextInt)(_.nextInt()), "MockRandom nextInt"),
-    label(forAllEqualN(_.nextInt(_))(_.nextInt(_)), "MockRandom bounded nextInt"),
-    label(forAllEqual(_.nextLong)(_.nextLong()), "MockRandom nextLong"),
-    label(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar()), "MockRandom nextPrintableChar"),
-    label(forAllEqualN(_.nextString(_))(_.nextString(_)), "MockRandom nextString"),
-    label(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_)), "MockRandom shuffle"),
-    label(forAllBounded(_.nextInt)(_.nextInt(_)), "MockRandom bounded nextInt generates values within the bounds"),
-    label(forAllBounded(_.nextLong)(_.nextLong(_)), "MockRandom bounded nextLong generates values within the bounds")
+    label(referentiallyTransparent, "referential transparency"),
+    label(forAllEqual(_.nextBoolean)(_.nextBoolean()), "nextBoolean"),
+    label(forAllEqualBytes, "nextBytes"),
+    label(forAllEqual(_.nextDouble)(_.nextDouble()), "nextDouble"),
+    label(forAllEqual(_.nextFloat)(_.nextFloat()), "nextFloat"),
+    label(forAllEqualGaussian, "nextGaussian"),
+    label(forAllEqual(_.nextInt)(_.nextInt()), "nextInt"),
+    label(forAllEqualN(_.nextInt(_))(_.nextInt(_)), "bounded nextInt"),
+    label(forAllEqual(_.nextLong)(_.nextLong()), "nextLong"),
+    label(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar()), "nextPrintableChar"),
+    label(forAllEqualN(_.nextString(_))(_.nextString(_)), "nextString"),
+    label(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_)), "shuffle"),
+    label(forAllBounded(_.nextInt)(_.nextInt(_)), "bounded nextInt generates values within the bounds"),
+    label(forAllBounded(_.nextLong)(_.nextLong(_)), "bounded nextLong generates values within the bounds")
   )
 
   def referentiallyTransparent(implicit ec: ExecutionContext): Future[Boolean] = {

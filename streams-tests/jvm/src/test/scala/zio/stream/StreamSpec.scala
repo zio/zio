@@ -20,6 +20,12 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import zio.Cause
 
   def is = "StreamSpec".title ^ s2"""
+  Stream.process
+    run collect $processRunCollect
+
+  Stream.foldDefault
+    run collect $foldDefaultRunCollect
+
   Stream.aggregate
     aggregate                            $aggregate
     error propagation                    $aggregateErrorPropagation1
@@ -212,6 +218,28 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
   """
+
+  def processRunCollect = {
+    def loop[E, A](effect: IO[_, A], ref: Ref[List[A]]): UIO[List[A]] =
+      effect.flatMap(a => ref.update(a :: _)).forever.catchAll(_ => ref.get).map(_.reverse)
+
+    unsafeRun {
+      for {
+        ref <- Ref.make(List.empty[Int])
+        res <- Stream(1, 2, 3, 4).process.use(loop(_, ref))
+      } yield res must_=== List(1, 2, 3, 4)
+    }
+  }
+
+  def foldDefaultRunCollect = unsafeRun {
+    Stream(1, 2, 3, 4)
+      .foldDefault[Any, Nothing, Int, List[Int]]
+      .flatMap { fold =>
+        fold(Nil, _ => true, (l, a) => UIO.succeed(a :: l))
+      }
+      .use[Any, Nothing, List[Int]](l => UIO.succeed(l.reverse))
+      .map(_ must_=== List(1, 2, 3, 4))
+  }
 
   def aggregate = unsafeRun {
     Stream(1, 1, 1, 1)
@@ -513,7 +541,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         fiber <- ZStream
                   .effectAsyncM[Any, Throwable, Int] { k =>
                     latch.succeed(()) *>
-                      Task.succeedLazy {
+                      Task.succeed {
                         list.foreach(a => k(Task.succeed(a)))
                       }
                   }
@@ -688,11 +716,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def flatMapStackSafety = {
     def fib(n: Int): Stream[Nothing, Int] =
-      if (n <= 1) Stream.succeedLazy(n)
+      if (n <= 1) Stream.succeed(n)
       else
         fib(n - 1).flatMap { a =>
           fib(n - 2).flatMap { b =>
-            Stream.succeedLazy(a + b)
+            Stream.succeed(a + b)
           }
         }
 

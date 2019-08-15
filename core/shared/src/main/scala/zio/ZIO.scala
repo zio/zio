@@ -1083,7 +1083,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
    * partial effects.
    */
-  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
+  @deprecated("use effectTotal", "1.0.0")
+  final def succeedLazy[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
@@ -1848,7 +1849,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * the list of results.
    */
   final def foreach_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
-    ZIO.succeedLazy(as.iterator).flatMap { i =>
+    ZIO.effectTotal(as.iterator).flatMap { i =>
       def loop: ZIO[R, E, Unit] =
         if (i.hasNext) f(i.next) *> loop
         else ZIO.unit
@@ -1875,7 +1876,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     ZIO
-      .succeedLazy(as.iterator)
+      .succeed(as.iterator)
       .flatMap { i =>
         def loop(a: A): ZIO[R, E, Unit] =
           if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
@@ -1931,12 +1932,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    * composite fiber that produces a list of their results, in order.
    */
   final def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Fiber[E, List[A]]] =
-    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeedLazy[E, List[A]](List()))) {
-      (aIO, asFiberIO) =>
-        asFiberIO.zip(aIO.fork).map {
-          case (asFiber, aFiber) =>
-            asFiber.zipWith(aFiber)((as, a) => a :: as)
-        }
+    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeed[E, List[A]](List()))) { (aIO, asFiberIO) =>
+      asFiberIO.zip(aIO.fork).map {
+        case (asFiber, aFiber) =>
+          asFiber.zipWith(aFiber)((as, a) => a :: as)
+      }
     }
 
   /**
@@ -2089,7 +2089,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def mergeAll[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
+    in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
@@ -2098,7 +2098,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def mergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
+    in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
 
   /**
    * Returns an effect with the empty value.
@@ -2225,13 +2225,9 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
 
-  /**
-   * Returns an effect that models success with the specified lazily-evaluated
-   * value. This method should not be used to capture effects. See
-   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
-   * partial effects.
-   */
-  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
+  @deprecated("use effectTotal", "1.0.0")
+  final def succeedLazy[A](a: => A): UIO[A] =
+    effectTotal(a)
 
   /**
    * Enables supervision for this effect. This will cause fibers forked by

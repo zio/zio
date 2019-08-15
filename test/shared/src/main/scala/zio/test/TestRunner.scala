@@ -27,7 +27,7 @@ import zio.internal.{ Platform, PlatformLive }
  */
 abstract class TestRunner[L, -T](
   executor: TestExecutor[L, T],
-  platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
+  val platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[L] = DefaultTestReporter(Console.Live)
 ) { self =>
 
