@@ -14,21 +14,21 @@ import scala.concurrent.ExecutionContext
 object ClockSpec extends DefaultRuntime {
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
-    label(e1, "MockClock sleep does not require passage of clock time"),
-    label(e2, "MockClock sleep delays effect until time is adjusted"),
-    label(e3, "MockClock sleep correctly handles multiple sleeps"),
-    label(e4, "MockClock sleep correctly handles new set time"),
-    label(e5, "MockClock sleep does sleep instanly when sleep duration less than set time"),
-    label(e6, "MockClock adjust correctly advances nanotime"),
-    label(e7, "MockClock adjust correctly advances currentTime"),
-    label(e8, "MockClock adjust correctly advances currentDateTime"),
-    label(e9, "MockClock adjust does not produce sleeps "),
-    label(e10, "MockClock setTime correctly sets nanotime"),
-    label(e11, "MockClock setTime correctly sets currentTime"),
-    label(e12, "MockClock setTime correctly sets currentDateTime"),
-    label(e13, "MockClock setTime does not produce sleeps "),
-    label(e14, "MockClock setTimeZone correctly sets timeZone"),
-    label(e15, "MockClock setTimeZone does not produce sleeps ")
+    label(e1, "sleep does not require passage of clock time"),
+    label(e2, "sleep delays effect until time is adjusted"),
+    label(e3, "sleep correctly handles multiple sleeps"),
+    label(e4, "sleep correctly handles new set time"),
+    label(e5, "sleep does sleep instanly when sleep duration less than set time"),
+    label(e6, "adjust correctly advances nanotime"),
+    label(e7, "adjust correctly advances currentTime"),
+    label(e8, "adjust correctly advances currentDateTime"),
+    label(e9, "adjust does not produce sleeps "),
+    label(e10, "setTime correctly sets nanotime"),
+    label(e11, "setTime correctly sets currentTime"),
+    label(e12, "setTime correctly sets currentDateTime"),
+    label(e13, "setTime does not produce sleeps "),
+    label(e14, "setTimeZone correctly sets timeZone"),
+    label(e15, "setTimeZone does not produce sleeps ")
   )
 
   def e1 =
