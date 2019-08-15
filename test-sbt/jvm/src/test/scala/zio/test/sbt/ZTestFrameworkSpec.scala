@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package zio.test.runner
+package zio.test.sbt
 
 import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
-import zio.test.runner.TestingSupport._
+import zio.test.sbt.TestingSupport._
 import zio.test.{ DefaultRunnableSpec, Predicate, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
