@@ -969,10 +969,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def map[B](f0: A => B): ZStream[R, E, B] =
     new ZStream[R, E, B] {
-      def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] = foldDefault
-
-      override def process: ZManaged[R, E, InputStream[R, E, B]] =
-        self.process.map(is => is.map(f0))
+      def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
+        ZManaged.succeed { (s, cont, f) =>
+          self.fold[R1, E1, A, S].flatMap { fold =>
+            fold(s, cont, (s, a) => f(s, f0(a)))
+          }
+        }
     }
 
   /**
