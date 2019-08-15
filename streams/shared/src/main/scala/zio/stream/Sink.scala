@@ -36,6 +36,36 @@ object Sink {
     ZSink.collectAll
 
   /**
+   * see [[ZSink.collectAllN]]
+   */
+  final def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
+    ZSink.collectAllN(n)
+
+  /**
+   * see [[ZSink.collectAllToSet]]
+   */
+  final def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
+    ZSink.collectAllToSet
+
+  /**
+   * see [[ZSink.collectAllToSetN]]
+   */
+  final def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] =
+    ZSink.collectAllToSetN(n)
+
+  /**
+   * see [[ZSink.collectAllToMap]]
+   */
+  final def collectAllToMap[K, A](key: A => K): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
+    ZSink.collectAllToMap(key)
+
+  /**
+   * see [[ZSink.collectAllToMapN]]
+   */
+  final def collectAllToMapN[K, A](n: Long)(key: A => K): ZSink[Any, Nothing, A, A, Map[K, A]] =
+    ZSink.collectAllToMapN(n)(key)
+
+  /**
    * see [[ZSink.collectAllWhile]]
    */
   final def collectAllWhile[A](p: A => Boolean): Sink[Nothing, A, A, List[A]] =
@@ -137,7 +167,7 @@ object Sink {
   /**
    * see [[ZSink.identity]]
    */
-  final def identity[A]: Sink[Unit, A, A, A] =
+  final def identity[A]: Sink[Unit, Nothing, A, A] =
     ZSink.identity
 
   /**
@@ -167,10 +197,14 @@ object Sink {
     ZSink.read1(e)(p)
 
   /**
-   * see [[ZSink.succeedLazy]]
+   * see [[ZSink.succeed]]
    */
+  final def succeed[B](b: B): Sink[Nothing, Nothing, Any, B] =
+    ZSink.succeed(b)
+
+  @deprecated("use succeed", "1.0.0")
   final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
-    ZSink.succeedLazy(b)
+    succeed(b)
 
   /**
    * see [[ZSink.throttleEnforce]]
@@ -203,4 +237,16 @@ object Sink {
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, A]] =
     ZSink.throttleShapeM[Any, E, A](units, duration, burst)(costFn)
+
+  /**
+   * see [[ZSink.utf8Decode]]
+   */
+  final def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): Sink[Nothing, Byte, Byte, String] =
+    ZSink.utf8Decode(bufferSize)
+
+  /**
+   * see [[ZSink.utf8DecodeChunk]]
+   */
+  final val utf8DecodeChunk: Sink[Nothing, Chunk[Byte], Chunk[Byte], String] =
+    ZSink.utf8DecodeChunk
 }

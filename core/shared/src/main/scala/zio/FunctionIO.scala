@@ -182,22 +182,23 @@ sealed trait FunctionIO[+E, -A, +B] extends Serializable { self =>
   final def |||[E1 >: E, B1 >: B, C](that: FunctionIO[E1, C, B1]): FunctionIO[E1, Either[A, C], B1] =
     FunctionIO.join(self, that)
 
+  @deprecated("use as", "1.0.0")
+  final def const[C](c: => C): FunctionIO[E, A, C] =
+    as(c)
+
   /**
    * Maps the output of this effectful function to the specified constant.
    */
-  final def const[C](c: => C): FunctionIO[E, A, C] =
+  final def as[C](c: => C): FunctionIO[E, A, C] =
     self >>> FunctionIO.fromFunction[B, C](_ => c)
 
-  /**
-   * Maps the output of this effectful function to `Unit`.
-   */
   @deprecated("use unit", "1.0.0")
   final def void: FunctionIO[E, A, Unit] = unit
 
   /**
    * Maps the output of this effectful function to `Unit`.
    */
-  final def unit: FunctionIO[E, A, Unit] = const(())
+  final def unit: FunctionIO[E, A, Unit] = as(())
 
   /**
    * Returns a new effectful function that merely applies this one for its
@@ -214,7 +215,7 @@ object FunctionIO extends Serializable {
   private[zio] final class Pure[E, A, B](val run: A => IO[E, B]) extends FunctionIO[E, A, B] {}
   private[zio] final class Impure[E, A, B](val apply0: A => B) extends FunctionIO[E, A, B] {
     val run: A => IO[E, B] = a =>
-      IO.suspend {
+      IO.effectSuspendTotal {
         try IO.succeed[B](apply0(a))
         catch {
           case e: FunctionIOError[_] => IO.fail[E](e.unsafeCoerce[E])
@@ -227,10 +228,9 @@ object FunctionIO extends Serializable {
    */
   final def succeed[B](b: B): FunctionIO[Nothing, Any, B] = fromFunction((_: Any) => b)
 
-  /**
-   * Lifts a non-strictly evaluated value into the monad formed by `FunctionIO`.
-   */
-  final def succeedLazy[B](b: => B): FunctionIO[Nothing, Any, B] = fromFunction((_: Any) => b)
+  @deprecated("use effectTotal", "1.0.0")
+  final def succeedLazy[B](b: => B): FunctionIO[Nothing, Any, B] =
+    effectTotal(_ => b)
 
   /**
    * Returns a `FunctionIO` representing a failure with the specified `E`.

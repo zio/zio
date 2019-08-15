@@ -13,19 +13,11 @@ A value of type `IO[E, A]` describes an effect that may fail with an `E`, run fo
 
 ## Pure Values
 
-You can lift pure values into `IO` with `IO.succeedLazy`:
+You can lift pure values into `IO` with `IO.succeed`:
 
 ```scala mdoc:silent
 import zio._
 
-val lazyValue: UIO[String] = IO.succeedLazy("Hello World")
-```
-
-The constructor uses non-strict evaluation, so the parameter will not be evaluated until when and if the `IO` action is executed at runtime, which is useful if the construction is costly and the value may never be needed.
-
-Alternately, you can use the `IO.succeed` constructor to perform strict evaluation of the value:
-
-```scala mdoc:silent
 val value: UIO[String] = IO.succeed("Hello World")
 ```
 
@@ -91,7 +83,7 @@ You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a
 ```scala mdoc:silent
 import zio._
 
-val mappedLazyValue: UIO[Int] = IO.succeedLazy(21).map(_ * 2)
+val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
 
 You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`:
@@ -105,8 +97,8 @@ val mappedError: IO[Exception, String] = IO.fail("No no!").mapError(msg => new E
 You can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
 ```scala mdoc:silent
-val chainedActionsValue: UIO[List[Int]] = IO.succeedLazy(List(1, 2, 3)).flatMap { list =>
-  IO.succeedLazy(list.map(_ + 1))
+val chainedActionsValue: UIO[List[Int]] = IO.succeed(List(1, 2, 3)).flatMap { list =>
+  IO.succeed(list.map(_ + 1))
 }
 ```
 
@@ -114,8 +106,8 @@ You can use Scala's `for` comprehension syntax to make this type of code more co
 
 ```scala mdoc:silent
 val chainedActionsValueWithForComprehension: UIO[List[Int]] = for {
-  list <- IO.succeedLazy(List(1, 2, 3))
-  added <- IO.succeedLazy(list.map(_ + 1))
+  list <- IO.succeed(List(1, 2, 3))
+  added <- IO.succeed(list.map(_ + 1))
 } yield added
 ```
 
@@ -136,8 +128,8 @@ import zio._
 ```scala mdoc:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.succeedLazy(???)
-def closeFile(f: File): UIO[Unit] = IO.succeedLazy(???)
+def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)
 def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
@@ -172,7 +164,7 @@ object Main extends App {
 
   // run my bracket
   def run(args: List[String]) =
-    mybracket.orDie.const(0)
+    mybracket.orDie.as(0)
 
   def closeStream(is: FileInputStream) =
     UIO(is.close())

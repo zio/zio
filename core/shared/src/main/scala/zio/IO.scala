@@ -21,7 +21,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): Task[A] = ZIO.apply(a)
+  final def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
    * @see See bracket [[zio.ZIO]]
@@ -85,7 +85,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  final def collectAllParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def collectAllParN[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
@@ -144,6 +144,16 @@ object IO {
     ZIO.effectAsyncMaybe(register)
 
   /**
+   * @see See [[zio.ZIO.effectSuspendTotal]]
+   */
+  final def effectSuspendTotal[E, A](io: => IO[E, A]): IO[E, A] = new ZIO.EffectSuspendTotalWith(_ => io)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotalWith]]
+   */
+  final def effectSuspendTotalWith[E, A](p: Platform => IO[E, A]): IO[E, A] = new ZIO.EffectSuspendTotalWith(p)
+
+  /**
    * @see See [[zio.ZIO.effectTotal]]
    */
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
@@ -188,7 +198,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  final def foreachParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+  final def foreachParN[E, A, B](n: Int)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
@@ -206,7 +216,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[E, A, B](n: Long)(as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+  final def foreachParN_[E, A, B](n: Int)(as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -377,7 +387,7 @@ object IO {
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
-  final def sequenceParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def sequenceParN[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.sequenceParN(n)(as)
 
   /**
@@ -390,10 +400,9 @@ object IO {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  /**
-   * @see See [[zio.ZIO.succeedLazy]]
-   */
-  final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
+  @deprecated("use effectTotal", "1.0.0")
+  final def succeedLazy[A](a: => A): UIO[A] =
+    effectTotal(a)
 
   /**
    * @see See [[zio.ZIO.interruptChildren]]
@@ -419,17 +428,11 @@ object IO {
   final def superviseStatus[E, A](status: SuperviseStatus)(io: IO[E, A]): IO[E, A] =
     ZIO.superviseStatus(status)(io)
 
-  /**
-   * @see See [[zio.ZIO.suspend]]
-   */
-  final def suspend[E, A](io: => IO[E, A]): IO[E, A] =
-    ZIO.suspend(io)
+  @deprecated("use effectSuspendTotal", "1.0.0")
+  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = effectSuspendTotalWith(_ => io)
 
-  /**
-   * [[zio.ZIO.suspendWith]]
-   */
-  final def suspendWith[E, A](io: Platform => IO[E, A]): IO[E, A] =
-    new ZIO.SuspendWith(io)
+  @deprecated("use effectSuspendTotalWith", "1.0.0")
+  final def suspendWith[E, A](p: Platform => IO[E, A]): IO[E, A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -457,7 +460,7 @@ object IO {
    * Alias for [[ZIO.foreachParN]]
    */
   final def traverseParN[E, A, B](
-    n: Long
+    n: Int
   )(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     ZIO.traverseParN(n)(as)(fn)
 
@@ -477,7 +480,7 @@ object IO {
    * @see See [[zio.ZIO.traverseParN_]]
    */
   final def traverseParN_[E, A](
-    n: Long
+    n: Int
   )(as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
     ZIO.traverseParN_(n)(as)(f)
 

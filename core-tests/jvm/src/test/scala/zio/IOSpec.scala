@@ -7,6 +7,7 @@ import org.specs2.execute.Result
 import scala.collection.mutable
 import scala.util.Try
 import zio.Cause.{ die, fail, interrupt, Both }
+import zio.duration._
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -45,23 +46,46 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
    Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
    Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
+   Check `cached` method on IO[E, A] returns new instances after duration. $testCached
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
    Check `firstSuccessOf` method returns the same IO[E, A] as `IO.firstSuccessOf` does. $testfirstSuccessOf
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
+   Check `eventually` method succeeds eventually. $testEventually
+   Check `some` method extracts the value from Some. $testSomeOnSomeOption
+   Check `some` method fails on None. $testSomeOnNoneOption
+   Check `some` method fails when given an exception. $testSomeOnException
    Check `someOrFail` method extracts the optional value. $testSomeOrFailExtractOptionalValue
    Check `someOrFail` method fails when given a None. $testSomeOrFailWithNone
    Check `someOrFailException` method extracts the optional value. $testSomeOrFailExceptionOnOptionalValue
    Check `someOrFailException` method fails when given a None. $testSomeOrFailExceptionOnEmptyValue
+   Check `none` method extracts the value from Some. $testNoneOnSomeOption
+   Check `none` method fails on None. $testNoneOnNoneOption
+   Check `none` method fails when given an exception. $testNoneOnException
+   Check `flattenErrorOption` method fails when given Some error. $testFlattenErrorOptionOnSomeError
+   Check `flattenErrorOption` method fails with Default when given None error. $testFlattenErrorOptionOnNoneError
+   Check `flattenErrorOption` method succeeds when given a value. $testFlattenErrorOptionOnSomeValue
+   Check `optional` method fails when given Some error. $testOptionalOnSomeError
+   Check `optional` method succeeds with None given None error. $testOptionalOnNoneError
+   Check `optional` method succeeds with Some given a value. $testOptionalOnSomeValue
+   Check `right` method extracts the Right value. $testRightOnRightValue
+   Check `right` method fails with `None` when given a Left value. $testRightOnLeftValue
+   Check `right` method fails with `Some(exception)` when given an exception. $testRightOnException
    Check `rightOrFail` method extracts the Right value. $testRightOrFailExtractsRightValue
    Check `rightOrFail` method fails when given a Left. $testRightOrFailWithLeft
    Check `rightOrFailException` method extracts the Right value. $testRightOrFailExceptionOnRightValue
    Check `rightOrFailException` method fails when given a Left. $testRightOrFailExceptionOnLeftValue
+   Check `left` method extracts the Left value. $testLeftOnLeftValue
+   Check `left` method fails with `None` when given a Right value. $testLeftOnRightValue
+   Check `left` method fails with `Some(exception)` when given an exception. $testLeftOnException
    Check `leftOrFail` method extracts the Left value. $testLeftOrFailExtractsLeftValue
    Check `leftOrFail` method fails when given a Right. $testLeftOrFailWithRight
    Check `leftOrFailException` method extracts the Left value. $testLeftOrFailExceptionOnLeftValue
    Check `leftOrFailException` method fails when given a Right. $testLeftOrFailExceptionOnRightValue
+   Check `head` method extracts the head of a non-empty list. $testHeadOnNonEmptyList
+   Check `head` method fails with `None` when given an empty list. $testHeadOnEmptyList
+   Check `head` method fails with `Some(exception)` when given an exception. $testHeadOnException
    Check `replicate` method returns empty list when given non positive number. $testReplicateNonPositiveNumber
    Check `replicate` method returns list of the same effect. $testReplicate
    Check uncurried `bracket`. $testUncurriedBracket
@@ -100,19 +124,19 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def t2 = {
     val list    = List("1", "2", "3")
     val effects = new mutable.ListBuffer[String]
-    val res     = unsafeRun(IO.foreach(list)(x => IO.effectTotal(effects += x) *> IO.succeedLazy[Int](x.toInt)))
+    val res     = unsafeRun(IO.foreach(list)(x => IO.effectTotal(effects += x) *> IO.effectTotal[Int](x.toInt)))
     (effects.toList, res) must be_===((list, List(1, 2, 3)))
   }
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.succeedLazy[Int](x.toInt))))
+    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.effectTotal[Int](x.toInt))))
     res must beAFailedTry.withThrowable[FiberFailure]
   }
 
   def t4 = {
     val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.foreachPar(list)(x => IO.succeedLazy[Int](x.toInt)))
+    val res  = unsafeRun(IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
@@ -122,26 +146,26 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def t6 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.collectAllPar(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t7 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.forkAll(list).flatMap[Any, Nothing, List[Int]](_.join))
     res must be_===(List(1, 2, 3))
   }
 
   def t8 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
+    val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
     val res  = unsafeRun(IO.collectAllParN(2)(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t9 = {
     val list = List(1, 2, 3)
-    val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.succeedLazy(x.toString)))
+    val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.effectTotal(x.toString)))
     res must be_===(List("1", "2", "3"))
   }
 
@@ -253,8 +277,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testFlatten = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
-      flatten1 <- IO.succeedLazy(IO.succeedLazy(str)).flatten
-      flatten2 <- IO.flatten(IO.succeedLazy(IO.succeedLazy(str)))
+      flatten1 <- IO.effectTotal(IO.effectTotal(str)).flatten
+      flatten2 <- IO.flatten(IO.effectTotal(IO.effectTotal(str)))
     } yield flatten1 must ===(flatten2))
   }
 
@@ -267,7 +291,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testNonMemoizationRT = forAll(Gen.alphaStr) { str =>
-    val io: UIO[Option[String]] = IO.succeedLazy(Some(str)) // using `Some` for object allocation
+    val io: UIO[Option[String]] = IO.effectTotal(Some(str)) // using `Some` for object allocation
     unsafeRun(
       (io <*> io)
         .map(tuple => tuple._1 must not beTheSameAs (tuple._2))
@@ -275,12 +299,25 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testMemoization = forAll(Gen.alphaStr) { str =>
-    val ioMemo: UIO[UIO[Option[String]]] = IO.succeedLazy(Some(str)).memoize // using `Some` for object allocation
+    val ioMemo: UIO[UIO[Option[String]]] = IO.effectTotal(Some(str)).memoize // using `Some` for object allocation
     unsafeRun(
       ioMemo
         .flatMap(io => io <*> io)
         .map(tuple => tuple._1 must beTheSameAs(tuple._2))
     )
+  }
+
+  def testCached = flaky {
+    def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
+    for {
+      ref   <- Ref.make(0)
+      cache <- incrementAndGet(ref).cached(100.milliseconds)
+      a     <- cache
+      b     <- cache
+      _     <- clock.sleep(100.milliseconds)
+      c     <- cache
+      d     <- cache
+    } yield (a must_=== b) and (b must_!== c) and (c must_=== d)
   }
 
   def testRaceAll = {
@@ -327,6 +364,78 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     }
   }
 
+  def testEventually = {
+    def effect(ref: Ref[Int]) =
+      ref.get.flatMap(n => if (n < 10) ref.update(_ + 1) *> IO.fail("Ouch") else UIO.succeed(n))
+
+    val test = for {
+      ref <- Ref.make(0)
+      n   <- effect(ref).eventually
+    } yield n
+
+    unsafeRun(test) must_=== 10
+  }
+
+  def testSomeOnSomeOption = {
+    val task: IO[Option[Throwable], Int] = Task(Some(1)).some
+    unsafeRun(task) must_=== 1
+  }
+
+  def testSomeOnNoneOption = {
+    val task: IO[Option[Throwable], Int] = Task(None).some
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testSomeOnException = {
+    val task: IO[Option[Throwable], Int] = Task.fail(new RuntimeException("Failed Task")).some
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testNoneOnSomeOption = {
+    val task: IO[Option[Throwable], Unit] = Task(Some(1)).none
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testNoneOnNoneOption = {
+    val task: IO[Option[Throwable], Unit] = Task(None).none
+    unsafeRun(task) must_=== (())
+  }
+
+  def testNoneOnException = {
+    val task: IO[Option[Throwable], Unit] = Task.fail(new RuntimeException("Failed Task")).none
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testFlattenErrorOptionOnSomeError = {
+    val task: IO[String, Int] = IO.fail(Some("Error")).flattenErrorOption("Default")
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testFlattenErrorOptionOnNoneError = {
+    val task: IO[String, Int] = IO.fail(None).flattenErrorOption("Default")
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testFlattenErrorOptionOnSomeValue = {
+    val task: IO[String, Int] = IO.succeed(1).flattenErrorOption("Default")
+    unsafeRun(task) must_=== 1
+  }
+
+  def testOptionalOnSomeError = {
+    val task: IO[String, Option[Int]] = IO.fail(Some("Error")).optional
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testOptionalOnNoneError = {
+    val task: IO[String, Option[Int]] = IO.fail(None).optional
+    unsafeRun(task) must_=== None
+  }
+
+  def testOptionalOnSomeValue = {
+    val task: IO[String, Option[Int]] = IO.succeed(1).optional
+    unsafeRun(task) must_=== Some(1)
+  }
+
   def testSomeOrFailWithNone = {
     val task: Task[Int] = UIO(Option.empty[Int]).someOrFail(exampleError)
     unsafeRun(task) must throwA[FiberFailure]
@@ -344,6 +453,21 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun(task) must throwA[FiberFailure]
   }
 
+  def testRightOnRightValue = {
+    val task = ZIO.succeed(Right("Right")).right.either
+    unsafeRun(task) must_=== Right("Right")
+  }
+
+  def testRightOnLeftValue = {
+    val task = ZIO.succeed(Left("Left")).right.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testRightOnException = {
+    val task = ZIO.fail("Fail").right.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
+  }
+
   def testRightOrFailExceptionOnRightValue = unsafeRun(ZIO.succeed(Right(42)).rightOrFailException) must_=== 42
 
   def testRightOrFailExceptionOnLeftValue = {
@@ -359,6 +483,21 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testRightOrFailWithLeft = {
     val task: Task[Int] = UIO(Left(1)).rightOrFail(exampleError)
     unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOnLeftValue = {
+    val task = ZIO.succeed(Left("Left")).left.either
+    unsafeRun(task) must_=== Right("Left")
+  }
+
+  def testLeftOnRightValue = {
+    val task = ZIO.succeed(Right("Right")).left.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testLeftOnException = {
+    val task = ZIO.fail("Fail").left.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
   }
 
   def testLeftOrFailExceptionOnLeftValue = unsafeRun(ZIO.succeed(Left(42)).leftOrFailException) must_=== 42
@@ -391,11 +530,26 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun(task) must throwA[FiberFailure]
   }
 
+  def testHeadOnNonEmptyList = {
+    val task = ZIO.succeed(List(1, 2, 3)).head.either
+    unsafeRun(task) must_=== Right(1)
+  }
+
+  def testHeadOnEmptyList = {
+    val task = ZIO.succeed(List.empty).head.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testHeadOnException = {
+    val task = ZIO.fail("Fail").head.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
+  }
+
   def testUncurriedBracket =
     unsafeRun {
       for {
         release  <- Ref.make(false)
-        result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.succeedLazy(a + 1))
+        result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.effectTotal(a + 1))
         released <- release.get
       } yield (result must_=== 43) and (released must_=== true)
     }
@@ -404,7 +558,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun {
       for {
         release  <- Ref.make(false)
-        result   <- IO.succeed(42).bracket_(release.set(true), ZIO.succeedLazy(0))
+        result   <- IO.succeed(42).bracket_(release.set(true), ZIO.effectTotal(0))
         released <- release.get
       } yield (result must_=== 0) and (released must_=== true)
     }
@@ -628,7 +782,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testForeachParN_Threads = {
-    val n   = 10L
+    val n   = 10
     val seq = 0 to 100000
     val res = unsafeRun(IO.foreachParN(n)(seq)(UIO.succeed))
     res must be_===(seq)

@@ -60,6 +60,26 @@ object Schedule {
   final def collectAll[A]: Schedule[A, List[A]] = ZSchedule.collectAll
 
   /**
+   * See [[ZSchedule.collectWhile]]
+   */
+  final def collectWhile[A](f: A => Boolean): Schedule[A, List[A]] = ZSchedule.collectWhile(f)
+
+  /**
+   * See [[ZSchedule.collectWhileM]]
+   */
+  final def collectWhileM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = ZSchedule.collectWhileM(f)
+
+  /**
+   * See [[ZSchedule.collectUntil]]
+   */
+  final def collectUntil[A](f: A => Boolean): Schedule[A, List[A]] = ZSchedule.collectUntil(f)
+
+  /**
+   * See [[ZSchedule.collectUntilM]]
+   */
+  final def collectUntilM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = ZSchedule.collectUntilM(f)
+
+  /**
    * See [[ZSchedule.delayed]]
    */
   final def delayed[A](s: Schedule[A, Duration]): Schedule[A, Duration] =
@@ -146,10 +166,9 @@ object Schedule {
    */
   final def succeed[A](a: A): Schedule[Any, A] = ZSchedule.succeed(a)
 
-  /**
-   * See [[ZSchedule.succeedLazy]]
-   */
-  final def succeedLazy[A](a: => A): Schedule[Any, A] = ZSchedule.succeedLazy(a)
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[A](a: => A): Schedule[Any, A] =
+    succeed(a)
 
   /**
    * See [[ZSchedule.unfold]]

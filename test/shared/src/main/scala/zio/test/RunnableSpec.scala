@@ -17,36 +17,42 @@
 package zio.test
 
 import zio.UIO
-import scala.util.control.NonFatal
+import zio.test.reflect.Reflect.EnableReflectiveInstantiation
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-abstract class RunnableSpec[R, L](runner: TestRunner[L, ZTest[R, Any]])(spec: => ZSpec[R, Nothing, L]) {
+@EnableReflectiveInstantiation
+abstract class AbstractRunnableSpec {
+
+  type Label
+  type Test
+
+  def runner: TestRunner[Label, Test]
+  def spec: Spec[Label, Test]
 
   /**
    * A simple main function that can be used to run the spec.
    *
    * TODO: Parse command line options.
    */
-  final def main(args: Array[String]): Unit =
-    runner.unsafeRunAsync(spec) { results =>
-      try {
-        if (results.exists { case Spec.TestCase(_, test) => test.failure; case _ => false }) System.exit(1)
-        else System.exit(0)
-      } catch { case NonFatal(_) => }
-    }
+  final def main(args: Array[String]): Unit = { val _ = runner.unsafeRunSync(spec) }
 
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final val run: UIO[ExecutedSpec[L]] =
-    runner.run(spec)
+  final def run: UIO[ExecutedSpec[Label]] = runner.run(spec)
 
   /**
-   * Side-effectfully executes the spec, asynchronously passing results to the
-   * specified callback.
+   * the platform used by the runner
    */
-  final def unsafeRunAsync(k: ExecutedSpec[L] => Unit): Unit =
-    runner.unsafeRunAsync(spec)(k)
+  final def platform = runner.platform
+}
+
+abstract class RunnableSpec[L, T](runner0: TestRunner[L, T])(spec0: => Spec[L, T]) extends AbstractRunnableSpec {
+  override type Label = L
+  override type Test  = T
+
+  override def runner = runner0
+  override def spec   = spec0
 }

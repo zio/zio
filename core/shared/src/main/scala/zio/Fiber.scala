@@ -166,10 +166,14 @@ trait Fiber[+E, +A] { self =>
       def inheritFiberRefs: UIO[Unit]   = self.inheritFiberRefs
     }
 
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: => B): Fiber[E, B] =
+    as(b)
+
   /**
    * Maps the output of this fiber to the specified constant.
    */
-  final def const[B](b: => B): Fiber[E, B] =
+  final def as[B](b: => B): Fiber[E, B] =
     map(_ => b)
 
   /**
@@ -181,7 +185,7 @@ trait Fiber[+E, +A] { self =>
   /**
    * Maps the output of this fiber to `()`.
    */
-  final def unit: Fiber[E, Unit] = const(())
+  final def unit: Fiber[E, Unit] = as(())
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]].
@@ -253,9 +257,9 @@ object Fiber {
    */
   final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
-      def await: UIO[Exit[E, A]]        = IO.succeedLazy(exit)
-      def poll: UIO[Option[Exit[E, A]]] = IO.succeedLazy(Some(exit))
-      def interrupt: UIO[Exit[E, A]]    = IO.succeedLazy(exit)
+      def await: UIO[Exit[E, A]]        = IO.succeed(exit)
+      def poll: UIO[Option[Exit[E, A]]] = IO.succeed(Some(exit))
+      def interrupt: UIO[Exit[E, A]]    = IO.succeed(exit)
       def inheritFiberRefs: UIO[Unit]   = IO.unit
 
     }
@@ -281,11 +285,9 @@ object Fiber {
    */
   final def succeed[E, A](a: A): Fiber[E, A] = done(Exit.succeed(a))
 
-  /**
-   * Returns a fiber that is already succeeded with the specified lazily
-   * evaluated value.
-   */
-  final def succeedLazy[E, A](a: => A): Fiber[E, A] = done(Exit.succeed(a))
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[E, A](a: => A): Fiber[E, A] =
+    succeed(a)
 
   /**
    * Interrupts all fibers, awaiting their interruption.

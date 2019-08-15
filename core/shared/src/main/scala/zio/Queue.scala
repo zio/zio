@@ -132,7 +132,7 @@ object Queue {
       }
 
       final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] =
-        ZIO.suspend {
+        UIO.effectSuspendTotal {
           @tailrec
           def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
             as match {
@@ -228,7 +228,7 @@ object Queue {
     final def offer(a: A): UIO[Boolean] = offerAll(List(a))
 
     final def offerAll(as: Iterable[A]): UIO[Boolean] =
-      ZIO.suspend {
+      UIO.effectSuspendTotal {
         for {
           _ <- checkShutdownState
 
@@ -271,7 +271,7 @@ object Queue {
     final val isShutdown: UIO[Boolean] = shutdownHook.poll.map(_.isDefined)
 
     final val take: UIO[A] =
-      ZIO.suspend {
+      UIO.effectSuspendTotal {
         for {
           _ <- checkShutdownState
 
@@ -298,7 +298,7 @@ object Queue {
       }
 
     final val takeAll: UIO[List[A]] =
-      ZIO.suspend {
+      UIO.effectSuspendTotal {
         for {
           _ <- checkShutdownState
 
@@ -311,7 +311,7 @@ object Queue {
       }
 
     final def takeUpTo(max: Int): UIO[List[A]] =
-      ZIO.suspend {
+      UIO.effectSuspendTotal {
         for {
           _ <- checkShutdownState
 

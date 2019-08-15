@@ -113,7 +113,10 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified new environment.
    */
-  final def const[R1](r1: R1): Runtime[R1] = map(_ => r1)
+  final def as[R1](r1: R1): Runtime[R1] = map(_ => r1)
+
+  @deprecated("use as", "1.0.0")
+  final def const[R1](r1: R1): Runtime[R1] = as(r1)
 
   /**
    * Constructs a new `Runtime` with the specified executor.

@@ -25,6 +25,12 @@ object Managed {
     ZManaged.absolve(v)
 
   /**
+   * See [[zio.ZManaged]]
+   */
+  final def apply[E, A](reserve: IO[E, Reservation[Any, E, A]]): Managed[E, A] =
+    ZManaged.apply(reserve)
+
+  /**
    * See [[zio.ZManaged.collectAll]]
    */
   final def collectAll[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
@@ -39,7 +45,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.collectAllParN]]
    */
-  final def collectAllParN[E, A](n: Long)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
+  final def collectAllParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.collectAllParN(n)(as)
 
   /**
@@ -59,6 +65,12 @@ object Managed {
    */
   final def done[E, A](r: Exit[E, A]): Managed[E, A] =
     ZManaged.done(r)
+
+  /**
+   * See [[zio.ZManaged.effectTotal]]
+   */
+  final def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+    ZManaged.effectTotal(r)
 
   /**
    * See [[zio.ZManaged.fail]]
@@ -105,13 +117,13 @@ object Managed {
   /**
    * See [[zio.ZManaged.foreachParN]]
    */
-  final def foreachParN[E, A1, A2](n: Long)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
+  final def foreachParN[E, A1, A2](n: Int)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.foreachParN(n)(as)(f)
 
   /**
    * See [[zio.ZManaged.foreachParN_]]
    */
-  final def foreachParN_[E, A](n: Long)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
+  final def foreachParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.foreachParN_(n)(as)(f)
 
   /**
@@ -150,6 +162,12 @@ object Managed {
     ZManaged.make(acquire)(release)
 
   /**
+   * See [[zio.ZManaged.makeExit]]
+   */
+  final def makeExit[E, A](acquire: IO[E, A])(release: (A, Exit[_, _]) => UIO[_]): Managed[E, A] =
+    ZManaged.makeExit(acquire)(release)
+
+  /**
    * See [[zio.ZManaged.mergeAll]]
    */
   final def mergeAll[E, A, B](in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
@@ -164,7 +182,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.mergeAllParN]]
    */
-  final def mergeAllParN[E, A, B](n: Long)(in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
+  final def mergeAllParN[E, A, B](n: Int)(in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
     ZManaged.mergeAllParN(n)(in)(zero)(f)
 
   /**
@@ -225,7 +243,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.sequenceParN]]
    */
-  final def sequenceParN[E, A](n: Long)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
+  final def sequenceParN[E, A](n: Int)(as: Iterable[Managed[E, A]]): Managed[E, List[A]] =
     ZManaged.sequenceParN(n)(as)
 
   /**
@@ -234,11 +252,9 @@ object Managed {
   final def succeed[A](r: A): Managed[Nothing, A] =
     ZManaged.succeed(r)
 
-  /**
-   * See [[zio.ZManaged.succeedLazy]]
-   */
+  @deprecated("use effectTotal", "1.0.0")
   final def succeedLazy[A](r: => A): Managed[Nothing, A] =
-    ZManaged.succeedLazy(r)
+    effectTotal(r)
 
   /**
    * See [[zio.ZManaged.suspend]]
@@ -273,14 +289,19 @@ object Managed {
   /**
    * See [[zio.ZManaged.traverseParN]]
    */
-  final def traverseParN[E, A1, A2](n: Long)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
+  final def traverseParN[E, A1, A2](n: Int)(as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
     ZManaged.traverseParN(n)(as)(f)
 
   /**
    * See [[zio.ZManaged.traverseParN_]]
    */
-  final def traverseParN_[E, A](n: Long)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
+  final def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverseParN_(n)(as)(f)
+
+  /**
+   * See [[zio.ZManaged]]
+   */
+  final def unapply[E, A](v: Managed[E, A]) = ZManaged.unapply(v)
 
   /**
    * See [[zio.ZManaged.unit]]
