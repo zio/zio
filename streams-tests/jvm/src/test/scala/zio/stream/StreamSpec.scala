@@ -1163,7 +1163,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .groupByKey(identity, 8192)
         .flatMapParSema(10, 16) {
           case (sema, (k, s)) =>
-            s.withPermit(sema).transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 }).take(1).map((k -> _))
+            s.withPermit(sema)
+              .transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
+              .take(1)
+              .map((k -> _))
         }
         .runCollect
         .map(_.toMap must_=== (0 to 100).map((_.toString -> 1000)).toMap)
