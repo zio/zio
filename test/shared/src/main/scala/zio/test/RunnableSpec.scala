@@ -44,6 +44,12 @@ abstract class AbstractRunnableSpec {
   final def run: UIO[ExecutedSpec[Label]] = runner.run(spec)
 
   /**
+   * Returns an effect that executes the spec, using the given TestReporter, producing the results of the execution.
+   */
+  final def runWith(reporter: TestReporter[Label]): UIO[ExecutedSpec[Label]] =
+    runner.withReporter(reporter).run(spec)
+
+  /**
    * the platform used by the runner
    */
   final def platform = runner.platform
