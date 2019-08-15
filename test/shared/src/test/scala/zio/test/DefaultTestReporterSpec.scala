@@ -6,7 +6,7 @@ import scala.{ Console => SConsole }
 import zio.clock.Clock
 import zio.test.mock._
 import zio.test.TestUtils.label
-import zio.test.Predicate.{ isEqualTo, isGreaterThan, isLessThan }
+import zio.test.Predicate.{ equalTo, greaterThan, lessThan }
 
 object DefaultTestReporterSpec extends DefaultRuntime {
 
@@ -24,27 +24,27 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     zio.test.test(label)(assertion)
 
   val test1 = makeTest("Addition works fine") {
-    assert(1 + 1, isEqualTo(2))
+    assert(1 + 1, equalTo(2))
   }
 
   val test1Expected = expectedSuccess("Addition works fine")
 
   val test2 = makeTest("Subtraction works fine") {
-    assert(1 - 1, isEqualTo(0))
+    assert(1 - 1, equalTo(0))
   }
 
   val test2Expected = expectedSuccess("Subtraction works fine")
 
   val test3 = makeTest("Value falls within range") {
-    assert(52, isEqualTo(42) || (isGreaterThan(5) && isLessThan(10)))
+    assert(52, equalTo(42) || (greaterThan(5) && lessThan(10)))
   }
 
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
     withOffset(2)(
-      s"${blue("52")} did not satisfy ${cyan("(isEqualTo(42) || (" + yellow("isGreaterThan(5)") + " && isLessThan(10)))")}\n"
+      s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (" + yellow("greaterThan(5)") + " && lessThan(10)))")}\n"
     ),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isGreaterThan(5)")}\n")
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("greaterThan(5)")}\n")
   )
 
   val test4 = makeTest("Failing test") {
@@ -60,12 +60,12 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   )
 
   val test5 = makeTest("Addition works fine") {
-    assert(1 + 1, isEqualTo(3))
+    assert(1 + 1, equalTo(3))
   }
 
   val test5Expected = Vector(
     expectedFailure("Addition works fine"),
-    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("isEqualTo(3)")}\n")
+    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n")
   )
 
   val suite1 = suite("Suite1")(test1, test2)
