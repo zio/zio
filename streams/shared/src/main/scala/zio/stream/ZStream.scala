@@ -573,15 +573,13 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * After unsubscribing the work will be redistributed to the remaining streams.
    */
   def distribute(n: Int, buffer: Int = 12): ZManaged[R, Nothing, List[Subscription[Any, E, A]]] = {
-
-    val r      = new scala.util.Random(10)
-    val hashes = scala.Stream.continually(r.nextLong)
+    import zio.stream.internal.hash
 
     self.zipWithIndex
       .hashPartition(
         partitions = n,
         buffer = buffer
-      ) { case (_, i) => hashes(i) }
+      )(hash.fromIndex(_._2, 10))
       .map(_._2.map {
         case (end, stream) =>
           (end, stream.map(_._1))
@@ -1015,21 +1013,20 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     replicas: Int = 3,
     buffer: Int = 12
   )(
-    hash: A => Long
+    hashfunction: A => Long
   ): ZManaged[R, Nothing, (Rebalance, List[Subscription[Any, E, A]])] = {
-    import zio.stream.internal.HashRing
+    import zio.stream.internal._
     if (partitions <= 0 || replicas <= 0) ZManaged.dieMessage("Invalid parameters provided to hashpartition.")
     else {
 
-      val r      = new scala.util.Random(0)
-      val hashes = scala.Stream.continually(r.nextLong)
-      val nodeHash: HashRing.NodeHashFunction[(Int, Queue[Take[E, A]])] = {
-        case ((id, _), replica) =>
-          hashes(id * replicas + replica)
-      }
+      val nodeHash: NodeHashFunction[(Int, Queue[Take[E, A]])] = hash.fromIndex({
+        case ((id, _), replica) => id * replicas + replica
+      }, 0)
 
       for {
-        ring <- Ref.make[HashRing[(Int, Queue[Take[E, A]]), A]](HashRing.empty(hash, nodeHash, replicas)).toManaged_
+        ring <- Ref
+                 .make[HashRing[(Int, Queue[Take[E, A]]), A]](HashRing.empty(hashfunction, nodeHash, replicas))
+                 .toManaged_
         lock <- Semaphore.make(1).toManaged_
         _    <- lock.acquire.toManaged_
         newQueue <- {

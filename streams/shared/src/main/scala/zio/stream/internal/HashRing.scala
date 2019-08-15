@@ -17,8 +17,6 @@ package zio.stream.internal
 
 import scala.collection.immutable.TreeMap
 
-import HashRing.{ HashFunction, NodeHashFunction }
-
 /**
  * Consistent hash ring.
  */
@@ -67,9 +65,6 @@ final case class HashRing[T, A](
 
 object HashRing {
 
-  type HashFunction[A]     = A => Long
-  type NodeHashFunction[T] = HashFunction[(T, Int)]
-
   def empty[T, A](
     elementHash0: HashFunction[A],
     nodeHash0: NodeHashFunction[T],
@@ -84,11 +79,4 @@ object HashRing {
     replicas: Int
   ): HashRing[T, A] =
     HashRing.empty(elementHash0, nodeHash0, replicas).addNodes(nodes: _*)
-
-  def crc32: HashFunction[Seq[Byte]] = { bytes =>
-    import java.util.zip.CRC32
-    val checksum = new CRC32
-    checksum.update(bytes.toArray)
-    checksum.getValue
-  }
 }
