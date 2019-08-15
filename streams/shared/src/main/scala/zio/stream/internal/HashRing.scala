@@ -87,9 +87,9 @@ object HashRing {
     HashRing.empty(elementHash0, nodeHash0, replicas).addNodes(nodes: _*)
 
   def crc32: HashFunction[Seq[Byte]] = { bytes =>
-      import java.util.zip.CRC32
-      val checksum = new CRC32
-      checksum.update(bytes.toArray)
-      checksum.getValue
+    import java.util.zip.CRC32
+    val checksum = new CRC32
+    checksum.update(bytes.toArray)
+    checksum.getValue
   }
 }

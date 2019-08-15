@@ -574,14 +574,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def distribute(n: Int, buffer: Int = 12): ZManaged[R, Nothing, List[Subscription[Any, E, A]]] = {
 
-    val r = new scala.util.Random(10)
+    val r      = new scala.util.Random(10)
     val hashes = scala.Stream.continually(r.nextLong)
 
     self.zipWithIndex
       .hashPartition(
         partitions = n,
         buffer = buffer
-      ){ case (_, i) => hashes(i) }
+      ) { case (_, i) => hashes(i) }
       .map(_._2.map {
         case (end, stream) =>
           (end, stream.map(_._1))
@@ -956,22 +956,21 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         decider <- Promise.make[Nothing, (K, V) => UIO[Int => Boolean]].toManaged_
         out     <- Queue.bounded[Take[E1, (K, Stream[E1, V])]](buffer).toManaged(_.shutdown)
         emit    <- Ref.make[Boolean](true).toManaged_
-        offer    = { (a: Take[E1, (K, Stream[E1, V])]) =>
-           out.offer(a)
-            .catchAllCause {
-              case c if (c.interrupted) => emit.set(false).unit
-            }
+        offer = { (a: Take[E1, (K, Stream[E1, V])]) =>
+          out.offer(a).catchAllCause {
+            case c if (c.interrupted) => emit.set(false).unit
+          }
         }
         ref <- Ref.make[Map[K, Int]](Map()).toManaged_
         add <- {
           self
-                .mapM(f)
-                .toQueuesBalanced0(
-                  buffer, { kv: (K, V) =>
-                    decider.await.flatMap(_.tupled(kv))
-                  },
-                  offer(_)
-                )
+            .mapM(f)
+            .toQueuesBalanced0(
+              buffer, { kv: (K, V) =>
+                decider.await.flatMap(_.tupled(kv))
+              },
+              offer(_)
+            )
         }
         _ <- decider.succeed {
               case (k, _) =>
@@ -1022,10 +1021,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     if (partitions <= 0 || replicas <= 0) ZManaged.dieMessage("Invalid parameters provided to hashpartition.")
     else {
 
-      val r = new scala.util.Random(0)
+      val r      = new scala.util.Random(0)
       val hashes = scala.Stream.continually(r.nextLong)
-      val nodeHash: HashRing.NodeHashFunction[(Int, Queue[Take[E, A]])] = { case ((id, _), replica) =>
-        hashes(id * replicas + replica)
+      val nodeHash: HashRing.NodeHashFunction[(Int, Queue[Take[E, A]])] = {
+        case ((id, _), replica) =>
+          hashes(id * replicas + replica)
       }
 
       for {
@@ -1573,8 +1573,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             ZManaged.succeed(s)
           }
       }
-    }
-    else
+    } else
       new ZStream[R, E, A] {
         override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
           ZManaged.succeed { (s, cont, f) =>
@@ -1726,49 +1725,52 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     decide: A => UIO[Int => Boolean],
     done: Take[E1, Nothing] => UIO[_]
   ): ZManaged[R, Nothing, UIO[(Int, Queue[Take[E1, A1]])]] =
-    Ref.make[Vector[Queue[Take[E1, A1]]]](Vector()).toManaged(_.get.flatMap(qs => ZIO.foreach(qs)(_.shutdown))).flatMap{ queues =>
-
-      val broadcast = (a: Take[E1, Nothing]) =>
-        for {
-          queues <- queues.get
-          _ <- ZIO.foreach_(queues) { q =>
-                q.offer(a)
-                  .catchAllCause {
+    Ref
+      .make[Vector[Queue[Take[E1, A1]]]](Vector())
+      .toManaged(_.get.flatMap(qs => ZIO.foreach(qs)(_.shutdown)))
+      .flatMap { queues =>
+        val broadcast = (a: Take[E1, Nothing]) =>
+          for {
+            queues <- queues.get
+            _ <- ZIO.foreach_(queues) { q =>
+                  q.offer(a).catchAllCause {
                     case c if (c.interrupted) => ZIO.unit
                   }
-              // we don't care if downstream queues shut down
+                // we don't care if downstream queues shut down
 
-              }
-        } yield ()
+                }
+          } yield ()
 
-      val offer = (a: A) =>
-        for {
-          decider <- decide(a)
-          queues  <- queues.get
-          _ <- ZIO.foreach_(queues.zipWithIndex.collect { case (q, id) if decider(id) => q }) { q =>
-                q.offer(Take.Value(a))
-                  .catchAllCause {
+        val offer = (a: A) =>
+          for {
+            decider <- decide(a)
+            queues  <- queues.get
+            _ <- ZIO.foreach_(queues.zipWithIndex.collect { case (q, id) if decider(id) => q }) { q =>
+                  q.offer(Take.Value(a)).catchAllCause {
                     case c if (c.interrupted) => ZIO.unit
                   }
-              }
-        } yield ()
+                }
+          } yield ()
 
-      for {
-        add <- Ref
-                .make[UIO[(Int, Queue[Take[E1, A1]])]] {
-                  Queue.bounded[Take[E1, A1]](maximumLag)
-                    .flatMap(q => queues.modify(old => ((old.length, q), old :+ q))).uninterruptible
-                }.toManaged_
-        _ <- self
-              .foreachManaged(offer)
-              .foldCauseM(
-                cause => (broadcast(Take.Fail(cause)) *> done(Take.Fail(cause))).toManaged_,
-                _ => (broadcast(Take.End) *> done(Take.End)).toManaged_
-              )
-              .fork
-      } yield add.get.flatten
+        for {
+          add <- Ref
+                  .make[UIO[(Int, Queue[Take[E1, A1]])]] {
+                    Queue
+                      .bounded[Take[E1, A1]](maximumLag)
+                      .flatMap(q => queues.modify(old => ((old.length, q), old :+ q)))
+                      .uninterruptible
+                  }
+                  .toManaged_
+          _ <- self
+                .foreachManaged(offer)
+                .foldCauseM(
+                  cause => (broadcast(Take.Fail(cause)) *> done(Take.Fail(cause))).toManaged_,
+                  _ => (broadcast(Take.End) *> done(Take.End)).toManaged_
+                )
+                .fork
+        } yield add.get.flatten
 
-    }
+      }
 
   /**
    * Applies a transducer to the stream, converting elements of type `A` into elements of type `C`, with a
@@ -1847,7 +1849,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
     }
 
-   /**
+  /**
    * Adds a shared semaphore with n permits to the stream
    */
   final def withSemaphore(n: Long): ZStream[R, E, (Semaphore, A)] =
