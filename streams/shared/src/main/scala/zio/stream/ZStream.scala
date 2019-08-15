@@ -1017,7 +1017,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   )(
     hash: A => Long
   ): ZManaged[R, Nothing, (Rebalance, List[Subscription[Any, E, A]])] = {
-    import internal.HashRing
+    import zio.stream.internal.HashRing
     if (partitions <= 0 || replicas <= 0) ZManaged.dieMessage("Invalid parameters provided to hashpartition.")
     else {
 
