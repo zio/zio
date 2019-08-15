@@ -15,7 +15,6 @@
  */
 package zio.stream.internal
 
-import scala.collection.SortedMap
 import scala.collection.immutable.TreeMap
 
 import HashRing.{ HashFunction, NodeHashFunction }
@@ -24,7 +23,7 @@ import HashRing.{ HashFunction, NodeHashFunction }
  * Consistent hash ring.
  */
 final case class HashRing[T, A](
-  ring: SortedMap[Long, T],
+  ring: TreeMap[Long, T],
   elementHash: HashFunction[A],
   nodeHash: NodeHashFunction[T],
   replicas: Int = 3
