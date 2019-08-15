@@ -1,4 +1,4 @@
-package zio.test.runner
+package zio.test.sbt
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.test.RenderedResult.CaseType

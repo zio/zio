@@ -177,26 +177,24 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
         self
           .step(state._3, a)
-          .foldM(
-            e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
-            step =>
-              if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
-              else {
-                val s  = Step.state(step)
-                val as = Step.leftover(step)
+          .flatMap { step =>
+            if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
+            else {
+              val s  = Step.state(step)
+              val as = Step.leftover(step)
 
-                self.extract(s).flatMap { b =>
-                  self.initial.flatMap { init =>
-                    self
-                      .stepChunk(Step.state(init), as.map(ev))
-                      .fold(
-                        e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
-                        s => Step.leftMap(s)((state._1, f(state._2, b), _))
-                      )
-                  }
+              self.extract(s).flatMap { b =>
+                self.initial.flatMap { init =>
+                  self
+                    .stepChunk(Step.state(init), as.map(ev))
+                    .fold(
+                      e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
+                      s => Step.leftMap(s)((state._1, f(state._2, b), _))
+                    )
                 }
               }
-          )
+            }
+          }
 
       def extract(state: State): IO[E, S] =
         IO.succeed(state._2)

@@ -149,13 +149,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     ending outer stream does not interrupt inner streams  $groupByValuesInner
     outer errors                                          $groupByErrorsOuter
 
-  Stream.hashPartition
-    values          $hashPartitionValues
-    errors          $hashPartitionErrors
-    noNegPartitions $hashPartitionNoNegativePartitionCount
-    noNegReplicas   $hashPartitionNoNegativeReplicaCount
-    backpressure    $hashPartitionBackPressure
-
   Stream interleaving
     interleave              $interleave
     interleaveWith          $interleaveWith
@@ -246,7 +239,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   """
 
   def processRunCollect = {
-    def loop[E, A](effect: IO[_, A], ref: Ref[List[A]]): IO[Nothing, List[A]] =
+    def loop[E, A](effect: IO[_, A], ref: Ref[List[A]]): UIO[List[A]] =
       effect.flatMap(a => ref.update(a :: _)).forever.catchAll(_ => ref.get).map(_.reverse)
 
     unsafeRun {
@@ -1200,73 +1193,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .runCollect
         .either
         .map(_ must_=== Left("Boom"))
-    }
-
-  private def hashPartitionValues =
-    unsafeRun {
-      Stream.range(0, 5).hashPartition(1)(_.toLong).use {
-        case (_, (_, s1) :: Nil) =>
-          for {
-            out1 <- s1.runCollect
-          } yield (out1 must_=== List(0, 1, 2, 3, 4, 5))
-        case _ =>
-          ZIO.fail("Wrong number of streams produced")
-      }
-    }
-
-  private def hashPartitionErrors =
-    unsafeRun {
-      (Stream.range(0, 1) ++ Stream.fail("Boom")).hashPartition(2)(_.toLong).use {
-        case (_, (_, s1) :: (_, s2) :: Nil) =>
-          for {
-            out1     <- s1.runCollect.either
-            out2     <- s2.runCollect.either
-            expected = Left("Boom")
-          } yield (out1 must_=== expected) && (out2 must_=== expected)
-        case _ =>
-          ZIO.fail("Wrong number of streams produced")
-      }
-    }
-
-  private def hashPartitionNoNegativePartitionCount =
-    unsafeRun {
-      (Stream
-        .range(0, 1))
-        .hashPartition(-1)(_.toLong)
-        .use(_ => ZIO.succeed(false))
-        .catchAllCause {
-          case zio.Cause.Die(_) => ZIO.succeed(true)
-          case c                => ZIO.halt(c)
-        }
-        .map(_ must_=== true)
-    }
-
-  private def hashPartitionNoNegativeReplicaCount =
-    unsafeRun {
-      (Stream
-        .range(0, 1))
-        .hashPartition(2, replicas = -1)(_.toLong)
-        .use(_ => ZIO.succeed(false))
-        .catchAllCause {
-          case zio.Cause.Die(_) => ZIO.succeed(true)
-          case c                => ZIO.halt(c)
-        }
-        .map(_ must_=== true)
-    }
-
-  private def hashPartitionBackPressure =
-    flaky {
-      Stream.range(0, 10).distribute(2, 3).use {
-        case (_, s1) :: (_, s2) :: Nil =>
-          for {
-            ref    <- Ref.make[List[Int]](Nil)
-            _      <- s1.timeout(100.milliseconds).foreach(i => { ref.update(i :: _) }).ignore
-            result <- ref.get
-            _      <- s2.runDiscard
-          } yield result.size must_=== 5
-        case _ =>
-          ZIO.fail("Wrong number of streams produced")
-      }
     }
 
   private def map =

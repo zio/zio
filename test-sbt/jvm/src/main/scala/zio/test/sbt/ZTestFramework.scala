@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package zio.stream.internal
 
-object IndexHash {
+package zio.test.sbt
 
-  def apply[A](f: A => Int, seed: Int = 0): HashFunction[A] = {
-    val r      = new scala.util.Random(seed)
-    val hashes = LazyList.continually(r.nextLong)
-    (a: A) => hashes(f(a))
-  }
+import sbt.testing._
 
+final class ZTestFramework extends Framework {
+  override val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
+
+  val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
+
+  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunner =
+    new ZTestRunner(args, remoteArgs, testClassLoader)
 }
