@@ -197,30 +197,31 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
     new ZStream[R1, E1, B] {
       def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          for {
-            initSink  <- sink.initial.map(Step.state(_)).toManaged_
-            initAwait <- Promise.make[Nothing, Unit].toManaged_
-            stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
-            permits   <- Semaphore.make(1).toManaged_
-            producer <- self
-                         .foreachWhileManaged(produce(stateVar, permits, _))
-                         .foldCauseM(
-                           // At this point, we're done working but we can't just overwrite the
-                           // state because the consumer might not have taken the last batch. So
-                           // we need to wait for the state to be drained.
-                           c => drainAndSet(stateVar, permits, State.Error(c)).toManaged_,
-                           _ => drainAndSet(stateVar, permits, State.End).toManaged_
-                         )
-                         .fork
-            s2 <- ZStream
-                   .unfoldM(())(_ => consume(stateVar, permits).map(_.map((_, ()))))
-                   .mapConcat(identity)
-                   .fold[R2, E2, B1, S]
-                   .flatMap(_.apply(s, cont, f))
-                   .ensuringFirst(producer.interrupt.fork)
-          } yield s2
-        }
+        foldDefault
+
+      override def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
+        for {
+          initSink  <- sink.initial.map(Step.state(_)).toManaged_
+          initAwait <- Promise.make[Nothing, Unit].toManaged_
+          stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
+          permits   <- Semaphore.make(1).toManaged_
+          producer <- self
+                       .foreachWhileManaged(produce(stateVar, permits, _))
+                       .foldCauseM(
+                         // At this point, we're done working but we can't just overwrite the
+                         // state because the consumer might not have taken the last batch. So
+                         // we need to wait for the state to be drained.
+                         c => drainAndSet(stateVar, permits, State.Error(c)).toManaged_,
+                         _ => drainAndSet(stateVar, permits, State.End).toManaged_
+                       )
+                       .fork
+          bs <- ZStream
+                 .unfoldM(())(_ => consume(stateVar, permits).map(_.map((_, ()))))
+                 .mapConcat(identity)
+                 .process
+                 .ensuringFirst(producer.interrupt.fork)
+        } yield bs
+
     }
   }
 
@@ -448,25 +449,25 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
     new ZStream[R1 with Clock, E1, Either[C, B]] {
       def fold[R2 <: R1 with Clock, E2 >: E1, B1 >: Either[C, B], S]: ZStream.Fold[R2, E2, B1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          for {
-            initSink  <- sink.initial.map(Step.state(_)).toManaged_
-            initAwait <- Promise.make[Nothing, Unit].toManaged_
-            permits   <- Semaphore.make(1).toManaged_
-            stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
-            producer <- self
-                         .foreachWhileManaged(produce(stateVar, permits, _))
-                         .foldCauseM(
-                           cause => drainAndSet(stateVar, permits, State.Error(cause)).toManaged_,
-                           _ => drainAndSet(stateVar, permits, State.End).toManaged_
-                         )
-                         .fork
-            s2 <- consumerStream(stateVar, permits)
-                   .fold[R2, E2, B1, S]
-                   .flatMap(_.apply(s, cont, f))
-                   .ensuringFirst(producer.interrupt.fork)
-          } yield s2
-        }
+        foldDefault
+
+      override def process: ZManaged[R1 with Clock, E1, ZStream.InputStream[R1 with Clock, E1, Either[C, B]]] =
+        for {
+          initSink  <- sink.initial.map(Step.state(_)).toManaged_
+          initAwait <- Promise.make[Nothing, Unit].toManaged_
+          permits   <- Semaphore.make(1).toManaged_
+          stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
+          producer <- self
+                       .foreachWhileManaged(produce(stateVar, permits, _))
+                       .foldCauseM(
+                         cause => drainAndSet(stateVar, permits, State.Error(cause)).toManaged_,
+                         _ => drainAndSet(stateVar, permits, State.End).toManaged_
+                       )
+                       .fork
+          bs <- consumerStream(stateVar, permits).process
+                 .ensuringFirst(producer.interrupt.fork)
+        } yield bs
+
     }
   }
 
