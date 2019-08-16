@@ -1013,19 +1013,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
-  def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStream[R, E, B] = new ZStream[R, E, B] {
-    override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
-      ZManaged.succeed { (s, cont, f) =>
-        self.fold[R1, E1, A, (S, S1)].flatMap { fold =>
-          fold(s -> s1, tp => cont(tp._1), {
-            case ((s, s1), a) =>
-              val (s2, b) = f1(s1, a)
-
-              f(s, b).map(s => s -> s2)
-          }).map(_._1)
-        }
-      }
-  }
+  def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStream[R, E, B] =
+    mapAccumM(s1)((s, a) => UIO.succeed(f1(s, a)))
 
   /**
    * Statefully and effectfully maps over the elements of this stream to produce
