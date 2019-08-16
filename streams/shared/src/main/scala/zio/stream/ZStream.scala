@@ -1033,17 +1033,18 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
-      override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self.fold[R2, E2, A, (S, S1)].flatMap { fold =>
-            fold(s -> s1, tp => cont(tp._1), {
-              case ((s, s1), a) =>
-                f1(s1, a).flatMap {
-                  case (s1, b) =>
-                    f(s, b).map(s => s -> s1)
-                }
-            }).map(_._1)
-          }
+      def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] = foldDefault
+
+      override def process =
+        for {
+          state <- Ref.make(s1).toManaged_
+          as    <- self.process
+        } yield as.flatMap { a =>
+          (for {
+            s <- state.get
+            t <- f1(s, a)
+            _ <- state.set(t._1)
+          } yield t._2).mapError(Some(_))
         }
     }
 
