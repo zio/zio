@@ -1612,7 +1612,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Evaluate each effect in the structure in parallel, and collect
    * the results. For a sequential version, see `collectAll`.
    *
-   * Unlike `foreachAllPar`, this method will use at most `n` fibers.
+   * Unlike `collectAllPar`, this method will use at most `n` fibers.
    */
   final def collectAllParN[R, E, A](n: Int)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
@@ -2083,8 +2083,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
 
   /**
-   * Evaluate each effect in the structure from left to right, and collect
-   * the results. For a parallel version, see `collectAllPar`.
+   * Merges an `Iterable[IO]` to a single IO, working in parallel.
    */
   final def mergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
@@ -2097,10 +2096,12 @@ private[zio] trait ZIOFunctions extends Serializable {
   final val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
-   * Evaluate each effect in the structure in parallel, and collect
-   * the results. For a sequential version, see `collectAll`.
+   * Given an environment `R`, returns a function that can supply the
+   * environment to programs that require it, removing their need for any
+   * specific environment.
    *
-   * Unlike `collectAllPar`, this method will use at most up to `n` fibers.
+   * This is similar to dependency injection, and the `provide` function can be
+   * thought of as `inject`.
    */
   final def provide[R, E, A](r: R): ZIO[R, E, A] => IO[E, A] =
     (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
