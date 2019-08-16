@@ -441,18 +441,17 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def bufferFastProducerSlowConsumer =
     unsafeRun(
       for {
-        promise <- Promise.make[Nothing, Unit]
-        ref     <- Ref.make(List[Int]())
-        _ <- Stream
-              .range(1, 5)
-              .mapM(i => ref.update(i :: _) <* promise.succeed(()).when(i == 4))
-              .buffer(2)
-              .mapM(_ => IO.never)
-              .runDrain
-              .fork
-        _    <- promise.await
-        list <- ref.get
-      } yield list.reverse must_=== (1 to 5).toList
+        ref   <- Ref.make(List[Int]())
+        latch <- Promise.make[Nothing, Unit]
+        s     = Stream.range(1, 5).tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4)).buffer(2)
+        l <- s.process.use { as =>
+              for {
+                _ <- as
+                _ <- latch.await
+                l <- ref.get
+              } yield l
+            }
+      } yield l.reverse must_=== (1 to 4).toList
     )
 
   private def collect = unsafeRun {
