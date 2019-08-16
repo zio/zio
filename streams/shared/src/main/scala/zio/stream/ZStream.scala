@@ -1030,13 +1030,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Maps each element to a chunk, and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStream[R, E, B] = new ZStream[R, E, B] {
-    override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
-      ZManaged.succeed { (s, cont, g) =>
-        self.fold[R1, E1, A, S].flatMap(fold => fold(s, cont, (s, a) => f(a).foldMLazy(s)(cont)(g)))
-
-      }
-  }
+  def mapConcat[B](f: A => Chunk[B]): ZStream[R, E, B] =
+    flatMap(a => ZStream.fromChunk(f(a)))
 
   /**
    * Effectfully maps each element to a chunk, and flattens the chunks into
