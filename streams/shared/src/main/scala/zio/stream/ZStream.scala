@@ -1349,14 +1349,15 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def takeWhile(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
     override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-      ZManaged.succeed { (s, cont, f) =>
-        self.fold[R1, E1, A, (Boolean, S)].flatMap { fold =>
-          fold(true -> s, tp => tp._1 && cont(tp._2), {
-            case ((_, s), a) =>
-              if (pred(a)) f(s, a).map(true -> _)
-              else IO.succeed(false         -> s)
-          }).map(_._2)
-        }
+      foldDefault
+
+    override def process =
+      self.process.map { as =>
+        for {
+          a <- as
+          result <- if (pred(a)) InputStream.emit(a)
+                   else InputStream.end
+        } yield result
       }
   }
 
@@ -1433,46 +1434,47 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   ): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
       override def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] =
-        ZManaged.succeed { (s: S, cont: S => Boolean, f: (S, C1) => ZIO[R2, E2, S]) =>
-          def feed(
-            sink: ZSink[R1, E1, A1, A1, C]
-          )(s1: sink.State, s2: S, a: Chunk[A1]): ZIO[R2, E2, (sink.State, S, Boolean)] =
-            sink.stepChunk(s1, a).flatMap { step =>
-              if (ZSink.Step.cont(step)) {
-                IO.succeed((ZSink.Step.state(step), s2, true))
-              } else {
-                sink.extract(ZSink.Step.state(step)).flatMap { c =>
-                  f(s2, c).flatMap { s2 =>
-                    val remaining = ZSink.Step.leftover(step)
-                    sink.initial.flatMap { initStep =>
-                      if (cont(s2) && !remaining.isEmpty) {
-                        feed(sink)(ZSink.Step.state(initStep), s2, remaining)
-                      } else {
-                        IO.succeed((ZSink.Step.state(initStep), s2, false))
-                      }
-                    }
-                  }
-                }
-              }
-            }
+        foldDefault
 
-          for {
-            sink     <- managedSink
-            initStep <- sink.initial.toManaged_
-            f0       <- self.fold[R2, E2, A, (sink.State, S, Boolean)]
-            result <- f0((ZSink.Step.state(initStep), s, false), stepState => cont(stepState._2), { (s, a) =>
-                       val (s1, s2, _) = s
-                       feed(sink)(s1, s2, Chunk(a))
-                     }).mapM {
-                       case (s1, s2, extractNeeded) =>
-                         if (extractNeeded) {
-                           sink.extract(s1).flatMap(f(s2, _))
-                         } else {
-                           IO.succeed(s2)
-                         }
-                     }
-          } yield result
-        }
+      override def process =
+        for {
+          as           <- self.process
+          sink         <- managedSink
+          init         <- sink.initial.toManaged_
+          sinkStateRef <- Ref.make[(ZSink.Step[sink.State, A1], Boolean)]((init, false)).toManaged_
+          done         <- Ref.make(false).toManaged_
+          pull = {
+            def go(step: ZSink.Step[sink.State, A1], needsExtractOnEnd: Boolean): InputStream[R1, E1, C] =
+              if (!ZSink.Step.cont(step))
+                (for {
+                  c        <- sink.extract(ZSink.Step.state(step))
+                  leftover = ZSink.Step.leftover(step)
+                  newInit  <- sink.initial
+                  _ <- sink
+                        .stepChunk(ZSink.Step.state(newInit), leftover)
+                        .tap(leftoverStep => sinkStateRef.set((leftoverStep, !leftover.isEmpty)))
+                } yield c).mapError(Some(_))
+              else
+                as.foldM(
+                  {
+                    case None =>
+                      done.set(true) *>
+                        (if (needsExtractOnEnd) sink.extract(ZSink.Step.state(step)).mapError(Some(_))
+                         else InputStream.end)
+                    case Some(e) => InputStream.fail(e)
+                  },
+                  sink.step(ZSink.Step.state(step), _).mapError(Some(_)).flatMap(go(_, true))
+                )
+
+            done.get.flatMap {
+              if (_) InputStream.end
+              else
+                sinkStateRef.get.flatMap {
+                  case (lastStep, needsExtractOnEnd) => go(lastStep, needsExtractOnEnd)
+                }
+            }
+          }
+        } yield pull
     }
 
   /**
