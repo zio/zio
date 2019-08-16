@@ -1578,16 +1578,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Zips this stream together with the index of elements of the stream.
    */
-  def zipWithIndex: ZStream[R, E, (A, Int)] = new ZStream[R, E, (A, Int)] {
-    override def fold[R1 <: R, E1 >: E, A1 >: (A, Int), S]: Fold[R1, E1, A1, S] =
-      ZManaged.succeed { (s, cont, f) =>
-        self.fold[R1, E1, A, (S, Int)].flatMap { fold =>
-          fold((s, 0), tp => cont(tp._1), {
-            case ((s, index), a) => f(s, (a, index)).map(s => (s, index + 1))
-          }).map(_._1)
-        }
-      }
-  }
+  def zipWithIndex: ZStream[R, E, (A, Int)] =
+    self.mapAccum(0)((index, a) => (index + 1, (a, index)))
 }
 
 object ZStream extends ZStreamPlatformSpecific {
