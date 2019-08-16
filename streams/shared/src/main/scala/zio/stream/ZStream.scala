@@ -1959,7 +1959,18 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a single-valued pure stream
    */
   final def succeed[A](a: A): Stream[Nothing, A] =
-    StreamPure.succeed(a)
+    new Stream[Nothing, A] {
+      def fold[R, E, A1 >: A, S]: Fold[R, E, A1, S] = foldDefault
+
+      override def process =
+        for {
+          done <- Ref.make(false).toManaged_
+        } yield done.get.flatMap {
+          if (_) InputStream.end
+          // TODO: guard against interruption
+          else done.set(true) *> InputStream.emit(a)
+        }
+    }
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =
