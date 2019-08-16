@@ -167,6 +167,14 @@ object PredicateSpec {
       message = "succeeds must fail when supplied value is Exit.fail"
     ),
     testSuccess(
+      assert((), isUnit),
+      message = "isUnit must succeed when supplied value is ()"
+    ),
+    testFailure(
+      assert(10, isUnit),
+      message = "isUnit must fail when supplied value is not ()"
+    ),
+    testSuccess(
       assert(10, isWithin(0, 10)),
       message = "isWithin must succeed when supplied value is within range (inclusive)"
     ),

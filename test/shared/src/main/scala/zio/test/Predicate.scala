@@ -296,6 +296,17 @@ object Predicate {
   }
 
   /**
+   * Makes a new predicate that requires the value be unit.
+   */
+  final def isUnit: Predicate[Any] =
+    Predicate.predicate(s"isUnit") { actual =>
+      actual match {
+        case () => Assertion.success
+        case _  => Assertion.failure(())
+      }
+    }
+
+  /**
    * Returns a new predicate that requires a numeric value to fall within a
    * specified min and max (inclusive).
    */
