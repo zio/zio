@@ -54,7 +54,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Concatenates with another stream in strict order
    */
-  final def ++[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+  final def ++[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     concat(other)
 
   /**
@@ -197,30 +197,31 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
     new ZStream[R1, E1, B] {
       def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          for {
-            initSink  <- sink.initial.map(Step.state(_)).toManaged_
-            initAwait <- Promise.make[Nothing, Unit].toManaged_
-            stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
-            permits   <- Semaphore.make(1).toManaged_
-            producer <- self
-                         .foreachWhileManaged(produce(stateVar, permits, _))
-                         .foldCauseM(
-                           // At this point, we're done working but we can't just overwrite the
-                           // state because the consumer might not have taken the last batch. So
-                           // we need to wait for the state to be drained.
-                           c => drainAndSet(stateVar, permits, State.Error(c)).toManaged_,
-                           _ => drainAndSet(stateVar, permits, State.End).toManaged_
-                         )
-                         .fork
-            s2 <- ZStream
-                   .unfoldM(())(_ => consume(stateVar, permits).map(_.map((_, ()))))
-                   .mapConcat(identity)
-                   .fold[R2, E2, B1, S]
-                   .flatMap(_.apply(s, cont, f))
-                   .ensuringFirst(producer.interrupt.fork)
-          } yield s2
-        }
+        foldDefault
+
+      override def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
+        for {
+          initSink  <- sink.initial.map(Step.state(_)).toManaged_
+          initAwait <- Promise.make[Nothing, Unit].toManaged_
+          stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
+          permits   <- Semaphore.make(1).toManaged_
+          producer <- self
+                       .foreachWhileManaged(produce(stateVar, permits, _))
+                       .foldCauseM(
+                         // At this point, we're done working but we can't just overwrite the
+                         // state because the consumer might not have taken the last batch. So
+                         // we need to wait for the state to be drained.
+                         c => drainAndSet(stateVar, permits, State.Error(c)).toManaged_,
+                         _ => drainAndSet(stateVar, permits, State.End).toManaged_
+                       )
+                       .fork
+          bs <- ZStream
+                 .unfoldM(())(_ => consume(stateVar, permits).map(_.map((_, ()))))
+                 .mapConcat(identity)
+                 .process
+                 .ensuringFirst(producer.interrupt.fork)
+        } yield bs
+
     }
   }
 
@@ -448,25 +449,25 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
     new ZStream[R1 with Clock, E1, Either[C, B]] {
       def fold[R2 <: R1 with Clock, E2 >: E1, B1 >: Either[C, B], S]: ZStream.Fold[R2, E2, B1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          for {
-            initSink  <- sink.initial.map(Step.state(_)).toManaged_
-            initAwait <- Promise.make[Nothing, Unit].toManaged_
-            permits   <- Semaphore.make(1).toManaged_
-            stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
-            producer <- self
-                         .foreachWhileManaged(produce(stateVar, permits, _))
-                         .foldCauseM(
-                           cause => drainAndSet(stateVar, permits, State.Error(cause)).toManaged_,
-                           _ => drainAndSet(stateVar, permits, State.End).toManaged_
-                         )
-                         .fork
-            s2 <- consumerStream(stateVar, permits)
-                   .fold[R2, E2, B1, S]
-                   .flatMap(_.apply(s, cont, f))
-                   .ensuringFirst(producer.interrupt.fork)
-          } yield s2
-        }
+        foldDefault
+
+      override def process: ZManaged[R1 with Clock, E1, ZStream.InputStream[R1 with Clock, E1, Either[C, B]]] =
+        for {
+          initSink  <- sink.initial.map(Step.state(_)).toManaged_
+          initAwait <- Promise.make[Nothing, Unit].toManaged_
+          permits   <- Semaphore.make(1).toManaged_
+          stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
+          producer <- self
+                       .foreachWhileManaged(produce(stateVar, permits, _))
+                       .foldCauseM(
+                         cause => drainAndSet(stateVar, permits, State.Error(cause)).toManaged_,
+                         _ => drainAndSet(stateVar, permits, State.End).toManaged_
+                       )
+                       .fork
+          bs <- consumerStream(stateVar, permits).process
+                 .ensuringFirst(producer.interrupt.fork)
+        } yield bs
+
     }
   }
 
@@ -557,8 +558,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Appends another stream to this stream. The concatenated stream will first emit the
    * elements of this stream, and then emit the elements of the `other` stream.
    */
-  final def concat[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
-    Stream(self, other).flatMap(identity)
+  final def concat[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+    ZStream(UIO.succeed(self), UIO(other)).flatMap(ZStream.unwrap)
 
   /**
    * Converts this stream to a stream that executes its effects but emits no
@@ -906,17 +907,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Repeats this stream forever.
    */
   def forever: ZStream[R, E, A] =
-    new ZStream[R, E, A] {
-      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          def loop(s: S): ZManaged[R1, E1, S] =
-            self.fold[R1, E1, A, S].flatMap { fold =>
-              fold(s, cont, f).flatMap(s => if (cont(s)) loop(s) else ZManaged.succeed(s))
-            }
-
-          loop(s)
-        }
-    }
+    self ++ forever
 
   /**
    * Interleaves this stream and the specified stream deterministically by
@@ -1200,23 +1191,35 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  def repeat[R1 <: R](schedule: ZSchedule[R1, Unit, _]): ZStream[R1 with Clock, E, A] =
+  def repeat[R1 <: R](schedule: ZSchedule[R1, Unit, Any]): ZStream[R1 with Clock, E, A] =
     new ZStream[R1 with Clock, E, A] {
       import clock.sleep
 
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          def loop(s: S, sched: schedule.State): ZManaged[R2, E1, S] =
-            self.fold[R2, E1, A1, S].flatMap { fold =>
-              fold(s, cont, f).zip(ZManaged.fromEffect(schedule.update((), sched))).flatMap {
-                case (s, decision) =>
-                  if (decision.cont && cont(s)) sleep(decision.delay).toManaged_ *> loop(s, decision.state)
-                  else ZManaged.succeed(s)
-              }
+        foldDefault
+
+      override def process =
+        for {
+          scheduleInit  <- schedule.initial.toManaged_
+          schedStateRef <- Ref.make(scheduleInit).toManaged_
+          stream = {
+            def repeated: ZStream[R1 with Clock, E, A] = ZStream.unwrap {
+              for {
+                scheduleState <- schedStateRef.get
+                decision      <- schedule.update((), scheduleState)
+                s2 = if (decision.cont)
+                  ZStream
+                    .fromEffect(schedStateRef.set(decision.state) *> sleep(decision.delay))
+                    .drain ++ self ++ repeated
+                else
+                  ZStream.empty
+              } yield s2
             }
 
-          schedule.initial.toManaged_.flatMap(loop(s, _))
-        }
+            self ++ repeated
+          }
+          as <- stream.process
+        } yield as
     }
 
   /**
@@ -1270,27 +1273,47 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
     new ZStream[R1 with Clock, E, Either[B, A]] {
-
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: Either[B, A], S]: Fold[R2, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          def loop(s: S, schedSt: schedule.State, a: A): ZIO[R2, E1, S] =
-            if (!cont(s)) ZIO.succeed(s)
-            else
-              f(s, Right(a)).zip(schedule.update(a, schedSt)).flatMap {
-                case (su, decision) if !decision.cont && cont(su) => f(su, Left(decision.finish()))
-                case (su, decision) if decision.cont && cont(su) =>
-                  loop(su, decision.state, a).delay(decision.delay)
-                case (su, _) => IO.succeed(su)
-              }
+        foldDefault
 
-          schedule.initial.toManaged_.flatMap { schedSt =>
-            self.fold[R2, E1, A, S].flatMap { fl =>
-              fl(s, cont, (s, a) => loop(s, schedSt, a))
-            }
+      sealed trait State
+      object State {
+        case class Initial(sched: schedule.State)                               extends State
+        case class SleepAndFinish(delay: Duration, b: B)                        extends State
+        case class SleepAndRepeat(sched: schedule.State, delay: Duration, a: A) extends State
+      }
+
+      def decide(decision: ZSchedule.Decision[schedule.State, B], a: A): State =
+        if (decision.cont) State.SleepAndRepeat(decision.state, decision.delay, a)
+        else State.SleepAndFinish(decision.delay, decision.finish())
+
+      override def process: ZManaged[R1 with Clock, E, InputStream[R1 with Clock, E, Either[B, A]]] =
+        for {
+          as    <- self.process
+          init  <- schedule.initial.toManaged_
+          state <- Ref.make[State](State.Initial(init)).toManaged_
+          pull = state.get.flatMap {
+            case State.Initial(sched) =>
+              for {
+                a        <- as
+                decision <- schedule.update(a, sched)
+                _        <- state.set(decide(decision, a))
+              } yield Right(a)
+
+            case State.SleepAndRepeat(sched, delay, a) =>
+              for {
+                _        <- clock.sleep(delay)
+                decision <- schedule.update(a, sched)
+                _        <- state.set(decide(decision, a))
+              } yield Right(a)
+
+            case State.SleepAndFinish(delay, b) =>
+              for {
+                _ <- clock.sleep(delay)
+                _ <- state.set(State.Initial(init))
+              } yield Left(b)
           }
-
-        }
-
+        } yield pull
     }
 
   /**
@@ -1318,14 +1341,15 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def takeWhile(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
     override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-      ZManaged.succeed { (s, cont, f) =>
-        self.fold[R1, E1, A, (Boolean, S)].flatMap { fold =>
-          fold(true -> s, tp => tp._1 && cont(tp._2), {
-            case ((_, s), a) =>
-              if (pred(a)) f(s, a).map(true -> _)
-              else IO.succeed(false         -> s)
-          }).map(_._2)
-        }
+      foldDefault
+
+    override def process =
+      self.process.map { as =>
+        for {
+          a <- as
+          result <- if (pred(a)) InputStream.emit(a)
+                   else InputStream.end
+        } yield result
       }
   }
 
@@ -1402,46 +1426,47 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   ): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
       override def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] =
-        ZManaged.succeed { (s: S, cont: S => Boolean, f: (S, C1) => ZIO[R2, E2, S]) =>
-          def feed(
-            sink: ZSink[R1, E1, A1, A1, C]
-          )(s1: sink.State, s2: S, a: Chunk[A1]): ZIO[R2, E2, (sink.State, S, Boolean)] =
-            sink.stepChunk(s1, a).flatMap { step =>
-              if (ZSink.Step.cont(step)) {
-                IO.succeed((ZSink.Step.state(step), s2, true))
-              } else {
-                sink.extract(ZSink.Step.state(step)).flatMap { c =>
-                  f(s2, c).flatMap { s2 =>
-                    val remaining = ZSink.Step.leftover(step)
-                    sink.initial.flatMap { initStep =>
-                      if (cont(s2) && !remaining.isEmpty) {
-                        feed(sink)(ZSink.Step.state(initStep), s2, remaining)
-                      } else {
-                        IO.succeed((ZSink.Step.state(initStep), s2, false))
-                      }
-                    }
-                  }
-                }
-              }
-            }
+        foldDefault
 
-          for {
-            sink     <- managedSink
-            initStep <- sink.initial.toManaged_
-            f0       <- self.fold[R2, E2, A, (sink.State, S, Boolean)]
-            result <- f0((ZSink.Step.state(initStep), s, false), stepState => cont(stepState._2), { (s, a) =>
-                       val (s1, s2, _) = s
-                       feed(sink)(s1, s2, Chunk(a))
-                     }).mapM {
-                       case (s1, s2, extractNeeded) =>
-                         if (extractNeeded) {
-                           sink.extract(s1).flatMap(f(s2, _))
-                         } else {
-                           IO.succeed(s2)
-                         }
-                     }
-          } yield result
-        }
+      override def process =
+        for {
+          as           <- self.process
+          sink         <- managedSink
+          init         <- sink.initial.toManaged_
+          sinkStateRef <- Ref.make[(ZSink.Step[sink.State, A1], Boolean)]((init, false)).toManaged_
+          done         <- Ref.make(false).toManaged_
+          pull = {
+            def go(step: ZSink.Step[sink.State, A1], needsExtractOnEnd: Boolean): InputStream[R1, E1, C] =
+              if (!ZSink.Step.cont(step))
+                (for {
+                  c        <- sink.extract(ZSink.Step.state(step))
+                  leftover = ZSink.Step.leftover(step)
+                  newInit  <- sink.initial
+                  _ <- sink
+                        .stepChunk(ZSink.Step.state(newInit), leftover)
+                        .tap(leftoverStep => sinkStateRef.set((leftoverStep, !leftover.isEmpty)))
+                } yield c).mapError(Some(_))
+              else
+                as.foldM(
+                  {
+                    case None =>
+                      done.set(true) *>
+                        (if (needsExtractOnEnd) sink.extract(ZSink.Step.state(step)).mapError(Some(_))
+                         else InputStream.end)
+                    case Some(e) => InputStream.fail(e)
+                  },
+                  sink.step(ZSink.Step.state(step), _).mapError(Some(_)).flatMap(go(_, true))
+                )
+
+            done.get.flatMap {
+              if (_) InputStream.end
+              else
+                sinkStateRef.get.flatMap {
+                  case (lastStep, needsExtractOnEnd) => go(lastStep, needsExtractOnEnd)
+                }
+            }
+          }
+        } yield pull
     }
 
   /**
