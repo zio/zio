@@ -506,18 +506,22 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def collectWhile[B](pred: PartialFunction[A, B]): ZStream[R, E, B] = new ZStream[R, E, B] {
     override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
-      ZManaged.succeed { (s, cont, f) =>
-        self.fold[R1, E1, A, (Boolean, S)].flatMap { fold =>
-          fold(true -> s, tp => tp._1 && cont(tp._2), {
-            case ((_, s), a) =>
-              pred
-                .andThen(b => f(s, b).map(true -> _))
-                .applyOrElse(a, { _: A =>
-                  IO.succeed(false -> s)
-                })
-          }).map(_._2)
-        }
-      }
+      foldDefault
+
+    override def process: ZManaged[R, E, ZStream.InputStream[R, E, B]] =
+      for {
+        as   <- self.process
+        done <- Ref.make(false).toManaged_
+        pfIO = pred.andThen(InputStream.emit(_))
+        pull = for {
+          alreadyDone <- done.get
+          result <- if (alreadyDone) InputStream.end
+                   else
+                     as.flatMap { a =>
+                       pfIO.applyOrElse(a, (_: A) => done.set(true) *> InputStream.end)
+                     }
+        } yield result
+      } yield pull
   }
 
   /**
