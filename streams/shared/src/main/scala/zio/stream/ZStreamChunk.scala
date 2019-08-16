@@ -245,7 +245,10 @@ object ZStreamChunk {
   /**
    * The empty stream of chunks
    */
-  final val empty: StreamChunk[Nothing, Nothing] = StreamChunkPure(StreamPure.empty)
+  final val empty: StreamChunk[Nothing, Nothing] =
+    new StreamChunk[Nothing, Nothing] {
+      val chunks = Stream.empty
+    }
 
   /**
    * Creates a `ZStreamChunk` from a stream of chunks
@@ -259,13 +262,17 @@ object ZStreamChunk {
    * Creates a `ZStreamChunk` from a variable list of chunks
    */
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    StreamChunkPure(StreamPure.fromIterable(as))
+    new StreamChunk[Nothing, A] {
+      val chunks = Stream.fromIterable(as)
+    }
 
   /**
    * Creates a `ZStreamChunk` from a chunk
    */
   final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
-    StreamChunkPure(StreamPure.succeed(as))
+    new StreamChunk[Nothing, A] {
+      val chunks = Stream.succeed(as)
+    }
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
