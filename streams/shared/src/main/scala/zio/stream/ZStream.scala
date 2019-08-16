@@ -1199,23 +1199,35 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  def repeat[R1 <: R](schedule: ZSchedule[R1, Unit, _]): ZStream[R1 with Clock, E, A] =
+  def repeat[R1 <: R](schedule: ZSchedule[R1, Unit, Any]): ZStream[R1 with Clock, E, A] =
     new ZStream[R1 with Clock, E, A] {
       import clock.sleep
 
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          def loop(s: S, sched: schedule.State): ZManaged[R2, E1, S] =
-            self.fold[R2, E1, A1, S].flatMap { fold =>
-              fold(s, cont, f).zip(ZManaged.fromEffect(schedule.update((), sched))).flatMap {
-                case (s, decision) =>
-                  if (decision.cont && cont(s)) sleep(decision.delay).toManaged_ *> loop(s, decision.state)
-                  else ZManaged.succeed(s)
-              }
+        foldDefault
+
+      override def process =
+        for {
+          scheduleInit  <- schedule.initial.toManaged_
+          schedStateRef <- Ref.make(scheduleInit).toManaged_
+          stream = {
+            def repeated: ZStream[R1 with Clock, E, A] = ZStream.unwrap {
+              for {
+                scheduleState <- schedStateRef.get
+                decision      <- schedule.update((), scheduleState)
+                s2 = if (decision.cont)
+                  ZStream
+                    .fromEffect(schedStateRef.set(decision.state) *> sleep(decision.delay))
+                    .drain ++ self ++ repeated
+                else
+                  ZStream.empty
+              } yield s2
             }
 
-          schedule.initial.toManaged_.flatMap(loop(s, _))
-        }
+            self ++ repeated
+          }
+          as <- stream.process
+        } yield as
     }
 
   /**
