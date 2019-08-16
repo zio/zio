@@ -780,9 +780,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                         // One of the inner fibers failed. It already enqueued its failure, so we
                         // signal the inner fibers to interrupt. The finalizer below will make sure
                         // that they actually end.
-                        leftDone = (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt,
+                        leftDone =
+                          (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt.unit,
                         // All fibers completed successfully, so we signal that we're done.
-                        rightDone = (_, failureAwait) => out.offer(InputStream.end) *> failureAwait.interrupt
+                        rightDone = (_, failureAwait) => out.offer(InputStream.end) *> failureAwait.interrupt.unit
                       )
                       .toManaged_
                 )
@@ -1070,32 +1071,26 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
-      def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] =
-        ZManaged.succeed { (s, cont, g) =>
-          for {
-            out              <- Queue.bounded[Take[E1, IO[E1, B]]](n).toManaged(_.shutdown)
-            permits          <- Semaphore.make(n.toLong).toManaged_
-            interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
-            _ <- self.foreachManaged { a =>
-                  for {
-                    p <- Promise.make[E1, B]
-                    _ <- out.offer(Take.Value(p.await))
-                    _ <- (permits.withPermit(f(a).to(p)) race interruptWorkers.await).fork
-                  } yield ()
-                }.foldCauseM(
-                    c => (out.offer(Take.Fail(c)) *> ZIO.halt(c)).toManaged_,
-                    _ => out.offer(Take.End).unit.toManaged_
-                  )
-                  .ensuring(interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
-                  .fork
-            s <- Stream
-                  .fromQueue(out)
-                  .unTake
-                  .mapM(identity)
-                  .fold[R2, E2, B1, S]
-                  .flatMap(fold => fold(s, cont, g))
-          } yield s
-        }
+      def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] = foldDefault
+
+      override def process =
+        for {
+          out              <- Queue.bounded[InputStream[R1, E1, B]](n).toManaged(_.shutdown)
+          permits          <- Semaphore.make(n.toLong).toManaged_
+          interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
+          _ <- self.foreachManaged { a =>
+                for {
+                  p <- Promise.make[E1, B]
+                  _ <- out.offer(InputStream.fromPromise(p))
+                  _ <- (permits.withPermit(f(a).to(p)) race interruptWorkers.await).fork
+                } yield ()
+              }.foldCauseM(
+                  c => (interruptWorkers.succeed(()) *> out.offer(InputStream.halt(c))).unit.toManaged_,
+                  _ => out.offer(InputStream.end).unit.toManaged_
+                )
+                .ensuringFirst(interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
+                .fork
+        } yield out.take.flatten
     }
 
   /**
@@ -1578,13 +1573,14 @@ object ZStream extends ZStreamPlatformSpecific {
   type InputStream[-R, +E, +A] = ZIO[R, Option[E], A]
 
   object InputStream {
-    val end: InputStream[Any, Nothing, Nothing]                   = IO.fail(None)
-    def emit[A](a: A): InputStream[Any, Nothing, A]               = UIO.succeed(a)
-    def fail[E](e: E): InputStream[Any, E, Nothing]               = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): InputStream[Any, E, Nothing]        = IO.halt(c).mapError(Some(_))
-    def die(t: Throwable): InputStream[Any, Nothing, Nothing]     = UIO.die(t)
-    def dieMessage(m: String): InputStream[Any, Nothing, Nothing] = UIO.dieMessage(m)
-    def done[E, A](e: Exit[E, A]): InputStream[Any, E, A]         = IO.done(e).mapError(Some(_))
+    val end: InputStream[Any, Nothing, Nothing]                     = IO.fail(None)
+    def emit[A](a: A): InputStream[Any, Nothing, A]                 = UIO.succeed(a)
+    def fail[E](e: E): InputStream[Any, E, Nothing]                 = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): InputStream[Any, E, Nothing]          = IO.halt(c).mapError(Some(_))
+    def die(t: Throwable): InputStream[Any, Nothing, Nothing]       = UIO.die(t)
+    def dieMessage(m: String): InputStream[Any, Nothing, Nothing]   = UIO.dieMessage(m)
+    def done[E, A](e: Exit[E, A]): InputStream[Any, E, A]           = IO.done(e).mapError(Some(_))
+    def fromPromise[E, A](p: Promise[E, A]): InputStream[Any, E, A] = p.await.mapError(Some(_))
   }
 
   /**
