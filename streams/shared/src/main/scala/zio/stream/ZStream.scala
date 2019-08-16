@@ -1163,92 +1163,35 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Peels off enough material from the stream to construct an `R` using the
-   * provided `Sink`, and then returns both the `R` and the remainder of the
-   * `Stream` in a managed resource. Like all `Managed` resources, the provided
-   * remainder is valid only within the scope of `Managed`.
+   * provided [[ZSink]] and then returns both the `R` and the remainder of the
+   * [[ZStream]] in a managed resource. Like all [[ZManaged]] values, the provided
+   * remainder is valid only within the scope of [[ZManaged]].
    */
   final def peel[R1 <: R, E1 >: E, A1 >: A, B](
     sink: ZSink[R1, E1, A1, A1, B]
-  ): ZManaged[R1, E1, (B, ZStream[R1, E1, A1])] = {
-    type Folder = (Any, A1) => IO[E1, Any]
-    type Cont   = Any => Boolean
-    type Fold   = (Any, Cont, Folder)
-    type State  = Either[sink.State, Fold]
-    type Result = (B, ZStream[R, E1, A1])
+  ): ZManaged[R1, E1, (B, ZStream[R1, E1, A1])] =
+    for {
+      as <- self.process
+      bAndLeftover <- ZManaged.fromEffect {
+                       def runSink(step: ZSink.Step[sink.State, A1]): ZIO[R1, E1, ZSink.Step[sink.State, A1]] =
+                         if (!ZSink.Step.cont(step)) ZIO.succeed(step)
+                         else
+                           as.foldM(
+                             {
+                               case Some(e) => ZIO.fail(e)
+                               case None    => ZIO.succeed(step)
+                             },
+                             sink.step(ZSink.Step.state(step), _).flatMap(runSink(_))
+                           )
 
-    def feed[R2 <: R1, S](chunk: Chunk[A1])(s: S, cont: S => Boolean, f: (S, A1) => ZIO[R2, E1, S]): ZIO[R2, E1, S] =
-      chunk.foldMLazy(s)(cont)(f)
-
-    def tail(resume: Promise[Nothing, Fold], done: Promise[E1, Any]): ZStream[R, E1, A1] =
-      new ZStream[R, E1, A1] {
-        override def fold[R2 <: R, E2 >: E1, A2 >: A1, S]: ZStream.Fold[R2, E2, A2, S] =
-          ZManaged.succeed { (s, cont, f) =>
-            if (!cont(s)) ZManaged.succeed(s)
-            else
-              ZManaged.fromEffect(
-                resume.succeed((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
-                  done.await.asInstanceOf[IO[E2, S]]
-              )
-          }
-      }
-
-    def acquire(lstate: sink.State): ZManaged[R1, Nothing, (Fiber[E1, State], Promise[E1, Result])] =
-      for {
-        resume <- Promise.make[Nothing, Fold].toManaged_
-        done   <- Promise.make[E1, Any].toManaged_
-        result <- Promise.make[E1, Result].toManaged_
-        fiber <- self
-                  .fold[R1, E1, A1, State]
-                  .flatMap { fold =>
-                    fold(
-                      Left(lstate), {
-                        case Left(_)             => true
-                        case Right((s, cont, _)) => cont(s)
-                      }, {
-                        case (Left(lstate), a) =>
-                          sink.step(lstate, a).flatMap { step =>
-                            if (ZSink.Step.cont(step)) IO.succeed(Left(ZSink.Step.state(step)))
-                            else {
-                              val lstate = ZSink.Step.state(step)
-                              val as     = ZSink.Step.leftover(step)
-
-                              sink.extract(lstate).flatMap { r =>
-                                result.succeed(r -> tail(resume, done)) *>
-                                  resume.await
-                                    .flatMap(t => feed(as)(t._1, t._2, t._3).map(s => Right((s, t._2, t._3))))
-                              }
-                            }
-                          }
-                        case (Right((rstate, cont, f)), a) =>
-                          f(rstate, a).flatMap { rstate =>
-                            ZIO.succeed(Right((rstate, cont, f)))
-                          }
-                      }
-                    )
-                  }
-                  .foldCauseM(
-                    c => ZManaged.fromEffect(result.complete(IO.halt(c)).unit *> ZIO.halt(c)),
-                    ZManaged.succeed(_)
-                  )
-                  .fork
-        _ <- fiber.await.flatMap {
-              case Exit.Success(Left(_)) =>
-                done.complete(
-                  IO.die(new Exception("Logic error: Stream.peel's inner stream ended with a Left"))
-                )
-              case Exit.Success(Right((rstate, _, _))) => done.succeed(rstate)
-              case Exit.Failure(c)                     => done.complete(IO.halt(c))
-            }.fork.unit.toManaged_
-      } yield (fiber, result)
-
-    ZManaged
-      .fromEffect(sink.initial)
-      .flatMap { step =>
-        acquire(ZSink.Step.state(step)).flatMap { t =>
-          ZManaged.fromEffect(t._2.await)
-        }
-      }
-  }
+                       for {
+                         initial <- sink.initial
+                         last    <- runSink(initial)
+                         b       <- sink.extract(ZSink.Step.state(last))
+                       } yield (b, ZSink.Step.leftover(last))
+                     }
+      (b, leftover) = bAndLeftover
+    } yield b -> (ZStream.fromChunk(leftover) ++ ZStream.fromInputStream(as))
 
   private final def processDefault: ZManaged[R, E, InputStream[R, E, A]] =
     toQueue(1).map(_.take.flatMap {
@@ -1838,6 +1781,22 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
     managed(fa.toManaged_)
+
+  /**
+   * Creates a stream from an [[InputStream]].
+   */
+  final def fromInputStream[R, E, A](is: InputStream[R, E, A]): ZStream[R, E, A] =
+    fromInputStreamManaged(ZManaged.succeed(is))
+
+  /**
+   * Creates a stream from a scoped [[InputStream]].
+   */
+  final def fromInputStreamManaged[R, E, A](is: ZManaged[R, E, InputStream[R, E, A]]): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] = foldDefault
+
+      override def process = is
+    }
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
