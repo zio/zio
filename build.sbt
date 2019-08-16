@@ -62,8 +62,6 @@ lazy val root = project
     coreTestsJVM,
     coreTestsJS,
     docs,
-    examplesJS,
-    examplesJVM,
     streamsJVM,
     streamsJS,
     streamsTestsJVM,
