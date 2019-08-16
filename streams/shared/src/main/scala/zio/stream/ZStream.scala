@@ -535,23 +535,22 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     s1: S1
   )(f0: (S1, Queue[Take[E1, A1]], Queue[Take[E1, B]]) => ZIO[R1, E1, (S1, Take[E1, C])]): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
-      def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          for {
-            left  <- self.toQueue[E1, A1](lc)
-            right <- that.toQueue(rc)
-            result <- ZStream
-                       .unfoldM((s1, left, right)) {
-                         case (s1, left, right) =>
-                           f0(s1, left, right).flatMap {
-                             case (s1, take) =>
-                               Take.option(UIO.succeed(take)).map(_.map((_, (s1, left, right))))
-                           }
+      def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] = foldDefault
+
+      override def process =
+        for {
+          left  <- self.toQueue[E1, A1](lc)
+          right <- that.toQueue(rc)
+          pull <- ZStream
+                   .unfoldM((s1, left, right)) {
+                     case (s1, left, right) =>
+                       f0(s1, left, right).flatMap {
+                         case (s1, take) =>
+                           Take.option(UIO.succeed(take)).map(_.map((_, (s1, left, right))))
                        }
-                       .fold[R2, E2, C1, S]
-                       .flatMap(_.apply(s, cont, f))
-          } yield result
-        }
+                   }
+                   .process
+        } yield pull
     }
 
   /**
