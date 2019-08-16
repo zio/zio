@@ -25,9 +25,9 @@ import zio.internal.{ Platform, PlatformLive }
  * require an environment `R` and may fail with an error `E`, using labels of
  * type `L`. Test runners require a test executor, a platform, and a reporter.
  */
-abstract class TestRunner[L, -T](
+case class TestRunner[L, -T](
   executor: TestExecutor[L, T],
-  val platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
+  platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[L] = DefaultTestReporter(Console.Live)
 ) { self =>
 
@@ -59,4 +59,9 @@ abstract class TestRunner[L, -T](
    */
   final def unsafeRunSync(spec: Spec[L, T]): Exit[Nothing, ExecutedSpec[L]] =
     Runtime((), platform).unsafeRunSync(run(spec))
+
+  /**
+   * Creates a copy of this runner replacing the reporter.
+   */
+  final def withReporter(reporter: TestReporter[L]) = copy(reporter = reporter)
 }

@@ -145,9 +145,9 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def unsafeRunWith[R, E <: Throwable, A](r: Managed[Nothing, R])(f: R => IO[E, A]): Future[A] =
     unsafeRunToFuture(r.use[Any, E, A](f))
 
-  case class MockTestRunner(mockEnvironment: MockEnvironment)
-      extends TestRunner[String, ZTest[MockEnvironment, Any]](
-        executor = TestExecutor.managed(Managed.succeed(mockEnvironment)),
-        reporter = DefaultTestReporter(mockEnvironment)
-      )
+  def MockTestRunner(mockEnvironment: MockEnvironment) =
+    TestRunner[String, ZTest[MockEnvironment, Any]](
+      executor = TestExecutor.managed(Managed.succeed(mockEnvironment)),
+      reporter = DefaultTestReporter(mockEnvironment)
+    )
 }
