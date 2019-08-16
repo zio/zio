@@ -1884,8 +1884,8 @@ object ZStream extends ZStreamPlatformSpecific {
         for {
           it <- ZManaged.effectTotal(as.iterator)
           pull = UIO {
-            if (it.hasNext) UIO(it.next)
-            else ZIO.fail(None)
+            if (it.hasNext) InputStream.emit(it.next)
+            else InputStream.end
           }.flatten
         } yield pull
     }
