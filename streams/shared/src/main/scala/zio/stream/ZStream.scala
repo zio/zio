@@ -1281,27 +1281,47 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
     new ZStream[R1 with Clock, E, Either[B, A]] {
-
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: Either[B, A], S]: Fold[R2, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          def loop(s: S, schedSt: schedule.State, a: A): ZIO[R2, E1, S] =
-            if (!cont(s)) ZIO.succeed(s)
-            else
-              f(s, Right(a)).zip(schedule.update(a, schedSt)).flatMap {
-                case (su, decision) if !decision.cont && cont(su) => f(su, Left(decision.finish()))
-                case (su, decision) if decision.cont && cont(su) =>
-                  loop(su, decision.state, a).delay(decision.delay)
-                case (su, _) => IO.succeed(su)
-              }
+        foldDefault
 
-          schedule.initial.toManaged_.flatMap { schedSt =>
-            self.fold[R2, E1, A, S].flatMap { fl =>
-              fl(s, cont, (s, a) => loop(s, schedSt, a))
-            }
+      sealed trait State
+      object State {
+        case class Initial(sched: schedule.State)                               extends State
+        case class SleepAndFinish(delay: Duration, b: B)                        extends State
+        case class SleepAndRepeat(sched: schedule.State, delay: Duration, a: A) extends State
+      }
+
+      def decide(decision: ZSchedule.Decision[schedule.State, B], a: A): State =
+        if (decision.cont) State.SleepAndRepeat(decision.state, decision.delay, a)
+        else State.SleepAndFinish(decision.delay, decision.finish())
+
+      override def process: ZManaged[R1 with Clock, E, InputStream[R1 with Clock, E, Either[B, A]]] =
+        for {
+          as    <- self.process
+          init  <- schedule.initial.toManaged_
+          state <- Ref.make[State](State.Initial(init)).toManaged_
+          pull = state.get.flatMap {
+            case State.Initial(sched) =>
+              for {
+                a        <- as
+                decision <- schedule.update(a, sched)
+                _        <- state.set(decide(decision, a))
+              } yield Right(a)
+
+            case State.SleepAndRepeat(sched, delay, a) =>
+              for {
+                _        <- clock.sleep(delay)
+                decision <- schedule.update(a, sched)
+                _        <- state.set(decide(decision, a))
+              } yield Right(a)
+
+            case State.SleepAndFinish(delay, b) =>
+              for {
+                _ <- clock.sleep(delay)
+                _ <- state.set(State.Initial(init))
+              } yield Left(b)
           }
-
-        }
-
+        } yield pull
     }
 
   /**
