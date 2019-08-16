@@ -909,17 +909,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Repeats this stream forever.
    */
   def forever: ZStream[R, E, A] =
-    new ZStream[R, E, A] {
-      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          def loop(s: S): ZManaged[R1, E1, S] =
-            self.fold[R1, E1, A, S].flatMap { fold =>
-              fold(s, cont, f).flatMap(s => if (cont(s)) loop(s) else ZManaged.succeed(s))
-            }
-
-          loop(s)
-        }
-    }
+    self ++ forever
 
   /**
    * Interleaves this stream and the specified stream deterministically by
