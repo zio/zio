@@ -487,10 +487,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def collect[B](pf: PartialFunction[A, B]): ZStream[R, E, B] =
     new ZStream[R, E, B] {
       override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self.fold[R1, E1, A, S].flatMap { fold =>
-            fold(s, cont, (s, a) => if (pf.isDefinedAt(a)) f(s, pf(a)) else IO.succeed(s))
-          }
+        foldDefault
+
+      override def process =
+        self.process.map { as =>
+          val pfIO: PartialFunction[A, InputStream[R, E, B]] = pf.andThen(InputStream.emit(_))
+          def pull: InputStream[R, E, B] =
+            as.flatMap { a =>
+              pfIO.applyOrElse(a, (_: A) => pull)
+            }
+
+          pull
         }
     }
 
@@ -548,18 +555,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * elements of this stream, and then emit the elements of the `other` stream.
    */
   final def concat[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
-    new ZStream[R1, E1, A1] {
-      def fold[R2 <: R1, E2 >: E1, A2 >: A1, S]: Fold[R2, E2, A2, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self.fold[R2, E2, A2, S].flatMap { foldLeft =>
-            foldLeft(s, cont, f).flatMap { s =>
-              if (!cont(s)) ZManaged.succeed(s)
-              else
-                other.fold[R2, E2, A2, S].flatMap(foldRight => foldRight(s, cont, f))
-            }
-          }
-        }
-    }
+    Stream(self, other).flatMap(identity)
 
   /**
    * Converts this stream to a stream that executes its effects but emits no
@@ -574,11 +570,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def drain: ZStream[R, E, Nothing] =
     new ZStream[R, E, Nothing] {
       override def fold[R1 <: R, E1 >: E, A1 >: Nothing, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, _) =>
-          self.fold[R1, E1, A, S].flatMap { fold =>
-            fold(s, cont, (s, _) => IO.succeed(s))
-          }
-        }
+        foldDefault
+
+      override def process =
+        self.process.map(_.forever)
     }
 
   /**
@@ -593,17 +588,25 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def dropWhile(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
     override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-      ZManaged.succeed { (s, cont, f) =>
-        self.fold[R1, E1, A, (Boolean, S)].flatMap { fold =>
-          def loop(tp: (Boolean, S), a: A): ZIO[R1, E1, (Boolean, S)] =
-            (tp, a) match {
-              case ((true, s), a) if pred(a) => IO.succeed(true   -> s)
-              case ((_, s), a)               => f(s, a).map(false -> _)
+      foldDefault
+
+    override def process =
+      for {
+        as              <- self.process
+        keepDroppingRef <- Ref.make(true).toManaged_
+        pull = {
+          def go: InputStream[R, E, A] =
+            as.flatMap { a =>
+              keepDroppingRef.get.flatMap { keepDropping =>
+                if (!keepDropping) InputStream.emit(a)
+                else if (!pred(a)) keepDroppingRef.set(false) *> InputStream.emit(a)
+                else go
+              }
             }
 
-          fold(true -> s, tp => cont(tp._2), loop).map(_._2)
+          go
         }
-      }
+      } yield pull
   }
 
   /**
@@ -612,11 +615,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def ensuring[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
     new ZStream[R1, E, A] {
       def fold[R2 <: R1, E1 >: E, A1 >: A, S]: ZStream.Fold[R2, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self.fold[R2, E1, A1, S].flatMap { fold =>
-            fold(s, cont, f).ensuring(fin)
-          }
-        }
+        foldDefault
+
+      override def process = self.process.ensuring(fin)
     }
 
   /**
@@ -625,11 +626,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
     new ZStream[R1, E, A] {
       def fold[R2 <: R1, E1 >: E, A1 >: A, S]: ZStream.Fold[R2, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self.fold[R2, E1, A1, S].flatMap { fold =>
-            fold(s, cont, f).ensuringFirst(fin)
-          }
-        }
+        foldDefault
+
+      override def process = self.process.ensuringFirst(fin)
     }
 
   /**
@@ -638,10 +637,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def filter(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
     override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-      ZManaged.succeed { (s, cont, f) =>
-        self.fold[R1, E1, A, S].flatMap { fold =>
-          fold(s, cont, (s, a) => if (pred(a)) f(s, a) else IO.succeed(s))
+      foldDefault
+
+    override def process =
+      self.process.map { as =>
+        def pull: InputStream[R, E, A] = as.flatMap { a =>
+          if (pred(a)) InputStream.emit(a)
+          else pull
         }
+
+        pull
       }
   }
 
@@ -651,10 +656,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def filterM[R1 <: R, E1 >: E](pred: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] = new ZStream[R1, E1, A] {
     override def fold[R2 <: R1, E2 >: E1, A1 >: A, S]: Fold[R2, E2, A1, S] =
-      ZManaged.succeed { (s, cont, g) =>
-        self.fold[R2, E2, A, S].flatMap { fold =>
-          fold(s, cont, (s, a) => pred(a).flatMap(if (_) g(s, a) else IO.succeed(s)))
-        }
+      foldDefault
+
+    override def process =
+      self.process.map { as =>
+        def pull: InputStream[R1, E1, A] =
+          as.flatMap { a =>
+            pred(a).mapError(Some(_)).flatMap {
+              if (_) InputStream.emit(a)
+              else pull
+            }
+          }
+
+        pull
       }
   }
 
@@ -671,18 +685,35 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
       def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self.fold[R2, E2, A, S].flatMap { foldOuter =>
-            foldOuter(s, cont, (s, a) => {
-              f0(a)
-                .fold[R2, E2, B1, S]
-                .flatMap { foldInner =>
-                  foldInner(s, cont, f)
-                }
-                .use(ZIO.succeed)
-            })
+        foldDefault
+
+      override def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
+        for {
+          ref <- Ref.make[Option[(InputStream[R1, E1, B], Exit[_, _] => ZIO[R1, Nothing, Any])]](None).toManaged_
+          as  <- self.process
+          _   <- ZManaged.finalizerExit(e => ref.get.flatMap(_.map(_._2).getOrElse((_: Exit[_, _]) => UIO.unit).apply(e)))
+          pullOuter = ZIO.uninterruptibleMask { restore =>
+            restore(as).flatMap { a =>
+              (for {
+                reservation <- f0(a).process.reserve
+                bs          <- restore(reservation.acquire)
+                _           <- ref.set(Some(bs -> reservation.release))
+              } yield ()).mapError(Some(_))
+            }
           }
-        }
+          bs = {
+            def go: InputStream[R1, E1, B] = ref.get.flatMap {
+              case None => pullOuter *> go
+              case Some((isB, finalizer)) =>
+                isB.catchAll {
+                  case e @ Some(e1) => (finalizer(Exit.fail(e1)) *> ref.set(None)).uninterruptible *> ZIO.fail(e)
+                  case None         => (finalizer(Exit.succeed(())) *> ref.set(None)).uninterruptible *> pullOuter *> go
+                }
+            }
+
+            go
+          }
+        } yield bs
     }
 
   /**
@@ -970,11 +1001,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def map[B](f0: A => B): ZStream[R, E, B] =
     new ZStream[R, E, B] {
       def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self.fold[R1, E1, A, S].flatMap { fold =>
-            fold(s, cont, (s, a) => f(s, f0(a)))
-          }
-        }
+        foldDefault
+
+      override def process =
+        self.process.map(_.map(f0))
     }
 
   /**
@@ -1038,9 +1068,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] = new ZStream[R1, E1, B] {
     override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
-      ZManaged.succeed { (s, cont, g) =>
-        self.fold[R2, E2, A, S].flatMap(fold => fold(s, cont, (s, a) => f(a).flatMap(g(s, _))))
-      }
+      foldDefault
+
+    override def process = self.process.map(_.flatMap(f(_).mapError(Some(_))))
   }
 
   /**
@@ -1265,15 +1295,23 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
   def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
-    for {
-      state <- sink.initial
-      result <- self
-                 .fold[R1, E1, A1, ZSink.Step[sink.State, A0]]
-                 .flatMap(fold => fold(state, ZSink.Step.cont, (s, a) => sink.step(ZSink.Step.state(s), a)))
-                 .use { step =>
-                   sink.extract(ZSink.Step.state(step))
-                 }
-    } yield result
+    sink.initial.flatMap { initial =>
+      self.process.use { as =>
+        def pull(state: sink.State): ZIO[R1, E1, B] =
+          as.foldM(
+            {
+              case Some(e) => ZIO.fail(e)
+              case None    => sink.extract(state)
+            },
+            sink.step(state, _).flatMap { step =>
+              if (ZSink.Step.cont(step)) pull(ZSink.Step.state(step))
+              else sink.extract(ZSink.Step.state(step))
+            }
+          )
+
+        pull(ZSink.Step.state(initial))
+      }
+    }
 
   /**
    * Runs the stream and collects all of its elements in a list.
@@ -1331,19 +1369,20 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Takes the specified number of elements from this stream.
    */
   final def take(n: Int): ZStream[R, E, A] =
-    if (n <= 0) ZStream.empty
-    else
-      new ZStream[R, E, A] {
-        override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-          ZManaged.succeed { (s, cont, f) =>
-            self.zipWithIndex.fold[R1, E1, (A, Int), (S, Boolean)].flatMap { fold =>
-              fold(s -> true, tp => cont(tp._1) && tp._2, {
-                case ((s, _), (a, i)) =>
-                  f(s, a).map((_, i < n - 1))
-              }).map(_._1)
-            }
-          }
-      }
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        foldDefault
+
+      override def process =
+        for {
+          as      <- self.process
+          counter <- Ref.make(0).toManaged_
+          pull = counter.modify { c =>
+            if (c >= n) (InputStream.end, c)
+            else (as, c + 1)
+          }.flatten
+        } yield pull
+    }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate
@@ -1368,11 +1407,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZStream[R1, E1, A] =
     new ZStream[R1, E1, A] {
       override def fold[R2 <: R1, E2 >: E1, A1 >: A, S]: Fold[R2, E2, A1, S] =
-        ZManaged.succeed { (s, cont, g) =>
-          self.fold[R2, E2, A, S].flatMap { fold =>
-            fold(s, cont, (s, a2) => f(a2) *> g(s, a2))
-          }
-        }
+        foldDefault
+
+      override def process = self.process.map(_.tap(f(_).mapError(Some(_))))
     }
 
   /**
@@ -1590,7 +1627,12 @@ object ZStream extends ZStreamPlatformSpecific {
    * The empty stream
    */
   final val empty: Stream[Nothing, Nothing] =
-    StreamPure.empty
+    new Stream[Nothing, Nothing] {
+      def fold[R, E, A, S]: Fold[R, E, A, S] = foldDefault
+
+      override def process: Managed[Nothing, InputStream[Any, Nothing, Nothing]] =
+        ZManaged.succeed(InputStream.end)
+    }
 
   /**
    * The stream that never produces any value or fails with any error.
@@ -1766,7 +1808,11 @@ object ZStream extends ZStreamPlatformSpecific {
       def fold[R1 <: R, E, A1, S]: Fold[R1, E, A1, S] = foldDefault
 
       override def process: ZManaged[R, Nothing, InputStream[R, Nothing, Nothing]] =
-        ZManaged.succeed(InputStream.end).ensuring(finalizer)
+        for {
+          finalizerRef <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit).toManaged_
+          _            <- ZManaged.finalizer[R](finalizerRef.get.flatten)
+          pull         = (finalizerRef.set(finalizer) *> InputStream.end).uninterruptible
+        } yield pull
     }
 
   /**
@@ -1827,7 +1873,18 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an iterable collection of values
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
-    StreamPure.fromIterable(as)
+    new ZStream[Any, Nothing, A] {
+      override def fold[R1, E1, A1 >: A, S]: Fold[R1, E1, A1, S] = foldDefault
+
+      override def process =
+        for {
+          it <- ZManaged.effectTotal(as.iterator)
+          pull = UIO {
+            if (it.hasNext) UIO(it.next)
+            else ZIO.fail(None)
+          }.flatten
+        } yield pull
+    }
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
@@ -1860,12 +1917,22 @@ object ZStream extends ZStreamPlatformSpecific {
 
       override def process: ZManaged[R, E, InputStream[R, E, A]] =
         for {
-          done <- Ref.make(false).toManaged_
-          a    <- managed
-        } yield done.get.flatMap {
-          if (_) InputStream.end
-          else done.set(true) *> InputStream.emit(a)
-        }
+          doneRef      <- Ref.make(false).toManaged_
+          finalizerRef <- Ref.make[Exit[_, _] => ZIO[R, Nothing, Any]](_ => UIO.unit).toManaged_
+          _            <- ZManaged.finalizerExit(e => finalizerRef.get.flatMap(_.apply(e)))
+          pull = ZIO.uninterruptibleMask { restore =>
+            doneRef.get.flatMap { done =>
+              if (done) InputStream.end
+              else
+                (for {
+                  reservation <- managed.reserve
+                  _           <- finalizerRef.set(reservation.release)
+                  a           <- restore(reservation.acquire)
+                  _           <- doneRef.set(true)
+                } yield a).mapError(Some(_))
+            }
+          }
+        } yield pull
     }
 
   /**
