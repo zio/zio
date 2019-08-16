@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.FiberRef
+
 trait Size {
-  def size: Int
+  def size: FiberRef[Int]
 }

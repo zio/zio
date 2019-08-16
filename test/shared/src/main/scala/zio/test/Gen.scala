@@ -213,10 +213,10 @@ object Gen {
     }
 
   final def listOf[R <: Random with Size, A](g: Gen[R, A]): Gen[R, List[A]] =
-    sized(listOfN(_)(g))
+    sized(n => int(0, n max 0)).flatMap(listOfN(_)(g))
 
   final def listOf1[R <: Random with Size, A](g: Gen[R, A]): Gen[R, List[A]] =
-    sized1(listOfN(_)(g))
+    sized(n => int(1, n max 1)).flatMap(listOfN(_)(g))
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
@@ -249,23 +249,23 @@ object Gen {
   final def short(min: Short, max: Short): Gen[Random, Short] =
     integral(min, max)
 
+  final val size: Gen[Size, Int] =
+    Gen.fromEffect(ZIO.accessM[Size](_.size.get))
+
   /**
    * A sized generator, whose size falls within the specified bounds.
    */
-  final def sized[R <: Random with Size, A](f: Int => Gen[R, A]): Gen[R, A] =
-    Gen.fromEffect(ZIO.access[Size](_.size)).flatMap(int(0, _)).flatMap(f)
-
-  final def sized1[R <: Random with Size, A](f: Int => Gen[R, A]): Gen[R, A] =
-    Gen.fromEffect(ZIO.access[Size](_.size)).flatMap(int(1, _)).flatMap(f)
+  final def sized[R <: Size, A](f: Int => Gen[R, A]): Gen[R, A] =
+    size.flatMap(f)
 
   final def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
 
   final def string[R <: Random with Size](char: Gen[R, Char]): Gen[R, String] =
-    sized(stringN(_)(char))
+    listOf(char).map(_.mkString)
 
   final def string1[R <: Random with Size](char: Gen[R, Char]): Gen[R, String] =
-    sized1(stringN(_)(char))
+    listOf1(char).map(_.mkString)
 
   final def stringN[R <: Random](n: Int)(char: Gen[R, Char]): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
@@ -284,10 +284,10 @@ object Gen {
     const(())
 
   final def vectorOf[R <: Random with Size, A](g: Gen[R, A]): Gen[R, Vector[A]] =
-    sized(vectorOfN(_)(g))
+    listOf(g).map(_.toVector)
 
   final def vectorOf1[R <: Random with Size, A](g: Gen[R, A]): Gen[R, Vector[A]] =
-    sized1(vectorOfN(_)(g))
+    listOf1(g).map(_.toVector)
 
   final def vectorOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)

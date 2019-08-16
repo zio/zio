@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ DefaultRuntime, Managed, UIO, ZIO }
+import zio.{ DefaultRuntime, FiberRef, Managed, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.mock.MockRandom
@@ -49,6 +49,8 @@ object GenSpec extends DefaultRuntime {
     label(printableCharShrinksToBottomOfRange, "printableChar shrinks to bottom of range"),
     label(shortGeneratesValuesInRange, "short generates values in range"),
     label(shortShrinksToBottomOfRange, "short shrinks to bottom of range"),
+    label(sizeCanBeModifiedLocally, "size can be modified locally"),
+    label(sizedAccessesSizeInEnvironment, "sized accesses size in environment"),
     label(someShrinksToSmallestValue, "some shrinks to smallest value"),
     label(stringGeneratesSizesInRange, "string generates sizes in range"),
     label(stringShrinksToEmptyString, "string shrinks to empty string"),
@@ -179,7 +181,7 @@ object GenSpec extends DefaultRuntime {
     checkShrink(Gen.listOf(smallInt))(Nil)
 
   def listOf1GeneratesNonEmptyLists: Future[Boolean] =
-    checkSample(Gen.listOf1(smallInt))(_.forall(_.nonEmpty))
+    checkSample(Gen.listOf1(smallInt), size = 0)(_.forall(_.nonEmpty))
 
   def listOf1ShrinksToSingletonList: Future[Boolean] =
     checkShrink(Gen.listOf1(smallInt))(List(-10))
@@ -211,6 +213,18 @@ object GenSpec extends DefaultRuntime {
   def shortShrinksToBottomOfRange: Future[Boolean] =
     checkShrink(Gen.short(5, 10))(5)
 
+  def sizeCanBeModifiedLocally: Future[Boolean] = {
+    val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
+    val result = for {
+      x <- ZIO.accessM[Size](_.size.locally(200)(getSize))
+      y <- getSize
+    } yield x == 2 * y
+    unsafeRunToFuture(provideSize(result)(100))
+  }
+
+  def sizedAccessesSizeInEnvironment: Future[Boolean] =
+    checkSample(Gen.sized(Gen.const(_)), size = 50)(_.forall(_ == 50))
+
   def someShrinksToSmallestValue: Future[Boolean] =
     checkShrink(Gen.some(smallInt))(Some(-10))
 
@@ -224,7 +238,7 @@ object GenSpec extends DefaultRuntime {
     checkShrink(Gen.string(Gen.printableChar))("")
 
   def string1GeneratesNonEmptyStrings: Future[Boolean] =
-    checkSample(Gen.string1(Gen.printableChar))(_.forall(_.nonEmpty))
+    checkSample(Gen.string1(Gen.printableChar), size = 0)(_.forall(_.nonEmpty))
 
   def string1ShrinksToSingleCharacter: Future[Boolean] =
     checkShrink(Gen.string1(Gen.printableChar))("!")
@@ -254,7 +268,7 @@ object GenSpec extends DefaultRuntime {
     checkShrink(Gen.vectorOf(smallInt))(Vector.empty)
 
   def vectorOf1GeneratesNonEmptyVectors: Future[Boolean] =
-    checkSample(Gen.vectorOf1(smallInt))(_.forall(_.nonEmpty))
+    checkSample(Gen.vectorOf1(smallInt), size = 0)(_.forall(_.nonEmpty))
 
   def vectorOf1ShrinksToSingletonVector: Future[Boolean] =
     checkShrink(Gen.vectorOf1(smallInt))(Vector(-10))
@@ -325,8 +339,8 @@ object GenSpec extends DefaultRuntime {
   def checkEqual[A](left: Gen[Random, A], right: Gen[Random, A]): Future[Boolean] =
     unsafeRunToFuture(equal(left, right))
 
-  def checkSample[A](gen: Gen[Random with Size, A])(f: List[A] => Boolean): Future[Boolean] =
-    unsafeRunToFuture(provideSize(sample(gen).map(f))(100))
+  def checkSample[A](gen: Gen[Random with Size, A], size: Int = 100)(f: List[A] => Boolean): Future[Boolean] =
+    unsafeRunToFuture(provideSize(sample(gen).map(f))(size))
 
   def checkFinite[A](gen: Gen[Random, A])(f: List[A] => Boolean): Future[Boolean] =
     unsafeRunToFuture(gen.sample.map(_.value).runCollect.map(f))
@@ -375,10 +389,12 @@ object GenSpec extends DefaultRuntime {
   }
 
   def provideSize[A](zio: ZIO[Random with Size, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    zio.provideSome[Random] { r =>
-      new Random with Size {
-        val random = r.random
-        val size   = n
+    FiberRef.make(n).flatMap { ref =>
+      zio.provideSome[Random] { r =>
+        new Random with Size {
+          val random = r.random
+          val size   = ref
+        }
       }
     }
 }
