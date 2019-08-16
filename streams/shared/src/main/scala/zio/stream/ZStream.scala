@@ -598,9 +598,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           def go: InputStream[R, E, A] =
             as.flatMap { a =>
               keepDroppingRef.get.flatMap { keepDropping =>
-                if (!keepDropping) ZIO.succeed(a)
-                else if (pred(a)) go
-                else keepDroppingRef.set(false) *> InputStream.emit(a)
+                if (!keepDropping) InputStream.emit(a)
+                else if (!pred(a)) keepDroppingRef.set(false) *> InputStream.emit(a)
+                else go
               }
             }
 
@@ -1378,7 +1378,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           as      <- self.process
           counter <- Ref.make(0).toManaged_
           pull = counter.modify { c =>
-            if (c >= n) (ZIO.fail(None), c)
+            if (c >= n) (InputStream.end, c)
             else (as, c + 1)
           }.flatten
         } yield pull
@@ -1631,7 +1631,7 @@ object ZStream extends ZStreamPlatformSpecific {
       def fold[R, E, A, S]: Fold[R, E, A, S] = foldDefault
 
       override def process: Managed[Nothing, InputStream[Any, Nothing, Nothing]] =
-        ZManaged.succeed(ZIO.fail(None))
+        ZManaged.succeed(InputStream.end)
     }
 
   /**
@@ -1811,7 +1811,7 @@ object ZStream extends ZStreamPlatformSpecific {
         for {
           finalizerRef <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit).toManaged_
           _            <- ZManaged.finalizer[R](finalizerRef.get.flatten)
-          pull         = (finalizerRef.set(finalizer) *> ZIO.fail(None)).uninterruptible
+          pull         = (finalizerRef.set(finalizer) *> InputStream.end).uninterruptible
         } yield pull
     }
 

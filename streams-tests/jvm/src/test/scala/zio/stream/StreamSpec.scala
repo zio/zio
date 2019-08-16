@@ -155,6 +155,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     merge                         $merge
     mergeEither                   $mergeEither
     mergeWith                     $mergeWith
+    mergeWith short circuit       $mergeWithShortCircuit
     mergeWith prioritizes failure $mergeWithPrioritizesFailure
 
   Stream.peel               $peel
@@ -1167,6 +1168,15 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     )
 
     list must containTheSameElementsAs(List("1", "2", "1", "2"))
+  }
+
+  private def mergeWithShortCircuit = unsafeRun {
+    val s1 = Stream(1, 2)
+    val s2 = Stream(1, 2)
+
+    s1.mergeWith(s2)(_.toString, _.toString)
+      .run(Sink.succeed("done"))
+      .map(_ must_=== "done")
   }
 
   private def mergeWithPrioritizesFailure = unsafeRun {
