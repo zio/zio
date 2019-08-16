@@ -299,7 +299,7 @@ object Predicate {
    * Makes a new predicate that requires the value be unit.
    */
   final def isUnit: Predicate[Any] =
-    Predicate.predicate(s"isUnit") { actual =>
+    Predicate.predicate("isUnit") { actual =>
       actual match {
         case () => Assertion.success
         case _  => Assertion.failure(())
