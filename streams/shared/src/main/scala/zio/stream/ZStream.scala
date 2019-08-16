@@ -54,7 +54,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Concatenates with another stream in strict order
    */
-  final def ++[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+  final def ++[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     concat(other)
 
   /**
@@ -558,8 +558,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Appends another stream to this stream. The concatenated stream will first emit the
    * elements of this stream, and then emit the elements of the `other` stream.
    */
-  final def concat[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
-    Stream(self, other).flatMap(identity)
+  final def concat[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+    ZStream(UIO.succeed(self), UIO(other)).flatMap(ZStream.unwrap)
 
   /**
    * Converts this stream to a stream that executes its effects but emits no
