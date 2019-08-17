@@ -18,21 +18,21 @@ package zio.test.mock
 
 import zio._
 import zio.scheduler.Scheduler
-import zio.test.Size
+import zio.test.Sized
 
 case class MockEnvironment(
   clock: MockClock.Mock,
   console: MockConsole.Mock,
   random: MockRandom.Mock,
   scheduler: MockClock.Mock,
-  size: FiberRef[Int],
+  sized: Sized.Service[Any],
   system: MockSystem.Mock
 ) extends MockClock
     with MockConsole
     with MockRandom
     with MockSystem
     with Scheduler
-    with Size
+    with Sized
 
 object MockEnvironment {
 
@@ -43,7 +43,7 @@ object MockEnvironment {
         console <- MockConsole.makeMock(MockConsole.DefaultData)
         random  <- MockRandom.makeMock(MockRandom.DefaultData)
         system  <- MockSystem.makeMock(MockSystem.DefaultData)
-        size    <- FiberRef.make(100)
+        size    <- Sized.makeService(100)
       } yield new MockEnvironment(clock, console, random, clock, size, system)
     }
 }

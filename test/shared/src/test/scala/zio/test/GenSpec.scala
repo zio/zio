@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ DefaultRuntime, FiberRef, Managed, UIO, ZIO }
+import zio.{ DefaultRuntime, Managed, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.mock.MockRandom
@@ -216,7 +216,7 @@ object GenSpec extends DefaultRuntime {
   def sizeCanBeModifiedLocally: Future[Boolean] = {
     val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
     val result = for {
-      x <- ZIO.accessM[Size](_.size.locally(200)(getSize))
+      x <- Sized.withSize(200)(getSize)
       y <- getSize
     } yield x == 2 * y
     unsafeRunToFuture(provideSize(result)(100))
@@ -339,13 +339,13 @@ object GenSpec extends DefaultRuntime {
   def checkEqual[A](left: Gen[Random, A], right: Gen[Random, A]): Future[Boolean] =
     unsafeRunToFuture(equal(left, right))
 
-  def checkSample[A](gen: Gen[Random with Size, A], size: Int = 100)(f: List[A] => Boolean): Future[Boolean] =
+  def checkSample[A](gen: Gen[Random with Sized, A], size: Int = 100)(f: List[A] => Boolean): Future[Boolean] =
     unsafeRunToFuture(provideSize(sample(gen).map(f))(size))
 
   def checkFinite[A](gen: Gen[Random, A])(f: List[A] => Boolean): Future[Boolean] =
     unsafeRunToFuture(gen.sample.map(_.value).runCollect.map(f))
 
-  def checkShrink[A](gen: Gen[Random with Size, A])(a: A): Future[Boolean] =
+  def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): Future[Boolean] =
     unsafeRunToFuture(provideSize(alwaysShrinksTo(gen)(a: A))(100))
 
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
@@ -388,12 +388,12 @@ object GenSpec extends DefaultRuntime {
     tail.map(head + _)
   }
 
-  def provideSize[A](zio: ZIO[Random with Size, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    FiberRef.make(n).flatMap { ref =>
+  def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
+    Sized.makeService(n).flatMap { service =>
       zio.provideSome[Random] { r =>
-        new Random with Size {
+        new Random with Sized {
           val random = r.random
-          val size   = ref
+          val sized  = service
         }
       }
     }
