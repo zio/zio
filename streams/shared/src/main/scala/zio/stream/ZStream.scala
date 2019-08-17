@@ -43,6 +43,18 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Obtain a managed input stream that can be used to read from the stream until it is
    * empty (or possibly forever, if the stream is infinite). The provided `InputStream`
    * is valid only inside the scope of the managed resource.
+   *
+   * This is a low-level consumption method, usually used for creating combinators
+   * and constructors. For most usage, [[ZStream#fold]], [[ZStream#foreach]] or [[ZStream#run]]
+   * should be preferred.
+   *
+   * The contract for the returned `InputStream` is as follows:
+   * - It must not be evaluted concurrently from multiple fibers - it is (usually)
+   *   not thread-safe;
+   * - If an evaluation of the `InputStream` is interrupted, it is not safe to
+   *   evaluate it again - it is (usually) not interruption-safe;
+   * - Once the `InputStream` has failed with a `None`, it is not safe
+   *   to evaluate it again.
    */
   def process: ZManaged[R, E, InputStream[R, E, A]]
 
