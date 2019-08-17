@@ -212,8 +212,14 @@ object Gen {
         .map(Sample.shrinkIntegral(min))
     }
 
-  final def listOf[R <: Random, A](g: Gen[R, A]): Int => Gen[R, List[A]] =
-    List.fill(_)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+  final def listOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
+    sized(n => int(0, n max 0)).flatMap(listOfN(_)(g))
+
+  final def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
+    sized(n => int(1, n max 1)).flatMap(listOfN(_)(g))
+
+  final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
+    List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
 
   /**
    * A constant generator of the empty value.
@@ -243,17 +249,26 @@ object Gen {
   final def short(min: Short, max: Short): Gen[Random, Short] =
     integral(min, max)
 
+  final val size: Gen[Sized, Int] =
+    Gen.fromEffect(Sized.size)
+
   /**
    * A sized generator, whose size falls within the specified bounds.
    */
-  final def sized[R <: Random, A](min: Int, max: Int)(f: Int => Gen[R, A]): Gen[R, A] =
-    int(min, max).flatMap(f)
+  final def sized[R <: Sized, A](f: Int => Gen[R, A]): Gen[R, A] =
+    size.flatMap(f)
 
   final def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
 
-  final def string[R <: Random](char: Gen[R, Char]): Int => Gen[R, String] =
-    listOf(char)(_).map(_.mkString)
+  final def string[R <: Random with Sized](char: Gen[R, Char]): Gen[R, String] =
+    listOf(char).map(_.mkString)
+
+  final def string1[R <: Random with Sized](char: Gen[R, Char]): Gen[R, String] =
+    listOf1(char).map(_.mkString)
+
+  final def stringN[R <: Random](n: Int)(char: Gen[R, Char]): Gen[R, String] =
+    listOfN(n)(char).map(_.mkString)
 
   /**
    * A generator of uniformly distributed doubles between [0, 1].
@@ -268,8 +283,14 @@ object Gen {
   final val unit: Gen[Any, Unit] =
     const(())
 
-  final def vectorOf[R <: Random, A](g: Gen[R, A]): Int => Gen[R, Vector[A]] =
-    listOf(g)(_).map(_.toVector)
+  final def vectorOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
+    listOf(g).map(_.toVector)
+
+  final def vectorOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
+    listOf1(g).map(_.toVector)
+
+  final def vectorOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
+    listOfN(n)(g).map(_.toVector)
 
   final def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
     implicit val ord = new Ordering[Double] {
