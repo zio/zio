@@ -600,8 +600,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           for {
             queues <- queues.get
             _ <- ZIO.foreach_(queues) { q =>
-                  q.offer(a)
-                    .catchSomeCause { case c if (c.interrupted) => ZIO.unit }
+                  q.offer(a).catchSomeCause { case c if (c.interrupted) => ZIO.unit }
                 // we don't care if downstream queues shut down
                 }
           } yield ()
@@ -611,8 +610,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             decider <- decide(a)
             queues  <- queues.get
             _ <- ZIO.foreach_(queues.zipWithIndex.collect { case (q, id) if decider(id) => q }) { q =>
-                  q.offer(Take.Value(a))
-                    .catchSomeCause { case c if (c.interrupted) => ZIO.unit }
+                  q.offer(Take.Value(a)).catchSomeCause { case c if (c.interrupted) => ZIO.unit }
                 }
           } yield ()
 
@@ -1538,15 +1536,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Interrupts the stream if it does not produce a value after d duration.
    */
   final def timeout(d: Duration): ZStream[R with Clock, E, A] =
-    ZStream.managed(self.toQueue()).flatMap { queue =>
-      ZStream
-        .unfoldM(()) { _ =>
-          queue.take.timeout(d).flatMap {
-            case Some(a) => ZIO.succeed(Some((a, ())))
-            case None    => ZIO.interrupt // upstream was too slow
+    new ZStream[R with Clock, E, A] {
+      def process =
+        self.process.map { next =>
+          next.timeout(d).flatMap {
+            case Some(a) => ZIO.succeed(a)
+            case None    => ZIO.interrupt
           }
         }
-        .unTake
     }
 
   /**
