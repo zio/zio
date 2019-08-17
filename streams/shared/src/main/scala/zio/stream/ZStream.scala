@@ -477,7 +477,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * the fastest queue might have seen up to (maximumLag + 1) elements more than the slowest queue if it
    * has a lower index than the slowest queue.
    * During the finalizer the driver will wait for all queues to shutdown in order to signal completion.
-   * After managed queue is used, the queue will never again produce values and should be discarded.
+   * After the managed value is used, the queues will never again produce values and should be discarded.
    */
   final def broadcastedQueues[E1 >: E, A1 >: A](
     n: Int,
@@ -594,7 +594,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def distributedDynamicWith[E1 >: E, A1 >: A](
     maximumLag: Int,
     decide: A => UIO[Int => Boolean],
-    done: Take[E1, Nothing] => UIO[_]
+    done: Take[E1, Nothing] => UIO[_] = _ => UIO.unit
   ): ZManaged[R, Nothing, UIO[(Int, Queue[Take[E1, A1]])]] =
     Ref
       .make[Vector[Queue[Take[E1, A1]]]](Vector())
@@ -983,24 +983,23 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     f: A => ZIO[R1, E1, (K, V)],
     buffer: Int = 16
   ): ZStream.GroupBy[R1, E1, K, V] = {
+    type Dequeue[A] = ZQueue[Any, Nothing, Any, Nothing, Nothing, A]
     val qstream = ZStream.unwrapManaged {
       for {
         decider <- Promise.make[Nothing, (K, V) => UIO[Int => Boolean]].toManaged_
         out <- Queue
-                .bounded[Take[E1, (K, ZQueue[Any, Nothing, Any, Nothing, Nothing, Take[E1, V]])]](buffer)
+                .bounded[Take[E1, (K, Dequeue[Take[E1, V]])]](buffer)
                 .toManaged(_.shutdown)
         emit <- Ref.make[Boolean](true).toManaged_
         ref  <- Ref.make[Map[K, Int]](Map()).toManaged_
-        add <- {
-          self
-            .mapM(f)
-            .distributedDynamicWith(
-              buffer, { kv: (K, V) =>
-                decider.await.flatMap(_.tupled(kv))
-              },
-              out.offer
-            )
-        }
+        add <- self
+                .mapM(f)
+                .distributedDynamicWith(
+                  buffer, { kv: (K, V) =>
+                    decider.await.flatMap(_.tupled(kv))
+                  },
+                  out.offer
+                )
         _ <- decider.succeed {
               case (k, _) =>
                 ref.get.map(_.get(k)).flatMap {
