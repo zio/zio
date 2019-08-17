@@ -31,10 +31,12 @@ case class TestRunner[L, -T](
   reporter: TestReporter[L] = DefaultTestReporter()
 ) { self =>
 
+  final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
+
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: Spec[L, T]): URIO[Console, ExecutedSpec[L]] =
+  final def run(spec: Spec[L, T]): URIO[TestLogger, ExecutedSpec[L]] =
     executor(spec, ExecutionStrategy.ParallelN(4)).flatMap { results =>
       reporter(results) *> ZIO.succeed(results)
     }
@@ -42,14 +44,16 @@ case class TestRunner[L, -T](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRun(spec: Spec[L, T], console: Console = Console.Live): ExecutedSpec[L] =
-    Runtime((), platform).unsafeRun(run(spec).provide(console))
+  final def unsafeRun(spec: Spec[L, T], testLogger: TestLogger = defaultTestLogger): ExecutedSpec[L] =
+    Runtime((), platform).unsafeRun(run(spec).provide(testLogger))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
-  final def unsafeRunAsync(spec: Spec[L, T], console: Console = Console.Live)(k: ExecutedSpec[L] => Unit): Unit =
-    Runtime((), platform).unsafeRunAsync(run(spec).provide(console)) {
+  final def unsafeRunAsync(spec: Spec[L, T], testLogger: TestLogger = defaultTestLogger)(
+    k: ExecutedSpec[L] => Unit
+  ): Unit =
+    Runtime((), platform).unsafeRunAsync(run(spec).provide(testLogger)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -57,8 +61,11 @@ case class TestRunner[L, -T](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRunSync(spec: Spec[L, T], console: Console = Console.Live): Exit[Nothing, ExecutedSpec[L]] =
-    Runtime((), platform).unsafeRunSync(run(spec).provide(console))
+  final def unsafeRunSync(
+    spec: Spec[L, T],
+    testLogger: TestLogger = defaultTestLogger
+  ): Exit[Nothing, ExecutedSpec[L]] =
+    Runtime((), platform).unsafeRunSync(run(spec).provide(testLogger))
 
   /**
    * Creates a copy of this runner replacing the reporter.

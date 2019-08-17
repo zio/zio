@@ -16,7 +16,6 @@
 
 package zio.test
 
-import zio.console.putStrLn
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
@@ -48,10 +47,10 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply(): TestReporter[String] = { executedSpec: ExecutedSpec[String] =>
+  def apply[L](): TestReporter[L] = { executedSpec: ExecutedSpec[L] =>
     ZIO
-      .foreach(render(executedSpec)) { res =>
-        ZIO.foreach(res.rendered)(putStrLn)
+      .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
+        ZIO.foreach(res.rendered)(TestLogger.logLine)
       }
       .unit
   }
