@@ -41,11 +41,14 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
         }
       }
 
-    for {
-      result   <- spec.runWith(TestReporter.silent)
-      rendered = DefaultTestReporter.render(result.mapLabel(_.toString))
-      _        <- reportResults(rendered)
-    } yield ()
+    val testReporter: TestReporter[spec.Label] = result => {
+      val rendered = DefaultTestReporter.render(result.mapLabel(_.toString))
+      reportResults(rendered)
+        .catchAll(_ => ZIO.unit)
+        .unit
+    }
+
+    spec.runWith(testReporter)
   }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
