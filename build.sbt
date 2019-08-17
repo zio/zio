@@ -84,8 +84,8 @@ lazy val coreNative = core.native
 .settings(sources in (Compile, doc) := Seq.empty)
 .settings(
   libraryDependencies ++= Seq(
-    "dev.whaling" %%% "core" % "0.1.1",
-    "dev.whaling" %%% "scalajscompat" % "0.1.1"
+    "dev.whaling" %%% "native-loop-core" % "0.1.1",
+    "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
   )
 )
 .settings(
