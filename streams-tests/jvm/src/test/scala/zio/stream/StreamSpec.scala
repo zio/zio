@@ -443,23 +443,26 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     }
 
   private def broadcastBackPressure =
-    flaky(
+    unsafeRun {
       Stream
         .range(0, 5)
         .broadcast(2, 2)
         .use {
           case s1 :: s2 :: Nil =>
             for {
-              ref      <- Ref.make[List[Int]](Nil)
-              _        <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
-              result   <- ref.get
-              _        <- s2.runDrain
-              expected = List(2, 1, 0)
-            } yield result must_=== expected
+              ref       <- Ref.make[List[Int]](Nil)
+              latch1    <- Promise.make[Nothing, Unit]
+              fib       <- s1.tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2)).runDrain.fork
+              _         <- latch1.await
+              snapshot1 <- ref.get
+              _         <- s2.runDrain
+              _         <- fib.await
+              snapshot2 <- ref.get
+            } yield (snapshot1 must_=== List(2, 1, 0)) && (snapshot2 must_=== List(5, 4, 3, 2, 1, 0))
           case _ =>
             ZIO.fail("Wrong number of streams produced")
         }
-    )
+    }
 
   private def broadcastUnsubscribe =
     unsafeRun {
@@ -1334,21 +1337,29 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     }
 
   private def partitionEitherBackPressure =
-    flaky {
+    unsafeRun {
       Stream
-        .range(0, 2)
-        .partitionEither { i =>
+        .range(0, 5)
+        .partitionEither({ i =>
           if (i % 2 == 0) ZIO.succeed(Left(i))
           else ZIO.succeed(Right(i))
-        }
+        }, 1)
         .use {
           case (s1, s2) =>
             for {
-              ref    <- Ref.make[List[Int]](Nil)
-              _      <- s1.timeout(150.milliseconds).foreach(i => ref.update(i :: _)).ignore
-              result <- ref.get
-              _      <- s2.runDrain
-            } yield result must_=== List(2, 0)
+              ref       <- Ref.make[List[Int]](Nil)
+              latch1    <- Promise.make[Nothing, Unit]
+              fib       <- s1.tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2)).runDrain.fork
+              _         <- latch1.await
+              snapshot1 <- ref.get
+              other     <- s2.runCollect
+              _         <- fib.await
+              snapshot2 <- ref.get
+            } yield (snapshot1 must_=== List(2, 0)) && (snapshot2 must_=== List(4, 2, 0)) && (other must_=== List(
+              1,
+              3,
+              5
+            ))
         }
     }
 

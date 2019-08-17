@@ -37,7 +37,7 @@ import zio.duration.Duration
  *
  */
 trait ZStream[-R, +E, +A] extends Serializable { self =>
-  import ZStream.InputStream
+  import ZStream.{ GroupBy, InputStream }
 
   /**
    * Obtain a managed input stream that can be used to read from the stream until it is
@@ -594,7 +594,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def distributedDynamicWith[E1 >: E, A1 >: A](
     maximumLag: Int,
     decide: A => UIO[Int => Boolean],
-    done: Take[E1, Nothing] => UIO[_] = _ => UIO.unit
+    done: Take[E1, Nothing] => UIO[_] = (_: Any) => UIO.unit
   ): ZManaged[R, Nothing, UIO[(Int, Queue[Take[E1, A1]])]] =
     Ref
       .make[Vector[Queue[Take[E1, A1]]]](Vector())
@@ -982,13 +982,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def groupBy[R1 <: R, E1 >: E, K, V, A1](
     f: A => ZIO[R1, E1, (K, V)],
     buffer: Int = 16
-  ): ZStream.GroupBy[R1, E1, K, V] = {
-    type Dequeue[A] = ZQueue[Any, Nothing, Any, Nothing, Nothing, A]
+  ): GroupBy[R1, E1, K, V] = {
     val qstream = ZStream.unwrapManaged {
       for {
         decider <- Promise.make[Nothing, (K, V) => UIO[Int => Boolean]].toManaged_
         out <- Queue
-                .bounded[Take[E1, (K, Dequeue[Take[E1, V]])]](buffer)
+                .bounded[Take[E1, (K, GroupBy.DequeueOnly[Take[E1, V]])]](buffer)
                 .toManaged(_.shutdown)
         emit <- Ref.make[Boolean](true).toManaged_
         ref  <- Ref.make[Map[K, Int]](Map()).toManaged_
@@ -1027,7 +1026,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def groupByKey[R1 <: R, E1 >: E, K](
     f: A => K,
     buffer: Int = 16
-  ): ZStream.GroupBy[R1, E1, K, A] =
+  ): GroupBy[R1, E1, K, A] =
     self.groupBy(a => ZIO.succeed((f(a), a)), buffer)
 
   /**
@@ -1686,7 +1685,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * be merged in arbitrary order.
    */
   final class GroupBy[-R, +E, +K, +V](
-    private val grouped: ZStream[R, E, (K, ZQueue[Any, Nothing, Any, Nothing, Nothing, Take[E, V]])],
+    private val grouped: ZStream[R, E, (K, GroupBy.DequeueOnly[Take[E, V]])],
     private val buffer: Int
   ) {
 
@@ -1722,6 +1721,11 @@ object ZStream extends ZStreamPlatformSpecific {
         case (k, q) =>
           f(k, ZStream.fromQueueWithShutdown(q).unTake)
       }
+  }
+
+  object GroupBy {
+    // Queue that only allow taking
+    type DequeueOnly[+A] = ZQueue[Any, Nothing, Any, Nothing, Nothing, A]
   }
 
   /**
