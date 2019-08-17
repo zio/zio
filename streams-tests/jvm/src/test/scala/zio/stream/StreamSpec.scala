@@ -146,7 +146,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   Stream.groupBy
     values                                                $groupByValues
-    ending outer stream does not interrupt inner streams  $groupByValuesInner
+    first                                                 $groupByFirst
     outer errors                                          $groupByErrorsOuter
 
   Stream interleaving
@@ -173,6 +173,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     mergeWith short circuit       $mergeWithShortCircuit
     mergeWith prioritizes failure $mergeWithPrioritizesFailure
 
+  Stream.partitionEither
+    values        $partitionEitherValues
+    errors        $partitionEitherErrors
+    backpressure  $partitionEitherBackPressure
+
   Stream.peel               $peel
   Stream.range              $range
 
@@ -186,11 +191,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     repeated and spaced           $repeatedAndSpaced
     short circuits in schedule    $spacedShortCircuitsWhileInSchedule
     short circuits after schedule $spacedShortCircuitsAfterScheduleFinished
-
-  Stream.split
-    values        $splitValues
-    errors        $splitErrors
-    backpressure  $splitBackPressure
 
   Stream.take
     take                     $take
@@ -1153,26 +1153,22 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
       Stream
         .fromIterable(words)
-        .groupByKey(identity, 8192)
-        .flatMapParSema(10, 16) {
-          case (sema, (k, s)) =>
-            s.withPermit(sema)
-              .transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
-              .take(1)
-              .map((k -> _))
+        .groupByKey(identity, 8192) { case (k, s) =>
+          s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
+          .take(1)
+          .map((k -> _))
         }
         .runCollect
         .map(_.toMap must_=== (0 to 100).map((_.toString -> 1000)).toMap)
     }
 
-  private def groupByValuesInner =
+  private def groupByFirst =
     unsafeRun {
       val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
       Stream
         .fromIterable(words)
         .groupByKey(identity, 1050)
-        .take(2)
-        .flatMapPar(110, 100) {
+        .first(2) {
           case (k, s) =>
             s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
               .take(1)
@@ -1186,10 +1182,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun {
       val words = List("abc", "test", "test", "foo")
       (Stream.fromIterable(words) ++ Stream.fail("Boom"))
-        .groupByKey(identity)
-        .mapM {
-          case (_, s) => s.runDiscard.ignore
-        }
+        .groupByKey(identity) { case (_, s) => s.discard }
         .runCollect
         .either
         .map(_ must_=== Left("Boom"))
@@ -1317,6 +1310,57 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       .map(_ must_=== Left("Ouch"))
   }
 
+
+  private def partitionEitherValues =
+    unsafeRun {
+      Stream
+        .range(0, 5)
+        .partitionEither { i =>
+          if (i % 2 == 0) ZIO.succeed(Left(i))
+          else ZIO.succeed(Right(i))
+        }
+        .use {
+          case (s1, s2) =>
+            for {
+              out1 <- s1.runCollect
+              out2 <- s2.runCollect
+            } yield (out1 must_=== List(0, 2, 4)) && (out2 must_=== List(1, 3, 5))
+        }
+    }
+
+  private def partitionEitherErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).partitionEither { i =>
+        if (i % 2 == 0) ZIO.succeed(Left(i))
+        else ZIO.succeed(Right(i))
+      }.use {
+        case (s1, s2) =>
+          for {
+            out1 <- s1.runCollect.either
+            out2 <- s2.runCollect.either
+          } yield (out1 must_=== Left("Boom")) && (out2 must_=== Left("Boom"))
+      }
+    }
+
+  private def partitionEitherBackPressure =
+    flaky {
+      Stream
+        .range(0, 2)
+        .partitionEither { i =>
+          if (i % 2 == 0) ZIO.succeed(Left(i))
+          else ZIO.succeed(Right(i))
+        }
+        .use {
+          case (s1, s2) =>
+            for {
+              ref    <- Ref.make[List[Int]](Nil)
+              _      <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
+              result <- ref.get
+              _      <- s2.runDrain
+            } yield result must_=== List(2, 0)
+        }
+    }
+
   private def peel = {
     val s      = Stream('1', '2', ',', '3', '4')
     val parser = ZSink.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.collectAllWhile[Char](_ == ',')
@@ -1416,56 +1460,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "!", "B"))
     )
-
-  private def splitValues =
-    unsafeRun {
-      Stream
-        .range(0, 5)
-        .split { i =>
-          if (i % 2 == 0) ZIO.succeed(Left(i))
-          else ZIO.succeed(Right(i))
-        }
-        .use {
-          case (s1, s2) =>
-            for {
-              out1 <- s1.runCollect
-              out2 <- s2.runCollect
-            } yield (out1 must_=== List(0, 2, 4)) && (out2 must_=== List(1, 3, 5))
-        }
-    }
-
-  private def splitErrors =
-    unsafeRun {
-      (Stream.range(0, 1) ++ Stream.fail("Boom")).split { i =>
-        if (i % 2 == 0) ZIO.succeed(Left(i))
-        else ZIO.succeed(Right(i))
-      }.use {
-        case (s1, s2) =>
-          for {
-            out1 <- s1.runCollect.either
-            out2 <- s2.runCollect.either
-          } yield (out1 must_=== Left("Boom")) && (out2 must_=== Left("Boom"))
-      }
-    }
-
-  private def splitBackPressure =
-    flaky {
-      Stream
-        .range(0, 2)
-        .split { i =>
-          if (i % 2 == 0) ZIO.succeed(Left(i))
-          else ZIO.succeed(Right(i))
-        }
-        .use {
-          case (s1, s2) =>
-            for {
-              ref    <- Ref.make[List[Int]](Nil)
-              _      <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
-              result <- ref.get
-              _      <- s2.runDrain
-            } yield result must_=== List(2, 0)
-        }
-    }
 
   private def take =
     prop { (s: Stream[String, Byte], n: Int) =>
