@@ -1,9 +1,28 @@
 package zio.examples.test
 
-import zio.ZIO
 import zio.console.Console
+import zio.examples.test.Aspects._
 import zio.test.TestAspect._
-import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, Predicate }
+import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, Predicate, TestResult }
+import zio.{ UIO, ZIO, ZManaged }
+
+private object Aspects {
+
+  class FakeFile(name: String) {
+
+    def close(): UIO[Unit] = ZIO.accessM[Console](_.console.putStrLn(s"Closing $name")).provide(Console.Live)
+  }
+
+  object FakeFile {
+
+    def create(name: String): UIO[FakeFile] = ZIO.succeed(new FakeFile(name))
+
+  }
+
+  val managed                                                = ZManaged.make(FakeFile.create("file.txt"))(_.close())
+  val assertion: TestResult => ZIO[Any, Nothing, TestResult] = ZIO.succeed
+
+}
 
 object AspectsExampleSpec
     extends DefaultRunnableSpec(
@@ -21,8 +40,12 @@ object AspectsExampleSpec
           }
 
         },
-        testM("Around (constraint environment) test") {
-          assertM(ZIO.succeed(10), Predicate.equals(10))
+        around(managed.map(_ => assertion)) {
+
+          testM("Around (constraint environment) test") {
+            assertM(ZIO.succeed(10), Predicate.equals(10))
+          }
+
         },
         testM("Intermittent test") {
           assertM(ZIO.succeed(10), Predicate.equals(10))
@@ -38,6 +61,6 @@ object AspectsExampleSpec
         },
         testM("Retry until succeeds") {
           assertM(ZIO.succeed(10), Predicate.equals(10))
-        },
+        }
       )
     )
