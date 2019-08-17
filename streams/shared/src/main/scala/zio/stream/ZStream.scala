@@ -203,7 +203,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       }.flatten
 
     new ZStream[R1, E1, B] {
-      override def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
+      def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
         for {
           initSink  <- sink.initial.map(Step.state(_)).toManaged_
           initAwait <- Promise.make[Nothing, Unit].toManaged_
@@ -452,7 +452,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       }.flatten
 
     new ZStream[R1 with Clock, E1, Either[C, B]] {
-      override def process: ZManaged[R1 with Clock, E1, ZStream.InputStream[R1 with Clock, E1, Either[C, B]]] =
+      def process: ZManaged[R1 with Clock, E1, ZStream.InputStream[R1 with Clock, E1, Either[C, B]]] =
         for {
           initSink  <- sink.initial.map(Step.state(_)).toManaged_
           initAwait <- Promise.make[Nothing, Unit].toManaged_
@@ -584,7 +584,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def collect[B](pf: PartialFunction[A, B]): ZStream[R, E, B] =
     new ZStream[R, E, B] {
-      override def process =
+      def process =
         self.process.map { as =>
           val pfIO: PartialFunction[A, InputStream[R, E, B]] = pf.andThen(InputStream.emit(_))
           def pull: InputStream[R, E, B] =
@@ -600,7 +600,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Transforms all elements of the stream for as long as the specified partial function is defined.
    */
   def collectWhile[B](pred: PartialFunction[A, B]): ZStream[R, E, B] = new ZStream[R, E, B] {
-    override def process: ZManaged[R, E, ZStream.InputStream[R, E, B]] =
+    def process: ZManaged[R, E, ZStream.InputStream[R, E, B]] =
       for {
         as   <- self.process
         done <- Ref.make(false).toManaged_
@@ -627,7 +627,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     f0: (S1, InputStream[R, E, A], InputStream[R1, E1, B]) => ZIO[R1, E1, (S1, Take[E1, C])]
   ): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
-      override def process: ZManaged[R1, E1, InputStream[R1, E1, C]] =
+      def process =
         for {
           left  <- self.process
           right <- that.process
@@ -748,7 +748,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * evaluates to `true`.
    */
   def dropWhile(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
-    override def process =
+    def process =
       for {
         as              <- self.process
         keepDroppingRef <- Ref.make(true).toManaged_
@@ -770,17 +770,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Executes the provided finalizer after this stream's finalizers run.
    */
-  def ensuring[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
+  final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
     new ZStream[R1, E, A] {
-      override def process = self.process.ensuring(fin)
+      def process = self.process.ensuring(fin)
     }
 
   /**
    * Executes the provided finalizer before this stream's finalizers run.
    */
-  def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
+  final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
     new ZStream[R1, E, A] {
-      override def process = self.process.ensuringFirst(fin)
+      def process = self.process.ensuringFirst(fin)
     }
 
   /**
@@ -788,7 +788,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * which the predicate evaluates to true.
    */
   def filter(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
-    override def process =
+    def process =
       self.process.map { as =>
         def pull: InputStream[R, E, A] = as.flatMap { a =>
           if (pred(a)) InputStream.emit(a)
@@ -804,7 +804,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * which the predicate evaluates to true.
    */
   final def filterM[R1 <: R, E1 >: E](pred: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] = new ZStream[R1, E1, A] {
-    override def process =
+    def process =
       self.process.map { as =>
         def pull: InputStream[R1, E1, A] =
           as.flatMap { a =>
@@ -830,7 +830,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
-      override def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
+      def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
         for {
           currInputStream <- Ref.make[InputStream[R1, E1, B]](InputStream.end).toManaged_
           as              <- self.process
@@ -871,7 +871,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     f: A => ZStream[R1, E1, B]
   ): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
-      override def process =
+      def process =
         for {
           out             <- Queue.bounded[InputStream[R1, E1, B]](outputBuffer).toManaged(_.shutdown)
           permits         <- Semaphore.make(n.toLong).toManaged_
@@ -944,7 +944,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     f: A => ZStream[R1, E1, B]
   ): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
-      override def process =
+      def process =
         for {
           // Modeled after flatMapPar.
           out             <- Queue.bounded[InputStream[R1, E1, B]](bufferSize).toManaged(_.shutdown)
@@ -1016,7 +1016,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Reduces the elements in the stream to a value of type `S`
    */
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
+  final def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
     fold[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a)))
 
   /**
@@ -1058,7 +1058,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Repeats this stream forever.
    */
-  def forever: ZStream[R, E, A] =
+  final def forever: ZStream[R, E, A] =
     self ++ forever
 
   /**
@@ -1181,14 +1181,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
    * signalled.
    */
-  def into[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]): ZIO[R1, E1, Unit] =
+  final def into[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]): ZIO[R1, E1, Unit] =
     intoManaged(queue).use_(UIO.unit)
 
   /**
    * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
    * composition.
    */
-  def intoManaged[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]): ZManaged[R1, E1, Unit] =
+  final def intoManaged[R1 <: R, E1 >: E, A1 >: A](
+    queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]
+  ): ZManaged[R1, E1, Unit] =
     self
       .foreachManaged(a => queue.offer(Take.Value(a)).unit)
       .foldCauseM(
@@ -1201,7 +1203,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   def map[B](f0: A => B): ZStream[R, E, B] =
     new ZStream[R, E, B] {
-      override def process =
+      def process =
         self.process.map(_.map(f0))
     }
 
@@ -1217,7 +1219,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
-      override def process =
+      def process =
         for {
           state <- Ref.make(s1).toManaged_
           as    <- self.process
@@ -1241,7 +1243,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Effectfully maps each element to a chunk, and flattens the chunks into
    * the output of this stream.
    */
-  def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Chunk[B]]): ZStream[R1, E1, B] =
+  final def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Chunk[B]]): ZStream[R1, E1, B] =
     mapM(f).mapConcat(identity)
 
   /**
@@ -1267,7 +1269,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Maps over elements of the stream with the specified effectful function.
    */
   final def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] = new ZStream[R1, E1, B] {
-    override def process = self.process.map(_.flatMap(f(_).mapError(Some(_))))
+    def process = self.process.map(_.flatMap(f(_).mapError(Some(_))))
   }
 
   /**
@@ -1277,7 +1279,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
-      override def process =
+      def process =
         for {
           out              <- Queue.bounded[InputStream[R1, E1, B]](n).toManaged(_.shutdown)
           permits          <- Semaphore.make(n.toLong).toManaged_
@@ -1491,11 +1493,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  def repeat[R1 <: R](schedule: ZSchedule[R1, Unit, Any]): ZStream[R1 with Clock, E, A] =
+  final def repeat[R1 <: R](schedule: ZSchedule[R1, Unit, Any]): ZStream[R1 with Clock, E, A] =
     new ZStream[R1 with Clock, E, A] {
       import clock.sleep
 
-      override def process =
+      def process =
         for {
           scheduleInit  <- schedule.initial.toManaged_
           schedStateRef <- Ref.make(scheduleInit).toManaged_
@@ -1546,7 +1548,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    *
    * Equivalent to `run(Sink.collectAll[A])`.
    */
-  def runCollect: ZIO[R, E, List[A]] = run(Sink.collectAll[A])
+  final def runCollect: ZIO[R, E, List[A]] = run(Sink.collectAll[A])
 
   /**
    * Runs the stream purely for its effects. Any elements emitted by
@@ -1554,7 +1556,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    *
    * Equivalent to `run(Sink.drain)`.
    */
-  def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
+  final def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
 
   /**
    * Repeats each element of the stream using the provided schedule, additionally emitting schedule's output,
@@ -1562,13 +1564,13 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Repeats are done in addition to the first execution, so that
    * `spaced(Schedule.once)` means "emit element and if not short circuited, repeat element once".
    */
-  def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+  final def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
     spacedEither(schedule).map(_.merge)
 
   /**
    * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
    */
-  def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
+  final def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
     new ZStream[R1 with Clock, E, Either[B, A]] {
       sealed trait State
       object State {
@@ -1581,7 +1583,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         if (decision.cont) State.SleepAndRepeat(decision.state, decision.delay, a)
         else State.SleepAndFinish(decision.delay, decision.finish())
 
-      override def process: ZManaged[R1 with Clock, E, InputStream[R1 with Clock, E, Either[B, A]]] =
+      def process: ZManaged[R1 with Clock, E, InputStream[R1 with Clock, E, Either[B, A]]] =
         for {
           as    <- self.process
           init  <- schedule.initial.toManaged_
@@ -1613,9 +1615,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Takes the specified number of elements from this stream.
    */
-  final def take(n: Int): ZStream[R, E, A] =
+  def take(n: Int): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      override def process =
+      def process =
         for {
           as      <- self.process
           counter <- Ref.make(0).toManaged_
@@ -1631,7 +1633,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * evaluates to `true`.
    */
   def takeWhile(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
-    override def process =
+    def process =
       self.process.map { as =>
         for {
           a <- as
@@ -1646,7 +1648,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZStream[R1, E1, A] =
     new ZStream[R1, E1, A] {
-      override def process = self.process.map(_.tap(f(_).mapError(Some(_))))
+      def process = self.process.map(_.tap(f(_).mapError(Some(_))))
     }
 
   /**
@@ -1724,7 +1726,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, C]]
   ): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
-      override def process =
+      def process =
         for {
           as           <- self.process
           sink         <- managedSink
@@ -1822,8 +1824,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Zips this stream together with the index of elements of the stream.
    */
-  def zipWithIndex: ZStream[R, E, (A, Int)] =
-    self.mapAccum(0)((index, a) => (index + 1, (a, index)))
+  final def zipWithIndex: ZStream[R, E, (A, Int)] =
+    mapAccum(0)((index, a) => (index + 1, (a, index)))
 }
 
 object ZStream extends ZStreamPlatformSpecific {
