@@ -897,11 +897,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * can be controlled.
    */
   final def foreachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
-    self
-      .fold[R1, E1, A, Boolean]
-      .flatMap { fold =>
-        fold(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont)).unit
+    for {
+      as <- self.process
+      step = as.flatMap(a => f(a).mapError(Some(_))).flatMap {
+        if (_) UIO.unit else IO.fail(None)
       }
+      _ <- step.forever.catchAll {
+            case Some(e) => IO.fail(e)
+            case None    => UIO.unit
+          }.toManaged_
+    } yield ()
 
   /**
    * Repeats this stream forever.
@@ -1030,13 +1035,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Maps each element to a chunk, and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStream[R, E, B] = new ZStream[R, E, B] {
-    override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
-      ZManaged.succeed { (s, cont, g) =>
-        self.fold[R1, E1, A, S].flatMap(fold => fold(s, cont, (s, a) => f(a).foldMLazy(s)(cont)(g)))
-
-      }
-  }
+  def mapConcat[B](f: A => Chunk[B]): ZStream[R, E, B] =
+    flatMap(a => ZStream.fromChunk(f(a)))
 
   /**
    * Effectfully maps each element to a chunk, and flattens the chunks into
