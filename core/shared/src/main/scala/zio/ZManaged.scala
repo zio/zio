@@ -397,6 +397,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
 
   /**
+   * Returns an effect whose full failure is mapped by the specified `f` function.
+   */
+  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
+    ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
+
+  /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
    * the existing finalizers.
    */
@@ -831,6 +837,24 @@ object ZManaged {
    */
   final def finalizerExit[R](f: Exit[_, _] => ZIO[R, Nothing, Any]): ZManaged[R, Nothing, Unit] =
     ZManaged.reserve(Reservation(ZIO.unit, f))
+
+  /**
+   * Creates an effect that executes a finalizer stored in a [[Ref]]. The `Ref`
+   * is yielded as the result of the effect, allowing for control flows that require
+   * mutating finalizers.
+   */
+  final def finalizerRef[R](
+    initial: Exit[_, _] => ZIO[R, Nothing, Any]
+  ): ZManaged[R, Nothing, Ref[Exit[_, _] => ZIO[R, Nothing, Any]]] =
+    ZManaged {
+      for {
+        ref <- Ref.make(initial)
+        reservation = Reservation(
+          acquire = ZIO.succeed(ref),
+          release = e => ref.get.flatMap(_.apply(e))
+        )
+      } yield reservation
+    }
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
