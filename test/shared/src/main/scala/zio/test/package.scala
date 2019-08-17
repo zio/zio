@@ -51,6 +51,14 @@ package object test {
    */
   type TestReporter[-L] = ExecutedSpec[L] => UIO[Unit]
 
+  object TestReporter {
+
+    /**
+     * TestReporter that does nothing
+     */
+    def silent[L]: TestReporter[L] = _ => ZIO.unit
+  }
+
   /**
    * A `TestExecutor[L, T]` is capable of executing specs containing tests of
    * type `T`, annotated with labels of type `L`.
@@ -167,4 +175,7 @@ package object test {
         failures.reverse.headOption.fold[TestResult](Assertion.Success)(identity)
       }
   }
+
+  val DefaultTestRunner: TestRunner[String, ZTest[mock.MockEnvironment, Any]] =
+    TestRunner(TestExecutor.managed(zio.test.mock.mockEnvironmentManaged))
 }

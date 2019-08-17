@@ -16,17 +16,14 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
-
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 import com.github.ghik.silencer.silent
-
 import scala.collection.JavaConverters._
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
 import zio.Cause
 import zio._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
-
 import scala.annotation.{ switch, tailrec }
 
 /**
@@ -609,8 +606,10 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final val resumeAsync: IO[E, Any] => Unit =
-    zio => if (exitAsync()) evaluateLater(zio)
+  private[this] final def resumeAsync: IO[E, Any] => Unit = {
+    val a = new AtomicBoolean(true)
+    zio => if (a.getAndSet(false) && exitAsync()) evaluateLater(zio)
+  }
 
   final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     kill0(x => k(ZIO.done(x)))

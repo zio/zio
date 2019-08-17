@@ -216,8 +216,8 @@ object Predicate {
    * Makes a new predicate that requires a Left value satisfying a specified
    * predicate.
    */
-  final def isLeft[A](predicate: Predicate[A]): Predicate[Either[A, Nothing]] =
-    Predicate.predicateRec[Either[A, Nothing]](s"isLeft(${predicate})") { (self, actual) =>
+  final def isLeft[A](predicate: Predicate[A]): Predicate[Either[A, Any]] =
+    Predicate.predicateRec[Either[A, Any]](s"isLeft(${predicate})") { (self, actual) =>
       actual match {
         case Left(a)  => predicate.run(a)
         case Right(_) => Assertion.failure(PredicateValue(self, actual))
@@ -259,8 +259,8 @@ object Predicate {
    * Makes a new predicate that requires a Right value satisfying a specified
    * predicate.
    */
-  final def isRight[A](predicate: Predicate[A]): Predicate[Either[Nothing, A]] =
-    Predicate.predicateRec[Either[Nothing, A]](s"isRight(${predicate})") { (self, actual) =>
+  final def isRight[A](predicate: Predicate[A]): Predicate[Either[Any, A]] =
+    Predicate.predicateRec[Either[Any, A]](s"isRight(${predicate})") { (self, actual) =>
       actual match {
         case Right(a) => predicate.run(a)
         case Left(_)  => Assertion.failure(PredicateValue(self, actual))

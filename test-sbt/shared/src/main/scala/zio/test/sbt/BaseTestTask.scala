@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.test.RenderedResult.CaseType
-import zio.test.{ AbstractRunnableSpec, DefaultTestReporter, RenderedResult }
+import zio.test.{ AbstractRunnableSpec, DefaultTestReporter, RenderedResult, TestReporter }
 import zio.{ Runtime, ZIO }
 
 abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
@@ -42,7 +42,7 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
       }
 
     for {
-      result   <- spec.run
+      result   <- spec.runWith(TestReporter.silent)
       rendered = DefaultTestReporter.render(result.mapLabel(_.toString))
       _        <- reportResults(rendered)
     } yield ()

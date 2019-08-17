@@ -30,7 +30,7 @@ import zio._
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
 trait ZStreamChunk[-R, +E, @specialized +A] { self =>
-  import ZStream.Fold
+  import ZStream.InputStream
 
   /**
    * The stream of chunks underlying this stream
@@ -54,21 +54,32 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * evaluates to `true`.
    */
   final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
-    ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self
-            .foldChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
-              case ((true, s), as) =>
-                val remaining = as.dropWhile(pred)
+    ZStreamChunk(
+      new ZStream[R, E, Chunk[A]] {
+        override def process: ZManaged[R, E, InputStream[R, E, Chunk[A]]] =
+          for {
+            chunks          <- self.chunks.process
+            keepDroppingRef <- Ref.make(true).toManaged_
+            pull = {
+              def go: InputStream[R, E, Chunk[A]] =
+                chunks.flatMap { chunk =>
+                  keepDroppingRef.get.flatMap { keepDropping =>
+                    if (!keepDropping) InputStream.emit(chunk)
+                    else {
+                      val remaining = chunk.dropWhile(pred)
+                      val empty     = remaining.length <= 0
 
-                if (remaining.length > 0) f(s, remaining).map(false -> _)
-                else IO.succeed(true                                -> s)
-              case ((false, s), as) => f(s, as).map(false -> _)
+                      if (empty) go
+                      else keepDroppingRef.set(false).as(remaining)
+                    }
+                  }
+                }
+
+              go
             }
-            .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
-        }
-    })
+          } yield pull
+      }
+    )
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
@@ -100,26 +111,34 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   /**
    * Executes an effectful fold over the stream of values.
    */
-  final def fold[R1 <: R, E1 >: E, A1 >: A, S]: ZStream.Fold[R1, E1, A1, S] =
-    ZManaged.succeed { (s, cont, f) =>
-      chunks.fold[R1, E1, Chunk[A1], S].flatMap { fold =>
-        fold(s, cont, (s, as) => as.foldMLazy(s)(cont)(f))
-      }
+  final def foldManaged[R1 <: R, E1 >: E, A1 >: A, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
+      as.foldMLazy(s)(cont)(f)
     }
+
+  final def fold[R1 <: R, E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    foldManaged[R1, E1, A1, S](s)(cont)(f).use(ZIO.succeed)
 
   /**
    * Executes an effectful fold over the stream of chunks.
    */
-  final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
+  final def foldChunksManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.fold[R1, E1, Chunk[A1], S].flatMap(fold => fold(s, cont, f))
+    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont)(f)
+
+  final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    chunks.fold[R1, E1, Chunk[A1], S](s)(cont)(f)
 
   /**
    * Reduces the elements in the stream to a value of type `S`
    */
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
-    fold[R, E, A1, S].flatMap(fold => fold(s, _ => true, (s, a) => ZIO.succeed(f(s, a))))
+  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
+    fold[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a)))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -164,6 +183,27 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
     ZStreamChunk(chunks.mapM(_.mapM(f0)))
 
+  final def process: ZManaged[R, E, InputStream[R, E, A]] =
+    for {
+      chunks   <- self.chunks.process
+      chunkRef <- Ref.make[Chunk[A]](Chunk.empty).toManaged_
+      indexRef <- Ref.make(0).toManaged_
+      pull = {
+        def go: InputStream[R, E, A] =
+          chunkRef.get.flatMap { chunk =>
+            indexRef.get.flatMap { index =>
+              if (index < chunk.length) indexRef.set(index + 1).as(chunk(index))
+              else
+                chunks.flatMap { chunk =>
+                  chunkRef.set(chunk) *> indexRef.set(0) *> go
+                }
+            }
+          }
+
+        go
+      }
+    } yield pull
+
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
@@ -176,17 +216,20 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    */
   final def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeed { (s, cont, f) =>
-          self
-            .foldChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) { (s, as) =>
-              val remaining = as.takeWhile(pred)
-
-              if (remaining.length == as.length) f(s._2, as).map(true -> _)
-              else f(s._2, remaining).map(false                       -> _)
-            }
-            .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
-        }
+      override def process =
+        for {
+          chunks  <- self.chunks.process
+          doneRef <- Ref.make(false).toManaged_
+          pull = doneRef.get.flatMap { done =>
+            if (done) InputStream.end
+            else
+              for {
+                chunk     <- chunks
+                remaining = chunk.takeWhile(pred)
+                _         <- doneRef.set(true).when(remaining.length < chunk.length)
+              } yield remaining
+          }
+        } yield pull
     })
 
   /**
@@ -218,21 +261,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * Zips this stream together with the index of elements of the stream across chunks.
    */
   final def zipWithIndex: ZStreamChunk[R, E, (A, Int)] =
-    ZStreamChunk(
-      new ZStream[R, E, Chunk[(A, Int)]] {
-        override def fold[R1 <: R, E1 >: E, A1 >: Chunk[(A, Int)], S]: Fold[R1, E1, A1, S] =
-          ZManaged.succeed { (s, cont, f) =>
-            chunks.fold[R1, E1, Chunk[A], (S, Int)].flatMap { fold =>
-              fold((s, 0), tp => cont(tp._1), {
-                case ((s, index), as) =>
-                  val zipped = as.zipWithIndexFrom(index)
-
-                  f(s, zipped).map((_, index + as.length))
-              }).map(_._1.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
-            }
-          }
-      }
-    )
+    self.mapAccum(0)((index, a) => (index + 1, (a, index)))
 }
 
 object ZStreamChunk {
@@ -245,7 +274,10 @@ object ZStreamChunk {
   /**
    * The empty stream of chunks
    */
-  final val empty: StreamChunk[Nothing, Nothing] = StreamChunkPure(StreamPure.empty)
+  final val empty: StreamChunk[Nothing, Nothing] =
+    new StreamChunk[Nothing, Nothing] {
+      val chunks = Stream.empty
+    }
 
   /**
    * Creates a `ZStreamChunk` from a stream of chunks
@@ -259,15 +291,15 @@ object ZStreamChunk {
    * Creates a `ZStreamChunk` from a variable list of chunks
    */
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    StreamChunkPure(StreamPure.fromIterable(as))
+    new StreamChunk[Nothing, A] {
+      val chunks = Stream.fromIterable(as)
+    }
 
   /**
    * Creates a `ZStreamChunk` from a chunk
    */
   final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
-    StreamChunkPure(StreamPure.succeed(as))
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
-    succeed(as)
+    new StreamChunk[Nothing, A] {
+      val chunks = Stream.succeed(as)
+    }
 }

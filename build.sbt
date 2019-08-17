@@ -172,7 +172,6 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core % "test->test;compile->compile")
   .dependsOn(test % "test->test;compile->compile")
-  .dependsOn(coreTests % "test->test;compile->compile")
 
 lazy val testRunnerJVM = testRunner.jvm
 lazy val testRunnerJS  = testRunner.js
