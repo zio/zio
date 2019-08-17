@@ -30,7 +30,7 @@ import zio._
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
 trait ZStreamChunk[-R, +E, @specialized +A] { self =>
-  import ZStream.{ Fold, InputStream }
+  import ZStream.InputStream
 
   /**
    * The stream of chunks underlying this stream
@@ -56,9 +56,6 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(
       new ZStream[R, E, Chunk[A]] {
-        override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
-          foldDefault
-
         override def process: ZManaged[R, E, InputStream[R, E, Chunk[A]]] =
           for {
             chunks          <- self.chunks.process
@@ -114,26 +111,34 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   /**
    * Executes an effectful fold over the stream of values.
    */
-  final def fold[R1 <: R, E1 >: E, A1 >: A, S]: ZStream.Fold[R1, E1, A1, S] =
-    ZManaged.succeed { (s, cont, f) =>
-      chunks.fold[R1, E1, Chunk[A1], S].flatMap { fold =>
-        fold(s, cont, (s, as) => as.foldMLazy(s)(cont)(f))
-      }
+  final def foldManaged[R1 <: R, E1 >: E, A1 >: A, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
+      as.foldMLazy(s)(cont)(f)
     }
+
+  final def fold[R1 <: R, E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    foldManaged[R1, E1, A1, S](s)(cont)(f).use(ZIO.succeed)
 
   /**
    * Executes an effectful fold over the stream of chunks.
    */
-  final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
+  final def foldChunksManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.fold[R1, E1, Chunk[A1], S].flatMap(fold => fold(s, cont, f))
+    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont)(f)
+
+  final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    chunks.fold[R1, E1, Chunk[A1], S](s)(cont)(f)
 
   /**
    * Reduces the elements in the stream to a value of type `S`
    */
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
-    fold[R, E, A1, S].flatMap(fold => fold(s, _ => true, (s, a) => ZIO.succeed(f(s, a))))
+  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
+    fold[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a)))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -211,9 +216,6 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    */
   final def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
-        foldDefault
-
       override def process =
         for {
           chunks  <- self.chunks.process

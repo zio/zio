@@ -42,7 +42,6 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   private def slurp[E, A](s: StreamChunk[E, A]): Exit[E, Seq[A]] =
     unsafeRunSync {
       s.foldChunks(Chunk.empty: Chunk[A])(_ => true)((acc, el) => IO.succeed(acc ++ el))
-        .use(IO.succeed)
         .map(_.toSeq)
     }
 
@@ -163,13 +162,13 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   private def foldLeft =
     prop { (s: StreamChunk[String, String], zero: Int, f: (Int, String) => Int) =>
-      unsafeRunSync(s.foldLeft(zero)(f).use(IO.succeed)) must_=== slurp(s).map(_.foldLeft(zero)(f))
+      unsafeRunSync(s.foldLeft(zero)(f)) must_=== slurp(s).map(_.foldLeft(zero)(f))
     }
 
   private def fold =
     prop { (s: StreamChunk[Nothing, String], zero: Int, cont: Int => Boolean, f: (Int, String) => Int) =>
       val streamResult = unsafeRunSync(
-        s.fold[Any, Nothing, String, Int].flatMap(_(zero, cont, (acc, a) => IO.succeed(f(acc, a)))).use(IO.succeed)
+        s.fold[Any, Nothing, String, Int](zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
       )
       val listResult = slurp(s).map(l => foldLazyList(l.toList, zero)(cont)(f))
       streamResult must_=== listResult
@@ -187,7 +186,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   private def flattenChunks =
     prop { (s: StreamChunk[String, String]) =>
       val result = unsafeRunSync {
-        s.flattenChunks.foldLeft[String, List[String]](Nil)((acc, a) => a :: acc).use(IO.succeed).map(_.reverse)
+        s.flattenChunks.foldLeft[String, List[String]](Nil)((acc, a) => a :: acc).map(_.reverse)
       }
       result must_== slurp(s)
     }

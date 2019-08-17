@@ -16,12 +16,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   import zio.Cause
 
   def is = "StreamSpec".title ^ s2"""
-  Stream.process
-    run collect $processRunCollect
-
-  Stream.foldDefault
-    run collect $foldDefaultRunCollect
-
   Stream.aggregate
     aggregate                            $aggregate
     error propagation                    $aggregateErrorPropagation1
@@ -215,28 +209,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
   """
-
-  def processRunCollect = {
-    def loop[E, A](effect: IO[_, A], ref: Ref[List[A]]): UIO[List[A]] =
-      effect.flatMap(a => ref.update(a :: _)).forever.catchAll(_ => ref.get).map(_.reverse)
-
-    unsafeRun {
-      for {
-        ref <- Ref.make(List.empty[Int])
-        res <- Stream(1, 2, 3, 4).process.use(loop(_, ref))
-      } yield res must_=== List(1, 2, 3, 4)
-    }
-  }
-
-  def foldDefaultRunCollect = unsafeRun {
-    Stream(1, 2, 3, 4)
-      .foldDefault[Any, Nothing, Int, List[Int]]
-      .flatMap { fold =>
-        fold(Nil, _ => true, (l, a) => UIO.succeed(a :: l))
-      }
-      .use[Any, Nothing, List[Int]](l => UIO.succeed(l.reverse))
-      .map(_ must_=== List(1, 2, 3, 4))
-  }
 
   def aggregate = unsafeRun {
     Stream(1, 1, 1, 1)
@@ -1048,11 +1020,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         _     <- queue.offerAll(c.toSeq)
         fiber <- Stream
                   .fromQueue(queue)
-                  .fold[Any, Nothing, Int, List[Int]]
-                  .flatMap { fold =>
-                    fold(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
-                  }
-                  .use(ZIO.succeed)
+                  .fold[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
                   .map(_.reverse)
                   .fork
         _     <- waitForSize(queue, -1)
