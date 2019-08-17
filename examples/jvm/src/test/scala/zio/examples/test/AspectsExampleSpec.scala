@@ -1,5 +1,6 @@
 package zio.examples.test
 
+import zio.clock.Clock
 import zio.console.Console
 import zio.examples.test.Aspects._
 import zio.test.TestAspect._
@@ -47,8 +48,25 @@ object AspectsExampleSpec
           }
 
         },
-        testM("Intermittent test") {
-          assertM(ZIO.succeed(10), Predicate.equals(10))
+        eventually {
+          testM("Intermittent test") {
+
+            def isEven(n: Long) = n % 2 == 0
+
+            val pipeline = ZIO
+              .accessM[Clock] { env =>
+                for {
+                  currentTime <- env.clock.nanoTime
+                  _           <- ZIO.accessM[Console](_.console.putStrLn(s"Current time: $currentTime")).provide(Console.Live)
+                } yield isEven(currentTime)
+
+              }
+              .provide(Clock.Live)
+
+            assertM(pipeline, Predicate.isTrue)
+
+          }
+
         },
         testM("Non intermittent test") {
           assertM(ZIO.succeed(10), Predicate.equals(10))
