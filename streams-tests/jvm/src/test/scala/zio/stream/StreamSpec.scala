@@ -466,7 +466,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       Stream.range(0, 5).broadcast(2, 2).use {
         case s1 :: s2 :: Nil =>
           for {
-            _    <- s1.timeout(Duration.Zero).runDrain.ignore
+            _    <- s1.process.use_(ZIO.unit).ignore
             out2 <- s2.runCollect
           } yield out2 must_=== List(0, 1, 2, 3, 4, 5)
         case _ =>
