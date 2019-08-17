@@ -195,7 +195,8 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   Stream.tap                $tap
 
   Stream.timeout
-    should interrupt stream $timeout
+    succeed                 $timeoutSucceed
+    should interrupt stream $timeoutInterrupt
 
   Stream.throttleEnforce
     free elements                   $throttleEnforceFreeElements
@@ -1542,17 +1543,24 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       .runCollect must_=== List(1, 2)
   }
 
-  private def timeout =
+  private def timeoutSucceed =
     unsafeRun {
-      Promise.make[Nothing, Unit].flatMap { prom =>
-        Stream
-          .range(0, 5)
-          .tap(_ => ZIO.sleep(Duration.Infinity).ensuring(prom.succeed(())))
-          .timeout(Duration.Zero)
-          .runDrain
-          .ignore *>
-          prom.await.map(_ => true must_=== true)
-      }
+      Stream
+        .succeed(1)
+        .timeout(Duration.Infinity)
+        .runCollect
+        .map(_ must_=== List(1))
+    }
+
+  private def timeoutInterrupt =
+    unsafeRun {
+      Stream
+        .range(0, 5)
+        .tap(_ => ZIO.sleep(Duration.Infinity))
+        .timeout(Duration.Zero)
+        .runDrain
+        .ignore
+        .map(_ => true must_=== true)
     }
 
   private def toQueue = prop { c: Chunk[Int] =>
