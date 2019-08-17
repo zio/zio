@@ -13,3 +13,5 @@ addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                %
 addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                 % "0.3.3")
 addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                  % "1.3.1")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                 % "1.3.2")
+addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.4.0-M2")
+addSbtPlugin("org.portable-scala" % "sbt-scala-native-crossproject" % "0.6.1")

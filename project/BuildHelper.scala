@@ -133,6 +133,7 @@ object BuildHelper {
     crossScalaVersions := Seq("2.12.8", "2.13.0", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
+
     libraryDependencies ++= compileOnlyDeps ++ testDeps,
     libraryDependencies ++= {
       if (isDotty.value)

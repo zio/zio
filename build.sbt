@@ -64,7 +64,7 @@ lazy val root = project
   )
   .enablePlugins(ScalaJSPlugin)
 
-lazy val core = crossProject(JSPlatform, JVMPlatform)
+lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
@@ -76,6 +76,22 @@ lazy val coreJVM = core.jvm
   .settings(replSettings)
 
 lazy val coreJS = core.js
+
+lazy val coreNative = core.native
+.settings(scalaVersion := "2.11.12")
+.settings(skip in Test := true)
+.settings(skip in doc := true)
+.settings(sources in (Compile, doc) := Seq.empty)
+.settings(
+  libraryDependencies ++= Seq(
+    "dev.whaling" %%% "core" % "0.1.1",
+    "dev.whaling" %%% "scalajscompat" % "0.1.1"
+  )
+)
+.settings(
+  Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "main" / "scala",
+  Test    / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "test" / "scala"  
+)
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
@@ -141,10 +157,11 @@ lazy val testJS = test.js.settings(
   scalaJSUseMainModuleInitializer in Test := true
 )
 
-lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
+lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(buildInfoSettings)
+  .settings(sources in (Compile, doc) := Seq.empty)
   .settings(
     libraryDependencies ++= Seq(
       "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
@@ -158,7 +175,16 @@ lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
 
-lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
+lazy val stacktracerNative = stacktracer.native
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings(
+    Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "main" / "scala",
+    Test    / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "test" / "scala"  
+  )
+  
+  lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(
