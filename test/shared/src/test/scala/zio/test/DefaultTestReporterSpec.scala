@@ -148,6 +148,6 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def MockTestRunner(mockEnvironment: MockEnvironment) =
     TestRunner[String, ZTest[MockEnvironment, Any]](
       executor = TestExecutor.managed(Managed.succeed(mockEnvironment)),
-      reporter = DefaultTestReporter(mockEnvironment)
+      reporter = DefaultTestReporter()
     )
 }

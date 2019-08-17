@@ -28,13 +28,13 @@ import zio.internal.{ Platform, PlatformLive }
 case class TestRunner[L, -T](
   executor: TestExecutor[L, T],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[L] = DefaultTestReporter(Console.Live)
+  reporter: TestReporter[L] = DefaultTestReporter()
 ) { self =>
 
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: Spec[L, T]): UIO[ExecutedSpec[L]] =
+  final def run(spec: Spec[L, T]): URIO[Console, ExecutedSpec[L]] =
     executor(spec, ExecutionStrategy.ParallelN(4)).flatMap { results =>
       reporter(results) *> ZIO.succeed(results)
     }
@@ -42,14 +42,14 @@ case class TestRunner[L, -T](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRun(spec: Spec[L, T]): ExecutedSpec[L] =
-    Runtime((), platform).unsafeRun(run(spec))
+  final def unsafeRun(spec: Spec[L, T], console: Console = Console.Live): ExecutedSpec[L] =
+    Runtime((), platform).unsafeRun(run(spec).provide(console))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
-  final def unsafeRunAsync(spec: Spec[L, T])(k: ExecutedSpec[L] => Unit): Unit =
-    Runtime((), platform).unsafeRunAsync(run(spec)) {
+  final def unsafeRunAsync(spec: Spec[L, T], console: Console = Console.Live)(k: ExecutedSpec[L] => Unit): Unit =
+    Runtime((), platform).unsafeRunAsync(run(spec).provide(console)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -57,8 +57,8 @@ case class TestRunner[L, -T](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRunSync(spec: Spec[L, T]): Exit[Nothing, ExecutedSpec[L]] =
-    Runtime((), platform).unsafeRunSync(run(spec))
+  final def unsafeRunSync(spec: Spec[L, T], console: Console = Console.Live): Exit[Nothing, ExecutedSpec[L]] =
+    Runtime((), platform).unsafeRunSync(run(spec).provide(console))
 
   /**
    * Creates a copy of this runner replacing the reporter.

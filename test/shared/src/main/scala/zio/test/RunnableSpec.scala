@@ -16,7 +16,8 @@
 
 package zio.test
 
-import zio.UIO
+import zio.URIO
+import zio.console.Console
 import zio.test.reflect.Reflect.EnableReflectiveInstantiation
 
 /**
@@ -41,13 +42,7 @@ abstract class AbstractRunnableSpec {
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final def run: UIO[ExecutedSpec[Label]] = runner.run(spec)
-
-  /**
-   * Returns an effect that executes the spec, using the given TestReporter, producing the results of the execution.
-   */
-  final def runWith(reporter: TestReporter[Label]): UIO[ExecutedSpec[Label]] =
-    runner.withReporter(reporter).run(spec)
+  final def run: URIO[Console, ExecutedSpec[Label]] = runner.run(spec)
 
   /**
    * the platform used by the runner

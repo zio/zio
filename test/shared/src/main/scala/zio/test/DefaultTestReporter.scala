@@ -16,12 +16,13 @@
 
 package zio.test
 
-import scala.{ Console => SConsole }
-import zio.{ Cause, ZIO }
-import zio.console.{ putStrLn, Console }
-import zio.test.RenderedResult.{ CaseType, Status }
+import zio.console.putStrLn
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
+import zio.test.RenderedResult.{ CaseType, Status }
+import zio.{ Cause, ZIO }
+
+import scala.{ Console => SConsole }
 
 object DefaultTestReporter {
 
@@ -47,13 +48,12 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply(console: Console): TestReporter[String] = { executedSpec: ExecutedSpec[String] =>
+  def apply(): TestReporter[String] = { executedSpec: ExecutedSpec[String] =>
     ZIO
       .foreach(render(executedSpec)) { res =>
         ZIO.foreach(res.rendered)(putStrLn)
       }
       .unit
-      .provide(console)
   }
 
   private def renderSuccessLabel(label: String, offset: Int) =
