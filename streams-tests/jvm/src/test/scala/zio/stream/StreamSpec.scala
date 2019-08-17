@@ -36,6 +36,12 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     no acquisition when short circuiting $bracketNoAcquisition
     releases when there are defects      $bracketWithDefects
 
+  Stream.broadcast
+    Values       $broadcastValues
+    Errors       $broadcastErrors
+    BackPressure $broadcastBackPressure
+    Unsubscribe  $broadcastUnsubscribe
+
   Stream.buffer
     buffer the Stream                      $bufferStream
     buffer the Stream with Error           $bufferStreamError
@@ -76,12 +82,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   Stream.ensuring $ensuring
 
   Stream.ensuringFirst $ensuringFirst
-
-  Stream.fanOut
-    Values       $fanOutValues
-    Errors       $fanOutErrors
-    BackPressure $fanOutBackPressure
-    Unsubscribe  $fanOutUnsubscribe
 
   Stream.finalizer $finalizer
 
@@ -413,6 +413,66 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     } yield released must_=== true
   }
 
+  private def broadcastValues =
+    unsafeRun {
+      Stream.range(0, 5).broadcast(2, 12).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            out1     <- s1.runCollect
+            out2     <- s2.runCollect
+            expected = List(0, 1, 2, 3, 4, 5)
+          } yield (out1 must_=== expected) && (out2 must_=== expected)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def broadcastErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).broadcast(2, 12).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            out1     <- s1.runCollect.either
+            out2     <- s2.runCollect.either
+            expected = Left("Boom")
+          } yield (out1 must_=== expected) && (out2 must_=== expected)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def broadcastBackPressure =
+    flaky(
+      Stream
+        .range(0, 5)
+        .broadcast(2, 2)
+        .use {
+          case s1 :: s2 :: Nil =>
+            for {
+              ref      <- Ref.make[List[Int]](Nil)
+              _        <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
+              result   <- ref.get
+              _        <- s2.runDrain
+              expected = List(2, 1, 0)
+            } yield result must_=== expected
+          case _ =>
+            ZIO.fail("Wrong number of streams produced")
+        }
+    )
+
+  private def broadcastUnsubscribe =
+    unsafeRun {
+      Stream.range(0, 5).broadcast(2, 2).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            _    <- s1.timeout(Duration.Zero).runDrain.ignore
+            out2 <- s2.runCollect
+          } yield out2 must_=== List(0, 1, 2, 3, 4, 5)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
   private def bufferStream = prop { list: List[Int] =>
     unsafeRunSync(
       Stream
@@ -636,66 +696,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
             } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
         execution <- log.get
       } yield execution must_=== List("Release", "Ensuring", "Use", "Acquire")
-    }
-
-  private def fanOutValues =
-    unsafeRun {
-      Stream.range(0, 5).fanOut(2, 12).use {
-        case s1 :: s2 :: Nil =>
-          for {
-            out1     <- s1.runCollect
-            out2     <- s2.runCollect
-            expected = List(0, 1, 2, 3, 4, 5)
-          } yield (out1 must_=== expected) && (out2 must_=== expected)
-        case _ =>
-          ZIO.fail("Wrong number of streams produced")
-      }
-    }
-
-  private def fanOutErrors =
-    unsafeRun {
-      (Stream.range(0, 1) ++ Stream.fail("Boom")).fanOut(2, 12).use {
-        case s1 :: s2 :: Nil =>
-          for {
-            out1     <- s1.runCollect.either
-            out2     <- s2.runCollect.either
-            expected = Left("Boom")
-          } yield (out1 must_=== expected) && (out2 must_=== expected)
-        case _ =>
-          ZIO.fail("Wrong number of streams produced")
-      }
-    }
-
-  private def fanOutBackPressure =
-    flaky(
-      Stream
-        .range(0, 5)
-        .fanOut(2, 2)
-        .use {
-          case s1 :: s2 :: Nil =>
-            for {
-              ref      <- Ref.make[List[Int]](Nil)
-              _        <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
-              result   <- ref.get
-              _        <- s2.runDrain
-              expected = List(2, 1, 0)
-            } yield result must_=== expected
-          case _ =>
-            ZIO.fail("Wrong number of streams produced")
-        }
-    )
-
-  private def fanOutUnsubscribe =
-    unsafeRun {
-      Stream.range(0, 5).fanOut(2, 2).use {
-        case s1 :: s2 :: Nil =>
-          for {
-            _    <- s1.timeout(Duration.Zero).runDrain.ignore
-            out2 <- s2.runCollect
-          } yield out2 must_=== List(0, 1, 2, 3, 4, 5)
-        case _ =>
-          ZIO.fail("Wrong number of streams produced")
-      }
     }
 
   private def finalizer =
@@ -1162,7 +1162,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     unsafeRun {
       val words = List("abc", "test", "test", "foo")
       (Stream.fromIterable(words) ++ Stream.fail("Boom"))
-        .groupByKey(identity) { case (_, s) => s.discard }
+        .groupByKey(identity) { case (_, s) => s.drain }
         .runCollect
         .either
         .map(_ must_=== Left("Boom"))
@@ -1344,7 +1344,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
           case (s1, s2) =>
             for {
               ref    <- Ref.make[List[Int]](Nil)
-              _      <- s1.timeout(100.milliseconds).foreach(i => ref.update(i :: _)).ignore
+              _      <- s1.timeout(150.milliseconds).foreach(i => ref.update(i :: _)).ignore
               result <- ref.get
               _      <- s2.runDrain
             } yield result must_=== List(2, 0)
@@ -1551,7 +1551,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
           .timeout(Duration.Zero)
           .runDrain
           .ignore *>
-          prom.isDone.map(_ must_=== true)
+          prom.await.map(_ => true must_=== true)
       }
     }
 

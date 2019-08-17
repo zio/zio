@@ -461,6 +461,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Fan out the stream, producing a list of streams that have the same elements as this stream.
+   * The driver streamer will only ever advance of the maximumLag values before the
+   * slowest downstream stream.
+   */
+  final def broadcast[E1 >: E, A1 >: A](n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, A]]] =
+    for {
+      queues <- self.broadcastedQueues(n, maximumLag)
+    } yield queues.map(q => ZStream.fromQueueWithShutdown(q).unTake)
+
+  /**
    * Converts the stream to a managed list of queues. Every value will be replicated to every queue with the
    * slowest queue being allowed to buffer maximumLag elements before the driver is backpressured.
    * The downstream queues will be provided with elements in the same order they are returned, so
@@ -558,12 +568,6 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def concat[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     ZStream(UIO.succeed(self), UIO(other)).flatMap(ZStream.unwrap)
-
-  /**
-   * Immediately ends the stream without consuming an element
-   */
-  def discard: ZStream[R, E, Unit] =
-    self.take(0).drain
 
   /**
    * More powerful version of `ZStream#toQueues`. Allows to provide a function that determines what
@@ -695,16 +699,6 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     new ZStream[R1, E, A] {
       override def process = self.process.ensuringFirst(fin)
     }
-
-  /**
-   * Fan out the stream, producing a list of streams that have the same elements as this stream.
-   * The driver streamer will only ever advance of the maximumLag values before the
-   * slowest downstream stream.
-   */
-  final def fanOut[E1 >: E, A1 >: A](n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, A]]] =
-    for {
-      queues <- self.broadcastedQueues(n, maximumLag)
-    } yield queues.map(q => ZStream.fromQueue(q).unTake.ensuring(q.shutdown))
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
@@ -1023,7 +1017,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                     }
                 }
             }.toManaged_
-      } yield ZStream.fromQueue(out).unTake
+      } yield ZStream.fromQueueWithShutdown(out).unTake
     }
     new ZStream.GroupBy(qstream, buffer)
   }
@@ -1282,8 +1276,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         case q1 :: q2 :: Nil =>
           ZManaged.succeed {
             (
-              ZStream.fromQueue(q1).unTake.collect { case Left(x)  => x },
-              ZStream.fromQueue(q2).unTake.collect { case Right(x) => x }
+              ZStream.fromQueueWithShutdown(q1).unTake.collect { case Left(x)  => x },
+              ZStream.fromQueueWithShutdown(q2).unTake.collect { case Right(x) => x }
             )
           }
         case _ => ZManaged.dieMessage("Internal error.")
@@ -1381,12 +1375,6 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Equivalent to `run(Sink.collectAll[A])`.
    */
   def runCollect: ZIO[R, E, List[A]] = run(Sink.collectAll[A])
-
-  /**
-   * Immediately ends the stream without consuming an element
-   */
-  def runDiscard: ZIO[R, E, Unit] =
-    self.discard.runDrain
 
   /**
    * Runs the stream purely for its effects. Any elements emitted by
@@ -1733,7 +1721,7 @@ object ZStream extends ZStreamPlatformSpecific {
     def apply[R1 <: R, E1 >: E, A](f: (K, Stream[E, V]) => ZStream[R1, E1, A]): ZStream[R1, E1, A] =
       grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) {
         case (k, q) =>
-          f(k, ZStream.fromQueue(q).unTake)
+          f(k, ZStream.fromQueueWithShutdown(q).unTake)
       }
   }
 
@@ -2014,6 +2002,12 @@ object ZStream extends ZStreamPlatformSpecific {
           ZIO.succeed
         )
     }
+
+  /**
+   * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
+   */
+  final def fromQueueWithShutdown[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
+    fromInputStreamManaged(fromQueue(queue).process.ensuringFirst(queue.shutdown))
 
   /**
    * The stream that always halts with `cause`.
