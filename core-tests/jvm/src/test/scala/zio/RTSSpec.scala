@@ -90,6 +90,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     sleep 0 must return                           $testSleepZeroReturns
     shallow bind of async chain                   $testShallowBindOfAsyncChainIsCorrect
     effectAsyncM can fail before registering      $testEffectAsyncMCanFail
+    second callback call is ignored               $testAsyncSecondCallback
 
   RTS concurrency correctness
     shallow fork/join identity                    $testForkJoinIsId
@@ -639,6 +640,19 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
         .flip
         .map(_ must_=== "Ouch")
     }
+
+  def testAsyncSecondCallback =
+    unsafeRun(for {
+      _ <- IO.effectAsync[Throwable, Int] { k =>
+            k(IO.succeed(42))
+            Thread.sleep(500)
+            k(IO.succeed(42))
+          }
+      res <- IO.effectAsync[Throwable, String] { k =>
+              Thread.sleep(1000)
+              k(IO.succeed("ok"))
+            }
+    } yield res) must_=== "ok"
 
   def testSleepZeroReturns =
     unsafeRun(clock.sleep(1.nanos)) must_=== ((): Unit)
