@@ -82,6 +82,8 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core)
   .dependsOn(test % "test->test;compile->compile")
   .settings(stdSettings("core-tests"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner % "test->test;compile->compile")
   .settings(buildInfoSettings)
   .settings(publishArtifact in (Test, packageBin) := true)
   .settings(
