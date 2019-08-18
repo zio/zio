@@ -1931,7 +1931,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final val empty: Stream[Nothing, Nothing] =
     new Stream[Nothing, Nothing] {
-      override def process: Managed[Nothing, InputStream[Any, Nothing, Nothing]] =
+      def process: Managed[Nothing, InputStream[Any, Nothing, Nothing]] =
         ZManaged.succeed(InputStream.end)
     }
 
@@ -1940,7 +1940,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final val never: Stream[Nothing, Nothing] =
     new Stream[Nothing, Nothing] {
-      override def process: Managed[Nothing, InputStream[Any, Nothing, Nothing]] =
+      def process: Managed[Nothing, InputStream[Any, Nothing, Nothing]] =
         ZManaged.succeed(UIO.never)
     }
 
@@ -1993,7 +1993,7 @@ object ZStream extends ZStreamPlatformSpecific {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      override def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process: ZManaged[R, E, InputStream[R, E, A]] =
         for {
           output  <- Queue.bounded[InputStream[R, E, A]](outputBuffer).toManaged(_.shutdown)
           runtime <- ZIO.runtime[R].toManaged_
@@ -2028,7 +2028,7 @@ object ZStream extends ZStreamPlatformSpecific {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      override def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process: ZManaged[R, E, InputStream[R, E, A]] =
         for {
           output  <- Queue.bounded[InputStream[R, E, A]](outputBuffer).toManaged(_.shutdown)
           runtime <- ZIO.runtime[R].toManaged_
@@ -2058,7 +2058,7 @@ object ZStream extends ZStreamPlatformSpecific {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      override def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process: ZManaged[R, E, InputStream[R, E, A]] =
         for {
           output  <- Queue.bounded[InputStream[R, E, A]](outputBuffer).toManaged(_.shutdown)
           runtime <- ZIO.runtime[R].toManaged_
@@ -2095,7 +2095,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def finalizer[R](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
     new ZStream[R, Nothing, Nothing] {
-      override def process: ZManaged[R, Nothing, InputStream[R, Nothing, Nothing]] =
+      def process: ZManaged[R, Nothing, InputStream[R, Nothing, Nothing]] =
         for {
           finalizerRef <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit).toManaged_
           _            <- ZManaged.finalizer[R](finalizerRef.get.flatten)
@@ -2124,7 +2124,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
     new Stream[Nothing, A] {
-      override def process: Managed[Nothing, InputStream[Any, Nothing, A]] =
+      def process: Managed[Nothing, InputStream[Any, Nothing, A]] =
         for {
           index <- Ref.make(0).toManaged_
           len   = c.length
@@ -2151,7 +2151,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def fromInputStreamManaged[R, E, A](is: ZManaged[R, E, InputStream[R, E, A]]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      override def process = is
+      def process = is
     }
 
   /**
@@ -2174,7 +2174,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
     new ZStream[Any, Nothing, A] {
-      override def process =
+      def process =
         for {
           it <- ZManaged.effectTotal(as.iterator)
           pull = UIO {
@@ -2217,7 +2217,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def managed[R, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      override def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process: ZManaged[R, E, InputStream[R, E, A]] =
         for {
           doneRef   <- Ref.make(false).toManaged_
           finalizer <- ZManaged.finalizerRef[R](_ => UIO.unit)
@@ -2257,7 +2257,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def succeed[A](a: A): Stream[Nothing, A] =
     new Stream[Nothing, A] {
-      override def process =
+      def process =
         for {
           done <- Ref.make(false).toManaged_
         } yield done.get.flatMap {
@@ -2282,7 +2282,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      override def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process: ZManaged[R, E, InputStream[R, E, A]] =
         for {
           ref <- Ref.make(s).toManaged_
         } yield ref.get
