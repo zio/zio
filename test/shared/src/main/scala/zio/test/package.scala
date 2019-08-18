@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
 
 /**
@@ -49,14 +50,14 @@ package object test {
    * A `TestReporter[L]` is capable of reporting test results annotated with
    * labels `L`.
    */
-  type TestReporter[-L] = ExecutedSpec[L] => URIO[TestLogger, Unit]
+  type TestReporter[-L] = (Duration, ExecutedSpec[L]) => URIO[TestLogger, Unit]
 
   object TestReporter {
 
     /**
      * TestReporter that does nothing
      */
-    def silent[L]: TestReporter[L] = _ => ZIO.unit
+    def silent[L]: TestReporter[L] = (_, _) => ZIO.unit
   }
 
   /**
