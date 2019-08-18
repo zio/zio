@@ -1930,10 +1930,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * The empty stream
    */
   final val empty: Stream[Nothing, Nothing] =
-    new Stream[Nothing, Nothing] {
-      def process: Managed[Nothing, InputStream[Any, Nothing, Nothing]] =
-        ZManaged.succeed(InputStream.end)
-    }
+    StreamPure.empty
 
   /**
    * The stream that never produces any value or fails with any error.
@@ -2173,16 +2170,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an iterable collection of values
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
-    new ZStream[Any, Nothing, A] {
-      def process =
-        for {
-          it <- ZManaged.effectTotal(as.iterator)
-          pull = UIO {
-            if (it.hasNext) InputStream.emit(it.next)
-            else InputStream.end
-          }.flatten
-        } yield pull
-    }
+    StreamPure.fromIterable(as)
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
@@ -2256,16 +2244,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a single-valued pure stream
    */
   final def succeed[A](a: A): Stream[Nothing, A] =
-    new Stream[Nothing, A] {
-      def process =
-        for {
-          done <- Ref.make(false).toManaged_
-        } yield done.get.flatMap {
-          if (_) InputStream.end
-          // TODO: guard against interruption
-          else done.set(true) *> InputStream.emit(a)
-        }
-    }
+    StreamPure.succeed(a)
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =

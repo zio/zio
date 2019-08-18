@@ -18,7 +18,7 @@ package zio.stream
 
 import zio._
 
-private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
+trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
 
   def processPure: () => A
 
@@ -26,15 +26,14 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     new StreamPure[B] {
       def process = StreamPure.super.collect(pf).process
 
-      def processPure = {
-        def pull: () => B = {
-          val a = self.processPure()
+      def processPure = new Function0[B] {
+        val it = self.processPure
 
-          if (pf isDefinedAt a)() => pf(a)
-          else pull
+        def apply() = {
+          val a = it()
+          if (pf isDefinedAt a) pf(a)
+          else apply()
         }
-
-        pull
       }
     }
 
@@ -42,14 +41,13 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     new StreamPure[B] {
       def process = StreamPure.super.collectWhile(pred).process
 
-      def processPure = {
+      def processPure = new Function0[B] {
+        val it   = self.processPure
         var done = false
 
-        def pull: B =
+        def apply() =
           if (done) throw StreamPure.End
-          else pred.applyOrElse(self.processPure(), (_: A) => { done = true; throw StreamPure.End })
-
-        () => pull
+          else pred.applyOrElse(it(), (_: A) => { done = true; throw StreamPure.End })
       }
     }
 
@@ -57,18 +55,18 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     new StreamPure[A] {
       def process = StreamPure.super.dropWhile(pred).process
 
-      def processPure = {
+      def processPure = new Function0[A] {
+        val it   = self.processPure
         var drop = true
 
-        def pull: () => A = {
-          val a = self.processPure()
-          if (!drop)() => a
+        def apply() = {
+          val a = it()
+          if (!drop) a
           else if (!pred(a)) {
-            drop = false; () => a
-          } else pull
+            drop = false
+            a
+          } else apply()
         }
-
-        pull
       }
     }
 
@@ -76,21 +74,28 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     new StreamPure[A] {
       def process = StreamPure.super.filter(pred).process
 
-      def processPure = {
-        def pull: () => A = {
-          val a = self.processPure()
-          if (pred(a))() => a
-          else pull
-        }
+      def processPure = new Function0[A] {
+        val it = self.processPure
 
-        pull
+        def apply() = {
+          val a = it()
+          if (pred(a)) a
+          else apply()
+        }
       }
     }
 
   final def foldPure[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = {
+    val it    = processPure
     var state = s
-    while (cont(s)) {
-      state = f(state, processPure())
+    var done  = false
+    while (cont(s) && !done) {
+      try {
+        val a = it()
+        state = f(state, a)
+      } catch {
+        case StreamPure.End => done = true
+      }
     }
     state
   }
@@ -99,18 +104,23 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     new StreamPure[B] {
       def process = StreamPure.super.map(f0).process
 
-      def processPure = () => f0(self.processPure())
+      def processPure = new Function0[B] {
+        val it = self.processPure
+
+        def apply() = f0(it())
+      }
     }
 
   override def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): StreamPure[B] =
     new StreamPure[B] {
       def process = StreamPure.super.mapAccum(s1)(f1).process
 
-      def processPure = {
+      def processPure = new Function0[B] {
+        val it    = self.processPure
         var state = s1
 
-        () => {
-          val (s2, b) = f1(s1, self.processPure())
+        def apply() = {
+          val (s2, b) = f1(state, it())
           state = s2
           b
         }
@@ -121,21 +131,20 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     new StreamPure[B] {
       def process = StreamPure.super.mapConcat(f).process
 
-      def processPure = {
+      def processPure = new Function0[B] {
+        val it              = self.processPure
         var chunk: Chunk[B] = Chunk.empty
         var index           = 0
 
-        def pull: B = {
+        def apply() = {
           while (index == chunk.length) {
-            chunk = f(self.processPure())
+            chunk = f(it())
             index = 0
           }
           val b = chunk(index)
           index += 1
           b
         }
-
-        () => pull
       }
     }
 
@@ -159,17 +168,16 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     new StreamPure[A] {
       def process = StreamPure.super.take(n).process
 
-      def processPure = {
+      def processPure = new Function0[A] {
+        val it      = self.processPure
         var counter = 0
 
-        def pull: A =
+        def apply() =
           if (counter >= n) throw StreamPure.End
           else {
             counter += 1
-            self.processPure()
+            it()
           }
-
-        () => pull
       }
     }
 
@@ -177,17 +185,68 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     new StreamPure[A] {
       def process = StreamPure.super.takeWhile(pred).process
 
-      def processPure = () => {
-        val a = self.processPure()
-        if (pred(a)) a
-        else throw StreamPure.End
+      def processPure = new Function0[A] {
+        val it = self.processPure
+
+        def apply() = {
+          val a = it()
+          if (pred(a)) a
+          else throw StreamPure.End
+        }
       }
     }
 }
 
-private[stream] object StreamPure extends Serializable {
+object StreamPure extends Serializable {
+  import ZStream.InputStream
 
   object End extends Exception("") {
     override def fillInStackTrace() = this
   }
+
+  final val empty: StreamPure[Nothing] =
+    new StreamPure[Nothing] {
+      def process = ZManaged.succeed(InputStream.end)
+
+      def processPure = throw End
+    }
+
+  final def fromIterable[A](as: Iterable[A]): StreamPure[A] =
+    new StreamPure[A] {
+      def process =
+        for {
+          it <- ZManaged.effectTotal(as.iterator)
+          pull = UIO {
+            if (it.hasNext) InputStream.emit(it.next)
+            else InputStream.end
+          }.flatten
+        } yield pull
+
+      def processPure = new Function0[A] {
+        val it = as.iterator
+
+        def apply() = if (it.hasNext) it.next() else throw End
+      }
+    }
+
+  final def succeed[A](a: A): StreamPure[A] =
+    new StreamPure[A] {
+      def process =
+        for {
+          done <- Ref.make(false).toManaged_
+        } yield done.get.flatMap {
+          if (_) InputStream.end
+          else done.set(true) *> InputStream.emit(a)
+        }
+
+      def processPure = new Function0[A] {
+        var done = false
+
+        def apply() =
+          if (!done) {
+            done = true
+            a
+          } else throw End
+      }
+    }
 }
