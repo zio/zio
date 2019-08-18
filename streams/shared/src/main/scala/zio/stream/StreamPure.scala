@@ -18,7 +18,7 @@ package zio.stream
 
 import zio._
 
-trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
+private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
 
   def processPure: () => A
 
@@ -197,7 +197,7 @@ trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     }
 }
 
-object StreamPure extends Serializable {
+private[stream] object StreamPure extends Serializable {
   import ZStream.InputStream
 
   object End extends Exception("") {
