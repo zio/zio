@@ -1,8 +1,8 @@
 package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
-
 import zio._
+import scala.{ Console => SConsole }
 import zio.test.mock._
 import zio.test.TestUtils.label
 
@@ -119,24 +119,24 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     " " * n + s
 
   def green(s: String): String =
-    Console.GREEN + s + Console.RESET
+    SConsole.GREEN + s + SConsole.RESET
 
   def red(s: String): String =
-    Console.RED + s + Console.RESET
+    SConsole.RED + s + SConsole.RESET
 
   def blue(s: String): String =
-    Console.BLUE + s + Console.RESET
+    SConsole.BLUE + s + SConsole.RESET
 
   def cyan(s: String): String =
-    Console.CYAN + s + Console.RESET
+    SConsole.CYAN + s + SConsole.RESET
 
   def yellow(s: String): String =
-    Console.YELLOW + s + Console.RESET
+    SConsole.YELLOW + s + SConsole.RESET
 
   def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>
       val zio = for {
-        _      <- MockTestRunner(r).run(spec)
+        _      <- MockTestRunner(r).run(spec).provideSomeM(TestLogger.fromConsoleM)
         output <- MockConsole.output
       } yield output == expected
       zio.provide(r)
@@ -148,6 +148,6 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def MockTestRunner(mockEnvironment: MockEnvironment) =
     TestRunner[String, ZTest[MockEnvironment, Any]](
       executor = TestExecutor.managed(Managed.succeed(mockEnvironment)),
-      reporter = DefaultTestReporter(mockEnvironment)
+      reporter = DefaultTestReporter()
     )
 }

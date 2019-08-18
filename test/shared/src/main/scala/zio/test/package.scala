@@ -49,7 +49,7 @@ package object test {
    * A `TestReporter[L]` is capable of reporting test results annotated with
    * labels `L`.
    */
-  type TestReporter[-L] = ExecutedSpec[L] => UIO[Unit]
+  type TestReporter[-L] = ExecutedSpec[L] => URIO[TestLogger, Unit]
 
   object TestReporter {
 
