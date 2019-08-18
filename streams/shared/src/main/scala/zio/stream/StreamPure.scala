@@ -89,7 +89,7 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
     val it    = processPure
     var state = s
     var done  = false
-    while (cont(s) && !done) {
+    while (cont(state) && !done) {
       try {
         val a = it()
         state = f(state, a)
