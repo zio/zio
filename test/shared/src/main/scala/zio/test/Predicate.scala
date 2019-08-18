@@ -272,7 +272,7 @@ object Predicate {
    * predicate.
    */
   final def isSome[A](predicate: Predicate[A]): Predicate[Option[A]] =
-    Predicate.predicateRec[Option[A]](s"isSome(${predicate}") { (self, actual) =>
+    Predicate.predicateRec[Option[A]](s"isSome(${predicate})") { (self, actual) =>
       actual match {
         case Some(a) => predicate.run(a)
         case None    => Assertion.failure(PredicateValue(self, actual))
