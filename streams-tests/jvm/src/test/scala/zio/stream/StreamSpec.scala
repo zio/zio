@@ -6,7 +6,7 @@ import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import zio._
 import zio.duration._
-import zio.QueueSpec.waitForSize
+import zio.ZQueueSpecUtil.waitForSize
 
 class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
