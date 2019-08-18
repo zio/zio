@@ -24,23 +24,63 @@ sealed trait Assertion[+A] { self =>
   import Assertion._
 
   /**
+   * Returns a new result that is a success if both this result and the
+   * specified result are successes. If both results are failures, the first
+   * failure message will be returned.
+   */
+  final def &&[A1 >: A](that: Assertion[A1]): Assertion[A1] =
+    both(that)
+
+  /**
+   * Returns a new result that is a success if either this result or the
+   * specified result is a success. If both results are failures, the first
+   * failure message will be returned.
+   */
+  final def ||[A1 >: A](that: Assertion[A1]): Assertion[A1] =
+    either(that)
+
+  /**
    * Returns a new result, with the message mapped to the specified constant.
    */
   final def as[L2](l2: L2): Assertion[L2] = self.map(_ => l2)
 
-  @deprecated("use as", "1.0.0")
-  final def const[L2](l2: L2): Assertion[L2] = as(l2)
+  /**
+   * A named alias for `&&`.
+   */
+  final def both[A1 >: A](that: Assertion[A1]): Assertion[A1] =
+    bothWith(that)((a, _) => a)
 
   /**
-   * Combines this result with the specified result.
+   * Returns a new result that is a success if both this result and the
+   * specified result are successes. If both results are failures, uses the
+   * specified function to combine the messages.
    */
-  final def combineWith[A1 >: A](that: Assertion[A1])(f: (A1, A1) => A1): Assertion[A1] =
+  final def bothWith[A1 >: A](that: Assertion[A1])(f: (A1, A1) => A1): Assertion[A1] =
     (self, that) match {
       case (Ignore, that)             => that
       case (self, Ignore)             => self
       case (Failure(v1), Failure(v2)) => Failure(f(v1, v2))
       case (Success, that)            => that
       case (self, Success)            => self
+    }
+
+  /**
+   * A named alies for `||`.
+   */
+  final def either[A1 >: A](that: Assertion[A1]): Assertion[A1] =
+    eitherWith(that)((a, _) => a)
+
+  /**
+   * Returns a new result that is a success if either this result or the
+   * specified result is a success. If both results are failures, uses the
+   * specified function to combine the messages.
+   */
+  final def eitherWith[A1 >: A](that: Assertion[A1])(f: (A1, A1) => A1): Assertion[A1] =
+    (self, that) match {
+      case (Ignore, that)             => that
+      case (self, Ignore)             => self
+      case (Failure(v1), Failure(v2)) => Failure(f(v1, v2))
+      case _                          => Success
     }
 
   /**
@@ -74,12 +114,31 @@ object Assertion {
   final case class Failure[+A](message: A) extends Assertion[A]
 
   /**
+   * Combines a collection of assertions to create a single assertion that
+   * succeeds if all of the assertions succeed, and otherwise fails with a list
+   * of the failure messages.
+   */
+  final def collectAll[A, E](as: Iterable[Assertion[A]]): Assertion[List[A]] =
+    foreach(as)(identity)
+
+  /**
    * Constructs a failed assertion with the specified message.
    */
-  def failure[A](a: A): Assertion[A] = Failure(a)
+  final def failure[A](a: A): Assertion[A] = Failure(a)
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` to produce
+   * a collection of assertions, then combines all of those assertions to
+   * create a single assertion that succeeds if all of the assertions succeed,
+   * and otherwise fails with a list of the failure messages.
+   */
+  final def foreach[A, B](as: Iterable[A])(f: A => Assertion[B]): Assertion[List[B]] =
+    as.foldRight[Assertion[List[B]]](success) { (a, assert) =>
+      f(a).map(List(_)).bothWith(assert)((b, bs) => b ::: bs)
+    }
 
   /**
    * Returns a successful assertion.
    */
-  val success: Assertion[Nothing] = Success
+  final val success: Assertion[Nothing] = Success
 }
