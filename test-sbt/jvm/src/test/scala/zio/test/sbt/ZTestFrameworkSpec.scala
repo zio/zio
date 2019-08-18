@@ -68,7 +68,8 @@ object ZTestFrameworkSpec {
             s"info: ${red("- some suite")}",
             s"info:   ${red("- failing test")}",
             s"info:     ${blue("1")} did not satisfy ${cyan("equals(2)")}",
-            s"info:   ${green("+")} passing test"
+            s"info:   ${green("+")} passing test",
+            s"info: ${cyan("Ran 3 tests in 0 seconds: 1 succeeded, 1 ignored, 1 failed")}"
           )
         )
       )
