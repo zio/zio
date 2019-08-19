@@ -1,12 +1,14 @@
 package zio.examples.test
 
+import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
 import zio.examples.test.Aspects._
+import zio.test.Predicate._
 import zio.test.TestAspect._
 import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, Predicate, TestResult }
 import zio.{ UIO, ZIO, ZManaged }
-
+import zio.duration._
 private object Aspects {
 
   class FakeFile(name: String) {
@@ -63,22 +65,29 @@ object AspectsExampleSpec
               }
               .provide(Clock.Live)
 
-            assertM(pipeline, Predicate.isTrue)
+            assertM(pipeline, isTrue)
 
           }
 
         },
-        testM("Non intermittent test") {
-          assertM(ZIO.succeed(10), Predicate.equals(10))
+        nonFlaky(5) {
+          testM("non-flaky test") {
+
+            val nonTotalEffect = ZIO.effect("Reading file").unit.either
+
+            assertM(nonTotalEffect, isRight(Predicate.equals(())))
+          }
         },
-        testM("Timeout test") {
-          assertM(ZIO.succeed(10), Predicate.equals(10))
+        timeout(3.seconds) {
+          testM("Timeout test") {
+
+            val blockingEffect = ZIO
+              .accessM[Blocking](_.blocking.effectBlocking { Thread.sleep(5000); "value" })
+              .either
+              .provide(Blocking.Live)
+
+            assertM(blockingEffect, Predicate.isRight(Predicate.equals("value")))
+          }
         },
-        testM("Retry N test") {
-          assertM(ZIO.succeed(10), Predicate.equals(10))
-        },
-        testM("Retry until succeeds") {
-          assertM(ZIO.succeed(10), Predicate.equals(10))
-        }
       )
     )
