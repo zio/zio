@@ -65,7 +65,7 @@ sealed trait Assertion[+A] { self =>
     }
 
   /**
-   * A named alies for `||`.
+   * A named alias for `||`.
    */
   final def either[A1 >: A](that: Assertion[A1]): Assertion[A1] =
     eitherWith(that)((a, _) => a)
