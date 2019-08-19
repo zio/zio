@@ -29,11 +29,7 @@ private[stream] trait StreamPure[+A] extends ZStream[Any, Nothing, A] { self =>
       def processPure = new Function0[B] {
         val it = self.processPure
 
-        def apply() = {
-          val a = it()
-          if (pf isDefinedAt a) pf(a)
-          else apply()
-        }
+        def apply() = pf.applyOrElse(it(), (_: A) => apply())
       }
     }
 
