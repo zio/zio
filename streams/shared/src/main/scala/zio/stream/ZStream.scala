@@ -515,14 +515,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * stream. `f0` can maintain some internal state to control the combining
    * process, with the initial state being specified by `s1`.
    */
-  final def combine[R1 <: R, E1 >: E, A1 >: A, S1, B, C](that: ZStream[R1, E1, B], lc: Int = 2, rc: Int = 2)(
-    s1: S1
-  )(f0: (S1, Queue[Take[E1, A1]], Queue[Take[E1, B]]) => ZIO[R1, E1, (S1, Take[E1, C])]): ZStream[R1, E1, C] =
+  final def combine[R1 <: R, E1 >: E, A1 >: A, S1, B, C](that: ZStream[R1, E1, B])(s1: S1)(
+    f0: (S1, InputStream[R, E, A], InputStream[R1, E1, B]) => ZIO[R1, E1, (S1, Take[E1, C])]
+  ): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
-      override def process =
+      override def process: ZManaged[R1, E1, InputStream[R1, E1, C]] =
         for {
-          left  <- self.toQueue[E1, A1](lc)
-          right <- that.toQueue(rc)
+          left  <- self.process
+          right <- that.process
           pull <- ZStream
                    .unfoldM((s1, left, right)) {
                      case (s1, left, right) =>
@@ -904,15 +904,15 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     def loop(
       leftDone: Boolean,
       rightDone: Boolean,
-      s: Queue[Take[E1, Boolean]],
-      left: Queue[Take[E1, A]],
-      right: Queue[Take[E1, A1]]
-    ): ZIO[Any, Nothing, ((Boolean, Boolean, Queue[Take[E1, Boolean]]), Take[E1, A1])] =
-      s.take.flatMap {
+      s: InputStream[R1, E1, Boolean],
+      left: InputStream[R, E, A],
+      right: InputStream[R1, E1, A1]
+    ): ZIO[R1, Nothing, ((Boolean, Boolean, InputStream[R1, E1, Boolean]), Take[E1, A1])] =
+      Take.fromInputStream(s).flatMap {
         case Take.Fail(e) => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
         case Take.Value(b) =>
           if (b && !leftDone) {
-            left.take.flatMap {
+            Take.fromInputStream(left).flatMap {
               case Take.Fail(e)  => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
               case Take.Value(a) => ZIO.succeed(((leftDone, rightDone, s), Take.Value(a)))
               case Take.End =>
@@ -920,7 +920,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                 else loop(true, rightDone, s, left, right)
             }
           } else if (!b && !rightDone)
-            right.take.flatMap {
+            Take.fromInputStream(right).flatMap {
               case Take.Fail(e)  => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
               case Take.Value(a) => ZIO.succeed(((leftDone, rightDone, s), Take.Value(a)))
               case Take.End =>
@@ -930,13 +930,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         case Take.End => ZIO.succeed(((leftDone, rightDone, s), Take.End))
       }
 
-    for {
-      s <- ZStream.managed(b.toQueue())
-      result <- self.combine(that)((false, false, s)) {
-                 case ((leftDone, rightDone, s), left, right) =>
-                   loop(leftDone, rightDone, s, left, right)
-               }
-    } yield result
+    ZStream.fromInputStreamManaged {
+      for {
+        sides <- b.process
+        result <- self
+                   .combine(that)((false, false, sides)) {
+                     case ((leftDone, rightDone, sides), left, right) =>
+                       loop(leftDone, rightDone, sides, left, right)
+                   }
+                   .process
+      } yield result
+    }
   }
 
   /**
@@ -1066,9 +1070,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * type with the specified mapping functions.
    */
   final def mergeWith[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B])(l: A => C, r: B => C): ZStream[R1, E1, C] = {
-    type Loser = Either[Fiber[Nothing, Take[E1, A]], Fiber[Nothing, Take[E1, B]]]
+    type Loser = Either[Fiber[Nothing, Take[E, A]], Fiber[Nothing, Take[E1, B]]]
 
-    def race(left: UIO[Take[E1, A]], right: UIO[Take[E1, B]]): UIO[(Take[E1, C], Loser)] =
+    def race(
+      left: ZIO[R, Nothing, Take[E, A]],
+      right: ZIO[R1, Nothing, Take[E1, B]]
+    ): ZIO[R1, Nothing, (Take[E1, C], Loser)] =
       left.raceWith(right)(
         (exit, right) => ZIO.done(exit).map(a => (a.map(l), Right(right))),
         (exit, left) => ZIO.done(exit).map(b => (b.map(r), Left(left)))
@@ -1077,14 +1084,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     self.combine(that)((false, false, Option.empty[Loser])) {
       case ((leftDone, rightDone, loser), left, right) =>
         if (leftDone) {
-          right.take.map(_.map(r)).map(take => ((leftDone, rightDone, None), take))
+          Take.fromInputStream(right).map(_.map(r)).map(take => ((leftDone, rightDone, None), take))
         } else if (rightDone) {
-          left.take.map(_.map(l)).map(take => ((leftDone, rightDone, None), take))
+          Take.fromInputStream(left).map(_.map(l)).map(take => ((leftDone, rightDone, None), take))
         } else {
           val result = loser match {
-            case None               => race(left.take, right.take)
-            case Some(Left(loser))  => race(loser.join, right.take)
-            case Some(Right(loser)) => race(left.take, loser.join)
+            case None               => race(Take.fromInputStream(left), Take.fromInputStream(right))
+            case Some(Left(loser))  => race(loser.join, Take.fromInputStream(right))
+            case Some(Right(loser)) => race(Take.fromInputStream(left), loser.join)
           }
           result.flatMap {
             case (Take.End, Left(loser)) =>
@@ -1406,25 +1413,23 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Zips this stream together with the specified stream.
    */
-  final def zip[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B], lc: Int = 2, rc: Int = 2): ZStream[R1, E1, (A, B)] =
-    self.zipWith(that, lc, rc)(
-      (left, right) => left.flatMap(a => right.map(a -> _))
-    )
+  final def zip[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
+    self.zipWith(that)((left, right) => left.flatMap(a => right.map(a -> _)))
 
   /**
    * Zips two streams together with a specified function.
    */
-  final def zipWith[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B], lc: Int = 2, rc: Int = 2)(
-    f0: (Option[A], Option[B]) => Option[C]
-  ): ZStream[R1, E1, C] = {
+  final def zipWith[R1 <: R, E1 >: E, B, C](
+    that: ZStream[R1, E1, B]
+  )(f0: (Option[A], Option[B]) => Option[C]): ZStream[R1, E1, C] = {
     def loop(
       leftDone: Boolean,
       rightDone: Boolean,
-      q1: Queue[Take[E1, A]],
-      q2: Queue[Take[E1, B]]
+      left: InputStream[R, E, A],
+      right: InputStream[R1, E1, B]
     ): ZIO[R1, E1, ((Boolean, Boolean), Take[E1, C])] = {
-      val takeLeft: ZIO[R1, E1, Option[A]]  = if (leftDone) IO.succeed(None) else Take.option(q1.take)
-      val takeRight: ZIO[R1, E1, Option[B]] = if (rightDone) IO.succeed(None) else Take.option(q2.take)
+      val takeLeft: ZIO[R, E, Option[A]]    = if (leftDone) IO.succeed(None) else left.optional
+      val takeRight: ZIO[R1, E1, Option[B]] = if (rightDone) IO.succeed(None) else right.optional
 
       def handleSuccess(left: Option[A], right: Option[B]): ZIO[Any, Nothing, ((Boolean, Boolean), Take[E1, C])] =
         f0(left, right) match {
@@ -1446,7 +1451,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       )
     }
 
-    self.combine(that, lc = lc, rc = rc)((false, false)) {
+    self.combine(that)((false, false)) {
       case ((leftDone, rightDone), left, right) =>
         loop(leftDone, rightDone, left, right)
     }
