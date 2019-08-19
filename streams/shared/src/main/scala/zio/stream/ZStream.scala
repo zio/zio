@@ -930,13 +930,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         case Take.End => ZIO.succeed(((leftDone, rightDone, s), Take.End))
       }
 
-    for {
-      s <- ZStream.managed(b.process)
-      result <- self.combine(that)((false, false, s)) {
-                 case ((leftDone, rightDone, s), left, right) =>
-                   loop(leftDone, rightDone, s, left, right)
-               }
-    } yield result
+    ZStream.fromInputStreamManaged {
+      for {
+        sides <- b.process
+        result <- self
+                   .combine(that)((false, false, sides)) {
+                     case ((leftDone, rightDone, sides), left, right) =>
+                       loop(leftDone, rightDone, sides, left, right)
+                   }
+                   .process
+      } yield result
+    }
   }
 
   /**
