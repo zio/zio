@@ -40,9 +40,13 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
     withOffset(2)(
-      s"${blue("52")} did not satisfy ${cyan("(equals(42) || (" + yellow("isGreaterThan(5)") + " && isLessThan(10)))")}\n"
+      s"${blue("52")} did not satisfy ${cyan("(" + yellowThenCyan("equals(42)") + " || (isGreaterThan(5) && isLessThan(10)))")}\n"
     ),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isGreaterThan(5)")}\n")
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equals(42)")}\n"),
+    withOffset(2)(
+      s"${blue("52")} did not satisfy ${cyan("(equals(42) || (isGreaterThan(5) && " + yellowThenCyan("isLessThan(10)") + "))")}\n"
+    ),
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n")
   )
 
   val test4 = makeTest("Failing test") {
@@ -130,8 +134,8 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
 
-  def yellow(s: String): String =
-    SConsole.YELLOW + s + SConsole.RESET
+  def yellowThenCyan(s: String): String =
+    SConsole.YELLOW + s + SConsole.CYAN
 
   def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>

@@ -152,7 +152,7 @@ object TestAspect {
           if (n <= 1) test
           else
             test.flatMap { result =>
-              if (result.success) repeat(n - 1)
+              if (result.isSuccess) repeat(n - 1)
               else ZIO.succeed(result)
             }
 

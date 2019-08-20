@@ -18,127 +18,335 @@ package zio.test
 
 /**
  * An `Assertion[A]` is the result of running a test, which may be ignore,
- * success, or failure, with some message of type `A`.
+ * success, or failure, with some message of type `A`. Assertions compose using
+ * logical `&&` and `||` and all failures will be preserved to provide robust
+ * reporting test results.
  */
-sealed trait Assertion[+A] { self =>
+sealed trait Assertion[+A] extends Product with Serializable { self =>
   import Assertion._
 
   /**
-   * Returns a new result that is a success if both this result and the
-   * specified result are successes. If both results are failures, the first
-   * failure message will be returned.
+   * Returns a new assertion that is the logical conjunction of this assertion
+   * and the specified assertion.
    */
   final def &&[A1 >: A](that: Assertion[A1]): Assertion[A1] =
     both(that)
 
   /**
-   * Returns a new result that is a success if either this result or the
-   * specified result is a success. If both results are failures, the first
-   * failure message will be returned.
+   * Returns a new assertion that is the logical disjunction of this assertion
+   * and the specified assertion.
    */
   final def ||[A1 >: A](that: Assertion[A1]): Assertion[A1] =
     either(that)
 
   /**
-   * Returns a new result, with the message mapped to the specified constant.
+   * Returns a new result, with all failure messages mapped to the specified
+   * constant.
    */
-  final def as[L2](l2: L2): Assertion[L2] = self.map(_ => l2)
+  final def as[B](b: B): Assertion[B] =
+    self.map(_ => b)
 
   /**
    * A named alias for `&&`.
    */
   final def both[A1 >: A](that: Assertion[A1]): Assertion[A1] =
-    bothWith(that)((a, _) => a)
-
-  /**
-   * Returns a new result that is a success if both this result and the
-   * specified result are successes. If both results are failures, uses the
-   * specified function to combine the messages.
-   */
-  final def bothWith[A1 >: A](that: Assertion[A1])(f: (A1, A1) => A1): Assertion[A1] =
-    (self, that) match {
-      case (Ignore, that)             => that
-      case (self, Ignore)             => self
-      case (Failure(v1), Failure(v2)) => Failure(f(v1, v2))
-      case (Success, that)            => that
-      case (self, Success)            => self
-    }
+    and(self, that)
 
   /**
    * A named alias for `||`.
    */
   final def either[A1 >: A](that: Assertion[A1]): Assertion[A1] =
-    eitherWith(that)((a, _) => a)
+    or(self, that)
 
   /**
-   * Returns a new result that is a success if either this result or the
-   * specified result is a success. If both results are failures, uses the
-   * specified function to combine the messages.
+   * Collects all failure messages into a list.
    */
-  final def eitherWith[A1 >: A](that: Assertion[A1])(f: (A1, A1) => A1): Assertion[A1] =
-    (self, that) match {
-      case (Ignore, that)             => that
-      case (self, Ignore)             => self
-      case (Failure(v1), Failure(v2)) => Failure(f(v1, v2))
-      case _                          => Success
-    }
+  final def failures: List[A] =
+    fold(Vector.empty, Vector.empty, a => Vector(a))(_ ++ _, _ ++ _).toList
+
+  /**
+   * Folds over the assertion bottom up, first converting ignore, success, or
+   * failure results to `B` values, and then combining the `B` values, using
+   * the specified functions.
+   */
+  final def fold[B](caseSkipped: => B, caseSucceeded: => B, caseFailed: A => B)(
+    caseAnd: (B, B) => B,
+    caseOr: (B, B) => B
+  ): B = self match {
+    case Ignore =>
+      caseSkipped
+    case Success =>
+      caseSucceeded
+    case Failure(a) =>
+      caseFailed(a)
+    case And(l, r) =>
+      caseAnd(
+        l.fold(caseSkipped, caseSucceeded, caseFailed)(caseAnd, caseOr),
+        r.fold(caseSkipped, caseSucceeded, caseFailed)(caseAnd, caseOr)
+      )
+    case Or(l, r) =>
+      caseOr(
+        l.fold(caseSkipped, caseSucceeded, caseFailed)(caseAnd, caseOr),
+        r.fold(caseSkipped, caseSucceeded, caseFailed)(caseAnd, caseOr)
+      )
+  }
 
   /**
    * Detemines if the result failed.
    */
-  final def failure: Boolean = self match {
-    case Failure(_) => true
-    case _          => false
-  }
-
-  /**
-   * Returns a new result, with the message mapped by the specified function.
-   */
-  final def map[A1](f: A => A1): Assertion[A1] = self match {
-    case Ignore           => Ignore
-    case Failure(message) => Failure(f(message))
-    case Success          => Success
-  }
+  final def isFailure: Boolean =
+    fold(false, false, _ => true)(_ || _, _ && _)
 
   /**
    * Detemines if the result succeeded.
    */
-  final def success: Boolean = self match {
-    case Success => true
-    case _       => false
-  }
+  final def isSuccess: Boolean =
+    fold(false, true, _ => false)(_ && _, _ || _)
+
+  /**
+   * Returns a new result, with all failure messages mapped by the specified
+   * function.
+   */
+  final def map[A1](f: A => A1): Assertion[A1] =
+    fold(ignore, success, a => failure(f(a)))(and, or)
+
+  /**
+   * Negates this assertion, converting all successes into failures and failures
+   * into successes. The new failures will have messages with the specified
+   * value.
+   */
+  final def not[B](b: B): Assertion[B] =
+    fold(ignore, failure(b), _ => success)(
+      (l, r) => or(l.not(b), r.not(b)),
+      (l, r) => and(l.not(b), r.not(b))
+    )
+
+  /**
+   * Removes all intermediate ignore results from this assertion, returning
+   * either an assertion with no ignore results or ignore if all the results
+   * of this assertion were ignore.
+   */
+  final def stripIgnores: Assertion[A] =
+    self.fold(ignore, success, failure)(
+      {
+        case (Ignore, r) => r
+        case (l, Ignore) => l
+        case (l, r)      => And(l, r)
+      }, {
+        case (Ignore, r) => r
+        case (l, Ignore) => l
+        case (l, r)      => Or(l, r)
+      }
+    )
 }
+
 object Assertion {
-  case object Ignore                       extends Assertion[Nothing]
-  case object Success                      extends Assertion[Nothing]
-  final case class Failure[+A](message: A) extends Assertion[A]
+
+  case object Ignore extends Assertion[Nothing] { self =>
+    override final def equals(that: Any): Boolean =
+      (this eq that.asInstanceOf[AnyRef]) || (that match {
+        case other: Assertion[_] => equal(other)
+        case _                   => false
+      })
+    private def equal(other: Assertion[_]): Boolean = other match {
+      case And(Ignore, r) => self == r
+      case And(l, Ignore) => self == l
+      case Or(Ignore, r)  => self == r
+      case Or(l, Ignore)  => self == l
+      case _              => false
+    }
+  }
+
+  case object Success extends Assertion[Nothing] { self =>
+    override final def equals(that: Any): Boolean =
+      (this eq that.asInstanceOf[AnyRef]) || (that match {
+        case other: Assertion[_] => equal(other)
+        case _                   => false
+      })
+    private def equal(other: Assertion[_]): Boolean = other match {
+      case And(Ignore, r) => self == r
+      case And(l, Ignore) => self == l
+      case Or(Ignore, r)  => self == r
+      case Or(l, Ignore)  => self == l
+      case _              => false
+
+    }
+  }
+
+  final case class Failure[+A](message: A) extends Assertion[A] { self =>
+    override final def equals(that: Any): Boolean =
+      (this eq that.asInstanceOf[AnyRef]) || (that match {
+        case other: Assertion[_] => equal(other)
+        case _                   => false
+      })
+    private def equal(other: Assertion[_]): Boolean = other match {
+      case And(Ignore, r) => self == r
+      case And(l, Ignore) => self == l
+      case Or(Ignore, r)  => self == r
+      case Or(l, Ignore)  => self == l
+      case Failure(v)     => message == v
+      case _              => false
+    }
+  }
+
+  final case class And[+A](left: Assertion[A], right: Assertion[A]) extends Assertion[A] { self =>
+    override final def equals(that: Any): Boolean = that match {
+      case other: Assertion[_] =>
+        equal(other) ||
+          commutative(other) ||
+          empty(self, other) ||
+          symmetric(associative)(self, other) ||
+          symmetric(distributive)(self, other)
+      case _ => false
+    }
+    override final def hashCode: Int =
+      assertionHash(self)
+    private def equal(that: Assertion[_]): Boolean = (self, that) match {
+      case (a1: And[_], a2: And[_]) => a1.left == a2.left && a1.right == a2.right
+      case _                        => false
+    }
+    private def associative(left: Assertion[_], right: Assertion[_]): Boolean =
+      (left, right) match {
+        case (And(And(a1, b1), c1), And(a2, And(b2, c2))) =>
+          a1 == a2 && b1 == b2 && c1 == c2
+        case _ =>
+          false
+      }
+    private def commutative(that: Assertion[_]): Boolean = (self, that) match {
+      case (And(al, bl), And(ar, br)) => al == br && bl == ar
+      case _                          => false
+    }
+    private def distributive(left: Assertion[_], right: Assertion[_]): Boolean =
+      (left, right) match {
+        case (And(a1, Or(b1, c1)), Or(And(a2, b2), And(a3, c2))) =>
+          a1 == a2 && a1 == a3 && b1 == b2 && c1 == c2
+        case _ =>
+          false
+      }
+    private def empty(left: Assertion[_], right: Assertion[_]): Boolean =
+      (left, right) match {
+        case (And(l, Ignore), v) => l == v
+        case (And(Ignore, r), v) => r == v
+        case _                   => false
+      }
+  }
+
+  final case class Or[+A](left: Assertion[A], right: Assertion[A]) extends Assertion[A] { self =>
+    override final def equals(that: Any): Boolean = that match {
+      case other: Assertion[_] =>
+        equal(other) ||
+          commutative(other) ||
+          empty(self, other) ||
+          symmetric(associative)(self, other) ||
+          symmetric(distributive)(self, other)
+      case _ => false
+    }
+    override final def hashCode: Int =
+      assertionHash(self)
+    private def equal(that: Assertion[_]): Boolean = (self, that) match {
+      case (o1: Or[_], o2: Or[_]) => o1.left == o2.left && o1.right == o2.right
+      case _                      => false
+    }
+    private def associative(left: Assertion[_], right: Assertion[_]): Boolean =
+      (left, right) match {
+        case (Or(Or(a1, b1), c1), Or(a2, Or(b2, c2))) =>
+          a1 == a2 && b1 == b2 && c1 == c2
+        case _ =>
+          false
+      }
+    private def commutative(that: Assertion[_]): Boolean = (self, that) match {
+      case (Or(al, bl), Or(ar, br)) => al == br && bl == ar
+      case _                        => false
+    }
+    private def distributive(left: Assertion[_], right: Assertion[_]): Boolean =
+      (left, right) match {
+        case (Or(a1, And(b1, c1)), And(Or(a2, b2), Or(a3, c2))) =>
+          a1 == a2 && a1 == a3 && b1 == b2 && c1 == c2
+        case _ =>
+          false
+      }
+    private def empty(left: Assertion[_], right: Assertion[_]): Boolean =
+      (left, right) match {
+        case (Or(l, Ignore), v) => l == v
+        case (Or(Ignore, r), v) => r == v
+        case _                  => false
+      }
+  }
+
+  /**
+   * Returns an assertion that succeeds if all of the assertions in the
+   * specified collection succeed.
+   */
+  final def all[A](as: Iterable[Assertion[A]]): Assertion[A] =
+    as.foldRight[Assertion[A]](ignore)(and)
+
+  /**
+   * Constructs an assertion that is the logical conjunction of two assertions.
+   */
+  final def and[A](left: Assertion[A], right: Assertion[A]): Assertion[A] =
+    And(left, right)
+
+  /**
+   * Returns an assertion that succeeds if any of the assertions in the
+   * specified collection succeed.
+   */
+  final def any[A](as: Iterable[Assertion[A]]): Assertion[A] =
+    as.foldRight[Assertion[A]](ignore)(or)
 
   /**
    * Combines a collection of assertions to create a single assertion that
-   * succeeds if all of the assertions succeed, and otherwise fails with a list
-   * of the failure messages.
+   * succeeds if all of the assertions succeed.
    */
-  final def collectAll[A, E](as: Iterable[Assertion[A]]): Assertion[List[A]] =
+  final def collectAll[A, E](as: Iterable[Assertion[A]]): Assertion[A] =
     foreach(as)(identity)
 
   /**
    * Constructs a failed assertion with the specified message.
    */
-  final def failure[A](a: A): Assertion[A] = Failure(a)
+  final def failure[A](a: A): Assertion[A] =
+    Failure(a)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` to produce
    * a collection of assertions, then combines all of those assertions to
-   * create a single assertion that succeeds if all of the assertions succeed,
-   * and otherwise fails with a list of the failure messages.
+   * create a single assertion that succeeds if all of the assertions succeed.
    */
-  final def foreach[A, B](as: Iterable[A])(f: A => Assertion[B]): Assertion[List[B]] =
-    as.foldRight[Assertion[List[B]]](success) { (a, assert) =>
-      f(a).map(List(_)).bothWith(assert)((b, bs) => b ::: bs)
-    }
+  final def foreach[A, B](as: Iterable[A])(f: A => Assertion[B]): Assertion[B] =
+    as.foldRight[Assertion[B]](ignore)((a, b) => and(f(a), b))
+
+  /** Returns an ignored assertion. */
+  final val ignore: Assertion[Nothing] =
+    Ignore
+
+  /**
+   * Constructs an assertion that is the logical disjunction of two assertions.
+   */
+  final def or[A](left: Assertion[A], right: Assertion[A]): Assertion[A] =
+    Or(left, right)
 
   /**
    * Returns a successful assertion.
    */
-  final val success: Assertion[Nothing] = Success
+  final val success: Assertion[Nothing] =
+    Success
+
+  private def symmetric[A](f: (A, A) => Boolean): (A, A) => Boolean =
+    (a1, a2) => f(a1, a2) || f(a2, a1)
+
+  private def assertionHash[A](assertion: Assertion[A]): Int =
+    assertion
+      .fold(None, Some(success.hashCode), a => Some(failure(a).hashCode))(
+        {
+          case (Some(l), Some(r)) => Some(l & r)
+          case (Some(l), _)       => Some(l)
+          case (_, Some(r))       => Some(r)
+          case _                  => None
+        }, {
+          case (Some(l), Some(r)) => Some(l | r)
+          case (Some(l), _)       => Some(l)
+          case (_, Some(r))       => Some(r)
+          case _                  => None
+        }
+      )
+      .getOrElse(ignore.hashCode)
 }

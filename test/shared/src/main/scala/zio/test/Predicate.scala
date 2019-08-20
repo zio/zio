@@ -34,11 +34,7 @@ class Predicate[-A] private (render: String, val run: (=> A) => PredicateResult)
    */
   final def &&[A1 <: A](that: => Predicate[A1]): Predicate[A1] =
     Predicate.predicateDirect(s"(${self} && ${that})") { actual =>
-      self.run(actual) match {
-        case Failure(l) => Failure(l)
-        case Success    => that.run(actual)
-        case Ignore     => that.run(actual)
-      }
+      self.run(actual) && that.run(actual)
     }
 
   /**
@@ -46,11 +42,7 @@ class Predicate[-A] private (render: String, val run: (=> A) => PredicateResult)
    */
   final def ||[A1 <: A](that: => Predicate[A1]): Predicate[A1] =
     Predicate.predicateDirect(s"(${self} || ${that})") { actual =>
-      self.run(actual) match {
-        case Failure(_) => that.run(actual)
-        case Success    => Success
-        case Ignore     => that.run(actual)
-      }
+      self.run(actual) || that.run(actual)
     }
 
   /**
@@ -198,7 +190,7 @@ object Predicate {
    */
   final def isGreaterThan[A: Numeric](reference: A): Predicate[A] =
     Predicate.predicate(s"isGreaterThan(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) > 0) Assertion.success
+      if (implicitly[Numeric[A]].compare(actual, reference) > 0) Assertion.success
       else Assertion.failure(())
     }
 
@@ -208,7 +200,7 @@ object Predicate {
    */
   final def isGreaterThanEqual[A: Numeric](reference: A): Predicate[A] =
     Predicate.predicate(s"isGreaterThanEqual(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) >= 0) Assertion.success
+      if (implicitly[Numeric[A]].compare(actual, reference) >= 0) Assertion.success
       else Assertion.failure(())
     }
 
@@ -230,7 +222,7 @@ object Predicate {
    */
   final def isLessThan[A: Numeric](reference: A): Predicate[A] =
     Predicate.predicate(s"isLessThan(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) < 0) Assertion.success
+      if (implicitly[Numeric[A]].compare(actual, reference) < 0) Assertion.success
       else Assertion.failure(())
     }
 
@@ -240,7 +232,7 @@ object Predicate {
    */
   final def isLessThanEqual[A: Numeric](reference: A): Predicate[A] =
     Predicate.predicate(s"isLessThanEqual(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) <= 0) Assertion.success
+      if (implicitly[Numeric[A]].compare(actual, reference) <= 0) Assertion.success
       else Assertion.failure(())
     }
 
@@ -322,11 +314,7 @@ object Predicate {
    */
   final def not[A](predicate: Predicate[A]): Predicate[A] =
     Predicate.predicateRec[A](s"not(${predicate})") { (self, actual) =>
-      predicate.run(actual) match {
-        case Assertion.Success    => Assertion.Failure(PredicateValue(self, actual))
-        case Assertion.Failure(_) => Assertion.Success
-        case Assertion.Ignore     => Assertion.Ignore
-      }
+      predicate.run(actual).not((PredicateValue(self, actual)))
     }
 
   /**

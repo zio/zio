@@ -30,19 +30,19 @@ object DefaultTestReporter {
       executedSpec.caseValue match {
         case Spec.SuiteCase(label, executedSpecs, _) =>
           val hasFailures = executedSpecs.exists(_.exists {
-            case Spec.TestCase(_, test) => test.failure; case _ => false
+            case Spec.TestCase(_, test) => test.isFailure; case _ => false
           })
           val status        = if (hasFailures) Failed else Passed
           val renderedLabel = if (hasFailures) renderFailureLabel(label, depth) else renderSuccessLabel(label, depth)
           rendered(Suite, label, status, depth, renderedLabel) +: executedSpecs.flatMap(loop(_, depth + tabSize))
         case Spec.TestCase(label, result) =>
-          Seq(result match {
-            case Assertion.Success =>
-              rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
-            case Assertion.Failure(details) =>
-              rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-            case Assertion.Ignore => rendered(Test, label, Ignored, depth)
-          })
+          Seq(
+            result.fold(
+              rendered(Test, label, Ignored, depth),
+              rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)),
+              details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
+            )(_ && _, _ || _)
+          )
       }
     loop(executedSpec, 0)
   }
@@ -107,11 +107,11 @@ object DefaultTestReporter {
   private def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
 
-  private def yellow(s: String): String =
-    SConsole.YELLOW + s + SConsole.RESET
+  private def yellowThenCyan(s: String): String =
+    SConsole.YELLOW + s + SConsole.CYAN
 
   private def highlight(string: String, substring: String): String =
-    string.replace(substring, yellow(substring))
+    string.replace(substring, yellowThenCyan(substring))
 
   private val tabSize = 2
 
@@ -140,4 +140,24 @@ object RenderedResult {
   }
 }
 
-case class RenderedResult(caseType: CaseType, label: String, status: Status, offset: Int, rendered: Seq[String])
+case class RenderedResult(caseType: CaseType, label: String, status: Status, offset: Int, rendered: Seq[String]) {
+  self =>
+
+  def &&(that: RenderedResult): RenderedResult =
+    (self.status, that.status) match {
+      case (Ignored, _)     => that
+      case (_, Ignored)     => self
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
+      case (Passed, _)      => that
+      case (_, Passed)      => self
+    }
+
+  def ||(that: RenderedResult): RenderedResult =
+    (self.status, that.status) match {
+      case (Ignored, _)     => that
+      case (_, Ignored)     => self
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
+      case (Passed, _)      => self
+      case (_, Passed)      => that
+    }
+}

@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{ Assertion, ExecutedSpec, Spec, TestResult }
+import zio.test.{ ExecutedSpec, Spec, TestResult }
 
 case class ZTestEvent(
   fullyQualifiedName: String,
@@ -26,9 +26,17 @@ object ZTestEvent {
   }
 
   private def toStatus[L](result: TestResult) =
-    result match {
-      case Assertion.Success    => Status.Success
-      case Assertion.Failure(_) => Status.Failure
-      case Assertion.Ignore     => Status.Ignored
-    }
+    result.fold(Status.Ignored, Status.Success, _ => Status.Failure)(
+      {
+        case (Status.Ignored, r)              => r
+        case (l, Status.Ignored)              => l
+        case (Status.Success, Status.Success) => Status.Success
+        case _                                => Status.Failure
+      }, {
+        case (Status.Ignored, r)              => r
+        case (l, Status.Ignored)              => l
+        case (Status.Failure, Status.Failure) => Status.Failure
+        case _                                => Status.Success
+      }
+    )
 }

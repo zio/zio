@@ -166,9 +166,9 @@ package object test {
 
     stream
       .map(_.map(checkValue))
-      .dropWhile(!_.value.failure) // Drop until we get to a failure
-      .take(1)                     // Get the first failure
-      .flatMap(_.shrinkSearch(_.failure).take(maxShrinks))
+      .dropWhile(!_.value.isFailure) // Drop until we get to a failure
+      .take(1)                       // Get the first failure
+      .flatMap(_.shrinkSearch(_.isFailure).take(maxShrinks))
       .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
       .map { failures =>
         // Get the "last" failure, the smallest according to the shrinker:

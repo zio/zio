@@ -14,12 +14,12 @@ object PredicateSpec {
   private def testSuccess(testResult: TestResult, message: String)(
     implicit ec: ExecutionContext
   ): Future[(Boolean, String)] =
-    label(Future.successful(testResult.success), message)
+    label(Future.successful(testResult.isSuccess), message)
 
   private def testFailure(testResult: TestResult, message: String)(
     implicit ec: ExecutionContext
   ): Future[(Boolean, String)] =
-    label(Future.successful(testResult.failure), message)
+    label(Future.successful(testResult.isFailure), message)
 
   case class SampleUser(name: String, age: Int)
   val sampleUser = SampleUser("User", 42)
@@ -80,7 +80,7 @@ object PredicateSpec {
       message = "hasSize must succeed when iterable size is equal to specified predicate"
     ),
     testSuccess(
-      assert(0, isGreaterThan(42)),
+      assert(42, isGreaterThan(0)),
       message = "isGreaterThan must succeed when specified value is greater than supplied value"
     ),
     testFailure(
@@ -119,7 +119,7 @@ object PredicateSpec {
       message = "isLeft must succeed when supplied value is Left and satisfy specified predicate"
     ),
     testSuccess(
-      assert(42, isLessThan(0)),
+      assert(0, isLessThan(42)),
       message = "lt must succeed when specified value is less than supplied value"
     ),
     testFailure(
@@ -183,19 +183,19 @@ object PredicateSpec {
       message = "isWithin must fail when supplied value is out of range"
     ),
     testSuccess(
-      assert(sampleUser, nameStartsWithU && ageLessThen20),
+      assert(sampleUser, nameStartsWithU && ageGreaterThen20),
       message = "and must succeed when both predicates are satisfied"
     ),
     testFailure(
-      assert(sampleUser, nameStartsWithA && ageLessThen20),
+      assert(sampleUser, nameStartsWithA && ageGreaterThen20),
       message = "and must fail when one of predicates is not satisfied"
     ),
     testSuccess(
-      assert(sampleUser, (nameStartsWithA || nameStartsWithU) && ageLessThen20),
+      assert(sampleUser, (nameStartsWithA || nameStartsWithU) && ageGreaterThen20),
       message = "or must succeed when one of predicates is satisfied"
     ),
     testFailure(
-      assert(sampleUser, nameStartsWithA || ageGreaterThen20),
+      assert(sampleUser, nameStartsWithA || ageLessThen20),
       message = "or must fail when both predicates are not satisfied"
     ),
     testSuccess(

@@ -9,16 +9,16 @@ object TestMain {
 
   def main(args: Array[String]): Unit = {
     val testResults = List(
-      scope(AssertionSpec.run, "Assertion"),
-      scope(ClockSpec.run, "MockClock"),
-      scope(ConsoleSpec.run, "MockConsole"),
-      scope(DefaultTestReporterSpec.run, "DefaultTestReporter"),
-      scope(EnvironmentSpec.run, "MockEnvironment"),
-      scope(GenSpec.run, "Gen"),
-      scope(RandomSpec.run, "MockRandom"),
-      scope(SchedulerSpec.run, "MockScheduler"),
-      scope(SystemSpec.run, "MockSystem"),
-      scope(PredicateSpec.run, "Predicate")
+      scope(AssertionSpec.run, "AssertionSpec"),
+      scope(ClockSpec.run, "ClockSpec"),
+      scope(ConsoleSpec.run, "ConsoleSpec"),
+      scope(DefaultTestReporterSpec.run, "DefaultTestReporterSpec"),
+      scope(EnvironmentSpec.run, "EnvironmentSpec"),
+      scope(GenSpec.run, "GenSpec"),
+      scope(RandomSpec.run, "RandomSpec"),
+      scope(SchedulerSpec.run, "SchedulerSpec"),
+      scope(SystemSpec.run, "SystemSpec"),
+      scope(PredicateSpec.run, "PredicateSpec")
     ).flatten
     report(testResults)
   }
