@@ -222,7 +222,7 @@ object FunctionIO extends Serializable {
         catch {
           case e: FunctionIOError[_] => IO.fail[E](e.unsafeCoerce[E])
         }
-    }
+      }
   }
 
   /**
@@ -273,7 +273,7 @@ object FunctionIO extends Serializable {
         catch {
           case t: Throwable if catcher.isDefinedAt(t) =>
             throw new FunctionIOError(catcher(t))
-      }
+        }
     )
 
   /**
