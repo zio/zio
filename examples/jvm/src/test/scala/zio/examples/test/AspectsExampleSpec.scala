@@ -1,6 +1,5 @@
 package zio.examples.test
 
-import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
 import zio.examples.test.Aspects._
@@ -8,7 +7,6 @@ import zio.test.Predicate._
 import zio.test.TestAspect._
 import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, Predicate, TestResult }
 import zio.{ UIO, ZIO, ZManaged }
-import zio.duration._
 private object Aspects {
 
   class FakeFile(name: String) {
@@ -45,7 +43,7 @@ object AspectsExampleSpec
         },
         around(managed.map(_ => assertion)) {
 
-          testM("Around (constraint environment) test") {
+          testM("Around test") {
             assertM(ZIO.succeed(10), Predicate.equals(10))
           }
 
@@ -59,7 +57,6 @@ object AspectsExampleSpec
               .accessM[Clock] { env =>
                 for {
                   currentTime <- env.clock.nanoTime
-                  _           <- ZIO.accessM[Console](_.console.putStrLn(s"Current time: $currentTime")).provide(Console.Live)
                 } yield isEven(currentTime)
 
               }
@@ -70,24 +67,24 @@ object AspectsExampleSpec
           }
 
         },
-        nonFlaky(5) {
-          testM("non-flaky test") {
-
-            val nonTotalEffect = ZIO.effect("Reading file").unit.either
-
-            assertM(nonTotalEffect, isRight(Predicate.equals(())))
-          }
-        },
-        timeout(3.seconds) {
-          testM("Timeout test") {
-
-            val blockingEffect = ZIO
-              .accessM[Blocking](_.blocking.effectBlocking { Thread.sleep(5000); "value" })
-              .either
-              .provide(Blocking.Live)
-
-            assertM(blockingEffect, Predicate.isRight(Predicate.equals("value")))
-          }
-        },
+//        nonFlaky(5) {
+//          testM("non-flaky test") {
+//
+//            val nonTotalEffect = ZIO.effect("Reading file").unit.either
+//
+//            assertM(nonTotalEffect, isRight(Predicate.equals(())))
+//          }
+//        },
+//        timeout(3.seconds) {
+//          testM("Timeout test") {
+//
+//            val blockingEffect = ZIO
+//              .accessM[Blocking](_.blocking.effectBlocking { Thread.sleep(5000); "value" })
+//              .either
+//              .provide(Blocking.Live)
+//
+//            assertM(blockingEffect, Predicate.isRight(Predicate.equals("value")))
+//          }
+//        },
       )
     )
