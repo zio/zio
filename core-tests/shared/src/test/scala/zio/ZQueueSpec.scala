@@ -306,7 +306,7 @@ object ZQueueSpec
             s      <- queue.size
             _      <- f.interrupt
           } yield assert(l.toSet, Predicate.equals(values.toSet)) &&
-          assert(s, Predicate.equals(-100))
+            assert(s, Predicate.equals(-100))
         },
         testM("offerAll with take and back pressure") {
           for {
