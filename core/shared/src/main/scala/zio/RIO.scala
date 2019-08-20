@@ -2,6 +2,7 @@ package zio
 
 import zio.clock.Clock
 import zio.duration.Duration
+import zio.effect.Effect
 import zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
@@ -170,62 +171,6 @@ object RIO {
    * @see See [[zio.ZIO.done]]
    */
   final def done[A](r: Exit[Throwable, A]): Task[A] = ZIO.done(r)
-
-  /**
-   * @see See [[zio.ZIO.effect]]
-   */
-  final def effect[A](effect: => A): Task[A] = ZIO.effect(effect)
-
-  /**
-   * @see See [[zio.ZIO.effectAsync]]
-   */
-  final def effectAsync[R, A](register: (RIO[R, A] => Unit) => Unit): RIO[R, A] =
-    ZIO.effectAsync(register)
-
-  /**
-   * @see See [[zio.ZIO.effectAsyncMaybe]]
-   */
-  final def effectAsyncMaybe[R, A](register: (RIO[R, A] => Unit) => Option[RIO[R, A]]): RIO[R, A] =
-    ZIO.effectAsyncMaybe(register)
-
-  /**
-   * @see See [[zio.ZIO.effectAsyncM]]
-   */
-  final def effectAsyncM[R, A](register: (RIO[R, A] => Unit) => RIO[R, _]): RIO[R, A] =
-    ZIO.effectAsyncM(register)
-
-  /**
-   * @see See [[zio.ZIO.effectAsyncInterrupt]]
-   */
-  final def effectAsyncInterrupt[R, A](register: (RIO[R, A] => Unit) => Either[Canceler, RIO[R, A]]): RIO[R, A] =
-    ZIO.effectAsyncInterrupt(register)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require effects.
-   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
-   */
-  final def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(_ => rio)
-
-  /**
-   * @see See [[zio.ZIO.effectSuspendTotal]]
-   */
-  final def effectSuspendTotal[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendTotalWith(_ => rio)
-
-  /**
-   * @see See [[zio.ZIO.effectSuspendTotalWith]]
-   */
-  final def effectSuspendTotalWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendTotalWith(p)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require effects.
-   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
-   */
-  final def effectSuspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(p)
-
-  /**
-   * @see See [[zio.ZIO.effectTotal]]
-   */
-  final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
    * @see See [[zio.ZIO.environment]]
@@ -530,10 +475,10 @@ object RIO {
     ZIO.superviseStatus(status)(taskr)
 
   @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[R, A](rio: => RIO[R, A]): RIO[R, A] = effectSuspendTotalWith(_ => rio)
+  final def suspend[A](rio: => RIO[Any, A]): RIO[Any, A] = Effect.Live.effect.suspendTotalWith(_ => rio)
 
   @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = effectSuspendTotalWith(p)
+  final def suspendWith[A](p: Platform => RIO[Any, A]): RIO[Any, A] = Effect.Live.effect.suspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.swap]]

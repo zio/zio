@@ -52,6 +52,7 @@ object Effect extends Serializable {
       register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
     ): ZIO[R, E, A] = {
       import java.util.concurrent.atomic.AtomicBoolean
+      import internal.OneShot
 
       total((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
         case (started, cancel) =>

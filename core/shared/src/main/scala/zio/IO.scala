@@ -1,5 +1,6 @@
 package zio
 
+import zio.effect.Effect
 import zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
@@ -149,50 +150,6 @@ object IO {
    * @see See [[zio.ZIO.done]]
    */
   final def done[E, A](r: Exit[E, A]): IO[E, A] = ZIO.done(r)
-
-  /**
-   * @see See [[zio.ZIO.effect]]
-   */
-  final def effect[A](effect: => A): Task[A] = ZIO.effect(effect)
-
-  /**
-   * @see See [[zio.ZIO.effectAsync]]
-   */
-  final def effectAsync[E, A](register: (IO[E, A] => Unit) => Unit): IO[E, A] =
-    ZIO.effectAsync(register)
-
-  /**
-   * @see See [[zio.ZIO.effectAsyncInterrupt]]
-   */
-  final def effectAsyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler, IO[E, A]]): IO[E, A] =
-    ZIO.effectAsyncInterrupt(register)
-
-  /**
-   * @see See [[zio.ZIO.effectAsyncM]]
-   */
-  final def effectAsyncM[E, A](register: (IO[E, A] => Unit) => IO[E, _]): IO[E, A] =
-    ZIO.effectAsyncM(register)
-
-  /**
-   * @see See [[zio.ZIO.effectAsyncMaybe]]
-   */
-  final def effectAsyncMaybe[E, A](register: (IO[E, A] => Unit) => Option[IO[E, A]]): IO[E, A] =
-    ZIO.effectAsyncMaybe(register)
-
-  /**
-   * @see See [[zio.ZIO.effectSuspendTotal]]
-   */
-  final def effectSuspendTotal[E, A](io: => IO[E, A]): IO[E, A] = new ZIO.EffectSuspendTotalWith(_ => io)
-
-  /**
-   * @see See [[zio.ZIO.effectSuspendTotalWith]]
-   */
-  final def effectSuspendTotalWith[E, A](p: Platform => IO[E, A]): IO[E, A] = new ZIO.EffectSuspendTotalWith(p)
-
-  /**
-   * @see See [[zio.ZIO.effectTotal]]
-   */
-  final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
    * @see See [[zio.ZIO.fail]]
@@ -465,10 +422,10 @@ object IO {
     ZIO.superviseStatus(status)(io)
 
   @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = effectSuspendTotalWith(_ => io)
+  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = Effect.Live.effect.suspendTotalWith(_ => io)
 
   @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[E, A](p: Platform => IO[E, A]): IO[E, A] = effectSuspendTotalWith(p)
+  final def suspendWith[E, A](p: Platform => IO[E, A]): IO[E, A] = Effect.Live.effect.suspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]

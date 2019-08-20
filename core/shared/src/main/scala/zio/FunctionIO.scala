@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.effect.Effect
+
 /**
  * A `FunctionIO[E, A, B]` is an effectful function from `A` to `B`, which might
  * fail with an `E`.
@@ -215,12 +217,12 @@ object FunctionIO extends Serializable {
   private[zio] final class Pure[E, A, B](val run: A => IO[E, B]) extends FunctionIO[E, A, B] {}
   private[zio] final class Impure[E, A, B](val apply0: A => B) extends FunctionIO[E, A, B] {
     val run: A => IO[E, B] = a =>
-      IO.effectSuspendTotal {
+      Effect.Live.effect.suspendTotal {
         try IO.succeed[B](apply0(a))
         catch {
           case e: FunctionIOError[_] => IO.fail[E](e.unsafeCoerce[E])
         }
-      }
+    }
   }
 
   /**
@@ -271,7 +273,7 @@ object FunctionIO extends Serializable {
         catch {
           case t: Throwable if catcher.isDefinedAt(t) =>
             throw new FunctionIOError(catcher(t))
-        }
+      }
     )
 
   /**
