@@ -395,7 +395,7 @@ object IO {
 
   @deprecated("use effectTotal", "1.0.0")
   final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
+    Effect.Live.effect.total(a)
 
   /**
    * @see See [[zio.ZIO.interruptChildren]]
