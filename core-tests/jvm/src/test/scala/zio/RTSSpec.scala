@@ -30,7 +30,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     effect, bind, map                             $testSyncEvalLoopEffect
     effect, bind, map, redeem                     $testSyncEvalLoopEffectThrow
     sync effect                                   $testEvalOfSyncEffect
-    sync on defer                                 $testManualSyncOnDefer
     deep effects                                  $testEvalOfDeepSyncEffect
     flip must make error into value               $testFlipError
     flip must make value into error               $testFlipValue
@@ -56,7 +55,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     run swallows inner interruption               $testRunSwallowsInnerInterrupt
     timeout a long computation                    $testTimeoutOfLongComputation
     catchAllCause                                 $testCatchAllCause
-    exception in fromFuture does not kill fiber   $testFromFutureDoesNotKillFiber 
+    exception in fromFuture does not kill fiber   $testFromFutureDoesNotKillFiber
 
   RTS finalizers
     fail ensuring                                 $testEvalOfFailEnsuring
@@ -127,9 +126,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   RTS regression tests
     deadlock regression 1                         $testDeadlockRegression
     check interruption regression 1               $testInterruptionRegression1
-    manual sync interruption                      $testManualSyncInterruption
     max yield Ops 1                               $testOneMaxYield
-    
+
   RTS option tests
     lifting a value to an option                  $testLiftingOptionalValue
     using the none value                          $testLiftingNoneValue
@@ -271,20 +269,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       else IO.effectTotal(n).flatMap(b => sumIo(n - 1).map(a => a + b))
 
     unsafeRun(sumIo(1000)) must_=== sum(1000)
-  }
-
-  def testManualSyncOnDefer = {
-    def sync[A](effect: => A): IO[Throwable, A] =
-      IO.effectTotal(effect)
-        .foldCauseM({
-          case Cause.Die(t) => IO.fail(t)
-          case cause        => IO.halt(cause)
-        }, IO.succeed(_))
-
-    def putStrLn(text: String): IO[Throwable, Unit] =
-      sync(println(text))
-
-    unsafeRun(putStrLn("Hello")) must_=== (())
   }
 
   @silent
@@ -1033,7 +1017,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
         ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
         _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
         fibs <- ZIO.children
-        _    <- ref.get.map(list => println(list.mkString(", ")))
       } yield fibs must have size 1).supervised
     )
   }
@@ -1352,25 +1335,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       } yield c must be_>=(1)
     )
 
-  }
-
-  def testManualSyncInterruption = {
-    def sync[A](effect: => A): IO[Throwable, A] =
-      IO.effectTotal(effect)
-        .foldCauseM({
-          case Cause.Die(t) => IO.fail(t)
-          case cause        => IO.halt(cause)
-        }, IO.succeed(_))
-
-    def putStr(text: String): IO[Throwable, Unit] =
-      sync(scala.io.StdIn.print(text))
-
-    unsafeRun(
-      for {
-        fiber <- putStr(".").forever.fork
-        _     <- fiber.interrupt
-      } yield true
-    )
   }
 
   def testOneMaxYield = {

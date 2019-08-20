@@ -3,6 +3,7 @@ package zio.test
 import scala.concurrent.{ ExecutionContext, Future }
 import zio._
 import scala.{ Console => SConsole }
+import zio.clock.Clock
 import zio.test.mock._
 import zio.test.TestUtils.label
 
@@ -86,31 +87,39 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     withOffset(2)(test2Expected)
   ) ++ test3Expected.map(withOffset(2)(_))
 
+  def reportStats(success: Int, ignore: Int, failure: Int) = {
+    val total = success + ignore + failure
+    cyan(
+      s"Ran $total test${if (total == 1) "" else "s"} in 0 seconds: $success succeeded, $ignore ignored, $failure failed"
+    ) + "\n"
+  }
+
   def reportSuccess =
-    check(test1, Vector(test1Expected))
+    check(test1, Vector(test1Expected, reportStats(1, 0, 0)))
 
   def reportFailure =
-    check(test3, test3Expected)
+    check(test3, test3Expected :+ reportStats(0, 0, 1))
 
   def reportError =
-    check(test4, test4Expected)
+    check(test4, test4Expected :+ reportStats(0, 0, 1))
 
   def reportSuite1 =
-    check(suite1, suite1Expected)
+    check(suite1, suite1Expected :+ reportStats(2, 0, 0))
 
   def reportSuite2 =
-    check(suite2, suite2Expected)
+    check(suite2, suite2Expected :+ reportStats(2, 0, 1))
 
   def reportSuites =
     check(
       suite("Suite3")(suite1, test3),
-      Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected.map(withOffset(2))
+      Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected
+        .map(withOffset(2)) :+ reportStats(2, 0, 1)
     )
 
   def simplePredicate =
     check(
       test5,
-      test5Expected
+      test5Expected :+ reportStats(0, 0, 1)
     )
 
   def expectedSuccess(label: String): String =
@@ -140,7 +149,15 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>
       val zio = for {
-        _      <- MockTestRunner(r).run(spec).provideSomeM(TestLogger.fromConsoleM)
+        _ <- MockTestRunner(r)
+              .run(spec)
+              .provideSomeM(for {
+                logSvc   <- TestLogger.fromConsoleM
+                clockSvc <- MockClock.make(MockClock.DefaultData)
+              } yield new TestLogger with Clock {
+                override def testLogger: TestLogger.Service = logSvc.testLogger
+                override val clock: Clock.Service[Any]      = clockSvc.clock
+              })
         output <- MockConsole.output
       } yield output == expected
       zio.provide(r)
