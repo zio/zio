@@ -36,6 +36,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Create a non-empty list of Ints:
       `IO.foldLeft` with a failing step function returns a failed IO. $t11
    Check done lifts exit result into IO. $testDone
+   Check `catchSomeCause` catches matching cause $testCatchSomeCauseMatch
+   Check `catchSomeCause` halts if cause doesn't match $testCatchSomeCauseNoMatch
    Check `when` executes correct branch only. $testWhen
    Check `whenM` executes condition effect and correct branch. $testWhenM
    Check `whenCase` executes correct branch only. $testWhenCase
@@ -192,6 +194,20 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRunSync(IO.done(terminated)) must_=== Exit.die(error)
     unsafeRunSync(IO.done(failed)) must_=== Exit.fail(error)
   }
+
+  private def testCatchSomeCauseMatch =
+    unsafeRun {
+      ZIO.interrupt.catchSomeCause {
+        case c if (c.interrupted) => ZIO.succeed(true)
+      }.sandbox.map(_ must_=== true)
+    }
+
+  private def testCatchSomeCauseNoMatch =
+    unsafeRun {
+      ZIO.interrupt.catchSomeCause {
+        case c if (!c.interrupted) => ZIO.succeed(true)
+      }.sandbox.either.map(_ must_=== Left(Cause.interrupt))
+    }
 
   def testWhen =
     unsafeRun(

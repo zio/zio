@@ -220,6 +220,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Recovers from some or all of the error cases with provided cause.
+   *
+   * {{{
+   * openFile("data.json").catchSomeCause {
+   *   case c if (c.interrupted) => openFile("backup.json")
+   * }
+   * }}}
+   */
+  final def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
+    pf: PartialFunction[Cause[E], ZIO[R1, E1, A1]]
+  ): ZIO[R1, E1, A1] = {
+    def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
+      pf.applyOrElse(c, (_: Cause[E]) => ZIO.halt(c))
+
+    self.foldCauseM[R1, E1, A1](ZIOFn(pf)(tryRescue), new ZIO.SucceedFn(pf))
+  }
+
+  /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * succeed with the returned value.
    */

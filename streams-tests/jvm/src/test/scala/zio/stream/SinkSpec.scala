@@ -92,6 +92,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       step error      $filterMStepError
       extractError    $filterMExtractError
 
+    keyed
+      happy path    $keyedHappyPath
+      init error    $keyedInitError
+      step error    $keyedStepError
+      extract error $keyedExtractError
+
     map
       happy path    $mapHappyPath
       init error    $mapInitError
@@ -554,6 +560,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
   private def filterMExtractError = {
     val sink = extractErrorSink.filterM[Any, String, Int](n => UIO.succeed(n < 5))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def keyedHappyPath = {
+    val sink = ZSink.identity[Int].keyed((_: Int) + 1)
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Map(2 -> 1)))
+  }
+
+  private def keyedInitError = {
+    val sink = initErrorSink.keyed((_: Int) + 1)
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def keyedStepError = {
+    val sink = stepErrorSink.keyed((_: Int) + 1)
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def keyedExtractError = {
+    val sink = extractErrorSink.keyed((_: Int) + 1)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
