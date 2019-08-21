@@ -26,8 +26,8 @@ object PredicateSpec {
 
   val nameStartsWithA  = hasField[SampleUser, Boolean]("name", _.name.startsWith("A"), isTrue)
   val nameStartsWithU  = hasField[SampleUser, Boolean]("name", _.name.startsWith("U"), isTrue)
-  val ageLessThen20    = hasField[SampleUser, Int]("age", _.age, lessThan(20))
-  val ageGreaterThen20 = hasField[SampleUser, Int]("age", _.age, greaterThan(20))
+  val ageLessThen20    = hasField[SampleUser, Int]("age", _.age, isLessThan(20))
+  val ageGreaterThen20 = hasField[SampleUser, Int]("age", _.age, isGreaterThan(20))
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
     testSuccess(assert(42, anything), message = "anything must always succeeds"),
@@ -38,6 +38,14 @@ object PredicateSpec {
     testFailure(
       assert(Seq("zio", "scala"), contains("java")),
       message = "contains must fail when iterable does not contain specified element"
+    ),
+    testSuccess(
+      assert(42, equalTo(42)),
+      message = "equalTo must succeed when value equals specified value"
+    ),
+    testFailure(
+      assert(0, equalTo(42)),
+      message = "equalTo must fail when value does not equal specified value"
     ),
     testSuccess(
       assert(Seq(1, 42, 5), exists(equalTo(42))),
@@ -56,16 +64,16 @@ object PredicateSpec {
       message = "fails must fail when error value does not satisfy specified predicate"
     ),
     testSuccess(
-      assert(SampleUser("User", 23), hasField[SampleUser, Int]("age", _.age, isWithin(0, 99))),
-      message = "hasField must succeed when field value satisfy specified predicate"
-    ),
-    testSuccess(
       assert(Seq("a", "bb", "ccc"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3)))),
       message = "forall must succeed when all elements of iterable satisfy specified predicate"
     ),
     testFailure(
       assert(Seq("a", "bb", "dddd"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3)))),
       message = "forall must fail when one element of iterable do not satisfy specified predicate"
+    ),
+    testSuccess(
+      assert(SampleUser("User", 23), hasField[SampleUser, Int]("age", _.age, isWithin(0, 99))),
+      message = "hasField must succeed when field value satisfy specified predicate"
     ),
     testSuccess(
       assert(Seq(1, 2, 3), hasSize(equalTo(3))),
@@ -87,32 +95,36 @@ object PredicateSpec {
       message = "isCase must succeed when unapplied Proj satisfy specified predicate"
     ),
     testSuccess(
-      assert(42, equalTo(42)),
-      message = "equalTo must succeed when value equals specified value"
-    ),
-    testFailure(
-      assert(0, equalTo(42)),
-      message = "equalTo must fail when value does not equal specified value"
-    ),
-    testSuccess(
-      assert(0, greaterThan(42)),
-      message = "greaterThan must succeed when specified value is greater than supplied value"
-    ),
-    testFailure(
-      assert(42, greaterThan(42)),
-      message = "greaterThan must fail when specified value is less than or equal supplied value"
-    ),
-    testSuccess(
-      assert(42, greaterThanEqualTo(42)),
-      message = "greaterThanEqualTo must succeed when specified value is greater than or equal supplied value"
-    ),
-    testSuccess(
       assert(false, isFalse),
       message = "isFalse must succeed when supplied value is false"
     ),
     testSuccess(
+      assert(0, isGreaterThan(42)),
+      message = "isGreaterThan must succeed when specified value is greater than supplied value"
+    ),
+    testFailure(
+      assert(42, isGreaterThan(42)),
+      message = "isGreaterThan must fail when specified value is less than or equal supplied value"
+    ),
+    testSuccess(
+      assert(42, isGreaterThanEqualTo(42)),
+      message = "greaterThanEqualTo must succeed when specified value is greater than or equal supplied value"
+    ),
+    testSuccess(
       assert(Left(42), isLeft(equalTo(42))),
       message = "isLeft must succeed when supplied value is Left and satisfy specified predicate"
+    ),
+    testSuccess(
+      assert(42, isLessThan(0)),
+      message = "isLessThan must succeed when specified value is less than supplied value"
+    ),
+    testFailure(
+      assert(42, isLessThan(42)),
+      message = "isLessThan must fail when specified value is greater than or equal supplied value"
+    ),
+    testSuccess(
+      assert(42, isLessThanEqualTo(42)),
+      message = "isLessThanEqualTo must succeed when specified value is less than or equal supplied value"
     ),
     testSuccess(
       assert(None, isNone),
@@ -155,28 +167,12 @@ object PredicateSpec {
       message = "isWithin must fail when supplied value is out of range"
     ),
     testSuccess(
-      assert(42, lessThan(0)),
-      message = "lessThan must succeed when specified value is less than supplied value"
-    ),
-    testFailure(
-      assert(42, lessThan(42)),
-      message = "lessThan must fail when specified value is greater than or equal supplied value"
-    ),
-    testSuccess(
-      assert(42, lessThanEqualTo(42)),
-      message = "lessThanEqualTo must succeed when specified value is less than or equal supplied value"
-    ),
-    testSuccess(
       assert(0, not(equalTo(42))),
       message = "not must succeed when negation of specified predicate is true"
     ),
     testFailure(
       assert(42, nothing),
       message = "nothing must always fail"
-    ),
-    testSuccess(
-      assert(Right(42), isRight(equalTo(42))),
-      message = "isRight must succeed when supplied value is Right and satisfy specified predicate"
     ),
     testSuccess(
       assert(Exit.succeed("Some Error"), succeeds(equalTo("Some Error"))),

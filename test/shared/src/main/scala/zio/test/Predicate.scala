@@ -148,26 +148,6 @@ object Predicate {
     }
 
   /**
-   * Makes a new predicate that requires the numeric value be greater than
-   * the specified reference value.
-   */
-  final def greaterThan[A: Numeric](reference: A): Predicate[A] =
-    Predicate.predicate(s"greaterThan(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) > 0) Assertion.success
-      else Assertion.failure(())
-    }
-
-  /**
-   * Makes a new predicate that requires the numeric value be greater than
-   * or equal to the specified reference value.
-   */
-  final def greaterThanEqualTo[A: Numeric](reference: A): Predicate[A] =
-    Predicate.predicate(s"greaterThanEqualTo(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) >= 0) Assertion.success
-      else Assertion.failure(())
-    }
-
-  /**
    * Makes a new predicate that focuses in on a field in a case class.
    *
    * {{{
@@ -213,6 +193,26 @@ object Predicate {
   }
 
   /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
+   */
+  final def isGreaterThan[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"isGreaterThan(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) > 0) Assertion.success
+      else Assertion.failure(())
+    }
+
+  /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * or equal to the specified reference value.
+   */
+  final def isGreaterThanEqualTo[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"isGreaterThanEqualTo(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) >= 0) Assertion.success
+      else Assertion.failure(())
+    }
+
+  /**
    * Makes a new predicate that requires a Left value satisfying a specified
    * predicate.
    */
@@ -222,6 +222,26 @@ object Predicate {
         case Left(a)  => predicate.run(a)
         case Right(_) => Assertion.failure(PredicateValue(self, actual))
       }
+    }
+
+  /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
+   */
+  final def isLessThan[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"isLessThan(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) < 0) Assertion.success
+      else Assertion.failure(())
+    }
+
+  /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
+   */
+  final def isLessThanEqualTo[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"isLessThanEqualTo(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) <= 0) Assertion.success
+      else Assertion.failure(())
     }
 
   /**
@@ -295,26 +315,6 @@ object Predicate {
       if (implicitly[Numeric[A]].compare(actual, min) < 0) Assertion.failure(())
       else if (implicitly[Numeric[A]].compare(actual, max) > 0) Assertion.failure(())
       else Assertion.success
-    }
-
-  /**
-   * Makes a new predicate that requires the numeric value be greater than
-   * the specified reference value.
-   */
-  final def lessThan[A: Numeric](reference: A): Predicate[A] =
-    Predicate.predicate(s"lessThan(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) < 0) Assertion.success
-      else Assertion.failure(())
-    }
-
-  /**
-   * Makes a new predicate that requires the numeric value be greater than
-   * the specified reference value.
-   */
-  final def lessThanEqualTo[A: Numeric](reference: A): Predicate[A] =
-    Predicate.predicate(s"lessThanEqualTo(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) <= 0) Assertion.success
-      else Assertion.failure(())
     }
 
   /**
