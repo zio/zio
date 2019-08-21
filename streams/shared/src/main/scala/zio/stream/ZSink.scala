@@ -177,26 +177,24 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
         self
           .step(state._3, a)
-          .foldM(
-            e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
-            step =>
-              if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
-              else {
-                val s  = Step.state(step)
-                val as = Step.leftover(step)
+          .flatMap { step =>
+            if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
+            else {
+              val s  = Step.state(step)
+              val as = Step.leftover(step)
 
-                self.extract(s).flatMap { b =>
-                  self.initial.flatMap { init =>
-                    self
-                      .stepChunk(Step.state(init), as.map(ev))
-                      .fold(
-                        e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
-                        s => Step.leftMap(s)((state._1, f(state._2, b), _))
-                      )
-                  }
+              self.extract(s).flatMap { b =>
+                self.initial.flatMap { init =>
+                  self
+                    .stepChunk(Step.state(init), as.map(ev))
+                    .fold(
+                      e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
+                      s => Step.leftMap(s)((state._1, f(state._2, b), _))
+                    )
                 }
               }
-          )
+            }
+          }
 
       def extract(state: State): IO[E, S] =
         IO.succeed(state._2)
@@ -408,6 +406,22 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def filterNotM[E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R, E1, A0, A1, B] =
     filterM(a => f(a).map(!_))
+
+  final def keyed[A1 <: A, K](f: A1 => K): ZSink[R, E, (K, A0), A1, Map[K, B]] =
+    new ZSink[R, E, (K, A0), A1, Map[K, B]] {
+      type State = Map[K, self.State]
+
+      val initial: ZIO[R, E, Step[State, Nothing]] =
+        self.initial.map(Step.leftMap(_)(default => Map[K, self.State]().withDefaultValue(default)))
+
+      def step(state: State, a: A1): ZIO[R, E, Step[State, (K, A0)]] = {
+        val k = f(a)
+        self.step(state(k), a).map(Step.bimap(_)(s1 => state + (k -> s1), b => (k, b)))
+      }
+
+      def extract(state: State): ZIO[R, E, Map[K, B]] =
+        ZIO.foreach(state.toList)(s => self.extract(s._2).map((s._1 -> _))).map(_.toMap)
+    }
 
   /**
    * Maps the value produced by this sink.
@@ -774,6 +788,30 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
+   * Times the invocation of the sink
+   */
+  final def timed: ZSink[R with Clock, E, A0, A, (Duration, B)] =
+    new ZSink[R with Clock, E, A0, A, (Duration, B)] {
+      type State = (Long, Long, self.State)
+      val initial = for {
+        step <- self.initial
+        t    <- zio.clock.nanoTime
+      } yield Step.leftMap(step)((t, 0L, _))
+
+      def step(state: State, a: A): ZIO[R with Clock, E, Step[State, A0]] = state match {
+        case (t, total, st) =>
+          for {
+            step <- self
+                     .step(st, a)
+            now <- zio.clock.nanoTime
+            t1  = now - t
+          } yield Step.leftMap(step)((now, total + t1, _))
+      }
+
+      def extract(s: State) = self.extract(s._3).map((Duration.fromNanos(s._2), _))
+    }
+
+  /**
    * Produces a sink consuming all the elements of type `A` as long as
    * they verify the predicate `pred`.
    */
@@ -1091,12 +1129,12 @@ object ZSink extends ZSinkPlatformSpecific {
   /**
    * Creates a sink by folding over a structure of type `S`.
    */
-  final def foldLeft[A0, A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, A0, A, S] =
-    new SinkPure[Nothing, A0, A, S] {
+  final def foldLeft[A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, Nothing, A, S] =
+    new SinkPure[Nothing, Nothing, A, S] {
       type State = S
-      val initialPure                           = Step.more(z)
-      def stepPure(s: S, a: A): Step[S, A0]     = Step.more(f(s, a))
-      def extractPure(s: S): Either[Nothing, S] = Right(s)
+      val initialPure                            = Step.more(z)
+      def stepPure(s: S, a: A): Step[S, Nothing] = Step.more(f(s, a))
+      def extractPure(s: S): Either[Nothing, S]  = Right(s)
     }
 
   /**
@@ -1296,15 +1334,19 @@ object ZSink extends ZSinkPlatformSpecific {
     }
 
   /**
-   * Creates a single-value sink from a lazily-evaluated value.
+   * Creates a single-value sink from a value.
    */
-  final def succeedLazy[B](b: => B): ZSink[Any, Nothing, Nothing, Any, B] =
+  final def succeed[B](b: B): ZSink[Any, Nothing, Nothing, Any, B] =
     new SinkPure[Nothing, Nothing, Any, B] {
       type State = Unit
       val initialPure                                          = Step.done((), Chunk.empty)
       def stepPure(state: State, a: Any): Step[State, Nothing] = Step.done(state, Chunk.empty)
       def extractPure(state: State): Either[Nothing, B]        = Right(b)
     }
+
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[B](b: => B): ZSink[Any, Nothing, Nothing, Any, B] =
+    succeed(b)
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters

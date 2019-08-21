@@ -139,7 +139,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
     var i                            = 0
     val strategy: Schedule[Any, Int] = Schedule.recurs(10)
     val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
-      if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
+      if (i < 5) IO.fail("KeepTryingError") else IO.succeed(i)
     }
     io.retry(strategy) must_=== 5
   }

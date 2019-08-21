@@ -216,8 +216,8 @@ object Predicate {
    * Makes a new predicate that requires a Left value satisfying a specified
    * predicate.
    */
-  final def isLeft[A](predicate: Predicate[A]): Predicate[Either[A, Nothing]] =
-    Predicate.predicateRec[Either[A, Nothing]](s"isLeft(${predicate})") { (self, actual) =>
+  final def isLeft[A](predicate: Predicate[A]): Predicate[Either[A, Any]] =
+    Predicate.predicateRec[Either[A, Any]](s"isLeft(${predicate})") { (self, actual) =>
       actual match {
         case Left(a)  => predicate.run(a)
         case Right(_) => Assertion.failure(PredicateValue(self, actual))
@@ -259,8 +259,8 @@ object Predicate {
    * Makes a new predicate that requires a Right value satisfying a specified
    * predicate.
    */
-  final def isRight[A](predicate: Predicate[A]): Predicate[Either[Nothing, A]] =
-    Predicate.predicateRec[Either[Nothing, A]](s"isRight(${predicate})") { (self, actual) =>
+  final def isRight[A](predicate: Predicate[A]): Predicate[Either[Any, A]] =
+    Predicate.predicateRec[Either[Any, A]](s"isRight(${predicate})") { (self, actual) =>
       actual match {
         case Right(a) => predicate.run(a)
         case Left(_)  => Assertion.failure(PredicateValue(self, actual))
@@ -272,7 +272,7 @@ object Predicate {
    * predicate.
    */
   final def isSome[A](predicate: Predicate[A]): Predicate[Option[A]] =
-    Predicate.predicateRec[Option[A]](s"isSome(${predicate}") { (self, actual) =>
+    Predicate.predicateRec[Option[A]](s"isSome(${predicate})") { (self, actual) =>
       actual match {
         case Some(a) => predicate.run(a)
         case None    => Assertion.failure(PredicateValue(self, actual))
@@ -294,6 +294,17 @@ object Predicate {
   final def isTrue: Predicate[Boolean] = Predicate.predicate(s"isTrue") { actual =>
     if (actual) Assertion.success else Assertion.failure(())
   }
+
+  /**
+   * Makes a new predicate that requires the value be unit.
+   */
+  final def isUnit: Predicate[Any] =
+    Predicate.predicate("isUnit") { actual =>
+      actual match {
+        case () => Assertion.success
+        case _  => Assertion.failure(())
+      }
+    }
 
   /**
    * Returns a new predicate that requires a numeric value to fall within a

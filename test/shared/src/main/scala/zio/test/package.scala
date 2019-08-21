@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
 
 /**
@@ -49,7 +50,15 @@ package object test {
    * A `TestReporter[L]` is capable of reporting test results annotated with
    * labels `L`.
    */
-  type TestReporter[-L] = ExecutedSpec[L] => UIO[Unit]
+  type TestReporter[-L] = (Duration, ExecutedSpec[L]) => URIO[TestLogger, Unit]
+
+  object TestReporter {
+
+    /**
+     * TestReporter that does nothing
+     */
+    def silent[L]: TestReporter[L] = (_, _) => ZIO.unit
+  }
 
   /**
    * A `TestExecutor[L, T]` is capable of executing specs containing tests of
@@ -130,7 +139,7 @@ package object test {
    * Builds a spec with a single pure test.
    */
   final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
-    testM(label)(ZIO.succeedLazy(assertion))
+    testM(label)(ZIO.succeed(assertion))
 
   /**
    * Builds a spec with a single effectful test.
@@ -150,32 +159,24 @@ package object test {
       aspect(spec)
   }
 
-  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], shrinkSearch: Int = 1000)(
+  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
     predicate: Predicate[A]
   ): ZIO[R, Nothing, TestResult] = {
     def checkValue(value: A): TestResult =
       predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
 
-    stream.map { sample: Sample[R, A] =>
-      (checkValue(sample.value), sample.shrink)
-    }.dropWhile(v => !v._1.failure) // Drop until we get to a failure
-      .collect {
-        case ((failure @ Assertion.Failure(_), shrink)) => (failure, shrink)
-      }        // Collect the failures and their shrinkers
-      .take(1) // Get the first failure
-      .flatMap {
-        case (failure, shrink) =>
-          ZStream(failure) ++ shrink
-            .map(checkValue)
-            .collect {
-              case failure @ Assertion.Failure(_) => failure
-            }
-            .take(shrinkSearch)
-      }
+    stream
+      .map(_.map(checkValue))
+      .dropWhile(!_.value.failure) // Drop until we get to a failure
+      .take(1)                     // Get the first failure
+      .flatMap(_.shrinkSearch(_.failure).take(maxShrinks))
       .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
       .map { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
         failures.reverse.headOption.fold[TestResult](Assertion.Success)(identity)
       }
   }
+
+  val DefaultTestRunner: TestRunner[String, ZTest[mock.MockEnvironment, Any]] =
+    TestRunner(TestExecutor.managed(zio.test.mock.mockEnvironmentManaged))
 }

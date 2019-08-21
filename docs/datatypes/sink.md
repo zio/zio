@@ -63,11 +63,11 @@ Sink.fail[Exception](new NotImplementedException)
 Basic fold accumulation of received elements:
 
 ```scala mdoc:silent
-Sink.foldLeft[Nothing, Int, Int](0)(_ + _)
+Sink.foldLeft[Int, Int](0)(_ + _)
 ```
 
 Fold where each fold step has to be described in sink `Step` API.
-A `foldLeft` uses `Step.more` in its implementation: 
+A `foldLeft` uses `Step.more` in its implementation:
 
 ```scala mdoc:silent
 Sink.fold[Nothing, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
@@ -87,7 +87,7 @@ Sink
   .fold(init)((acc, e) => ZSink.Step.more(acc + e)))
 ```
 
-`read1` tries to read head element from stream, 
+`read1` tries to read head element from stream,
 fails if isn't present or doesn't satisfy given condition:
 
 ```scala mdoc:silent
@@ -99,7 +99,7 @@ Sink.read1[String, Int] {
 
 ## Transforming sinks
 
-Having created the sink, we can transform it with provided operations. 
+Having created the sink, we can transform it with provided operations.
 One of them already appeared in previous section - `collectAll` in `read1`.
 
 Sink that after collecting input - filters it:

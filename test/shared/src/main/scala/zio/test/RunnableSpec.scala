@@ -16,12 +16,21 @@
 
 package zio.test
 
-import zio.UIO
+import zio.URIO
+import zio.clock.Clock
+import zio.test.reflect.Reflect.EnableReflectiveInstantiation
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-abstract class RunnableSpec[+L, +T](runner: TestRunner[L, T])(spec: => Spec[L, T]) {
+@EnableReflectiveInstantiation
+abstract class AbstractRunnableSpec {
+
+  type Label
+  type Test
+
+  def runner: TestRunner[Label, Test]
+  def spec: Spec[Label, Test]
 
   /**
    * A simple main function that can be used to run the spec.
@@ -33,5 +42,18 @@ abstract class RunnableSpec[+L, +T](runner: TestRunner[L, T])(spec: => Spec[L, T
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final val run: UIO[ExecutedSpec[L]] = runner.run(spec)
+  final def run: URIO[TestLogger with Clock, ExecutedSpec[Label]] = runner.run(spec)
+
+  /**
+   * the platform used by the runner
+   */
+  final def platform = runner.platform
+}
+
+abstract class RunnableSpec[L, T](runner0: TestRunner[L, T])(spec0: => Spec[L, T]) extends AbstractRunnableSpec {
+  override type Label = L
+  override type Test  = T
+
+  override def runner = runner0
+  override def spec   = spec0
 }
