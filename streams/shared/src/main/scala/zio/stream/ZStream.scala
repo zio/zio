@@ -570,7 +570,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     ZStream(UIO.succeed(self), UIO(other)).flatMap(ZStream.unwrap)
 
   /**
-   * More powerful version of `ZStream#toQueues`. Allows to provide a function that determines what
+   * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
    * queues should receive which elements.
    */
   final def distributedWith[E1 >: E, A1 >: A](
@@ -585,11 +585,13 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
-   * More powerful version of `ZStream#toQueuesBalanced`. This returns a function that will produce
+   * More powerful version of `ZStream#distributedWith`. This returns a function that will produce
    * new queues and corresponding indices.
    * You can also provide a function that will be executed after the final events are enqueued in all queues
    * but before the queues are actually shutdown.
    * Shutdown of the queues is handled by the driver.
+   * Downstream users can also shutdown queues manually. In this case the driver will
+   * continue but no longer backpressure on them.
    */
   final def distributedDynamicWith[E1 >: E, A1 >: A](
     maximumLag: Int,
