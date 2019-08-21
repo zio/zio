@@ -95,20 +95,21 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
   final def foldEffect[S](s: S)(cont: S => Boolean)(f: (S, A) => S): Managed[E, S] =
     processEffect.flatMap { it =>
       def fold(): Either[E, S] = {
-        var state = s
-        var done  = false
+        var state            = s
+        var done             = false
+        var error: Option[E] = None
 
-        while (cont(state) && !done) {
+        while (cont(state) && !done && error == None) {
           try {
             val a = it()
             state = f(state, a)
           } catch {
-            case StreamEffect.Failure(e) => Left(e.asInstanceOf[E])
+            case StreamEffect.Failure(e) => error = Some(e.asInstanceOf[E])
             case StreamEffect.End        => done = true
           }
         }
 
-        Right(state)
+        error.fold[Either[E, S]](Right(state))(Left(_))
       }
 
       Managed.fromEither(fold())
