@@ -733,7 +733,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def drain: ZStream[R, E, Nothing] =
     new ZStream[R, E, Nothing] {
-      override def process =
+      def process =
         self.process.map(_.forever)
     }
 
