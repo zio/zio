@@ -44,11 +44,10 @@ import zio.scheduler.Scheduler
  *  import zio.test.mock.MockClock
  *
  *  for {
- *    mockClock <- MockClock.makeMock(MockClock.DefaultData)
- *    fiber <- ZIO.sleep(5.minutes).timeout(1.minute).fork
- *    _ <- mockClock.setTime(1.minute)
+ *    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
+ *    _      <- MockClock.setTime(1.minute)
  *    result <- fiber.join
- *   } yield result == None
+ *  } yield result == None
  * }}}
  *
  * Note how we forked the fiber that `sleep` was invoked on. Calls to `sleep`
@@ -66,6 +65,35 @@ import zio.scheduler.Scheduler
  * and adjusting the time but means it sometimes may be necessary to use
  * `adjustTime` to reset the time between effects you are testing to achieve
  * the desired sequence of effects.
+ *
+ * For example, here is how we can test an effect that recurs with a fixed
+ * delay:
+ *
+ * {{{
+ *  import zio.Queue
+ *  import zio.duration._
+ *  import zio.test.mock.MockClock
+ *
+ *  for {
+ *    mvar <- Queue.bounded[Unit](1)
+ *    _    <- (mvar.offer(()).delay(60.minutes)).forever.fork
+ *    p1   <- mvar.poll.map(_.isEmpty)
+ *    _    <- MockClock.setTime(60.minutes)
+ *    _    <- MockClock.setTime(0.minutes)
+ *    p2   <- mvar.take.as(true)
+ *    p3   <- mvar.poll.map(_.isEmpty)
+ *  } yield p1 && p2 && p3
+ * }}}
+ *
+ * Here we verify that no effect is performed before the recurrence period,
+ * that an effect is performed after the recurrence period, and that the effect
+ * is performed exactly once. The key thing to note here is that we reset the
+ * clock time to 0 after setting it to 60 minutes. This is important because
+ * the delayed effect is scheduled to recur forever as long as the clock time
+ * is on or after 60 minutes. So if we don't reset the time the forked fiber
+ * will attempt to place another value in the queue as soon as we take one and
+ * there is a risk that `p3` will be false if the `offer` effect executes
+ * before the `poll` effect.
  */
 trait MockClock extends Clock with Scheduler {
   val clock: MockClock.Service[Any]

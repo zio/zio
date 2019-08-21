@@ -28,7 +28,9 @@ object ClockSpec extends DefaultRuntime {
     label(e12, "setTime correctly sets currentDateTime"),
     label(e13, "setTime does not produce sleeps "),
     label(e14, "setTimeZone correctly sets timeZone"),
-    label(e15, "setTimeZone does not produce sleeps ")
+    label(e15, "setTimeZone does not produce sleeps "),
+    label(e16, "timeout example from documentation works correctly"),
+    label(e17, "recurrence example from documentation works correctly")
   )
 
   def e1 =
@@ -184,4 +186,28 @@ object ClockSpec extends DefaultRuntime {
         sleeps    <- mockClock.sleeps
       } yield sleeps == Nil
     )
+
+  def e16 =
+    unsafeRunToFuture {
+      val io = for {
+        fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
+        _      <- MockClock.setTime(1.minute)
+        result <- fiber.join
+      } yield result == None
+      MockClock.make(MockClock.DefaultData).flatMap[Any, Nothing, Boolean](io.provide)
+    }
+
+  def e17 =
+    unsafeRunToFuture {
+      val io = for {
+        mvar <- Queue.bounded[Unit](1)
+        _    <- (mvar.offer(()).delay(60.minutes)).forever.fork
+        p1   <- mvar.poll.map(_.isEmpty)
+        _    <- MockClock.setTime(60.minutes)
+        _    <- MockClock.setTime(0.minutes)
+        p2   <- mvar.take.as(true)
+        p3   <- mvar.poll.map(_.isEmpty)
+      } yield p1 && p2 && p3
+      MockClock.make(MockClock.DefaultData).flatMap[Any, Nothing, Boolean](io.provide)
+    }
 }
