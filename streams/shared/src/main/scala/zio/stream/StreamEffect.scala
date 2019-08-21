@@ -94,7 +94,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   final def foldEffect[S](s: S)(cont: S => Boolean)(f: (S, A) => S): Managed[E, S] =
     processEffect.flatMap { it =>
-      Managed.effectTotal {
+      def fold(): Either[E, S] = {
         var state = s
         var done  = false
 
@@ -103,12 +103,15 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
             val a = it()
             state = f(state, a)
           } catch {
-            case StreamEffect.End => done = true
+            case StreamEffect.Failure(e) => Left(e.asInstanceOf[E])
+            case StreamEffect.End        => done = true
           }
         }
 
-        state
+        Right(state)
       }
+
+      Managed.fromEither(fold())
     }
 
   override def map[B](f0: A => B): StreamEffect[E, B] =
@@ -216,7 +219,9 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 private[stream] object StreamEffect extends Serializable {
   import ZStream.InputStream
 
-  object End extends Throwable("stream end", null, true, false)
+  case class Failure[E](e: E) extends Throwable(e.toString, null, true, false)
+
+  case object End extends Throwable("stream end", null, true, false)
 
   final val empty: StreamEffect[Nothing, Nothing] =
     new StreamEffect[Nothing, Nothing] {
