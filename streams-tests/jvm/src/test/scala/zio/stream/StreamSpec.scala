@@ -465,7 +465,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     }
 
   private def broadcastUnsubscribe =
-    unsafeRun {
+    flaky {
       Stream.range(0, 5).broadcast(2, 2).use {
         case s1 :: s2 :: Nil =>
           for {
