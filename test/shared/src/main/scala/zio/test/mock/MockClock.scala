@@ -27,7 +27,7 @@ import zio.internal.Scheduler.CancelToken
 import zio.scheduler.Scheduler
 
 /**
- * `MockClock` makes it easy to deterministially and efficiently test effects
+ * `MockClock` makes it easy to deterministically and efficiently test effects
  * involving the passage of time.
  *
  * Instead of waiting for actual time to pass, `sleep` and methods implemented
