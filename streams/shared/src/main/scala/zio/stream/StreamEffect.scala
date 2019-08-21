@@ -216,9 +216,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 private[stream] object StreamEffect extends Serializable {
   import ZStream.InputStream
 
-  object End extends Exception("") {
-    override def fillInStackTrace() = this
-  }
+  object End extends Throwable("stream end", null, true, false)
 
   final val empty: StreamEffect[Nothing, Nothing] =
     new StreamEffect[Nothing, Nothing] {
