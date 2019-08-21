@@ -1930,7 +1930,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * The empty stream
    */
   final val empty: Stream[Nothing, Nothing] =
-    StreamPure.empty
+    StreamEffect.empty
 
   /**
    * The stream that never produces any value or fails with any error.
@@ -2170,7 +2170,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an iterable collection of values
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
-    StreamPure.fromIterable(as)
+    StreamEffect.fromIterable(as)
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
@@ -2244,7 +2244,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a single-valued pure stream
    */
   final def succeed[A](a: A): Stream[Nothing, A] =
-    StreamPure.succeed(a)
+    StreamEffect.succeed(a)
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =
