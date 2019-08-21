@@ -16,7 +16,7 @@
 
 package zio.syntax
 
-import zio.{ Fiber, IO, Task, UIO }
+import zio.{ Fiber, IO, Task, UIO, ZIO }
 
 object IOSyntax {
   final class IOCreationLazySyntax[A](val a: () => A) extends AnyVal {
@@ -39,12 +39,12 @@ object IOSyntax {
     def collectAll: IO[E, List[A]]                     = IO.collectAll(ios)
   }
 
-  final class IOTuple2[E, A, B](val ios2: (IO[E, A], IO[E, B])) extends AnyVal {
-    def map2[C](f: (A, B) => C): IO[E, C] = ios2._1.flatMap(a => ios2._2.map(f(a, _)))
+  final class IOTuple2[R, E, A, B](val ios2: (ZIO[R, E, A], ZIO[R, E, B])) extends AnyVal {
+    def map2[C](f: (A, B) => C): ZIO[R, E, C] = ios2._1.flatMap(a => ios2._2.map(f(a, _)))
   }
 
-  final class IOTuple3[E, A, B, C](val ios3: (IO[E, A], IO[E, B], IO[E, C])) extends AnyVal {
-    def map3[D](f: (A, B, C) => D): IO[E, D] =
+  final class IOTuple3[R, E, A, B, C](val ios3: (ZIO[R, E, A], ZIO[R, E, B], ZIO[R, E, C])) extends AnyVal {
+    def map3[D](f: (A, B, C) => D): ZIO[R, E, D] =
       for {
         a <- ios3._1
         b <- ios3._2
@@ -52,8 +52,10 @@ object IOSyntax {
       } yield f(a, b, c)
   }
 
-  final class IOTuple4[E, A, B, C, D](val ios4: (IO[E, A], IO[E, B], IO[E, C], IO[E, D])) extends AnyVal {
-    def map4[F](f: (A, B, C, D) => F): IO[E, F] =
+  final class IOTuple4[R, E, A, B, C, D](
+    val ios4: (ZIO[R, E, A], ZIO[R, E, B], ZIO[R, E, C], ZIO[R, E, D])
+  ) extends AnyVal {
+    def map4[F](f: (A, B, C, D) => F): ZIO[R, E, F] =
       for {
         a <- ios4._1
         b <- ios4._2
