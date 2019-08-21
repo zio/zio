@@ -317,7 +317,6 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       _     <- MockClock.adjust(59.minutes)
       b     <- cache
       _     <- MockClock.adjust(1.minute)
-      _     <- MockClock.setTime(0.minutes)
       c     <- cache
       _     <- MockClock.adjust(59.minutes)
       d     <- cache
