@@ -67,7 +67,7 @@ object ZTestFrameworkSpec {
           List(
             s"info: ${red("- some suite")}",
             s"info:   ${red("- failing test")}",
-            s"info:     ${blue("1")} did not satisfy ${cyan("equals(2)")}",
+            s"info:     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
             s"info:   ${green("+")} passing test",
             s"info: ${cyan("Ran 3 tests in 0 seconds: 1 succeeded, 1 ignored, 1 failed")}"
           )
@@ -90,13 +90,13 @@ object ZTestFrameworkSpec {
       extends DefaultRunnableSpec(
         zio.test.suite("some suite")(
           zio.test.test("failing test") {
-            zio.test.assert(1, Predicate.equals(2))
+            zio.test.assert(1, Predicate.equalTo(2))
           },
           zio.test.test("passing test") {
-            zio.test.assert(1, Predicate.equals(1))
+            zio.test.assert(1, Predicate.equalTo(1))
           },
           zio.test.test("ignored test") {
-            zio.test.assert(1, Predicate.equals(2))
+            zio.test.assert(1, Predicate.equalTo(2))
           } @@ TestAspect.ignore
         )
       )
