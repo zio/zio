@@ -18,6 +18,8 @@ package zio
 
 import java.util.concurrent.atomic.AtomicReference
 
+import zio.effect.Effect
+
 /**
  * A mutable atomic reference for the `IO` monad. This is the `IO` equivalent of
  * a volatile `var`, augmented with atomic operations, which make it useful as a
@@ -38,7 +40,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    *
    * @return `UIO[A]` value from the `Ref`
    */
-  final def get: UIO[A] = IO.effectTotal(value.get)
+  final def get: UIO[A] = Effect.Live.effect.total(value.get)
 
   /**
    * Atomically modifies the `Ref` with the specified function, which computes
@@ -49,7 +51,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * @tparam B type of the value of the `Ref` to be modified
    * @return `UIO[B]` modified value the `Ref`
    */
-  final def modify[B](f: A => (B, A)): UIO[B] = IO.effectTotal {
+  final def modify[B](f: A => (B, A)): UIO[B] = Effect.Live.effect.total {
     var loop = true
     var b: B = null.asInstanceOf[B]
 
@@ -77,7 +79,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * @tparam B type of the value of the `Ref` to be modified
    * @return `UIO[B]` modified value of the `Ref`
    */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = IO.effectTotal {
+  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = Effect.Live.effect.total {
     var loop = true
     var b: B = null.asInstanceOf[B]
 
@@ -101,7 +103,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * @param a value to be written to the `Ref`
    * @return `UIO[Unit]`
    */
-  final def set(a: A): UIO[Unit] = IO.effectTotal(value.set(a))
+  final def set(a: A): UIO[Unit] = Effect.Live.effect.total(value.set(a))
 
   /**
    * Writes a new value to the `Ref` without providing a guarantee of
@@ -110,7 +112,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * @param a value to be written to the `Ref`
    * @return `UIO[Unit]`
    */
-  final def setAsync(a: A): UIO[Unit] = IO.effectTotal(value.lazySet(a))
+  final def setAsync(a: A): UIO[Unit] = Effect.Live.effect.total(value.lazySet(a))
 
   /**
    * Atomically modifies the `Ref` with the specified function. This is not
@@ -119,7 +121,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * @param f function to atomically modify the `Ref`
    * @return `UIO[A]` modified value of the `Ref`
    */
-  final def update(f: A => A): UIO[A] = IO.effectTotal {
+  final def update(f: A => A): UIO[A] = Effect.Live.effect.total {
     var loop    = true
     var next: A = null.asInstanceOf[A]
 
@@ -141,7 +143,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * @param pf partial function to atomically modify the `Ref`
    * @return `UIO[A]` modified value of the `Ref`
    */
-  final def updateSome(pf: PartialFunction[A, A]): UIO[A] = IO.effectTotal {
+  final def updateSome(pf: PartialFunction[A, A]): UIO[A] = Effect.Live.effect.total {
     var loop    = true
     var next: A = null.asInstanceOf[A]
 
@@ -166,5 +168,5 @@ object Ref extends Serializable {
    * @tparam A type of the value
    * @return `UIO[Ref[A]]`
    */
-  final def make[A](a: A): UIO[Ref[A]] = IO.effectTotal(new Ref[A](new AtomicReference(a)))
+  final def make[A](a: A): UIO[Ref[A]] = Effect.Live.effect.total(new Ref[A](new AtomicReference(a)))
 }

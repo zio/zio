@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.effect.Effect
+
 trait ManagedApp extends DefaultRuntime { ma =>
 
   /**
@@ -26,7 +28,7 @@ trait ManagedApp extends DefaultRuntime { ma =>
 
   private val app = new App {
     override def run(args: List[String]): ZIO[Environment, Nothing, Int] =
-      ma.run(args).use(exit => ZIO.effectTotal(exit))
+      ma.run(args).use(exit => Effect.Live.effect.total(exit))
   }
 
   final def main(args: Array[String]): Unit = app.main(args)

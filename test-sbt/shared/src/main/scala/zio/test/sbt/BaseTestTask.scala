@@ -2,6 +2,7 @@ package zio.test.sbt
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.clock.Clock
+import zio.effect.Effect
 import zio.test.{ AbstractRunnableSpec, TestLogger }
 import zio.{ Runtime, ZIO }
 
@@ -20,7 +21,7 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
     for {
       res    <- spec.run.provide(new SbtTestLogger(loggers) with Clock.Live)
       events = ZTestEvent.from(res, taskDef.fullyQualifiedName, taskDef.fingerprint)
-      _      <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
+      _      <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => Effect.Live.effect(eventHandler.handle(e)))
     } yield ()
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
@@ -33,7 +34,7 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
 
 class SbtTestLogger(loggers: Array[Logger]) extends TestLogger {
   override def testLogger: TestLogger.Service = (line: String) => {
-    ZIO
+    Effect.Live
       .effect(loggers.foreach(_.info(line)))
       .catchAll(_ => ZIO.unit)
   }

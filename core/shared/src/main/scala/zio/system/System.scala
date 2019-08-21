@@ -16,6 +16,7 @@
 
 package zio.system
 
+import zio.effect.Effect
 import zio.{ UIO, ZIO }
 
 trait System extends Serializable {
@@ -34,12 +35,12 @@ object System extends Serializable {
       import java.lang.{ System => JSystem }
 
       def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
-        ZIO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
+        Effect.Live.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
       def property(prop: String): ZIO[Any, Throwable, Option[String]] =
-        ZIO.effect(Option(JSystem.getProperty(prop)))
+        Effect.Live.effect(Option(JSystem.getProperty(prop)))
 
-      val lineSeparator: UIO[String] = ZIO.effectTotal(JSystem.lineSeparator)
+      val lineSeparator: UIO[String] = Effect.Live.effect.total(JSystem.lineSeparator)
     }
   }
   object Live extends Live

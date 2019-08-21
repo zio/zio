@@ -18,6 +18,7 @@ package zio.blocking
 
 import java.util.concurrent._
 
+import zio.effect.Effect
 import zio.internal.tracing.ZIOFn
 import zio.internal.{ Executor, NamedThreadFactory, PlatformLive }
 import zio.{ IO, UIO, ZIO }
@@ -87,7 +88,7 @@ object Blocking extends Serializable {
     def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
       // Reference user's lambda for the tracer
       ZIOFn.recordTrace(() => effect) {
-        ZIO.flatten(ZIO.effectTotal {
+        ZIO.flatten(Effect.Live.effect.total {
           import java.util.concurrent.atomic.AtomicReference
           import java.util.concurrent.locks.ReentrantLock
 
@@ -103,7 +104,7 @@ object Blocking extends Serializable {
             } finally lock.unlock()
 
           val interruptThread: UIO[Unit] =
-            ZIO.effectTotal {
+            Effect.Live.effect.total {
               var looping = true
               var n       = 0L
               val base    = 2L
@@ -120,11 +121,11 @@ object Blocking extends Serializable {
               }
             }
 
-          val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
+          val awaitInterruption: UIO[Unit] = Effect.Live.effect.total(barrier.get())
 
           for {
             a <- (for {
-                  fiber <- blocking(ZIO.effectTotal[IO[Throwable, A]] {
+                  fiber <- blocking(Effect.Live.effect.total[IO[Throwable, A]] {
                             val current = Some(Thread.currentThread)
 
                             withMutex(thread.set(current))
@@ -155,7 +156,7 @@ object Blocking extends Serializable {
      * will be interrupted via the cancel effect.
      */
     def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[R, Throwable, A] =
-      blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
+      blocking(Effect.Live.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
   }
 
   trait Live extends Blocking {

@@ -16,6 +16,7 @@
 
 package zio.random
 
+import zio.effect.Effect
 import zio.{ Chunk, Ref, UIO, ZIO }
 
 trait Random extends Serializable {
@@ -40,24 +41,24 @@ object Random extends Serializable {
     val random: Service[Any] = new Service[Any] {
       import scala.util.{ Random => SRandom }
 
-      val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
+      val nextBoolean: UIO[Boolean] = Effect.Live.effect.total(SRandom.nextBoolean())
       def nextBytes(length: Int): UIO[Chunk[Byte]] =
-        ZIO.effectTotal {
+        Effect.Live.effect.total {
           val array = Array.ofDim[Byte](length)
 
           SRandom.nextBytes(array)
 
           Chunk.fromArray(array)
         }
-      val nextDouble: UIO[Double]                 = ZIO.effectTotal(SRandom.nextDouble())
-      val nextFloat: UIO[Float]                   = ZIO.effectTotal(SRandom.nextFloat())
-      val nextGaussian: UIO[Double]               = ZIO.effectTotal(SRandom.nextGaussian())
-      def nextInt(n: Int): UIO[Int]               = ZIO.effectTotal(SRandom.nextInt(n))
-      val nextInt: UIO[Int]                       = ZIO.effectTotal(SRandom.nextInt())
-      val nextLong: UIO[Long]                     = ZIO.effectTotal(SRandom.nextLong())
+      val nextDouble: UIO[Double]                 = Effect.Live.effect.total(SRandom.nextDouble())
+      val nextFloat: UIO[Float]                   = Effect.Live.effect.total(SRandom.nextFloat())
+      val nextGaussian: UIO[Double]               = Effect.Live.effect.total(SRandom.nextGaussian())
+      def nextInt(n: Int): UIO[Int]               = Effect.Live.effect.total(SRandom.nextInt(n))
+      val nextInt: UIO[Int]                       = Effect.Live.effect.total(SRandom.nextInt())
+      val nextLong: UIO[Long]                     = Effect.Live.effect.total(SRandom.nextLong())
       def nextLong(n: Long): UIO[Long]            = Random.nextLongWith(nextLong, n)
-      val nextPrintableChar: UIO[Char]            = ZIO.effectTotal(SRandom.nextPrintableChar())
-      def nextString(length: Int): UIO[String]    = ZIO.effectTotal(SRandom.nextString(length))
+      val nextPrintableChar: UIO[Char]            = Effect.Live.effect.total(SRandom.nextPrintableChar())
+      def nextString(length: Int): UIO[String]    = Effect.Live.effect.total(SRandom.nextString(length))
       def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
     }
   }

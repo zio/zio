@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
+import zio.effect.Effect
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
 import zio.scheduler.Scheduler
@@ -191,7 +192,7 @@ object MockClock {
                   runtime.unsafeRun {
                     for {
                       latch <- Promise.make[Nothing, Unit]
-                      _     <- latch.await.flatMap(_ => ZIO.effect(task.run())).fork
+                      _     <- latch.await.flatMap(_ => Effect.Live.effect(task.run())).fork
                       _ <- clockState.update { data =>
                             data.copy(
                               sleeps =

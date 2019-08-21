@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
+import zio.effect.Effect
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -34,9 +35,9 @@ class IODeepLeftBindBenchmark {
 
   def zioDeepLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     var i  = 0
-    var io = IO.effectTotal(i)
+    var io = Effect.Live.effect.total(i)
     while (i < depth) {
-      io = io.flatMap(i => IO.effectTotal(i))
+      io = io.flatMap(i => Effect.Live.effect.total(i))
       i += 1
     }
 

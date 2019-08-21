@@ -5,8 +5,8 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 
 import scala.collection.immutable.Range
-
 import IOBenchmarks.unsafeRun
+import zio.effect.Effect
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -27,9 +27,9 @@ class BubbleSortBenchmarks {
 
     unsafeRun(
       for {
-        array <- IO.effectTotal[Array[Int]](createTestArray)
+        array <- Effect.Live.effect.total[Array[Int]](createTestArray)
         _     <- bubbleSort[Int](_ <= _)(array)
-        _     <- IO.effectTotal[Unit](assertSorted(array))
+        _     <- Effect.Live.effect.total[Unit](assertSorted(array))
       } yield ()
     )
   }

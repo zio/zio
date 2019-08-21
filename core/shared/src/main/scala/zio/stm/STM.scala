@@ -23,6 +23,7 @@ import zio.internal.{ Platform, Sync }
 import java.util.{ HashMap => MutableMap }
 
 import com.github.ghik.silencer.silent
+import zio.effect.Effect
 
 import scala.util.{ Failure, Success, Try }
 import scala.annotation.tailrec
@@ -676,14 +677,14 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-    IO.effectSuspendTotalWith { platform =>
+    Effect.Live.effect.suspendTotalWith { platform =>
       tryCommit(platform, stm) match {
         case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
         case TryCommit.Suspend(journal) =>
           val txnId     = makeTxnId()
           val done      = new AtomicBoolean(false)
           val interrupt = UIO(Sync(done) { done.set(true) })
-          val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, stm, txnId, done))
+          val async     = Effect.Live.effect.async[E, A](tryCommitAsync(journal, platform, stm, txnId, done))
 
           async ensuring interrupt
       }

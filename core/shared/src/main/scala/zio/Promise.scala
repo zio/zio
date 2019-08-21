@@ -17,7 +17,9 @@
 package zio
 
 import java.util.concurrent.atomic.AtomicReference
+
 import Promise.internal._
+import zio.effect.Effect
 
 /**
  * A promise represents an asynchronous variable that can be set exactly once,
@@ -42,7 +44,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * until the result is available.
    */
   final def await: IO[E, A] =
-    IO.effectAsyncInterrupt[E, A](k => {
+    Effect.Live.effect.asyncInterrupt[E, A](k => {
       var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
       var retry  = true
 
@@ -89,7 +91,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * has already been completed, the method will produce false.
    */
   final def complete(io: IO[E, A]): UIO[Boolean] =
-    IO.effectTotal {
+    Effect.Live.effect.total {
       var action: () => Boolean = null.asInstanceOf[() => Boolean]
       var retry                 = true
 
@@ -137,7 +139,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * already been completed with a value or an error and false otherwise.
    */
   final def isDone: UIO[Boolean] =
-    IO.effectTotal(state.get() match {
+    Effect.Live.effect.total(state.get() match {
       case Done(_)    => true
       case Pending(_) => false
     })
@@ -146,7 +148,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Completes immediately this promise and returns optionally it's result.
    */
   final def poll: UIO[Option[IO[E, A]]] =
-    IO.effectTotal(state.get).flatMap {
+    Effect.Live.effect.total(state.get).flatMap {
       case Pending(_) => IO.succeed(None)
       case Done(io)   => IO.succeed(Some(io))
     }
@@ -156,7 +158,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def succeed(a: A): UIO[Boolean] = complete(IO.succeed(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
+  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = Effect.Live.effect.total {
     var retry = true
 
     while (retry) {
@@ -236,5 +238,5 @@ object Promise {
   /**
    * Makes a new promise.
    */
-  final def make[E, A]: UIO[Promise[E, A]] = IO.effectTotal[Promise[E, A]](unsafeMake[E, A])
+  final def make[E, A]: UIO[Promise[E, A]] = Effect.Live.effect.total[Promise[E, A]](unsafeMake[E, A])
 }

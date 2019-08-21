@@ -23,6 +23,7 @@ import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
 import zio.{ Cause, _ }
+import zio.effect.Effect
 
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
@@ -153,7 +154,7 @@ private[zio] final class FiberContext[E, A](
 
         ZIO.succeed(v)
       } else {
-        ZIO.effectTotal { interruptStatus.popDrop(v) }
+        Effect.Live.effect.total { interruptStatus.popDrop(v) }
       }
     }
   }
@@ -466,11 +467,11 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Provide =>
                   val zio = curZio.asInstanceOf[ZIO.Provide[Any, E, Any]]
 
-                  val push = ZIO.effectTotal(
+                  val push = Effect.Live.effect.total(
                     environments
                       .push(zio.r.asInstanceOf[AnyRef])
                   )
-                  val pop = ZIO.effectTotal(
+                  val pop = Effect.Live.effect.total(
                     environments
                       .pop()
                   )
@@ -539,10 +540,10 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] final def lock(executor: Executor): UIO[Unit] =
-    ZIO.effectTotal { executors.push(executor) } *> ZIO.yieldNow
+    Effect.Live.effect.total { executors.push(executor) } *> ZIO.yieldNow
 
   private[this] final def unlock: UIO[Unit] =
-    ZIO.effectTotal { executors.pop() } *> ZIO.yieldNow
+    Effect.Live.effect.total { executors.pop() } *> ZIO.yieldNow
 
   private[this] final def getDescriptor: Fiber.Descriptor =
     Fiber.Descriptor(
@@ -610,17 +611,17 @@ private[zio] final class FiberContext[E, A](
     zio => if (a.getAndSet(false) && exitAsync()) evaluateLater(zio)
   }
 
-  final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
+  final def interrupt: UIO[Exit[E, A]] = Effect.Live.effect.asyncMaybe[Nothing, Exit[E, A]] { k =>
     kill0(x => k(ZIO.done(x)))
   }
 
-  final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
+  final def await: UIO[Exit[E, A]] = Effect.Live.effect.asyncMaybe[Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
   }
 
-  final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
+  final def poll: UIO[Option[Exit[E, A]]] = Effect.Live.effect.total(poll0)
 
-  final def inheritFiberRefs: UIO[Unit] = UIO.effectSuspendTotal {
+  final def inheritFiberRefs: UIO[Unit] = Effect.Live.effect.suspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
@@ -633,7 +634,7 @@ private[zio] final class FiberContext[E, A](
   private[this] final def newWeakSet[A]: Set[A] =
     Collections.newSetFromMap[A](platform.newWeakHashMap[A, java.lang.Boolean]())
 
-  private[this] final def changeSupervision(status: zio.SuperviseStatus): IO[E, Unit] = ZIO.effectTotal {
+  private[this] final def changeSupervision(status: zio.SuperviseStatus): IO[E, Unit] = Effect.Live.effect.total {
     status match {
       case zio.SuperviseStatus.Supervised =>
         val set = newWeakSet[Fiber[_, _]]
@@ -684,7 +685,7 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def exitSupervision: UIO[_] = ZIO.effectTotal(supervised.pop())
+  private[this] final def exitSupervision: UIO[_] = Effect.Live.effect.total(supervised.pop())
 
   @inline
   private[this] final def interruptible: Boolean = interruptStatus.peekOrElse(true)

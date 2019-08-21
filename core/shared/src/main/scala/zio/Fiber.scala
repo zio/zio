@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.effect.Effect
 import zio.internal.Executor
 
 import scala.concurrent.Future
@@ -266,13 +267,13 @@ trait Fiber[+E, +A] { self =>
    * @return `UIO[Future[A]]`
    */
   final def toFutureWith(f: E => Throwable): UIO[Future[A]] =
-    UIO.effectTotal {
+    Effect.Live.effect.total {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
 
-      UIO.effectTotal(p.future) <* self.await
+      Effect.Live.effect.total(p.future) <* self.await
         .flatMap[Any, Nothing, p.type](_.foldM[Any, Nothing, p.type](failure, success))
         .fork
 
@@ -411,7 +412,7 @@ object Fiber {
 
       def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
-      def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
+      def poll: UIO[Option[Exit[Throwable, A]]] = Effect.Live.effect.total(ftr.value.map(Exit.fromTry))
 
       def interrupt: UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 

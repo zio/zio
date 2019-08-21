@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
+import zio.effect.Effect
 
 import scala.concurrent.Await
 
@@ -130,7 +131,7 @@ class IOShallowAttemptBenchmark {
   def scalazShallowAttempt(): BigInt = {
     def throwup(n: Int): IO[ScalazError, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
-      else if (n == depth) IO.effectTotal(1)
+      else if (n == depth) Effect.Live.effect.total(1)
       else throwup(n + 1).foldM[Any, ScalazError, BigInt](_ => IO.succeed(0), _ => IO.fail(ScalazError("Oh noes!")))
 
     unsafeRun(throwup(0))
@@ -140,7 +141,7 @@ class IOShallowAttemptBenchmark {
   def scalazShallowAttemptBaseline(): BigInt = {
     def throwup(n: Int): IO[Error, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
-      else if (n == depth) IO.effectTotal(1)
+      else if (n == depth) Effect.Live.effect.total(1)
       else throwup(n + 1).foldM[Any, Error, BigInt](_ => IO.succeed(0), _ => IO.fail(new Error("Oh noes!")))
 
     unsafeRun(throwup(0))

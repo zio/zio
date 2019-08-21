@@ -3,6 +3,7 @@ package zio
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
+import zio.effect.Effect
 
 import scala.collection.immutable.Range
 
@@ -31,7 +32,7 @@ class ArrayFillBenchmarks {
 
     unsafeRun(
       for {
-        array <- IO.effectTotal[Array[Int]](createTestArray)
+        array <- Effect.Live.effect.total[Array[Int]](createTestArray)
         _     <- arrayFill(array).run(0)
       } yield ()
     )

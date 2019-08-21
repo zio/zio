@@ -20,8 +20,10 @@ import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
 import zio.scheduler.SchedulerLive
-import zio.{ IO, UIO, ZIO }
+import zio.{ UIO, ZIO }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
+
+import zio.effect.Effect
 
 trait Clock extends Serializable {
   val clock: Clock.Service[Any]
@@ -38,25 +40,25 @@ object Clock extends Serializable {
   trait Live extends SchedulerLive with Clock {
     val clock: Service[Any] = new Service[Any] {
       def currentTime(unit: TimeUnit): UIO[Long] =
-        IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
+        Effect.Live.effect.total(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
-      val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
+      val nanoTime: UIO[Long] = Effect.Live.effect.total(System.nanoTime)
 
       def sleep(duration: Duration): UIO[Unit] =
         scheduler.scheduler.flatMap(
           scheduler =>
-            ZIO.effectAsyncInterrupt[Any, Nothing, Unit] { k =>
+            Effect.Live.effect.asyncInterrupt[Nothing, Unit] { k =>
               val canceler = scheduler
                 .schedule(() => k(ZIO.unit), duration)
 
-              Left(ZIO.effectTotal(canceler()))
+              Left(Effect.Live.effect.total(canceler()))
             }
         )
 
       def currentDateTime: ZIO[Any, Nothing, OffsetDateTime] =
         for {
           millis <- currentTime(TimeUnit.MILLISECONDS)
-          zone   <- ZIO.effectTotal(ZoneId.systemDefault)
+          zone   <- Effect.Live.effect.total(ZoneId.systemDefault)
         } yield OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), zone)
 
     }

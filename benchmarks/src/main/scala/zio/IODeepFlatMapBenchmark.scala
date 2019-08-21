@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
+import zio.effect.Effect
 
 import scala.concurrent.Await
 
@@ -122,10 +123,10 @@ class IODeepFlatMapBenchmark {
 
   private[this] def zioDeepFlatMap(runtime: Runtime[Any]): BigInt = {
     def fib(n: Int): UIO[BigInt] =
-      if (n <= 1) ZIO.effectTotal[BigInt](n)
+      if (n <= 1) Effect.Live.effect.total[BigInt](n)
       else
         fib(n - 1).flatMap { a =>
-          fib(n - 2).flatMap(b => ZIO.effectTotal(a + b))
+          fib(n - 2).flatMap(b => Effect.Live.effect.total(a + b))
         }
 
     runtime.unsafeRun(fib(depth))

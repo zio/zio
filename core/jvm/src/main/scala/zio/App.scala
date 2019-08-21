@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.effect.Effect
+
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -54,7 +56,7 @@ trait App extends DefaultRuntime {
       unsafeRun(
         for {
           fiber <- run(args0.toList).fork
-          _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
+          _ <- Effect.Live.effect.total(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
                 override def run() = {
                   val _ = unsafeRunSync(fiber.interrupt)
                 }

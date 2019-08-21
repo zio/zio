@@ -19,6 +19,7 @@ package zio
 import scala.reflect.ClassTag
 import zio.clock.Clock
 import zio.duration.Duration
+import zio.effect.Effect
 
 /**
  * A `Reservation[-R, +E, +A]` encapsulates resource acquisition and disposal
@@ -809,7 +810,7 @@ object ZManaged {
    * Lifts a by-name, pure value into a Managed.
    */
   final def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
-    ZManaged.fromEffect(ZIO.effectTotal(r))
+    ZManaged.fromEffect(Effect.Live.effect.total(r))
 
   /**
    * Accesses the whole environment of the effect.

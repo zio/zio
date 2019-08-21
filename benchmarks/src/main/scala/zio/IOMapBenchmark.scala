@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
+import zio.effect.Effect
 
 import scala.annotation.tailrec
 
@@ -113,7 +114,7 @@ class IOMapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    runtime.unsafeRun(sumTo(IO.effectTotal(0), depth))
+    runtime.unsafeRun(sumTo(Effect.Live.effect.total(0), depth))
   }
 
   @Benchmark

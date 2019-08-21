@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
+import zio.effect.Effect
 
 import scala.concurrent.Await
 
@@ -120,11 +121,11 @@ class IOLeftBindBenchmark {
 
   private[this] def zioLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =
-      if (i % depth == 0) IO.effectTotal[Int](i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => IO.effectTotal(i))
-      else IO.effectTotal(i)
+      if (i % depth == 0) Effect.Live.effect.total[Int](i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => Effect.Live.effect.total(i))
+      else Effect.Live.effect.total(i)
 
-    runtime.unsafeRun(IO.effectTotal(0).flatMap[Any, Nothing, Int](loop))
+    runtime.unsafeRun(Effect.Live.effect.total(0).flatMap[Any, Nothing, Int](loop))
   }
 
   @Benchmark

@@ -18,6 +18,7 @@ package zio.console
 
 import java.io.{ EOFException, IOException, PrintStream, Reader }
 
+import zio.effect.Effect
 import zio.{ IO, UIO, ZIO }
 
 import scala.io.StdIn
@@ -45,7 +46,7 @@ object Console extends Serializable {
         putStr(SConsole.out)(line)
 
       final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.effectTotal(SConsole.withOut(stream) {
+        Effect.Live.effect.total(SConsole.withOut(stream) {
           SConsole.print(line)
         })
 
@@ -56,7 +57,7 @@ object Console extends Serializable {
         putStrLn(SConsole.out)(line)
 
       final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.effectTotal(SConsole.withOut(stream) {
+        Effect.Live.effect.total(SConsole.withOut(stream) {
           SConsole.println(line)
         })
 
@@ -72,7 +73,8 @@ object Console extends Serializable {
        * returns null.
        */
       final def getStrLn(reader: Reader): IO[IOException, String] =
-        IO.effect(SConsole.withIn(reader) {
+        Effect.Live
+          .effect(SConsole.withIn(reader) {
             val line = StdIn.readLine()
             if (line == null) {
               throw new EOFException("There is no more input left to read")
