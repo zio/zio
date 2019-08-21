@@ -100,9 +100,6 @@ object Predicate {
       else Assertion.success
     }
 
-  @deprecated("use equalTo", "1.0.0")
-  final def equals[A](expected: A): Predicate[A] = equalTo(expected)
-
   /**
    * Makes a new predicate that requires a value equal the specified value.
    */
@@ -215,14 +212,6 @@ object Predicate {
     if (!actual) Assertion.success else Assertion.failure(())
   }
 
-  @deprecated("use greaterThan", "1.0.0")
-  final def isGreaterThan[A: Numeric](reference: A): Predicate[A] =
-    greaterThan(reference)
-
-  @deprecated("use greaterThanEqualTo", "1.0.0")
-  final def isGreaterThanEqual[A: Numeric](reference: A): Predicate[A] =
-    greaterThanEqualTo(reference)
-
   /**
    * Makes a new predicate that requires a Left value satisfying a specified
    * predicate.
@@ -234,14 +223,6 @@ object Predicate {
         case Right(_) => Assertion.failure(PredicateValue(self, actual))
       }
     }
-
-  @deprecated("use lessThan", "1.0.0")
-  final def isLessThan[A: Numeric](reference: A): Predicate[A] =
-    lessThan(reference)
-
-  @deprecated("use lessThanEqualTo", "1.0.0")
-  final def isLessThanEqual[A: Numeric](reference: A): Predicate[A] =
-    lessThanEqualTo(reference)
 
   /**
    * Makes a new predicate that requires a Some value satisfying the specified
