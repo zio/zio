@@ -16,8 +16,8 @@ object ZQueueSpec
             v1    <- queue.take
             o2    <- queue.offer(20)
             v2    <- queue.take
-          } yield assert(v1, Predicate.equals(10)) &&
-            assert(v2, Predicate.equals(20)) &&
+          } yield assert(v1, Predicate.equalTo(10)) &&
+            assert(v2, Predicate.equalTo(20)) &&
             assert(o1, Predicate.isTrue) &&
             assert(o2, Predicate.isTrue)
         },
@@ -27,7 +27,7 @@ object ZQueueSpec
             f1    <- queue.take.zipWith(queue.take)(_ + _).fork
             _     <- queue.offer("don't ") *> queue.offer("give up :D")
             v     <- f1.join
-          } yield assert(v, Predicate.equals("don't give up :D"))
+          } yield assert(v, Predicate.equalTo("don't give up :D"))
         },
         testM("parallel takes and sequential offers ") {
           for {
@@ -36,7 +36,7 @@ object ZQueueSpec
             values = Range.inclusive(1, 10).toList
             _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
             v      <- f.join
-          } yield assert(v.toSet, Predicate.equals(values.toSet))
+          } yield assert(v.toSet, Predicate.equalTo(values.toSet))
         },
         testM("parallel offers and sequential takes") {
           for {
@@ -46,7 +46,7 @@ object ZQueueSpec
             _      <- waitForSize(queue, 10)
             l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collectAll)
             _      <- f.join
-          } yield assert(l.toSet, Predicate.equals(values.toSet))
+          } yield assert(l.toSet, Predicate.equalTo(values.toSet))
         },
         testM("offers are suspended by back pressure") {
           for {
@@ -66,7 +66,7 @@ object ZQueueSpec
             _      <- IO.forkAll(values.map(queue.offer))
             _      <- waitForSize(queue, 10)
             l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collectAll)
-          } yield assert(l.toSet, Predicate.equals(values.toSet))
+          } yield assert(l.toSet, Predicate.equalTo(values.toSet))
         },
         testM("take interruption") {
           for {
@@ -75,7 +75,7 @@ object ZQueueSpec
             _     <- waitForSize(queue, -1)
             _     <- f.interrupt
             size  <- queue.size
-          } yield assert(size, Predicate.equals(0))
+          } yield assert(size, Predicate.equalTo(0))
         },
         testM("offer interruption") {
           for {
@@ -86,7 +86,7 @@ object ZQueueSpec
             _     <- waitForSize(queue, 3)
             _     <- f.interrupt
             size  <- queue.size
-          } yield assert(size, Predicate.equals(2))
+          } yield assert(size, Predicate.equalTo(2))
         },
         testM("queue is ordered") {
           for {
@@ -97,9 +97,9 @@ object ZQueueSpec
             v1    <- queue.take
             v2    <- queue.take
             v3    <- queue.take
-          } yield assert(v1, Predicate.equals(1)) &&
-            assert(v2, Predicate.equals(2)) &&
-            assert(v3, Predicate.equals(3))
+          } yield assert(v1, Predicate.equalTo(1)) &&
+            assert(v2, Predicate.equalTo(2)) &&
+            assert(v3, Predicate.equalTo(3))
         },
         testM("takeAll") {
           for {
@@ -108,7 +108,7 @@ object ZQueueSpec
             _     <- queue.offer(2)
             _     <- queue.offer(3)
             v     <- queue.takeAll
-          } yield assert(v, Predicate.equals(List(1, 2, 3)))
+          } yield assert(v, Predicate.equalTo(List(1, 2, 3)))
         },
         testM("takeAll with empty queue") {
           for {
@@ -117,8 +117,8 @@ object ZQueueSpec
             _     <- queue.offer(1)
             _     <- queue.take
             v     <- queue.takeAll
-          } yield assert(c, Predicate.equals(List.empty[Int])) &&
-            assert(v, Predicate.equals(List.empty[Int]))
+          } yield assert(c, Predicate.equalTo(List.empty[Int])) &&
+            assert(v, Predicate.equalTo(List.empty[Int]))
         },
         testM("takeAll doesn't return more than the queue size") {
           for {
@@ -129,8 +129,8 @@ object ZQueueSpec
             _      <- waitForSize(queue, 5)
             v      <- queue.takeAll
             c      <- queue.take
-          } yield assert(v.toSet, Predicate.equals(values.toSet)) &&
-            assert(c, Predicate.equals(5))
+          } yield assert(v.toSet, Predicate.equalTo(values.toSet)) &&
+            assert(c, Predicate.equalTo(5))
         },
         testM("takeUpTo") {
           for {
@@ -138,7 +138,7 @@ object ZQueueSpec
             _     <- queue.offer(10)
             _     <- queue.offer(20)
             list  <- queue.takeUpTo(2)
-          } yield assert(list, Predicate.equals(List(10, 20)))
+          } yield assert(list, Predicate.equalTo(List(10, 20)))
         },
         testM("takeUpTo with empty queue") {
           for {
@@ -160,7 +160,7 @@ object ZQueueSpec
             _     <- queue.offer(30)
             _     <- queue.offer(40)
             list  <- queue.takeUpTo(2)
-          } yield assert(list, Predicate.equals(List(10, 20)))
+          } yield assert(list, Predicate.equalTo(List(10, 20)))
         },
         testM("takeUpTo with not enough items") {
           for {
@@ -170,7 +170,7 @@ object ZQueueSpec
             _     <- queue.offer(30)
             _     <- queue.offer(40)
             list  <- queue.takeUpTo(10)
-          } yield assert(list, Predicate.equals(List(10, 20, 30, 40)))
+          } yield assert(list, Predicate.equalTo(List(10, 20, 30, 40)))
         },
         testM("takeUpTo 0") {
           for {
@@ -198,8 +198,8 @@ object ZQueueSpec
             _     <- queue.offer(30)
             _     <- queue.offer(40)
             list2 <- queue.takeUpTo(2)
-          } yield assert(list1, Predicate.equals(List(10, 20))) &&
-            assert(list2, Predicate.equals(List(30, 40)))
+          } yield assert(list1, Predicate.equalTo(List(10, 20))) &&
+            assert(list2, Predicate.equalTo(List(30, 40)))
         },
         testM("consecutive takeUpTo") {
           for {
@@ -210,8 +210,8 @@ object ZQueueSpec
             _     <- queue.offer(40)
             list1 <- queue.takeUpTo(2)
             list2 <- queue.takeUpTo(2)
-          } yield assert(list1, Predicate.equals(List(10, 20))) &&
-            assert(list2, Predicate.equals(List(30, 40)))
+          } yield assert(list1, Predicate.equalTo(List(10, 20))) &&
+            assert(list2, Predicate.equalTo(List(30, 40)))
         },
         testM("takeUpTo doesn't return back-pressured offers") {
           for {
@@ -222,7 +222,7 @@ object ZQueueSpec
             _      <- waitForSize(queue, 5)
             l      <- queue.takeUpTo(5)
             _      <- f.interrupt
-          } yield assert(l, Predicate.equals(List(1, 2, 3, 4)))
+          } yield assert(l, Predicate.equalTo(List(1, 2, 3, 4)))
         },
         testM("offerAll with takeAll") {
           for {
@@ -231,7 +231,7 @@ object ZQueueSpec
             _      <- queue.offerAll(orders)
             _      <- waitForSize(queue, 10)
             l      <- queue.takeAll
-          } yield assert(l, Predicate.equals(orders))
+          } yield assert(l, Predicate.equalTo(orders))
         },
         testM("offerAll with takeAll and back pressure") {
           for {
@@ -241,8 +241,8 @@ object ZQueueSpec
             size   <- waitForSize(queue, 3)
             l      <- queue.takeAll
             _      <- f.interrupt
-          } yield assert(size, Predicate.equals(3)) &&
-            assert(l, Predicate.equals(List(1, 2)))
+          } yield assert(size, Predicate.equalTo(3)) &&
+            assert(l, Predicate.equalTo(List(1, 2)))
         },
         testM("offerAll with takeAll and back pressure + interruption") {
           for {
@@ -255,8 +255,8 @@ object ZQueueSpec
             _       <- f.interrupt
             l1      <- queue.takeAll
             l2      <- queue.takeAll
-          } yield assert(l1, Predicate.equals(orders1)) &&
-            assert(l2, Predicate.equals(List.empty[Int]))
+          } yield assert(l1, Predicate.equalTo(orders1)) &&
+            assert(l2, Predicate.equalTo(List.empty[Int]))
         },
         testM("offerAll with takeAll and back pressure, check ordering") {
           for {
@@ -266,7 +266,7 @@ object ZQueueSpec
             _      <- waitForSize(queue, 128)
             l      <- queue.takeAll
             _      <- f.interrupt
-          } yield assert(l, Predicate.equals(Range.inclusive(1, 64).toList))
+          } yield assert(l, Predicate.equalTo(Range.inclusive(1, 64).toList))
         },
         testM("offerAll with pending takers") {
           for {
@@ -277,8 +277,8 @@ object ZQueueSpec
             _      <- queue.offerAll(orders)
             l      <- takers.join
             s      <- queue.size
-          } yield assert(l.toSet, Predicate.equals(orders.toSet)) &&
-            assert(s, Predicate.equals(0))
+          } yield assert(l.toSet, Predicate.equalTo(orders.toSet)) &&
+            assert(s, Predicate.equalTo(0))
         },
         testM("offerAll with pending takers, check ordering") {
           for {
@@ -290,8 +290,8 @@ object ZQueueSpec
             l      <- takers.join
             s      <- queue.size
             values = orders.take(64)
-          } yield assert(l.toSet, Predicate.equals(values.toSet)) &&
-            assert(s, Predicate.equals(64))
+          } yield assert(l.toSet, Predicate.equalTo(values.toSet)) &&
+            assert(s, Predicate.equalTo(64))
         },
         testM("offerAll with pending takers, check ordering of taker resolution") {
           for {
@@ -305,8 +305,8 @@ object ZQueueSpec
             l      <- takers.join
             s      <- queue.size
             _      <- f.interrupt
-          } yield assert(l.toSet, Predicate.equals(values.toSet)) &&
-            assert(s, Predicate.equals(-100))
+          } yield assert(l.toSet, Predicate.equalTo(values.toSet)) &&
+            assert(s, Predicate.equalTo(-100))
         },
         testM("offerAll with take and back pressure") {
           for {
@@ -317,9 +317,9 @@ object ZQueueSpec
             v1     <- queue.take
             v2     <- queue.take
             v3     <- queue.take
-          } yield assert(v1, Predicate.equals(1)) &&
-            assert(v2, Predicate.equals(2)) &&
-            assert(v3, Predicate.equals(3))
+          } yield assert(v1, Predicate.equalTo(1)) &&
+            assert(v2, Predicate.equalTo(2)) &&
+            assert(v3, Predicate.equalTo(3))
         },
         testM("multiple offerAll with back pressure") {
           for {
@@ -335,11 +335,11 @@ object ZQueueSpec
             v3      <- queue.take
             v4      <- queue.take
             v5      <- queue.take
-          } yield assert(v1, Predicate.equals(1)) &&
-            assert(v2, Predicate.equals(2)) &&
-            assert(v3, Predicate.equals(3)) &&
-            assert(v4, Predicate.equals(4)) &&
-            assert(v5, Predicate.equals(5))
+          } yield assert(v1, Predicate.equalTo(1)) &&
+            assert(v2, Predicate.equalTo(2)) &&
+            assert(v3, Predicate.equalTo(3)) &&
+            assert(v4, Predicate.equalTo(4)) &&
+            assert(v5, Predicate.equalTo(5))
         },
         testM("offerAll + takeAll, check ordering") {
           for {
@@ -349,7 +349,7 @@ object ZQueueSpec
             _      <- queue.offerAll(orders)
             _      <- waitForSize(queue, 1000)
             v1     <- queue.takeAll
-          } yield assert(v1, Predicate.equals(Range.inclusive(1, 1000).toList))
+          } yield assert(v1, Predicate.equalTo(Range.inclusive(1, 1000).toList))
         },
         testM("combination of offer, offerAll, take, takeAll") {
           for {
@@ -363,10 +363,10 @@ object ZQueueSpec
             v1     <- queue.take
             v2     <- queue.take
             v3     <- queue.take
-          } yield assert(v, Predicate.equals(Range.inclusive(1, 32).toList)) &&
-            assert(v1, Predicate.equals(33)) &&
-            assert(v2, Predicate.equals(34)) &&
-            assert(v3, Predicate.equals(35))
+          } yield assert(v, Predicate.equalTo(Range.inclusive(1, 32).toList)) &&
+            assert(v1, Predicate.equalTo(33)) &&
+            assert(v2, Predicate.equalTo(34)) &&
+            assert(v3, Predicate.equalTo(35))
         },
         testM("shutdown with take fiber") {
           for {
@@ -375,7 +375,7 @@ object ZQueueSpec
             _     <- waitForSize(queue, -1)
             _     <- queue.shutdown
             res   <- f.join.sandbox.either
-          } yield assert(res, Predicate.isLeft(Predicate.equals(Cause.interrupt)))
+          } yield assert(res, Predicate.isLeft(Predicate.equalTo(Cause.interrupt)))
         },
         testM("shutdown with offer fiber") {
           for {
@@ -386,42 +386,42 @@ object ZQueueSpec
             _     <- waitForSize(queue, 3)
             _     <- queue.shutdown
             res   <- f.join.sandbox.either
-          } yield assert(res, Predicate.isLeft(Predicate.equals(Cause.interrupt)))
+          } yield assert(res, Predicate.isLeft(Predicate.equalTo(Cause.interrupt)))
         },
         testM("shutdown with offer") {
           for {
             queue <- Queue.bounded[Int](1)
             _     <- queue.shutdown
             res   <- queue.offer(1).sandbox.either
-          } yield assert(res, Predicate.isLeft(Predicate.equals(Cause.interrupt)))
+          } yield assert(res, Predicate.isLeft(Predicate.equalTo(Cause.interrupt)))
         },
         testM("shutdown with take") {
           for {
             queue <- Queue.bounded[Int](1)
             _     <- queue.shutdown
             res   <- queue.take.sandbox.either
-          } yield assert(res, Predicate.isLeft(Predicate.equals(Cause.interrupt)))
+          } yield assert(res, Predicate.isLeft(Predicate.equalTo(Cause.interrupt)))
         },
         testM("shutdown with takeAll") {
           for {
             queue <- Queue.bounded[Int](1)
             _     <- queue.shutdown
             res   <- queue.takeAll.sandbox.either
-          } yield assert(res, Predicate.isLeft(Predicate.equals(Cause.interrupt)))
+          } yield assert(res, Predicate.isLeft(Predicate.equalTo(Cause.interrupt)))
         },
         testM("shutdown with takeUpTo") {
           for {
             queue <- Queue.bounded[Int](1)
             _     <- queue.shutdown
             res   <- queue.takeUpTo(1).sandbox.either
-          } yield assert(res, Predicate.isLeft(Predicate.equals(Cause.interrupt)))
+          } yield assert(res, Predicate.isLeft(Predicate.equalTo(Cause.interrupt)))
         },
         testM("shutdown with size") {
           for {
             queue <- Queue.bounded[Int](1)
             _     <- queue.shutdown
             res   <- queue.size.sandbox.either
-          } yield assert(res, Predicate.isLeft(Predicate.equals(Cause.interrupt)))
+          } yield assert(res, Predicate.isLeft(Predicate.equalTo(Cause.interrupt)))
         },
         testM("back-pressured offer completes after take") {
           for {
@@ -432,8 +432,8 @@ object ZQueueSpec
             v1    <- queue.take
             v2    <- queue.take
             _     <- f.join
-          } yield assert(v1, Predicate.equals(1)) &&
-            assert(v2, Predicate.equals(2))
+          } yield assert(v1, Predicate.equalTo(1)) &&
+            assert(v2, Predicate.equalTo(2))
         },
         testM("back-pressured offer completes after takeAll") {
           for {
@@ -443,7 +443,7 @@ object ZQueueSpec
             _     <- waitForSize(queue, 3)
             v1    <- queue.takeAll
             _     <- f.join
-          } yield assert(v1, Predicate.equals(List(1, 2)))
+          } yield assert(v1, Predicate.equalTo(List(1, 2)))
         },
         testM("back-pressured offer completes after takeUpTo") {
           for {
@@ -453,7 +453,7 @@ object ZQueueSpec
             _     <- waitForSize(queue, 3)
             v1    <- queue.takeUpTo(2)
             _     <- f.join
-          } yield assert(v1, Predicate.equals(List(1, 2)))
+          } yield assert(v1, Predicate.equalTo(List(1, 2)))
         },
         testM("back-pressured offerAll completes after takeAll") {
           for {
@@ -465,9 +465,9 @@ object ZQueueSpec
             v2    <- queue.takeAll
             v3    <- queue.takeAll
             _     <- f.join
-          } yield assert(v1, Predicate.equals(List(1, 2))) &&
-            assert(v2, Predicate.equals(List(3, 4))) &&
-            assert(v3, Predicate.equals(List(5)))
+          } yield assert(v1, Predicate.equalTo(List(1, 2))) &&
+            assert(v2, Predicate.equalTo(List(3, 4))) &&
+            assert(v3, Predicate.equalTo(List(5)))
         },
         testM("sliding strategy with offer") {
           for {
@@ -476,7 +476,7 @@ object ZQueueSpec
             v1    <- queue.offer(2)
             v2    <- queue.offer(3)
             l     <- queue.takeAll
-          } yield assert(l, Predicate.equals(List(2, 3))) &&
+          } yield assert(l, Predicate.equalTo(List(2, 3))) &&
             assert(v1, Predicate.isTrue) &&
             assert(v2, Predicate.isFalse)
         },
@@ -485,7 +485,7 @@ object ZQueueSpec
             queue <- Queue.sliding[Int](2)
             v     <- queue.offerAll(List(1, 2, 3))
             size  <- queue.size
-          } yield assert(size, Predicate.equals(2)) &&
+          } yield assert(size, Predicate.equalTo(2)) &&
             assert(v, Predicate.isFalse)
         },
         testM("sliding strategy with enough capacity") {
@@ -495,14 +495,14 @@ object ZQueueSpec
             _     <- queue.offer(2)
             _     <- queue.offer(3)
             l     <- queue.takeAll
-          } yield assert(l, Predicate.equals(List(1, 2, 3)))
+          } yield assert(l, Predicate.equalTo(List(1, 2, 3)))
         },
         testM("sliding strategy with offerAll and takeAll") {
           for {
             queue <- Queue.sliding[Int](2)
             v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
             l     <- queue.takeAll
-          } yield assert(l, Predicate.equals(List(5, 6))) &&
+          } yield assert(l, Predicate.equalTo(List(5, 6))) &&
             assert(v1, Predicate.isFalse)
         },
         testM("awaitShutdown") {
@@ -543,7 +543,7 @@ object ZQueueSpec
             iter     = Range.inclusive(1, 5)
             _        <- queue.offerAll(iter)
             ta       <- queue.takeAll
-          } yield assert(ta, Predicate.equals(List(1, 2, 3, 4)))
+          } yield assert(ta, Predicate.equalTo(List(1, 2, 3, 4)))
         },
         testM("dropping strategy with offerAll, check offer returns false") {
           for {
@@ -560,7 +560,7 @@ object ZQueueSpec
             iter     = Range.inclusive(1, 256)
             _        <- queue.offerAll(iter)
             ta       <- queue.takeAll
-          } yield assert(ta, Predicate.equals(Range.inclusive(1, 128).toList))
+          } yield assert(ta, Predicate.equalTo(Range.inclusive(1, 128).toList))
         },
         testM("dropping strategy with pending taker") {
           for {
@@ -571,7 +571,7 @@ object ZQueueSpec
             _        <- waitForSize(queue, -1)
             oa       <- queue.offerAll(iter.toList)
             j        <- f.join
-          } yield assert(j, Predicate.equals(1)) &&
+          } yield assert(j, Predicate.equalTo(1)) &&
             assert(oa, Predicate.isFalse)
         },
         testM("sliding strategy with pending taker") {
@@ -583,7 +583,7 @@ object ZQueueSpec
             _        <- waitForSize(queue, -1)
             oa       <- queue.offerAll(iter.toList)
             t        <- queue.take
-          } yield assert(t, Predicate.equals(3)) &&
+          } yield assert(t, Predicate.equalTo(3)) &&
             assert(oa, Predicate.isFalse)
         },
         testM("sliding strategy, check offerAll returns true") {
@@ -626,8 +626,8 @@ object ZQueueSpec
             t2    <- queue.poll
             t3    <- queue.poll
             t4    <- queue.poll
-          } yield assert(t1, Predicate.isSome(Predicate.equals(1))) &&
-            assert(t2, Predicate.isSome(Predicate.equals(2))) &&
+          } yield assert(t1, Predicate.isSome(Predicate.equalTo(1))) &&
+            assert(t2, Predicate.isSome(Predicate.equalTo(2))) &&
             assert(t3, Predicate.isNone) &&
             assert(t4, Predicate.isNone)
         },
@@ -636,35 +636,35 @@ object ZQueueSpec
             q <- Queue.bounded[Int](100).map(_.map(_.toString))
             _ <- q.offer(10)
             v <- q.take
-          } yield assert(v, Predicate.equals("10"))
+          } yield assert(v, Predicate.equalTo("10"))
         },
         testM("queue map identity") {
           for {
             q <- Queue.bounded[Int](100).map(_.map(identity))
             _ <- q.offer(10)
             v <- q.take
-          } yield assert(v, Predicate.equals(10))
+          } yield assert(v, Predicate.equalTo(10))
         },
         testM("queue mapM") {
           for {
             q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed))
             _ <- q.offer(10)
             v <- q.take
-          } yield assert(v, Predicate.equals(10))
+          } yield assert(v, Predicate.equalTo(10))
         },
         testM("queue mapM with success") {
           for {
             q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
             _ <- q.offer(IO.succeed(10))
             v <- q.take.sandbox.either
-          } yield assert(v, Predicate.isRight(Predicate.equals(10)))
+          } yield assert(v, Predicate.isRight(Predicate.equalTo(10)))
         },
         testM("queue mapM with failure") {
           for {
             q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
             _ <- q.offer(IO.fail("Ouch"))
             v <- q.take.sandbox.either
-          } yield assert(v, Predicate.isLeft(Predicate.equals(Cause.fail("Ouch"))))
+          } yield assert(v, Predicate.isLeft(Predicate.equalTo(Cause.fail("Ouch"))))
         },
         testM("queue both") {
           for {
@@ -673,14 +673,14 @@ object ZQueueSpec
             q  = q1 both q2
             _  <- q.offer(10)
             v  <- q.take
-          } yield assert(v, Predicate.equals((10, 10)))
+          } yield assert(v, Predicate.equalTo((10, 10)))
         },
         testM("queue contramap") {
           for {
             q <- Queue.bounded[String](100).map(_.contramap[Int](_.toString))
             _ <- q.offer(10)
             v <- q.take
-          } yield assert(v, Predicate.equals("10"))
+          } yield assert(v, Predicate.equalTo("10"))
         },
         testM("queue filterInput") {
           for {
@@ -689,8 +689,8 @@ object ZQueueSpec
             s1 <- q.size
             _  <- q.offer(2)
             s2 <- q.size
-          } yield assert(s1, Predicate.equals(0)) &&
-            assert(s2, Predicate.equals(1))
+          } yield assert(s1, Predicate.equalTo(0)) &&
+            assert(s2, Predicate.equalTo(1))
         },
         testM("queue isShutdown") {
           for {

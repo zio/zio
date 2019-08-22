@@ -110,7 +110,7 @@ object Sink {
   /**
    * see [[ZSink.foldLeft]]
    */
-  final def foldLeft[A0, A, S](z: S)(f: (S, A) => S): Sink[Nothing, A0, A, S] =
+  final def foldLeft[A, S](z: S)(f: (S, A) => S): Sink[Nothing, Nothing, A, S] =
     ZSink.foldLeft(z)(f)
 
   /**
