@@ -123,7 +123,7 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     unsafeRun(for {
       ref    <- TRef.make(0).commit
       tArray <- makeTArray(n)(1)
-      _      <- tArray.foreach(a => ref.update(_ + a).const(())).commit.fork
+      _      <- tArray.foreach(a => ref.update(_ + a).unit).commit.fork
       value  <- ref.get.commit
     } yield value) must (equalTo(0) or equalTo(n))
 
@@ -139,7 +139,7 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
   def mapMAtomically =
     unsafeRun(for {
       tArray       <- makeTArray(N)("thisStringLengthIs20")
-      lengthsFiber <- tArray.mapM(a => STM.succeedLazy(a.length)).commit.fork
+      lengthsFiber <- tArray.mapM(a => STM.succeed(a.length)).commit.fork
       _            <- STM.foreach(0 until N)(idx => tArray.array(idx).set("abc")).commit
       lengths      <- lengthsFiber.join
       first        <- lengths.array(0).get.commit
@@ -166,7 +166,7 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
   def transformMAtomically =
     unsafeRun(for {
       tArray         <- makeTArray(N)("a")
-      transformFiber <- tArray.transformM(a => STM.succeedLazy(a + "+b")).commit.fork
+      transformFiber <- tArray.transformM(a => STM.succeed(a + "+b")).commit.fork
       _              <- STM.foreach(0 until N)(idx => tArray.array(idx).update(_ + "+c")).commit
       _              <- transformFiber.join
       first          <- tArray.array(0).get.commit
@@ -201,7 +201,7 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     unsafeRun(
       for {
         tArray <- makeTArray(1)(42)
-        v      <- tArray.updateM(0, a => STM.succeedLazy(-a)).commit
+        v      <- tArray.updateM(0, a => STM.succeed(-a)).commit
       } yield v
     ) mustEqual -42
 
@@ -209,7 +209,7 @@ final class TArraySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     unsafeRun(
       for {
         tArray <- makeTArray(10)(0)
-        _      <- tArray.updateM(10, STM.succeed(_)).commit
+        _      <- tArray.updateM(10, STM.succeed).commit
       } yield ()
     ) must throwA[FiberFailure]
 
