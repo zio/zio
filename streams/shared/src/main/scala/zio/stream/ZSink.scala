@@ -19,6 +19,8 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
+
+import scala.collection.mutable
 import scala.language.postfixOps
 
 /**
@@ -1332,6 +1334,78 @@ object ZSink extends ZSinkPlatformSpecific {
           case Left(e)        => Left(e)
         }
     }
+
+  /**
+   * Splits strings on newlines. Handles both `\r\n` and `\n`.
+   */
+  final val splitLines: ZSink[Any, Nothing, String, String, Chunk[String]] =
+    new SinkPure[Nothing, String, String, Chunk[String]] {
+      type State = (Chunk[String], Option[String], Boolean)
+
+      override val initialPure: Step[State, Nothing] = Step.more((Chunk.empty, None, false))
+
+      override def stepPure(s: State, a: String): Step[State, String] = {
+        val accumulatedLines = s._1
+        val concat           = s._2.getOrElse("") + a
+        val wasSplitCRLF     = s._3
+
+        if (concat.isEmpty) Step.more(s)
+        else {
+          val buf = mutable.ArrayBuffer[String]()
+
+          var i =
+            // If we had a split CRLF, we start reading from the last character of the
+            // leftover (which was the '\r')
+            if (wasSplitCRLF) s._2.map(_.length).getOrElse(1) - 1
+            // Otherwise we just skip over the entire previous leftover as it doesn't
+            // contain a newline.
+            else s._2.map(_.length).getOrElse(0)
+
+          var sliceStart = 0
+          var splitCRLF  = false
+
+          while (i < concat.length) {
+            if (concat(i) == '\n') {
+              buf += concat.substring(sliceStart, i)
+              i += 1
+              sliceStart = i
+            } else if (concat(i) == '\r' && (i + 1 < concat.length) && (concat(i + 1) == '\n')) {
+              buf += concat.substring(sliceStart, i)
+              i += 2
+              sliceStart = i
+            } else if (concat(i) == '\r' && (i == concat.length - 1)) {
+              splitCRLF = true
+              i += 1
+            } else {
+              i += 1
+            }
+          }
+
+          if (buf.isEmpty) Step.more((accumulatedLines, Some(concat), splitCRLF))
+          else {
+            val newLines = Chunk.fromArray(buf.toArray[String])
+            val leftover = concat.substring(sliceStart, concat.length)
+
+            if (splitCRLF) Step.more((accumulatedLines ++ newLines, Some(leftover), splitCRLF))
+            else
+              Step.done(
+                (accumulatedLines ++ newLines, None, splitCRLF),
+                if (leftover.nonEmpty) Chunk.single(leftover) else Chunk.empty
+              )
+          }
+        }
+      }
+
+      override def extractPure(s: State): Either[Nothing, Chunk[String]] =
+        Right(s._1 ++ s._2.map(Chunk.single(_)).getOrElse(Chunk.empty))
+    }
+
+  /**
+   * Merges chunks of strings and splits them on newlines. Handles both
+   * `\r\n` and `\n`.
+   */
+  final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
+    splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
 
   /**
    * Creates a single-value sink from a value.

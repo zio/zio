@@ -197,6 +197,16 @@ object Sink {
     ZSink.read1(e)(p)
 
   /**
+   * see [[ZSink.splitLines]]
+   */
+  final val splitLines: Sink[Nothing, String, String, Chunk[String]] = ZSink.splitLines
+
+  /**
+   * see [[ZSink.splitLinesChunk]]
+   */
+  final val splitLinesChunk: Sink[Nothing, Chunk[String], Chunk[String], Chunk[String]] = ZSink.splitLinesChunk
+
+  /**
    * see [[ZSink.succeed]]
    */
   final def succeed[B](b: B): Sink[Nothing, Nothing, Any, B] =
