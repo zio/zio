@@ -124,7 +124,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
-  final def collectAllSuccessesParN[E, A](n: Long)(as: Iterable[RIO[E, A]]): RIO[E, List[A]] =
+  final def collectAllSuccessesParN[E, A](n: Int)(as: Iterable[RIO[E, A]]): RIO[E, List[A]] =
     ZIO.collectAllSuccessesParN(n)(as)
 
   /**
@@ -142,7 +142,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  final def collectAllWithParN[R, A, B](n: Long)(as: Iterable[RIO[R, A]])(f: PartialFunction[A, B]): RIO[R, List[B]] =
+  final def collectAllWithParN[R, A, B](n: Int)(as: Iterable[RIO[R, A]])(f: PartialFunction[A, B]): RIO[R, List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
