@@ -31,10 +31,10 @@ import zio.scheduler.Scheduler
  * involving the passage of time.
  *
  * Instead of waiting for actual time to pass, `sleep` and methods implemented
- * in terms of it schedule effects to take place at a given time. Users can
- * adjust the current clock time using the `adjust` and `setTime` methods, and
- * all effects scheduled to take place on or before that time will automically
- * be run.
+ * in terms of it schedule effects to take place at a given clock time. Users
+ * can adjust the clock time using the `adjust` and `setTime` methods, and all
+ * effects scheduled to take place on or before that time will automically be
+ * run.
  *
  * For example, here is how we can test [[ZIO.timeout]] using `MockClock:
  *
@@ -45,7 +45,7 @@ import zio.scheduler.Scheduler
  *
  *  for {
  *    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
- *    _      <- MockClock.setTime(1.minute)
+ *    _      <- MockClock.adjust(1.minute)
  *    result <- fiber.join
  *  } yield result == None
  * }}}
@@ -58,13 +58,12 @@ import zio.scheduler.Scheduler
  * effect being tested, then adjust the clock to the desired time, and finally
  * verify that the expected effects have been performed.
  *
- * One other thing to keep in mind is that `sleep` and related combinators
- * schedule events to occur at an absolute point in time (e.g. 10 seconds from
- * the `0` time), not relative time (e.g. 10 seconds from the current set clock
- * time). This is necessary to avoid race conditions between scheduling effects
- * and adjusting the time but means it sometimes may be necessary to use
- * `adjustTime` to reset the time between effects you are testing to achieve
- * the desired sequence of effects.
+ * Sleep and related combinators schedule events to occur at a specified
+ * duration in the future relative to the current fiber time (e.g. 10 seconds
+ * from the current fiber time). The fiber time is backed by a `FiberRef` and
+ * is incremented for the duration each fiber is sleeping. Child fibers inherit
+ * the fiber time of their parent so methods that rely on repeated `sleep`
+ * calls work as you would expect.
  *
  * For example, here is how we can test an effect that recurs with a fixed
  * delay:
@@ -75,25 +74,25 @@ import zio.scheduler.Scheduler
  *  import zio.test.mock.MockClock
  *
  *  for {
- *    mvar <- Queue.bounded[Unit](1)
- *    _    <- (mvar.offer(()).delay(60.minutes)).forever.fork
- *    p1   <- mvar.poll.map(_.isEmpty)
- *    _    <- MockClock.setTime(60.minutes)
- *    _    <- MockClock.setTime(0.minutes)
- *    p2   <- mvar.take.as(true)
- *    p3   <- mvar.poll.map(_.isEmpty)
- *  } yield p1 && p2 && p3
+ *    q <- Queue.unbounded[Unit]
+ *    _ <- (q.offer(()).delay(60.minutes)).forever.fork
+ *    a <- q.poll.map(_.isEmpty)
+ *    _ <- MockClock.adjust(60.minutes)
+ *    b <- q.take.as(true)
+ *    c <- q.poll.map(_.isEmpty)
+ *    _ <- MockClock.adjust(60.minutes)
+ *    d <- q.take.as(true)
+ *    e <- q.poll.map(_.isEmpty)
+ *  } yield a && b && c && d && e
  * }}}
  *
  * Here we verify that no effect is performed before the recurrence period,
  * that an effect is performed after the recurrence period, and that the effect
- * is performed exactly once. The key thing to note here is that we reset the
- * clock time to 0 after setting it to 60 minutes. This is important because
- * the delayed effect is scheduled to recur forever as long as the clock time
- * is on or after 60 minutes. So if we don't reset the time the forked fiber
- * will attempt to place another value in the queue as soon as we take one and
- * there is a risk that `p3` will be false if the `offer` effect executes
- * before the `poll` effect.
+ * is performed exactly once. The key thing to note here is that after each
+ * recurrence the next recurrence is scheduled to occur at the appropriate time
+ * in the future, so when we adjust the clock by 60 minutes exactly one value
+ * is placed in the queue, and when we adjust the clock by another 60 minutes
+ * exactly one more value is placed in the queue.
  */
 trait MockClock extends Clock with Scheduler {
   val clock: MockClock.Service[Any]
@@ -103,14 +102,15 @@ trait MockClock extends Clock with Scheduler {
 object MockClock {
 
   trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] {
-    def sleeps: UIO[List[Duration]]
     def adjust(duration: Duration): UIO[Unit]
     def setTime(duration: Duration): UIO[Unit]
     def setTimeZone(zone: ZoneId): UIO[Unit]
+    def sleeps: UIO[List[Duration]]
     def timeZone: UIO[ZoneId]
   }
 
-  case class Mock(clockState: Ref[MockClock.Data]) extends MockClock.Service[Any] {
+  case class Mock(clockState: Ref[MockClock.Data], fiberState: FiberRef[MockClock.FiberData])
+      extends MockClock.Service[Any] {
 
     /**
      * Increments the current clock time by the specified duration. Any effects
@@ -118,14 +118,17 @@ object MockClock {
      * be run.
      */
     final def adjust(duration: Duration): UIO[Unit] =
-      clockState.update { data =>
-        Data(
-          data.nanoTime + duration.toNanos,
-          data.currentTimeMillis + duration.toMillis,
-          data.sleeps,
-          data.timeZone
+      clockState.modify { data =>
+        val nanoTime          = data.nanoTime + duration.toNanos
+        val currentTimeMillis = data.currentTimeMillis + duration.toMillis
+        val (wakes, sleeps)   = data.sleeps.partition(_._1 <= Duration.fromNanos(nanoTime))
+        val updated = data.copy(
+          nanoTime = nanoTime,
+          currentTimeMillis = currentTimeMillis,
+          sleeps = sleeps
         )
-      } *> wakeUp
+        (wakes, updated)
+      }.flatMap(run)
 
     /**
      * Returns the current clock time as an `OffsetDateTime`.
@@ -151,12 +154,15 @@ object MockClock {
      * be run.
      */
     final def setTime(duration: Duration): UIO[Unit] =
-      clockState.update { data =>
-        data.copy(
+      clockState.modify { data =>
+        val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
+        val updated = data.copy(
           nanoTime = duration.toNanos,
-          currentTimeMillis = duration.toMillis
+          currentTimeMillis = duration.toMillis,
+          sleeps = sleeps
         )
-      } *> wakeUp
+        (wakes, updated)
+      }.flatMap(run)
 
     /**
      * Sets the time zone to the specified time zone. The clock time in terms
@@ -222,9 +228,13 @@ object MockClock {
     final def sleep(duration: Duration): UIO[Unit] =
       for {
         latch <- Promise.make[Nothing, Unit]
+        start <- fiberState.modify { data =>
+                  (data.nanoTime, data.copy(nanoTime = data.nanoTime + duration.toNanos))
+                }
         await <- clockState.modify { data =>
-                  if (duration > Duration.fromNanos(data.nanoTime))
-                    (true, data.copy(sleeps = (duration, latch) :: data.sleeps))
+                  val end = Duration.fromNanos(start) + duration
+                  if (end > Duration.fromNanos(data.nanoTime))
+                    (true, data.copy(sleeps = (end, latch) :: data.sleeps))
                   else
                     (false, data)
                 }
@@ -251,13 +261,6 @@ object MockClock {
 
     private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
       UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
-
-    private val wakeUp: UIO[Unit] =
-      clockState.modify { data =>
-        val (wakes, sleeps) =
-          data.sleeps.partition(_._1 <= Duration.fromNanos(data.nanoTime))
-        (wakes, data.copy(sleeps = sleeps))
-      }.flatMap(run)
   }
 
   /**
@@ -286,7 +289,10 @@ object MockClock {
    * This can be useful for mixing in with implementations of other interfaces.
    */
   def makeMock(data: Data): UIO[Mock] =
-    Ref.make(data).map(Mock(_))
+    for {
+      ref      <- Ref.make(data)
+      fiberRef <- FiberRef.make(FiberData(data.nanoTime))
+    } yield Mock(ref, fiberRef)
 
   /**
    * Accesses a `MockClock` instance in the environment and sets the clock time
@@ -334,6 +340,8 @@ object MockClock {
     sleeps: List[(Duration, Promise[Nothing, Unit])],
     timeZone: ZoneId
   )
+
+  case class FiberData(nanoTime: Long)
 
   private def offset(millis: Long, timeZone: ZoneId): OffsetDateTime =
     OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), timeZone)
