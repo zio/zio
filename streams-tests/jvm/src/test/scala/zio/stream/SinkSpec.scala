@@ -1358,9 +1358,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
         step1 <- sink.step(Step.state(init1), 1)
         res1  <- sink.extract(Step.state(step1))
         init2 <- sink.initial
+        _     <- MockClock.adjust(2.seconds)
         step2 <- sink.step(Step.state(init2), 2)
         res2  <- sink.extract(Step.state(step2))
         init3 <- sink.initial
+        _     <- MockClock.adjust(4.seconds)
         _     <- clock.sleep(4.seconds)
         step3 <- sink.step(Step.state(init3), 3)
         res3  <- sink.extract(Step.state(step3))
@@ -1374,7 +1376,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
                   .use(sinkTest)
                   .provide(clock)
                   .fork
-        _    <- clock.clock.adjust(6.seconds)
         test <- fiber.join
       } yield test
     }
