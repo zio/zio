@@ -1636,6 +1636,57 @@ private[zio] trait ZIOFunctions extends Serializable {
     foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
 
   /**
+   * Evaluate and run each effect in the structure and collect discarding failed ones.
+   */
+  final def collectAllSuccesses[R, E, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, List[A]] =
+    collectAllWith[R, Nothing, Exit[E, A], A](in.map(_.run)) { case zio.Exit.Success(a) => a }
+
+  /**
+   * Evaluate and run each effect in the structure in parallel, and collect discarding failed ones.
+   */
+  final def collectAllSuccessesPar[R, E, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, List[A]] =
+    collectAllWithPar[R, Nothing, Exit[E, A], A](in.map(_.run)) { case zio.Exit.Success(a) => a }
+
+  /**
+   * Evaluate and run each effect in the structure in parallel, and collect discarding failed ones.
+   *
+   * Unlike `collectAllSuccessesPar`, this method will use at most up to `n` fibers.
+   */
+  final def collectAllSuccessesParN[R, E, A](
+    n: Long
+  )(in: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, List[A]] =
+    collectAllWithParN[R, Nothing, Exit[E, A], A](n)(in.map(_.run)) { case zio.Exit.Success(a) => a }
+
+  /**
+   * Evaluate each effect in the structure with `collectAll`, and collect
+   * the results with given partial function.
+   */
+  final def collectAllWith[R, E, A, U](
+    in: Iterable[ZIO[R, E, A]]
+  )(f: PartialFunction[A, U]): ZIO[R, E, List[U]] =
+    ZIO.collectAll(in).map(_.collect(f))
+
+  /**
+   * Evaluate each effect in the structure with `collectAllPar`, and collect
+   * the results with given partial function.
+   */
+  final def collectAllWithPar[R, E, A, U](
+    in: Iterable[ZIO[R, E, A]]
+  )(f: PartialFunction[A, U]): ZIO[R, E, List[U]] =
+    ZIO.collectAllPar(in).map(_.collect(f))
+
+  /**
+   * Evaluate each effect in the structure with `collectAllPar`, and collect
+   * the results with given partial function.
+   *
+   * Unlike `collectAllWithPar`, this method will use at most up to `n` fibers.
+   */
+  final def collectAllWithParN[R, E, A, U](n: Long)(
+    in: Iterable[ZIO[R, E, A]]
+  )(f: PartialFunction[A, U]): ZIO[R, E, List[U]] =
+    ZIO.collectAllParN(n)(in).map(_.collect(f))
+
+  /**
    * Returns information about the current fiber, such as its identity.
    */
   final def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeed)
