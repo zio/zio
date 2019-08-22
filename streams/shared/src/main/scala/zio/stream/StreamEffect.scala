@@ -107,7 +107,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
         var done             = false
         var error: Option[E] = None
 
-        while (cont(state) && !done && error == None) {
+        while (!done && error == None && cont(state)) {
           try {
             val a = it()
             state = f(state, a)
