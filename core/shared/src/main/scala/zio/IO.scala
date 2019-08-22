@@ -103,7 +103,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
-  final def collectAllSuccessesParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def collectAllSuccessesParN[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.collectAllSuccessesParN(n)(as)
 
   /**
@@ -121,7 +121,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  final def collectAllWithParN[E, A, B](n: Long)(as: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
+  final def collectAllWithParN[E, A, B](n: Int)(as: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
