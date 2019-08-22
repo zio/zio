@@ -228,7 +228,9 @@ private[stream] object StreamEffect extends Serializable {
     new StreamEffect[Nothing, Nothing] {
       def process = ZManaged.succeed(InputStream.end)
 
-      def processEffect = Managed.effectTotal { throw End }
+      def processEffect = Managed.effectTotal { () =>
+        throw End
+      }
     }
 
   final def fromIterable[A](as: Iterable[A]): StreamEffect[Nothing, A] =
