@@ -226,6 +226,8 @@ private[stream] object StreamEffect extends Serializable {
 
   def end[A]: A = throw End
 
+  def fail[E, A](e: E): A = throw Failure(e)
+
   final val empty: StreamEffect[Nothing, Nothing] =
     new StreamEffect[Nothing, Nothing] {
       def process = ZManaged.succeed(InputStream.end)
