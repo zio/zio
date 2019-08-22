@@ -2,7 +2,8 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.ZIO
+import zio.{ Schedule, ZIO }
+import zio.clock.Clock
 
 object TestUtils {
 
@@ -14,17 +15,8 @@ object TestUtils {
         (p, fail(s))
     }.recover { case _ => (false, fail(s)) }
 
-  def nonFlaky[R, E](test: ZIO[R, E, Boolean]): ZIO[R, E, Boolean] = {
-    def repeat(n: Int): ZIO[R, E, Boolean] =
-      if (n <= 1) test
-      else
-        test.flatMap { result =>
-          if (result) repeat(n - 1)
-          else ZIO.succeed(result)
-        }
-
-    repeat(100)
-  }
+  def nonFlaky[R, E](test: ZIO[R, E, Boolean]): ZIO[R with Clock, E, Boolean] =
+    test.repeat(Schedule.recurs(100) *> Schedule.identity[Boolean])
 
   def scope(fs: List[Future[(Boolean, String)]], s: String)(
     implicit ec: ExecutionContext
