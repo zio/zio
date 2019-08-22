@@ -45,8 +45,8 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
             var done = false
 
             () => {
-              if (done) throw StreamEffect.End
-              else pred.applyOrElse(it(), (_: A) => { done = true; throw StreamEffect.End })
+              if (done) StreamEffect.end
+              else pred.applyOrElse(it(), (_: A) => { done = true; StreamEffect.end })
             }
           }
         }
@@ -190,7 +190,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
             var counter = 0
 
             () => {
-              if (counter >= n) throw StreamEffect.End
+              if (counter >= n) StreamEffect.end
               else {
                 counter += 1
                 it()
@@ -210,7 +210,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
             {
               val a = it()
               if (pred(a)) a
-              else throw StreamEffect.End
+              else StreamEffect.end
             }
           }
         }
@@ -224,12 +224,14 @@ private[stream] object StreamEffect extends Serializable {
 
   case object End extends Throwable("stream end", null, true, false)
 
+  def end[A]: A = throw End
+
   final val empty: StreamEffect[Nothing, Nothing] =
     new StreamEffect[Nothing, Nothing] {
       def process = ZManaged.succeed(InputStream.end)
 
       def processEffect = Managed.effectTotal { () =>
-        throw End
+        end
       }
     }
 
@@ -248,7 +250,7 @@ private[stream] object StreamEffect extends Serializable {
         Managed.effectTotal {
           val it = as.iterator
 
-          () => if (it.hasNext) it.next() else throw End
+          () => if (it.hasNext) it.next() else end
         }
     }
 
@@ -270,7 +272,7 @@ private[stream] object StreamEffect extends Serializable {
             if (!done) {
               done = true
               a
-            } else throw End
+            } else end
           }
         }
     }
