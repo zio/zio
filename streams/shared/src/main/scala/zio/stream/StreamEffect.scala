@@ -29,7 +29,13 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
-            def pull(): B = pf.applyOrElse(it(), (_: A) => pull())
+            @annotation.tailrec
+            def pull(): B = {
+              val a = it()
+              if (pf isDefinedAt a) pf(a)
+              else pull()
+            }
+
             () => pull()
           }
         }
@@ -61,6 +67,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
           Managed.effectTotal {
             var drop = true
 
+            @annotation.tailrec
             def pull(): A = {
               val a = it()
               if (!drop) a
@@ -82,6 +89,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
+            @annotation.tailrec
             def pull(): A = {
               val a = it()
               if (pred(a)) a else pull()
