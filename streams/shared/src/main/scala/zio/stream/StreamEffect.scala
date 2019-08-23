@@ -221,9 +221,13 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
 private[stream] object StreamEffect extends Serializable {
 
-  case class Failure[E](e: E) extends Throwable(e.toString, null, true, false)
+  case class Failure[E](e: E) extends Throwable(e.toString, null, true, false) {
+    override def fillInStackTrace() = this
+  }
 
-  case object End extends Throwable("stream end", null, true, false)
+  case object End extends Throwable("stream end", null, true, false) {
+    override def fillInStackTrace() = this
+  }
 
   def end[A]: A = throw End
 
