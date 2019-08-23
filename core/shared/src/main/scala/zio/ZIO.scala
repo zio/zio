@@ -45,12 +45,12 @@ import zio.{ InterruptStatus => InterruptS }
  * `ZIO` values can efficiently describe the following classes of effects:
  *
  *  - '''Pure Values''' &mdash; `ZIO.succeed`
- *  - ```Error Effects``` &mdash; `ZIO.fail`
+ *  - '''Error Effects''' &mdash; `ZIO.fail`
  *  - '''Synchronous Effects''' &mdash; `IO.effect`
  *  - '''Asynchronous Effects''' &mdash; `IO.effectAsync`
  *  - '''Concurrent Effects''' &mdash; `IO#fork`
  *  - '''Resource Effects''' &mdash; `IO#bracket`
- *  - ```Contextual Effects``` &mdash; `ZIO.access`
+ *  - '''Contextual Effects''' &mdash; `ZIO.access`
  *
  * The concurrency model is based on ''fibers'', a user-land lightweight thread,
  * which permit cooperative multitasking, fine-grained interruption, and very
@@ -506,11 +506,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
 
   /**
-   * Returns an effect whose execution is locked to the specified executor.
+   * Returns an effect which is guaranteed to be executed on the specified
+   * executor. The specified effect will always run on the specified executor,
+   * even in the presence of asynchronous boundaries. 
+   * 
    * This is useful when an effect must be executued somewhere, for example:
    * on a UI thread, inside a client library's thread pool, inside a blocking
    * thread pool, inside a low-latency thread pool, or elsewhere.
    *
+   * The `lock` function composes with the innermost `lock` taking priority.
    * Use of this method does not alter the execution semantics of other effects
    * composed with this one, making it easy to compositionally reason about
    * where effects are running.
@@ -2142,7 +2146,8 @@ private[zio] trait ZIOFunctions extends Serializable {
 
   /**
    * Returns an effect that will execute the specified effect fully on the
-   * provided executor, before returning to the default executor.
+   * provided executor, before returning to the default executor. See
+   * [[ZIO!.lock]].
    */
   final def lock[R, E, A](executor: Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.Lock(executor, zio)
