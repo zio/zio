@@ -124,7 +124,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
         error.fold[Either[E, S]](Right(state))(Left(_))
       }
 
-      Managed.fromEither(fold())
+      Managed.effectTotal(Managed.fromEither(fold())).flatten
     }
 
   override def map[B](f0: A => B): StreamEffect[E, B] =
