@@ -38,15 +38,17 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
     new StreamEffect[E, B] {
       def processEffect =
         self.processEffect.flatMap { it =>
-          Managed.effectTotal {
-            @annotation.tailrec
-            def pull(): B = {
-              val a = it()
-              if (pf isDefinedAt a) pf(a)
-              else pull()
-            }
+          Managed.effectTotal { () =>
+            {
+              var ob: Option[B]                        = None
+              val pfOpt: PartialFunction[A, Option[B]] = pf.andThen(Some(_))
 
-            () => pull()
+              while (ob.isEmpty) {
+                ob = pfOpt.applyOrElse(it(), (_: A) => None)
+              }
+
+              ob.get
+            }
           }
         }
     }
@@ -111,7 +113,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
         var done             = false
         var error: Option[E] = None
 
-        while (!done && error == None && cont(state)) {
+        while (!done && error.isEmpty && cont(state)) {
           try {
             val a = it()
             state = f(state, a)
