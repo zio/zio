@@ -245,7 +245,7 @@ lazy val docs = project.module
       "com.github.ghik"     %% "silencer-lib"                % "1.4.2" % "provided",
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples"    % "1.0.2" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC2",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC3",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC4",
