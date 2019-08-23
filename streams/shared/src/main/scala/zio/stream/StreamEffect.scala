@@ -104,7 +104,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
         }
     }
 
-  final def foldEffect[S](s: S)(cont: S => Boolean)(f: (S, A) => S): Managed[E, S] =
+  final def foldLazyPure[S](s: S)(cont: S => Boolean)(f: (S, A) => S): Managed[E, S] =
     processEffect.flatMap { it =>
       def fold(): Either[E, S] = {
         var state            = s
@@ -177,7 +177,7 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
   override def run[R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R, E1, A0, A1, B]): ZIO[R, E1, B] =
     sink match {
       case sink: SinkPure[E1, A0, A1, B] =>
-        foldEffect[ZSink.Step[sink.State, A0]](sink.initialPure)(ZSink.Step.cont) { (s, a) =>
+        foldLazyPure[ZSink.Step[sink.State, A0]](sink.initialPure)(ZSink.Step.cont) { (s, a) =>
           sink.stepPure(ZSink.Step.state(s), a)
         }.use[Any, E1, B] { step =>
           ZIO.fromEither(sink.extractPure(ZSink.Step.state(step)))
