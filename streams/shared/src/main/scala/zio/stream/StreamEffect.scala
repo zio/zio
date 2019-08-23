@@ -17,15 +17,25 @@
 package zio.stream
 
 import zio._
+import zio.stream.ZStream.InputStream
 
 private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   def processEffect: Managed[E, () => A]
 
+  def process: Managed[E, InputStream[Any, E, A]] =
+    processEffect.map { thunk =>
+      UIO.effectTotal {
+        try UIO.succeed(thunk())
+        catch {
+          case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
+          case StreamEffect.End        => IO.fail(None)
+        }
+      }.flatten
+    }
+
   override def collect[B](pf: PartialFunction[A, B]): StreamEffect[E, B] =
     new StreamEffect[E, B] {
-      def process = StreamEffect.super.collect(pf).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
@@ -43,8 +53,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   override def collectWhile[B](pred: PartialFunction[A, B]): StreamEffect[E, B] =
     new StreamEffect[E, B] {
-      def process = StreamEffect.super.collectWhile(pred).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
@@ -60,8 +68,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   override def dropWhile(pred: A => Boolean): StreamEffect[E, A] =
     new StreamEffect[E, A] {
-      def process = StreamEffect.super.dropWhile(pred).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
@@ -84,8 +90,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   override def filter(pred: A => Boolean): StreamEffect[E, A] =
     new StreamEffect[E, A] {
-      def process = StreamEffect.super.filter(pred).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
@@ -125,8 +129,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   override def map[B](f0: A => B): StreamEffect[E, B] =
     new StreamEffect[E, B] {
-      def process = StreamEffect.super.map(f0).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal { () =>
@@ -137,8 +139,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   override def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): StreamEffect[E, B] =
     new StreamEffect[E, B] {
-      def process = StreamEffect.super.mapAccum(s1)(f1).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
@@ -155,8 +155,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   override def mapConcat[B](f: A => Chunk[B]): StreamEffect[E, B] =
     new StreamEffect[E, B] {
-      def process = StreamEffect.super.mapConcat(f).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
@@ -190,8 +188,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   override def take(n: Int): StreamEffect[E, A] =
     new StreamEffect[E, A] {
-      def process = StreamEffect.super.take(n).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal {
@@ -210,8 +206,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   override def takeWhile(pred: A => Boolean): StreamEffect[E, A] =
     new StreamEffect[E, A] {
-      def process = StreamEffect.super.takeWhile(pred).process
-
       def processEffect =
         self.processEffect.flatMap { it =>
           Managed.effectTotal { () =>
@@ -226,7 +220,6 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 }
 
 private[stream] object StreamEffect extends Serializable {
-  import ZStream.InputStream
 
   case class Failure[E](e: E) extends Throwable(e.toString, null, true, false)
 
@@ -238,8 +231,6 @@ private[stream] object StreamEffect extends Serializable {
 
   final val empty: StreamEffect[Nothing, Nothing] =
     new StreamEffect[Nothing, Nothing] {
-      def process = ZManaged.succeed(InputStream.end)
-
       def processEffect = Managed.effectTotal { () =>
         end
       }
@@ -247,15 +238,6 @@ private[stream] object StreamEffect extends Serializable {
 
   final def fromIterable[A](as: Iterable[A]): StreamEffect[Nothing, A] =
     new StreamEffect[Nothing, A] {
-      def process =
-        for {
-          it <- ZManaged.effectTotal(as.iterator)
-          pull = UIO {
-            if (it.hasNext) InputStream.emit(it.next)
-            else InputStream.end
-          }.flatten
-        } yield pull
-
       def processEffect =
         Managed.effectTotal {
           val it = as.iterator
@@ -266,14 +248,6 @@ private[stream] object StreamEffect extends Serializable {
 
   final def succeed[A](a: A): StreamEffect[Nothing, A] =
     new StreamEffect[Nothing, A] {
-      def process =
-        for {
-          done <- Ref.make(false).toManaged_
-        } yield done.get.flatMap {
-          if (_) InputStream.end
-          else done.set(true) *> InputStream.emit(a)
-        }
-
       def processEffect =
         Managed.effectTotal {
           var done = false
