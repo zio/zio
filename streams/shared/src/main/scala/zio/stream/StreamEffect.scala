@@ -250,6 +250,23 @@ private[stream] object StreamEffect extends Serializable {
         }
     }
 
+  final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Nothing, A] =
+    new StreamEffect[Nothing, A] {
+      def processEffect =
+        Managed.effectTotal {
+          var state = s
+
+          () => {
+            val opt = f0(state)
+            if (opt.isDefined) {
+              val res = opt.get
+              state = res._2
+              res._1
+            } else end
+          }
+        }
+    }
+
   final def succeed[A](a: A): StreamEffect[Nothing, A] =
     new StreamEffect[Nothing, A] {
       def processEffect =

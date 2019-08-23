@@ -2254,7 +2254,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream by peeling off the "layers" of a value of type `S`
    */
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): Stream[Nothing, A] =
-    unfoldM(s)(s => ZIO.succeed(f0(s)))
+    StreamEffect.unfold(s)(f0)
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
