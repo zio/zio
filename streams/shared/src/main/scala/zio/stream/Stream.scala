@@ -21,6 +21,7 @@ import zio.clock.Clock
 import zio.Cause
 
 object Stream extends ZStreamPlatformSpecific {
+  import ZStream.Pull
 
   /**
    * See [[ZStream.empty]]
@@ -38,6 +39,11 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.apply]]
    */
   final def apply[A](as: A*): Stream[Nothing, A] = ZStream(as: _*)
+
+  /**
+   * See [[ZStream.apply]]
+   */
+  final def apply[E, A](pull: Managed[E, Pull[Any, E, A]]): Stream[E, A] = ZStream(pull)
 
   /**
    * See [[ZStream.bracket]]

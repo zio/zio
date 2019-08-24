@@ -29,13 +29,8 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-trait ZStreamChunk[-R, +E, @specialized +A] { self =>
+class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   import ZStream.Pull
-
-  /**
-   * The stream of chunks underlying this stream
-   */
-  val chunks: ZStream[R, E, Chunk[A]]
 
   /**
    * Concatenates with another stream in strict order
@@ -54,32 +49,31 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * evaluates to `true`.
    */
   final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
-    ZStreamChunk(
-      new ZStream[R, E, Chunk[A]] {
-        override def process =
-          for {
-            chunks          <- self.chunks.process
-            keepDroppingRef <- Ref.make(true).toManaged_
-            pull = {
-              def go: Pull[R, E, Chunk[A]] =
-                chunks.flatMap { chunk =>
-                  keepDroppingRef.get.flatMap { keepDropping =>
-                    if (!keepDropping) Pull.emit(chunk)
-                    else {
-                      val remaining = chunk.dropWhile(pred)
-                      val empty     = remaining.length <= 0
+    ZStreamChunk {
+      ZStream[R, E, Chunk[A]] {
+        for {
+          chunks          <- self.chunks.process
+          keepDroppingRef <- Ref.make(true).toManaged_
+          pull = {
+            def go: Pull[R, E, Chunk[A]] =
+              chunks.flatMap { chunk =>
+                keepDroppingRef.get.flatMap { keepDropping =>
+                  if (!keepDropping) Pull.emit(chunk)
+                  else {
+                    val remaining = chunk.dropWhile(pred)
+                    val empty     = remaining.length <= 0
 
-                      if (empty) go
-                      else keepDroppingRef.set(false).as(remaining)
-                    }
+                    if (empty) go
+                    else keepDroppingRef.set(false).as(remaining)
                   }
                 }
+              }
 
-              go
-            }
-          } yield pull
+            go
+          }
+        } yield pull
       }
-    )
+    }
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
@@ -215,8 +209,8 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * evaluates to `true`.
    */
   final def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
-    ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def process =
+    ZStreamChunk {
+      ZStream[R, E, Chunk[A]] {
         for {
           chunks  <- self.chunks.process
           doneRef <- Ref.make(false).toManaged_
@@ -230,7 +224,8 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
               } yield remaining
           }
         } yield pull
-    })
+      }
+    }
 
   /**
    * Adds an effect to consumption of every element of the stream.
@@ -275,31 +270,23 @@ object ZStreamChunk {
    * The empty stream of chunks
    */
   final val empty: StreamChunk[Nothing, Nothing] =
-    new StreamChunk[Nothing, Nothing] {
-      val chunks = Stream.empty
-    }
+    new StreamChunk[Nothing, Nothing](Stream.empty)
 
   /**
    * Creates a `ZStreamChunk` from a stream of chunks
    */
   final def apply[R, E, A](chunkStream: ZStream[R, E, Chunk[A]]): ZStreamChunk[R, E, A] =
-    new ZStreamChunk[R, E, A] {
-      val chunks = chunkStream
-    }
+    new ZStreamChunk[R, E, A](chunkStream)
 
   /**
    * Creates a `ZStreamChunk` from a variable list of chunks
    */
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A] {
-      val chunks = Stream.fromIterable(as)
-    }
+    new StreamChunk[Nothing, A](Stream.fromIterable(as))
 
   /**
    * Creates a `ZStreamChunk` from a chunk
    */
   final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A] {
-      val chunks = Stream.succeed(as)
-    }
+    new StreamChunk[Nothing, A](Stream.succeed(as))
 }
