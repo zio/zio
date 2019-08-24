@@ -23,11 +23,14 @@ package object syntax {
   implicit final def ioEagerSyntax[A](a: A): IOCreationEagerSyntax[A]                        = new IOCreationEagerSyntax[A](a)
   implicit final def ioLazySyntax[A](a: => A): IOCreationLazySyntax[A]                       = new IOCreationLazySyntax[A](() => a)
   implicit final def ioIterableSyntax[E, A](ios: Iterable[IO[E, A]]): IOIterableSyntax[E, A] = new IOIterableSyntax(ios)
-  implicit final def ioTuple2Syntax[E, A, B](ios: (IO[E, A], IO[E, B])): IOTuple2[E, A, B]   = new IOTuple2(ios)
-  implicit final def ioTuple3Syntax[E, A, B, C](ios: (IO[E, A], IO[E, B], IO[E, C])): IOTuple3[E, A, B, C] =
+  implicit final def ioTuple2Syntax[R, E, A, B](ios: (ZIO[R, E, A], ZIO[R, E, B])): IOTuple2[R, E, A, B] =
+    new IOTuple2(ios)
+  implicit final def ioTuple3Syntax[R, E, A, B, C](
+    ios: (ZIO[R, E, A], ZIO[R, E, B], ZIO[R, E, C])
+  ): IOTuple3[R, E, A, B, C] =
     new IOTuple3(ios)
-  implicit final def ioTuple4Syntax[E, A, B, C, D](
-    ios: (IO[E, A], IO[E, B], IO[E, C], IO[E, D])
-  ): IOTuple4[E, A, B, C, D] =
+  implicit final def ioTuple4Syntax[R, E, A, B, C, D](
+    ios: (ZIO[R, E, A], ZIO[R, E, B], ZIO[R, E, C], ZIO[R, E, D])
+  ): IOTuple4[R, E, A, B, C, D] =
     new IOTuple4(ios)
 }
