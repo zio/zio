@@ -508,8 +508,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect which is guaranteed to be executed on the specified
    * executor. The specified effect will always run on the specified executor,
-   * even in the presence of asynchronous boundaries. 
-   * 
+   * even in the presence of asynchronous boundaries.
+   *
    * This is useful when an effect must be executued somewhere, for example:
    * on a UI thread, inside a client library's thread pool, inside a blocking
    * thread pool, inside a low-latency thread pool, or elsewhere.
