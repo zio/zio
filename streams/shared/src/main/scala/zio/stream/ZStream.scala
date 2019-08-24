@@ -1261,13 +1261,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
           permits          <- Semaphore.make(n.toLong).toManaged_
           interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
           _ <- self.foreachManaged { a =>
-                  for {
-                    latch <- Promise.make[Nothing, Unit]
-                    p <- Promise.make[E1, B]
-                    _ <- out.offer(InputStream.fromPromise(p))
-                    _ <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
-                    _ <- latch.await
-                  } yield ()
+                for {
+                  latch <- Promise.make[Nothing, Unit]
+                  p     <- Promise.make[E1, B]
+                  _     <- out.offer(InputStream.fromPromise(p))
+                  _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
+                  _     <- latch.await
+                } yield ()
               }.foldCauseM(
                   c => (interruptWorkers.succeed(()) *> out.offer(InputStream.halt(c))).unit.toManaged_,
                   _ => out.offer(InputStream.end).unit.toManaged_
