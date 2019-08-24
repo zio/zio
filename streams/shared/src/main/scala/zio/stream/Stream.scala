@@ -36,12 +36,12 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.never
 
   /**
-   * See [[ZStream.apply]]
+   * See [[ZStream.apply[A]*]]
    */
   final def apply[A](as: A*): Stream[Nothing, A] = ZStream(as: _*)
 
   /**
-   * See [[ZStream.apply]]
+   * See [[ZStream.apply[R,E,A]*]]
    */
   final def apply[E, A](pull: Managed[E, Pull[Any, E, A]]): Stream[E, A] = ZStream(pull)
 
