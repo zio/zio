@@ -16,15 +16,15 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong, AtomicReference}
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import com.github.ghik.silencer.silent
-import zio.internal.FiberContext.{FiberRefLocals, SuperviseStatus}
+import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
-import zio.{Cause, _}
+import zio.{ Cause, _ }
 
-import scala.annotation.{switch, tailrec}
+import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
 
 /**
@@ -40,7 +40,7 @@ private[zio] final class FiberContext[E, A](
   initialTracingStatus: Boolean,
   fiberRefLocals: FiberRefLocals
 ) extends Fiber[E, A] {
-  import java.util.{Collections, Set}
+  import java.util.{ Collections, Set }
 
   import FiberContext._
   import FiberState._
