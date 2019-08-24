@@ -17,14 +17,15 @@
 package zio.internal
 
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
+
 import com.github.ghik.silencer.silent
-import scala.collection.JavaConverters._
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
-import zio.Cause
-import zio._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
+import zio.{ Cause, _ }
+
 import scala.annotation.{ switch, tailrec }
+import scala.collection.JavaConverters._
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -558,10 +559,8 @@ private[zio] final class FiberContext[E, A](
   private[this] final def getFibers: UIO[IndexedSeq[Fiber[_, _]]] =
     UIO {
       supervised.peek() match {
-        case SuperviseStatus.Unsupervised => Array.empty[Fiber[_, _]].toIndexedSeq
-        case SuperviseStatus.Supervised(set) =>
-          val arr = Array.ofDim[Fiber[_, _]](set.size)
-          set.toArray[Fiber[_, _]](arr).toIndexedSeq
+        case SuperviseStatus.Unsupervised  => Array.empty[Fiber[_, _]].toIndexedSeq
+        case s: SuperviseStatus.Supervised => s.fibers
       }
     }
 
@@ -842,7 +841,16 @@ private[zio] object FiberContext {
     }
   }
   object SuperviseStatus {
-    final case class Supervised(value: java.util.Set[Fiber[_, _]]) extends SuperviseStatus
-    case object Unsupervised                                       extends SuperviseStatus
+    final case class Supervised(value: java.util.Set[Fiber[_, _]]) extends SuperviseStatus {
+      def fibers: IndexedSeq[Fiber[_, _]] = {
+        val arr = Array.ofDim[Fiber[_, _]](value.size)
+        value
+          .toArray[Fiber[_, _]](arr)
+          .toIndexedSeq
+          // In WeakHashMap based sets elements can become null
+          .filter(_ != null)
+      }
+    }
+    case object Unsupervised extends SuperviseStatus
   }
 }
