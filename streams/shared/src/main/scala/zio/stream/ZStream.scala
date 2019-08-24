@@ -2120,16 +2120,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from a [[zio.Chunk]] of values
    */
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
-    new Stream[Nothing, A] {
-      def process: Managed[Nothing, InputStream[Any, Nothing, A]] =
-        for {
-          index <- Ref.make(0).toManaged_
-          len   = c.length
-        } yield index.get.flatMap { i =>
-          if (i >= len) InputStream.end
-          else index.set(i + 1) *> InputStream.emit(c(i))
-        }
-    }
+    StreamEffect.fromChunk(c)
 
   /**
    * Creates a stream from an effect producing a value of type `A`
