@@ -30,7 +30,7 @@ import zio._
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
 trait ZStreamChunk[-R, +E, @specialized +A] { self =>
-  import ZStream.InputStream
+  import ZStream.Pull
 
   /**
    * The stream of chunks underlying this stream
@@ -56,15 +56,15 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(
       new ZStream[R, E, Chunk[A]] {
-        override def process: ZManaged[R, E, InputStream[R, E, Chunk[A]]] =
+        override def process =
           for {
             chunks          <- self.chunks.process
             keepDroppingRef <- Ref.make(true).toManaged_
             pull = {
-              def go: InputStream[R, E, Chunk[A]] =
+              def go: Pull[R, E, Chunk[A]] =
                 chunks.flatMap { chunk =>
                   keepDroppingRef.get.flatMap { keepDropping =>
-                    if (!keepDropping) InputStream.emit(chunk)
+                    if (!keepDropping) Pull.emit(chunk)
                     else {
                       val remaining = chunk.dropWhile(pred)
                       val empty     = remaining.length <= 0
@@ -183,13 +183,13 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
     ZStreamChunk(chunks.mapM(_.mapM(f0)))
 
-  final def process: ZManaged[R, E, InputStream[R, E, A]] =
+  final def process =
     for {
       chunks   <- self.chunks.process
       chunkRef <- Ref.make[Chunk[A]](Chunk.empty).toManaged_
       indexRef <- Ref.make(0).toManaged_
       pull = {
-        def go: InputStream[R, E, A] =
+        def go: Pull[R, E, A] =
           chunkRef.get.flatMap { chunk =>
             indexRef.get.flatMap { index =>
               if (index < chunk.length) indexRef.set(index + 1).as(chunk(index))
@@ -221,7 +221,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
           chunks  <- self.chunks.process
           doneRef <- Ref.make(false).toManaged_
           pull = doneRef.get.flatMap { done =>
-            if (done) InputStream.end
+            if (done) Pull.end
             else
               for {
                 chunk     <- chunks

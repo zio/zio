@@ -37,26 +37,26 @@ import zio.duration.Duration
  *
  */
 trait ZStream[-R, +E, +A] extends Serializable { self =>
-  import ZStream.{ GroupBy, InputStream }
+  import ZStream.{ GroupBy, Pull }
 
   /**
    * Obtain a managed input stream that can be used to read from the stream until it is
-   * empty (or possibly forever, if the stream is infinite). The provided `InputStream`
+   * empty (or possibly forever, if the stream is infinite). The provided `Pull`
    * is valid only inside the scope of the managed resource.
    *
    * This is a low-level consumption method, usually used for creating combinators
    * and constructors. For most usage, [[ZStream#fold]], [[ZStream#foreach]] or [[ZStream#run]]
    * should be preferred.
    *
-   * The contract for the returned `InputStream` is as follows:
+   * The contract for the returned `Pull` is as follows:
    * - It must not be evaluted concurrently from multiple fibers - it is (usually)
    *   not thread-safe;
-   * - If an evaluation of the `InputStream` is interrupted, it is not safe to
+   * - If an evaluation of the `Pull` is interrupted, it is not safe to
    *   evaluate it again - it is (usually) not interruption-safe;
-   * - Once the `InputStream` has failed with a `None`, it is not safe
+   * - Once the `Pull` has failed with a `None`, it is not safe
    *   to evaluate it again.
    */
-  def process: ZManaged[R, E, InputStream[R, E, A]]
+  def process: ZManaged[R, E, Pull[R, E, A]]
 
   /**
    * Concatenates with another stream in strict order
@@ -203,7 +203,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       }.flatten
 
     new ZStream[R1, E1, B] {
-      def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
+      def process =
         for {
           initSink  <- sink.initial.map(Step.state(_)).toManaged_
           initAwait <- Promise.make[Nothing, Unit].toManaged_
@@ -452,7 +452,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       }.flatten
 
     new ZStream[R1 with Clock, E1, Either[C, B]] {
-      def process: ZManaged[R1 with Clock, E1, ZStream.InputStream[R1 with Clock, E1, Either[C, B]]] =
+      def process =
         for {
           initSink  <- sink.initial.map(Step.state(_)).toManaged_
           initAwait <- Promise.make[Nothing, Unit].toManaged_
@@ -529,28 +529,28 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       case object Other      extends State
     }
 
-    ZStream.fromInputStreamManaged {
+    ZStream.fromPullManaged {
       for {
-        finalizer        <- ZManaged.finalizerRef[R1](_ => UIO.unit)
-        selfInputStream  <- Ref.make[InputStream[R, E, A]](InputStream.end).toManaged_
-        otherInputStream <- Ref.make[InputStream[R1, E2, A1]](InputStream.end).toManaged_
-        stateRef         <- Ref.make[State](State.NotStarted).toManaged_
+        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        selfPull  <- Ref.make[Pull[R, E, A]](Pull.end).toManaged_
+        otherPull <- Ref.make[Pull[R1, E2, A1]](Pull.end).toManaged_
+        stateRef  <- Ref.make[State](State.NotStarted).toManaged_
         pull = {
-          def switch(e: Cause[Option[E]]): InputStream[R1, E2, A1] = {
+          def switch(e: Cause[Option[E]]): Pull[R1, E2, A1] = {
             def next(e: Cause[E]) = ZIO.uninterruptibleMask { restore =>
               for {
                 _  <- finalizer.get.flatMap(_.apply(Exit.fail(e)))
                 r  <- f(e).process.reserve.mapError(Some(_))
                 _  <- finalizer.set(r.release)
                 as <- restore(r.acquire.mapError(Some(_)))
-                _  <- otherInputStream.set(as)
+                _  <- otherPull.set(as)
                 _  <- stateRef.set(State.Other)
                 a  <- as
               } yield a
             }
 
-            InputStream.sequenceCauseOption(e) match {
-              case None    => InputStream.end
+            Pull.sequenceCauseOption(e) match {
+              case None    => Pull.end
               case Some(c) => next(c)
             }
           }
@@ -562,17 +562,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                   r  <- self.process.reserve.mapError(Some(_))
                   _  <- finalizer.set(r.release)
                   as <- restore(r.acquire.mapError(Some(_)))
-                  _  <- selfInputStream.set(as)
+                  _  <- selfPull.set(as)
                   _  <- stateRef.set(State.Self)
                   a  <- as
                 } yield a
               }.catchAllCause(switch)
 
             case State.Self =>
-              selfInputStream.get.flatten.catchAllCause(switch)
+              selfPull.get.flatten.catchAllCause(switch)
 
             case State.Other =>
-              otherInputStream.get.flatten
+              otherPull.get.flatten
           }
         }
       } yield pull
@@ -586,8 +586,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     new ZStream[R, E, B] {
       def process =
         self.process.map { as =>
-          val pfIO: PartialFunction[A, InputStream[R, E, B]] = pf.andThen(InputStream.emit(_))
-          def pull: InputStream[R, E, B] =
+          val pfIO: PartialFunction[A, Pull[R, E, B]] = pf.andThen(Pull.emit(_))
+          def pull: Pull[R, E, B] =
             as.flatMap { a =>
               pfIO.applyOrElse(a, (_: A) => pull)
             }
@@ -600,17 +600,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Transforms all elements of the stream for as long as the specified partial function is defined.
    */
   def collectWhile[B](pred: PartialFunction[A, B]): ZStream[R, E, B] = new ZStream[R, E, B] {
-    def process: ZManaged[R, E, ZStream.InputStream[R, E, B]] =
+    def process =
       for {
         as   <- self.process
         done <- Ref.make(false).toManaged_
-        pfIO = pred.andThen(InputStream.emit(_))
+        pfIO = pred.andThen(Pull.emit(_))
         pull = for {
           alreadyDone <- done.get
-          result <- if (alreadyDone) InputStream.end
+          result <- if (alreadyDone) Pull.end
                    else
                      as.flatMap { a =>
-                       pfIO.applyOrElse(a, (_: A) => done.set(true) *> InputStream.end)
+                       pfIO.applyOrElse(a, (_: A) => done.set(true) *> Pull.end)
                      }
         } yield result
       } yield pull
@@ -624,7 +624,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * process, with the initial state being specified by `s1`.
    */
   final def combine[R1 <: R, E1 >: E, A1 >: A, S1, B, C](that: ZStream[R1, E1, B])(s1: S1)(
-    f0: (S1, InputStream[R, E, A], InputStream[R1, E1, B]) => ZIO[R1, E1, (S1, Take[E1, C])]
+    f0: (S1, Pull[R, E, A], Pull[R1, E1, B]) => ZIO[R1, E1, (S1, Take[E1, C])]
   ): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
       def process =
@@ -753,11 +753,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         as              <- self.process
         keepDroppingRef <- Ref.make(true).toManaged_
         pull = {
-          def go: InputStream[R, E, A] =
+          def go: Pull[R, E, A] =
             as.flatMap { a =>
               keepDroppingRef.get.flatMap { keepDropping =>
-                if (!keepDropping) InputStream.emit(a)
-                else if (!pred(a)) keepDroppingRef.set(false) *> InputStream.emit(a)
+                if (!keepDropping) Pull.emit(a)
+                else if (!pred(a)) keepDroppingRef.set(false) *> Pull.emit(a)
                 else go
               }
             }
@@ -790,8 +790,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def filter(pred: A => Boolean): ZStream[R, E, A] = new ZStream[R, E, A] {
     def process =
       self.process.map { as =>
-        def pull: InputStream[R, E, A] = as.flatMap { a =>
-          if (pred(a)) InputStream.emit(a)
+        def pull: Pull[R, E, A] = as.flatMap { a =>
+          if (pred(a)) Pull.emit(a)
           else pull
         }
 
@@ -806,10 +806,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def filterM[R1 <: R, E1 >: E](pred: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] = new ZStream[R1, E1, A] {
     def process =
       self.process.map { as =>
-        def pull: InputStream[R1, E1, A] =
+        def pull: Pull[R1, E1, A] =
           as.flatMap { a =>
             pred(a).mapError(Some(_)).flatMap {
-              if (_) InputStream.emit(a)
+              if (_) Pull.emit(a)
               else pull
             }
           }
@@ -830,24 +830,24 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
-      def process: ZManaged[R1, E1, ZStream.InputStream[R1, E1, B]] =
+      def process =
         for {
-          currInputStream <- Ref.make[InputStream[R1, E1, B]](InputStream.end).toManaged_
-          as              <- self.process
-          finalizer       <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+          currPull  <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
+          as        <- self.process
+          finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
           pullOuter = ZIO.uninterruptibleMask { restore =>
             restore(as).flatMap { a =>
               (for {
                 reservation <- f0(a).process.reserve
                 bs          <- restore(reservation.acquire)
                 _           <- finalizer.set(reservation.release)
-                _           <- currInputStream.set(bs)
+                _           <- currPull.set(bs)
               } yield ()).mapError(Some(_))
             }
           }
           bs = {
-            def go: InputStream[R1, E1, B] =
-              currInputStream.get.flatten.catchAll {
+            def go: Pull[R1, E1, B] =
+              currPull.get.flatten.catchAll {
                 case e @ Some(e1) =>
                   (finalizer.get.flatMap(_(Exit.fail(e1))) *> finalizer.set(_ => UIO.unit)).uninterruptible *> ZIO.fail(
                     e
@@ -873,7 +873,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     new ZStream[R1, E1, B] {
       def process =
         for {
-          out             <- Queue.bounded[InputStream[R1, E1, B]](outputBuffer).toManaged(_.shutdown)
+          out             <- Queue.bounded[Pull[R1, E1, B]](outputBuffer).toManaged(_.shutdown)
           permits         <- Semaphore.make(n.toLong).toManaged_
           innerFailure    <- Promise.make[Cause[E1], Nothing].toManaged_
           interruptInners <- Promise.make[Nothing, Unit].toManaged_
@@ -899,9 +899,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                     .managed(permits.withPermitManaged)
                     .flatMap(_ => Stream.bracket(latch.succeed(()))(_ => UIO.unit))
                     .flatMap(_ => f(a))
-                    .foreach(b => out.offer(InputStream.emit(b)).unit)
+                    .foreach(b => out.offer(Pull.emit(b)).unit)
                     .foldCauseM(
-                      cause => out.offer(InputStream.halt(cause)) *> innerFailure.fail(cause).unit,
+                      cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
                       _ => ZIO.unit
                     )
                   _ <- (innerStream race interruptInners.await).fork
@@ -911,7 +911,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                   _ <- latch.await
                 } yield ()
               }.foldCauseM(
-                  cause => (interruptInners.succeed(()) *> out.offer(InputStream.halt(cause))).unit.toManaged_,
+                  cause => (interruptInners.succeed(()) *> out.offer(Pull.halt(cause))).unit.toManaged_,
                   _ =>
                     innerFailure.await
                     // Important to use `withPermits` here because the finalizer below may interrupt
@@ -923,7 +923,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                         leftDone =
                           (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt.unit,
                         // All fibers completed successfully, so we signal that we're done.
-                        rightDone = (_, failureAwait) => out.offer(InputStream.end) *> failureAwait.interrupt.unit
+                        rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
                       )
                       .toManaged_
                 )
@@ -947,7 +947,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       def process =
         for {
           // Modeled after flatMapPar.
-          out             <- Queue.bounded[InputStream[R1, E1, B]](bufferSize).toManaged(_.shutdown)
+          out             <- Queue.bounded[Pull[R1, E1, B]](bufferSize).toManaged(_.shutdown)
           permits         <- Semaphore.make(n.toLong).toManaged_
           innerFailure    <- Promise.make[Cause[E1], Nothing].toManaged_
           interruptInners <- Promise.make[Nothing, Unit].toManaged_
@@ -964,22 +964,22 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                     .managed(permits.withPermitManaged)
                     .flatMap(_ => Stream.bracket(latch.succeed(()))(_ => UIO.unit))
                     .flatMap(_ => f(a))
-                    .foreach(b => out.offer(InputStream.emit(b)).unit)
+                    .foreach(b => out.offer(Pull.emit(b)).unit)
                     .foldCauseM(
-                      cause => out.offer(InputStream.halt(cause)) *> innerFailure.fail(cause).unit,
+                      cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
                       _ => UIO.unit
                     )
                   _ <- innerStream.raceAll(List(canceler.await, interruptInners.await)).fork
                   _ <- latch.await
                 } yield ()
               }.foldCauseM(
-                  cause => (interruptInners.succeed(()) *> out.offer(InputStream.halt(cause))).unit.toManaged_,
+                  cause => (interruptInners.succeed(()) *> out.offer(Pull.halt(cause))).unit.toManaged_,
                   _ =>
                     innerFailure.await
                       .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
                         leftDone =
                           (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt.unit,
-                        rightDone = (_, failureAwait) => out.offer(InputStream.end) *> failureAwait.interrupt.unit
+                        rightDone = (_, failureAwait) => out.offer(Pull.end) *> failureAwait.interrupt.unit
                       )
                       .toManaged_
                 )
@@ -1138,15 +1138,15 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     def loop(
       leftDone: Boolean,
       rightDone: Boolean,
-      s: InputStream[R1, E1, Boolean],
-      left: InputStream[R, E, A],
-      right: InputStream[R1, E1, A1]
-    ): ZIO[R1, Nothing, ((Boolean, Boolean, InputStream[R1, E1, Boolean]), Take[E1, A1])] =
-      Take.fromInputStream(s).flatMap {
+      s: Pull[R1, E1, Boolean],
+      left: Pull[R, E, A],
+      right: Pull[R1, E1, A1]
+    ): ZIO[R1, Nothing, ((Boolean, Boolean, Pull[R1, E1, Boolean]), Take[E1, A1])] =
+      Take.fromPull(s).flatMap {
         case Take.Fail(e) => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
         case Take.Value(b) =>
           if (b && !leftDone) {
-            Take.fromInputStream(left).flatMap {
+            Take.fromPull(left).flatMap {
               case Take.Fail(e)  => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
               case Take.Value(a) => ZIO.succeed(((leftDone, rightDone, s), Take.Value(a)))
               case Take.End =>
@@ -1154,7 +1154,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                 else loop(true, rightDone, s, left, right)
             }
           } else if (!b && !rightDone)
-            Take.fromInputStream(right).flatMap {
+            Take.fromPull(right).flatMap {
               case Take.Fail(e)  => ZIO.succeed(((leftDone, rightDone, s), Take.Fail(e)))
               case Take.Value(a) => ZIO.succeed(((leftDone, rightDone, s), Take.Value(a)))
               case Take.End =>
@@ -1164,7 +1164,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         case Take.End => ZIO.succeed(((leftDone, rightDone, s), Take.End))
       }
 
-    ZStream.fromInputStreamManaged {
+    ZStream.fromPullManaged {
       for {
         sides <- b.process
         result <- self
@@ -1250,16 +1250,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Transforms the errors that possibly result from this stream.
    */
   final def mapError[E1](f: E => E1): ZStream[R, E1, A] =
-    ZStream.fromInputStreamManaged(self.process.mapError(f).map(_.mapError(_.map(f))))
+    ZStream.fromPullManaged(self.process.mapError(f).map(_.mapError(_.map(f))))
 
   /**
    * Transforms the errors that possibly result from this stream.
    */
   final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZStream[R, E1, A] =
-    ZStream.fromInputStreamManaged {
+    ZStream.fromPullManaged {
       self.process
         .mapErrorCause(f)
-        .map(_.mapErrorCause(InputStream.sequenceCauseOption(_) match {
+        .map(_.mapErrorCause(Pull.sequenceCauseOption(_) match {
           case None    => Cause.fail(None)
           case Some(c) => f(c).map(Some(_))
         }))
@@ -1281,18 +1281,18 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     new ZStream[R1, E1, B] {
       def process =
         for {
-          out              <- Queue.bounded[InputStream[R1, E1, B]](n).toManaged(_.shutdown)
+          out              <- Queue.bounded[Pull[R1, E1, B]](n).toManaged(_.shutdown)
           permits          <- Semaphore.make(n.toLong).toManaged_
           interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
           _ <- self.foreachManaged { a =>
                 for {
                   p <- Promise.make[E1, B]
-                  _ <- out.offer(InputStream.fromPromise(p))
+                  _ <- out.offer(Pull.fromPromise(p))
                   _ <- (permits.withPermit(f(a).to(p)) race interruptWorkers.await).fork
                 } yield ()
               }.foldCauseM(
-                  c => (interruptWorkers.succeed(()) *> out.offer(InputStream.halt(c))).unit.toManaged_,
-                  _ => out.offer(InputStream.end).unit.toManaged_
+                  c => (interruptWorkers.succeed(()) *> out.offer(Pull.halt(c))).unit.toManaged_,
+                  _ => out.offer(Pull.end).unit.toManaged_
                 )
                 .ensuringFirst(interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
                 .fork
@@ -1339,14 +1339,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     self.combine(that)((false, false, Option.empty[Loser])) {
       case ((leftDone, rightDone, loser), left, right) =>
         if (leftDone) {
-          Take.fromInputStream(right).map(_.map(r)).map(take => ((leftDone, rightDone, None), take))
+          Take.fromPull(right).map(_.map(r)).map(take => ((leftDone, rightDone, None), take))
         } else if (rightDone) {
-          Take.fromInputStream(left).map(_.map(l)).map(take => ((leftDone, rightDone, None), take))
+          Take.fromPull(left).map(_.map(l)).map(take => ((leftDone, rightDone, None), take))
         } else {
           val result = loser match {
-            case None               => race(Take.fromInputStream(left), Take.fromInputStream(right))
-            case Some(Left(loser))  => race(loser.join, Take.fromInputStream(right))
-            case Some(Right(loser)) => race(Take.fromInputStream(left), loser.join)
+            case None               => race(Take.fromPull(left), Take.fromPull(right))
+            case Some(Left(loser))  => race(loser.join, Take.fromPull(right))
+            case Some(Right(loser)) => race(Take.fromPull(left), loser.join)
           }
           result.flatMap {
             case (Take.End, Left(loser)) =>
@@ -1432,21 +1432,21 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                        } yield (b, ZSink.Step.leftover(last))
                      }
       (b, leftover) = bAndLeftover
-    } yield b -> (ZStream.fromChunk(leftover) ++ ZStream.fromInputStream(as))
+    } yield b -> (ZStream.fromChunk(leftover) ++ ZStream.fromPull(as))
 
   /**
    * Provides the stream with its required environment, which eliminates
    * its dependency on `R`.
    */
   final def provide(r: R): Stream[E, A] =
-    ZStream.fromInputStreamManaged(self.process.provide(r).map(_.provide(r)))
+    ZStream.fromPullManaged(self.process.provide(r).map(_.provide(r)))
 
   /**
    * Uses the given [[Managed]] to provide the environment required to run this stream,
    * leaving no outstanding environments.
    */
   final def provideManaged[E1 >: E](m: Managed[E1, R]): Stream[E1, A] =
-    ZStream.fromInputStreamManaged {
+    ZStream.fromPullManaged {
       for {
         r  <- m
         as <- self.process.provide(r)
@@ -1458,7 +1458,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * leaving the remainder `R0`.
    */
   final def provideSome[R0](env: R0 => R): ZStream[R0, E, A] =
-    ZStream.fromInputStreamManaged {
+    ZStream.fromPullManaged {
       for {
         r0 <- ZManaged.environment[R0]
         as <- self.process.provide(env(r0))
@@ -1470,7 +1470,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * leaving the remainder `R0`.
    */
   final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R]): ZStream[R0, E1, A] =
-    ZStream.fromInputStreamManaged {
+    ZStream.fromPullManaged {
       for {
         r  <- env.toManaged_
         as <- self.process.provide(r)
@@ -1482,7 +1482,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * this stream, leaving the remainder `R0`.
    */
   final def provideSomeManaged[R0, E1 >: E](env: ZManaged[R0, E1, R]): ZStream[R0, E1, A] =
-    ZStream.fromInputStreamManaged {
+    ZStream.fromPullManaged {
       for {
         r  <- env
         as <- self.process.provide(r)
@@ -1583,7 +1583,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         if (decision.cont) State.SleepAndRepeat(decision.state, decision.delay, a)
         else State.SleepAndFinish(decision.delay, decision.finish())
 
-      def process: ZManaged[R1 with Clock, E, InputStream[R1 with Clock, E, Either[B, A]]] =
+      def process =
         for {
           as    <- self.process
           init  <- schedule.initial.toManaged_
@@ -1622,7 +1622,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           as      <- self.process
           counter <- Ref.make(0).toManaged_
           pull = counter.modify { c =>
-            if (c >= n) (InputStream.end, c)
+            if (c >= n) (Pull.end, c)
             else (as, c + 1)
           }.flatten
         } yield pull
@@ -1637,8 +1637,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       self.process.map { as =>
         for {
           a <- as
-          result <- if (pred(a)) InputStream.emit(a)
-                   else InputStream.end
+          result <- if (pred(a)) Pull.emit(a)
+                   else Pull.end
         } yield result
       }
   }
@@ -1734,7 +1734,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           sinkStateRef <- Ref.make[(ZSink.Step[sink.State, A1], Boolean)]((init, false)).toManaged_
           done         <- Ref.make(false).toManaged_
           pull = {
-            def go(step: ZSink.Step[sink.State, A1], needsExtractOnEnd: Boolean): InputStream[R1, E1, C] =
+            def go(step: ZSink.Step[sink.State, A1], needsExtractOnEnd: Boolean): Pull[R1, E1, C] =
               if (!ZSink.Step.cont(step))
                 (for {
                   c        <- sink.extract(ZSink.Step.state(step))
@@ -1750,14 +1750,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                     case None =>
                       done.set(true) *>
                         (if (needsExtractOnEnd) sink.extract(ZSink.Step.state(step)).mapError(Some(_))
-                         else InputStream.end)
-                    case Some(e) => InputStream.fail(e)
+                         else Pull.end)
+                    case Some(e) => Pull.fail(e)
                   },
                   sink.step(ZSink.Step.state(step), _).mapError(Some(_)).flatMap(go(_, true))
                 )
 
             done.get.flatMap {
-              if (_) InputStream.end
+              if (_) Pull.end
               else
                 sinkStateRef.get.flatMap {
                   case (lastStep, needsExtractOnEnd) => go(lastStep, needsExtractOnEnd)
@@ -1789,8 +1789,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     def loop(
       leftDone: Boolean,
       rightDone: Boolean,
-      left: InputStream[R, E, A],
-      right: InputStream[R1, E1, B]
+      left: Pull[R, E, A],
+      right: Pull[R1, E1, B]
     ): ZIO[R1, E1, ((Boolean, Boolean), Take[E1, C])] = {
       val takeLeft: ZIO[R, E, Option[A]]    = if (leftDone) IO.succeed(None) else left.optional
       val takeRight: ZIO[R1, E1, Option[B]] = if (rightDone) IO.succeed(None) else right.optional
@@ -1831,20 +1831,20 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 object ZStream extends ZStreamPlatformSpecific {
 
   /**
-   * Describes an effectful read from a stream. The optionality of the error channel denotes
+   * Describes an effectful pull from a stream. The optionality of the error channel denotes
    * normal termination of the stream when `None` and an error when `Some(e: E)`.
    */
-  type InputStream[-R, +E, +A] = ZIO[R, Option[E], A]
+  type Pull[-R, +E, +A] = ZIO[R, Option[E], A]
 
-  object InputStream {
-    val end: InputStream[Any, Nothing, Nothing]                     = IO.fail(None)
-    def emit[A](a: A): InputStream[Any, Nothing, A]                 = UIO.succeed(a)
-    def fail[E](e: E): InputStream[Any, E, Nothing]                 = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): InputStream[Any, E, Nothing]          = IO.halt(c).mapError(Some(_))
-    def die(t: Throwable): InputStream[Any, Nothing, Nothing]       = UIO.die(t)
-    def dieMessage(m: String): InputStream[Any, Nothing, Nothing]   = UIO.dieMessage(m)
-    def done[E, A](e: Exit[E, A]): InputStream[Any, E, A]           = IO.done(e).mapError(Some(_))
-    def fromPromise[E, A](p: Promise[E, A]): InputStream[Any, E, A] = p.await.mapError(Some(_))
+  object Pull {
+    val end: Pull[Any, Nothing, Nothing]                     = IO.fail(None)
+    def emit[A](a: A): Pull[Any, Nothing, A]                 = UIO.succeed(a)
+    def fail[E](e: E): Pull[Any, E, Nothing]                 = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): Pull[Any, E, Nothing]          = IO.halt(c).mapError(Some(_))
+    def die(t: Throwable): Pull[Any, Nothing, Nothing]       = UIO.die(t)
+    def dieMessage(m: String): Pull[Any, Nothing, Nothing]   = UIO.dieMessage(m)
+    def done[E, A](e: Exit[E, A]): Pull[Any, E, A]           = IO.done(e).mapError(Some(_))
+    def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A] = p.await.mapError(Some(_))
 
     def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
       c match {
@@ -1937,8 +1937,7 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final val never: Stream[Nothing, Nothing] =
     new Stream[Nothing, Nothing] {
-      def process: Managed[Nothing, InputStream[Any, Nothing, Nothing]] =
-        ZManaged.succeed(UIO.never)
+      def process = ZManaged.succeed(UIO.never)
     }
 
   /**
@@ -1990,20 +1989,20 @@ object ZStream extends ZStreamPlatformSpecific {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process =
         for {
-          output  <- Queue.bounded[InputStream[R, E, A]](outputBuffer).toManaged(_.shutdown)
+          output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
           runtime <- ZIO.runtime[R].toManaged_
           maybeStream <- UIO(
                           register(
                             k =>
                               runtime.unsafeRunAsync_(
                                 k.foldCauseM(
-                                  InputStream.sequenceCauseOption(_) match {
-                                    case None    => output.offer(InputStream.end).unit
-                                    case Some(c) => output.offer(InputStream.halt(c)).unit
+                                  Pull.sequenceCauseOption(_) match {
+                                    case None    => output.offer(Pull.end).unit
+                                    case Some(c) => output.offer(Pull.halt(c)).unit
                                   },
-                                  a => output.offer(InputStream.emit(a)).unit
+                                  a => output.offer(Pull.emit(a)).unit
                                 )
                               )
                           )
@@ -2025,19 +2024,19 @@ object ZStream extends ZStreamPlatformSpecific {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process =
         for {
-          output  <- Queue.bounded[InputStream[R, E, A]](outputBuffer).toManaged(_.shutdown)
+          output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
           runtime <- ZIO.runtime[R].toManaged_
           _ <- register(
                 k =>
                   runtime.unsafeRunAsync_(
                     k.foldCauseM(
-                      InputStream.sequenceCauseOption(_) match {
-                        case None    => output.offer(InputStream.end).unit
-                        case Some(c) => output.offer(InputStream.halt(c)).unit
+                      Pull.sequenceCauseOption(_) match {
+                        case None    => output.offer(Pull.end).unit
+                        case Some(c) => output.offer(Pull.halt(c)).unit
                       },
-                      a => output.offer(InputStream.emit(a)).unit
+                      a => output.offer(Pull.emit(a)).unit
                     )
                   )
               ).toManaged_
@@ -2055,20 +2054,20 @@ object ZStream extends ZStreamPlatformSpecific {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process =
         for {
-          output  <- Queue.bounded[InputStream[R, E, A]](outputBuffer).toManaged(_.shutdown)
+          output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
           runtime <- ZIO.runtime[R].toManaged_
           eitherStream <- UIO(
                            register(
                              k =>
                                runtime.unsafeRunAsync_(
                                  k.foldCauseM(
-                                   InputStream.sequenceCauseOption(_) match {
-                                     case None    => output.offer(InputStream.end).unit
-                                     case Some(c) => output.offer(InputStream.halt(c)).unit
+                                   Pull.sequenceCauseOption(_) match {
+                                     case None    => output.offer(Pull.end).unit
+                                     case Some(c) => output.offer(Pull.halt(c)).unit
                                    },
-                                   a => output.offer(InputStream.emit(a)).unit
+                                   a => output.offer(Pull.emit(a)).unit
                                  )
                                )
                            )
@@ -2092,11 +2091,11 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def finalizer[R](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
     new ZStream[R, Nothing, Nothing] {
-      def process: ZManaged[R, Nothing, InputStream[R, Nothing, Nothing]] =
+      def process =
         for {
           finalizerRef <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit).toManaged_
           _            <- ZManaged.finalizer[R](finalizerRef.get.flatten)
-          pull         = (finalizerRef.set(finalizer) *> InputStream.end).uninterruptible
+          pull         = (finalizerRef.set(finalizer) *> Pull.end).uninterruptible
         } yield pull
     }
 
@@ -2129,17 +2128,17 @@ object ZStream extends ZStreamPlatformSpecific {
     managed(fa.toManaged_)
 
   /**
-   * Creates a stream from an [[InputStream]].
+   * Creates a stream from a [[Pull]].
    */
-  final def fromInputStream[R, E, A](is: InputStream[R, E, A]): ZStream[R, E, A] =
-    fromInputStreamManaged(ZManaged.succeed(is))
+  final def fromPull[R, E, A](pull: Pull[R, E, A]): ZStream[R, E, A] =
+    fromPullManaged(ZManaged.succeed(pull))
 
   /**
-   * Creates a stream from a scoped [[InputStream]].
+   * Creates a stream from a scoped [[Pull]].
    */
-  final def fromInputStreamManaged[R, E, A](is: ZManaged[R, E, InputStream[R, E, A]]): ZStream[R, E, A] =
+  final def fromPullManaged[R, E, A](pull: ZManaged[R, E, Pull[R, E, A]]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def process = is
+      def process = pull
     }
 
   /**
@@ -2184,7 +2183,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
    */
   final def fromQueueWithShutdown[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
-    fromInputStreamManaged(fromQueue(queue).process.ensuringFirst(queue.shutdown))
+    fromPullManaged(fromQueue(queue).process.ensuringFirst(queue.shutdown))
 
   /**
    * The stream that always halts with `cause`.
@@ -2196,13 +2195,13 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def managed[R, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process =
         for {
           doneRef   <- Ref.make(false).toManaged_
           finalizer <- ZManaged.finalizerRef[R](_ => UIO.unit)
           pull = ZIO.uninterruptibleMask { restore =>
             doneRef.get.flatMap { done =>
-              if (done) InputStream.end
+              if (done) Pull.end
               else
                 (for {
                   reservation <- managed.reserve
@@ -2252,17 +2251,17 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def process: ZManaged[R, E, InputStream[R, E, A]] =
+      def process =
         for {
           ref <- Ref.make(s).toManaged_
         } yield ref.get
           .flatMap(f0)
           .foldM(
-            e => InputStream.fail(e),
+            e => Pull.fail(e),
             opt =>
               opt match {
-                case Some((a, s)) => ref.set(s) *> InputStream.emit(a)
-                case None         => InputStream.end
+                case Some((a, s)) => ref.set(s) *> Pull.emit(a)
+                case None         => Pull.end
               }
           )
     }
@@ -2278,8 +2277,6 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def unwrapManaged[R, E, A](fa: ZManaged[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
-      def process: ZManaged[R, E, InputStream[R, E, A]] =
-        fa.flatMap(_.process)
+      def process = fa.flatMap(_.process)
     }
-
 }

@@ -17,13 +17,13 @@
 package zio.stream
 
 import zio._
-import zio.stream.ZStream.InputStream
+import zio.stream.ZStream.Pull
 
 private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
 
   def processEffect: Managed[E, () => A]
 
-  def process: Managed[E, InputStream[Any, E, A]] =
+  def process: Managed[E, Pull[Any, E, A]] =
     processEffect.map { thunk =>
       UIO.effectTotal {
         try UIO.succeed(thunk())

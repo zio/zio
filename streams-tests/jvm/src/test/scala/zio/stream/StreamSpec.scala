@@ -555,7 +555,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   private def catchAllCauseScopeErrors =
     unsafeRun {
-      val s1 = Stream(1, 2) ++ ZStream.fromInputStreamManaged(ZManaged.fail("Boom"))
+      val s1 = Stream(1, 2) ++ ZStream.fromPullManaged(ZManaged.fail("Boom"))
       val s2 = Stream(3, 4)
 
       s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2, 3, 4))
