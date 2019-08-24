@@ -138,6 +138,12 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.fromEffect(fa)
 
   /**
+   * See [[ZStream.fromPull]]
+   */
+  final def fromPull[E, A](pull: Pull[Any, E, A]): Stream[E, A] =
+    ZStream.fromPull(pull)
+
+  /**
    * See [[ZStream.repeatEffect]]
    */
   final def repeatEffect[E, A](fa: IO[E, A]): Stream[E, A] =
@@ -162,6 +168,12 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def fromQueue[E, A](queue: ZQueue[_, _, Any, E, _, A]): Stream[E, A] =
     ZStream.fromQueue(queue)
+
+  /**
+   * See [[ZStream.fromQueueWithShutdown]]
+   */
+  final def fromQueueWithShutdown[E, A](queue: ZQueue[_, _, Any, E, _, A]): Stream[E, A] =
+    ZStream.fromQueueWithShutdown(queue)
 
   /**
    * See [[ZStream.halt]]
@@ -215,4 +227,10 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def unwrap[E, A](fa: IO[E, Stream[E, A]]): Stream[E, A] =
     ZStream.unwrap(fa)
+
+  /**
+   * See [[ZStream.unwrapManaged]]
+   */
+  final def unwrapManaged[E, A](fa: Managed[E, ZStream[Any, E, A]]): Stream[E, A] =
+    ZStream.unwrapManaged(fa)
 }
