@@ -650,6 +650,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def concat[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     ZStream(UIO.succeed(self), UIO(other)).flatMap(ZStream.unwrap)
 
+  /**
+   * Emits elements of this stream with a fixed delay in between, regardless of how long it
+   * takes to produce a value.
+   */
   final def delay[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
     new ZStream[R1 with Clock, E1, A1] {
       def process: ZManaged[R1 with Clock, E1, ZStream.InputStream[R1 with Clock, E1, A1]] =
