@@ -646,18 +646,17 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * takes to produce a value.
    */
   final def delay[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
-    new ZStream[R1 with Clock, E1, A1] {
-      def process: ZManaged[R1 with Clock, E1, ZStream.InputStream[R1 with Clock, E1, A1]] =
-        Ref.make(false).toManaged_.flatMap { ref =>
-          self.process.map { in =>
-            in.flatMap { a =>
-              ref.modify {
-                case false => ZIO.succeed(a)                 -> true
-                case true  => ZIO.succeed(a).delay(duration) -> true
-              }
-            }.flatten
-          }
+    ZStream[R1 with Clock, E1, A1] {
+      Ref.make(false).toManaged_.flatMap { ref =>
+        self.process.map { in =>
+          in.flatMap { a =>
+            ref.modify {
+              case false => ZIO.succeed(a)                 -> true
+              case true  => ZIO.succeed(a).delay(duration) -> true
+            }
+          }.flatten
         }
+      }
     }
 
   /**
@@ -1817,29 +1816,28 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * it is combined with the latest value from the other stream to produce a result.
    */
   final def zipWithLatest[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B])(f0: (A, B) => C): ZStream[R1, E1, C] =
-    new ZStream[R1, E1, C] {
-      def process: ZManaged[R1, E1, InputStream[R1, E1, C]] =
-        for {
-          is    <- self.mergeEither(that).process
-          state <- Ref.make[(Option[A], Option[B])]((None, None)).toManaged_
-          pull: InputStream[R1, E1, C] = {
-            def go: InputStream[R1, E1, C] = is.flatMap { i =>
-              state
-                .modify[InputStream[R1, E1, C]] {
-                  case (previousLeft, previousRight) =>
-                    i match {
-                      case Left(a) =>
-                        previousRight.fold(go)(b => InputStream.emit(f0(a, b))) -> (Some(a) -> previousRight)
-                      case Right(b) =>
-                        previousLeft.fold(go)(a => InputStream.emit(f0(a, b))) -> (previousLeft -> Some(b))
-                    }
-                }
-                .flatten
-            }
-
-            go
+    ZStream[R1, E1, C] {
+      for {
+        is    <- self.mergeEither(that).process
+        state <- Ref.make[(Option[A], Option[B])]((None, None)).toManaged_
+        pull: Pull[R1, E1, C] = {
+          def go: Pull[R1, E1, C] = is.flatMap { i =>
+            state
+              .modify[Pull[R1, E1, C]] {
+                case (previousLeft, previousRight) =>
+                  i match {
+                    case Left(a) =>
+                      previousRight.fold(go)(b => Pull.emit(f0(a, b))) -> (Some(a) -> previousRight)
+                    case Right(b) =>
+                      previousLeft.fold(go)(a => Pull.emit(f0(a, b))) -> (previousLeft -> Some(b))
+                  }
+              }
+              .flatten
           }
-        } yield pull
+
+          go
+        }
+      } yield pull
     }
 }
 
