@@ -1841,6 +1841,69 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def zipWithIndex: ZStream[R, E, (A, Int)] =
     mapAccum(0)((index, a) => (index + 1, (a, index)))
+
+  /**
+   * Zips the two streams so that when a value is emitted by either of the two streams,
+   * it is combined with the latest value from the other stream to produce a result.
+   */
+  final def zipWithLatest[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B])(f0: (A, B) => C): ZStream[R1, E1, C] =
+    new ZStream[R1, E1, C] {
+      def process: ZManaged[R1, E1, InputStream[R1, E1, C]] =
+        for {
+          as   <- self.process
+          bs   <- that.process
+          done <- Ref.make(false).toManaged_
+          state <- Ref
+                    .make[(Option[A], Option[B], Option[IO[E1, Option[A]]], Option[IO[E1, Option[B]]])](
+                      (None, None, None, None)
+                    )
+                    .toManaged_
+          pull = {
+            def handleEnd[X, Y](
+              prev: Option[X],
+              fiber: Fiber[E1, Option[Y]],
+              convert: (X, Y) => C
+            ): InputStream[R1, E1, C] =
+              prev match {
+                case None => fiber.interrupt *> InputStream.end
+                case Some(x) =>
+                  done.set(true) *> fiber.join
+                    .mapError(Some(_))
+                    .flatMap(_.fold[InputStream[R1, E1, C]](InputStream.end)(y => InputStream.emit(convert(x, y))))
+              }
+
+            def go: InputStream[R1, E1, C] = state.get.flatMap {
+              case (previousLeft, previousRight, runningLeft, runningRight) =>
+                (runningLeft.getOrElse(as.optional) raceWith runningRight.getOrElse(bs.optional))(
+                  (leftResult, rightFiber) =>
+                    leftResult.fold(
+                      rightFiber.interrupt *> InputStream.halt(_), {
+                        case None =>
+                          handleEnd[A, B](previousLeft, rightFiber, f0)
+                        case Some(a) =>
+                          state.set((Some(a), previousRight, None, Some(rightFiber.join))) *> previousRight.fold(go)(
+                            b => InputStream.emit(f0(a, b))
+                          )
+                      }
+                    ),
+                  (rightResult, leftFiber) =>
+                    rightResult.fold(
+                      leftFiber.interrupt *> InputStream.halt(_), {
+                        case None =>
+                          handleEnd[B, A](previousRight, leftFiber, (b, a) => f0(a, b))
+                        case Some(b) =>
+                          state.set((previousLeft, Some(b), Some(leftFiber.join), None)) *> previousLeft.fold(go)(
+                            a => InputStream.emit(f0(a, b))
+                          )
+                      }
+                    )
+                )
+            }
+
+            done.get.flatMap(if (_) InputStream.end else go)
+          }
+        } yield pull
+    }
 }
 
 object ZStream extends ZStreamPlatformSpecific {
