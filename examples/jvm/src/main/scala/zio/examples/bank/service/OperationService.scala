@@ -35,7 +35,9 @@ object OperationServiceImpl extends OperationService[OperationEnvironment] {
                          .mapError(_ => OperationNotFoundAccount(command.ownerReference, Some("owner")))
         _ <- findAccountById(command.peerReference)
               .mapError(_ => OperationNotFoundAccount(command.peerReference, Some("peer")))
-        _   <- ZIO.fromEither(pure(command)) *> ZIO.fromEither(accountAmountIsEnough(ownerBalance, command.valueInCents))
+        _ <- ZIO.fromEither(pure(command)) *> ZIO.fromEither(
+              accountAmountIsEnough(ownerBalance, command.valueInCents, command.isExternal)
+            )
         res <- env.operationRepository.createOperation(command).orDie
       } yield res
 

@@ -1,4 +1,4 @@
-package zio.examples.bank.spec
+package zio.examples.bank.service
 
 import zio.ZIO
 import zio.examples.bank.TestEnvironment._

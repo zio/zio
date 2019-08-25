@@ -34,8 +34,10 @@ object OperationPure {
       Right(o)
   }
 
-  def accountAmountIsEnough(balance: Balance, value: Long): Either[OperationOwnerAccountInsufficientValue, Unit] =
-    if (balance.valueInCents < value)
+  def accountAmountIsEnough(balance: Balance,
+                            value: Long,
+                            isExternal: Boolean): Either[OperationOwnerAccountInsufficientValue, Unit] =
+    if (balance.valueInCents < value && !isExternal)
       Left(OperationOwnerAccountInsufficientValue(value, balance.valueInCents))
     else
       Right(())
