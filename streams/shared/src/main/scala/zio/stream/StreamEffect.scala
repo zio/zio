@@ -242,6 +242,23 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def fromChunk[@specialized A](c: Chunk[A]): StreamEffect[Nothing, A] =
+    new StreamEffect[Nothing, A] {
+      def processEffect = Managed.effectTotal {
+        var index = 0
+        val len   = c.length
+
+        () => {
+          if (index >= len) end
+          else {
+            val i = index
+            index += 1
+            c(i)
+          }
+        }
+      }
+    }
+
   final def fromIterable[A](as: Iterable[A]): StreamEffect[Nothing, A] =
     new StreamEffect[Nothing, A] {
       def processEffect =
