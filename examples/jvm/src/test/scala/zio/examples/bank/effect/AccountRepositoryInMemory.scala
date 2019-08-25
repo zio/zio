@@ -1,14 +1,12 @@
 package zio.examples.bank.effect
-import zio.{ Ref, UIO, ZIO }
 import zio.examples.bank.domain.{ Account, CreateAccount }
+import zio.{ Ref, ZIO }
 
-object AccountRepositoryInMemory extends AccountRepository.Effect {
-
-  private val dbRef: UIO[Ref[Map[Int, Account]]] = Ref.make(Map.empty)
+class AccountRepositoryInMemory(dbRef: Ref[Map[Int, Account]]) extends AccountRepository.Effect {
 
   private def nextId(): ZIO[Any, Nothing, Int] =
     for {
-      map  <- dbRef.flatMap(_.get)
+      map  <- dbRef.get
       next = if (map.isEmpty) 1 else map.keys.max + 1
     } yield next
 
@@ -16,17 +14,13 @@ object AccountRepositoryInMemory extends AccountRepository.Effect {
     for {
       id         <- nextId()
       newAccount = Account(id, accountCommand.ownerName)
-      _ <- dbRef.flatMap(
-            ref =>
-              ref.update { db =>
-                db + (id -> newAccount)
-            }
-          )
+      _          <- dbRef.update(s => s.+((id, newAccount)))
+
     } yield newAccount
 
   override def findAccountById(id: Int): ZIO[Any, Unit, Account] =
     for {
-      db <- dbRef.flatMap(_.get)
+      db <- dbRef.get
       result <- db.get(id) match {
                  case Some(account) => ZIO.succeed(account)
                  case _             => ZIO.fail(())
