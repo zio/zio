@@ -1854,57 +1854,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     new ZStream[R1, E1, C] {
       def process: ZManaged[R1, E1, InputStream[R1, E1, C]] =
         for {
-          as   <- self.process
-          bs   <- that.process
-          done <- Ref.make(false).toManaged_
-          state <- Ref
-                    .make[(Option[A], Option[B], Option[IO[E1, Option[A]]], Option[IO[E1, Option[B]]])](
-                      (None, None, None, None)
-                    )
-                    .toManaged_
-          pull = {
-            def handleEnd[X, Y](
-              prev: Option[X],
-              fiber: Fiber[E1, Option[Y]],
-              convert: (X, Y) => C
-            ): InputStream[R1, E1, C] =
-              prev match {
-                case None => fiber.interrupt *> InputStream.end
-                case Some(x) =>
-                  done.set(true) *> fiber.join
-                    .mapError(Some(_))
-                    .flatMap(_.fold[InputStream[R1, E1, C]](InputStream.end)(y => InputStream.emit(convert(x, y))))
-              }
-
-            def go: InputStream[R1, E1, C] = state.get.flatMap {
-              case (previousLeft, previousRight, runningLeft, runningRight) =>
-                (runningLeft.getOrElse(as.optional) raceWith runningRight.getOrElse(bs.optional))(
-                  (leftResult, rightFiber) =>
-                    leftResult.fold(
-                      rightFiber.interrupt *> InputStream.halt(_), {
-                        case None =>
-                          handleEnd[A, B](previousLeft, rightFiber, f0)
-                        case Some(a) =>
-                          state.set((Some(a), previousRight, None, Some(rightFiber.join))) *> previousRight.fold(go)(
-                            b => InputStream.emit(f0(a, b))
-                          )
-                      }
-                    ),
-                  (rightResult, leftFiber) =>
-                    rightResult.fold(
-                      leftFiber.interrupt *> InputStream.halt(_), {
-                        case None =>
-                          handleEnd[B, A](previousRight, leftFiber, (b, a) => f0(a, b))
-                        case Some(b) =>
-                          state.set((previousLeft, Some(b), Some(leftFiber.join), None)) *> previousLeft.fold(go)(
-                            a => InputStream.emit(f0(a, b))
-                          )
-                      }
-                    )
-                )
+          is <- self.mergeEither(that).process
+          state <- Ref.make[(Option[A], Option[B])]((None, None)).toManaged_
+          pull: InputStream[R1, E1, C] = {
+            def go: InputStream[R1, E1, C] = is.flatMap { i =>
+              state.modify[InputStream[R1, E1, C]] { case (previousLeft, previousRight) =>
+                i match {
+                  case Left(a) => previousRight.fold(go)(b => InputStream.emit(f0(a, b))) -> (Some(a) -> previousRight)
+                  case Right(b) => previousLeft.fold(go)(a => InputStream.emit(f0(a, b))) -> (previousLeft -> Some(b))
+                }
+              }.flatten
             }
 
-            done.get.flatMap(if (_) InputStream.end else go)
+            go
           }
         } yield pull
     }
