@@ -17,11 +17,12 @@
 package zio.stream
 
 import zio._
+import zio.effect.Effect
 
 private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A])
     extends ZStream[Any, E, A](
       processEffect.map { thunk =>
-        UIO.effectTotal {
+        Effect.Live.effect.total {
           try UIO.succeed(thunk())
           catch {
             case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))

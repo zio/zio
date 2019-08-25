@@ -16,6 +16,7 @@
 
 package zio.syntax
 
+import zio.effect.Effect
 import zio.{ Fiber, ZIO }
 
 object ZIOSyntax {
@@ -26,8 +27,8 @@ object ZIOSyntax {
   }
 
   final class LazyCreationSyntax[A](val a: () => A) extends AnyVal {
-    def effectTotal[R, E]: ZIO[R, E, A] = ZIO.effectTotal(a())
-    def sync[R]: ZIO[R, Throwable, A]   = ZIO.effect(a())
+    def effectTotal[E]: ZIO[Effect, E, A] = ZIO.fromFunctionM(_.effect.total(a()))
+    def sync: ZIO[Effect, Throwable, A]   = ZIO.fromFunctionM(_.effect(a()))
   }
 
   final class IterableSyntax[R, E, A](val ios: Iterable[ZIO[R, E, A]]) extends AnyVal {

@@ -19,6 +19,7 @@ package zio.internal
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import com.github.ghik.silencer.silent
+import zio.effect.Effect
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
