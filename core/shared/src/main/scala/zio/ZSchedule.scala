@@ -547,8 +547,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 object ZSchedule {
 
   /**
-   * A schedule that recurs forever, producing a count of inputs.
-   * Not in alphabetic order because other vals below depend on it.
+   * A schedule that recurs forever, producing a count of repeats: 0, 1, 2, ...
    */
   final val forever: Schedule[Any, Int] = unfold(0)(_ + 1)
 
