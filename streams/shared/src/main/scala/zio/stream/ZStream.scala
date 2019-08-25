@@ -1691,10 +1691,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Applies a transducer to the stream, converting elements of type `A` into elements of type `C`, with a
    * managed resource of type `D` available.
    */
-  final def transduceManaged[R1 <: R, E1 >: E, A1 >: A, C](
-    managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, C]]
-  ): ZStream[R1, E1, C] =
-    ZStream[R1, E1, C] {
+  final def transduceManaged[R1 <: R, E1 >: E, A1 >: A, B](
+    managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
+  ): ZStream[R1, E1, B] =
+    ZStream[R1, E1, B] {
       for {
         as           <- self.process
         sink         <- managedSink
@@ -1702,16 +1702,16 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         sinkStateRef <- Ref.make[(ZSink.Step[sink.State, A1], Boolean)]((init, false)).toManaged_
         done         <- Ref.make(false).toManaged_
         pull = {
-          def go(step: ZSink.Step[sink.State, A1], needsExtractOnEnd: Boolean): Pull[R1, E1, C] =
+          def go(step: ZSink.Step[sink.State, A1], needsExtractOnEnd: Boolean): Pull[R1, E1, B] =
             if (!ZSink.Step.cont(step))
               (for {
-                c        <- sink.extract(ZSink.Step.state(step))
+                b        <- sink.extract(ZSink.Step.state(step))
                 leftover = ZSink.Step.leftover(step)
                 newInit  <- sink.initial
                 _ <- sink
                       .stepChunk(ZSink.Step.state(newInit), leftover)
                       .tap(leftoverStep => sinkStateRef.set((leftoverStep, !leftover.isEmpty)))
-              } yield c).mapError(Some(_))
+              } yield b).mapError(Some(_))
             else
               as.foldM(
                 {
@@ -1739,7 +1739,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Applies a transducer to the stream, which converts one or more elements
    * of type `A` into elements of type `C`.
    */
-  final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+  def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
     transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
 
   /**
