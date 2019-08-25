@@ -21,7 +21,6 @@ import zio.clock.Clock
 import zio.duration.Duration
 
 import scala.collection.mutable
-import scala.language.postfixOps
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -487,7 +486,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * A named alias for `?`.
    */
-  final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self ?
+  final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self.?
 
   /**
    * Runs both sinks in parallel on the same input. If the left one succeeds,
