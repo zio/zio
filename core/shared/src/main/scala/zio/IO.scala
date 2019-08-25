@@ -390,7 +390,7 @@ object IO {
    * @see See [[zio.ZIO.require]]
    */
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
-    ZIO.require[E, A](error)
+    ZIO.require[Any, E, A](error)
 
   /**
    * @see See [[zio.ZIO.reserve]]

@@ -401,7 +401,7 @@ object Task {
    * @see See [[zio.ZIO.require]]
    */
   final def require[A](error: Throwable): Task[Option[A]] => Task[A] =
-    ZIO.require[Throwable, A](error)
+    ZIO.require[Any, Throwable, A](error)
 
   /**
    * @see See [[zio.ZIO.reserve]]
