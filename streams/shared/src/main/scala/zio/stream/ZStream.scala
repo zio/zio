@@ -2167,21 +2167,6 @@ object ZStream extends ZStreamPlatformSpecific {
     }
 
   /**
-   * Creates a stream from an effect producing a value of type `A` which repeats forever
-   */
-  final def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
-    fromEffect(fa).forever
-
-  /**
-   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
-   */
-  final def repeatEffectWith[R, E, A](
-    fa: ZIO[R, E, A],
-    schedule: ZSchedule[R, Unit, _]
-  ): ZStream[R with Clock, E, A] =
-    fromEffect(fa).repeat(schedule)
-
-  /**
    * Creates a stream from an iterable collection of values
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
@@ -2256,6 +2241,21 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def range(min: Int, max: Int): Stream[Nothing, Int] =
     unfold(min)(cur => if (cur > max) None else Some((cur, cur + 1)))
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` which repeats forever
+   */
+  final def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
+    fromEffect(fa).forever
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   */
+  final def repeatEffectWith[R, E, A](
+    fa: ZIO[R, E, A],
+    schedule: ZSchedule[R, Unit, _]
+  ): ZStream[R with Clock, E, A] =
+    fromEffect(fa).repeat(schedule)
 
   /**
    * Creates a single-valued pure stream
