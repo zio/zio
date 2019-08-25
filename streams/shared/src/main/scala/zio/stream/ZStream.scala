@@ -1854,16 +1854,21 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     new ZStream[R1, E1, C] {
       def process: ZManaged[R1, E1, InputStream[R1, E1, C]] =
         for {
-          is <- self.mergeEither(that).process
+          is    <- self.mergeEither(that).process
           state <- Ref.make[(Option[A], Option[B])]((None, None)).toManaged_
           pull: InputStream[R1, E1, C] = {
             def go: InputStream[R1, E1, C] = is.flatMap { i =>
-              state.modify[InputStream[R1, E1, C]] { case (previousLeft, previousRight) =>
-                i match {
-                  case Left(a) => previousRight.fold(go)(b => InputStream.emit(f0(a, b))) -> (Some(a) -> previousRight)
-                  case Right(b) => previousLeft.fold(go)(a => InputStream.emit(f0(a, b))) -> (previousLeft -> Some(b))
+              state
+                .modify[InputStream[R1, E1, C]] {
+                  case (previousLeft, previousRight) =>
+                    i match {
+                      case Left(a) =>
+                        previousRight.fold(go)(b => InputStream.emit(f0(a, b))) -> (Some(a) -> previousRight)
+                      case Right(b) =>
+                        previousLeft.fold(go)(a => InputStream.emit(f0(a, b))) -> (previousLeft -> Some(b))
+                    }
                 }
-              }.flatten
+                .flatten
             }
 
             go
