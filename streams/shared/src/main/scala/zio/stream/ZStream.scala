@@ -2225,6 +2225,9 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def halt[E](cause: Cause[E]): ZStream[Any, E, Nothing] = fromEffect(ZIO.halt(cause))
 
+  /**
+   * The infinite stream of iterative function application: a, f(a), f(f(a)), f(f(f(a))), ...
+   */
   final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] = ZStream.unfold(a)(a => Some(a -> f(a)))
 
   /**
