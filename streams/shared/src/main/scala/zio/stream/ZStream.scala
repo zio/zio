@@ -16,8 +16,6 @@
 
 package zio.stream
 
-import java.io.{ IOException, InputStream }
-
 import com.github.ghik.silencer.silent
 import zio._
 import zio.clock.Clock
@@ -1237,7 +1235,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    *  Stream(1).forever.foldWhile(0)(_ <= 4)(_ + _) // UIO[Int] == 5
    * }}}
    */
-  final def foldWhile[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZIO[R, E, S] =
+  def foldWhile[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZIO[R, E, S] =
     foldWhileManagedM[R, E, A1, S](s)(cont)((s, a) => ZIO.succeed(f(s, a))).use(ZIO.succeed)
 
   /**
@@ -2398,7 +2396,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     self zipRight that
 }
 
-object ZStream {
+object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
@@ -2687,15 +2685,6 @@ object ZStream {
     fa: ZStream[R, E, ZStream[R, E, A]]
   ): ZStream[R, E, A] =
     flattenPar(Int.MaxValue, outputBuffer)(fa)
-
-  /**
-   * Creates a stream from a [[java.io.InputStream]]
-   */
-  final def fromInputStream(
-    is: InputStream,
-    chunkSize: Int = ZStreamChunk.DefaultChunkSize
-  ): StreamEffectChunk[Any, IOException, Byte] =
-    StreamEffect.fromInputStream(is, chunkSize)
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values

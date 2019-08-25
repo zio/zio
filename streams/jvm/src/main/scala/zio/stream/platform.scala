@@ -1,9 +1,90 @@
 package zio.stream
 
-import java.io.{ IOException, OutputStream }
+import java.io.{ IOException, InputStream, OutputStream }
 
-import zio._
+import zio.{ blocking => _, _ }
 import zio.blocking._
+
+import scala.util.control.NonFatal
+
+trait StreamEffectPlatformSpecific {
+  import StreamEffect.{ end, fail }
+
+  final def fromInputStream[R <: Blocking](
+    is: ZManaged[R, Throwable, InputStream],
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): StreamEffectChunk[R, Throwable, Byte] =
+    StreamEffectChunk {
+      StreamEffect(
+        is.flatMap { is =>
+          Managed.effectTotal { () =>
+            {
+              val buf = Array.ofDim[Byte](chunkSize)
+              val bytesRead = try {
+                is.read(buf)
+              } catch {
+                case NonFatal(e) => fail(e)
+              }
+
+              if (bytesRead < 0) end
+              else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
+              else if (bytesRead == buf.length) Chunk.fromArray(buf)
+              else fail(new RuntimeException("Misbehaved InputStream: read more bytes than buffer length"))
+            }
+          }
+        },
+        blockingExecutor
+      )
+    }
+
+  final def fromInputStream[R <: Blocking](
+    is: ZIO[R, Throwable, InputStream],
+    chunkSize: Int
+  ): StreamEffectChunk[R, Throwable, Byte] =
+    fromInputStream(is.toManaged(is => blocking(Task(is.close())).orDie), chunkSize)
+}
+
+trait ZStreamPlatformSpecific {
+
+  /**
+   * Creates a stream from a [[java.io.InputStream]]
+   */
+  final def fromInputStream[R <: Blocking](
+    is: ZManaged[R, Throwable, InputStream],
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): ZStreamChunk[R, Throwable, Byte] =
+    StreamEffect.fromInputStream(is, chunkSize)
+
+  /**
+   * Creates a stream from a [[java.io.InputStream]]
+   */
+  final def fromInputStream[R <: Blocking](
+    is: ZIO[R, Throwable, InputStream],
+    chunkSize: Int
+  ): ZStreamChunk[R, Throwable, Byte] =
+    StreamEffect.fromInputStream(is, chunkSize)
+}
+
+trait StreamPlatformSpecific {
+
+  /**
+   * See [[ZStream.fromInputStream]]
+   */
+  final def fromInputStream(
+    is: Managed[Throwable, InputStream],
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): ZStreamChunk[Blocking, Throwable, Byte] =
+    StreamEffect.fromInputStream(is, chunkSize)
+
+  /**
+   * See [[ZStream.fromInputStream]]
+   */
+  final def fromInputStream(
+    is: IO[Throwable, InputStream],
+    chunkSize: Int
+  ): ZStreamChunk[Blocking, Throwable, Byte] =
+    StreamEffect.fromInputStream(is, chunkSize)
+}
 
 trait ZSinkPlatformSpecific {
 

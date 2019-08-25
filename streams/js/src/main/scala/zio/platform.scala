@@ -1,4 +1,6 @@
 package zio.stream
 
+trait StreamEffectPlatformSpecific
+trait StreamPlatformSpecific
 trait ZStreamPlatformSpecific
 trait ZSinkPlatformSpecific
