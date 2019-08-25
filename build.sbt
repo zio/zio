@@ -109,7 +109,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core)
   .settings(stdSettings("zio-streams"))
   .settings(buildInfoSettings)
-  .settings(replSettings)
+  .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsJVM = streams.jvm
@@ -121,7 +121,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(coreTests % "test->test;compile->compile")
   .settings(stdSettings("zio-streams-tests"))
   .settings(buildInfoSettings)
-  .settings(replSettings)
+  .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
