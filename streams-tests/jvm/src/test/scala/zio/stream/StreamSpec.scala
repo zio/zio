@@ -1776,10 +1776,14 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def zipWithLatest = unsafeRun {
     val s1 = Stream.iterate(0)(_ + 1).delay(100.millis)
     val s2 = Stream.iterate(0)(_ + 1).delay(70.millis)
-    s1.zipWithLatest(s2)((_, _))
-      .take(8)
-      .runCollect
-      .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 2 -> 2, 2 -> 3, 2 -> 4, 3 -> 4))
+
+    withLatch { release =>
+      s1.zipWithLatest(s2)((_, _))
+        .take(8)
+        .runCollect
+        .tap(_ => release)
+        .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 2 -> 2, 2 -> 3, 2 -> 4, 3 -> 4))
+    }
   }
 
   private def interleave = unsafeRun {
