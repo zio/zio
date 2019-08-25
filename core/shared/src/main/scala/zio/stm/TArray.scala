@@ -35,7 +35,7 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
       }
       .map(l => TArray(l.reverse.toArray))
 
-  /* Atomically folds [[TArray]] with pure function. */
+  /** Atomically folds [[TArray]] with pure function. */
   final def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
     if (array.isEmpty) STM.succeed(acc)
     else array.head.get.flatMap(a => new TArray(array.tail).fold(op(acc, a))(op))
