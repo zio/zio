@@ -1,6 +1,6 @@
 package zio.examples.bank.service.pure
 
-import zio.examples.bank.domain.{ Balance, CreateOperation }
+import zio.examples.bank.domain.{ Balance, CreateOperation, Debit }
 import zio.examples.bank.failure._
 
 object OperationPure {
@@ -26,12 +26,14 @@ object OperationPure {
   def transactionsSumEqualsAmount(
     o: CreateOperation
   ): Either[OperationValueAndSumOfTransactionsDifferent, CreateOperation] = {
-    val trsValue = o.transactions.foldRight(0L)(_.valueInCents + _)
+    lazy val trsValue = o.transactions.filter(_.action == Debit).foldRight(0L)(_.valueInCents + _)
 
-    if (trsValue != o.valueInCents)
-      Left(OperationValueAndSumOfTransactionsDifferent(o.valueInCents, trsValue))
-    else
+    if (o.isExternal)
       Right(o)
+    else if (trsValue == o.valueInCents)
+      Right(o)
+    else
+      Left(OperationValueAndSumOfTransactionsDifferent(o.valueInCents, trsValue))
   }
 
   def accountAmountIsEnough(balance: Balance,
