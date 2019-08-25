@@ -17,93 +17,86 @@
 package zio.stream
 
 import zio._
-import zio.stream.ZStream.InputStream
 
-private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
-
-  def processEffect: Managed[E, () => A]
-
-  def process: Managed[E, InputStream[Any, E, A]] =
-    processEffect.map { thunk =>
-      UIO.effectTotal {
-        try UIO.succeed(thunk())
-        catch {
-          case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
-          case StreamEffect.End        => IO.fail(None)
-        }
-      }.flatten
-    }
+private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A])
+    extends ZStream[Any, E, A](
+      processEffect.map { thunk =>
+        UIO.effectTotal {
+          try UIO.succeed(thunk())
+          catch {
+            case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
+            case StreamEffect.End        => IO.fail(None)
+          }
+        }.flatten
+      }
+    ) { self =>
 
   override def collect[B](pf: PartialFunction[A, B]): StreamEffect[E, B] =
-    new StreamEffect[E, B] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal { () =>
-            {
-              var ob: Option[B]                        = None
-              val pfOpt: PartialFunction[A, Option[B]] = pf.andThen(Some(_))
+    StreamEffect[E, B] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal { () =>
+          {
+            var ob: Option[B]                        = None
+            val pfOpt: PartialFunction[A, Option[B]] = pf.andThen(Some(_))
 
-              while (ob.isEmpty) {
-                ob = pfOpt.applyOrElse(thunk(), (_: A) => None)
-              }
-
-              ob.get
+            while (ob.isEmpty) {
+              ob = pfOpt.applyOrElse(thunk(), (_: A) => None)
             }
+
+            ob.get
           }
         }
+      }
     }
 
   override def collectWhile[B](pred: PartialFunction[A, B]): StreamEffect[E, B] =
-    new StreamEffect[E, B] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal {
-            var done = false
+    StreamEffect[E, B] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal {
+          var done = false
 
-            () => {
-              if (done) StreamEffect.end
-              else pred.applyOrElse(thunk(), (_: A) => { done = true; StreamEffect.end })
-            }
+          () => {
+            if (done) StreamEffect.end
+            else pred.applyOrElse(thunk(), (_: A) => { done = true; StreamEffect.end })
           }
         }
+      }
     }
 
   override def dropWhile(pred: A => Boolean): StreamEffect[E, A] =
-    new StreamEffect[E, A] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal {
-            var drop = true
+    StreamEffect[E, A] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal {
+          var drop = true
 
-            @annotation.tailrec
-            def pull(): A = {
-              val a = thunk()
-              if (!drop) a
-              else if (!pred(a)) {
-                drop = false
-                a
-              } else pull()
-            }
-
-            () => pull()
+          @annotation.tailrec
+          def pull(): A = {
+            val a = thunk()
+            if (!drop) a
+            else if (!pred(a)) {
+              drop = false
+              a
+            } else pull()
           }
+
+          () => pull()
         }
+      }
     }
 
   override def filter(pred: A => Boolean): StreamEffect[E, A] =
-    new StreamEffect[E, A] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal {
-            @annotation.tailrec
-            def pull(): A = {
-              val a = thunk()
-              if (pred(a)) a else pull()
-            }
-
-            () => pull()
+    StreamEffect[E, A] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal {
+          @annotation.tailrec
+          def pull(): A = {
+            val a = thunk()
+            if (pred(a)) a else pull()
           }
+
+          () => pull()
         }
+      }
     }
 
   final def foldLazyPure[S](s: S)(cont: S => Boolean)(f: (S, A) => S): Managed[E, S] =
@@ -130,50 +123,47 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
     }
 
   override def map[B](f0: A => B): StreamEffect[E, B] =
-    new StreamEffect[E, B] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal { () =>
-            f0(thunk())
-          }
+    StreamEffect[E, B] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal { () =>
+          f0(thunk())
         }
+      }
     }
 
   override def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): StreamEffect[E, B] =
-    new StreamEffect[E, B] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal {
-            var state = s1
+    StreamEffect[E, B] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal {
+          var state = s1
 
-            () => {
-              val (s2, b) = f1(state, thunk())
-              state = s2
-              b
-            }
+          () => {
+            val (s2, b) = f1(state, thunk())
+            state = s2
+            b
           }
         }
+      }
     }
 
   override def mapConcat[B](f: A => Chunk[B]): StreamEffect[E, B] =
-    new StreamEffect[E, B] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal {
-            var chunk: Chunk[B] = Chunk.empty
-            var index           = 0
+    StreamEffect[E, B] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal {
+          var chunk: Chunk[B] = Chunk.empty
+          var index           = 0
 
-            () => {
-              while (index == chunk.length) {
-                chunk = f(thunk())
-                index = 0
-              }
-              val b = chunk(index)
-              index += 1
-              b
+          () => {
+            while (index == chunk.length) {
+              chunk = f(thunk())
+              index = 0
             }
+            val b = chunk(index)
+            index += 1
+            b
           }
         }
+      }
     }
 
   override def run[R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R, E1, A0, A1, B]): ZIO[R, E1, B] =
@@ -189,35 +179,33 @@ private[stream] trait StreamEffect[+E, +A] extends ZStream[Any, E, A] { self =>
     }
 
   override def take(n: Int): StreamEffect[E, A] =
-    new StreamEffect[E, A] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal {
-            var counter = 0
+    StreamEffect[E, A] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal {
+          var counter = 0
 
-            () => {
-              if (counter >= n) StreamEffect.end
-              else {
-                counter += 1
-                thunk()
-              }
+          () => {
+            if (counter >= n) StreamEffect.end
+            else {
+              counter += 1
+              thunk()
             }
           }
         }
+      }
     }
 
   override def takeWhile(pred: A => Boolean): StreamEffect[E, A] =
-    new StreamEffect[E, A] {
-      def processEffect =
-        self.processEffect.flatMap { thunk =>
-          Managed.effectTotal { () =>
-            {
-              val a = thunk()
-              if (pred(a)) a
-              else StreamEffect.end
-            }
+    StreamEffect[E, A] {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal { () =>
+          {
+            val a = thunk()
+            if (pred(a)) a
+            else StreamEffect.end
           }
         }
+      }
     }
 }
 
@@ -236,15 +224,18 @@ private[stream] object StreamEffect extends Serializable {
   def fail[E, A](e: E): A = throw Failure(e)
 
   final val empty: StreamEffect[Nothing, Nothing] =
-    new StreamEffect[Nothing, Nothing] {
-      def processEffect = Managed.effectTotal { () =>
+    StreamEffect[Nothing, Nothing] {
+      Managed.effectTotal { () =>
         end
       }
     }
 
+  final def apply[E, A](pull: Managed[E, () => A]): StreamEffect[E, A] =
+    new StreamEffect[E, A](pull)
+
   final def fromChunk[@specialized A](c: Chunk[A]): StreamEffect[Nothing, A] =
-    new StreamEffect[Nothing, A] {
-      def processEffect = Managed.effectTotal {
+    StreamEffect[Nothing, A] {
+      Managed.effectTotal {
         var index = 0
         val len   = c.length
 
@@ -260,44 +251,41 @@ private[stream] object StreamEffect extends Serializable {
     }
 
   final def fromIterable[A](as: Iterable[A]): StreamEffect[Nothing, A] =
-    new StreamEffect[Nothing, A] {
-      def processEffect =
-        Managed.effectTotal {
-          val thunk = as.iterator
+    StreamEffect[Nothing, A] {
+      Managed.effectTotal {
+        val thunk = as.iterator
 
-          () => if (thunk.hasNext) thunk.next() else end
-        }
+        () => if (thunk.hasNext) thunk.next() else end
+      }
     }
 
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Nothing, A] =
-    new StreamEffect[Nothing, A] {
-      def processEffect =
-        Managed.effectTotal {
-          var state = s
+    StreamEffect[Nothing, A] {
+      Managed.effectTotal {
+        var state = s
 
-          () => {
-            val opt = f0(state)
-            if (opt.isDefined) {
-              val res = opt.get
-              state = res._2
-              res._1
-            } else end
-          }
+        () => {
+          val opt = f0(state)
+          if (opt.isDefined) {
+            val res = opt.get
+            state = res._2
+            res._1
+          } else end
         }
+      }
     }
 
   final def succeed[A](a: A): StreamEffect[Nothing, A] =
-    new StreamEffect[Nothing, A] {
-      def processEffect =
-        Managed.effectTotal {
-          var done = false
+    StreamEffect[Nothing, A] {
+      Managed.effectTotal {
+        var done = false
 
-          () => {
-            if (!done) {
-              done = true
-              a
-            } else end
-          }
+        () => {
+          if (!done) {
+            done = true
+            a
+          } else end
         }
+      }
     }
 }
