@@ -446,8 +446,8 @@ object RIO {
   /**
    * @see See [[zio.ZIO.require]]
    */
-  final def require[R, A](error: Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
-    ZIO.require(error)
+  final def require[A](error: Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
+    ZIO.require[Any, Throwable, A](error)
 
   /**
    * @see See [[zio.ZIO.reserve]]

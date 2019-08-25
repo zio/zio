@@ -2230,11 +2230,11 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
+   * Requires that the given `ZIO[R, E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
-  final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
-    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
+  final def require[R, E, A](error: E): ZIO[R, E, Option[A]] => ZIO[R, E, A] =
+    (io: ZIO[R, E, Option[A]]) => io.flatMap(_.fold[ZIO[R, E, A]](fail[E](error))(succeed[A]))
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
