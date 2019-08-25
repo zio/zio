@@ -650,6 +650,21 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def concat[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     ZStream(UIO.succeed(self), UIO(other)).flatMap(ZStream.unwrap)
 
+  final def delay[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
+    new ZStream[R1 with Clock, E1, A1] {
+      def process: ZManaged[R1 with Clock, E1, ZStream.InputStream[R1 with Clock, E1, A1]] =
+        Ref.make(false).toManaged_.flatMap { ref =>
+          self.process.map { in =>
+            in.flatMap { a =>
+              ref.modify {
+                case false => ZIO.succeed(a)                 -> true
+                case true  => ZIO.succeed(a).delay(duration) -> true
+              }
+            }.flatten
+          }
+        }
+    }
+
   /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
    * queues should receive which elements.
@@ -2199,6 +2214,8 @@ object ZStream extends ZStreamPlatformSpecific {
    * The stream that always halts with `cause`.
    */
   final def halt[E](cause: Cause[E]): ZStream[Any, E, Nothing] = fromEffect(ZIO.halt(cause))
+
+  final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] = ZStream.unfold(a)(a => Some(a -> f(a)))
 
   /**
    * Creates a single-valued stream from a managed resource
