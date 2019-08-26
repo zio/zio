@@ -11,5 +11,5 @@ addSbtPlugin("ch.epfl.scala"                     % "sbt-release-early"         %
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies" % "0.2.10")
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                % "5.2.0")
 addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                 % "0.3.3")
-addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                  % "1.3.1")
+addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                  % "1.3.2")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                 % "1.3.2")
