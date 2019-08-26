@@ -4,6 +4,7 @@ import scala.collection.immutable.Range
 import zio.clock.Clock
 import zio.duration._
 import zio.test.{ Assertion, assert, DefaultRunnableSpec, suite, testM }
+import zio.test.TestUtils.nonFlaky
 import zio.ZQueueSpecUtil.waitForSize
 
 object ZQueueSpec
@@ -706,6 +707,28 @@ object ZQueueSpec
             assert(r2, Assertion.isFalse) &&
             assert(r3, Assertion.isFalse) &&
             assert(r4, Assertion.isTrue)
+        },
+        testM("shutdown race condition with offer") {
+          nonFlaky {
+            for {
+              q <- Queue.bounded[Int](2)
+              f <- q.offer(1).forever.fork
+              _ <- q.shutdown
+              _ <- f.await
+            } yield true
+          }.map(assert(_, Assertion.isTrue))
+        },
+        testM("shutdown race condition with take") {
+          nonFlaky {
+            for {
+              q <- Queue.bounded[Int](2)
+              _ <- q.offer(1)
+              _ <- q.offer(1)
+              f <- q.take.forever.fork
+              _ <- q.shutdown
+              _ <- f.await
+            } yield true
+          }.map(assert(_, Assertion.isTrue))
         }
       )
     )

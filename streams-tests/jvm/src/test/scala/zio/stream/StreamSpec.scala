@@ -47,6 +47,13 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     buffer the Stream with Error           $bufferStreamError
     fast producer progress independently   $bufferFastProducerSlowConsumer
 
+  Stream.catchAllCause
+    recovery from errors                 $catchAllCauseErrors
+    recovery from defects                $catchAllCauseDefects
+    happy path                           $catchAllCauseHappyPath
+    executes finalizers                  $catchAllCauseFinalizers
+    failures on the scope                $catchAllCauseScopeErrors
+
   Stream.collect            $collect
   Stream.collectWhile
     collectWhile                $collectWhile
@@ -510,6 +517,49 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
             }
       } yield l.reverse must_=== (1 to 4).toList
     )
+
+  private def catchAllCauseErrors =
+    unsafeRun {
+      val s1 = Stream(1, 2) ++ Stream.fail("Boom")
+      val s2 = Stream(3, 4)
+
+      s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2, 3, 4))
+    }
+
+  private def catchAllCauseDefects =
+    unsafeRun {
+      val s1 = Stream(1, 2) ++ Stream.dieMessage("Boom")
+      val s2 = Stream(3, 4)
+
+      s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2, 3, 4))
+    }
+
+  private def catchAllCauseHappyPath =
+    unsafeRun {
+      val s1 = Stream(1, 2)
+      val s2 = Stream(3, 4)
+
+      s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2))
+    }
+
+  private def catchAllCauseFinalizers =
+    unsafeRun {
+      for {
+        fins   <- Ref.make(List[String]())
+        s1     = (Stream(1, 2) ++ Stream.fail("Boom")).ensuring(fins.update("s1" :: _))
+        s2     = (Stream(3, 4) ++ Stream.fail("Boom")).ensuring(fins.update("s2" :: _))
+        _      <- s1.catchAllCause(_ => s2).runCollect.run
+        result <- fins.get
+      } yield result must_=== List("s2", "s1")
+    }
+
+  private def catchAllCauseScopeErrors =
+    unsafeRun {
+      val s1 = Stream(1, 2) ++ ZStream(ZManaged.fail("Boom"))
+      val s2 = Stream(3, 4)
+
+      s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2, 3, 4))
+    }
 
   private def collect = unsafeRun {
     Stream(Left(1), Right(2), Left(3)).collect {

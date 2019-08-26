@@ -1,6 +1,6 @@
 package zio.stream
 
-import org.scalacheck.Arbitrary
+import org.scalacheck.{ Arbitrary, Gen }
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import zio._
@@ -227,6 +227,14 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     fromFunction $fromFunction
 
     fromOutputStream $fromOutputStream
+
+    splitLines
+      preserves data          $splitLines
+      handles leftovers       $splitLinesLeftovers
+      transduces              $splitLinesTransduce
+      single newline edgecase $splitLinesEdgecase
+      no newlines in data     $splitLinesNoNewlines
+      \r\n on the boundary    $splitLinesBoundary
 
     throttleEnforce $throttleEnforce
       with burst    $throttleEnforceWithBurst
@@ -1228,6 +1236,74 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     }
   }
 
+  private def splitLines =
+    prop { (lines: List[String]) =>
+      val data = lines.mkString("\n")
+
+      unsafeRun {
+        for {
+          initial      <- ZSink.splitLines.initial.map(Step.state(_))
+          middle       <- ZSink.splitLines.step(initial, data)
+          result       <- ZSink.splitLines.extract(Step.state(middle))
+          sinkLeftover = Step.leftover(middle)
+        } yield ((result ++ sinkLeftover).toArray[String].mkString("\n") must_=== lines.mkString("\n"))
+      }
+    }.setGen(
+      Gen
+        .listOf(Gen.asciiStr.map(_.filterNot(c => c == '\n' || c == '\r')))
+        .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+    )
+
+  private def splitLinesLeftovers = unsafeRun {
+    for {
+      initial      <- ZSink.splitLines.initial.map(Step.state(_))
+      middle       <- ZSink.splitLines.step(initial, "abc\nbc")
+      result       <- ZSink.splitLines.extract(Step.state(middle))
+      sinkLeftover = Step.leftover(middle)
+    } yield (result.toArray[String].mkString("\n") must_=== "abc") and (sinkLeftover
+      .toArray[String]
+      .mkString must_=== "bc")
+  }
+
+  private def splitLinesTransduce = unsafeRun {
+    Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
+      .transduce(ZSink.splitLines)
+      .runCollect
+      .map {
+        _ must_=== List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd"))
+      }
+  }
+
+  private def splitLinesEdgecase = unsafeRun {
+    Stream("\n")
+      .transduce(ZSink.splitLines)
+      .mapConcat(identity)
+      .runCollect
+      .map {
+        _ must_=== List("")
+      }
+  }
+
+  private def splitLinesNoNewlines = unsafeRun {
+    Stream("abc", "abc", "abc")
+      .transduce(ZSink.splitLines)
+      .mapConcat(identity)
+      .runCollect
+      .map {
+        _ must_=== List("abcabcabc")
+      }
+  }
+
+  private def splitLinesBoundary = unsafeRun {
+    Stream("abc\r", "\nabc")
+      .transduce(ZSink.splitLines)
+      .mapConcat(identity)
+      .runCollect
+      .map {
+        _ must_=== List("abc", "abc")
+      }
+  }
+
   private def throttleEnforce = {
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
@@ -1358,9 +1434,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
         step1 <- sink.step(Step.state(init1), 1)
         res1  <- sink.extract(Step.state(step1))
         init2 <- sink.initial
+        _     <- MockClock.adjust(2.seconds)
         step2 <- sink.step(Step.state(init2), 2)
         res2  <- sink.extract(Step.state(step2))
         init3 <- sink.initial
+        _     <- MockClock.adjust(4.seconds)
         _     <- clock.sleep(4.seconds)
         step3 <- sink.step(Step.state(init3), 3)
         res3  <- sink.extract(Step.state(step3))
@@ -1374,7 +1452,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
                   .use(sinkTest)
                   .provide(clock)
                   .fork
-        _    <- clock.clock.adjust(6.seconds)
         test <- fiber.join
       } yield test
     }
