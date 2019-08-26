@@ -1902,7 +1902,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * The stream that never produces any value or fails with any error.
    */
   final val never: Stream[Nothing, Nothing] =
-    Stream[Nothing, Nothing](ZManaged.succeed(UIO.never))
+    ZStream(ZManaged.succeed(UIO.never))
 
   /**
    * Creates a pure stream from a variable list of values
