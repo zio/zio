@@ -14,6 +14,7 @@ object TestMain {
       scope(DefaultTestReporterSpec.run, "DefaultTestReporter"),
       scope(EnvironmentSpec.run, "MockEnvironment"),
       scope(GenSpec.run, "Gen"),
+      scope(LiveSpec.run, "Live"),
       scope(RandomSpec.run, "MockRandom"),
       scope(SchedulerSpec.run, "MockScheduler"),
       scope(SystemSpec.run, "MockSystem"),
