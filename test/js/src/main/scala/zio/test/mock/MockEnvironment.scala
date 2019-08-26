@@ -43,7 +43,7 @@ object MockEnvironment {
       for {
         clock   <- MockClock.makeMock(MockClock.DefaultData)
         console <- MockConsole.makeMock(MockConsole.DefaultData)
-        live    <- Live.makeService
+        live    <- Live.makeService(new DefaultRuntime {}.Environment)
         random  <- MockRandom.makeMock(MockRandom.DefaultData)
         size    <- Sized.makeService(100)
         system  <- MockSystem.makeMock(MockSystem.DefaultData)

@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.{ DefaultRuntime, IO, UIO, ZIO }
+import zio.{ IO, UIO, ZIO }
 
 trait Live[+R] {
   def live: Live.Service[R]
@@ -31,20 +31,18 @@ object Live {
   def live[R, E, A](zio: ZIO[R, E, A]): ZIO[Live[R], E, A] =
     ZIO.accessM[Live[R]](_.live.provide(zio))
 
-  def make: UIO[Live[DefaultRuntime#Environment]] =
-    makeService.map { service =>
-      new Live[DefaultRuntime#Environment] {
+  def make[R](r: R): UIO[Live[R]] =
+    makeService(r).map { service =>
+      new Live[R] {
         val live = service
       }
     }
 
-  def makeService: UIO[Live.Service[DefaultRuntime#Environment]] =
+  def makeService[R](r: R): UIO[Live.Service[R]] =
     UIO.succeed {
-      val runtime     = new DefaultRuntime {}
-      val environment = runtime.Environment
-      new Live.Service[DefaultRuntime#Environment] {
-        def provide[E, A](zio: ZIO[DefaultRuntime#Environment, E, A]): IO[E, A] =
-          zio.provide(environment)
+      new Live.Service[R] {
+        def provide[E, A](zio: ZIO[R, E, A]): IO[E, A] =
+          zio.provide(r)
       }
     }
 }

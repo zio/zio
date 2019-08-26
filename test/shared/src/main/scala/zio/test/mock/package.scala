@@ -16,9 +16,19 @@
 
 package zio.test
 
+import zio.ZIO
+
 import zio.Managed
 
 package object mock {
+
+  /**
+   * Provides an effect with the "real" environment as opposed to the mock
+   * environment. This is useful for performing effects such as timing out
+   * tests, accessing the real time, or printing to the real console.
+   */
+  def live[R, E, A](zio: ZIO[R, E, A]): ZIO[Live[R], E, A] =
+    Live.live(zio)
 
   val mockEnvironmentManaged: Managed[Nothing, MockEnvironment] = MockEnvironment.Value
 }
