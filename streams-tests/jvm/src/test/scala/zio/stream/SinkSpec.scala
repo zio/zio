@@ -228,6 +228,8 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     fromOutputStream $fromOutputStream
 
+    pull1 $pull1
+
     splitLines
       preserves data          $splitLines
       handles leftovers       $splitLinesLeftovers
@@ -734,6 +736,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   private def orElseExtractErrorBoth = {
     val sink = extractErrorSink orElse extractErrorSink
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def pull1 = unsafeRun {
+    val stream = Stream.fromIterable(List(1))
+    val sink   = Sink.pull1(IO.succeed(None: Option[Int]))((i: Int) => Sink.succeed(Some(i): Option[Int]))
+
+    stream.run(sink).map(_ must_=== Some(1))
   }
 
   private def raceBothLeft = {
