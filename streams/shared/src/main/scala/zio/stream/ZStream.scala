@@ -1254,28 +1254,27 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * will be emitted in the original order.
    */
   final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
-    new ZStream[R1, E1, B] {
-      def process =
-        for {
-          out              <- Queue.bounded[InputStream[R1, E1, B]](n).toManaged(_.shutdown)
-          permits          <- Semaphore.make(n.toLong).toManaged_
-          interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
-          _ <- self.foreachManaged { a =>
-                for {
-                  latch <- Promise.make[Nothing, Unit]
-                  p     <- Promise.make[E1, B]
-                  _     <- out.offer(InputStream.fromPromise(p))
-                  _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
-                  _     <- latch.await
-                } yield ()
-              }.foldCauseM(
-                  c => (interruptWorkers.succeed(()) *> out.offer(InputStream.halt(c))).unit.toManaged_,
-                  _ => out.offer(InputStream.end).unit.toManaged_
-                )
-                .ensuringFirst(interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
-                .fork
-        } yield out.take.flatten
-    }
+    new ZStream[R1, E1, B](
+      for {
+        out              <- Queue.bounded[Pull[R1, E1, B]](n).toManaged(_.shutdown)
+        permits          <- Semaphore.make(n.toLong).toManaged_
+        interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
+        _ <- self.foreachManaged { a =>
+              for {
+                latch <- Promise.make[Nothing, Unit]
+                p     <- Promise.make[E1, B]
+                _     <- out.offer(Pull.fromPromise(p))
+                _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
+                _     <- latch.await
+              } yield ()
+            }.foldCauseM(
+                c => (interruptWorkers.succeed(()) *> out.offer(Pull.halt(c))).unit.toManaged_,
+                _ => out.offer(Pull.end).unit.toManaged_
+              )
+              .ensuringFirst(interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
+              .fork
+      } yield out.take.flatten
+    )
 
   /**
    * Maps over elements of the stream with the specified effectful function,
