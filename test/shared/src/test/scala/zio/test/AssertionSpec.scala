@@ -3,13 +3,13 @@ package zio.test
 import scala.concurrent.{ ExecutionContext, Future }
 
 import zio.Exit
-import zio.test.Predicate._
+import zio.test.Assertion._
 import zio.test.TestUtils.label
 
-object PredicateSpec {
+object AssertionSpec {
 
   private def test(assertion: Boolean, message: String)(implicit ec: ExecutionContext): Future[(Boolean, String)] =
-    label(Future.successful(assertion), s"PredicateTest: $message")
+    label(Future.successful(assertion), s"AssertionTest: $message")
 
   private def testSuccess(testResult: TestResult, message: String)(
     implicit ec: ExecutionContext
@@ -49,35 +49,35 @@ object PredicateSpec {
     ),
     testSuccess(
       assert(Seq(1, 42, 5), exists(equalTo(42))),
-      message = "exists must succeed when at least one element of iterable satisfy specified predicate"
+      message = "exists must succeed when at least one element of iterable satisfy specified assertion"
     ),
     testFailure(
       assert(Seq(1, 42, 5), exists(equalTo(0))),
-      message = "exists must fail when all elements of iterable do not satisfy specified predicate"
+      message = "exists must fail when all elements of iterable do not satisfy specified assertion"
     ),
     testSuccess(
       assert(Exit.fail("Some Error"), fails(equalTo("Some Error"))),
-      message = "fails must succeed when error value satisfy specified predicate"
+      message = "fails must succeed when error value satisfy specified assertion"
     ),
     testFailure(
       assert(Exit.fail("Other Error"), fails(equalTo("Some Error"))),
-      message = "fails must fail when error value does not satisfy specified predicate"
+      message = "fails must fail when error value does not satisfy specified assertion"
     ),
     testSuccess(
       assert(Seq("a", "bb", "ccc"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3)))),
-      message = "forall must succeed when all elements of iterable satisfy specified predicate"
+      message = "forall must succeed when all elements of iterable satisfy specified assertion"
     ),
     testFailure(
       assert(Seq("a", "bb", "dddd"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3)))),
-      message = "forall must fail when one element of iterable do not satisfy specified predicate"
+      message = "forall must fail when one element of iterable do not satisfy specified assertion"
     ),
     testSuccess(
       assert(SampleUser("User", 23), hasField[SampleUser, Int]("age", _.age, isWithin(0, 99))),
-      message = "hasField must succeed when field value satisfy specified predicate"
+      message = "hasField must succeed when field value satisfy specified assertion"
     ),
     testSuccess(
       assert(Seq(1, 2, 3), hasSize(equalTo(3))),
-      message = "hasSize must succeed when iterable size is equal to specified predicate"
+      message = "hasSize must succeed when iterable size is equal to specified assertion"
     ),
     testFailure(
       assert(42, isCase[Int, String](termName = "term", _ => None, equalTo("number: 42"))),
@@ -92,14 +92,14 @@ object PredicateSpec {
           equalTo((sampleUser.name, sampleUser.age))
         )
       ),
-      message = "isCase must succeed when unapplied Proj satisfy specified predicate"
+      message = "isCase must succeed when unapplied Proj satisfy specified assertion"
     ),
     testSuccess(
       assert(false, isFalse),
       message = "isFalse must succeed when supplied value is false"
     ),
     testSuccess(
-      assert(0, isGreaterThan(42)),
+      assert(42, isGreaterThan(0)),
       message = "isGreaterThan must succeed when specified value is greater than supplied value"
     ),
     testFailure(
@@ -112,10 +112,10 @@ object PredicateSpec {
     ),
     testSuccess(
       assert(Left(42), isLeft(equalTo(42))),
-      message = "isLeft must succeed when supplied value is Left and satisfy specified predicate"
+      message = "isLeft must succeed when supplied value is Left and satisfy specified assertion"
     ),
     testSuccess(
-      assert(42, isLessThan(0)),
+      assert(0, isLessThan(42)),
       message = "isLessThan must succeed when specified value is less than supplied value"
     ),
     testFailure(
@@ -136,11 +136,11 @@ object PredicateSpec {
     ),
     testSuccess(
       assert(Right(42), isRight(equalTo(42))),
-      message = "isRight must succeed when supplied value is Right and satisfy specified predicate"
+      message = "isRight must succeed when supplied value is Right and satisfy specified assertion"
     ),
     testSuccess(
       assert(Some("zio"), isSome(equalTo("zio"))),
-      message = "isSome must succeed when supplied value is Some and satisfy specified predicate"
+      message = "isSome must succeed when supplied value is Some and satisfy specified assertion"
     ),
     testFailure(
       assert(None, isSome(equalTo("zio"))),
@@ -168,7 +168,7 @@ object PredicateSpec {
     ),
     testSuccess(
       assert(0, not(equalTo(42))),
-      message = "not must succeed when negation of specified predicate is true"
+      message = "not must succeed when negation of specified assertion is true"
     ),
     testFailure(
       assert(42, nothing),
@@ -176,36 +176,36 @@ object PredicateSpec {
     ),
     testSuccess(
       assert(Exit.succeed("Some Error"), succeeds(equalTo("Some Error"))),
-      message = "succeeds must succeed when supplied value is Exit.succeed and satisfy specified predicate"
+      message = "succeeds must succeed when supplied value is Exit.succeed and satisfy specified assertion"
     ),
     testFailure(
       assert(Exit.fail("Some Error"), succeeds(equalTo("Some Error"))),
       message = "succeeds must fail when supplied value is Exit.fail"
     ),
     testSuccess(
-      assert(sampleUser, nameStartsWithU && ageLessThen20),
-      message = "and must succeed when both predicates are satisfied"
+      assert(sampleUser, nameStartsWithU && ageGreaterThen20),
+      message = "and must succeed when both assertions are satisfied"
     ),
     testFailure(
-      assert(sampleUser, nameStartsWithA && ageLessThen20),
-      message = "and must fail when one of predicates is not satisfied"
+      assert(sampleUser, nameStartsWithA && ageGreaterThen20),
+      message = "and must fail when one of assertions is not satisfied"
     ),
     testSuccess(
-      assert(sampleUser, (nameStartsWithA || nameStartsWithU) && ageLessThen20),
-      message = "or must succeed when one of predicates is satisfied"
+      assert(sampleUser, (nameStartsWithA || nameStartsWithU) && ageGreaterThen20),
+      message = "or must succeed when one of assertions is satisfied"
     ),
     testFailure(
-      assert(sampleUser, nameStartsWithA || ageGreaterThen20),
-      message = "or must fail when both predicates are not satisfied"
+      assert(sampleUser, nameStartsWithA || ageLessThen20),
+      message = "or must fail when both assertions are not satisfied"
     ),
     testSuccess(
       assert(sampleUser, nameStartsWithA.negate),
-      message = "negate must succeed when negation of predicate is true"
+      message = "negate must succeed when negation of assertion is true"
     ),
-    test(nameStartsWithU.test(sampleUser), message = "test must return true when given element satisfy predicate"),
+    test(nameStartsWithU.test(sampleUser), message = "test must return true when given element satisfy assertion"),
     test(
       !nameStartsWithA.test(sampleUser),
-      message = "test must return false when given element does not satisfy predicate"
+      message = "test must return false when given element does not satisfy assertion"
     )
   )
 }
