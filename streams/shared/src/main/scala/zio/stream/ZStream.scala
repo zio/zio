@@ -642,24 +642,6 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream(UIO.succeed(self), UIO(other)).flatMap(ZStream.unwrap)
 
   /**
-   * Emits elements of this stream with a fixed delay in between, regardless of how long it
-   * takes to produce a value.
-   */
-  final def delay[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
-    ZStream[R1 with Clock, E1, A1] {
-      Ref.make(false).toManaged_.flatMap { ref =>
-        self.process.map { in =>
-          in.flatMap { a =>
-            ref.modify {
-              case false => ZIO.succeed(a)                 -> true
-              case true  => ZIO.succeed(a).delay(duration) -> true
-            }
-          }.flatten
-        }
-      }
-    }
-
-  /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
    * queues should receive which elements.
    */
@@ -824,6 +806,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * which the predicate evaluates to true.
    */
   final def filterNot(pred: A => Boolean): ZStream[R, E, A] = filter(a => !pred(a))
+
+  /**
+   * Emits elements of this stream with a fixed delay in between, regardless of how long it
+   * takes to produce a value.
+   */
+  final def fixed[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
+    schedule((ZSchedule.identity[A1] && (ZSchedule.fixed(duration) && Schedule.recurs(0))).map(_._1))
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
@@ -1547,6 +1536,24 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Equivalent to `run(Sink.drain)`.
    */
   final def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
+
+  final def schedule[R1 <: R, E1 >: E, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E1, B] =
+    ZStream[R1 with Clock, E1, B] {
+      for {
+        as    <- self.process
+        init  <- schedule.initial.toManaged_
+        state <- Ref.make[(schedule.State, Option[A])]((init, None)).toManaged_
+        pull: Pull[R1 with Clock, E1, B] = state.get.flatMap {
+          case (sched, a0) =>
+            for {
+              a        <- a0.fold(as)(UIO.succeed)
+              decision <- schedule.update(a, sched)
+              _        <- clock.sleep(decision.delay)
+              _        <- state.set(if (decision.cont) decision.state -> Some(a) else init -> None)
+            } yield decision.finish()
+        }
+      } yield pull
+    }
 
   /**
    * Repeats each element of the stream using the provided schedule, additionally emitting schedule's output,
