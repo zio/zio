@@ -1254,7 +1254,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * will be emitted in the original order.
    */
   final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
-    new ZStream[R1, E1, B](
+    ZStream[R1, E1, B] {
       for {
         out              <- Queue.bounded[Pull[R1, E1, B]](n).toManaged(_.shutdown)
         permits          <- Semaphore.make(n.toLong).toManaged_
@@ -1274,7 +1274,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
               .ensuringFirst(interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
               .fork
       } yield out.take.flatten
-    )
+    }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
