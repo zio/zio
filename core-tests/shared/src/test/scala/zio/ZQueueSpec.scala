@@ -3,7 +3,7 @@ package zio
 import scala.collection.immutable.Range
 import zio.clock.Clock
 import zio.duration._
-import zio.test.{ Assertion, assert, DefaultRunnableSpec, suite, testM }
+import zio.test.{ assert, suite, testM, Assertion, DefaultRunnableSpec }
 import zio.test.TestUtils.nonFlaky
 import zio.ZQueueSpecUtil.waitForSize
 

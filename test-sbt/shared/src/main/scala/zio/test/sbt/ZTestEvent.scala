@@ -15,7 +15,11 @@ case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def from[L, E, S](executedSpec: ExecutedSpec[L, E, S], fullyQualifiedName: String, fingerprint: Fingerprint): Seq[ZTestEvent] = {
+  def from[L, E, S](
+    executedSpec: ExecutedSpec[L, E, S],
+    fullyQualifiedName: String,
+    fingerprint: Fingerprint
+  ): Seq[ZTestEvent] = {
     def loop(executedSpec: ExecutedSpec[String, E, S]): Seq[ZTestEvent] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) => executedSpecs.flatMap(loop)
