@@ -1261,9 +1261,11 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
         _ <- self.foreachManaged { a =>
               for {
-                p <- Promise.make[E1, B]
-                _ <- out.offer(Pull.fromPromise(p))
-                _ <- (permits.withPermit(f(a).to(p)) race interruptWorkers.await).fork
+                latch <- Promise.make[Nothing, Unit]
+                p     <- Promise.make[E1, B]
+                _     <- out.offer(Pull.fromPromise(p))
+                _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
+                _     <- latch.await
               } yield ()
             }.foldCauseM(
                 c => (interruptWorkers.succeed(()) *> out.offer(Pull.halt(c))).unit.toManaged_,
@@ -1902,7 +1904,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * The stream that never produces any value or fails with any error.
    */
   final val never: Stream[Nothing, Nothing] =
-    Stream[Nothing, Nothing](ZManaged.succeed(UIO.never))
+    ZStream(ZManaged.succeed(UIO.never))
 
   /**
    * Creates a pure stream from a variable list of values
