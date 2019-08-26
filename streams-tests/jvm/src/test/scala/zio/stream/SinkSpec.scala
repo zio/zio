@@ -1807,15 +1807,14 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   }
 
   private def utf8DecodeChunkAndThenSplitLines = prop { lines: List[String] =>
+    val sink    = ZSink.utf8DecodeChunk andThen ZSink.splitLines
     val nbLines = lines.map(_.lines.mkString)
-    val data = nbLines.map(_ + "\n").mkString
+    val data    = nbLines.map(_ + "\n").mkString
     unsafeRun {
       Stream(Chunk.fromArray(data.getBytes("UTF-8")))
-        .transduce(ZSink.utf8DecodeChunk andThen ZSink.splitLines)
+        .transduce(sink)
         .runCollect
-        .map( chunks =>
-          chunks.flatMap(_.toSeq) must_=== nbLines
-        )
+        .map(chunks => chunks.flatMap(_.toSeq) must_=== nbLines)
     }
   }
 
@@ -1826,8 +1825,9 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       middle       <- sink.step(initial, Chunk.fromArray("abc\nbc".getBytes("UTF8")))
       result       <- sink.extract(Step.state(middle))
       sinkLeftover = Step.leftover(middle)
-    } yield (result.toArray[String].mkString("\n") must_=== "abc") and (
-      new String(sinkLeftover.toSeq.flatMap(_.toSeq).toArray[Byte]) must_=== "bc")
+    } yield (result.toArray[String].mkString("\n") must_=== "abc") and (new String(
+      sinkLeftover.toSeq.flatMap(_.toSeq).toArray[Byte]
+    ) must_=== "bc")
   }
 
   private def utf8DecodeChunkIncomplete1 = unsafeRun {
