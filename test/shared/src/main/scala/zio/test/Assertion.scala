@@ -16,337 +16,372 @@
 
 package zio.test
 
+import zio.Exit
+
+import scala.reflect.ClassTag
+
 /**
- * An `Assertion[A]` is the result of running a test, which may be ignore,
- * success, or failure, with some message of type `A`. Assertions compose using
- * logical `&&` and `||` and all failures will be preserved to provide robust
- * reporting test results.
+ * A `Predicate[A]` is capable of producing assertion results on an `A`. As a
+ * proposition, predicates compose using logical conjuction and disjunction,
+ * and can be negated.
  */
-sealed trait Assertion[+A] extends Product with Serializable { self =>
-  import Assertion._
+class Assertion[-A] private (render: String, val run: (=> A) => PredicateResult) extends ((=> A) => PredicateResult) {
+  self =>
+  // import AssertResult._
 
   /**
-   * Returns a new assertion that is the logical conjunction of this assertion
-   * and the specified assertion.
+   * Returns a new predicate that succeeds only if both predicates succeed.
    */
-  final def &&[A1 >: A](that: Assertion[A1]): Assertion[A1] =
-    both(that)
+  final def &&[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
+    Assertion.predicateDirect(s"(${self} && ${that})") { actual =>
+      self.run(actual) && that.run(actual)
+    }
 
   /**
-   * Returns a new assertion that is the logical disjunction of this assertion
-   * and the specified assertion.
+   * Returns a new predicate that succeeds if either predicates succeed.
    */
-  final def ||[A1 >: A](that: Assertion[A1]): Assertion[A1] =
-    either(that)
+  final def ||[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
+    Assertion.predicateDirect(s"(${self} || ${that})") { actual =>
+      self.run(actual) || that.run(actual)
+    }
 
   /**
-   * Returns a new result, with all failure messages mapped to the specified
-   * constant.
+   * Evaluates the predicate with the specified value.
    */
-  final def as[B](b: B): Assertion[B] =
-    self.map(_ => b)
+  final def apply(a: => A): PredicateResult =
+    run(a)
 
-  /**
-   * A named alias for `&&`.
-   */
-  final def both[A1 >: A](that: Assertion[A1]): Assertion[A1] =
-    and(self, that)
-
-  /**
-   * A named alias for `||`.
-   */
-  final def either[A1 >: A](that: Assertion[A1]): Assertion[A1] =
-    or(self, that)
-
-  /**
-   * Collects all failure messages into a list.
-   */
-  final def failures: List[A] =
-    fold(Vector.empty, Vector.empty, a => Vector(a))(_ ++ _, _ ++ _).toList
-
-  /**
-   * Folds over the assertion bottom up, first converting ignore, success, or
-   * failure results to `B` values, and then combining the `B` values, using
-   * the specified functions.
-   */
-  final def fold[B](caseSkipped: => B, caseSucceeded: => B, caseFailed: A => B)(
-    caseAnd: (B, B) => B,
-    caseOr: (B, B) => B
-  ): B = self match {
-    case Ignore =>
-      caseSkipped
-    case Success =>
-      caseSucceeded
-    case Failure(a) =>
-      caseFailed(a)
-    case And(l, r) =>
-      caseAnd(
-        l.fold(caseSkipped, caseSucceeded, caseFailed)(caseAnd, caseOr),
-        r.fold(caseSkipped, caseSucceeded, caseFailed)(caseAnd, caseOr)
-      )
-    case Or(l, r) =>
-      caseOr(
-        l.fold(caseSkipped, caseSucceeded, caseFailed)(caseAnd, caseOr),
-        r.fold(caseSkipped, caseSucceeded, caseFailed)(caseAnd, caseOr)
-      )
+  override final def equals(that: Any): Boolean = that match {
+    case that: Assertion[_] => this.toString == that.toString
   }
 
-  /**
-   * Detemines if the result failed.
-   */
-  final def isFailure: Boolean =
-    fold(false, false, _ => true)(_ || _, _ && _)
+  override final def hashCode: Int =
+    toString.hashCode
 
   /**
-   * Detemines if the result succeeded.
+   * Returns the negation of this predicate.
    */
-  final def isSuccess: Boolean =
-    fold(false, true, _ => false)(_ && _, _ || _)
+  final def negate: Assertion[A] =
+    Assertion.not(self)
 
   /**
-   * Returns a new result, with all failure messages mapped by the specified
-   * function.
+   * Tests the predicate to see if it would succeed on the given element.
    */
-  final def map[A1](f: A => A1): Assertion[A1] =
-    fold(ignore, success, a => failure(f(a)))(and, or)
+  final def test(a: A): Boolean =
+    run(a).isSuccess
 
   /**
-   * Negates this assertion, converting all successes into failures and failures
-   * into successes. The new failures will have messages with the specified
-   * value.
+   * Provides a meaningful string rendering of the predicate.
    */
-  final def not[B](b: B): Assertion[B] =
-    fold(ignore, failure(b), _ => success)(
-      (l, r) => or(l.not(b), r.not(b)),
-      (l, r) => and(l.not(b), r.not(b))
-    )
-
-  /**
-   * Removes all intermediate ignore results from this assertion, returning
-   * either an assertion with no ignore results or ignore if all the results
-   * of this assertion were ignore.
-   */
-  final def stripIgnores: Assertion[A] =
-    self.fold(ignore, success, failure)(
-      {
-        case (Ignore, r) => r
-        case (l, Ignore) => l
-        case (l, r)      => And(l, r)
-      }, {
-        case (Ignore, r) => r
-        case (l, Ignore) => l
-        case (l, r)      => Or(l, r)
-      }
-    )
+  override final def toString: String =
+    render
 }
 
 object Assertion {
 
-  case object Ignore extends Assertion[Nothing] { self =>
-    override final def equals(that: Any): Boolean =
-      (this eq that.asInstanceOf[AnyRef]) || (that match {
-        case other: Assertion[_] => equal(other)
-        case _                   => false
-      })
-    private def equal(other: Assertion[_]): Boolean = other match {
-      case And(Ignore, r) => self == r
-      case And(l, Ignore) => self == l
-      case Or(Ignore, r)  => self == r
-      case Or(l, Ignore)  => self == l
-      case _              => false
-    }
-  }
+  /**
+   * Makes a new predicate that always succeeds.
+   */
+  final val anything: Assertion[Any] =
+    Assertion.predicate[Any]("anything")(_ => AssertResult.value(Right(())))
 
-  case object Success extends Assertion[Nothing] { self =>
-    override final def equals(that: Any): Boolean =
-      (this eq that.asInstanceOf[AnyRef]) || (that match {
-        case other: Assertion[_] => equal(other)
-        case _                   => false
-      })
-    private def equal(other: Assertion[_]): Boolean = other match {
-      case And(Ignore, r) => self == r
-      case And(l, Ignore) => self == l
-      case Or(Ignore, r)  => self == r
-      case Or(l, Ignore)  => self == l
-      case _              => false
+  /**
+   * Makes a new predicate that requires an iterable contain the specified
+   * element.
+   */
+  final def contains[A](element: A): Assertion[Iterable[A]] =
+    Assertion.predicate(s"contains(${element})") { actual =>
+      if (!actual.exists(_ == element)) AssertResult.value(Left(()))
+      else AssertResult.value(Right(()))
+    }
 
+  /**
+   * Makes a new predicate that requires a value equal the specified value.
+   */
+  final def equalTo[A](expected: A): Assertion[A] =
+    Assertion.predicate(s"equalTo(${expected})") { actual =>
+      if (actual == expected) AssertResult.value(Right(()))
+      else AssertResult.value(Left(()))
     }
-  }
 
-  final case class Failure[+A](message: A) extends Assertion[A] { self =>
-    override final def equals(that: Any): Boolean =
-      (this eq that.asInstanceOf[AnyRef]) || (that match {
-        case other: Assertion[_] => equal(other)
-        case _                   => false
-      })
-    private def equal(other: Assertion[_]): Boolean = other match {
-      case And(Ignore, r) => self == r
-      case And(l, Ignore) => self == l
-      case Or(Ignore, r)  => self == r
-      case Or(l, Ignore)  => self == l
-      case Failure(v)     => message == v
-      case _              => false
+  /**
+   * Makes a new predicate that requires an iterable contain one element
+   * satisfying the given predicate.
+   */
+  final def exists[A](predicate: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.predicate(s"exists(${predicate})") { actual =>
+      if (!actual.exists(predicate.test(_))) AssertResult.value(Left(()))
+      else AssertResult.value(Right(()))
     }
-  }
 
-  final case class And[+A](left: Assertion[A], right: Assertion[A]) extends Assertion[A] { self =>
-    override final def equals(that: Any): Boolean = that match {
-      case other: Assertion[_] =>
-        equal(other) ||
-          commutative(other) ||
-          empty(self, other) ||
-          symmetric(associative)(self, other) ||
-          symmetric(distributive)(self, other)
-      case _ => false
-    }
-    override final def hashCode: Int =
-      assertionHash(self)
-    private def equal(that: Assertion[_]): Boolean = (self, that) match {
-      case (a1: And[_], a2: And[_]) => a1.left == a2.left && a1.right == a2.right
-      case _                        => false
-    }
-    private def associative(left: Assertion[_], right: Assertion[_]): Boolean =
-      (left, right) match {
-        case (And(And(a1, b1), c1), And(a2, And(b2, c2))) =>
-          a1 == a2 && b1 == b2 && c1 == c2
-        case _ =>
-          false
-      }
-    private def commutative(that: Assertion[_]): Boolean = (self, that) match {
-      case (And(al, bl), And(ar, br)) => al == br && bl == ar
-      case _                          => false
-    }
-    private def distributive(left: Assertion[_], right: Assertion[_]): Boolean =
-      (left, right) match {
-        case (And(a1, Or(b1, c1)), Or(And(a2, b2), And(a3, c2))) =>
-          a1 == a2 && a1 == a3 && b1 == b2 && c1 == c2
-        case _ =>
-          false
-      }
-    private def empty(left: Assertion[_], right: Assertion[_]): Boolean =
-      (left, right) match {
-        case (And(l, Ignore), v) => l == v
-        case (And(Ignore, r), v) => r == v
-        case _                   => false
-      }
-  }
+  /**
+   * Makes a new predicate that requires an exit value to fail.
+   */
+  final def fails[E](predicate: Assertion[E]): Assertion[Exit[E, Any]] =
+    Assertion.predicateRec[Exit[E, Any]](s"fails(${predicate})") { (self, actual) =>
+      actual match {
+        case Exit.Failure(cause) if cause.failures.length > 0 => predicate.run(cause.failures.head)
 
-  final case class Or[+A](left: Assertion[A], right: Assertion[A]) extends Assertion[A] { self =>
-    override final def equals(that: Any): Boolean = that match {
-      case other: Assertion[_] =>
-        equal(other) ||
-          commutative(other) ||
-          empty(self, other) ||
-          symmetric(associative)(self, other) ||
-          symmetric(distributive)(self, other)
-      case _ => false
-    }
-    override final def hashCode: Int =
-      assertionHash(self)
-    private def equal(that: Assertion[_]): Boolean = (self, that) match {
-      case (o1: Or[_], o2: Or[_]) => o1.left == o2.left && o1.right == o2.right
-      case _                      => false
-    }
-    private def associative(left: Assertion[_], right: Assertion[_]): Boolean =
-      (left, right) match {
-        case (Or(Or(a1, b1), c1), Or(a2, Or(b2, c2))) =>
-          a1 == a2 && b1 == b2 && c1 == c2
-        case _ =>
-          false
+        case _ => AssertResult.value(Left(AssertionValue(self, actual)))
       }
-    private def commutative(that: Assertion[_]): Boolean = (self, that) match {
-      case (Or(al, bl), Or(ar, br)) => al == br && bl == ar
-      case _                        => false
     }
-    private def distributive(left: Assertion[_], right: Assertion[_]): Boolean =
-      (left, right) match {
-        case (Or(a1, And(b1, c1)), And(Or(a2, b2), Or(a3, c2))) =>
-          a1 == a2 && a1 == a3 && b1 == b2 && c1 == c2
-        case _ =>
-          false
+
+  /**
+   * Makes a new predicate that requires an iterable contain only elements
+   * satisfying the given predicate.
+   */
+  final def forall[A](predicate: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.predicateDirect[Iterable[A]](s"forall(${predicate})") { actual =>
+      actual.map(predicate(_)).toList match {
+        case head :: tail =>
+          tail.foldLeft(head) {
+            case (AssertResult.Value(Right(_)), next) => next
+            case (acc, _)                             => acc
+          }
+        case Nil => AssertResult.value(Right(()))
       }
-    private def empty(left: Assertion[_], right: Assertion[_]): Boolean =
-      (left, right) match {
-        case (Or(l, Ignore), v) => l == v
-        case (Or(Ignore, r), v) => r == v
-        case _                  => false
+    }
+
+  /**
+   * Makes a new predicate that focuses in on a field in a case class.
+   *
+   * {{{
+   * hasField("age", _.age, within(0, 10))
+   * }}}
+   */
+  final def hasField[A, B](name: String, proj: A => B, predicate: Assertion[B]): Assertion[A] =
+    Assertion.predicateDirect[A]("hasField(\"" + name + "\"" + s", _.${name}, ${predicate})") { actual =>
+      predicate(proj(actual))
+    }
+
+  /**
+   * Makes a new predicate that requires the size of an iterable be satisfied
+   * by the specified predicate.
+   */
+  final def hasSize[A](predicate: Assertion[Int]): Assertion[Iterable[A]] =
+    Assertion.predicate[Iterable[A]](s"hasSize(${predicate})") { actual =>
+      predicate.run(actual.size).map {
+        case Left(_) => Left(())
+        case _       => Right(())
       }
+    }
+
+  /**
+   * Makes a new predicate that requires the sum type be a specified term.
+   *
+   * {{{
+   * isCase("Some", Some.unapply, anything)
+   * }}}
+   */
+  final def isCase[Sum, Proj](
+    termName: String,
+    term: Sum => Option[Proj],
+    predicate: Assertion[Proj]
+  ): Assertion[Sum] =
+    Assertion.predicateRec[Sum]("isCase(\"" + termName + "\", " + s"${termName}.unapply, ${predicate})") {
+      (self, actual) =>
+        term(actual).fold[PredicateResult](AssertResult.value(Left(AssertionValue(self, actual))))(predicate(_))
+    }
+
+  /**
+   * Makes a new predicate that requires a value be true.
+   */
+  final def isFalse: Assertion[Boolean] = Assertion.predicate(s"isFalse") { actual =>
+    if (!actual) AssertResult.value(Right(())) else AssertResult.value(Left(()))
   }
 
   /**
-   * Returns an assertion that succeeds if all of the assertions in the
-   * specified collection succeed.
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
    */
-  final def all[A](as: Iterable[Assertion[A]]): Assertion[A] =
-    as.foldRight[Assertion[A]](ignore)(and)
+  final def isGreaterThan[A: Numeric](reference: A): Assertion[A] =
+    Assertion.predicate(s"isGreaterThan(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(actual, reference) > 0) AssertResult.value(Right(()))
+      else AssertResult.value(Left(()))
+    }
 
   /**
-   * Constructs an assertion that is the logical conjunction of two assertions.
+   * Makes a new predicate that requires the numeric value be greater than
+   * or equal to the specified reference value.
    */
-  final def and[A](left: Assertion[A], right: Assertion[A]): Assertion[A] =
-    And(left, right)
+  final def isGreaterThanEqualTo[A: Numeric](reference: A): Assertion[A] =
+    Assertion.predicate(s"isGreaterThanEqualTo(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(actual, reference) >= 0) AssertResult.value(Right(()))
+      else AssertResult.value(Left(()))
+    }
 
   /**
-   * Returns an assertion that succeeds if any of the assertions in the
-   * specified collection succeed.
+   * Makes a new predicate that requires a Left value satisfying a specified
+   * predicate.
    */
-  final def any[A](as: Iterable[Assertion[A]]): Assertion[A] =
-    as.foldRight[Assertion[A]](ignore)(or)
+  final def isLeft[A](predicate: Assertion[A]): Assertion[Either[A, Any]] =
+    Assertion.predicateRec[Either[A, Any]](s"isLeft(${predicate})") { (self, actual) =>
+      actual match {
+        case Left(a)  => predicate.run(a)
+        case Right(_) => AssertResult.value(Left(AssertionValue(self, actual)))
+      }
+    }
 
   /**
-   * Combines a collection of assertions to create a single assertion that
-   * succeeds if all of the assertions succeed.
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
    */
-  final def collectAll[A, E](as: Iterable[Assertion[A]]): Assertion[A] =
-    foreach(as)(identity)
+  final def isLessThan[A: Numeric](reference: A): Assertion[A] =
+    Assertion.predicate(s"isLessThan(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(actual, reference) < 0) AssertResult.value(Right(()))
+      else AssertResult.value(Left(()))
+    }
 
   /**
-   * Constructs a failed assertion with the specified message.
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
    */
-  final def failure[A](a: A): Assertion[A] =
-    Failure(a)
+  final def isLessThanEqualTo[A: Numeric](reference: A): Assertion[A] =
+    Assertion.predicate(s"isLessThanEqualTo(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(actual, reference) <= 0) AssertResult.value(Right(()))
+      else AssertResult.value(Left(()))
+    }
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` to produce
-   * a collection of assertions, then combines all of those assertions to
-   * create a single assertion that succeeds if all of the assertions succeed.
+   * Makes a new predicate that requires a Some value satisfying the specified
+   * predicate.
    */
-  final def foreach[A, B](as: Iterable[A])(f: A => Assertion[B]): Assertion[B] =
-    as.foldRight[Assertion[B]](ignore)((a, b) => and(f(a), b))
-
-  /** Returns an ignored assertion. */
-  final val ignore: Assertion[Nothing] =
-    Ignore
+  final val isNone: Assertion[Option[Any]] = Assertion.predicate(s"isNone") { actual =>
+    actual match {
+      case None    => AssertResult.value(Right(()))
+      case Some(_) => AssertResult.value(Left(()))
+    }
+  }
 
   /**
-   * Constructs an assertion that is the logical disjunction of two assertions.
+   * Makes a new predicate that requires a Right value satisfying a specified
+   * predicate.
    */
-  final def or[A](left: Assertion[A], right: Assertion[A]): Assertion[A] =
-    Or(left, right)
+  final def isRight[A](predicate: Assertion[A]): Assertion[Either[Any, A]] =
+    Assertion.predicateRec[Either[Any, A]](s"isRight(${predicate})") { (self, actual) =>
+      actual match {
+        case Right(a) => predicate.run(a)
+        case Left(_)  => AssertResult.value(Left(AssertionValue(self, actual)))
+      }
+    }
 
   /**
-   * Returns a successful assertion.
+   * Makes a new predicate that requires a Some value satisfying the specified
+   * predicate.
    */
-  final val success: Assertion[Nothing] =
-    Success
+  final def isSome[A](predicate: Assertion[A]): Assertion[Option[A]] =
+    Assertion.predicateRec[Option[A]](s"isSome(${predicate})") { (self, actual) =>
+      actual match {
+        case Some(a) => predicate.run(a)
+        case None    => AssertResult.value(Left(AssertionValue(self, actual)))
+      }
+    }
 
-  private def symmetric[A](f: (A, A) => Boolean): (A, A) => Boolean =
-    (a1, a2) => f(a1, a2) || f(a2, a1)
+  /**
+   * Makes a predicate that requires a value have the specified type.
+   */
+  final def isSubtype[A](predicate: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
+    Assertion.predicateRec[Any](s"isSubtype[${C.runtimeClass.getSimpleName()}]") { (self, actual) =>
+      if (C.runtimeClass.isAssignableFrom(actual.getClass())) predicate(actual.asInstanceOf[A])
+      else AssertResult.value(Left(AssertionValue(self, actual)))
+    }
 
-  private def assertionHash[A](assertion: Assertion[A]): Int =
-    assertion
-      .fold(None, Some(success.hashCode), a => Some(failure(a).hashCode))(
-        {
-          case (Some(l), Some(r)) => Some(l & r)
-          case (Some(l), _)       => Some(l)
-          case (_, Some(r))       => Some(r)
-          case _                  => None
-        }, {
-          case (Some(l), Some(r)) => Some(l | r)
-          case (Some(l), _)       => Some(l)
-          case (_, Some(r))       => Some(r)
-          case _                  => None
+  /**
+   * Makes a new predicate that requires a value be true.
+   */
+  final def isTrue: Assertion[Boolean] = Assertion.predicate(s"isTrue") { actual =>
+    if (actual) AssertResult.value(Right(())) else AssertResult.value(Left(()))
+  }
+
+  /**
+   * Makes a new predicate that requires the value be unit.
+   */
+  final def isUnit: Assertion[Any] =
+    Assertion.predicate("isUnit") { actual =>
+      actual match {
+        case () => AssertResult.value(Right(()))
+        case _  => AssertResult.value(Left(()))
+      }
+    }
+
+  /**
+   * Returns a new predicate that requires a numeric value to fall within a
+   * specified min and max (inclusive).
+   */
+  final def isWithin[A: Numeric](min: A, max: A): Assertion[A] =
+    Assertion.predicate(s"isWithin(${min}, ${max})") { actual =>
+      if (implicitly[Numeric[A]].compare(actual, min) < 0) AssertResult.value(Left(()))
+      else if (implicitly[Numeric[A]].compare(actual, max) > 0) AssertResult.value(Left(()))
+      else AssertResult.value(Right(()))
+    }
+
+  /**
+   * Makes a new predicate that negates the specified predicate.
+   */
+  final def not[A](predicate: Assertion[A]): Assertion[A] =
+    Assertion.predicateRec[A](s"not(${predicate})") { (self, actual) =>
+      if (predicate.run(actual).isSuccess) AssertResult.value(Left(AssertionValue(self, actual)))
+      else AssertResult.value(Right(()))
+    }
+
+  /**
+   * Makes a new predicate that always fails.
+   */
+  final val nothing: Assertion[Any] = Assertion.predicateRec[Any]("nothing") { (self, actual) =>
+    AssertResult.value(Left(AssertionValue(self, actual)))
+  }
+
+  /**
+   * Makes a new `Predicate` from a pretty-printing and a function.
+   */
+  final def predicate[A](render: String)(run: (=> A) => AssertResult[Either[Unit, Unit]]): Assertion[A] =
+    predicateRec[A](render)(
+      (predicate, a) =>
+        run(a).map {
+          case Left(_) => Left(AssertionValue(predicate, a))
+          case _       => Right(())
         }
-      )
-      .getOrElse(ignore.hashCode)
+    )
+
+  /**
+   * Makes a new `Predicate` from a pretty-printing and a function.
+   */
+  final def predicateDirect[A](render: String)(run: (=> A) => PredicateResult): Assertion[A] =
+    new Assertion(render, run)
+
+  /**
+   * Makes a new `Predicate` from a pretty-printing and a function, passing
+   * the predicate itself to the specified function, so it can embed a
+   * recursive reference into the assert result.
+   */
+  final def predicateRec[A](render: String)(run: (Assertion[A], => A) => PredicateResult): Assertion[A] = {
+    lazy val predicate: Assertion[A] = predicateDirect[A](render)(a => run(predicate, a))
+    predicate
+  }
+
+  /**
+   * Makes a new predicate that requires an exit value to succeed.
+   */
+  final def succeeds[A](predicate: Assertion[A]): Assertion[Exit[Any, A]] =
+    Assertion.predicateRec[Exit[Any, A]](s"succeeds(${predicate})") { (self, actual) =>
+      actual match {
+        case Exit.Success(a) => predicate.run(a)
+
+        case exit => AssertResult.value(Left(AssertionValue(self, exit)))
+      }
+    }
+
+  /**
+   * Returns a new predicate that requires the expression to throw.
+   */
+  final def throws[A](predicate: Assertion[Throwable]): Assertion[A] =
+    Assertion.predicateRec[A](s"throws(${predicate})") { (self, actual) =>
+      try {
+        val _ = actual
+      } catch {
+        case t: Throwable => predicate(t)
+      }
+
+      AssertResult.value(Left(AssertionValue(self, actual)))
+    }
 }

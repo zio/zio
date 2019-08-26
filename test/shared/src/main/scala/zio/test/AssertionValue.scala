@@ -21,19 +21,19 @@ package zio.test
  * hiding the type. This is used internally by the library to provide useful
  * error messages in the event of test failures.
  */
-sealed trait PredicateValue {
+sealed trait AssertionValue {
   type Value
 
   val value: Value
 
-  val predicate: Predicate[Value]
+  val predicate: Assertion[Value]
 
-  def negate: PredicateValue = PredicateValue(predicate.negate, value)
+  def negate: AssertionValue = AssertionValue(predicate.negate, value)
 }
 
-object PredicateValue {
-  def apply[A](predicate0: Predicate[A], value0: A): PredicateValue =
-    new PredicateValue {
+object AssertionValue {
+  def apply[A](predicate0: Assertion[A], value0: A): AssertionValue =
+    new AssertionValue {
       type Value = A
 
       val value = value0

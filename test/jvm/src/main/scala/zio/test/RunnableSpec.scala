@@ -21,9 +21,12 @@ import zio.test.Spec.TestCase
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-abstract class RunnableSpec[L, T](runner0: TestRunner[L, T])(spec0: => Spec[L, T]) extends AbstractRunnableSpec {
-  override type Label = L
-  override type Test  = T
+abstract class RunnableSpec[L, T, E, S](runner0: TestRunner[L, T, E, S])(spec0: => Spec[L, T])
+    extends AbstractRunnableSpec {
+  override type Label   = L
+  override type Test    = T
+  override type Failure = E
+  override type Success = S
 
   override def runner = runner0
   override def spec   = spec0
@@ -35,7 +38,7 @@ abstract class RunnableSpec[L, T](runner0: TestRunner[L, T])(spec0: => Spec[L, T
    */
   final def main(args: Array[String]): Unit = {
     val results     = runner.unsafeRun(spec)
-    val hasFailures = results.exists { case TestCase(_, test) => test.isFailure; case _ => false }
+    val hasFailures = results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
     try if (hasFailures) sys.exit(1) else sys.exit(0)
     catch { case _: SecurityException => }
   }

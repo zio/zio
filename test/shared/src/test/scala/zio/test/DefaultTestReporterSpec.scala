@@ -6,7 +6,7 @@ import scala.{ Console => SConsole }
 import zio.clock.Clock
 import zio.test.mock._
 import zio.test.TestUtils.label
-import zio.test.Predicate.{ equalTo, isGreaterThan, isLessThan }
+import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 
 object DefaultTestReporterSpec extends DefaultRuntime {
 
@@ -20,8 +20,8 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     label(simplePredicate, "correctly reports failure of simple predicate")
   )
 
-  def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
-    zio.test.test(label)(assertion)
+  def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
+    zio.test.test(label)(assertion).mapTest(_.map(_ => ()))
 
   val test1 = makeTest("Addition works fine") {
     assert(1 + 1, equalTo(2))
@@ -51,9 +51,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n")
   )
 
-  val test4 = makeTest("Failing test") {
-    fail(Cause.fail("Fail"))
-  }
+  val test4 = Spec.test("Failing test", fail(Cause.fail("Fail")))
 
   val test4Expected = Vector(
     expectedFailure("Failing test"),
@@ -147,7 +145,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def yellowThenCyan(s: String): String =
     SConsole.YELLOW + s + SConsole.CYAN
 
-  def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
+  def check[E](spec: ZSpec[MockEnvironment, String, String, Unit], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>
       val zio = for {
         _ <- MockTestRunner(r)
@@ -160,7 +158,16 @@ object DefaultTestReporterSpec extends DefaultRuntime {
                 override val clock: Clock.Service[Any]      = clockSvc.clock
               })
         output <- MockConsole.output
-      } yield output == expected
+      } yield {
+        val p = output == expected
+        if (!p) {
+          println("Output:")
+          output.foreach(print)
+          println("Expeted:")
+          expected.foreach(print)
+        }
+        p
+      }
       zio.provide(r)
     }
 
@@ -168,8 +175,8 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     unsafeRunToFuture(r.use[Any, E, A](f))
 
   def MockTestRunner(mockEnvironment: MockEnvironment) =
-    TestRunner[String, ZTest[MockEnvironment, Any]](
-      executor = TestExecutor.managed(Managed.succeed(mockEnvironment)),
+    TestRunner[String, ZTest[MockEnvironment, String, Unit], String, Unit](
+      executor = TestExecutor.managed[MockEnvironment, String, String, Unit](Managed.succeed(mockEnvironment)),
       reporter = DefaultTestReporter()
     )
 }

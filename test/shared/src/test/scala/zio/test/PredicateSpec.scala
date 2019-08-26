@@ -3,7 +3,7 @@ package zio.test
 import scala.concurrent.{ ExecutionContext, Future }
 
 import zio.Exit
-import zio.test.Predicate._
+import zio.test.Assertion._
 import zio.test.TestUtils.label
 
 object PredicateSpec {

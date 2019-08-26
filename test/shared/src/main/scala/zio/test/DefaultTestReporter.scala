@@ -25,45 +25,56 @@ import zio.duration.Duration
 
 object DefaultTestReporter {
 
-  def render(executedSpec: ExecutedSpec[String]): Seq[RenderedResult] = {
-    def loop(executedSpec: ExecutedSpec[String], depth: Int): Seq[RenderedResult] =
+  def render[E, S](executedSpec: ExecutedSpec[String, E, S]): Seq[RenderedResult] = {
+    def loop(executedSpec: ExecutedSpec[String, E, S], depth: Int): Seq[RenderedResult] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(label, executedSpecs, _) =>
           val hasFailures = executedSpecs.exists(_.exists {
-            case Spec.TestCase(_, test) => test.isFailure; case _ => false
+            case Spec.TestCase(_, test) => test.isLeft; case _ => false
           })
           val status        = if (hasFailures) Failed else Passed
           val renderedLabel = if (hasFailures) renderFailureLabel(label, depth) else renderSuccessLabel(label, depth)
           rendered(Suite, label, status, depth, renderedLabel) +: executedSpecs.flatMap(loop(_, depth + tabSize))
         case Spec.TestCase(label, result) =>
           Seq(
-            result.fold(
-              rendered(Test, label, Ignored, depth),
-              rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)),
-              details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-            )(_ && _, _ || _)
+            result match {
+              case Right(_) =>
+                rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
+              case Left(TestFailure.Predicate(result)) =>
+                result.fold(
+                  details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
+                )(_ && _, _ || _)
+              case Left(TestFailure.Runtime(cause)) =>
+                rendered(
+                  Test,
+                  label,
+                  Failed,
+                  depth,
+                  (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth))): _*
+                )
+            }
           )
       }
     loop(executedSpec, 0)
   }
 
-  def apply[L](): TestReporter[L] = { (duration: Duration, executedSpec: ExecutedSpec[L]) =>
+  def apply[L, E, S, S0](): TestReporter[L, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[L, E, S]) =>
     ZIO
       .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
         ZIO.foreach(res.rendered)(TestLogger.logLine)
       } *> logStats(duration, executedSpec)
   }
 
-  private def logStats[L](duration: Duration, executedSpec: ExecutedSpec[L]) = {
-    def loop(executedSpec: ExecutedSpec[String]): (Int, Int, Int) =
+  private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]) = {
+    def loop(executedSpec: ExecutedSpec[String, E, S]): (Int, Int, Int) =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           executedSpecs.map(loop).foldLeft((0, 0, 0)) {
             case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
           }
         case Spec.TestCase(_, result) =>
-          if (result.isSuccess) (1, 0, 0)
-          else if (result.isFailure) (0, 0, 1)
+          if (result.isRight) (1, 0, 0)
+          else if (result.isLeft) (0, 0, 1)
           else (0, 1, 0)
       }
     val (success, ignore, failure) = loop(executedSpec.mapLabel(_.toString))
@@ -86,24 +97,23 @@ object DefaultTestReporter {
     withOffset(offset)(red("- " + label))
 
   private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] = failureDetails match {
-    case FailureDetails.Predicate(fragment, whole) => renderPredicate(fragment, whole, offset)
-    case FailureDetails.Runtime(cause)             => Seq(renderCause(cause, offset))
+    case FailureDetails(fragment, whole) => renderPredicate(fragment, whole, offset)
   }
 
-  private def renderPredicate(fragment: PredicateValue, whole: PredicateValue, offset: Int): Seq[String] =
+  private def renderPredicate(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
     if (whole.predicate == fragment.predicate)
       Seq(renderFragment(fragment, offset))
     else
       Seq(renderWhole(fragment, whole, offset), renderFragment(fragment, offset))
 
-  private def renderWhole(fragment: PredicateValue, whole: PredicateValue, offset: Int) =
+  private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(whole.value.toString) +
         " did not satisfy " +
         highlight(cyan(whole.predicate.toString), fragment.predicate.toString)
     }
 
-  private def renderFragment(fragment: PredicateValue, offset: Int) =
+  private def renderFragment(fragment: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(fragment.value.toString) +
         " did not satisfy " +

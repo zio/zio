@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{ ExecutedSpec, Spec, TestResult }
+import zio.test.{ AssertResult, ExecutedSpec, Spec, TestFailure }
 
 case class ZTestEvent(
   fullyQualifiedName: String,
@@ -15,8 +15,8 @@ case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def from[L](executedSpec: ExecutedSpec[L], fullyQualifiedName: String, fingerprint: Fingerprint): Seq[ZTestEvent] = {
-    def loop(executedSpec: ExecutedSpec[String]): Seq[ZTestEvent] =
+  def from[L, E, S](executedSpec: ExecutedSpec[L, E, S], fullyQualifiedName: String, fingerprint: Fingerprint): Seq[ZTestEvent] = {
+    def loop(executedSpec: ExecutedSpec[String, E, S]): Seq[ZTestEvent] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) => executedSpecs.flatMap(loop)
         case Spec.TestCase(label, result) =>
@@ -25,18 +25,6 @@ object ZTestEvent {
     loop(executedSpec.mapLabel(_.toString))
   }
 
-  private def toStatus[L](result: TestResult) =
-    result.fold(Status.Ignored, Status.Success, _ => Status.Failure)(
-      {
-        case (Status.Ignored, r)              => r
-        case (l, Status.Ignored)              => l
-        case (Status.Success, Status.Success) => Status.Success
-        case _                                => Status.Failure
-      }, {
-        case (Status.Ignored, r)              => r
-        case (l, Status.Ignored)              => l
-        case (Status.Failure, Status.Failure) => Status.Failure
-        case _                                => Status.Success
-      }
-    )
+  private def toStatus[L, E, S](result: Either[TestFailure[E], AssertResult[S]]) =
+    result.fold(_ => Status.Failure, _ => Status.Success)
 }

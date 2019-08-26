@@ -295,44 +295,56 @@ object GenSpec extends DefaultRuntime {
       as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
       bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     } yield (as, bs)
-    val predicate = Predicate.predicate[(List[Int], List[Int])]("") {
+    val predicate = Assertion.predicate[(List[Int], List[Int])]("") {
       case (as, bs) =>
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
-        if (p) Assertion.success else Assertion.Failure(())
+        if (p) AssertResult.value(Right(())) else AssertResult.value(Left(()))
     }
-    val test = checkSome(100)(gen)(predicate).map {
-      case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
-        fragment.value.toString == "(List(0),List(1))" ||
-          fragment.value.toString == "(List(1),List(0))" ||
-          fragment.value.toString == "(List(0),List(-1))" ||
-          fragment.value.toString == "(List(-1),List(0))"
-      case _ => false
-    }
+    val test = checkSome(100)(gen)(predicate).fold(
+      {
+        case TestFailure.Predicate(AssertResult.Value(failureDetails)) =>
+          failureDetails.fragment.value.toString == "(List(0),List(1))" ||
+            failureDetails.fragment.value.toString == "(List(1),List(0))" ||
+            failureDetails.fragment.value.toString == "(List(0),List(-1))" ||
+            failureDetails.fragment.value.toString == "(List(-1),List(0))"
+        case _ => false
+      }, { _ =>
+        false
+      }
+    )
     unsafeRunToFuture(test)
   }
 
   def testShrinkingNonEmptyList: Future[Boolean] = {
     val gen       = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
-    val predicate = Predicate.predicate[List[Int]]("")(_ => Assertion.Failure(()))
-    val test = checkSome(100)(gen)(predicate).map {
-      case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
-        fragment.value.toString == "List(0)"
-      case _ => false
-    }
+    val predicate = Assertion.predicate[List[Int]]("")(_ => AssertResult.value(Left(())))
+    val test = checkSome(100)(gen)(predicate).fold(
+      {
+        case TestFailure.Predicate(AssertResult.Value(failureDetails)) =>
+          failureDetails.fragment.value.toString == "List(0)"
+        case _ => false
+      }, { _ =>
+        false
+      }
+    )
     unsafeRunToFuture(test)
   }
 
   def testBogusEvenProperty: Future[Boolean] = {
     val gen = Gen.int(0, 100)
-    val predicate = Predicate.predicate[Int]("") { n =>
+    val predicate = Assertion.predicate[Int]("") { n =>
       val p = n % 2 == 0
-      if (p) Assertion.Success else Assertion.Failure(())
+      if (p) AssertResult.value(Right(())) else AssertResult.value(Left(()))
     }
-    val test = checkSome(100)(gen)(predicate).map {
-      case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
-        fragment.value.toString == "1"
-      case _ => false
-    }
+    val test = checkSome(100)(gen)(predicate).fold(
+      {
+        case TestFailure.Predicate(AssertResult.Value(failureDetails)) =>
+          failureDetails.fragment.value.toString == "1"
+        case _ => false
+      }, { _ =>
+        false
+      }
+    )
     unsafeRunToFuture(test)
   }
 

@@ -9,7 +9,7 @@ object TestMain {
 
   def main(args: Array[String]): Unit = {
     val testResults = List(
-      scope(AssertionSpec.run, "AssertionSpec"),
+      scope(AssertResultSpec.run, "AssertResultSpec"),
       scope(ClockSpec.run, "ClockSpec"),
       scope(ConsoleSpec.run, "ConsoleSpec"),
       scope(DefaultTestReporterSpec.run, "DefaultTestReporterSpec"),

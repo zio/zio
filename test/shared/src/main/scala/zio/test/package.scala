@@ -43,108 +43,122 @@ import zio.stream.{ ZSink, ZStream }
  * }}}
  */
 package object test {
-  type PredicateResult = Assertion[PredicateValue]
-  type TestResult      = Assertion[FailureDetails]
+  type PredicateResult = AssertResult[Either[AssertionValue, Unit]]
+  type TestResult      = AssertResult[Either[FailureDetails, Unit]]
 
   /**
    * A `TestReporter[L]` is capable of reporting test results annotated with
    * labels `L`.
    */
-  type TestReporter[-L] = (Duration, ExecutedSpec[L]) => URIO[TestLogger, Unit]
+  type TestReporter[-L, -E, -S] = (Duration, ExecutedSpec[L, E, S]) => URIO[TestLogger, Unit]
 
   object TestReporter {
 
     /**
      * TestReporter that does nothing
      */
-    def silent[L]: TestReporter[L] = (_, _) => ZIO.unit
+    def silent[L, E, S]: TestReporter[L, E, S] = (_, _) => ZIO.unit
   }
 
   /**
    * A `TestExecutor[L, T]` is capable of executing specs containing tests of
    * type `T`, annotated with labels of type `L`.
    */
-  type TestExecutor[L, -T] = (Spec[L, T], ExecutionStrategy) => UIO[ExecutedSpec[L]]
+  type TestExecutor[L, -T, +E, +S] = (Spec[L, T], ExecutionStrategy) => UIO[ExecutedSpec[L, E, S]]
 
   /**
    * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
    * having no requirements on error or environment.
    */
-  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
+  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any, Nothing, Any]
 
   /**
-   * A `ZTest[R, E]` is an effectfully produced test that requires an `R`
-   * and may fail with an `E`.
+   * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
+   * and may fail with a `TestFailure[E]` or succeed with an `S`.
    */
-  type ZTest[-R, +E] = ZIO[R, E, TestResult]
+  type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], S]
 
   /**
-   * A `ZSpec[R, E, L]` is the canonical spec for testing ZIO programs. The
+   * A `ZSpec[R, E, L, S]` is the canonical spec for testing ZIO programs. The
    * spec's test type is a ZIO effect that requires an `R`, might fail with
-   * an `E`, might succeed with a `TestResult`, and whose nodes are
+   * a `TestFailure[E]`, might succeed with an `S`, and whose nodes are
    * annotated with labels `L`.
    */
-  type ZSpec[-R, +E, +L] = Spec[L, ZTest[R, E]]
+  type ZSpec[-R, +E, +L, +S] = Spec[L, ZTest[R, E, S]]
 
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+L] = Spec[L, TestResult]
+  type ExecutedSpec[+L, +E, +S] = Spec[L, Either[TestFailure[E], AssertResult[S]]]
 
   /**
    * Asserts the given value satisfies the given predicate.
    */
-  final def assert[A](value: => A, predicate: Predicate[A]): TestResult =
-    predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
+  final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
+    assertion.run(value).map {
+      case Left(fragment) =>
+        Left(FailureDetails(fragment, AssertionValue(assertion, value)))
+      case _ =>
+        Right(())
+    }
 
   /**
    * Asserts the given effectfully-computed value satisfies the given predicate.
    */
-  final def assertM[R, A](value: ZIO[R, Nothing, A], predicate: Predicate[A]): ZTest[R, Nothing] =
-    value.map(assert(_, predicate))
+  final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
+    value.flatMap { a =>
+      val result = assert(a, assertion)
+      if (result.isSuccess) ZIO.succeed(()) else ZIO.fail(???)
+    }
 
   /**
    * Checks the predicate holds for "sufficient" numbers of samples from the
    * given random variable.
    */
-  final def check[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
-    checkSome(200)(rv)(predicate)
+  final def check[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
+    checkSome(200)(rv)(assertion)
 
   /**
    * Checks the predicate holds for all values from the given random variable.
    * This is useful for deterministic `Gen` that comprehensively explore all
    * possibilities in a given domain.
    */
-  final def checkAll[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
-    checkStream(rv.sample)(predicate)
+  final def checkAll[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
+    checkStream(rv.sample)(assertion)
 
   /**
    * Checks the predicate holds for the specified number of samples from the
    * given random variable.
    */
-  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
-    checkStream(rv.sample.forever.take(n))(predicate)
+  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
+    checkStream(rv.sample.forever.take(n))(assertion)
 
   /**
    * Creates a failed test result with the specified runtime cause.
    */
-  final def fail[E](cause: Cause[E]): TestResult = Assertion.failure(FailureDetails.Runtime(cause))
+  final def fail[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
+    ZIO.fail(TestFailure.Runtime(cause))
 
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[L, T](label: L)(specs: Spec[L, T]*): Spec[L, T] = Spec.suite(label, specs.toVector, None)
+  final def suite[L, T](label: L)(specs: Spec[L, T]*): Spec[L, T] =
+    Spec.suite(label, specs.toVector, None)
 
   /**
    * Builds a spec with a single pure test.
    */
-  final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
+  final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
     testM(label)(ZIO.succeed(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[L, T](label: L)(assertion: T): Spec[L, T] = Spec.test(label, assertion)
+  final def testM[R, L, T](label: L)(assertion: ZIO[R, Nothing, TestResult]): ZSpec[R, Nothing, L, Unit] =
+    Spec.test(label, assertion.flatMap { result =>
+      if (result.isSuccess) ZIO.succeed(())
+      else ZIO.fail(TestFailure.Predicate(result.collect { case Left(e) => e }.get))
+    })
 
   /**
    * Adds syntax for adding aspects.
@@ -152,18 +166,21 @@ package object test {
    * test("foo") { assert(42, equalTo(42)) } @@ ignore
    * }}}
    */
-  implicit class ZSpecSyntax[R, E, L](spec: ZSpec[R, E, L]) {
-    def @@[LowerR <: R, UpperR >: R, LowerE <: E, UpperE >: E](
-      aspect: TestAspect[LowerR, UpperR, LowerE, UpperE]
-    ): ZSpec[R, E, L] =
+  implicit class ZSpecSyntax[R, E, L, S](spec: ZSpec[R, E, L, S]) {
+    def @@[LowerR <: R, UpperR >: R, LowerE <: E, UpperE >: E, LowerS <: S, UpperS >: S](
+      aspect: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
+    ): ZSpec[R, E, L, S] =
       aspect(spec)
   }
 
   private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
-    predicate: Predicate[A]
-  ): ZIO[R, Nothing, TestResult] = {
+    assertion: Assertion[A]
+  ): ZIO[R, TestFailure[Nothing], Unit] = {
     def checkValue(value: A): TestResult =
-      predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
+      assertion.run(value).map {
+        case Left(e)  => Left(FailureDetails(e, AssertionValue(assertion, value)))
+        case Right(s) => Right(s)
+      }
 
     stream
       .map(_.map(checkValue))
@@ -171,12 +188,16 @@ package object test {
       .take(1)                       // Get the first failure
       .flatMap(_.shrinkSearch(_.isFailure).take(maxShrinks))
       .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
-      .map { failures =>
+      .flatMap { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[TestResult](Assertion.Success)(identity)
+        failures.reverse.headOption.fold[ZIO[R, TestFailure[Nothing], Unit]] { ZIO.succeed(()) } {
+          case AssertResult.Value(Left(failureDetails)) =>
+            ZIO.fail(TestFailure.Predicate(AssertResult.value(failureDetails)))
+          case _ => ???
+        }
       }
   }
 
-  val DefaultTestRunner: TestRunner[String, ZTest[mock.MockEnvironment, Any]] =
+  val defaultTestRunner: TestRunner[String, ZTest[mock.MockEnvironment, Any, Unit], Any, Unit] =
     TestRunner(TestExecutor.managed(zio.test.mock.mockEnvironmentManaged))
 }
