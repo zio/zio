@@ -6,7 +6,7 @@ import scala.{ Console => SConsole }
 import zio.clock.Clock
 import zio.test.mock._
 import zio.test.TestUtils.label
-import zio.test.Predicate.{ equalTo, isGreaterThan, isLessThan }
+import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 
 object DefaultTestReporterSpec extends DefaultRuntime {
 
@@ -17,7 +17,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     label(reportSuite1, "correctly reports successful test suite"),
     label(reportSuite2, "correctly reports failed test suite"),
     label(reportSuites, "correctly reports multiple test suites"),
-    label(simplePredicate, "correctly reports failure of simple predicate")
+    label(simpleAssertion, "correctly reports failure of simple assertion")
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
@@ -42,9 +42,9 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
     withOffset(2)(
-      s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (" + yellow("isGreaterThan(5)") + " && isLessThan(10)))")}\n"
+      s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && " + yellowThenCyan("isLessThan(10)") + "))")}\n"
     ),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isGreaterThan(5)")}\n")
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n")
   )
 
   val test4 = makeTest("Failing test") {
@@ -113,7 +113,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
         .map(withOffset(2)) :+ reportStats(2, 0, 1)
     )
 
-  def simplePredicate =
+  def simpleAssertion =
     check(
       test5,
       test5Expected :+ reportStats(0, 0, 1)
@@ -140,8 +140,8 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
 
-  def yellow(s: String): String =
-    SConsole.YELLOW + s + SConsole.RESET
+  def yellowThenCyan(s: String): String =
+    SConsole.YELLOW + s + SConsole.CYAN
 
   def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>
