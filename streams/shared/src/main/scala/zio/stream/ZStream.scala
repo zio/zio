@@ -1541,7 +1541,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream[R1 with Clock, E1, B] {
       for {
         as    <- self.process
-        init     <- schedule.initial.toManaged_
+        init  <- schedule.initial.toManaged_
         state <- Ref.make(false -> init).toManaged_
         pull: Pull[R1 with Clock, E1, B] = state.get.flatMap {
           case (done, sched) =>
@@ -1552,7 +1552,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                 decision <- schedule.update(a, sched)
                 _        <- clock.sleep(decision.delay)
                 _        <- state.set(!decision.cont -> decision.state)
-             } yield decision.finish()
+              } yield decision.finish()
         }
       } yield pull
     }
