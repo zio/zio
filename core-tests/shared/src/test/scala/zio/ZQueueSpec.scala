@@ -3,7 +3,7 @@ package zio
 import scala.collection.immutable.Range
 import zio.clock.Clock
 import zio.duration._
-import zio.test.{ assert, suite, testM, Assertion, DefaultRunnableSpec }
+import zio.test.{ assert, suite, testM, Assertion, DefaultRunnableSpec, TimeoutStrategy }
 import zio.test.TestUtils.nonFlaky
 import zio.ZQueueSpecUtil.waitForSize
 
@@ -662,6 +662,7 @@ object ZQueueSpec
         testM("queue isShutdown") {
           for {
             queue <- Queue.bounded[Int](5)
+            _     <- ZIO.unit.delay(5.seconds).provide(Clock.Live)
             r1    <- queue.isShutdown
             _     <- queue.offer(1)
             r2    <- queue.isShutdown
@@ -693,7 +694,8 @@ object ZQueueSpec
             } yield true
           }.map(assert(_, Assertion.isTrue))
         }
-      )
+      ),
+      timeout = TimeoutStrategy.Error(60.seconds)
     )
 
 object ZQueueSpecUtil {
