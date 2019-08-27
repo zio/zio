@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.sbt.TestingSupport._
-import zio.test.{ DefaultRunnableSpec, Predicate, TestAspect }
+import zio.test.{ Assertion, DefaultRunnableSpec, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -90,13 +90,13 @@ object ZTestFrameworkSpec {
       extends DefaultRunnableSpec(
         zio.test.suite("some suite")(
           zio.test.test("failing test") {
-            zio.test.assert(1, Predicate.equalTo(2))
+            zio.test.assert(1, Assertion.equalTo(2))
           },
           zio.test.test("passing test") {
-            zio.test.assert(1, Predicate.equalTo(1))
+            zio.test.assert(1, Assertion.equalTo(1))
           },
           zio.test.test("ignored test") {
-            zio.test.assert(1, Predicate.equalTo(2))
+            zio.test.assert(1, Assertion.equalTo(2))
           } @@ TestAspect.ignore
         )
       )
