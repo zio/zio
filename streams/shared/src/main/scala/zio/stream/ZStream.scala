@@ -609,11 +609,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     }
 
   /**
-   * Combines this stream and the specified stream by converting both streams
-   * to queues and repeatedly applying the function `f0` to extract
-   * an element from the queues and conceptually "offer" it to the destination
-   * stream. `f0` can maintain some internal state to control the combining
-   * process, with the initial state being specified by `s1`.
+   * Combines this stream and the specified stream by repeatedly applying the
+   * function `f0` to extract an element from the queues and conceptually "offer"
+   * it to the destination stream. `f0` can maintain some internal state to control
+   * the combining process, with the initial state being specified by `s1`.
    */
   final def combine[R1 <: R, E1 >: E, A1 >: A, S1, B, C](that: ZStream[R1, E1, B])(s1: S1)(
     f0: (S1, Pull[R, E, A], Pull[R1, E1, B]) => ZIO[R1, E1, (S1, Take[E1, C])]
@@ -1261,9 +1260,11 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
         _ <- self.foreachManaged { a =>
               for {
-                p <- Promise.make[E1, B]
-                _ <- out.offer(Pull.fromPromise(p))
-                _ <- (permits.withPermit(f(a).to(p)) race interruptWorkers.await).fork
+                latch <- Promise.make[Nothing, Unit]
+                p     <- Promise.make[E1, B]
+                _     <- out.offer(Pull.fromPromise(p))
+                _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
+                _     <- latch.await
               } yield ()
             }.foldCauseM(
                 c => (interruptWorkers.succeed(()) *> out.offer(Pull.halt(c))).unit.toManaged_,
@@ -1689,10 +1690,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Applies a transducer to the stream, converting elements of type `A` into elements of type `C`, with a
    * managed resource of type `D` available.
    */
-  final def transduceManaged[R1 <: R, E1 >: E, A1 >: A, C](
-    managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, C]]
-  ): ZStream[R1, E1, C] =
-    ZStream[R1, E1, C] {
+  final def transduceManaged[R1 <: R, E1 >: E, A1 >: A, B](
+    managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
+  ): ZStream[R1, E1, B] =
+    ZStream[R1, E1, B] {
       for {
         as           <- self.process
         sink         <- managedSink
@@ -1700,16 +1701,16 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         sinkStateRef <- Ref.make[(ZSink.Step[sink.State, A1], Boolean)]((init, false)).toManaged_
         done         <- Ref.make(false).toManaged_
         pull = {
-          def go(step: ZSink.Step[sink.State, A1], needsExtractOnEnd: Boolean): Pull[R1, E1, C] =
+          def go(step: ZSink.Step[sink.State, A1], needsExtractOnEnd: Boolean): Pull[R1, E1, B] =
             if (!ZSink.Step.cont(step))
               (for {
-                c        <- sink.extract(ZSink.Step.state(step))
+                b        <- sink.extract(ZSink.Step.state(step))
                 leftover = ZSink.Step.leftover(step)
                 newInit  <- sink.initial
                 _ <- sink
                       .stepChunk(ZSink.Step.state(newInit), leftover)
                       .tap(leftoverStep => sinkStateRef.set((leftoverStep, !leftover.isEmpty)))
-              } yield c).mapError(Some(_))
+              } yield b).mapError(Some(_))
             else
               as.foldM(
                 {
@@ -1737,7 +1738,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Applies a transducer to the stream, which converts one or more elements
    * of type `A` into elements of type `C`.
    */
-  final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+  def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
     transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
 
   /**
@@ -1902,7 +1903,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * The stream that never produces any value or fails with any error.
    */
   final val never: Stream[Nothing, Nothing] =
-    Stream[Nothing, Nothing](ZManaged.succeed(UIO.never))
+    ZStream(ZManaged.succeed(UIO.never))
 
   /**
    * Creates a pure stream from a variable list of values

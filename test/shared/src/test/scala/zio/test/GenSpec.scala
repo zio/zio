@@ -295,14 +295,14 @@ object GenSpec extends DefaultRuntime {
       as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
       bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     } yield (as, bs)
-    val predicate = Assertion.predicate[(List[Int], List[Int])]("") {
+    val assertion = Assertion.assertion[(List[Int], List[Int])]("") {
       case (as, bs) =>
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
         if (p) AssertResult.value(Right(())) else AssertResult.value(Left(()))
     }
-    val test = checkSome(100)(gen)(predicate).fold(
+    val test = checkSome(100)(gen)(assertion).fold(
       {
-        case TestFailure.Predicate(AssertResult.Value(failureDetails)) =>
+        case TestFailure.Assertion(AssertResult.Value(failureDetails)) =>
           failureDetails.fragment.value.toString == "(List(0),List(1))" ||
             failureDetails.fragment.value.toString == "(List(1),List(0))" ||
             failureDetails.fragment.value.toString == "(List(0),List(-1))" ||
@@ -317,10 +317,10 @@ object GenSpec extends DefaultRuntime {
 
   def testShrinkingNonEmptyList: Future[Boolean] = {
     val gen       = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
-    val predicate = Assertion.predicate[List[Int]]("")(_ => AssertResult.value(Left(())))
-    val test = checkSome(100)(gen)(predicate).fold(
+    val assertion = Assertion.assertion[List[Int]]("")(_ => AssertResult.value(Left(())))
+    val test = checkSome(100)(gen)(assertion).fold(
       {
-        case TestFailure.Predicate(AssertResult.Value(failureDetails)) =>
+        case TestFailure.Assertion(AssertResult.Value(failureDetails)) =>
           failureDetails.fragment.value.toString == "List(0)"
         case _ => false
       }, { _ =>
@@ -332,13 +332,13 @@ object GenSpec extends DefaultRuntime {
 
   def testBogusEvenProperty: Future[Boolean] = {
     val gen = Gen.int(0, 100)
-    val predicate = Assertion.predicate[Int]("") { n =>
+    val assertion = Assertion.assertion[Int]("") { n =>
       val p = n % 2 == 0
       if (p) AssertResult.value(Right(())) else AssertResult.value(Left(()))
     }
-    val test = checkSome(100)(gen)(predicate).fold(
+    val test = checkSome(100)(gen)(assertion).fold(
       {
-        case TestFailure.Predicate(AssertResult.Value(failureDetails)) =>
+        case TestFailure.Assertion(AssertResult.Value(failureDetails)) =>
           failureDetails.fragment.value.toString == "1"
         case _ => false
       }, { _ =>

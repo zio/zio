@@ -31,19 +31,19 @@ import zio.stream.{ ZSink, ZStream }
  * {{{
  *  import zio.test._
  *  import zio.clock.nanoTime
- *  import Predicate.gt
+ *  import Assertion.isGreaterThan
  *
  *  object MyTest extends DefaultRunnableSpec {
  *    suite("clock") {
  *      testM("time is non-zero") {
- *        assertM(nanoTime, gt(0))
+ *        assertM(nanoTime, isGreaterThan(0))
  *      }
  *    }
  *  }
  * }}}
  */
 package object test {
-  type PredicateResult = AssertResult[Either[AssertionValue, Unit]]
+  type AssertionResult = AssertResult[Either[AssertionValue, Unit]]
   type TestResult      = AssertResult[Either[FailureDetails, Unit]]
 
   /**
@@ -92,7 +92,7 @@ package object test {
   type ExecutedSpec[+L, +E, +S] = Spec[L, Either[TestFailure[E], AssertResult[S]]]
 
   /**
-   * Asserts the given value satisfies the given predicate.
+   * Checks the assertion holds for the given value.
    */
   final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
     assertion.run(value).map {
@@ -103,7 +103,7 @@ package object test {
     }
 
   /**
-   * Asserts the given effectfully-computed value satisfies the given predicate.
+   * Checks the assertion holds for the given effectfully-computed value.
    */
   final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
     value.flatMap { a =>
@@ -112,14 +112,14 @@ package object test {
     }
 
   /**
-   * Checks the predicate holds for "sufficient" numbers of samples from the
+   * Checks the assertion holds for "sufficient" numbers of samples from the
    * given random variable.
    */
   final def check[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
     checkSome(200)(rv)(assertion)
 
   /**
-   * Checks the predicate holds for all values from the given random variable.
+   * Checks the assertion holds for all values from the given random variable.
    * This is useful for deterministic `Gen` that comprehensively explore all
    * possibilities in a given domain.
    */
@@ -127,7 +127,7 @@ package object test {
     checkStream(rv.sample)(assertion)
 
   /**
-   * Checks the predicate holds for the specified number of samples from the
+   * Checks the assertion holds for the specified number of samples from the
    * given random variable.
    */
   final def checkSome[R, A](n: Int)(rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
@@ -157,7 +157,7 @@ package object test {
   final def testM[R, L, T](label: L)(assertion: ZIO[R, Nothing, TestResult]): ZSpec[R, Nothing, L, Unit] =
     Spec.test(label, assertion.flatMap { result =>
       if (result.isSuccess) ZIO.succeed(())
-      else ZIO.fail(TestFailure.Predicate(result.collect { case Left(e) => e }.get))
+      else ZIO.fail(TestFailure.Assertion(result.collect { case Left(e) => e }.get))
     })
 
   /**
@@ -192,7 +192,7 @@ package object test {
         // Get the "last" failure, the smallest according to the shrinker:
         failures.reverse.headOption.fold[ZIO[R, TestFailure[Nothing], Unit]] { ZIO.succeed(()) } {
           case AssertResult.Value(Left(failureDetails)) =>
-            ZIO.fail(TestFailure.Predicate(AssertResult.value(failureDetails)))
+            ZIO.fail(TestFailure.Assertion(AssertResult.value(failureDetails)))
           case _ => ???
         }
       }

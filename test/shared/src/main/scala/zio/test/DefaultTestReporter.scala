@@ -40,7 +40,7 @@ object DefaultTestReporter {
             result match {
               case Right(_) =>
                 rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
-              case Left(TestFailure.Predicate(result)) =>
+              case Left(TestFailure.Assertion(result)) =>
                 result.fold(
                   details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
                 )(_ && _, _ || _)
@@ -97,11 +97,11 @@ object DefaultTestReporter {
     withOffset(offset)(red("- " + label))
 
   private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] = failureDetails match {
-    case FailureDetails(fragment, whole) => renderPredicate(fragment, whole, offset)
+    case FailureDetails(fragment, whole) => renderAssertion(fragment, whole, offset)
   }
 
-  private def renderPredicate(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
-    if (whole.predicate == fragment.predicate)
+  private def renderAssertion(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
+    if (whole.assertion == fragment.assertion)
       Seq(renderFragment(fragment, offset))
     else
       Seq(renderWhole(fragment, whole, offset), renderFragment(fragment, offset))
@@ -110,14 +110,14 @@ object DefaultTestReporter {
     withOffset(offset + tabSize) {
       blue(whole.value.toString) +
         " did not satisfy " +
-        highlight(cyan(whole.predicate.toString), fragment.predicate.toString)
+        highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
     }
 
   private def renderFragment(fragment: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(fragment.value.toString) +
         " did not satisfy " +
-        cyan(fragment.predicate.toString)
+        cyan(fragment.assertion.toString)
     }
 
   private def renderCause(cause: Cause[Any], offset: Int): String =

@@ -162,6 +162,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   Stream.mapMPar
     foreachParN equivalence  $mapMPar
+    order when n = 1         $mapMParOrder
     interruption propagation $mapMParInterruptionPropagation
     guarantee ordering       $mapMParGuaranteeOrdering
 
@@ -1272,6 +1273,15 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       }
     }
   }
+
+  private def mapMParOrder =
+    nonFlaky {
+      for {
+        queue  <- Queue.unbounded[Int]
+        _      <- Stream.range(0, 9).mapMPar(1)(queue.offer).runDrain
+        result <- queue.takeAll
+      } yield result must_== result.sorted
+    }
 
   private def mapMParInterruptionPropagation = unsafeRun {
     for {

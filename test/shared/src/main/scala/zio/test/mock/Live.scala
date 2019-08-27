@@ -14,21 +14,35 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.test.mock
 
-import zio.ZIO
+import zio.{ IO, UIO, ZIO }
 
-import zio.Managed
+trait Live[+R] {
+  def live: Live.Service[R]
+}
 
-package object mock {
+object Live {
 
-  /**
-   * Provides an effect with the "real" environment as opposed to the mock
-   * environment. This is useful for performing effects such as timing out
-   * tests, accessing the real time, or printing to the real console.
-   */
+  trait Service[+R] {
+    def provide[E, A](zio: ZIO[R, E, A]): IO[E, A]
+  }
+
   def live[R, E, A](zio: ZIO[R, E, A]): ZIO[Live[R], E, A] =
-    Live.live(zio)
+    ZIO.accessM[Live[R]](_.live.provide(zio))
 
-  val mockEnvironmentManaged: Managed[Nothing, MockEnvironment] = MockEnvironment.Value
+  def make[R](r: R): UIO[Live[R]] =
+    makeService(r).map { service =>
+      new Live[R] {
+        val live = service
+      }
+    }
+
+  def makeService[R](r: R): UIO[Live.Service[R]] =
+    UIO.succeed {
+      new Live.Service[R] {
+        def provide[E, A](zio: ZIO[R, E, A]): IO[E, A] =
+          zio.provide(r)
+      }
+    }
 }

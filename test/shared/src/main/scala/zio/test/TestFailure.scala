@@ -21,6 +21,6 @@ import zio.Cause
 sealed trait TestFailure[+E]
 
 object TestFailure {
-  final case class Predicate(result: AssertResult[FailureDetails]) extends TestFailure[Nothing]
+  final case class Assertion(result: AssertResult[FailureDetails]) extends TestFailure[Nothing]
   final case class Runtime[+E](cause: Cause[E])                    extends TestFailure[E]
 }

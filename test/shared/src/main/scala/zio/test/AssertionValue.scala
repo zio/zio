@@ -17,7 +17,7 @@
 package zio.test
 
 /**
- * A `PredicateValue` keeps track of a predicate and a value, existentially
+ * An `AssertionValue` keeps track of a assertion and a value, existentially
  * hiding the type. This is used internally by the library to provide useful
  * error messages in the event of test failures.
  */
@@ -26,18 +26,18 @@ sealed trait AssertionValue {
 
   val value: Value
 
-  val predicate: Assertion[Value]
+  val assertion: Assertion[Value]
 
-  def negate: AssertionValue = AssertionValue(predicate.negate, value)
+  def negate: AssertionValue = AssertionValue(assertion.negate, value)
 }
 
 object AssertionValue {
-  def apply[A](predicate0: Assertion[A], value0: A): AssertionValue =
+  def apply[A](assertion0: Assertion[A], value0: A): AssertionValue =
     new AssertionValue {
       type Value = A
 
       val value = value0
 
-      val predicate = predicate0
+      val assertion = assertion0
     }
 }

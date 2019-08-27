@@ -207,6 +207,61 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
         }
       }
     }
+
+  override def transduce[R, E1 >: E, A1 >: A, B](
+    sink: ZSink[R, E1, A1, A1, B]
+  ): ZStream[R, E1, B] =
+    sink match {
+      case sink: SinkPure[E1, A1, A1, B] =>
+        StreamEffect[E1, B] {
+          import ZSink.Step
+
+          self.processEffect.flatMap { thunk =>
+            Managed.effectTotal {
+              var step: Step[sink.State, A1] = sink.initialPure
+              var needsExtractOnEnd          = false
+              var done                       = false
+
+              () => {
+                if (done) {
+                  StreamEffect.end
+                } else {
+                  while (!done && Step.cont(step)) {
+                    try {
+                      val a = thunk()
+                      step = sink.stepPure(Step.state(step), a)
+                      needsExtractOnEnd = true
+                    } catch {
+                      case StreamEffect.End =>
+                        done = true
+                    }
+                  }
+
+                  if (done) {
+                    if (needsExtractOnEnd)
+                      sink.extractPure(Step.state(step)) match {
+                        case Left(e)  => StreamEffect.fail(e)
+                        case Right(b) => b
+                      } else StreamEffect.end
+                  } else {
+                    sink.extractPure(Step.state(step)) match {
+                      case Left(e) => StreamEffect.fail(e)
+                      case Right(b) =>
+                        val leftover     = Step.leftover(step)
+                        val newInit      = sink.initialPure
+                        val leftoverStep = sink.stepChunkPure(Step.state(newInit), leftover)
+                        step = leftoverStep
+                        needsExtractOnEnd = !leftover.isEmpty
+                        b
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      case sink: ZSink[R, E1, A1, A1, B] => super.transduce(sink)
+    }
 }
 
 private[stream] object StreamEffect extends Serializable {

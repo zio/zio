@@ -1295,7 +1295,7 @@ object ZSink extends ZSinkPlatformSpecific {
         case None =>
           val sink = input(a)
 
-          sink.initial.map(state => Step.more(Some((sink, state))))
+          sink.initial.map(state => Step.more(Some((sink, Step.state(state)))))
 
         case Some((sink, state)) =>
           sink.step(state.asInstanceOf[sink.State], a).map(Step.leftMap(_)(state => Some(sink -> state)))

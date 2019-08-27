@@ -17,7 +17,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     label(reportSuite1, "correctly reports successful test suite"),
     label(reportSuite2, "correctly reports failed test suite"),
     label(reportSuites, "correctly reports multiple test suites"),
-    label(simplePredicate, "correctly reports failure of simple predicate")
+    label(simpleAssertion, "correctly reports failure of simple assertion")
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
@@ -115,7 +115,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
         .map(withOffset(2)) :+ reportStats(2, 0, 1)
     )
 
-  def simplePredicate =
+  def simpleAssertion =
     check(
       test5,
       test5Expected :+ reportStats(0, 0, 1)
@@ -158,16 +158,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
                 override val clock: Clock.Service[Any]      = clockSvc.clock
               })
         output <- MockConsole.output
-      } yield {
-        val p = output == expected
-        if (!p) {
-          println("Output:")
-          output.foreach(print)
-          println("Expeted:")
-          expected.foreach(print)
-        }
-        p
-      }
+      } yield output == expected
       zio.provide(r)
     }
 
