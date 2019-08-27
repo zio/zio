@@ -128,10 +128,15 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       extract error $mapRemainderExtractError
 
     optional
-      happy path    $optionalHappyPath
-      init error    $optionalInitError
-      step error    $optionalStepError
-      extract error $optionalExtractError
+      happy path               $optionalHappyPath
+      init error               $optionalInitError
+      step error               $optionalStepError
+      extract error            $optionalExtractError
+      leftover happy path      $optionalLeftoverHappyPath
+      leftover init error      $optionalLeftoverInitError
+      leftover step error      $optionalLeftoverStepError
+      leftover extract error   $optionalLeftoverExtractError
+      leftover init step error $optionalLeftoverInitStepError
 
     orElse
       left                $orElseLeft
@@ -721,6 +726,62 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   private def optionalExtractError = {
     val sink = extractErrorSink.optional
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
+  }
+
+  private def optionalLeftoverHappyPath = {
+    val sink = ZSink.collectAllN[Int](2).optional
+    val test = for {
+      init     <- sink.initial
+      step1    <- sink.step(Step.state(init), 1)
+      step2    <- sink.step(Step.state(step1), 2)
+      step3    <- sink.step(Step.state(step2), 3)
+      result   <- sink.extract(Step.state(step3))
+      leftover = Step.leftover(step3)
+    } yield (result must_=== Some(List(1, 2))) and (leftover must_=== Chunk.single(3))
+    unsafeRun(test)
+  }
+
+  private def optionalLeftoverInitError = {
+    val sink = initErrorSink.optional
+    val test = for {
+      init     <- sink.initial
+      result   <- sink.extract(Step.state(init))
+      leftover = Step.leftover(init)
+    } yield (result must_=== None) and (leftover must_=== Chunk.empty)
+    unsafeRun(test)
+  }
+
+  private def optionalLeftoverStepError = {
+    val sink = stepErrorSink.optional
+    val test = for {
+      init     <- sink.initial
+      step     <- sink.step(Step.state(init), 1)
+      result   <- sink.extract(Step.state(step))
+      leftover = Step.leftover(step)
+    } yield (result must_=== None) and (leftover must_=== Chunk.single(1))
+    unsafeRun(test)
+  }
+
+  private def optionalLeftoverExtractError = {
+    val sink = extractErrorSink.optional
+    val test = for {
+      init     <- sink.initial
+      step     <- sink.step(Step.state(init), 1)
+      result   <- sink.extract(Step.state(step))
+      leftover = Step.leftover(step)
+    } yield (result must_=== None) and (leftover must_=== Chunk.empty)
+    unsafeRun(test)
+  }
+
+  private def optionalLeftoverInitStepError = {
+    val sink = initErrorSink.optional
+    val test = for {
+      init     <- sink.initial
+      step     <- sink.step(Step.state(init), 1)
+      result   <- sink.extract(Step.state(step))
+      leftover = Step.leftover(step)
+    } yield (result must_=== None) and (leftover must_=== Chunk.single(1))
+    unsafeRun(test)
   }
 
   private def orElseLeft = {

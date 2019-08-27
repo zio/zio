@@ -82,26 +82,22 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, B1] =
     (self orElse that).map(_.merge)
 
-  /**
-   * Returns a new sink that tries to produce the `B`, but if there is an
-   * error in stepping or extraction, produces `None`.
-   */
-  final def ? : ZSink[R, Nothing, A0, A, Option[B]] =
-    new ZSink[R, Nothing, A0, A, Option[B]] {
+  private[ZSink] final def ?[A00 >: A0, A1 <: A](implicit ev: A1 =:= A00): ZSink[R, Nothing, A00, A1, Option[B]] =
+    new ZSink[R, Nothing, A00, A1, Option[B]] {
       type State = Option[self.State]
 
       val initial = self.initial.map(Step.leftMap(_)(Option(_))) orElse
         IO.succeed(Step.done(None, Chunk.empty))
 
-      def step(state: State, a: A): ZIO[R, Nothing, Step[State, A0]] =
+      def step(state: State, a: A1) =
         state match {
-          case None => IO.succeed(Step.done(state, Chunk.empty))
+          case None => IO.succeed(Step.done(None, Chunk.single(a)))
           case Some(state) =>
             self
               .step(state, a)
-              .foldM(
-                _ => IO.succeed(Step.done[State, A0](Some(state), Chunk.empty)),
-                s => IO.succeed(Step.leftMap(s)(Some(_)))
+              .fold(
+                _ => Step.done(None, Chunk.single(a)),
+                s => Step.leftMap(s)(Some(_))
               )
         }
 
@@ -512,10 +508,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R, E, B] = self.extract(state)
     }
 
-  /**
-   * A named alias for `?`.
-   */
-  final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self.?
+  private[ZSink] final def optional[A00 >: A0, A1 <: A](
+    implicit ev: A1 =:= A00
+  ): ZSink[R, Nothing, A00, A1, Option[B]] = self.?[A00, A1]
 
   /**
    * Runs both sinks in parallel on the same input. If the left one succeeds,
@@ -932,6 +927,35 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 }
 
 object ZSink extends ZSinkPlatformSpecific {
+
+  implicit class InputRemainderOps[R, E, A, B](val sink: ZSink[R, E, A, A, B]) extends AnyVal {
+
+    /**
+     * Returns a new sink that tries to produce the `B`, but if there is an
+     * error in stepping or extraction, produces `None`.
+     */
+    final def ? : ZSink[R, E, A, A, Option[B]] = sink.?
+
+    /**
+     * A named alias for `?`.
+     */
+    final def optional: ZSink[R, E, A, A, Option[B]] = sink.optional
+  }
+
+  implicit class NoRemainderOps[R, E, A, B](val sink: ZSink[R, E, Nothing, A, B]) extends AnyVal {
+
+    /**
+     * Returns a new sink that tries to produce the `B`, but if there is an
+     * error in stepping or extraction, produces `None`.
+     */
+    final def ? : ZSink[R, E, A, A, Option[B]] = sink.?
+
+    /**
+     * A named alias for `?`.
+     */
+    final def optional: ZSink[R, E, A, A, Option[B]] = sink.optional
+  }
+
   private[ZSink] object internal {
     sealed trait Side[+E, +S, +A]
     object Side {
