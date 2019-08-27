@@ -45,4 +45,7 @@ object Live {
           zio.provide(r)
       }
     }
+
+  def withLive[R, R1, E, E1, A, B](zio: ZIO[R, E, A])(f: IO[E, A] => ZIO[R1, E1, B]): ZIO[R with Live[R1], E1, B] =
+    ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))
 }

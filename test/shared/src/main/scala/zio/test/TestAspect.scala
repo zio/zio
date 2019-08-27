@@ -220,13 +220,11 @@ object TestAspect {
       def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any](
         test: ZIO[R, E, TestResult]
       ): ZIO[R, E, TestResult] =
-        ZIO.environment[R].flatMap { r =>
-          Live.live(test.provide(r).timeout(duration)).map {
-            case None =>
-              AssertResult
-                .failure(FailureDetails.Runtime(Cause.fail(new TimeoutException(s"Timeout of ${duration} exceeded"))))
-            case Some(v) => v
-          }
+        Live.withLive(test)(_.timeout(duration)).map {
+          case None =>
+            AssertResult
+              .failure(FailureDetails.Runtime(Cause.fail(new TimeoutException(s"Timeout of ${duration} exceeded"))))
+          case Some(v) => v
         }
     }
 
