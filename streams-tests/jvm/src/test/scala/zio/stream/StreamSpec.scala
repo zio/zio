@@ -1782,7 +1782,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         .take(8)
         .runCollect
         .tap(_ => release)
-        .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 2 -> 2, 2 -> 3, 2 -> 4, 3 -> 4))
+        .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 1 -> 3, 2 -> 3, 2 -> 4, 3 -> 4))
     }
   }
 
