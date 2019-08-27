@@ -168,7 +168,7 @@ object TestAspect {
   val ignore: TestAspectPoly =
     new TestAspect.PerTest[Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
-        ZIO.succeed(Assertion.Ignore)
+        ZIO.succeed(AssertResult.Ignore)
     }
 
   /**
@@ -222,7 +222,7 @@ object TestAspect {
       ): ZIO[R, E, TestResult] =
         Live.withLive(test)(_.timeout(duration)).map {
           case None =>
-            Assertion
+            AssertResult
               .failure(FailureDetails.Runtime(Cause.fail(new TimeoutException(s"Timeout of ${duration} exceeded"))))
           case Some(v) => v
         }
