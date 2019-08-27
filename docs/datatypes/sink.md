@@ -34,6 +34,12 @@ Collecting all elements into `List[A]`:
 Sink.collectAll[Int]
 ```
 
+Collecting the first element into an option (returns `None` for empty streams):
+
+```scala mdoc:silent
+Sink.identity[Int].optional
+```
+
 Collecting elements until the condition is not satisfied:
 
 ```scala mdoc:silent
