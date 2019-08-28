@@ -1560,7 +1560,6 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
               } yield decision.finish()
           }
 
-
           go
         }
       } yield pull
