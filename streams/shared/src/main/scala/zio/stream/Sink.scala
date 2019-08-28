@@ -110,7 +110,7 @@ object Sink {
   /**
    * see [[ZSink.foldLeft]]
    */
-  final def foldLeft[A0, A, S](z: S)(f: (S, A) => S): Sink[Nothing, A0, A, S] =
+  final def foldLeft[A, S](z: S)(f: (S, A) => S): Sink[Nothing, Nothing, A, S] =
     ZSink.foldLeft(z)(f)
 
   /**
@@ -197,10 +197,14 @@ object Sink {
     ZSink.read1(e)(p)
 
   /**
-   * see [[ZSink.succeedLazy]]
+   * see [[ZSink.succeed]]
    */
+  final def succeed[B](b: B): Sink[Nothing, Nothing, Any, B] =
+    ZSink.succeed(b)
+
+  @deprecated("use succeed", "1.0.0")
   final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
-    ZSink.succeedLazy(b)
+    succeed(b)
 
   /**
    * see [[ZSink.throttleEnforce]]

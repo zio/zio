@@ -174,10 +174,9 @@ object Schedule {
    */
   final def succeed[A](a: A): Schedule[Any, A] = ZSchedule.succeed(a)
 
-  /**
-   * See [[ZSchedule.succeedLazy]]
-   */
-  final def succeedLazy[A](a: => A): Schedule[Any, A] = ZSchedule.succeedLazy(a)
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[A](a: => A): Schedule[Any, A] =
+    succeed(a)
 
   /**
    * See [[ZSchedule.unfold]]
