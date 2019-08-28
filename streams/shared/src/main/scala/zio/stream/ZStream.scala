@@ -2133,7 +2133,7 @@ object ZStream extends ZStreamPlatformSpecific {
               c => queue.isShutdown.flatMap(down => if (down && c.interrupted) Pull.end else Pull.halt(c))
             )
           ),
-          _ => queue.shutdown
+          _ => UIO.unit
         )
       )
     }
