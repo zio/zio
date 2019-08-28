@@ -2128,7 +2128,15 @@ object ZStream extends ZStreamPlatformSpecific {
     ZStream[R, E, A] {
       ZManaged.reserve(
         Reservation(
-          UIO(queue.take.mapError(Some(_))),
+          UIO(
+            queue.take.catchAllCause(
+              c => queue.isShutdown.flatMap(down => if (down && c.interrupted) Pull.end else Pull.halt(c))
+            )
+          ),
+          _ => queue.shutdown
+        )
+      )
+    }
           _ => queue.shutdown
         )
       )
