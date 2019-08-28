@@ -94,16 +94,14 @@ object TimeoutStrategy {
 
   private def renderTest[L](testLabel: L, duration: Duration): String =
     "test " + "\"" + testLabel + "\"" + " has taken more than " + renderDuration(duration) +
-      " to execute. If this is not expected consider using TestAspect.timeout to timeout runaway tests for faster diagnostics."
+      " to execute. If this is not expected, consider using TestAspect.timeout to timeout runaway tests for faster diagnostics."
 
-  private def renderDuration(duration: Duration): String = {
-    val millis = duration.toMillis
-    if ((millis != 0) && (millis % 60000 == 0)) {
-      val minutes = millis / 60000
-      if (minutes == 1) "1 minute" else s"$minutes minutes"
-    } else {
-      val seconds = millis / 1000
-      if (seconds == 1) "1 second" else s"$seconds seconds"
+  private def renderDuration(duration: Duration): String =
+    duration.toMillis match {
+      case 0     => "0 seconds"
+      case 1000  => "1 second"
+      case 60000 => "1 minute"
+      case millis if millis % 60000 == 0 => s"${millis / 60000} minutes"
+      case millis => s"${millis / 1000} seconds"
     }
-  }
 }
