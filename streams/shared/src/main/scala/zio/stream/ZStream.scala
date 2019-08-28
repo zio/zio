@@ -812,7 +812,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * takes to produce a value.
    */
   final def fixed[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
-    schedule((ZSchedule.identity[A1] && ZSchedule.fixed(duration)).map(_._1))
+    schedule((ZSchedule.identity[A1] && (ZSchedule.spaced(duration) && Schedule.recurs(0))).map(_._1))
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
@@ -1541,18 +1541,27 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream[R1 with Clock, E1, B] {
       for {
         as    <- self.process
-        init  <- schedule.initial.toManaged_
-        state <- Ref.make(false -> init).toManaged_
-        pull: Pull[R1 with Clock, E1, B] = state.get.flatMap {
-          case (done, sched) =>
-            if (done) Pull.end
-            else
+        state <- Ref.make[Option[(A, schedule.State)]](None).toManaged_
+        pull: Pull[R1 with Clock, E1, B] = {
+          def go: Pull[R1 with Clock, E1, B] = state.get.flatMap {
+            case None =>
               for {
-                a        <- as
+                a    <- as
+                init <- schedule.initial
+                _    <- state.set(Some(a -> init))
+                b    <- go
+              } yield b
+
+            case Some((a, sched)) =>
+              for {
                 decision <- schedule.update(a, sched)
                 _        <- clock.sleep(decision.delay)
-                _        <- state.set(!decision.cont -> decision.state)
+                _        <- state.set(if (decision.cont) Some(a -> decision.state) else None)
               } yield decision.finish()
+          }
+
+
+          go
         }
       } yield pull
     }
