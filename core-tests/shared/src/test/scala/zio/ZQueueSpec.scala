@@ -662,7 +662,6 @@ object ZQueueSpec
         testM("queue isShutdown") {
           for {
             queue <- Queue.bounded[Int](5)
-            _     <- ZIO.unit.delay(5.seconds).provide(Clock.Live)
             r1    <- queue.isShutdown
             _     <- queue.offer(1)
             r2    <- queue.isShutdown
