@@ -2125,17 +2125,17 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   final def fromQueue[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
-    unfoldM(()) { _ =>
-      queue.take
-        .map(a => Some((a, ())))
-        .foldCauseM(
-          cause =>
-            // Dequeueing from a shutdown queue will result in interruption,
-            // so use that to signal the stream's end.
-            if (cause.interrupted) ZIO.succeed(None)
-            else ZIO.halt(cause),
-          ZIO.succeed
+    ZStream[R, E, A] {
+      ZManaged.reserve(
+        Reservation(
+          UIO(
+            queue.take.catchAllCause(
+              c => queue.isShutdown.flatMap(down => if (down && c.interrupted) Pull.end else Pull.halt(c))
+            )
+          ),
+          _ => UIO.unit
         )
+      )
     }
 
   /**
