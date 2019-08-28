@@ -28,7 +28,7 @@ object OperationPure {
   ): Either[OperationValueAndSumOfTransactionsDifferent, CreateOperation] = {
     lazy val trsValue = o.transactions.filter(_.action == Debit).foldRight(0L)(_.valueInCents + _)
 
-    if (o.isExternal)
+    if (o.isExternal && o.transactions.head.valueInCents == o.valueInCents)
       Right(o)
     else if (trsValue == o.valueInCents)
       Right(o)
