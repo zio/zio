@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
 
 /**
@@ -30,26 +31,34 @@ import zio.stream.{ ZSink, ZStream }
  * {{{
  *  import zio.test._
  *  import zio.clock.nanoTime
- *  import Predicate.gt
+ *  import Assertion.isGreaterThan
  *
  *  object MyTest extends DefaultRunnableSpec {
  *    suite("clock") {
  *      testM("time is non-zero") {
- *        assertM(nanoTime, gt(0))
+ *        assertM(nanoTime, isGreaterThan(0))
  *      }
  *    }
  *  }
  * }}}
  */
 package object test {
-  type PredicateResult = Assertion[PredicateValue]
-  type TestResult      = Assertion[FailureDetails]
+  type AssertionResult = AssertResult[AssertionValue]
+  type TestResult      = AssertResult[FailureDetails]
 
   /**
    * A `TestReporter[L]` is capable of reporting test results annotated with
    * labels `L`.
    */
-  type TestReporter[-L] = ExecutedSpec[L] => UIO[Unit]
+  type TestReporter[-L] = (Duration, ExecutedSpec[L]) => URIO[TestLogger, Unit]
+
+  object TestReporter {
+
+    /**
+     * TestReporter that does nothing
+     */
+    def silent[L]: TestReporter[L] = (_, _) => ZIO.unit
+  }
 
   /**
    * A `TestExecutor[L, T]` is capable of executing specs containing tests of
@@ -83,43 +92,43 @@ package object test {
   type ExecutedSpec[+L] = Spec[L, TestResult]
 
   /**
-   * Asserts the given value satisfies the given predicate.
+   * Checks the assertion holds for the given value.
    */
-  final def assert[A](value: => A, predicate: Predicate[A]): TestResult =
-    predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
+  final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
+    assertion.run(value).map(FailureDetails.Assertion(_, AssertionValue(assertion, value)))
 
   /**
-   * Asserts the given effectfully-computed value satisfies the given predicate.
+   * Checks the assertion holds for the given effectfully-computed value.
    */
-  final def assertM[R, A](value: ZIO[R, Nothing, A], predicate: Predicate[A]): ZTest[R, Nothing] =
-    value.map(assert(_, predicate))
+  final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZTest[R, Nothing] =
+    value.map(assert(_, assertion))
 
   /**
-   * Checks the predicate holds for "sufficient" numbers of samples from the
+   * Checks the assertion holds for "sufficient" numbers of samples from the
    * given random variable.
    */
-  final def check[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
-    checkSome(200)(rv)(predicate)
+  final def check[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing] =
+    checkSome(200)(rv)(assertion)
 
   /**
-   * Checks the predicate holds for all values from the given random variable.
+   * Checks the assertion holds for all values from the given random variable.
    * This is useful for deterministic `Gen` that comprehensively explore all
    * possibilities in a given domain.
    */
-  final def checkAll[R, A](rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
-    checkStream(rv.sample)(predicate)
+  final def checkAll[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing] =
+    checkStream(rv.sample)(assertion)
 
   /**
-   * Checks the predicate holds for the specified number of samples from the
+   * Checks the assertion holds for the specified number of samples from the
    * given random variable.
    */
-  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(predicate: Predicate[A]): ZTest[R, Nothing] =
-    checkStream(rv.sample.forever.take(n))(predicate)
+  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing] =
+    checkStream(rv.sample.forever.take(n))(assertion)
 
   /**
    * Creates a failed test result with the specified runtime cause.
    */
-  final def fail[E](cause: Cause[E]): TestResult = Assertion.failure(FailureDetails.Runtime(cause))
+  final def fail[E](cause: Cause[E]): TestResult = AssertResult.failure(FailureDetails.Runtime(cause))
 
   /**
    * Builds a suite containing a number of other specs.
@@ -140,7 +149,7 @@ package object test {
   /**
    * Adds syntax for adding aspects.
    * {{{
-   * test("foo") { assert(42, equals(42)) } @@ ignore
+   * test("foo") { assert(42, equalTo(42)) } @@ ignore
    * }}}
    */
   implicit class ZSpecSyntax[R, E, L](spec: ZSpec[R, E, L]) {
@@ -150,32 +159,24 @@ package object test {
       aspect(spec)
   }
 
-  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], shrinkSearch: Int = 1000)(
-    predicate: Predicate[A]
+  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
+    assertion: Assertion[A]
   ): ZIO[R, Nothing, TestResult] = {
     def checkValue(value: A): TestResult =
-      predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
+      assertion.run(value).map(FailureDetails.Assertion(_, AssertionValue(assertion, value)))
 
-    stream.map { sample: Sample[R, A] =>
-      (checkValue(sample.value), sample.shrink)
-    }.dropWhile(v => !v._1.failure) // Drop until we get to a failure
-      .collect {
-        case ((failure @ Assertion.Failure(_), shrink)) => (failure, shrink)
-      }        // Collect the failures and their shrinkers
-      .take(1) // Get the first failure
-      .flatMap {
-        case (failure, shrink) =>
-          ZStream(failure) ++ shrink
-            .map(checkValue)
-            .collect {
-              case failure @ Assertion.Failure(_) => failure
-            }
-            .take(shrinkSearch)
-      }
+    stream
+      .map(_.map(checkValue))
+      .dropWhile(!_.value.failure) // Drop until we get to a failure
+      .take(1)                     // Get the first failure
+      .flatMap(_.shrinkSearch(_.failure).take(maxShrinks))
       .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
       .map { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[TestResult](Assertion.Success)(identity)
+        failures.reverse.headOption.fold[TestResult](AssertResult.Success)(identity)
       }
   }
+
+  val DefaultTestRunner: TestRunner[String, ZTest[mock.MockEnvironment, Any]] =
+    TestRunner(TestExecutor.managed(zio.test.mock.mockEnvironmentManaged))
 }

@@ -14,30 +14,14 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.test.sbt
 
-/**
- * A `PredicateValue` keeps track of a predicate and a value, existentially
- * hiding the type. This is used internally by the library to provide useful
- * error messages in the event of test failures.
- */
-sealed trait PredicateValue {
-  type Value
+import sbt.testing._
 
-  val value: Value
-
-  val predicate: Predicate[Value]
-
-  def negate: PredicateValue = PredicateValue(predicate.negate, value)
+final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
+    extends Runner {
+  def done(): String                           = "Done"
+  def tasks(defs: Array[TaskDef]): Array[Task] = defs.map(new ZTestTask(_, testClassLoader))
 }
 
-object PredicateValue {
-  def apply[A](predicate0: Predicate[A], value0: A): PredicateValue =
-    new PredicateValue {
-      type Value = A
-
-      val value = value0
-
-      val predicate = predicate0
-    }
-}
+class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader) extends BaseTestTask(taskDef, testClassLoader)

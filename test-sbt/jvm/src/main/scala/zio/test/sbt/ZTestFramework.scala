@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,15 @@
  * limitations under the License.
  */
 
-package zio
+package zio.test.sbt
 
-trait ManagedApp extends DefaultRuntime { ma =>
+import sbt.testing._
 
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
-   */
-  def run(args: List[String]): ZManaged[Environment, Nothing, Unit]
+final class ZTestFramework extends Framework {
+  override val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
 
-  private val app = new App {
-    override def run(args: List[String]): ZIO[Environment, Nothing, Unit] =
-      ma.run(args).use(_ => ZIO.effectTotal(()))
-  }
+  val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
 
-  final def main(args: Array[String]): Unit = app.main(args)
+  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunner =
+    new ZTestRunner(args, remoteArgs, testClassLoader)
 }

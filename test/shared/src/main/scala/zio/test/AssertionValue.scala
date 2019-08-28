@@ -14,15 +14,30 @@
  * limitations under the License.
  */
 
-package zio.test.runner
+package zio.test
 
-import sbt.testing._
+/**
+ * An `AssertionValue` keeps track of a assertion and a value, existentially
+ * hiding the type. This is used internally by the library to provide useful
+ * error messages in the event of test failures.
+ */
+sealed trait AssertionValue {
+  type Value
 
-final class ZTestFramework extends Framework {
-  override val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
+  val value: Value
 
-  val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
+  val assertion: Assertion[Value]
 
-  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunner =
-    new ZTestRunner(args, remoteArgs, testClassLoader)
+  def negate: AssertionValue = AssertionValue(assertion.negate, value)
+}
+
+object AssertionValue {
+  def apply[A](assertion0: Assertion[A], value0: A): AssertionValue =
+    new AssertionValue {
+      type Value = A
+
+      val value = value0
+
+      val assertion = assertion0
+    }
 }

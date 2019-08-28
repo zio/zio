@@ -14,14 +14,24 @@
  * limitations under the License.
  */
 
-package zio.test.runner
+package zio.test.sbt
 
 import sbt.testing._
 
-final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
-    extends Runner {
-  def done(): String                           = "Done"
-  def tasks(defs: Array[TaskDef]): Array[Task] = defs.map(new ZTestTask(_, testClassLoader))
-}
+final class ZTestFramework extends Framework {
+  override val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader) extends BaseTestTask(taskDef, testClassLoader)
+  val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
+
+  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): Runner =
+    new ZTestRunner(args, remoteArgs, testClassLoader, "master")
+
+  override def slaveRunner(
+    args: Array[String],
+    remoteArgs: Array[String],
+    testClassLoader: ClassLoader,
+    send: String => Unit
+  ): Runner =
+    new ZTestRunner(args, remoteArgs, testClassLoader, "slave")
+
+}

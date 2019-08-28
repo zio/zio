@@ -9,19 +9,16 @@ import zio.test.TestUtils.label
 object SystemSpec extends DefaultRuntime {
 
   def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
-    label(env1, "MockSystem fetch an environment variable and check that if it exists, return a reasonable value"),
-    label(env2, "MockSystem fetch an environment variable and check that if it does not exist, return None"),
-    label(env3, "MockSystem fetch an environment variable and check that if it is set, return the set value"),
-    label(env4, "MockSystem fetch an environment variable and check that if it is cleared, return None"),
-    label(prop1, "MockSystem fetch a VM property and check that if it exists, return a reasonable value"),
-    label(prop2, "MockSystem fetch a VM property and check that if it does not exist, return None"),
-    label(prop3, "MockSystem fetch a VM property and check that if it is set, return the set value"),
-    label(prop4, "MockSystem fetch a VM property and check that if it is cleared, return None"),
-    label(
-      lineSep1,
-      "MockSystem fetch the system's line separator and check that it is identical to Data.lineSeparator"
-    ),
-    label(lineSep2, "MockSystem fetch the system's line separator and check that if it is set, return the set value")
+    label(env1, "fetch an environment variable and check that if it exists, return a reasonable value"),
+    label(env2, "fetch an environment variable and check that if it does not exist, return None"),
+    label(env3, "fetch an environment variable and check that if it is set, return the set value"),
+    label(env4, "fetch an environment variable and check that if it is cleared, return None"),
+    label(prop1, "fetch a VM property and check that if it exists, return a reasonable value"),
+    label(prop2, "fetch a VM property and check that if it does not exist, return None"),
+    label(prop3, "fetch a VM property and check that if it is set, return the set value"),
+    label(prop4, "fetch a VM property and check that if it is cleared, return None"),
+    label(lineSep1, "fetch the system's line separator and check that it is identical to Data.lineSeparator"),
+    label(lineSep2, "fetch the system's line separator and check that if it is set, return the set value")
   )
 
   def env1 =

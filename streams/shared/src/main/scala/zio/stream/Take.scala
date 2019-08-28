@@ -16,8 +16,8 @@
 
 package zio.stream
 
-import zio.IO
-import zio.Cause
+import zio.{ Cause, IO, ZIO }
+import zio.stream.ZStream.Pull
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of
@@ -59,6 +59,9 @@ object Take {
   final case class Fail[E](value: Cause[E]) extends Take[E, Nothing]
   final case class Value[A](value: A)       extends Take[Nothing, A]
   case object End                           extends Take[Nothing, Nothing]
+
+  final def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
+    pull.fold(_.fold[Take[E, A]](Take.End)(e => Take.Fail(Cause.fail(e))), Take.Value(_))
 
   final def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
     io.flatMap {

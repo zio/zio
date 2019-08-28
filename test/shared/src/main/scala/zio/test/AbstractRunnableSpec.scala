@@ -14,24 +14,28 @@
  * limitations under the License.
  */
 
-package zio.test.runner
+package zio.test
 
-import sbt.testing._
+import zio.URIO
+import zio.clock.Clock
+import zio.test.reflect.Reflect.EnableReflectiveInstantiation
 
-final class ZTestFramework extends Framework {
-  override val name = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
+@EnableReflectiveInstantiation
+abstract class AbstractRunnableSpec {
 
-  val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
+  type Label
+  type Test
 
-  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): Runner =
-    new ZTestRunner(args, remoteArgs, testClassLoader, "master")
+  def runner: TestRunner[Label, Test]
+  def spec: Spec[Label, Test]
 
-  override def slaveRunner(
-    args: Array[String],
-    remoteArgs: Array[String],
-    testClassLoader: ClassLoader,
-    send: String => Unit
-  ): Runner =
-    new ZTestRunner(args, remoteArgs, testClassLoader, "slave")
+  /**
+   * Returns an effect that executes the spec, producing the results of the execution.
+   */
+  final def run: URIO[TestLogger with Clock, ExecutedSpec[Label]] = runner.run(spec)
 
+  /**
+   * the platform used by the runner
+   */
+  final def platform = runner.platform
 }
