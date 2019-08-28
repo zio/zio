@@ -1163,7 +1163,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         items <- fiber.join
       } yield items
     }
-    result must_=== Success(c.toSeq.toList)
+    result must_=== Failure(Cause.Interrupt)
   }
 
   private def groupByValues =
