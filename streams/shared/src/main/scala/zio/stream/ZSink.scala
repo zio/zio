@@ -171,15 +171,15 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     z: S
   )(f: (S, B) => S)(implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, S] =
     new ZSink[R, E, A00, A1, S] {
-      type State = (Option[E], S, self.State)
+      type State = (S, self.State)
 
-      val initial = self.initial.map(step => Step.leftMap(step)((None, z, _)))
+      val initial = self.initial.map(step => Step.leftMap(step)((z, _)))
 
-      def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
+      def step(state: State, a: A1) =
         self
-          .step(state._3, a)
+          .step(state._2, a)
           .flatMap { step =>
-            if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
+            if (Step.cont(step)) UIO.succeed(Step.more((state._1, Step.state(step))))
             else {
               val s  = Step.state(step)
               val as = Step.leftover(step)
@@ -188,17 +188,13 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
                 self.initial.flatMap { init =>
                   self
                     .stepChunk(Step.state(init), as.map(ev))
-                    .fold(
-                      e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
-                      s => Step.leftMap(s)((state._1, f(state._2, b), _))
-                    )
+                    .map(Step.leftMap(_)((f(state._1, b), _)))
                 }
               }
             }
           }
 
-      def extract(state: State): IO[E, S] =
-        IO.succeed(state._2)
+      def extract(state: State) = UIO.succeed(state._1)
     }
 
   /**
