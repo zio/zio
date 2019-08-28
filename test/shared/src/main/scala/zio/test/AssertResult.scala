@@ -17,30 +17,29 @@
 package zio.test
 
 /**
- * An `Assertion[A]` is the result of running a test, which may be ignore,
- * success, or failure, with some message of type `A`. Assertions compose using
- * logical `&&` and `||` and all failures will be preserved to provide robust
- * reporting test results.
+ * An `AssertResult[A]` is the result of running an assertion on a value.
+ * Assert results compose using logical `&&` and `||` and all information will
+ * be preserved to provide robust reporting of test results.
  */
 sealed trait AssertResult[+A] extends Product with Serializable { self =>
   import AssertResult._
 
   /**
-   * Returns a new assertion that is the logical conjunction of this assertion
-   * and the specified assertion.
+   * Returns a new assert result that is the logical conjunction of this assert
+   * result and the specified assert result.
    */
   final def &&[A1 >: A](that: AssertResult[A1]): AssertResult[A1] =
     both(that)
 
   /**
-   * Returns a new assertion that is the logical disjunction of this assertion
-   * and the specified assertion.
+   * Returns a new assert result that is the logical disjunction of this assert
+   * result and the specified assert result.
    */
   final def ||[A1 >: A](that: AssertResult[A1]): AssertResult[A1] =
     either(that)
 
   /**
-   * Returns a new result, with all failure messages mapped to the specified
+   * Returns a new assert result, with all values mapped to the specified
    * constant.
    */
   final def as[B](b: B): AssertResult[B] =
@@ -52,6 +51,10 @@ sealed trait AssertResult[+A] extends Product with Serializable { self =>
   final def both[A1 >: A](that: AssertResult[A1]): AssertResult[A1] =
     and(self, that)
 
+  /**
+   * Returns a new assert result with a filtered, mapped subset of the values
+   * in this assert result.
+   */
   final def collect[B](p: PartialFunction[A, B]): Option[AssertResult[B]] =
     fold(a => p.lift(a).map(value))(
       {
@@ -72,9 +75,14 @@ sealed trait AssertResult[+A] extends Product with Serializable { self =>
     or(self, that)
 
   /**
-   * Folds over the assertion bottom up, first converting ignore, success, or
-   * failure results to `B` values, and then combining the `B` values, using
-   * the specified functions.
+   * Collects all failures.
+   */
+  final def failures[B](implicit ev: A <:< Either[B, _]): Option[AssertResult[B]] =
+    collect(a => ev(a) match { case Left(b) => b })
+
+  /**
+   * Folds over the assert result bottom up, first converting values to `B`
+   * values, and then combining the `B` values, using the specified functions.
    */
   final def fold[B](caseValue: A => B)(caseAnd: (B, B) => B, caseOr: (B, B) => B): B =
     self match {
@@ -92,18 +100,38 @@ sealed trait AssertResult[+A] extends Product with Serializable { self =>
         )
     }
 
+  override final def hashCode: Int =
+    fold(_.hashCode)(_ & _, _ | _)
+
   /**
-   * Returns a new result, with all failure messages mapped by the specified
+   * Returns a new assert result, with all values mapped by the specified
    * function.
    */
   final def map[B](f: A => B): AssertResult[B] =
     fold(f andThen value)(and, or)
 
+  /**
+   * Determines whether the assert result is a failure, where `Left` represents
+   * failure, `Right` represents success, and values are combined using logical
+   * conjunction and disjunction.
+   */
   final def isFailure(implicit ev: A <:< Either[_, _]): Boolean =
     !isSuccess
 
+  /**
+   * Determines whether the assert result is a success, where `Left` represents
+   * failure, `Right` represents success, and values are combined using logical
+   * conjunction and disjunction.
+   */
   final def isSuccess(implicit ev: A <:< Either[_, _]): Boolean =
     fold(a => ev(a).isRight)(_ && _, _ || _)
+
+  /**
+   * Negates this assert result, converting all successes into failures and
+   * failures into successes.
+   */
+  final def not[B, C](implicit ev: A <:< Either[B, C]): AssertResult[Either[C, B]] =
+    fold(a => value(ev(a).swap))(_ || _, _ && _)
 }
 
 object AssertResult {
@@ -119,8 +147,6 @@ object AssertResult {
           symmetric(distributive)(self, other)
       case _ => false
     }
-    override final def hashCode: Int =
-      assertionHash(self)
     private def equal(that: AssertResult[_]): Boolean = (self, that) match {
       case (a1: And[_], a2: And[_]) => a1.left == a2.left && a1.right == a2.right
       case _                        => false
@@ -154,8 +180,6 @@ object AssertResult {
           symmetric(distributive)(self, other)
       case _ => false
     }
-    override final def hashCode: Int =
-      assertionHash(self)
     private def equal(that: AssertResult[_]): Boolean = (self, that) match {
       case (o1: Or[_], o2: Or[_]) => o1.left == o2.left && o1.right == o2.right
       case _                      => false
@@ -181,70 +205,67 @@ object AssertResult {
   }
 
   /**
-   * Returns an assertion that succeeds if all of the assertions in the
-   * specified collection succeed.
+   * Returns an assert result that is the logical conjunction of all of the
+   * assert results in the specified collection.
    */
-  final def all[A](as: Iterable[AssertResult[A]]): AssertResult[A] =
-    ??? //as.foldRight[Assertion[A]](ignore)(and)
+  final def all[A](as: Iterable[AssertResult[A]]): Option[AssertResult[A]] =
+    if (as.isEmpty) None else Some(as.reduce(_ && _))
 
   /**
-   * Constructs an assertion that is the logical conjunction of two assertions.
+   * Constructs an assert result that is the logical conjunction of two assert
+   * results.
    */
   final def and[A](left: AssertResult[A], right: AssertResult[A]): AssertResult[A] =
     And(left, right)
 
   /**
-   * Returns an assertion that succeeds if any of the assertions in the
-   * specified collection succeed.
+   * Returns an assert result that is the logical disjunction of all of the
+   * assert results in the specified collection succeed.
    */
-  final def any[A](as: Iterable[AssertResult[A]]): AssertResult[A] =
-    ??? //as.foldRight[Assertion[A]](ignore)(or)
+  final def any[A](as: Iterable[AssertResult[A]]): Option[AssertResult[A]] =
+    if (as.isEmpty) None else Some(as.reduce(_ || _))
 
   /**
-   * Combines a collection of assertions to create a single assertion that
-   * succeeds if all of the assertions succeed.
+   * Combines a collection of assert results to create a single assert result
+   * that succeeds if all of the assert results succeed.
    */
-  final def collectAll[A](as: Iterable[AssertResult[A]]): AssertResult[A] =
+  final def collectAll[A](as: Iterable[AssertResult[A]]): Option[AssertResult[A]] =
     foreach(as)(identity)
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` to produce
-   * a collection of assertions, then combines all of those assertions to
-   * create a single assertion that succeeds if all of the assertions succeed.
+   * Constructs a failed assert result with the specified value.
    */
-  final def foreach[A, B](as: Iterable[A])(f: A => AssertResult[B]): AssertResult[B] =
-    ??? //as.foldRight[Assertion[B]](ignore)((a, b) => and(f(a), b))
+  final def failure[A](a: A): AssertResult[Either[A, Nothing]] =
+    value(Left(a))
 
   /**
-   * Constructs an assertion that is the logical disjunction of two assertions.
+   * Applies the function `f` to each element of the `Iterable[A]` to produce
+   * a collection of assert results, then combines all of those assert results
+   * to create a single assert result that is the logical conjunction of all of
+   * the assert results.
+   */
+  final def foreach[A, B](as: Iterable[A])(f: A => AssertResult[B]): Option[AssertResult[B]] =
+    if (as.isEmpty) None else Some(as.map(f).reduce(_ && _))
+
+  /**
+   * Constructs an assert result that is the logical disjunction of two assert
+   * results.
    */
   final def or[A](left: AssertResult[A], right: AssertResult[A]): AssertResult[A] =
     Or(left, right)
 
   /**
-   * Returns a successful assertion.
+   * Constructs a successful assert result with the specified value.
+   */
+  final def success[A](a: A): AssertResult[Either[Nothing, A]] =
+    value(Right(a))
+
+  /**
+   * Constructs an assert result with the specified value.
    */
   final def value[A](a: A): AssertResult[A] =
     Value(a)
 
   private def symmetric[A](f: (A, A) => Boolean): (A, A) => Boolean =
     (a1, a2) => f(a1, a2) || f(a2, a1)
-
-  private def assertionHash[A](assertion: AssertResult[A]): Int =
-    ???
-  // assertion
-  //   .fold(s => Some(success(s).hashCode), e => Some(failure(e).hashCode))(
-  //     {
-  //       case (Some(l), Some(r)) => Some(l & r)
-  //       case (Some(l), _)       => Some(l)
-  //       case (_, Some(r))       => Some(r)
-  //       case _                  => None
-  //     }, {
-  //       case (Some(l), Some(r)) => Some(l | r)
-  //       case (Some(l), _)       => Some(l)
-  //       case (_, Some(r))       => Some(r)
-  //       case _                  => None
-  //     }
-  //   )
-  //   .getOrElse(ignore.hashCode)
 }

@@ -38,8 +38,10 @@ object DefaultTestReporter {
         case Spec.TestCase(label, result) =>
           Seq(
             result match {
-              case Right(_) =>
+              case Right(TestStatus.Executed(_)) =>
                 rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
+              case Right(TestStatus.Ignored) =>
+                rendered(Test, label, Ignored, depth)
               case Left(TestFailure.Assertion(result)) =>
                 result.fold(
                   details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
@@ -58,11 +60,12 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply[L, E, S, S0](): TestReporter[L, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[L, E, S]) =>
-    ZIO
-      .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
-        ZIO.foreach(res.rendered)(TestLogger.logLine)
-      } *> logStats(duration, executedSpec)
+  def apply[L](): TestReporter[L] = new TestReporter[L] {
+    def apply[E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]) =
+      ZIO
+        .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
+          ZIO.foreach(res.rendered)(TestLogger.logLine)
+        } *> logStats(duration, executedSpec)
   }
 
   private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]) = {
@@ -73,9 +76,11 @@ object DefaultTestReporter {
             case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
           }
         case Spec.TestCase(_, result) =>
-          if (result.isRight) (1, 0, 0)
-          else if (result.isLeft) (0, 0, 1)
-          else (0, 1, 0)
+          result match {
+            case Left(_)                       => (0, 0, 1)
+            case Right(TestStatus.Executed(_)) => (1, 0, 0)
+            case Right(TestStatus.Ignored)     => (0, 1, 0)
+          }
       }
     val (success, ignore, failure) = loop(executedSpec.mapLabel(_.toString))
     val total                      = success + ignore + failure

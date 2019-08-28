@@ -16,11 +16,24 @@
 
 package zio.test
 
-import zio.DefaultRuntime
+import zio.{ URIO, ZIO }
+import zio.duration.Duration
 
 /**
- * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Random, etc).
+ * A `TestReporter[L]` is capable of reporting test results annotated with
+ * labels `L`.
  */
-abstract class DefaultRunnableSpec(spec: => ZSpec[DefaultRuntime#Environment, Nothing, String, Any])
-    extends RunnableSpec(DefaultTestRunner)(spec)
+trait TestReporter[-L] {
+  def apply[E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]): URIO[TestLogger, Unit]
+}
+
+object TestReporter {
+
+  /**
+   * TestReporter that does nothing
+   */
+  def silent[L]: TestReporter[L] = new TestReporter[L] {
+    def apply[E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]): URIO[TestLogger, Unit] =
+      ZIO.succeed(())
+  }
+}

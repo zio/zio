@@ -29,7 +29,7 @@ import zio.internal.{ Platform, PlatformLive }
 case class TestRunner[L, -T, E, S](
   executor: TestExecutor[L, T, E, S],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[L, E, S] = DefaultTestReporter()
+  reporter: TestReporter[L] = DefaultTestReporter()
 ) { self =>
 
   final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
@@ -76,7 +76,7 @@ case class TestRunner[L, -T, E, S](
   /**
    * Creates a copy of this runner replacing the reporter.
    */
-  final def withReporter(reporter: TestReporter[L, E, S]) = copy(reporter = reporter)
+  final def withReporter(reporter: TestReporter[L]) = copy(reporter = reporter)
 
   private def buildEnv(loggerSvc: TestLogger, clockSvc: Clock): TestLogger with Clock = new TestLogger with Clock {
     override def testLogger: TestLogger.Service = loggerSvc.testLogger

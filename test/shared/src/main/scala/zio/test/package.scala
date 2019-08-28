@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
 
 /**
@@ -43,22 +42,6 @@ import zio.stream.{ ZSink, ZStream }
  * }}}
  */
 package object test {
-  type AssertionResult = AssertResult[Either[AssertionValue, Unit]]
-  type TestResult      = AssertResult[Either[FailureDetails, Unit]]
-
-  /**
-   * A `TestReporter[L]` is capable of reporting test results annotated with
-   * labels `L`.
-   */
-  type TestReporter[-L, -E, -S] = (Duration, ExecutedSpec[L, E, S]) => URIO[TestLogger, Unit]
-
-  object TestReporter {
-
-    /**
-     * TestReporter that does nothing
-     */
-    def silent[L, E, S]: TestReporter[L, E, S] = (_, _) => ZIO.unit
-  }
 
   /**
    * A `TestExecutor[L, T]` is capable of executing specs containing tests of
@@ -76,7 +59,7 @@ package object test {
    * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
    * and may fail with a `TestFailure[E]` or succeed with an `S`.
    */
-  type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], S]
+  type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], TestStatus[S]]
 
   /**
    * A `ZSpec[R, E, L, S]` is the canonical spec for testing ZIO programs. The
@@ -89,17 +72,15 @@ package object test {
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+L, +E, +S] = Spec[L, Either[TestFailure[E], AssertResult[S]]]
+  type ExecutedSpec[+L, +E, +S] = Spec[L, Either[TestFailure[E], TestStatus[S]]]
 
   /**
    * Checks the assertion holds for the given value.
    */
-  final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
+  final def assert[A](value: => A, assertion: Assertion[A]): AssertResult[Either[FailureDetails, Unit]] =
     assertion.run(value).map {
-      case Left(fragment) =>
-        Left(FailureDetails(fragment, AssertionValue(assertion, value)))
-      case _ =>
-        Right(())
+      case Left(fragment) => Left(FailureDetails(fragment, AssertionValue(assertion, value)))
+      case _              => Right(())
     }
 
   /**
@@ -108,7 +89,8 @@ package object test {
   final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
     value.flatMap { a =>
       val result = assert(a, assertion)
-      if (result.isSuccess) ZIO.succeed(()) else ZIO.fail(???)
+      if (result.isSuccess) ZIO.succeed(TestStatus.Executed(AssertResult.value(())))
+      else ZIO.fail(TestFailure.Assertion(result.failures.get))
     }
 
   /**
@@ -148,17 +130,22 @@ package object test {
   /**
    * Builds a spec with a single pure test.
    */
-  final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
+  final def test[L](label: L)(assertion: => AssertResult[Either[FailureDetails, Unit]]): ZSpec[Any, Nothing, L, Unit] =
     testM(label)(ZIO.succeed(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, L, T](label: L)(assertion: ZIO[R, Nothing, TestResult]): ZSpec[R, Nothing, L, Unit] =
-    Spec.test(label, assertion.flatMap { result =>
-      if (result.isSuccess) ZIO.succeed(())
-      else ZIO.fail(TestFailure.Assertion(result.collect { case Left(e) => e }.get))
-    })
+  final def testM[R, L, T](
+    label: L
+  )(assertion: ZIO[R, Nothing, AssertResult[Either[FailureDetails, Unit]]]): ZSpec[R, Nothing, L, Unit] =
+    Spec.test(
+      label,
+      assertion.flatMap { result =>
+        if (result.isSuccess) ZIO.succeed(TestStatus.Executed(AssertResult.value(())))
+        else ZIO.fail(TestFailure.Assertion(result.failures.get))
+      }
+    )
 
   /**
    * Adds syntax for adding aspects.
@@ -175,8 +162,8 @@ package object test {
 
   private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
     assertion: Assertion[A]
-  ): ZIO[R, TestFailure[Nothing], Unit] = {
-    def checkValue(value: A): TestResult =
+  ): ZIO[R, TestFailure[Nothing], TestStatus[Unit]] = {
+    def checkValue(value: A): AssertResult[Either[FailureDetails, Unit]] =
       assertion.run(value).map {
         case Left(e)  => Left(FailureDetails(e, AssertionValue(assertion, value)))
         case Right(s) => Right(s)
@@ -187,13 +174,13 @@ package object test {
       .dropWhile(!_.value.isFailure) // Drop until we get to a failure
       .take(1)                       // Get the first failure
       .flatMap(_.shrinkSearch(_.isFailure).take(maxShrinks))
-      .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
+      .run(ZSink.collectAll[AssertResult[Either[FailureDetails, Unit]]]) // Collect all the shrunken failures
       .flatMap { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[ZIO[R, TestFailure[Nothing], Unit]] { ZIO.succeed(()) } {
-          case AssertResult.Value(Left(failureDetails)) =>
-            ZIO.fail(TestFailure.Assertion(AssertResult.value(failureDetails)))
-          case _ => ???
+        failures.reverse.headOption.fold[ZIO[R, TestFailure[Nothing], TestStatus[Unit]]] {
+          ZIO.succeed(TestStatus.Executed(AssertResult.value(())))
+        } { result =>
+          ZIO.fail(TestFailure.Assertion(result.failures.get))
         }
       }
   }

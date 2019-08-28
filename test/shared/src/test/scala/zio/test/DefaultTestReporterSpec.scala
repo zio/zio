@@ -20,8 +20,8 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     label(simpleAssertion, "correctly reports failure of simple assertion")
   )
 
-  def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
-    zio.test.test(label)(assertion).mapTest(_.map(_ => ()))
+  def makeTest[L](label: L)(assertion: => AssertResult[Either[FailureDetails, Unit]]): ZSpec[Any, Nothing, L, Unit] =
+    zio.test.test(label)(assertion).mapTest(_.map(_ => TestStatus.Executed(AssertResult.value(()))))
 
   val test1 = makeTest("Addition works fine") {
     assert(1 + 1, equalTo(2))
