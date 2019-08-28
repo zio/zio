@@ -1166,24 +1166,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     result must_=== Success(c.toSeq.toList)
   }
 
-  private def fromQueueTake = prop { c: Chunk[Take[String, Int]] =>
-    val result = unsafeRunSync {
-      for {
-        queue <- Queue.unbounded[Take[String, Int]]
-        _     <- queue.offerAll(c.toSeq)
-        fiber <- Stream
-                  .fromQueueTake(queue)
-                  .fold[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
-                  .map(_.reverse)
-                  .fork
-        _     <- waitForSize(queue, -1)
-        _     <- queue.shutdown
-        items <- fiber.join
-      } yield items
-    }
-    result must_=== Success(c.toSeq.toList)
-  }
-
   private def groupByValues =
     unsafeRun {
       val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
