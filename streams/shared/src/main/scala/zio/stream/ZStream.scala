@@ -2139,23 +2139,6 @@ object ZStream extends ZStreamPlatformSpecific {
     }
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of queue `take` operations
-   */
-  final def fromQueueTake[R, E, A](queue: ZQueue[_, _, R, E, _, Take[E, A]]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
-      ZManaged.reserve(
-        Reservation(
-          UIO(queue.take.mapError(Some(_)).flatMap {
-            case Take.End      => Pull.end
-            case Take.Fail(c)  => Pull.halt(c)
-            case Take.Value(a) => Pull.emit(a)
-          }),
-          _ => queue.shutdown
-        )
-      )
-    }
-
-  /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
    */
   final def fromQueueWithShutdown[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
