@@ -38,9 +38,9 @@ object DefaultTestReporter {
         case Spec.TestCase(label, result) =>
           Seq(
             result match {
-              case Right(TestStatus.Executed(_)) =>
+              case Right(TestSuccess.Succeeded(_)) =>
                 rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
-              case Right(TestStatus.Ignored) =>
+              case Right(TestSuccess.Ignored) =>
                 rendered(Test, label, Ignored, depth)
               case Left(TestFailure.Assertion(result)) =>
                 result.fold(
@@ -60,12 +60,11 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply[L](): TestReporter[L] = new TestReporter[L] {
-    def apply[E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]) =
-      ZIO
-        .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
-          ZIO.foreach(res.rendered)(TestLogger.logLine)
-        } *> logStats(duration, executedSpec)
+  def apply[L, E, S](): TestReporter[L, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[L, E, S]) =>
+    ZIO
+      .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
+        ZIO.foreach(res.rendered)(TestLogger.logLine)
+      } *> logStats(duration, executedSpec)
   }
 
   private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]) = {
@@ -77,9 +76,9 @@ object DefaultTestReporter {
           }
         case Spec.TestCase(_, result) =>
           result match {
-            case Left(_)                       => (0, 0, 1)
-            case Right(TestStatus.Executed(_)) => (1, 0, 0)
-            case Right(TestStatus.Ignored)     => (0, 1, 0)
+            case Left(_)                         => (0, 0, 1)
+            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
+            case Right(TestSuccess.Ignored)      => (0, 1, 0)
           }
       }
     val (success, ignore, failure) = loop(executedSpec.mapLabel(_.toString))

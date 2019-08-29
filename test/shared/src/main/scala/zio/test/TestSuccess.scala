@@ -16,9 +16,9 @@
 
 package zio.test
 
-sealed trait TestStatus[+S]
+sealed trait TestSuccess[+S]
 
-object TestStatus {
-  final case class Executed[S](result: AssertResult[S]) extends TestStatus[S]
-  final case object Ignored                             extends TestStatus[Nothing]
+object TestSuccess {
+  final case class Succeeded[S](result: AssertResult[S]) extends TestSuccess[S]
+  final case object Ignored                              extends TestSuccess[Nothing]
 }

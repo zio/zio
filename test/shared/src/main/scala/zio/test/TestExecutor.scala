@@ -22,7 +22,12 @@ object TestExecutor {
   def managed[R, E, L, S](environment: Managed[Nothing, R]): TestExecutor[L, ZTest[R, E, S], E, S] =
     (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
       spec.foreachExec(defExec) { test =>
-        test.provideManaged(environment).fold(e => Left(e), s => Right(s))
+        test
+          .provideManaged(environment)
+          .foldCause(
+            _.failureOrCause.fold(Left(_), c => Left(TestFailure.Runtime(c))),
+            Right(_)
+          )
       }
     }
 }

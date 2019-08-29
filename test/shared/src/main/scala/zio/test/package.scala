@@ -16,7 +16,9 @@
 
 package zio
 
+import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
+import zio.test.mock.MockEnvironment
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -44,8 +46,23 @@ import zio.stream.{ ZSink, ZStream }
 package object test {
 
   /**
-   * A `TestExecutor[L, T]` is capable of executing specs containing tests of
-   * type `T`, annotated with labels of type `L`.
+   * A `TestReporter[L, E, S]` is capable of reporting test results annotated
+   * with labels `L`, error type `E`, and success type `S`.
+   */
+  type TestReporter[-L, -E, -S] = (Duration, ExecutedSpec[L, E, S]) => URIO[TestLogger, Unit]
+
+  object TestReporter {
+
+    /**
+     * TestReporter that does nothing
+     */
+    final val silent: TestReporter[Any, Any, Any] = (_, _) => ZIO.unit
+  }
+
+  /**
+   * A `TestExecutor[L, T, E, S]` is capable of executing specs containing
+   * tests of type `T`, annotated with labels of type `L`, that may fail with
+   * an `E` or succeed with a `S`.
    */
   type TestExecutor[L, -T, +E, +S] = (Spec[L, T], ExecutionStrategy) => UIO[ExecutedSpec[L, E, S]]
 
@@ -57,22 +74,22 @@ package object test {
 
   /**
    * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
-   * and may fail with a `TestFailure[E]` or succeed with an `S`.
+   * and may fail with an `E` or succeed with a `S`.
    */
-  type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], TestStatus[S]]
+  type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], TestSuccess[S]]
 
   /**
    * A `ZSpec[R, E, L, S]` is the canonical spec for testing ZIO programs. The
-   * spec's test type is a ZIO effect that requires an `R`, might fail with
-   * a `TestFailure[E]`, might succeed with an `S`, and whose nodes are
-   * annotated with labels `L`.
+   * spec's test type is a ZIO effect that requires an `R`, might fail with an
+   * `E`, might succeed with an `S`, and whose nodes are annotated with labels
+   * `L`.
    */
   type ZSpec[-R, +E, +L, +S] = Spec[L, ZTest[R, E, S]]
 
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+L, +E, +S] = Spec[L, Either[TestFailure[E], TestStatus[S]]]
+  type ExecutedSpec[+L, +E, +S] = Spec[L, Either[TestFailure[E], TestSuccess[S]]]
 
   /**
    * Checks the assertion holds for the given value.
@@ -88,9 +105,10 @@ package object test {
    */
   final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
     value.flatMap { a =>
-      val result = assert(a, assertion)
-      if (result.isSuccess) ZIO.succeed(TestStatus.Executed(AssertResult.value(())))
-      else ZIO.fail(TestFailure.Assertion(result.failures.get))
+      assert(a, assertion).failures match {
+        case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
+        case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+      }
     }
 
   /**
@@ -142,8 +160,10 @@ package object test {
     Spec.test(
       label,
       assertion.flatMap { result =>
-        if (result.isSuccess) ZIO.succeed(TestStatus.Executed(AssertResult.value(())))
-        else ZIO.fail(TestFailure.Assertion(result.failures.get))
+        result.failures match {
+          case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
+          case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+        }
       }
     )
 
@@ -162,7 +182,7 @@ package object test {
 
   private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
     assertion: Assertion[A]
-  ): ZIO[R, TestFailure[Nothing], TestStatus[Unit]] = {
+  ): ZTest[R, Nothing, Unit] = {
     def checkValue(value: A): AssertResult[Either[FailureDetails, Unit]] =
       assertion.run(value).map {
         case Left(e)  => Left(FailureDetails(e, AssertionValue(assertion, value)))
@@ -177,14 +197,14 @@ package object test {
       .run(ZSink.collectAll[AssertResult[Either[FailureDetails, Unit]]]) // Collect all the shrunken failures
       .flatMap { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[ZIO[R, TestFailure[Nothing], TestStatus[Unit]]] {
-          ZIO.succeed(TestStatus.Executed(AssertResult.value(())))
+        failures.reverse.headOption.fold[ZTest[R, Nothing, Unit]] {
+          ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
         } { result =>
           ZIO.fail(TestFailure.Assertion(result.failures.get))
         }
       }
   }
 
-  val defaultTestRunner: TestRunner[String, ZTest[mock.MockEnvironment, Any, Unit], Any, Unit] =
+  val defaultTestRunner: TestRunner[String, ZTest[MockEnvironment, Any, Any], Any, Any] =
     TestRunner(TestExecutor.managed(zio.test.mock.mockEnvironmentManaged))
 }

@@ -22,14 +22,15 @@ import zio.console.Console
 import zio.internal.{ Platform, PlatformLive }
 
 /**
- * A `TestRunner[R, E, L]` encapsulates all the logic necessary to run specs that
- * require an environment `R` and may fail with an error `E`, using labels of
- * type `L`. Test runners require a test executor, a platform, and a reporter.
+ * A `TestRunner[R, E, L, S]` encapsulates all the logic necessary to run specs
+ * that require an environment `R` and may fail with an error `E` or succeed
+ * with an `S`, using labels of type `L`. Test runners require a test executor,
+ * a platform, and a reporter.
  */
 case class TestRunner[L, -T, E, S](
   executor: TestExecutor[L, T, E, S],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[L] = DefaultTestReporter()
+  reporter: TestReporter[L, E, S] = DefaultTestReporter()
 ) { self =>
 
   final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
@@ -76,7 +77,8 @@ case class TestRunner[L, -T, E, S](
   /**
    * Creates a copy of this runner replacing the reporter.
    */
-  final def withReporter(reporter: TestReporter[L]) = copy(reporter = reporter)
+  final def withReporter[L1 >: L, E1 >: E, S1 >: S](reporter: TestReporter[L1, E1, S1]) =
+    copy(reporter = reporter)
 
   private def buildEnv(loggerSvc: TestLogger, clockSvc: Clock): TestLogger with Clock = new TestLogger with Clock {
     override def testLogger: TestLogger.Service = loggerSvc.testLogger

@@ -75,7 +75,9 @@ sealed trait AssertResult[+A] extends Product with Serializable { self =>
     or(self, that)
 
   /**
-   * Collects all failures.
+   * If this assert value is a success returns `None`. If it is a failure
+   * returns a new assert value containing all failures that are relevant to
+   * this assert value being a failure.
    */
   final def failures[B](implicit ev: A <:< Either[B, _]): Option[AssertResult[B]] =
     collect(a => ev(a) match { case Left(b) => b })
@@ -259,6 +261,12 @@ object AssertResult {
    */
   final def success[A](a: A): AssertResult[Either[Nothing, A]] =
     value(Right(a))
+
+  /**
+   * An assert result with the unit value.
+   */
+  final val unit: AssertResult[Unit] =
+    value(())
 
   /**
    * Constructs an assert result with the specified value.
