@@ -41,11 +41,13 @@ object OperationPureSpec
         test("A CreateOperation command with transactions must succeed") {
 
           val command =
-            CreateOperation(100,
-                            0,
-                            0,
-                            List(CreateTransaction(Account(0, "Nonexistent"), 100, Credit)),
-                            isExternal = true)
+            CreateOperation(
+              100,
+              0,
+              0,
+              List(CreateTransaction(Account(0, "Nonexistent"), 100, Credit)),
+              isExternal = true
+            )
 
           assert(numberOfTransactions(command), isRight(equalTo(command)))
 
@@ -62,11 +64,13 @@ object OperationPureSpec
         test("A CreateOperation command with valid transactions must succeed") {
 
           val command =
-            CreateOperation(100,
-                            0,
-                            0,
-                            List(CreateTransaction(Account(0, "Nonexistent"), 100, Credit)),
-                            isExternal = true)
+            CreateOperation(
+              100,
+              0,
+              0,
+              List(CreateTransaction(Account(0, "Nonexistent"), 100, Credit)),
+              isExternal = true
+            )
 
           assert(transactionsAreValid(command), isRight(equalTo(command)))
 
@@ -74,15 +78,21 @@ object OperationPureSpec
         test("A CreateOperation command with invalid transactions value sum must fail") {
 
           val command =
-            CreateOperation(100,
-                            0,
-                            0,
-                            List(CreateTransaction(Account(0, "Nonexistent"), 150, Debit),
-                                 CreateTransaction(Account(0, "Nonexistent"), 100, Credit)),
-                            isExternal = false)
+            CreateOperation(
+              100,
+              0,
+              0,
+              List(
+                CreateTransaction(Account(0, "Nonexistent"), 150, Debit),
+                CreateTransaction(Account(0, "Nonexistent"), 100, Credit)
+              ),
+              isExternal = false
+            )
 
-          assert(transactionsSumEqualsAmount(command),
-                 isLeft(equalTo(OperationValueAndSumOfTransactionsDifferent(100, 150))))
+          assert(
+            transactionsSumEqualsAmount(command),
+            isLeft(equalTo(OperationValueAndSumOfTransactionsDifferent(100, 150)))
+          )
 
         },
         test("A CreateOperation command external with invalid transactions value sum must fail") {
@@ -98,8 +108,10 @@ object OperationPureSpec
               isExternal = true
             )
 
-          assert(transactionsSumEqualsAmount(command),
-                 isLeft(equalTo(OperationValueAndSumOfTransactionsDifferent(100, 110))))
+          assert(
+            transactionsSumEqualsAmount(command),
+            isLeft(equalTo(OperationValueAndSumOfTransactionsDifferent(100, 110)))
+          )
 
         },
         test("A CreateOperation command external with valid transactions value sum must succeed") {
@@ -119,11 +131,13 @@ object OperationPureSpec
 
         },
         test("An operation created by a account with insufficient value must fail") {
-          assert(accountAmountIsEnough(Balance(100, Account(0, "Nonexistent")), 150, false),
-                 isLeft(equalTo(OperationOwnerAccountInsufficientValue(150, 100))))
+          assert(
+            accountAmountIsEnough(Balance(100, Account(0, "Nonexistent")), 150, false),
+            isLeft(equalTo(OperationOwnerAccountInsufficientValue(150, 100)))
+          )
         },
         test("An operation created by a account with the needed value must succeed") {
           assert(accountAmountIsEnough(Balance(100, Account(0, "Nonexistent")), 100, false), isRight(equalTo(())))
-        },
+        }
       )
     )

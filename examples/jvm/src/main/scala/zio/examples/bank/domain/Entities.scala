@@ -2,11 +2,13 @@ package zio.examples.bank.domain
 
 case class Account(id: Int, ownerName: String)
 
-case class Operation(id: Int,
-                     valueInCents: Long,
-                     ownerAccount: Account,
-                     peerAccountReference: Int,
-                     transactions: List[Transaction])
+case class Operation(
+  id: Int,
+  valueInCents: Long,
+  ownerAccount: Account,
+  peerAccountReference: Int,
+  transactions: List[Transaction]
+)
 
 sealed trait Action
 

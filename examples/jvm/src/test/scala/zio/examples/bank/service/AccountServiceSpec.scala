@@ -37,8 +37,10 @@ object AccountServiceSpec
             } yield res
 
             val assertion =
-              assertM[BankEnvironment, Either[AccountFailure, Account]](pipeline.either,
-                                                                        isRight(equalTo(Account(1, "John Doe"))))
+              assertM[BankEnvironment, Either[AccountFailure, Account]](
+                pipeline.either,
+                isRight(equalTo(Account(1, "John Doe")))
+              )
 
             (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
 

@@ -27,11 +27,13 @@ private object OperationServiceTests {
   def createAccountWithValue(ownerName: String, value: Long): ZIO[OperationEnvironment, OperationFailure, Account] =
     for {
       account <- createAccount(ownerName)
-      createDeposit = CreateOperation(value,
-                                      account.id,
-                                      account.id,
-                                      List(CreateTransaction(account, value, Credit)),
-                                      isExternal = true)
+      createDeposit = CreateOperation(
+        value,
+        account.id,
+        account.id,
+        List(CreateTransaction(account, value, Credit)),
+        isExternal = true
+      )
       _ <- createOperation(createDeposit)
     } yield account
 
@@ -58,20 +60,23 @@ object OperationServiceSpec
           val pipeline = for {
             account     <- createAccountWithValue("John Doe", 500L)
             peerAccount <- createAccount("Anna P. Erwin")
-            createTransfer = CreateOperation(400L,
-                                             account.id,
-                                             peerAccount.id,
-                                             List(CreateTransaction(account, 400L, Debit),
-                                                  CreateTransaction(peerAccount, 400L, Credit)),
-                                             isExternal = false)
+            createTransfer = CreateOperation(
+              400L,
+              account.id,
+              peerAccount.id,
+              List(CreateTransaction(account, 400L, Debit), CreateTransaction(peerAccount, 400L, Credit)),
+              isExternal = false
+            )
             _            <- createOperation(createTransfer)
             ownerBalance <- findBalance(account.id)
             peerBalance  <- findBalance(peerAccount.id)
           } yield (ownerBalance.valueInCents, peerBalance.valueInCents)
 
           val assertion =
-            assertM[BankEnvironment, Either[OperationFailure, (Long, Long)]](pipeline.either,
-                                                                             isRight(equalTo((100L, 400L))))
+            assertM[BankEnvironment, Either[OperationFailure, (Long, Long)]](
+              pipeline.either,
+              isRight(equalTo((100L, 400L)))
+            )
 
           (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
 
@@ -97,11 +102,13 @@ object OperationServiceSpec
 
           val pipeline = for {
             account <- createAccount("John Doe")
-            createDeposit = CreateOperation(0L,
-                                            account.id,
-                                            account.id,
-                                            List(CreateTransaction(account, 0L, Debit)),
-                                            isExternal = true)
+            createDeposit = CreateOperation(
+              0L,
+              account.id,
+              account.id,
+              List(CreateTransaction(account, 0L, Debit)),
+              isExternal = true
+            )
             _ <- createOperation(createDeposit)
           } yield ()
 
@@ -118,11 +125,13 @@ object OperationServiceSpec
 
           val pipeline = for {
             account <- createAccount("John Doe")
-            createDeposit = CreateOperation(100L,
-                                            account.id,
-                                            account.id,
-                                            List(CreateTransaction(account, 50L, Debit)),
-                                            isExternal = true)
+            createDeposit = CreateOperation(
+              100L,
+              account.id,
+              account.id,
+              List(CreateTransaction(account, 50L, Debit)),
+              isExternal = true
+            )
             _ <- createOperation(createDeposit)
           } yield ()
 
@@ -138,11 +147,13 @@ object OperationServiceSpec
         testM("Cannot create an operation without an existent account") {
 
           val createDeposit =
-            CreateOperation(100L,
-                            0,
-                            0,
-                            List(CreateTransaction(Account(0, "Nonexistent account"), 100L, Credit)),
-                            isExternal = true)
+            CreateOperation(
+              100L,
+              0,
+              0,
+              List(CreateTransaction(Account(0, "Nonexistent account"), 100L, Credit)),
+              isExternal = true
+            )
 
           val pipeline = for {
             _ <- createOperation(createDeposit)
@@ -162,11 +173,13 @@ object OperationServiceSpec
           val pipeline = for {
             account            <- createAccount("John Doe")
             invalidTransaction = CreateTransaction(account, 0L, Debit)
-            createDeposit = CreateOperation(100L,
-                                            account.id,
-                                            account.id,
-                                            List(CreateTransaction(account, 100L, Debit), invalidTransaction),
-                                            isExternal = true)
+            createDeposit = CreateOperation(
+              100L,
+              account.id,
+              account.id,
+              List(CreateTransaction(account, 100L, Debit), invalidTransaction),
+              isExternal = true
+            )
             failure <- createOperation(createDeposit).either
             result <- failure match {
                        case Left(OperationWithInvalidCreateTransactions(l)) =>
@@ -186,12 +199,13 @@ object OperationServiceSpec
           val pipeline = for {
             account     <- createAccountWithValue("John Doe", 500L)
             peerAccount <- createAccount("Anna P. Erwin")
-            createTransfer = CreateOperation(600L,
-                                             account.id,
-                                             peerAccount.id,
-                                             List(CreateTransaction(account, 600L, Debit),
-                                                  CreateTransaction(peerAccount, 600L, Credit)),
-                                             isExternal = false)
+            createTransfer = CreateOperation(
+              600L,
+              account.id,
+              peerAccount.id,
+              List(CreateTransaction(account, 600L, Debit), CreateTransaction(peerAccount, 600L, Credit)),
+              isExternal = false
+            )
             _ <- createOperation(createTransfer)
 
           } yield ()
@@ -203,6 +217,6 @@ object OperationServiceSpec
 
           (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
 
-        },
+        }
       )
     )

@@ -66,7 +66,7 @@ object AspectsExampleSpec
 
           }
 
-        },
+        }
 //        nonFlaky(5) {
 //          testM("non-flaky test") {
 //
