@@ -1800,9 +1800,8 @@ private[zio] trait ZIOFunctions extends Serializable {
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
             val f = register(k => r.unsafeRunAsync_(k.to(p)))
-            restore(f.catchAllCause(p.halt)).fork.flatMap { f =>
-              restore(p.await).onInterrupt(f.interrupt)
-            }
+            restore(f).catchAllCause(p.halt) *>
+              restore(p.await)
           }
     } yield a
 
