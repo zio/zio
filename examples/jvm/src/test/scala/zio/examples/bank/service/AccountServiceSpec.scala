@@ -11,7 +11,7 @@ import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, TestResult }
 object AccountServiceSpec
     extends DefaultRunnableSpec(
       {
-        suite("AccountSpec")(
+        suite("AccountServiceSpec")(
           testM("Create account") {
 
             val command = CreateAccount("John Doe")

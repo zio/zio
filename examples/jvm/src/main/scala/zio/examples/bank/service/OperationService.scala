@@ -25,7 +25,7 @@ object OperationServiceImpl extends OperationService[OperationEnvironment] {
 
       // Scalaz or Cats (>>=)
       // amountIsValid(_) >>= numberOfTransactions >>= transactionsAreValid >>= transactionsSumEqualsAmount
-      val pure: CreateOperation => Either[OperationFailure, CreateOperation] = amountIsValid(_)
+      val pure: CreateOperation => Either[OperationFailure, CreateOperation] = valueIsValid(_)
         .flatMap(numberOfTransactions)
         .flatMap(transactionsAreValid)
         .flatMap(transactionsSumEqualsAmount)

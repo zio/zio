@@ -39,7 +39,7 @@ private object OperationServiceTests {
 
 object OperationServiceSpec
     extends DefaultRunnableSpec(
-      suite("OperationSpec")(
+      suite("OperationServiceSpec")(
         testM("Deposit US$ 5.00") {
 
           val pipeline = for {

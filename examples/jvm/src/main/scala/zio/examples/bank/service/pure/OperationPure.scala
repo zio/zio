@@ -5,7 +5,7 @@ import zio.examples.bank.failure._
 
 object OperationPure {
 
-  def amountIsValid(o: CreateOperation): Either[OperationInvalidValue, CreateOperation] =
+  def valueIsValid(o: CreateOperation): Either[OperationInvalidValue, CreateOperation] =
     if (o.valueInCents <= 0) Left(OperationInvalidValue(o.valueInCents)) else Right(o)
 
   def numberOfTransactions(o: CreateOperation): Either[OperationWithoutTransactions, CreateOperation] =
@@ -23,6 +23,7 @@ object OperationPure {
 
   }
 
+  // Must be rewritten
   def transactionsSumEqualsAmount(
     o: CreateOperation
   ): Either[OperationValueAndSumOfTransactionsDifferent, CreateOperation] = {
