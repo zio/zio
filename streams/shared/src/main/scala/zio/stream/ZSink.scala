@@ -867,24 +867,23 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
-  final def untilOutput(f: B => Boolean): ZSink[R, E, A0, A, B] =
-    new ZSink[R, E, A0, A, B] {
-      type State = self.State
+  final def untilOutput(f: B => Boolean): ZSink[R, E, A0, A, Option[B]] =
+    new ZSink[R, E, A0, A, Option[B]] {
+      type State = (Option[B], self.State)
 
-      val initial = self.initial
+      val initial = self.initial.map(Step.leftMap(_)((None, _)))
 
-      def step(state: State, a: A): ZIO[R, E, Step[State, A0]] =
-        self.step(state, a).flatMap { s =>
-          if (Step.cont(s))
-            extract(Step.state(s))
-              .foldM(
-                _ => IO.succeed(s),
-                b => if (f(b)) IO.succeed(Step.done(Step.state(s), Chunk.empty)) else IO.succeed(s)
-              )
-          else IO.succeed(s)
-        }
+      def step(state: State, a: A) =
+        self
+          .step(state._2, a)
+          .flatMap { s =>
+            self.extract(Step.state(s)).flatMap { b =>
+              if (f(b)) UIO.succeed(Step.done((Some(b), Step.state(s)), Chunk.empty))
+              else UIO.succeed(Step.leftMap(s)((state._1, _)))
+            }
+          }
 
-      def extract(state: State): ZIO[R, E, B] = self.extract(state)
+      def extract(state: State) = UIO.succeed(state._1)
     }
 
   final def update(state: Step[State, Nothing]): ZSink[R, E, A0, A, B] =
