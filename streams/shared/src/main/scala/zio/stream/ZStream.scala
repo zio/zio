@@ -2196,7 +2196,7 @@ object ZStream extends ZStreamPlatformSpecific {
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    succeed(a)
+    fromEffect(ZIO.effectTotal(a))
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`
