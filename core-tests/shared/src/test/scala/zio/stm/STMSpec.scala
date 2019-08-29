@@ -63,6 +63,9 @@ final class STMSpec extends BaseCrossPlatformSpec {
           rollback left retry           $e38
           rollback left failure         $e39
           local reset, not global       $e40
+
+        Make a new `TSemaphore` and
+          get the number of permits     $e41
     """
 
   def e1 =
@@ -440,6 +443,13 @@ final class STMSpec extends BaseCrossPlatformSpec {
                  newVal2 <- ref.get
                } yield (newVal1, newVal2))
     } yield result must_=== (2 -> 2)
+
+  def e41 =
+    for {
+      s      <- TSemaphore.make(10L).commit
+      _      <- s.acquire.commit
+      result = s.permits
+    } yield result must_=== 10L
 
   private def transfer(receiver: TRef[Int], sender: TRef[Int], much: Int): UIO[Int] =
     STM.atomically {

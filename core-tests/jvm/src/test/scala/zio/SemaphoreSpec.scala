@@ -19,6 +19,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       `acquire` doesn't leak permits upon cancellation $e6
       `withPermit` does not leak fibers or permits upon cancellation $e7
       `withPermitManaged` does not leak fibers or permits upon cancellation $e8
+      `permits` returns the number of permits $e9
     """
 
   def e1 = {
@@ -88,6 +89,16 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       _       <- s.withPermitManaged.use(_ => s.release).timeout(1.millisecond).either
       permits <- (s.release *> clock.sleep(10.milliseconds) *> s.available)
     } yield permits must_=== 1L
+
+    unsafeRun(test)
+  }
+
+  private def e9 = {
+    val test = for {
+      s      <- Semaphore.make(10L)
+      _      <- s.acquire
+      result = s.permits
+    } yield result must_=== 10L
 
     unsafeRun(test)
   }

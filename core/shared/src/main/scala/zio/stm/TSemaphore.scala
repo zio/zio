@@ -16,23 +16,28 @@
 
 package zio.stm
 
-class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
+final class TSemaphore private (val state: TRef[Long], val permits0: Long) {
   final def acquire: STM[Nothing, Unit] = acquireN(1L)
 
   final def acquireN(n: Long): STM[Nothing, Unit] =
     (for {
       _     <- assertNonNegative(n)
-      value <- permits.get
+      value <- state.get
       _     <- STM.check(value >= n)
-      _     <- permits.set(value - n)
+      _     <- state.set(value - n)
     } yield ())
 
-  final def available: STM[Nothing, Long] = permits.get
+  final def available: STM[Nothing, Long] = state.get
+
+  /**
+   * Returns the number of permits this semaphore has.
+   */
+  final val permits: Long = permits0
 
   final def release: STM[Nothing, Unit] = releaseN(1L)
 
   final def releaseN(n: Long): STM[Nothing, Unit] =
-    assertNonNegative(n) *> permits.update(_ + n).unit
+    assertNonNegative(n) *> state.update(_ + n).unit
 
   final def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
     acquire *> stm <* release
@@ -45,5 +50,5 @@ class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
 
 object TSemaphore {
   final def make(n: Long): STM[Nothing, TSemaphore] =
-    TRef.make(n).map(v => new TSemaphore(v))
+    TRef.make(n).map(v => new TSemaphore(v, n))
 }
