@@ -16,7 +16,7 @@
 
 package zio.stm
 
-final class TSemaphore private (val state: TRef[Long], val permits0: Long) {
+final class TSemaphore private (private val state: TRef[Long], private val permits0: Long) extends Serializable {
   final def acquire: STM[Nothing, Unit] = acquireN(1L)
 
   final def acquireN(n: Long): STM[Nothing, Unit] =
