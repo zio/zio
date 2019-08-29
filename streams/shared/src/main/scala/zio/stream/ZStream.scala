@@ -1418,6 +1418,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream(self.process.provide(r).map(_.provide(r)))
 
   /**
+   * An effectual version of `provide`, useful when the act of provision
+   * requires an effect.
+   */
+  final def provideM[E1 >: E](r: ZIO[Any, E1, R]): Stream[E1, A] =
+    provideSomeM(r)
+
+  /**
    * Uses the given [[Managed]] to provide the environment required to run this stream,
    * leaving no outstanding environments.
    */
