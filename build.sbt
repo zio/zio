@@ -78,20 +78,20 @@ lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
 
 lazy val coreNative = core.native
-.settings(scalaVersion := "2.11.12")
-.settings(skip in Test := true)
-.settings(skip in doc := true)
-.settings(sources in (Compile, doc) := Seq.empty)
-.settings(
-  libraryDependencies ++= Seq(
-    "dev.whaling" %%% "native-loop-core" % "0.1.1",
-    "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
+      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+    )
   )
-)
-.settings(
-  Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "main" / "scala",
-  Test    / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "test" / "scala"  
-)
+  .settings(
+    Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "main" / "scala",
+    Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "test" / "scala"
+  )
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
@@ -181,10 +181,10 @@ lazy val stacktracerNative = stacktracer.native
   .settings(skip in doc := true)
   .settings(
     Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "main" / "scala",
-    Test    / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "test" / "scala"  
+    Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "test" / "scala"
   )
-  
-  lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
+
+lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(
