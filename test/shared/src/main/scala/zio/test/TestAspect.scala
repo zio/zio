@@ -161,21 +161,12 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, without limit.
    */
   val eventually: TestAspectPoly =
-<<<<<<< HEAD
     new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
         lazy val untilSuccess: ZIO[R, Nothing, Either[TestFailure[Nothing], TestSuccess[S]]] =
           test.foldM(_ => untilSuccess, _.fold(_ => untilSuccess, s => ZIO.succeed(Right(s))))
-=======
-    new TestAspect.PerTest[Nothing, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Any, E >: Nothing <: Any](
-        test: ZIO[R, E, TestResult]
-      ): ZIO[R, Nothing, TestResult] = {
-        lazy val untilSuccess: ZIO[R, Nothing, TestResult] =
-          test.foldM(_ => untilSuccess, testResult => if (testResult.success) ZIO.succeed(testResult) else untilSuccess)
->>>>>>> fixed eventually aspect
 
         untilSuccess
       }
@@ -321,7 +312,7 @@ object TestAspect extends TimeoutVariants {
                   decision =>
                     if (decision.cont) Live.live(clock.sleep(decision.delay)) *> loop(decision.state)
                     else ZIO.halt(err)
-                ), {
+              ), {
               case Left(e) =>
                 schedule
                   .update(e, state)

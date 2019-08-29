@@ -6,8 +6,9 @@ import zio.examples.bank.domain.{ Account, CreateAccount }
 import zio.examples.bank.environment.Environments.BankEnvironment
 import zio.examples.bank.failure.{ AccountFailure, AccountNotFound }
 import zio.examples.bank.service.AccountServiceImpl._
-import zio.test.Predicate._
-import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, TestResult }
+import zio.test.Assertion._
+import zio.test._
+
 object AccountServiceSpec
     extends DefaultRunnableSpec(
       {

@@ -1,15 +1,16 @@
 package zio.examples.test
 
-import zio.test.{ assert, suite, test, DefaultRunnableSpec, Predicate }
+import zio.test._
+import zio.test.Assertion._
 
 object ExampleSpec
     extends DefaultRunnableSpec(
       suite("some suite")(
         test("failing test") {
-          assert(1, Predicate.equals(2))
+          assert(1, equalTo(2))
         },
         test("passing test") {
-          assert(1, Predicate.equals(1))
+          assert(1, equalTo(1))
         }
       )
     )

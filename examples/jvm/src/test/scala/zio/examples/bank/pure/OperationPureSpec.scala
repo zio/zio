@@ -1,16 +1,10 @@
 package zio.examples.bank.pure
 
 import zio.examples.bank.domain.{ Account, Balance, CreateOperation, CreateTransaction, Credit, Debit }
-import zio.examples.bank.failure.{
-  OperationInvalidValue,
-  OperationOwnerAccountInsufficientValue,
-  OperationValueAndSumOfTransactionsDifferent,
-  OperationWithInvalidCreateTransactions,
-  OperationWithoutTransactions
-}
-import zio.test.{ assert, suite, test, DefaultRunnableSpec }
+import zio.examples.bank.failure._
+import zio.test._
 import zio.examples.bank.service.pure.OperationPure._
-import zio.test.Predicate._
+import zio.test.Assertion._
 object OperationPureSpec
     extends DefaultRunnableSpec(
       suite("OperationPureSpec")(

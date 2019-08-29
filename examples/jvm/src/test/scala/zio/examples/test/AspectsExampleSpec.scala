@@ -3,9 +3,9 @@ package zio.examples.test
 import zio.clock.Clock
 import zio.console.Console
 import zio.examples.test.Aspects._
-import zio.test.Predicate._
+import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, Predicate, TestResult }
+import zio.test._
 import zio.{ UIO, ZIO, ZManaged }
 private object Aspects {
 
@@ -20,8 +20,8 @@ private object Aspects {
 
   }
 
-  val managed                                                = ZManaged.make(FakeFile.create("file.txt"))(_.close())
-  val assertion: TestResult => ZIO[Any, Nothing, TestResult] = ZIO.succeed
+  val managed                                                       = ZManaged.make(FakeFile.create("file.txt"))(_.close())
+  val managedAssertion: TestResult => ZIO[Any, Nothing, TestResult] = ZIO.succeed
 
 }
 
@@ -41,7 +41,7 @@ object AspectsExampleSpec
           }
 
         },
-        around(managed.map(_ => assertion)) {
+        around(managed.map(_ => managedAssertion)) {
 
           testM("Around test") {
             assertM(ZIO.succeed(10), Predicate.equals(10))
@@ -72,7 +72,7 @@ object AspectsExampleSpec
 //
 //            val nonTotalEffect = ZIO.effect("Reading file").unit.either
 //
-//            assertM(nonTotalEffect, isRight(Predicate.equals(())))
+//            assertM(nonTotalEffect, isRight(Predicate.equalTo(())))
 //          }
 //        },
 //        timeout(3.seconds) {
@@ -83,7 +83,7 @@ object AspectsExampleSpec
 //              .either
 //              .provide(Blocking.Live)
 //
-//            assertM(blockingEffect, Predicate.isRight(Predicate.equals("value")))
+//            assertM(blockingEffect, isRight(equalTo("value")))
 //          }
 //        },
       )

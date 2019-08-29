@@ -15,8 +15,8 @@ import zio.examples.bank.failure.{
 }
 import zio.examples.bank.service.OperationServiceImpl._
 import zio.examples.bank.service.OperationServiceTests._
-import zio.test.Predicate._
-import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, TestResult }
+import zio.test.Assertion._
+import zio.test._
 
 private object OperationServiceTests {
 

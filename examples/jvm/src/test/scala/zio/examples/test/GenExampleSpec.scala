@@ -2,7 +2,7 @@ package zio.examples.test
 
 import zio.random.Random
 import zio.stream.ZStream
-import zio.test.Predicate._
+import zio.test.Assertion._
 import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, Gen, Sample }
 
 object GenExampleSpec

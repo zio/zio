@@ -2,31 +2,31 @@ package examples
 
 import zio.ZIO
 import zio.test.Predicate._
-import zio.test.{ assertM, suite, testM, DefaultRunnableSpec, Predicate }
+import zio.test.{ assertM, suite, testM, DefaultRunnableSpec }
 
 object EffectsExampleSpec
     extends DefaultRunnableSpec(
       suite("Effect examples")(
         suite("Basic effectful operations")(
           testM("Effect succeeds") {
-            assertM(ZIO.succeed(10), Predicate.equals(10))
+            assertM(ZIO.succeed(10), equalTo(10))
           },
           testM("Effect failures") {
-            assertM(ZIO.fail("Failure").run, fails(Predicate.equals("Failure")))
+            assertM(ZIO.fail("Failure").run, fails(equalTo("Failure")))
           },
           testM("Effect succeed (through Exit)") {
-            assertM(ZIO.succeed("Success").run, succeeds(Predicate.equals("Success")))
+            assertM(ZIO.succeed("Success").run, succeeds(equalTo("Success")))
           },
           testM("Environment (through effect-elimination)") {
             case class Config(something: String)
             val env = Config("value")
-            assertM(ZIO.access[Config](identity).provide(env), Predicate.equals(env))
+            assertM(ZIO.access[Config](identity).provide(env), equalTo(env))
           },
           testM("Effect failure (throgh effect-elimination") {
-            assertM(ZIO.fail("Failure").either, isLeft(Predicate.equals("Failure")))
+            assertM(ZIO.fail("Failure").either, isLeft(equalTo("Failure")))
           },
           testM("Effect success (throgh effect-elimination") {
-            assertM(ZIO.succeed("Success").either, isRight(Predicate.equals("Success")))
+            assertM(ZIO.succeed("Success").either, isRight(equalTo("Success")))
           }
         )
       )
