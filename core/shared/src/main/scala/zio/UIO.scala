@@ -87,6 +87,42 @@ object UIO {
     ZIO.collectAllParN(n)(as)
 
   /**
+   * @see See [[zio.ZIO.collectAllSuccesses]]
+   */
+  final def collectAllSuccesses[A](in: Iterable[UIO[A]]): UIO[List[A]] =
+    ZIO.collectAllSuccesses(in)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesPar]]
+   */
+  final def collectAllSuccessesPar[A](as: Iterable[UIO[A]]): UIO[List[A]] =
+    ZIO.collectAllSuccessesPar(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesParN]]
+   */
+  final def collectAllSuccessesParN[A](n: Int)(as: Iterable[UIO[A]]): UIO[List[A]] =
+    ZIO.collectAllSuccessesParN(n)(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWith]]
+   */
+  final def collectAllWith[A, B](in: Iterable[UIO[A]])(f: PartialFunction[A, B]): UIO[List[B]] =
+    ZIO.collectAllWith(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithPar]]
+   */
+  final def collectAllWithPar[A, B](as: Iterable[UIO[A]])(f: PartialFunction[A, B]): UIO[List[B]] =
+    ZIO.collectAllWithPar(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithParN]]
+   */
+  final def collectAllWithParN[A, B](n: Int)(as: Iterable[UIO[A]])(f: PartialFunction[A, B]): UIO[List[B]] =
+    ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor

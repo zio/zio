@@ -89,6 +89,42 @@ object IO {
     ZIO.collectAllParN(n)(as)
 
   /**
+   * @see See [[zio.ZIO.collectAllSuccesses]]
+   */
+  final def collectAllSuccesses[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
+    ZIO.collectAllSuccesses(in)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesPar]]
+   */
+  final def collectAllSuccessesPar[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
+    ZIO.collectAllSuccessesPar(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesParN]]
+   */
+  final def collectAllSuccessesParN[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+    ZIO.collectAllSuccessesParN(n)(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWith]]
+   */
+  final def collectAllWith[E, A, B](in: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
+    ZIO.collectAllWith(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithPar]]
+   */
+  final def collectAllWithPar[E, A, B](as: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
+    ZIO.collectAllWithPar(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithParN]]
+   */
+  final def collectAllWithParN[E, A, B](n: Int)(as: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
+    ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -354,7 +390,7 @@ object IO {
    * @see See [[zio.ZIO.require]]
    */
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
-    ZIO.require[E, A](error)
+    ZIO.require[Any, E, A](error)
 
   /**
    * @see See [[zio.ZIO.reserve]]

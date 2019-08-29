@@ -93,6 +93,42 @@ object Task {
     ZIO.collectAllParN(n)(as)
 
   /**
+   * @see See [[zio.ZIO.collectAllSuccesses]]
+   */
+  final def collectAllSuccesses[A](in: Iterable[Task[A]]): Task[List[A]] =
+    ZIO.collectAllSuccesses(in)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesPar]]
+   */
+  final def collectAllSuccessesPar[A](as: Iterable[Task[A]]): Task[List[A]] =
+    ZIO.collectAllSuccessesPar(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesParN]]
+   */
+  final def collectAllSuccessesParN[A](n: Int)(as: Iterable[Task[A]]): Task[List[A]] =
+    ZIO.collectAllSuccessesParN(n)(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWith]]
+   */
+  final def collectAllWith[A, B](in: Iterable[Task[A]])(f: PartialFunction[A, B]): Task[List[B]] =
+    ZIO.collectAllWith(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithPar]]
+   */
+  final def collectAllWithPar[A, B](as: Iterable[Task[A]])(f: PartialFunction[A, B]): Task[List[B]] =
+    ZIO.collectAllWithPar(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithParN]]
+   */
+  final def collectAllWithParN[A, B](n: Int)(as: Iterable[Task[A]])(f: PartialFunction[A, B]): Task[List[B]] =
+    ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
    * @see See [[zio.ZIO.die]]
    */
   final def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
@@ -365,7 +401,7 @@ object Task {
    * @see See [[zio.ZIO.require]]
    */
   final def require[A](error: Throwable): Task[Option[A]] => Task[A] =
-    ZIO.require[Throwable, A](error)
+    ZIO.require[Any, Throwable, A](error)
 
   /**
    * @see See [[zio.ZIO.reserve]]

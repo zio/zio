@@ -29,13 +29,8 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-trait ZStreamChunk[-R, +E, @specialized +A] { self =>
-  import ZStream.InputStream
-
-  /**
-   * The stream of chunks underlying this stream
-   */
-  val chunks: ZStream[R, E, Chunk[A]]
+class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+  import ZStream.Pull
 
   /**
    * Concatenates with another stream in strict order
@@ -54,32 +49,31 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * evaluates to `true`.
    */
   final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
-    ZStreamChunk(
-      new ZStream[R, E, Chunk[A]] {
-        override def process: ZManaged[R, E, InputStream[R, E, Chunk[A]]] =
-          for {
-            chunks          <- self.chunks.process
-            keepDroppingRef <- Ref.make(true).toManaged_
-            pull = {
-              def go: InputStream[R, E, Chunk[A]] =
-                chunks.flatMap { chunk =>
-                  keepDroppingRef.get.flatMap { keepDropping =>
-                    if (!keepDropping) InputStream.emit(chunk)
-                    else {
-                      val remaining = chunk.dropWhile(pred)
-                      val empty     = remaining.length <= 0
+    ZStreamChunk {
+      ZStream[R, E, Chunk[A]] {
+        for {
+          chunks          <- self.chunks.process
+          keepDroppingRef <- Ref.make(true).toManaged_
+          pull = {
+            def go: Pull[R, E, Chunk[A]] =
+              chunks.flatMap { chunk =>
+                keepDroppingRef.get.flatMap { keepDropping =>
+                  if (!keepDropping) Pull.emit(chunk)
+                  else {
+                    val remaining = chunk.dropWhile(pred)
+                    val empty     = remaining.length <= 0
 
-                      if (empty) go
-                      else keepDroppingRef.set(false).as(remaining)
-                    }
+                    if (empty) go
+                    else keepDroppingRef.set(false).as(remaining)
                   }
                 }
+              }
 
-              go
-            }
-          } yield pull
+            go
+          }
+        } yield pull
       }
-    )
+    }
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
@@ -183,13 +177,13 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
     ZStreamChunk(chunks.mapM(_.mapM(f0)))
 
-  final def process: ZManaged[R, E, InputStream[R, E, A]] =
+  final def process =
     for {
       chunks   <- self.chunks.process
       chunkRef <- Ref.make[Chunk[A]](Chunk.empty).toManaged_
       indexRef <- Ref.make(0).toManaged_
       pull = {
-        def go: InputStream[R, E, A] =
+        def go: Pull[R, E, A] =
           chunkRef.get.flatMap { chunk =>
             indexRef.get.flatMap { index =>
               if (index < chunk.length) indexRef.set(index + 1).as(chunk(index))
@@ -215,13 +209,13 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * evaluates to `true`.
    */
   final def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
-    ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def process =
+    ZStreamChunk {
+      ZStream[R, E, Chunk[A]] {
         for {
           chunks  <- self.chunks.process
           doneRef <- Ref.make(false).toManaged_
           pull = doneRef.get.flatMap { done =>
-            if (done) InputStream.end
+            if (done) Pull.end
             else
               for {
                 chunk     <- chunks
@@ -230,7 +224,8 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
               } yield remaining
           }
         } yield pull
-    })
+      }
+    }
 
   /**
    * Adds an effect to consumption of every element of the stream.
@@ -275,31 +270,23 @@ object ZStreamChunk {
    * The empty stream of chunks
    */
   final val empty: StreamChunk[Nothing, Nothing] =
-    new StreamChunk[Nothing, Nothing] {
-      val chunks = Stream.empty
-    }
+    new StreamChunk[Nothing, Nothing](Stream.empty)
 
   /**
    * Creates a `ZStreamChunk` from a stream of chunks
    */
   final def apply[R, E, A](chunkStream: ZStream[R, E, Chunk[A]]): ZStreamChunk[R, E, A] =
-    new ZStreamChunk[R, E, A] {
-      val chunks = chunkStream
-    }
+    new ZStreamChunk[R, E, A](chunkStream)
 
   /**
    * Creates a `ZStreamChunk` from a variable list of chunks
    */
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A] {
-      val chunks = Stream.fromIterable(as)
-    }
+    new StreamChunk[Nothing, A](Stream.fromIterable(as))
 
   /**
    * Creates a `ZStreamChunk` from a chunk
    */
   final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A] {
-      val chunks = Stream.succeed(as)
-    }
+    new StreamChunk[Nothing, A](Stream.succeed(as))
 }

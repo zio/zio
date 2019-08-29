@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,23 @@
  * limitations under the License.
  */
 
-package zio
+package zio.test
 
-trait App extends DefaultRuntime {
+/**
+ * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
+ */
+abstract class RunnableSpec[L, T](runner0: TestRunner[L, T])(spec0: => Spec[L, T]) extends AbstractRunnableSpec {
+  override type Label = L
+  override type Test  = T
+
+  override def runner = runner0
+  override def spec   = spec0
 
   /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
+   * A simple main function that can be used to run the spec.
+   *
+   * TODO: Parse command line options.
    */
-  def run(args: List[String]): ZIO[Environment, Nothing, Int]
-
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList))(_ => ())
+  final def main(args: Array[String]): Unit =
+    runner.unsafeRunAsync(spec)(_ => ())
 }

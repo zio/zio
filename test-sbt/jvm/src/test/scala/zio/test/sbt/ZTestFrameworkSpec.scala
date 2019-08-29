@@ -16,24 +16,22 @@
 
 package zio.test.sbt
 
-import java.util.concurrent.atomic.AtomicReference
-
 import sbt.testing._
 import zio.test.sbt.TestingSupport._
-import zio.test.{ DefaultRunnableSpec, Predicate, TestAspect }
+import zio.test.{ Assertion, DefaultRunnableSpec, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.control.NonFatal
-import scala.util.{ Failure, Try }
 
 object ZTestFrameworkSpec {
 
   def main(args: Array[String]): Unit =
-    run(
-      test("should return correct fingerprints")(testFingerprints()),
-      test("should report events")(testReportEvents()),
-      test("should log messages")(testLogMessages())
-    )
+    run(tests: _*)
+
+  def tests = Seq(
+    test("should return correct fingerprints")(testFingerprints()),
+    test("should report events")(testReportEvents()),
+    test("should log messages")(testLogMessages())
+  )
 
   def testFingerprints() = {
     val fingerprints = new ZTestFramework().fingerprints.toSeq
@@ -69,8 +67,9 @@ object ZTestFrameworkSpec {
           List(
             s"info: ${red("- some suite")}",
             s"info:   ${red("- failing test")}",
-            s"info:     ${blue("1")} did not satisfy ${cyan("equals(2)")}",
-            s"info:   ${green("+")} passing test"
+            s"info:     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
+            s"info:   ${green("+")} passing test",
+            s"info: ${cyan("Ran 3 tests in 0 seconds: 1 succeeded, 1 ignored, 1 failed")}"
           )
         )
       )
@@ -91,63 +90,14 @@ object ZTestFrameworkSpec {
       extends DefaultRunnableSpec(
         zio.test.suite("some suite")(
           zio.test.test("failing test") {
-            zio.test.assert(1, Predicate.equals(2))
+            zio.test.assert(1, Assertion.equalTo(2))
           },
           zio.test.test("passing test") {
-            zio.test.assert(1, Predicate.equals(1))
+            zio.test.assert(1, Assertion.equalTo(1))
           },
           zio.test.test("ignored test") {
-            zio.test.assert(1, Predicate.equals(2))
+            zio.test.assert(1, Assertion.equalTo(2))
           } @@ TestAspect.ignore
         )
       )
-
-  class MockLogger extends Logger {
-    private val logged = new AtomicReference(Vector.empty[String])
-    private def log(str: String) = {
-      logged.getAndUpdate(_ :+ str)
-      ()
-    }
-    def messages: Seq[String] = logged.get()
-
-    override def ansiCodesSupported(): Boolean = false
-    override def error(msg: String): Unit      = log(s"error: $msg")
-    override def warn(msg: String): Unit       = log(s"warn: $msg")
-    override def info(msg: String): Unit       = log(s"info: $msg")
-    override def debug(msg: String): Unit      = log(s"debug: $msg")
-    override def trace(t: Throwable): Unit     = log(s"trace: $t")
-  }
-
-}
-
-object TestingSupport {
-  def test[T](l: String)(body: => Unit): Try[Unit] =
-    Try {
-      body
-      println(s"${green("+")} $l")
-    }.recoverWith {
-      case NonFatal(e) =>
-        println(s"${red("-")} $l: ${e.getMessage}")
-        e.printStackTrace()
-        Failure(e)
-    }
-
-  def run(tests: Try[Unit]*) = {
-    val failed       = tests.count(_.isFailure)
-    val successful   = tests.count(_.isSuccess)
-    val failedCount  = if (failed > 0) red(s"failed: $failed") else s"failed: $failed"
-    val successCount = if (successful > 0) green(s"successful: $successful") else s"successful: $successful"
-    println(s"Summary: $failedCount, $successCount")
-    if (failed > 0)
-      throw new AssertionError(s"$failed tests failed")
-  }
-
-  def assertEquals(what: String, actual: => Any, expected: Any) =
-    assert(actual == expected, s"$what:\n  expected: `$expected`\n  actual  : `$actual`")
-
-  def colored(code: String)(str: String) = s"$code$str${Console.RESET}"
-  lazy val red                           = colored(Console.RED) _
-  lazy val green                         = colored(Console.GREEN) _
-  lazy val cyan                          = colored(Console.CYAN) _
-  lazy val blue                          = colored(Console.BLUE) _
 }

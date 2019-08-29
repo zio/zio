@@ -6,7 +6,7 @@ import java.time.ZoneId
 import zio._
 import zio.duration._
 import zio.test.mock.MockClock.DefaultData
-import zio.test.TestUtils.label
+import zio.test.TestUtils.{ label, nonFlaky }
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
@@ -28,19 +28,23 @@ object ClockSpec extends DefaultRuntime {
     label(e12, "setTime correctly sets currentDateTime"),
     label(e13, "setTime does not produce sleeps "),
     label(e14, "setTimeZone correctly sets timeZone"),
-    label(e15, "setTimeZone does not produce sleeps ")
+    label(e15, "setTimeZone does not produce sleeps "),
+    label(e16, "timeout example from documentation works correctly"),
+    label(e17, "recurrence example from documentation works correctly")
   )
 
   def e1 =
-    unsafeRunToFuture(
-      for {
-        mockClock <- MockClock.makeMock(DefaultData)
-        latch     <- Promise.make[Nothing, Unit]
-        _         <- mockClock.sleep(10.hours).flatMap(_ => latch.succeed(())).fork
-        _         <- mockClock.adjust(11.hours)
-        _         <- latch.await
-      } yield true
-    )
+    unsafeRunToFuture {
+      nonFlaky {
+        for {
+          mockClock <- MockClock.makeMock(DefaultData)
+          latch     <- Promise.make[Nothing, Unit]
+          _         <- mockClock.sleep(10.hours).flatMap(_ => latch.succeed(())).fork
+          _         <- mockClock.adjust(11.hours)
+          _         <- latch.await
+        } yield true
+      }
+    }
 
   def e2 =
     unsafeRunToFuture(
@@ -54,43 +58,48 @@ object ClockSpec extends DefaultRuntime {
     )
 
   def e3 =
-    unsafeRunToFuture(
-      for {
-        mockClock <- MockClock.makeMock(DefaultData)
-        latch1    <- Promise.make[Nothing, Unit]
-        latch2    <- Promise.make[Nothing, Unit]
-        ref       <- Ref.make("")
-        _         <- mockClock.sleep(3.hours).flatMap(_ => ref.update(_ + "World!")).flatMap(_ => latch2.succeed(())).fork
-        _         <- mockClock.sleep(1.hours).flatMap(_ => ref.update(_ + "Hello, ")).flatMap(_ => latch1.succeed(())).fork
-        _         <- mockClock.adjust(2.hours)
-        _         <- latch1.await
-        _         <- mockClock.adjust(2.hours)
-        _         <- latch2.await
-        result    <- ref.get
-      } yield result == "Hello, World!"
-    )
+    unsafeRunToFuture {
+      nonFlaky {
+        for {
+          mockClock <- MockClock.makeMock(DefaultData)
+          latch1    <- Promise.make[Nothing, Unit]
+          latch2    <- Promise.make[Nothing, Unit]
+          ref       <- Ref.make("")
+          _         <- mockClock.sleep(3.hours).flatMap(_ => ref.update(_ + "World!")).flatMap(_ => latch2.succeed(())).fork
+          _         <- mockClock.sleep(1.hours).flatMap(_ => ref.update(_ + "Hello, ")).flatMap(_ => latch1.succeed(())).fork
+          _         <- mockClock.adjust(2.hours)
+          _         <- latch1.await
+          _         <- mockClock.adjust(2.hours)
+          _         <- latch2.await
+          result    <- ref.get
+        } yield result == "Hello, World!"
+      }
+    }
 
   def e4 =
-    unsafeRunToFuture(
-      for {
-        mockClock <- MockClock.makeMock(DefaultData)
-        latch     <- Promise.make[Nothing, Unit]
-        _         <- mockClock.sleep(10.hours).flatMap(_ => latch.succeed(())).fork
-        _         <- mockClock.setTime(11.hours)
-        _         <- latch.await
-      } yield true
-    )
+    unsafeRunToFuture {
+      nonFlaky {
+        for {
+          mockClock <- MockClock.makeMock(DefaultData)
+          latch     <- Promise.make[Nothing, Unit]
+          _         <- mockClock.sleep(10.hours).flatMap(_ => latch.succeed(())).fork
+          _         <- mockClock.setTime(11.hours)
+          _         <- latch.await
+        } yield true
+      }
+    }
 
   def e5 =
-    unsafeRunToFuture(
-      for {
-        mockClock <- MockClock.makeMock(DefaultData)
-        latch     <- Promise.make[Nothing, Unit]
-        _         <- mockClock.setTime(11.hours)
-        _         <- mockClock.sleep(10.hours).flatMap(_ => latch.succeed(()))
-        _         <- latch.await
-      } yield true
-    )
+    unsafeRunToFuture {
+      nonFlaky {
+        for {
+          mockClock <- MockClock.makeMock(DefaultData)
+          latch     <- Promise.make[Nothing, Unit]
+          _         <- (mockClock.setTime(11.hours) *> latch.succeed(())).fork
+          _         <- latch.await *> mockClock.sleep(10.hours)
+        } yield true
+      }
+    }
 
   def e6 =
     unsafeRunToFuture(
@@ -184,4 +193,34 @@ object ClockSpec extends DefaultRuntime {
         sleeps    <- mockClock.sleeps
       } yield sleeps == Nil
     )
+
+  def e16 =
+    unsafeRunToFuture {
+      nonFlaky {
+        val io = for {
+          fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
+          _      <- MockClock.adjust(1.minute)
+          result <- fiber.join
+        } yield result == None
+        io.provideSomeM(MockClock.make(MockClock.DefaultData))
+      }
+    }
+
+  def e17 =
+    unsafeRunToFuture {
+      nonFlaky {
+        val io = for {
+          q <- Queue.unbounded[Unit]
+          _ <- (q.offer(()).delay(60.minutes)).forever.fork
+          a <- q.poll.map(_.isEmpty)
+          _ <- MockClock.adjust(60.minutes)
+          b <- q.take.as(true)
+          c <- q.poll.map(_.isEmpty)
+          _ <- MockClock.adjust(60.minutes)
+          d <- q.take.as(true)
+          e <- q.poll.map(_.isEmpty)
+        } yield a && b && c && d && e
+        io.provideSomeM(MockClock.make(MockClock.DefaultData))
+      }
+    }
 }

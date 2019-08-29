@@ -17,6 +17,7 @@
 package zio.test
 
 import zio._
+import zio.clock.Clock
 import zio.console.Console
 import zio.internal.{ Platform, PlatformLive }
 
@@ -28,28 +29,36 @@ import zio.internal.{ Platform, PlatformLive }
 case class TestRunner[L, -T](
   executor: TestExecutor[L, T],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[L] = DefaultTestReporter(Console.Live)
+  reporter: TestReporter[L] = DefaultTestReporter()
 ) { self =>
+
+  final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
 
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: Spec[L, T]): UIO[ExecutedSpec[L]] =
-    executor(spec, ExecutionStrategy.ParallelN(4)).flatMap { results =>
-      reporter(results) *> ZIO.succeed(results)
+  final def run(spec: Spec[L, T]): URIO[TestLogger with Clock, ExecutedSpec[L]] =
+    executor(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
+      case (duration, results) => reporter(duration, results).as(results)
     }
 
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRun(spec: Spec[L, T]): ExecutedSpec[L] =
-    Runtime((), platform).unsafeRun(run(spec))
+  final def unsafeRun(
+    spec: Spec[L, T],
+    testLogger: TestLogger = defaultTestLogger,
+    clock: Clock = Clock.Live
+  ): ExecutedSpec[L] =
+    Runtime((), platform).unsafeRun(run(spec).provide(buildEnv(testLogger, clock)))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
-  final def unsafeRunAsync(spec: Spec[L, T])(k: ExecutedSpec[L] => Unit): Unit =
-    Runtime((), platform).unsafeRunAsync(run(spec)) {
+  final def unsafeRunAsync(spec: Spec[L, T], testLogger: TestLogger = defaultTestLogger, clock: Clock = Clock.Live)(
+    k: ExecutedSpec[L] => Unit
+  ): Unit =
+    Runtime((), platform).unsafeRunAsync(run(spec).provide(buildEnv(testLogger, clock))) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -57,11 +66,20 @@ case class TestRunner[L, -T](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRunSync(spec: Spec[L, T]): Exit[Nothing, ExecutedSpec[L]] =
-    Runtime((), platform).unsafeRunSync(run(spec))
+  final def unsafeRunSync(
+    spec: Spec[L, T],
+    testLogger: TestLogger = defaultTestLogger,
+    clock: Clock = Clock.Live
+  ): Exit[Nothing, ExecutedSpec[L]] =
+    Runtime((), platform).unsafeRunSync(run(spec).provide(buildEnv(testLogger, clock)))
 
   /**
    * Creates a copy of this runner replacing the reporter.
    */
   final def withReporter(reporter: TestReporter[L]) = copy(reporter = reporter)
+
+  private def buildEnv(loggerSvc: TestLogger, clockSvc: Clock): TestLogger with Clock = new TestLogger with Clock {
+    override def testLogger: TestLogger.Service = loggerSvc.testLogger
+    override val clock: Clock.Service[Any]      = clockSvc.clock
+  }
 }

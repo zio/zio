@@ -2,6 +2,9 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
+import zio.{ Schedule, ZIO }
+import zio.clock.Clock
+
 object TestUtils {
 
   def label(f: Future[Boolean], s: String)(implicit ec: ExecutionContext): Future[(Boolean, String)] =
@@ -11,6 +14,9 @@ object TestUtils {
       else
         (p, fail(s))
     }.recover { case _ => (false, fail(s)) }
+
+  def nonFlaky[R, E](test: ZIO[R, E, Boolean]): ZIO[R with Clock, E, Boolean] =
+    test.repeat(Schedule.recurs(100) *> Schedule.identity[Boolean])
 
   def scope(fs: List[Future[(Boolean, String)]], s: String)(
     implicit ec: ExecutionContext

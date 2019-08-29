@@ -122,6 +122,12 @@ sealed trait Chunk[@specialized +A] { self =>
   }
 
   /**
+   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
+   */
+  def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
+    flatMap(ev(_))
+
+  /**
    * Returns the concatenation of mapping every element into a new chunk using
    * the specified function.
    */
