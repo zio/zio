@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ DefaultRuntime, Managed, UIO, ZIO }
+import zio.{ DefaultRuntime, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.mock.MockRandom
@@ -367,18 +367,18 @@ object GenSpec extends DefaultRuntime {
     unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)))
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val mockRandom = Managed.fromEffect(MockRandom.make(MockRandom.DefaultData))
+    val mockRandom = MockRandom.make(MockRandom.DefaultData)
     for {
-      leftSample  <- sample(left).provideManaged(mockRandom)
-      rightSample <- sample(right).provideManaged(mockRandom)
+      leftSample  <- sample(left).provideM(mockRandom)
+      rightSample <- sample(right).provideM(mockRandom)
     } yield leftSample == rightSample
   }
 
   def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val mockRandom = Managed.fromEffect(MockRandom.make(MockRandom.DefaultData))
+    val mockRandom = MockRandom.make(MockRandom.DefaultData)
     for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(mockRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(mockRandom)
+      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideM(mockRandom)
+      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideM(mockRandom)
     } yield leftShrinks == rightShrinks
   }
 
