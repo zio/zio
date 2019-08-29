@@ -191,6 +191,8 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
 
 lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm
+  .settings(dottySettings)
+  .settings(replSettings)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
