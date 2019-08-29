@@ -812,7 +812,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * takes to produce a value.
    */
   final def fixed[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
-    schedule((ZSchedule.identity[A1] && (ZSchedule.spaced(duration) && Schedule.recurs(0))).map(_._1))
+    scheduleEither((ZSchedule.identity[A1] && (ZSchedule.spaced(duration) && Schedule.recurs(0))).map(_._1)).collect {
+      case Right(x) => x
+    }
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
@@ -1537,27 +1539,33 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
 
-  final def schedule[R1 <: R, E1 >: E, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E1, B] =
-    ZStream[R1 with Clock, E1, B] {
+  final def scheduleEither[R1 <: R, E1 >: E, B](
+    schedule: ZSchedule[R1, A, B]
+  ): ZStream[R1 with Clock, E1, Either[B, A]] =
+    scheduleWith(schedule)(Right.apply, Left.apply)
+
+  final def scheduleWith[R1 <: R, E1 >: E, B, C](
+    schedule: ZSchedule[R1, A, B]
+  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
+    ZStream[R1 with Clock, E1, C] {
       for {
         as    <- self.process
         state <- Ref.make[Option[(A, schedule.State)]](None).toManaged_
-        pull: Pull[R1 with Clock, E1, B] = {
-          def go: Pull[R1 with Clock, E1, B] = state.get.flatMap {
+        pull = {
+          def go: Pull[R1 with Clock, E1, C] = state.get.flatMap {
             case None =>
               for {
                 a    <- as
                 init <- schedule.initial
                 _    <- state.set(Some(a -> init))
-                b    <- go
-              } yield b
+              } yield f(a)
 
             case Some((a, sched)) =>
               for {
                 decision <- schedule.update(a, sched)
                 _        <- clock.sleep(decision.delay)
                 _        <- state.set(if (decision.cont) Some(a -> decision.state) else None)
-              } yield decision.finish()
+              } yield if (decision.cont) f(a) else g(decision.finish())
           }
 
           go
@@ -1572,51 +1580,14 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * `spaced(Schedule.once)` means "emit element and if not short circuited, repeat element once".
    */
   final def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
-    spacedEither(schedule).map(_.merge)
+    scheduleEither(schedule).map(_.merge)
 
   /**
    * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
    */
+  @deprecated("use scheduleEither", "1.0.0")
   final def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
-    ZStream {
-      sealed trait State
-      object State {
-        case class Initial(sched: schedule.State)                               extends State
-        case class SleepAndFinish(delay: Duration, b: B)                        extends State
-        case class SleepAndRepeat(sched: schedule.State, delay: Duration, a: A) extends State
-      }
-
-      def decide(decision: ZSchedule.Decision[schedule.State, B], a: A): State =
-        if (decision.cont) State.SleepAndRepeat(decision.state, decision.delay, a)
-        else State.SleepAndFinish(decision.delay, decision.finish())
-
-      for {
-        as    <- self.process
-        init  <- schedule.initial.toManaged_
-        state <- Ref.make[State](State.Initial(init)).toManaged_
-        pull = state.get.flatMap {
-          case State.Initial(sched) =>
-            for {
-              a        <- as
-              decision <- schedule.update(a, sched)
-              _        <- state.set(decide(decision, a))
-            } yield Right(a)
-
-          case State.SleepAndRepeat(sched, delay, a) =>
-            for {
-              _        <- clock.sleep(delay)
-              decision <- schedule.update(a, sched)
-              _        <- state.set(decide(decision, a))
-            } yield Right(a)
-
-          case State.SleepAndFinish(delay, b) =>
-            for {
-              _ <- clock.sleep(delay)
-              _ <- state.set(State.Initial(init))
-            } yield Left(b)
-        }
-      } yield pull
-    }
+    scheduleEither(schedule)
 
   /**
    * Takes the specified number of elements from this stream.

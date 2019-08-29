@@ -184,9 +184,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     repeat                  $repeat
     short circuits          $repeatShortCircuits
 
-  Stream.spaced
+  Stream.schedule
+    scheduleWith                  $scheduleWith
+    scheduleEither                $scheduleEither
     spaced                        $spaced
-    spacedEither                  $spacedEither
     repeated and spaced           $repeatedAndSpaced
     short circuits in schedule    $spacedShortCircuitsWhileInSchedule
     short circuits after schedule $spacedShortCircuitsAfterScheduleFinished
@@ -1479,10 +1480,18 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         .map(_ must_=== List("A", "!", "B", "!", "C", "!"))
     )
 
-  private def spacedEither =
+  private def scheduleWith =
     unsafeRun(
       Stream("A", "B", "C")
-        .spacedEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+        .scheduleWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(identity, _.toString)
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "123", "B", "123", "C", "123"))
+    )
+
+  private def scheduleEither =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .scheduleEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
         .run(Sink.collectAll[Either[Int, String]])
         .map(_ must_=== List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123)))
     )
@@ -1490,7 +1499,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def repeatedAndSpaced =
     unsafeRun(
       Stream("A", "B", "C")
-        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .spaced(Schedule.recurs(1) >>> Schedule.fromFunction((_) => "!"))
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
     )
@@ -1782,7 +1791,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         .take(8)
         .runCollect
         .tap(_ => release)
-        .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 1 -> 3, 2 -> 3, 2 -> 4, 3 -> 4))
+        .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 2 -> 2, 2 -> 3, 2 -> 4, 3 -> 4))
     }
   }
 
