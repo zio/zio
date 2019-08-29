@@ -189,7 +189,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
 
-lazy val examplesJS  = examples.js
+lazy val examplesJS = examples.js
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .settings(replSettings)
