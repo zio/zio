@@ -32,7 +32,7 @@ import scala.collection.immutable.{ Queue => IQueue }
  * available result in the acquiring fiber being suspended until the specified
  * number of permits become available.
  **/
-final class Semaphore private (private val state: Ref[State]) extends Serializable {
+final class Semaphore private (private val state: Ref[State], private val permits0: Long) extends Serializable {
 
   /**
    * Acquires a single permit. This must be paired with `release` in a safe
@@ -61,6 +61,11 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     case Left(_)  => 0
     case Right(n) => n
   }
+
+  /**
+   * Returns the number of permits this semaphore has.
+   */
+  final val permits: Long = permits0
 
   /**
    * Releases a single permit.
@@ -155,7 +160,8 @@ object Semaphore extends Serializable {
   /**
    * Creates a new `Sempahore` with the specified number of permits.
    */
-  final def make(permits: Long): UIO[Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
+  final def make(permits: Long): UIO[Semaphore] =
+    Ref.make[State](Right(permits)).map(ref => new Semaphore(ref, permits))
 }
 
 private object internals {
