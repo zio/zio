@@ -30,7 +30,7 @@ inThisBuild(
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
-addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
+addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile;examplesJVM/test:compile")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run"
