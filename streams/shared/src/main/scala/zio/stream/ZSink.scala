@@ -210,7 +210,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
               self.extract(s).flatMap { b =>
                 self.initial.flatMap { init =>
-                  self.stepChunk[A1](Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
+                  self.stepChunk(Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
                 }
               }
             }
@@ -239,7 +239,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
               self.extract(s).flatMap { b =>
                 self.initial.flatMap { init =>
-                  self.stepChunk[A1](Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
+                  self.stepChunk(Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
                 }
               }
             }
@@ -341,7 +341,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
                 that.initial.flatMap(
                   s2 =>
                     that
-                      .stepChunk[A1](Step.state(s2), as.map(ev))
+                      .stepChunk(Step.state(s2), as.map(ev))
                       .map(Step.leftMap(_)(s2 => Right((that, s2)))): ZIO[R1, E1, Step[State, A00]] // TODO: Dotty doesn't infer this properly
                 )
               }
@@ -653,7 +653,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Steps through a chunk of iterations of the sink
    */
-  final def stepChunk[A1 <: A](state: State, as: Chunk[A1]): ZIO[R, E, Step[State, A0]] = {
+  final def stepChunk(state: State, as: Chunk[A]): ZIO[R, E, Step[State, A0]] = {
     val len = as.length
 
     def loop(s: Step[State, A0], i: Int): ZIO[R, E, Step[State, A0]] =
