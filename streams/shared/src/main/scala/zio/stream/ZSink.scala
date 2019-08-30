@@ -82,26 +82,22 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, B1] =
     (self orElse that).map(_.merge)
 
-  /**
-   * Returns a new sink that tries to produce the `B`, but if there is an
-   * error in stepping or extraction, produces `None`.
-   */
-  final def ? : ZSink[R, Nothing, A0, A, Option[B]] =
-    new ZSink[R, Nothing, A0, A, Option[B]] {
+  private[ZSink] final def ?[A00 >: A0, A1 <: A](implicit ev: A1 =:= A00): ZSink[R, Nothing, A00, A1, Option[B]] =
+    new ZSink[R, Nothing, A00, A1, Option[B]] {
       type State = Option[self.State]
 
       val initial = self.initial.map(Step.leftMap(_)(Option(_))) orElse
         IO.succeed(Step.done(None, Chunk.empty))
 
-      def step(state: State, a: A): ZIO[R, Nothing, Step[State, A0]] =
+      def step(state: State, a: A1) =
         state match {
-          case None => IO.succeed(Step.done(state, Chunk.empty))
+          case None => IO.succeed(Step.done(None, Chunk.single(a)))
           case Some(state) =>
             self
               .step(state, a)
-              .foldM(
-                _ => IO.succeed(Step.done[State, A0](Some(state), Chunk.empty)),
-                s => IO.succeed(Step.leftMap(s)(Some(_)))
+              .fold(
+                _ => Step.done(None, Chunk.single(a)),
+                s => Step.leftMap(s)(Some(_))
               )
         }
 
@@ -141,35 +137,25 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
    */
-  final def chunked[A1 >: A0, A2 <: A]: ZSink[R, E, A1, Chunk[A2], B] =
-    new ZSink[R, E, A1, Chunk[A2], B] {
+  final def chunked: ZSink[R, E, A0, Chunk[A], B] =
+    new ZSink[R, E, A0, Chunk[A], B] {
       type State = self.State
-      val initial = self.initial
-      def step(state: State, a: Chunk[A2]): ZIO[R, E, Step[State, A1]] =
-        self.stepChunk(state, a)
-      def extract(state: State): ZIO[R, E, B] = self.extract(state)
+      val initial                         = self.initial
+      def step(state: State, a: Chunk[A]) = self.stepChunk(state, a)
+      def extract(state: State)           = self.extract(state)
     }
 
-  /**
-   * Accumulates the output into a list.
-   */
-  final def collectAll[A00 >: A0, A1 <: A](implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, List[B]] =
+  private[ZSink] final def collectAll[A00 >: A0, A1 <: A](implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, List[B]] =
     collectAllWith[List[B], A00, A1](List.empty[B])((bs, b) => b :: bs).map(_.reverse)
 
-  /**
-   * Accumulates the output into a list of maximum size `i`.
-   */
-  final def collectAllN[A00 >: A0, A1 <: A](
+  private[ZSink] final def collectAllN[A00 >: A0, A1 <: A](
     i: Int
   )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, List[B]] =
     collectUntil[(List[B], Int), A00, A1]((Nil, 0))(_._2 < i) {
       case ((bs, len), b) => (b :: bs, len + 1)
     }.map(_._1.reverse)
 
-  /**
-   * Accumulates the output into a value of type `S`.
-   */
-  final def collectAllWith[S, A00 >: A0, A1 <: A](
+  private[ZSink] final def collectAllWith[S, A00 >: A0, A1 <: A](
     z: S
   )(f: (S, B) => S)(implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, S] =
     new ZSink[R, E, A00, A1, S] {
@@ -199,19 +185,13 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State) = UIO.succeed(state._1)
     }
 
-  /**
-   * Accumulates into a list for as long as incoming values verify predicate `p`.
-   */
-  final def collectAllWhile[A00 >: A0, A1 <: A](
+  private[ZSink] final def collectAllWhile[A00 >: A0, A1 <: A](
     p: A00 => Boolean
   )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, List[B]] =
     collectAllWhileWith[List[B], A00, A1](p)(List.empty[B])((bs, b) => b :: bs)
       .map(_.reverse)
 
-  /**
-   * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
-   */
-  final def collectAllWhileWith[S, A00 >: A0, A1 <: A](
+  private[ZSink] final def collectAllWhileWith[S, A00 >: A0, A1 <: A](
     p: A00 => Boolean
   )(z: S)(f: (S, B) => S)(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, S] =
     new ZSink[R, E, A00, A1, S] {
@@ -230,7 +210,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
               self.extract(s).flatMap { b =>
                 self.initial.flatMap { init =>
-                  self.stepChunk[A1](Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
+                  self.stepChunk(Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
                 }
               }
             }
@@ -240,10 +220,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
         IO.succeed(state._1)
     }
 
-  /**
-   * Accumulates into a value of type `S` for as long as the state satisfies the predicate `p`.
-   */
-  final def collectUntil[S, A00 >: A0, A1 <: A](
+  private[ZSink] final def collectUntil[S, A00 >: A0, A1 <: A](
     z: S
   )(p: S => Boolean)(f: (S, B) => S)(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, S] =
     new ZSink[R, E, A00, A1, S] {
@@ -262,7 +239,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
               self.extract(s).flatMap { b =>
                 self.initial.flatMap { init =>
-                  self.stepChunk[A1](Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
+                  self.stepChunk(Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
                 }
               }
             }
@@ -364,7 +341,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
                 that.initial.flatMap(
                   s2 =>
                     that
-                      .stepChunk[A1](Step.state(s2), as.map(ev))
+                      .stepChunk(Step.state(s2), as.map(ev))
                       .map(Step.leftMap(_)(s2 => Right((that, s2)))): ZIO[R1, E1, Step[State, A00]] // TODO: Dotty doesn't infer this properly
                 )
               }
@@ -512,10 +489,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R, E, B] = self.extract(state)
     }
 
-  /**
-   * A named alias for `?`.
-   */
-  final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self.?
+  private[ZSink] final def optional[A00 >: A0, A1 <: A](
+    implicit ev: A1 =:= A00
+  ): ZSink[R, Nothing, A00, A1, Option[B]] = self.?[A00, A1]
 
   /**
    * Runs both sinks in parallel on the same input. If the left one succeeds,
@@ -677,7 +653,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Steps through a chunk of iterations of the sink
    */
-  final def stepChunk[A1 <: A](state: State, as: Chunk[A1]): ZIO[R, E, Step[State, A0]] = {
+  final def stepChunk(state: State, as: Chunk[A]): ZIO[R, E, Step[State, A0]] = {
     val len = as.length
 
     def loop(s: Step[State, A0], i: Int): ZIO[R, E, Step[State, A0]] =
@@ -932,6 +908,99 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 }
 
 object ZSink extends ZSinkPlatformSpecific {
+
+  implicit class InputRemainderOps[R, E, A, B](val sink: ZSink[R, E, A, A, B]) extends AnyVal {
+
+    /**
+     * Returns a new sink that tries to produce the `B`, but if there is an
+     * error in stepping or extraction, produces `None`.
+     */
+    final def ? : ZSink[R, E, A, A, Option[B]] = sink.?
+
+    /**
+     * Accumulates the output into a list.
+     */
+    final def collectAll: ZSink[R, E, A, A, List[B]] = sink.collectAll
+
+    /**
+     * Accumulates the output into a list of maximum size `i`.
+     */
+    final def collectAllN(i: Int): ZSink[R, E, A, A, List[B]] = sink.collectAllN(i)
+
+    /**
+     * Accumulates the output into a value of type `S`.
+     */
+    final def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = sink.collectAllWith(z)(f)
+
+    /**
+     * Accumulates into a list for as long as incoming values verify predicate `p`.
+     */
+    final def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] = sink.collectAllWhile(p)
+
+    /**
+     * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
+     */
+    final def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
+      sink.collectAllWhileWith(p)(z)(f)
+
+    /**
+     * Accumulates into a value of type `S` for as long as the state satisfies the predicate `p`.
+     */
+    final def collectUntil[S](z: S)(p: S => Boolean)(f: (S, B) => S): ZSink[R, E, A, A, S] =
+      sink.collectUntil(z)(p)(f)
+
+    /**
+     * A named alias for `?`.
+     */
+    final def optional: ZSink[R, E, A, A, Option[B]] = sink.optional
+  }
+
+  implicit class NoRemainderOps[R, E, A, B](val sink: ZSink[R, E, Nothing, A, B]) extends AnyVal {
+
+    /**
+     * Returns a new sink that tries to produce the `B`, but if there is an
+     * error in stepping or extraction, produces `None`.
+     */
+    final def ? : ZSink[R, E, A, A, Option[B]] = sink.?
+
+    /**
+     * Accumulates the output into a list.
+     */
+    final def collectAll: ZSink[R, E, A, A, List[B]] = sink.collectAll
+
+    /**
+     * Accumulates the output into a list of maximum size `i`.
+     */
+    final def collectAllN(i: Int): ZSink[R, E, A, A, List[B]] = sink.collectAllN(i)
+
+    /**
+     * Accumulates the output into a value of type `S`.
+     */
+    final def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = sink.collectAllWith(z)(f)
+
+    /**
+     * Accumulates into a list for as long as incoming values verify predicate `p`.
+     */
+    final def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] = sink.collectAllWhile(p)
+
+    /**
+     * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
+     */
+    final def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
+      sink.collectAllWhileWith(p)(z)(f)
+
+    /**
+     * Accumulates into a value of type `S` for as long as the state satisfies the predicate `p`.
+     */
+    final def collectUntil[S](z: S)(p: S => Boolean)(f: (S, B) => S): ZSink[R, E, A, A, S] =
+      sink.collectUntil(z)(p)(f)
+
+    /**
+     * A named alias for `?`.
+     */
+    final def optional: ZSink[R, E, A, A, Option[B]] = sink.optional
+  }
+
   private[ZSink] object internal {
     sealed trait Side[+E, +S, +A]
     object Side {
