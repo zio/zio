@@ -387,7 +387,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   }
 
   private def collectAllHappyPath = {
-    val sink = ZSink.identity[Int].collectAll[Int, Int]
+    val sink = ZSink.identity[Int].collectAll
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
   }
 
@@ -407,12 +407,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   }
 
   private def collectAllNHappyPath = {
-    val sink = ZSink.identity[Int].collectAllN[Int, Int](5)
+    val sink = ZSink.identity[Int].collectAllN(5)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
   }
 
   private def collectAllNEmptyList = {
-    val sink = ZSink.identity[Int].collectAllN[Int, Int](0)
+    val sink = ZSink.identity[Int].collectAllN(0)
     val test = for {
       init     <- sink.initial
       step     <- sink.step(Step.state(init), 1)
@@ -423,43 +423,43 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   }
 
   private def collectAllNInitError = {
-    val sink = initErrorSink.collectAllN[Int, Int](1)
+    val sink = initErrorSink.collectAllN(1)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllNStepError = {
-    val sink = stepErrorSink.collectAllN[Int, Int](1)
+    val sink = stepErrorSink.collectAllN(1)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllNExtractErrorEmptyList = {
-    val sink = extractErrorSink.collectAllN[Int, Int](1)
+    val sink = extractErrorSink.collectAllN(1)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllWhileHappyPath = {
-    val sink = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 10)
+    val sink = ZSink.identity[Int].collectAllWhile(_ < 10)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
   }
 
   private def collectAllWhileFalsePredicate = {
     val errorMsg = "No elements have been consumed by the sink"
-    val sink     = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 0).mapError(_ => errorMsg)
+    val sink     = ZSink.identity[Int].collectAllWhile(_ < 0).mapError(_ => errorMsg)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(errorMsg)))
   }
 
   private def collectAllWhileInitError = {
-    val sink = initErrorSink.collectAllWhile[Int, Int](_ > 1)
+    val sink = initErrorSink.collectAllWhile(_ > 1)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllWhileStepError = {
-    val sink = stepErrorSink.collectAllWhile[Int, Int](_ > 1)
+    val sink = stepErrorSink.collectAllWhile(_ > 1)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllWhileExtractError = {
-    val sink = extractErrorSink.collectAllWhile[Int, Int](_ > 1)
+    val sink = extractErrorSink.collectAllWhile(_ > 1)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
@@ -1331,7 +1331,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       ZSink.read1[String, Char](a => s"Expected closing brace; instead: $a")((_: Char) == ']')
     val number: ZSink[Any, String, Char, Char, Int] =
       ZSink.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt)
-    val numbers = (number <*> (comma *> number).collectAllWhile[Char, Char](_ != ']'))
+    val numbers = (number <*> (comma *> number).collectAllWhile(_ != ']'))
       .map(tp => tp._1 :: tp._2)
 
     val elements = numbers <* brace
