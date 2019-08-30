@@ -17,7 +17,6 @@
 package zio
 
 import zio.duration.Duration
-import zio.stream.{ ZSink, ZStream }
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -42,7 +41,7 @@ import zio.stream.{ ZSink, ZStream }
  *  }
  * }}}
  */
-package object test {
+package object test extends CheckVariants {
   type AssertionResult = AssertResult[AssertionValue]
   type TestResult      = AssertResult[FailureDetails]
 
@@ -104,28 +103,6 @@ package object test {
     value.map(assert(_, assertion))
 
   /**
-   * Checks the assertion holds for "sufficient" numbers of samples from the
-   * given random variable.
-   */
-  final def check[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing] =
-    checkSome(200)(rv)(assertion)
-
-  /**
-   * Checks the assertion holds for all values from the given random variable.
-   * This is useful for deterministic `Gen` that comprehensively explore all
-   * possibilities in a given domain.
-   */
-  final def checkAll[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing] =
-    checkStream(rv.sample)(assertion)
-
-  /**
-   * Checks the assertion holds for the specified number of samples from the
-   * given random variable.
-   */
-  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing] =
-    checkStream(rv.sample.forever.take(n))(assertion)
-
-  /**
    * Creates a failed test result with the specified runtime cause.
    */
   final def fail[E](cause: Cause[E]): TestResult = AssertResult.failure(FailureDetails.Runtime(cause))
@@ -157,24 +134,6 @@ package object test {
       aspect: TestAspect[LowerR, UpperR, LowerE, UpperE]
     ): ZSpec[R, E, L] =
       aspect(spec)
-  }
-
-  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
-    assertion: Assertion[A]
-  ): ZIO[R, Nothing, TestResult] = {
-    def checkValue(value: A): TestResult =
-      assertion.run(value).map(FailureDetails.Assertion(_, AssertionValue(assertion, value)))
-
-    stream
-      .map(_.map(checkValue))
-      .dropWhile(!_.value.failure) // Drop until we get to a failure
-      .take(1)                     // Get the first failure
-      .flatMap(_.shrinkSearch(_.failure).take(maxShrinks))
-      .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
-      .map { failures =>
-        // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[TestResult](AssertResult.Success)(identity)
-      }
   }
 
   val DefaultTestRunner: TestRunner[String, ZTest[mock.MockEnvironment, Any]] =
