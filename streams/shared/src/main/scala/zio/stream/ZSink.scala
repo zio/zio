@@ -137,13 +137,12 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
    */
-  final def chunked[A1 >: A0, A2 <: A]: ZSink[R, E, A1, Chunk[A2], B] =
-    new ZSink[R, E, A1, Chunk[A2], B] {
+  final def chunked: ZSink[R, E, A0, Chunk[A], B] =
+    new ZSink[R, E, A0, Chunk[A], B] {
       type State = self.State
-      val initial = self.initial
-      def step(state: State, a: Chunk[A2]): ZIO[R, E, Step[State, A1]] =
-        self.stepChunk(state, a)
-      def extract(state: State): ZIO[R, E, B] = self.extract(state)
+      val initial                         = self.initial
+      def step(state: State, a: Chunk[A]) = self.stepChunk(state, a)
+      def extract(state: State)           = self.extract(state)
     }
 
   /**
