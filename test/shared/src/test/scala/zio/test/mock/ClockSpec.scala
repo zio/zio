@@ -202,7 +202,7 @@ object ClockSpec extends DefaultRuntime {
           _      <- MockClock.adjust(1.minute)
           result <- fiber.join
         } yield result == None
-        io.provideSomeM(MockClock.make(MockClock.DefaultData))
+        io.provideM(MockClock.make(MockClock.DefaultData))
       }
     }
 
@@ -220,7 +220,7 @@ object ClockSpec extends DefaultRuntime {
           d <- q.take.as(true)
           e <- q.poll.map(_.isEmpty)
         } yield a && b && c && d && e
-        io.provideSomeM(MockClock.make(MockClock.DefaultData))
+        io.provideM(MockClock.make(MockClock.DefaultData))
       }
     }
 }
