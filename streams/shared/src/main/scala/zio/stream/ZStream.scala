@@ -1795,39 +1795,51 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     mapAccum(0)((index, a) => (index + 1, (a, index)))
 
   /**
-   * Operator alias for `zip`
+   * Runs this stream with the specified stream sequentially.
    */
   final def <*>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
-    self zip that
+    self.flatMap(ls => that.map(rs => (ls, rs)))
+
+  /**
+   * Runs this stream with the specified stream sequentially and keeps only values of this stream.
+   */
+  final def <*[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, A] =
+    (self <*> that).map(_._1)
+
+  /**
+   * Runs this stream with the specified stream sequentially and keeps only values of specified stream.
+   */
+  final def *>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+    (self <*> that).map(_._2)
 
   /**
    * Operator alias for `zip`
    */
-  final def &&&[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
+  final def <&>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
     self zip that
 
   /**
-   * Runs this stream with the specified stream and keeps only values of this stream.
+   * Runs this stream with the specified stream parallelly and keeps only values of this stream.
    */
   final def zipLeft[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, A] =
-    self.zipWith(that)((left, right) => left.flatMap(a => right.map(a -> _))).map(_._1)
+    (self <&> that).map(_._1)
 
   /**
-   * Runs this stream with the specified stream and keeps only values of specified stream.
+   * Runs this stream with the specified stream parallelly and keeps only values of specified stream.
    */
   final def zipRight[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, B] =
-    self.zipWith(that)((left, right) => left.flatMap(a => right.map(a -> _))).map(_._2)
+    (self <&> that).map(_._2)
 
   /**
    * Operator alias for `zipLeft`
    */
-  final def <*[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, A] =
+  final def <&[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, A] =
     self zipLeft that
 
   /**
    * Operator alias for `zipRight`
    */
-  final def *>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+  final def &>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     self zipRight that
 }
 
