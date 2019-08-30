@@ -295,7 +295,7 @@ object GenSpec extends DefaultRuntime {
       as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
       bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     } yield (as, bs)
-    def test(a: => (List[Int], List[Int])): TestResult = a match {
+    def test(a: (List[Int], List[Int])): TestResult = a match {
       case (as, bs) =>
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
         if (p) AssertResult.success else assert((as, bs), Assertion.nothing)
@@ -312,8 +312,8 @@ object GenSpec extends DefaultRuntime {
   }
 
   def testShrinkingNonEmptyList: Future[Boolean] = {
-    val gen                               = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
-    def test(a: => List[Int]): TestResult = assert(a, Assertion.nothing)
+    val gen                            = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+    def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
     val property = checkSome(gen)(100)(test).map {
       case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
         fragment.value.toString == "List(0)"
@@ -324,7 +324,7 @@ object GenSpec extends DefaultRuntime {
 
   def testBogusEvenProperty: Future[Boolean] = {
     val gen = Gen.int(0, 100)
-    def test(n: => Int): TestResult = {
+    def test(n: Int): TestResult = {
       val p = n % 2 == 0
       if (p) AssertResult.success else assert(n, Assertion.nothing)
     }

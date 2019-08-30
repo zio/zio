@@ -25,160 +25,154 @@ trait CheckVariants {
    * Checks the test passes for "sufficient" numbers of samples from the
    * given random variable.
    */
-  final def check[R, A](rv: Gen[R, A])(test: (=> A) => TestResult): ZTest[R, Nothing] =
+  final def check[R, A](rv: Gen[R, A])(test: A => TestResult): ZTest[R, Nothing] =
     checkSome(rv)(200)(test)
 
   /**
    * A version of `check` that accepts two random variables.
    */
-  final def check[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (=> A, => B) => TestResult): ZTest[R, Nothing] =
-    check(rv1 <*> rv2) { case (a, b) => test(a, b) }
+  final def check[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZTest[R, Nothing] =
+    check(rv1 <*> rv2)(test.tupled)
 
   /**
    * A version of `check` that accepts three random variables.
    */
   final def check[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (=> A, => B, => C) => TestResult
+    test: (A, B, C) => TestResult
   ): ZTest[R, Nothing] =
-    check(rv1 <*> rv2 <*> rv3) { case ((a, b), c) => test(a, b, c) }
+    check(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
    * A version of `check` that accepts four random variables.
    */
   final def check[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-    test: (=> A, => B, => C, => D) => TestResult
+    test: (A, B, C, D) => TestResult
   ): ZTest[R, Nothing] =
-    check(rv1 <*> rv2 <*> rv3 <*> rv4) { case (((a, b), c), d) => test(a, b, c, d) }
+    check(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
    * Checks the effectual test passes for "sufficient" numbers of samples from
    * the given random variable.
    */
-  final def checkM[R, A](rv: Gen[R, A])(test: (=> A) => ZTest[R, Nothing]): ZTest[R, Nothing] =
+  final def checkM[R, A](rv: Gen[R, A])(test: A => ZTest[R, Nothing]): ZTest[R, Nothing] =
     checkSomeM(rv)(200)(test)
 
   /**
    * A version of `checkM` that accepts two random variables.
    */
-  final def checkM[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    test: (=> A, => B) => ZTest[R, Nothing]
-  ): ZTest[R, Nothing] =
-    checkM(rv1 <*> rv2) { case (a, b) => test(a, b) }
+  final def checkM[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => ZTest[R, Nothing]): ZTest[R, Nothing] =
+    checkM(rv1 <*> rv2)(test.tupled)
 
   /**
    * A version of `checkM` that accepts three random variables.
    */
   final def checkM[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (=> A, => B, => C) => ZTest[R, Nothing]
+    test: (A, B, C) => ZTest[R, Nothing]
   ): ZTest[R, Nothing] =
-    checkM(rv1 <*> rv2 <*> rv3) { case ((a, b), c) => test(a, b, c) }
+    checkM(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
    * A version of `checkM` that accepts four random variables.
    */
   final def checkM[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-    test: (=> A, => B, => C, => D) => ZTest[R, Nothing]
+    test: (A, B, C, D) => ZTest[R, Nothing]
   ): ZTest[R, Nothing] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4) { case (((a, b), c), d) => test(a, b, c, d) }
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
    * Checks the test passes for all values from the given random variable. This
    * is useful for deterministic `Gen` that comprehensively explore all
    * possibilities in a given domain.
    */
-  final def checkAll[R, A](rv: Gen[R, A])(test: (=> A) => TestResult): ZTest[R, Nothing] =
+  final def checkAll[R, A](rv: Gen[R, A])(test: A => TestResult): ZTest[R, Nothing] =
     checkAllM(rv)(test andThen ZIO.succeed)
 
   /**
    * A version of `checkAll` that accepts two random variables.
    */
-  final def checkAll[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (=> A, => B) => TestResult): ZTest[R, Nothing] =
-    checkAll(rv1 <*> rv2) { case (a, b) => test(a, b) }
+  final def checkAll[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZTest[R, Nothing] =
+    checkAll(rv1 <*> rv2)(test.tupled)
 
   /**
    * A version of `checkAll` that accepts three random variables.
    */
   final def checkAll[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (=> A, => B, => C) => TestResult
+    test: (A, B, C) => TestResult
   ): ZTest[R, Nothing] =
-    checkAll(rv1 <*> rv2 <*> rv3) { case ((a, b), c) => test(a, b, c) }
+    checkAll(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
    * A version of `checkAll` that accepts four random variables.
    */
   final def checkAll[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-    test: (=> A, => B, => C, => D) => TestResult
+    test: (A, B, C, D) => TestResult
   ): ZTest[R, Nothing] =
-    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4) { case (((a, b), c), d) => test(a, b, c, d) }
+    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
    * Checks the effectual test passes for all values from the given random
    * variable. This is useful for deterministic `Gen` that comprehensively
    * explore all possibilities in a given domain.
    */
-  final def checkAllM[R, A](rv: Gen[R, A])(test: (=> A) => ZTest[R, Nothing]): ZTest[R, Nothing] =
+  final def checkAllM[R, A](rv: Gen[R, A])(test: A => ZTest[R, Nothing]): ZTest[R, Nothing] =
     checkStream(rv.sample)(test)
 
   /**
    * A version of `checkAllM` that accepts two random variables.
    */
-  final def checkAllM[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    test: (=> A, => B) => ZTest[R, Nothing]
-  ): ZTest[R, Nothing] =
-    checkAllM(rv1 <*> rv2) { case (a, b) => test(a, b) }
+  final def checkAllM[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => ZTest[R, Nothing]): ZTest[R, Nothing] =
+    checkAllM(rv1 <*> rv2)(test.tupled)
 
   /**
    * A version of `checkAllM` that accepts three random variables.
    */
   final def checkAllM[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (=> A, => B, => C) => ZTest[R, Nothing]
+    test: (A, B, C) => ZTest[R, Nothing]
   ): ZTest[R, Nothing] =
-    checkAllM(rv1 <*> rv2 <*> rv3) { case ((a, b), c) => test(a, b, c) }
+    checkAllM(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
    * A version of `checkAllM` that accepts four random variables.
    */
   final def checkAllM[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-    test: (=> A, => B, => C, => D) => ZTest[R, Nothing]
+    test: (A, B, C, D) => ZTest[R, Nothing]
   ): ZTest[R, Nothing] =
-    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4) { case (((a, b), c), d) => test(a, b, c, d) }
+    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
    * Checks the test passes for the specified number of samples from the given
    * random variable.
    */
-  final def checkSome[R, A](rv: Gen[R, A])(n: Int)(test: (=> A) => TestResult): ZTest[R, Nothing] =
+  final def checkSome[R, A](rv: Gen[R, A])(n: Int)(test: A => TestResult): ZTest[R, Nothing] =
     checkSomeM(rv)(n)(test andThen ZIO.succeed)
 
   /**
    * A version of `checkSome` that accepts two random variables.
    */
-  final def checkSome[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    n: Int
-  )(test: (=> A, => B) => TestResult): ZTest[R, Nothing] =
-    checkSome(rv1 <*> rv2)(n) { case (a, b) => test(a, b) }
+  final def checkSome[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(n: Int)(test: (A, B) => TestResult): ZTest[R, Nothing] =
+    checkSome(rv1 <*> rv2)(n)(test.tupled)
 
   /**
    * A version of `checkSome` that accepts three random variables.
    */
   final def checkSome[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     n: Int
-  )(test: (=> A, => B, => C) => TestResult): ZTest[R, Nothing] =
-    checkSome(rv1 <*> rv2 <*> rv3)(n) { case ((a, b), c) => test(a, b, c) }
+  )(test: (A, B, C) => TestResult): ZTest[R, Nothing] =
+    checkSome(rv1 <*> rv2 <*> rv3)(n)(reassociate(test))
 
   /**
    * A version of `checkSome` that accepts four random variables.
    */
   final def checkSome[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     n: Int
-  )(test: (=> A, => B, => C, => D) => TestResult): ZTest[R, Nothing] =
-    checkSome(rv1 <*> rv2 <*> rv3 <*> rv4)(n) { case (((a, b), c), d) => test(a, b, c, d) }
+  )(test: (A, B, C, D) => TestResult): ZTest[R, Nothing] =
+    checkSome(rv1 <*> rv2 <*> rv3 <*> rv4)(n)(reassociate(test))
 
   /**
    * Checks the effectual test passes for the specified number of samples from
    * the given random variable.
    */
-  final def checkSomeM[R, A](rv: Gen[R, A])(n: Int)(test: (=> A) => ZTest[R, Nothing]): ZTest[R, Nothing] =
+  final def checkSomeM[R, A](rv: Gen[R, A])(n: Int)(test: A => ZTest[R, Nothing]): ZTest[R, Nothing] =
     checkStream(rv.sample.forever.take(n))(test)
 
   /**
@@ -186,30 +180,30 @@ trait CheckVariants {
    */
   final def checkSomeM[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
     n: Int
-  )(test: (=> A, => B) => ZTest[R, Nothing]): ZTest[R, Nothing] =
-    checkSomeM(rv1 <*> rv2)(n) { case (a, b) => test(a, b) }
+  )(test: (A, B) => ZTest[R, Nothing]): ZTest[R, Nothing] =
+    checkSomeM(rv1 <*> rv2)(n)(test.tupled)
 
   /**
    * A version of `checkSomeM` that accepts three random variables.
    */
   final def checkSomeM[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     n: Int
-  )(test: (=> A, => B, => C) => ZTest[R, Nothing]): ZTest[R, Nothing] =
-    checkSomeM(rv1 <*> rv2 <*> rv3)(n) { case ((a, b), c) => test(a, b, c) }
+  )(test: (A, B, C) => ZTest[R, Nothing]): ZTest[R, Nothing] =
+    checkSomeM(rv1 <*> rv2 <*> rv3)(n)(reassociate(test))
 
   /**
    * A version of `checkSomeM` that accepts four random variables.
    */
   final def checkSomeM[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     n: Int
-  )(test: (=> A, => B, => C, => D) => ZTest[R, Nothing]): ZTest[R, Nothing] =
-    checkSomeM(rv1 <*> rv2 <*> rv3 <*> rv4)(n) { case (((a, b), c), d) => test(a, b, c, d) }
+  )(test: (A, B, C, D) => ZTest[R, Nothing]): ZTest[R, Nothing] =
+    checkSomeM(rv1 <*> rv2 <*> rv3 <*> rv4)(n)(reassociate(test))
 
   private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
-    test: (=> A) => ZTest[R, Nothing]
+    test: A => ZTest[R, Nothing]
   ): ZIO[R, Nothing, TestResult] =
     stream
-      .mapM(_.traverse(test(_)))
+      .mapM(_.traverse(test))
       .dropWhile(!_.value.failure) // Drop until we get to a failure
       .take(1)                     // Get the first failure
       .flatMap(_.shrinkSearch(_.failure).take(maxShrinks))
@@ -218,4 +212,12 @@ trait CheckVariants {
         // Get the "last" failure, the smallest according to the shrinker:
         failures.reverse.headOption.fold[TestResult](AssertResult.Success)(identity)
       }
+
+  private final def reassociate[A, B, C, D](f: (A, B, C) => D): (((A, B), C)) => D = {
+    case ((a, b), c) => f(a, b, c)
+  }
+
+  private final def reassociate[A, B, C, D, E](f: (A, B, C, D) => E): ((((A, B), C), D)) => E = {
+    case (((a, b), c), d) => f(a, b, c, d)
+  }
 }
