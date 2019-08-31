@@ -731,7 +731,8 @@ object ZQueueSpec
             } yield true
           }.map(assert(_, isTrue))
         }
-      )
+      ),
+      timeout = TimeoutStrategy.Error(60.seconds)
     )
 
 object ZQueueSpecUtil {
