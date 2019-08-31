@@ -251,7 +251,7 @@ object Assertion {
     Assertion.assertionRec[Exit[Any, Any]](s"isInterrupted") { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.interrupted => AssertResult.success(())
-        case _ => AssertResult.failure(AssertionValue(self, actual))
+        case _                                        => AssertResult.failure(AssertionValue(self, actual))
       }
     }
 
