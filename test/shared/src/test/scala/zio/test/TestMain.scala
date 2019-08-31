@@ -10,6 +10,7 @@ object TestMain {
   def main(args: Array[String]): Unit = {
     val testResults = List(
       scope(AssertionSpec.run, "Assertion"),
+      scope(CheckSpec.run, "Check"),
       scope(ClockSpec.run, "MockClock"),
       scope(ConsoleSpec.run, "MockConsole"),
       scope(DefaultTestReporterSpec.run, "DefaultTestReporter"),
@@ -17,6 +18,7 @@ object TestMain {
       scope(GenSpec.run, "Gen"),
       scope(LiveSpec.run, "Live"),
       scope(RandomSpec.run, "MockRandom"),
+      scope(SampleSpec.run, "Sample"),
       scope(SchedulerSpec.run, "MockScheduler"),
       scope(SystemSpec.run, "MockSystem")
     ).flatten

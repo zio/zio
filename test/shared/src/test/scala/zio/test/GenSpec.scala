@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ DefaultRuntime, Managed, UIO, ZIO }
+import zio.{ DefaultRuntime, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.mock.MockRandom
@@ -295,12 +295,12 @@ object GenSpec extends DefaultRuntime {
       as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
       bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     } yield (as, bs)
-    val assertion = Assertion.assertion[(List[Int], List[Int])]("") {
+    def test(a: (List[Int], List[Int])): TestResult = a match {
       case (as, bs) =>
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
-        if (p) AssertResult.success else AssertResult.Failure(())
+        if (p) AssertResult.success else assert((as, bs), Assertion.nothing)
     }
-    val test = checkSome(100)(gen)(assertion).map {
+    val property = checkSome(gen)(100)(test).map {
       case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
         fragment.value.toString == "(List(0),List(1))" ||
           fragment.value.toString == "(List(1),List(0))" ||
@@ -308,32 +308,32 @@ object GenSpec extends DefaultRuntime {
           fragment.value.toString == "(List(-1),List(0))"
       case _ => false
     }
-    unsafeRunToFuture(test)
+    unsafeRunToFuture(property)
   }
 
   def testShrinkingNonEmptyList: Future[Boolean] = {
-    val gen       = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
-    val assertion = Assertion.assertion[List[Int]]("")(_ => AssertResult.Failure(()))
-    val test = checkSome(100)(gen)(assertion).map {
+    val gen                            = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+    def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
+    val property = checkSome(gen)(100)(test).map {
       case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
         fragment.value.toString == "List(0)"
       case _ => false
     }
-    unsafeRunToFuture(test)
+    unsafeRunToFuture(property)
   }
 
   def testBogusEvenProperty: Future[Boolean] = {
     val gen = Gen.int(0, 100)
-    val assertion = Assertion.assertion[Int]("") { n =>
+    def test(n: Int): TestResult = {
       val p = n % 2 == 0
-      if (p) AssertResult.Success else AssertResult.Failure(())
+      if (p) AssertResult.success else assert(n, Assertion.nothing)
     }
-    val test = checkSome(100)(gen)(assertion).map {
+    val property = checkSome(gen)(100)(test).map {
       case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
         fragment.value.toString == "1"
       case _ => false
     }
-    unsafeRunToFuture(test)
+    unsafeRunToFuture(property)
   }
 
   def checkEqual[A](left: Gen[Random, A], right: Gen[Random, A]): Future[Boolean] =
@@ -367,18 +367,18 @@ object GenSpec extends DefaultRuntime {
     unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)))
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val mockRandom = Managed.fromEffect(MockRandom.make(MockRandom.DefaultData))
+    val mockRandom = MockRandom.make(MockRandom.DefaultData)
     for {
-      leftSample  <- sample(left).provideManaged(mockRandom)
-      rightSample <- sample(right).provideManaged(mockRandom)
+      leftSample  <- sample(left).provideM(mockRandom)
+      rightSample <- sample(right).provideM(mockRandom)
     } yield leftSample == rightSample
   }
 
   def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val mockRandom = Managed.fromEffect(MockRandom.make(MockRandom.DefaultData))
+    val mockRandom = MockRandom.make(MockRandom.DefaultData)
     for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(mockRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(mockRandom)
+      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideM(mockRandom)
+      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideM(mockRandom)
     } yield leftShrinks == rightShrinks
   }
 

@@ -677,6 +677,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def provide(r: R): IO[E, A] = ZIO.provide(r)(self)
 
   /**
+   * An effectual version of `provide`, useful when the act of provision
+   * requires an effect.
+   */
+  final def provideM[E1 >: E](r: ZIO[Any, E1, R]): ZIO[Any, E1, A] =
+    r.flatMap(self.provide)
+
+  /**
    * Uses the given Managed[E1, R] to the environment required to run this effect,
    * leaving no outstanding environments and returning IO[E1, A]
    */
@@ -1799,10 +1806,8 @@ private[zio] trait ZIOFunctions extends Serializable {
       p <- Promise.make[E, A]
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
-            restore(
-              register(k => r.unsafeRunAsync_(k.to(p)))
-                .catchAll(p.fail)
-            ).fork.flatMap { f =>
+            val f = register(k => r.unsafeRunAsync_(k.to(p)))
+            restore(f.catchAllCause(p.halt)).fork.flatMap { f =>
               restore(p.await).onInterrupt(f.interrupt)
             }
           }
