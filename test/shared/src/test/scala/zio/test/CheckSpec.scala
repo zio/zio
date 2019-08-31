@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 
 import zio.{ random, Chunk, DefaultRuntime }
 import zio.test.Assertion.{ equalTo, isLessThan }
@@ -8,7 +8,7 @@ import zio.test.TestUtils.label
 
 object CheckSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(effectualPropertiesCanBeTests, "effectual properties can be tested"),
     label(overloadedCheckMethodsWork, "overloaded check methods work"),
     label(testsCanBeWrittenInPropertyBasedStyle, "tests can be written in property based style")

@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 
 import zio.Exit
 import zio.test.Assertion._
@@ -8,17 +8,13 @@ import zio.test.TestUtils.label
 
 object AssertionSpec {
 
-  private def test(assertion: Boolean, message: String)(implicit ec: ExecutionContext): Future[(Boolean, String)] =
+  private def test(assertion: Boolean, message: String): Async[(Boolean, String)] =
     label(Future.successful(assertion), s"AssertionTest: $message")
 
-  private def testSuccess(testResult: TestResult, message: String)(
-    implicit ec: ExecutionContext
-  ): Future[(Boolean, String)] =
+  private def testSuccess(testResult: TestResult, message: String): Async[(Boolean, String)] =
     label(Future.successful(testResult.isSuccess), message)
 
-  private def testFailure(testResult: TestResult, message: String)(
-    implicit ec: ExecutionContext
-  ): Future[(Boolean, String)] =
+  private def testFailure(testResult: TestResult, message: String): Async[(Boolean, String)] =
     label(Future.successful(testResult.isFailure), message)
 
   case class SampleUser(name: String, age: Int)
@@ -29,7 +25,7 @@ object AssertionSpec {
   val ageLessThan20    = hasField[SampleUser, Int]("age", _.age, isLessThan(20))
   val ageGreaterThan20 = hasField[SampleUser, Int]("age", _.age, isGreaterThan(20))
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  def run: List[Async[(Boolean, String)]] = List(
     testSuccess(assert(42, anything), message = "anything must always succeeds"),
     testSuccess(
       assert(Seq("zio", "scala"), contains("zio")),

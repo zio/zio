@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 
 import zio.{ DefaultRuntime, Managed, UIO, ZIO }
 import zio.random.Random
@@ -10,7 +10,7 @@ import zio.test.TestUtils.label
 
 object GenSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(monadLeftIdentity, "monad left identity"),
     label(monadRightIdentity, "monad right identity"),
     label(monadAssociativity, "monad associativity"),

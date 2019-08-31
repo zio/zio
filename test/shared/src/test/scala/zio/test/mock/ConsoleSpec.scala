@@ -2,15 +2,14 @@ package zio.test.mock
 
 import java.io.{ ByteArrayOutputStream, PrintStream }
 
-import scala.concurrent.{ ExecutionContext, Future }
-
 import zio._
+import zio.test.Async
 import zio.test.mock.MockConsole.Data
 import zio.test.TestUtils.label
 
 object ConsoleSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(emptyOutput, "outputs nothing"),
     label(putStr, "writes to output"),
     label(putStrLn, "writes line to output"),

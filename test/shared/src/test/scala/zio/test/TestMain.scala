@@ -22,7 +22,7 @@ object TestMain {
       scope(SampleSpec.run, "SampleSpec"),
       scope(SchedulerSpec.run, "SchedulerSpec"),
       scope(SystemSpec.run, "SystemSpec")
-    ).flatten
+    )
     report(testResults)
   }
 }
