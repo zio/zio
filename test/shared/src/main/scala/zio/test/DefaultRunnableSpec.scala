@@ -24,6 +24,6 @@ import zio.test.mock.MockEnvironment
  * modules in ZIO (Clock, Random, etc).
  */
 abstract class DefaultRunnableSpec(
-  spec: => ZSpec[MockEnvironment, Nothing, String],
+  spec: => ZSpec[MockEnvironment, Any, String, Any],
   timeout: TimeoutStrategy = TimeoutStrategy.Warn(60.seconds)
 ) extends RunnableSpec(DefaultTestRunner)(timeout(spec))

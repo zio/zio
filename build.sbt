@@ -33,9 +33,12 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
-addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run")
+addCommandAlias(
+  "testJS",
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run;examplesJS/test:compile"
+)
 
 lazy val root = project
   .in(file("."))
@@ -213,7 +216,7 @@ lazy val benchmarks = project.module
         "org.ow2.asm"              % "asm"              % "7.1",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.typelevel"            %% "cats-effect"     % "2.0.0-RC1"
+        "org.typelevel"            %% "cats-effect"     % "2.0.0-RC2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))

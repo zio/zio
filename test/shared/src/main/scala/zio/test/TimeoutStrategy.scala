@@ -28,7 +28,7 @@ import zio.ZIO
  * potentially non-terminating tests.
  */
 trait TimeoutStrategy {
-  def apply[R, E, L](spec: ZSpec[R, E, L]): ZSpec[R with Live[Clock] with Live[Console], E, L]
+  def apply[R, E, L, S](spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S]
 }
 
 object TimeoutStrategy {
@@ -38,7 +38,7 @@ object TimeoutStrategy {
    * duration.
    */
   final case class Error(duration: Duration) extends TimeoutStrategy {
-    def apply[R, E, L](spec: ZSpec[R, E, L]): ZSpec[R with Live[Clock] with Live[Console], E, L] =
+    def apply[R, E, L, S](spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] =
       TestAspect.timeout(duration)(spec)
   }
 
@@ -47,8 +47,8 @@ object TimeoutStrategy {
    * duration.
    */
   final case class Warn(duration: Duration) extends TimeoutStrategy {
-    def apply[R, E, L](spec: ZSpec[R, E, L]): ZSpec[R with Live[Clock] with Live[Console], E, L] = {
-      def loop(labels: List[L], spec: ZSpec[R, E, L]): ZSpec[R with Live[Clock] with Live[Console], E, L] =
+    def apply[R, E, L, S](spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] = {
+      def loop(labels: List[L], spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] =
         spec.caseValue match {
           case Spec.SuiteCase(label, specs, exec) =>
             Spec.suite(label, specs.map(loop(label :: labels, _)), exec)
@@ -64,16 +64,16 @@ object TimeoutStrategy {
    * Do nothing.
    */
   final case object Ignore extends TimeoutStrategy {
-    def apply[R, E, L](spec: ZSpec[R, E, L]): ZSpec[R, E, L] =
+    def apply[R, E, L, S](spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
       spec
   }
 
-  private def warn[R, E, L](
+  private def warn[R, E, L, S](
     suiteLabels: List[L],
     testLabel: L,
-    test: ZTest[R, E],
+    test: ZTest[R, E, S],
     duration: Duration
-  ): ZTest[R with Live[Clock] with Live[Console], E] =
+  ): ZTest[R with Live[Clock] with Live[Console], E, S] =
     test.raceWith(Live.withLive(showWarning(suiteLabels, testLabel, duration))(_.delay(duration)))(
       (result, fiber) => fiber.interrupt *> ZIO.done(result),
       (_, fiber) => fiber.join

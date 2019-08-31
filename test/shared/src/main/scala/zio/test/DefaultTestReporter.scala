@@ -25,37 +25,50 @@ import zio.duration.Duration
 
 object DefaultTestReporter {
 
-  def render(executedSpec: ExecutedSpec[String]): Seq[RenderedResult] = {
-    def loop(executedSpec: ExecutedSpec[String], depth: Int): Seq[RenderedResult] =
+  def render[E, S](executedSpec: ExecutedSpec[String, E, S]): Seq[RenderedResult] = {
+    def loop(executedSpec: ExecutedSpec[String, E, S], depth: Int): Seq[RenderedResult] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(label, executedSpecs, _) =>
           val hasFailures = executedSpecs.exists(_.exists {
-            case Spec.TestCase(_, test) => test.failure; case _ => false
+            case Spec.TestCase(_, test) => test.isLeft; case _ => false
           })
           val status        = if (hasFailures) Failed else Passed
           val renderedLabel = if (hasFailures) renderFailureLabel(label, depth) else renderSuccessLabel(label, depth)
           rendered(Suite, label, status, depth, renderedLabel) +: executedSpecs.flatMap(loop(_, depth + tabSize))
         case Spec.TestCase(label, result) =>
-          Seq(result match {
-            case AssertResult.Success =>
-              rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
-            case AssertResult.Failure(details) =>
-              rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-            case AssertResult.Ignore => rendered(Test, label, Ignored, depth)
-          })
+          Seq(
+            result match {
+              case Right(TestSuccess.Succeeded(_)) =>
+                rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
+              case Right(TestSuccess.Ignored) =>
+                rendered(Test, label, Ignored, depth)
+              case Left(TestFailure.Assertion(result)) =>
+                result.fold(
+                  details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
+                )(_ && _, _ || _)
+              case Left(TestFailure.Runtime(cause)) =>
+                rendered(
+                  Test,
+                  label,
+                  Failed,
+                  depth,
+                  (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth))): _*
+                )
+            }
+          )
       }
     loop(executedSpec, 0)
   }
 
-  def apply[L](): TestReporter[L] = { (duration: Duration, executedSpec: ExecutedSpec[L]) =>
+  def apply[L, E, S](): TestReporter[L, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[L, E, S]) =>
     ZIO
       .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
         ZIO.foreach(res.rendered)(TestLogger.logLine)
       } *> logStats(duration, executedSpec)
   }
 
-  private def logStats[L](duration: Duration, executedSpec: ExecutedSpec[L]) = {
-    def loop(executedSpec: ExecutedSpec[String]): (Int, Int, Int) =
+  private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]) = {
+    def loop(executedSpec: ExecutedSpec[String, E, S]): (Int, Int, Int) =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           executedSpecs.map(loop).foldLeft((0, 0, 0)) {
@@ -63,9 +76,9 @@ object DefaultTestReporter {
           }
         case Spec.TestCase(_, result) =>
           result match {
-            case AssertResult.Success    => (1, 0, 0)
-            case AssertResult.Ignore     => (0, 1, 0)
-            case AssertResult.Failure(_) => (0, 0, 1)
+            case Left(_)                         => (0, 0, 1)
+            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
+            case Right(TestSuccess.Ignored)      => (0, 1, 0)
           }
       }
     val (success, ignore, failure) = loop(executedSpec.mapLabel(_.toString))
@@ -88,8 +101,7 @@ object DefaultTestReporter {
     withOffset(offset)(red("- " + label))
 
   private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] = failureDetails match {
-    case FailureDetails.Assertion(fragment, whole) => renderAssertion(fragment, whole, offset)
-    case FailureDetails.Runtime(cause)             => Seq(renderCause(cause, offset))
+    case FailureDetails(fragment, whole) => renderAssertion(fragment, whole, offset)
   }
 
   private def renderAssertion(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
@@ -163,4 +175,24 @@ object RenderedResult {
   }
 }
 
-case class RenderedResult(caseType: CaseType, label: String, status: Status, offset: Int, rendered: Seq[String])
+case class RenderedResult(caseType: CaseType, label: String, status: Status, offset: Int, rendered: Seq[String]) {
+  self =>
+
+  def &&(that: RenderedResult): RenderedResult =
+    (self.status, that.status) match {
+      case (Ignored, _)     => that
+      case (_, Ignored)     => self
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
+      case (Passed, _)      => that
+      case (_, Passed)      => self
+    }
+
+  def ||(that: RenderedResult): RenderedResult =
+    (self.status, that.status) match {
+      case (Ignored, _)     => that
+      case (_, Ignored)     => self
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
+      case (Passed, _)      => self
+      case (_, Passed)      => that
+    }
+}

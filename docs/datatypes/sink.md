@@ -34,6 +34,12 @@ Collecting all elements into `List[A]`:
 Sink.collectAll[Int]
 ```
 
+Collecting the first element into an option (returns `None` for empty streams):
+
+```scala mdoc:silent
+Sink.identity[Int].optional
+```
+
 Collecting elements until the condition is not satisfied:
 
 ```scala mdoc:silent
@@ -76,7 +82,7 @@ Sink.fold[Nothing, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
 Mapping over the received input elements:
 
 ```scala mdoc:silent
-Sink.fromFunction[Int, Int](_ * 2).collectAll[Int, Int]
+Sink.fromFunction[Int, Int](_ * 2).collectAll
 ```
 
 `pull1` fails with given type in case of empty stream, otherwise continues with provided sink:

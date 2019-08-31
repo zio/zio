@@ -174,7 +174,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
    */
-  final def effectAsyncM[A](register: (Task[A] => Unit) => UIO[_]): Task[A] =
+  final def effectAsyncM[A](register: (Task[A] => Unit) => Task[_]): Task[A] =
     ZIO.effectAsyncM(register)
 
   /**

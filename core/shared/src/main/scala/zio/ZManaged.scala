@@ -972,7 +972,7 @@ object ZManaged {
    * Lifts an `Either` into a `ZManaged` value.
    */
   final def fromEither[E, A](v: => Either[E, A]): ZManaged[Any, E, A] =
-    succeed(v).flatMap(_.fold(fail, succeed))
+    effectTotal(v).flatMap(_.fold(fail, succeed))
 
   /**
    * Lifts a function `R => A` into a `ZManaged[R, Nothing, A]`.
@@ -1213,7 +1213,7 @@ object ZManaged {
    * Returns a lazily constructed Managed.
    */
   final def suspend[R, E, A](zManaged: => ZManaged[R, E, A]): ZManaged[R, E, A] =
-    flatten(succeed(zManaged))
+    flatten(effectTotal(zManaged))
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.

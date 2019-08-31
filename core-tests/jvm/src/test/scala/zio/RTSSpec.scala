@@ -89,6 +89,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     sleep 0 must return                           $testSleepZeroReturns
     shallow bind of async chain                   $testShallowBindOfAsyncChainIsCorrect
     effectAsyncM can fail before registering      $testEffectAsyncMCanFail
+    effectAsyncM can defect before registering    $testEffectAsyncMCanDefect
     second callback call is ignored               $testAsyncSecondCallback
 
   RTS concurrency correctness
@@ -623,6 +624,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
         .effectAsyncM[Any, String, Nothing](_ => ZIO.fail("Ouch"))
         .flip
         .map(_ must_=== "Ouch")
+    }
+
+  def testEffectAsyncMCanDefect =
+    unsafeRun {
+      ZIO
+        .effectAsyncM[Any, String, Unit](_ => ZIO.effectTotal(throw new Error("Ouch")))
+        .run
+        .map(_.fold(_.defects.headOption.map(_.getMessage), _ => None))
+        .map(_ must beSome("Ouch"))
     }
 
   def testAsyncSecondCallback =

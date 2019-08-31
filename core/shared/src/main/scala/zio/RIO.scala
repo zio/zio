@@ -185,13 +185,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[A](register: (Task[A] => Unit) => Option[Task[A]]): Task[A] =
+  final def effectAsyncMaybe[R, A](register: (RIO[R, A] => Unit) => Option[RIO[R, A]]): RIO[R, A] =
     ZIO.effectAsyncMaybe(register)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
    */
-  final def effectAsyncM[R, A](register: (RIO[R, A] => Unit) => ZIO[R, Nothing, _]): RIO[R, A] =
+  final def effectAsyncM[R, A](register: (RIO[R, A] => Unit) => RIO[R, _]): RIO[R, A] =
     ZIO.effectAsyncM(register)
 
   /**
