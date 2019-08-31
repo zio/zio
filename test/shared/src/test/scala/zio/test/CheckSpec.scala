@@ -21,7 +21,7 @@ object CheckSpec extends DefaultRuntime {
           r <- random.nextInt(n)
         } yield assert(r, isLessThan(n))
       }
-      nextInt.map(_.success)
+      nextInt.either.map(_.isRight)
     }
 
   def overloadedCheckMethodsWork: Future[Boolean] =
@@ -29,7 +29,7 @@ object CheckSpec extends DefaultRuntime {
       val associativity = check(Gen.anyInt, Gen.anyInt, Gen.anyInt) { (x, y, z) =>
         assert((x + y) + z, equalTo(x + (y + z)))
       }
-      associativity.map(_.success)
+      associativity.either.map(_.isRight)
     }
 
   def testsCanBeWrittenInPropertyBasedStyle: Future[Boolean] =
@@ -44,6 +44,6 @@ object CheckSpec extends DefaultRuntime {
         case (chunk, i) =>
           assert(chunk.apply(i), equalTo(chunk.toSeq.apply(i)))
       }
-      chunkApply.map(_.success)
+      chunkApply.either.map(_.isRight)
     }
 }

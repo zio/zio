@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ DefaultRuntime, UIO, ZIO }
+import zio.{ DefaultRuntime, Managed, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.mock.MockRandom
@@ -298,27 +298,35 @@ object GenSpec extends DefaultRuntime {
     def test(a: (List[Int], List[Int])): TestResult = a match {
       case (as, bs) =>
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
-        if (p) AssertResult.success else assert((as, bs), Assertion.nothing)
+        if (p) AssertResult.success(()) else assert((as, bs), Assertion.nothing)
     }
-    val property = checkSome(gen)(100)(test).map {
-      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
-        fragment.value.toString == "(List(0),List(1))" ||
-          fragment.value.toString == "(List(1),List(0))" ||
-          fragment.value.toString == "(List(0),List(-1))" ||
-          fragment.value.toString == "(List(-1),List(0))"
-      case _ => false
-    }
+    val property = checkSome(gen)(100)(test).fold(
+      {
+        case TestFailure.Assertion(AssertResult.Value(failureDetails)) =>
+          failureDetails.fragment.value.toString == "(List(0),List(1))" ||
+            failureDetails.fragment.value.toString == "(List(1),List(0))" ||
+            failureDetails.fragment.value.toString == "(List(0),List(-1))" ||
+            failureDetails.fragment.value.toString == "(List(-1),List(0))"
+        case _ => false
+      }, { _ =>
+        false
+      }
+    )
     unsafeRunToFuture(property)
   }
 
   def testShrinkingNonEmptyList: Future[Boolean] = {
     val gen                            = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
-    val property = checkSome(gen)(100)(test).map {
-      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
-        fragment.value.toString == "List(0)"
-      case _ => false
-    }
+    val property = checkSome(gen)(100)(test).fold(
+      {
+        case TestFailure.Assertion(AssertResult.Value(failureDetails)) =>
+          failureDetails.fragment.value.toString == "List(0)"
+        case _ => false
+      }, { _ =>
+        false
+      }
+    )
     unsafeRunToFuture(property)
   }
 
@@ -326,13 +334,17 @@ object GenSpec extends DefaultRuntime {
     val gen = Gen.int(0, 100)
     def test(n: Int): TestResult = {
       val p = n % 2 == 0
-      if (p) AssertResult.success else assert(n, Assertion.nothing)
+      if (p) AssertResult.success(()) else assert(n, Assertion.nothing)
     }
-    val property = checkSome(gen)(100)(test).map {
-      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
-        fragment.value.toString == "1"
-      case _ => false
-    }
+    val property = checkSome(gen)(100)(test).fold(
+      {
+        case TestFailure.Assertion(AssertResult.Value(failureDetails)) =>
+          failureDetails.fragment.value.toString == "1"
+        case _ => false
+      }, { _ =>
+        false
+      }
+    )
     unsafeRunToFuture(property)
   }
 
@@ -367,18 +379,18 @@ object GenSpec extends DefaultRuntime {
     unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)))
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val mockRandom = MockRandom.make(MockRandom.DefaultData)
+    val mockRandom = Managed.fromEffect(MockRandom.make(MockRandom.DefaultData))
     for {
-      leftSample  <- sample(left).provideM(mockRandom)
-      rightSample <- sample(right).provideM(mockRandom)
+      leftSample  <- sample(left).provideManaged(mockRandom)
+      rightSample <- sample(right).provideManaged(mockRandom)
     } yield leftSample == rightSample
   }
 
   def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val mockRandom = MockRandom.make(MockRandom.DefaultData)
+    val mockRandom = Managed.fromEffect(MockRandom.make(MockRandom.DefaultData))
     for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideM(mockRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideM(mockRandom)
+      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(mockRandom)
+      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(mockRandom)
     } yield leftShrinks == rightShrinks
   }
 

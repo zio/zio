@@ -16,11 +16,9 @@
 
 package zio.test
 
-import zio.DefaultRuntime
+sealed trait TestSuccess[+S]
 
-/**
- * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Random, etc).
- */
-abstract class DefaultRunnableSpec(spec: => ZSpec[DefaultRuntime#Environment, Any, String, Any])
-    extends RunnableSpec(DefaultTestRunner)(spec)
+object TestSuccess {
+  final case class Succeeded[S](result: AssertResult[S]) extends TestSuccess[S]
+  final case object Ignored                              extends TestSuccess[Nothing]
+}

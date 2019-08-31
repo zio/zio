@@ -16,11 +16,11 @@
 
 package zio.test
 
-import zio.DefaultRuntime
+import zio.Cause
 
-/**
- * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Random, etc).
- */
-abstract class DefaultRunnableSpec(spec: => ZSpec[DefaultRuntime#Environment, Any, String, Any])
-    extends RunnableSpec(DefaultTestRunner)(spec)
+sealed trait TestFailure[+E]
+
+object TestFailure {
+  final case class Assertion(result: AssertResult[FailureDetails]) extends TestFailure[Nothing]
+  final case class Runtime[+E](cause: Cause[E])                    extends TestFailure[E]
+}
