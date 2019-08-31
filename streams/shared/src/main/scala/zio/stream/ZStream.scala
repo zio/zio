@@ -1540,14 +1540,15 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
 
   /**
-   * Uses the provided schedule to define the "rhythm" at which elements of the stream are emitted.
+   * Schedules the output of the stream using the provided `schedule` and emits its output at
+   * the end (if `schedule` is finite).
    */
   final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
     scheduleEither(schedule).map(_.merge)
 
   /**
-   * Uses the provided schedule to define the "rhythm" at which elements of the stream are emitted,
-   * finishing with the schedule's output.
+   * Schedules the output of the stream using the provided `schedule` and emits its output at
+   * the end (if `schedule` is finite).
    */
   final def scheduleEither[R1 <: R, E1 >: E, B](
     schedule: ZSchedule[R1, A, B]
@@ -1555,16 +1556,18 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     scheduleWith(schedule)(Right.apply, Left.apply)
 
   /**
-   * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
+   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
    * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
    */
   final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
     scheduleElementsEither(schedule).map(_.merge)
 
   /**
-   * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
+   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
    * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `spaced(Schedule.once)` means "emit element
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
    * and if not short circuited, repeat element once".
    */
   final def scheduleElementsEither[R1 <: R, E1 >: E, B](
@@ -1575,7 +1578,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
    * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that `spaced(Schedule.once)` means "emit element
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
    * and if not short circuited, repeat element once".
    * Uses the provided functions to align the stream and schedule outputs on a common type.
    */
@@ -1609,8 +1612,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     }
 
   /**
-   * Uses the provided schedule to define the "rhythm" at which elements of the stream are emitted,
-   * finishing with the schedule's output (if the schedule is finite).
+   * Schedules the output of the stream using the provided `schedule` and emits its output at
+   * the end (if `schedule` is finite).
    * Uses the provided function to align the stream and schedule outputs on the same type.
    */
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
