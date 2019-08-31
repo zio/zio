@@ -74,7 +74,7 @@ object PromiseSpec
             p      <- Promise.make[String, Int]
             _      <- p.interrupt
             result <- p.poll.someOrFail("fail").flatten.run
-          } yield assert(result, equalTo(Exit.interrupt: Exit[String, Int]))
+          } yield assert(result, isInterrupted)
         },
         testM("isDone when a promise is completed") {
           for {
