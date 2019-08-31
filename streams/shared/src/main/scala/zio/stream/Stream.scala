@@ -181,6 +181,11 @@ object Stream extends ZStreamPlatformSpecific {
   final def halt[E](cause: Cause[E]): Stream[E, Nothing] = fromEffect(ZIO.halt(cause))
 
   /**
+   * See [[ZStream.iterate]]
+   */
+  final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] = Stream.unfold(a)(a => Some(a -> f(a)))
+
+  /**
    * See [[ZStream.managed]]
    */
   final def managed[E, A](managed: Managed[E, A]): Stream[E, A] =
