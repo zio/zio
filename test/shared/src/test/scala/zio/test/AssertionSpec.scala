@@ -11,12 +11,12 @@ object AssertionSpec {
   private def test(assertion: Boolean, message: String)(implicit ec: ExecutionContext): Future[(Boolean, String)] =
     label(Future.successful(assertion), s"AssertionTest: $message")
 
-  private def testSuccess(testResult: AssertResult[Either[FailureDetails, Unit]], message: String)(
+  private def testSuccess(testResult: TestResult, message: String)(
     implicit ec: ExecutionContext
   ): Future[(Boolean, String)] =
     label(Future.successful(testResult.isSuccess), message)
 
-  private def testFailure(testResult: AssertResult[Either[FailureDetails, Unit]], message: String)(
+  private def testFailure(testResult: TestResult, message: String)(
     implicit ec: ExecutionContext
   ): Future[(Boolean, String)] =
     label(Future.successful(testResult.isFailure), message)

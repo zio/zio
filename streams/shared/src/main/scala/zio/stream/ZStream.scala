@@ -1418,6 +1418,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream(self.process.provide(r).map(_.provide(r)))
 
   /**
+   * An effectual version of `provide`, useful when the act of provision
+   * requires an effect.
+   */
+  final def provideM[E1 >: E](r: ZIO[Any, E1, R]): Stream[E1, A] =
+    provideSomeM(r)
+
+  /**
    * Uses the given [[Managed]] to provide the environment required to run this stream,
    * leaving no outstanding environments.
    */
@@ -2125,17 +2132,17 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   final def fromQueue[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
-    unfoldM(()) { _ =>
-      queue.take
-        .map(a => Some((a, ())))
-        .foldCauseM(
-          cause =>
-            // Dequeueing from a shutdown queue will result in interruption,
-            // so use that to signal the stream's end.
-            if (cause.interrupted) ZIO.succeed(None)
-            else ZIO.halt(cause),
-          ZIO.succeed
+    ZStream[R, E, A] {
+      ZManaged.reserve(
+        Reservation(
+          UIO(
+            queue.take.catchAllCause(
+              c => queue.isShutdown.flatMap(down => if (down && c.interrupted) Pull.end else Pull.halt(c))
+            )
+          ),
+          _ => UIO.unit
         )
+      )
     }
 
   /**
@@ -2196,7 +2203,7 @@ object ZStream extends ZStreamPlatformSpecific {
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    succeed(a)
+    fromEffect(ZIO.effectTotal(a))
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`

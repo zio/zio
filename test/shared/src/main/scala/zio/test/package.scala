@@ -17,7 +17,6 @@
 package zio
 
 import zio.duration.Duration
-import zio.stream.{ ZSink, ZStream }
 import zio.test.mock.MockEnvironment
 
 /**
@@ -43,7 +42,8 @@ import zio.test.mock.MockEnvironment
  *  }
  * }}}
  */
-package object test {
+package object test extends CheckVariants {
+  type TestResult = AssertResult[Either[FailureDetails, Unit]]
 
   /**
    * A `TestReporter[L, E, S]` is capable of reporting test results annotated
@@ -94,7 +94,7 @@ package object test {
   /**
    * Checks the assertion holds for the given value.
    */
-  final def assert[A](value: => A, assertion: Assertion[A]): AssertResult[Either[FailureDetails, Unit]] =
+  final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
     assertion.run(value).map {
       case Left(fragment) => Left(FailureDetails(fragment, AssertionValue(assertion, value)))
       case _              => Right(())
@@ -112,28 +112,6 @@ package object test {
     }
 
   /**
-   * Checks the assertion holds for "sufficient" numbers of samples from the
-   * given random variable.
-   */
-  final def check[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
-    checkSome(200)(rv)(assertion)
-
-  /**
-   * Checks the assertion holds for all values from the given random variable.
-   * This is useful for deterministic `Gen` that comprehensively explore all
-   * possibilities in a given domain.
-   */
-  final def checkAll[R, A](rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
-    checkStream(rv.sample)(assertion)
-
-  /**
-   * Checks the assertion holds for the specified number of samples from the
-   * given random variable.
-   */
-  final def checkSome[R, A](n: Int)(rv: Gen[R, A])(assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
-    checkStream(rv.sample.forever.take(n))(assertion)
-
-  /**
    * Creates a failed test result with the specified runtime cause.
    */
   final def fail[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
@@ -148,15 +126,13 @@ package object test {
   /**
    * Builds a spec with a single pure test.
    */
-  final def test[L](label: L)(assertion: => AssertResult[Either[FailureDetails, Unit]]): ZSpec[Any, Nothing, L, Unit] =
+  final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
     testM(label)(ZIO.succeed(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, L, T](
-    label: L
-  )(assertion: ZIO[R, Nothing, AssertResult[Either[FailureDetails, Unit]]]): ZSpec[R, Nothing, L, Unit] =
+  final def testM[R, L, T](label: L)(assertion: ZIO[R, Nothing, TestResult]): ZSpec[R, Nothing, L, Unit] =
     Spec.test(
       label,
       assertion.flatMap { result =>
@@ -178,31 +154,6 @@ package object test {
       aspect: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
     ): ZSpec[R, E, L, S] =
       aspect(spec)
-  }
-
-  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
-    assertion: Assertion[A]
-  ): ZTest[R, Nothing, Unit] = {
-    def checkValue(value: A): AssertResult[Either[FailureDetails, Unit]] =
-      assertion.run(value).map {
-        case Left(e)  => Left(FailureDetails(e, AssertionValue(assertion, value)))
-        case Right(s) => Right(s)
-      }
-
-    stream
-      .map(_.map(checkValue))
-      .dropWhile(!_.value.isFailure) // Drop until we get to a failure
-      .take(1)                       // Get the first failure
-      .flatMap(_.shrinkSearch(_.isFailure).take(maxShrinks))
-      .run(ZSink.collectAll[AssertResult[Either[FailureDetails, Unit]]]) // Collect all the shrunken failures
-      .flatMap { failures =>
-        // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[ZTest[R, Nothing, Unit]] {
-          ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
-        } { result =>
-          ZIO.fail(TestFailure.Assertion(result.failures.get))
-        }
-      }
   }
 
   val defaultTestRunner: TestRunner[String, ZTest[MockEnvironment, Any, Any], Any, Any] =
