@@ -990,8 +990,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S]): ZIO[R1 with Clock, E1, A] =
-    retryOrElse[R1, A, E1, S, E1](policy, (e: E1, _: S) => ZIO.fail(e))
+  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S]): ZIO[R1 with Clock, E, A] =
+    retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -1000,7 +1000,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
     policy: ZSchedule[R1, E1, S],
-    orElse: (E1, S) => ZIO[R1, E2, A2]
+    orElse: (E, S) => ZIO[R1, E2, A2]
   ): ZIO[R1 with Clock, E2, A2] =
     retryOrElseEither(policy, orElse).map(_.merge)
 
@@ -1011,7 +1011,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def retryOrElseEither[R1 <: R, E1 >: E, S, E2, B](
     policy: ZSchedule[R1, E1, S],
-    orElse: (E1, S) => ZIO[R1, E2, B]
+    orElse: (E, S) => ZIO[R1, E2, B]
   ): ZIO[R1 with Clock, E2, Either[B, A]] = {
     def loop(state: policy.State): ZIO[R1 with Clock, E2, Either[B, A]] =
       self.foldM(
