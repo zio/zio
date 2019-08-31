@@ -250,14 +250,14 @@ object TestAspect {
   /**
    * An aspect that times out tests using the specified duration.
    */
-  def timeout(duration: Duration): TestAspect[Nothing, Live[Clock], Throwable, Any, Nothing, Any] =
-    new TestAspect.PerTest[Nothing, Live[Clock], Throwable, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Live[Clock], E >: Throwable <: Any, S >: Nothing <: Any](
+  def timeout(duration: Duration): TestAspect[Nothing, Live[Clock], Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[Clock], Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         Live.withLive(test)(_.timeout(duration)).flatMap {
           case None =>
-            ZIO.fail(TestFailure.Runtime(Cause.fail(new TimeoutException(s"Timeout of ${duration} exceeded"))))
+            ZIO.fail(TestFailure.Runtime(Cause.die(new TimeoutException(s"Timeout of ${duration} exceeded"))))
           case Some(v) => ZIO.succeed(v)
         }
     }
