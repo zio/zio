@@ -363,8 +363,10 @@ object GenSpec extends DefaultRuntime {
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.map(_.value).forever.take(100).runCollect
 
-  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): ZIO[R, Nothing, Boolean] =
-    ZIO.collectAll(List.fill(1)(shrinksTo(gen))).map(_.forall(_ == a))
+  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): ZIO[R, Nothing, Boolean] = {
+    val shrinks = if (TestPlatform.isJS) 1 else 100
+    ZIO.collectAll(List.fill(shrinks)(shrinksTo(gen))).map(_.forall(_ == a))
+  }
 
   def shrinksTo[R, A](gen: Gen[R, A]): ZIO[R, Nothing, A] =
     shrinks(gen).map(_.reverse.head)

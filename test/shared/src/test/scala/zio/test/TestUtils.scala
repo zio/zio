@@ -24,9 +24,9 @@ object TestUtils {
         val passed = results.forall(_._1)
         results.foreach(result => println(result._2))
         if (passed) Async.succeed(true)
-        else Async(ExitUtils.fail()).map(_ => false)
+        else Async(TestPlatform.fail()).map(_ => false)
       }
-    ExitUtils.await(async.run(ec))
+    TestPlatform.await(async.run(ec))
   }
 
   final def scope(tests: List[Async[(Boolean, String)]], label: String): Async[List[(Boolean, String)]] =
