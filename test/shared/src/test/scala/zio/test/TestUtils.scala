@@ -14,7 +14,8 @@ object TestUtils {
       .handle { case _ => (false, fail(label)) }
 
   final def nonFlaky[R, E](test: ZIO[R, E, Boolean]): ZIO[R with Clock, E, Boolean] =
-    test.repeat(Schedule.recurs(100) *> Schedule.identity[Boolean])
+    if (TestPlatform.isJS) test
+    else test.repeat(Schedule.recurs(100) *> Schedule.identity[Boolean])
 
   final def report(suites: List[Async[List[(Boolean, String)]]])(implicit ec: ExecutionContext): Unit = {
     val async = Async
@@ -24,9 +25,9 @@ object TestUtils {
         val passed = results.forall(_._1)
         results.foreach(result => println(result._2))
         if (passed) Async.succeed(true)
-        else Async(TestPlatform.fail()).map(_ => false)
+        else Async(ExitUtils.fail()).map(_ => false)
       }
-    TestPlatform.await(async.run(ec))
+    ExitUtils.await(async.run(ec))
   }
 
   final def scope(tests: List[Async[(Boolean, String)]], label: String): Async[List[(Boolean, String)]] =
