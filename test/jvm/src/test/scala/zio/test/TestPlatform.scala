@@ -11,7 +11,7 @@ private[test] object TestPlatform {
   }
 
   def fail(): Unit = ()
-  
+
   val isJS = false
 
   val isJVM = true
