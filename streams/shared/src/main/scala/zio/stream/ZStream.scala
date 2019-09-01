@@ -1795,19 +1795,49 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     mapAccum(0)((index, a) => (index + 1, (a, index)))
 
   /**
-   * Runs this stream with the specified stream sequentially.
+   * Composes this stream with the specified stream to create a cartesian product of elements
+   * with a specified function.
+   * The `that` stream would be run multiple times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
    */
-  final def <*>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
-    self.flatMap(ls => that.map(rs => (ls, rs)))
+  final def crossWith[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B])(f: (A, B) => C): ZStream[R1, E1, C] =
+    self.flatMap(ls => that.map(rs => f(ls, rs)))
 
   /**
-   * Runs this stream with the specified stream sequentially and keeps only values of this stream.
+   * Composes this stream with the specified stream to create a cartesian product of elements.
+   * The `that` stream would be run multiple times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def cross[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
+    (self crossWith that)((_, _))
+
+  /**
+   * Composes this stream with the specified stream to create a cartesian product of elements.
+   * The `that` stream would be run multiple times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
+   */
+  final def <*>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
+    (self crossWith that)((_, _))
+
+  /**
+   * Composes this stream with the specified stream to create a cartesian product of elements
+   * and keeps only the elements from the `this` stream. The `that` stream would be run multiple
+   * times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zipWith]] and [[ZStream#<&>]] for the more common point-wise variant.
    */
   final def <*[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, A] =
     (self <*> that).map(_._1)
 
   /**
-   * Runs this stream with the specified stream sequentially and keeps only values of specified stream.
+   * Composes this stream with the specified stream to create a cartesian product of elements
+   * and keeps only the elements from the `that` stream. The `that` stream would be run multiple
+   * times, for every element in the `this` stream.
+   *
+   * See also [[ZStream#zipWith]] and [[ZStream#<&>]] for the more common point-wise variant.
    */
   final def *>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     (self <*> that).map(_._2)
