@@ -15,7 +15,7 @@ object ZStackProtocol {
    *
    *
    */ 
-  def generateRespProtocol(args: List[String]): String  = {
+  def generateRespCommand(args: List[String]): String  = {
     val protocol = new StringBuilder().append("*").append(args.length).append("\r\n")
 
     args.foreach { arg =>
@@ -38,31 +38,31 @@ object ZStackProtocol {
     }
   }
 
-  private val getSuccessfulResponse: PartialFunction[String, String] = {
-    case s: String if s startsWith PASS => s
+  final val getSuccessfulResponse: PartialFunction[String, String] = {
+    case s: String if s startsWith PASS => s.slice(1, s.size)
   }
 
-  private val getErrorResponse: PartialFunction[String, String] = {
-    case s: String if s startsWith FAIL => s
+  final val getErrorResponse: PartialFunction[String, String] = {
+    case s: String if s startsWith FAIL => s.slice(1, s.size)
   }
 
-  private val numberOfBulkStrings: PartialFunction[String, Int] = {
-    case s: String if s startsWith MULTI => s.slice(1, s.size-1).toInt
+  final val numberOfBulkStrings: PartialFunction[String, Int] = {
+    case s: String if s startsWith MULTI => s.slice(1, s.size).toInt
   }
 
-  private val sizeOfBulkString: PartialFunction[String, Int] = {
-    case s: String if s startsWith BULK => s.slice(1, s.size-1).toInt
+  final val sizeOfBulkString: PartialFunction[String, Int] = {
+    case s: String if s startsWith BULK => s.slice(1, s.size).toInt
   }
 
-  private val getBulkString: PartialFunction[(List[String], Int), String] = {
+  final val getBulkString: PartialFunction[(List[String], Int), String] = {
     case (s, d) if s.size > 0 && d > 0 && s(1).size == d => s(1)
   }
 
   @tailrec
-  private def getArgs(received: List[String], acc: List[String] = List()): List[String] = {
-    if (received.size > 1 && received(0) startsWith BULK) {
-      val result: String = getBulkString((received.slice(0,1), sizeOfBulkString(received(0))))
-      getArgs(received.slice(2, received.size-1), acc :+ result)
+  final def getArgs(received: List[String], acc: List[String] = List()): List[String] = {
+    if (received.size > 1 && (received.head startsWith BULK)) {
+      val result: String = getBulkString((received.slice(0,2), sizeOfBulkString(received(0))))
+      getArgs(received.slice(2, received.size), acc :+ result)
     }
     else
       return acc
@@ -84,7 +84,7 @@ object ZStackProtocol {
     val receivedCount: Int = numberOfBulkStrings(receivedList(0))
     if (receivedList.size < 1 || receivedCount < 1)
       return None
-    val command: String = getBulkString((receivedList.slice(1,2), sizeOfBulkString(receivedList(1))))
+    val command: String = getBulkString((receivedList.slice(1,3), sizeOfBulkString(receivedList(1))))
     if (receivedList.size < 4)
       Some(ZStackServerRequest(
         command = command,
@@ -94,7 +94,7 @@ object ZStackProtocol {
     else
       Some(ZStackServerRequest(
         command = command,
-        args = Some(getArgs(receivedList.slice(3, receivedList.size-1)))
+        args = Some(getArgs(receivedList.slice(3, receivedList.size)))
       )
     )
   }

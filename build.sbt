@@ -86,7 +86,9 @@ lazy val root = project
     stacktracerJS,
     stacktracerJVM,
     testRunnerJS,
-    testRunnerJVM
+    testRunnerJVM,
+    zstackJVM,
+    zstackTestsJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -236,6 +238,33 @@ lazy val testRunnerJS = testRunner.js
   .settings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
   )
+
+lazy val zstack = crossProject(JVMPlatform)
+  .in(file("zstack"))
+  .settings(stdSettings("zio-zstack"))
+  .settings(buildInfoSettings)
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val zstackJVM = zstack.jvm
+  .settings(dottySettings)
+  .settings(replSettings)
+
+lazy val zstackTests = crossProject(JVMPlatform)
+  .in(file("zstack-tests"))
+  .dependsOn(zstack)
+  .settings(stdSettings("zio-zstack-tests"))
+  .settings(buildInfoSettings)
+  .settings(streamReplSettings)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
+    )
+  )
+
+lazy val zstackTestsJVM = streamsTests.jvm
 
 /**
  * Examples sub-project that is not included in the root project.
