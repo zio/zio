@@ -665,8 +665,8 @@ object ZQueueSpec
           for {
             q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
             _ <- q.offer(IO.fail("Ouch"))
-            v <- q.take.sandbox.either
-          } yield assert(v, isLeft(equalTo(Cause.fail("Ouch"))))
+            v <- q.take.run
+          } yield assert(v, fails(equalTo("Ouch")))
         },
         testM("queue both") {
           for {
