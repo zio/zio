@@ -154,7 +154,6 @@ microsite: &microsite
             nvm install
             nvm use
             node -v
-            ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
             ./sbt docs/docusaurusCreateSite
             ./sbt docs/docusaurusPublishGhpages
       - <<: *save_cache
