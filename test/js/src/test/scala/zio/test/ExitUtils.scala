@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-object ExitUtils {
+private[test] object ExitUtils {
 
   def fail(): Unit = System.exit(-1)
 

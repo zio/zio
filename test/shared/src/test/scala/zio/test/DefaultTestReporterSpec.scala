@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 import zio._
 import scala.{ Console => SConsole }
 import zio.clock.Clock
@@ -10,7 +10,7 @@ import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 
 object DefaultTestReporterSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(reportSuccess, "correctly reports a successful test"),
     label(reportFailure, "correctly reports a failed test"),
     label(reportError, "correctly reports an error in a test"),

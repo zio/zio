@@ -2,15 +2,16 @@ package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 
 import zio.{ clock, console, DefaultRuntime }
 import zio.duration._
+import zio.test.Async
 import zio.test.TestUtils.label
 
 object LiveSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(liveCanAccessRealEnvironment, "live can access real environment"),
     label(withLiveProvidesRealEnvironmentToSingleEffect, "withLive provides real environment to single effect")
   )

@@ -5,15 +5,13 @@ import java.time.ZoneId
 
 import zio._
 import zio.duration._
+import zio.test.Async
 import zio.test.mock.MockClock.DefaultData
 import zio.test.TestUtils.{ label, nonFlaky }
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-
 object ClockSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(e1, "sleep does not require passage of clock time"),
     label(e2, "sleep delays effect until time is adjusted"),
     label(e3, "sleep correctly handles multiple sleeps"),

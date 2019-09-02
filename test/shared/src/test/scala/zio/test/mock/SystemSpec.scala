@@ -1,14 +1,13 @@
 package zio.test.mock
 
-import scala.concurrent.{ ExecutionContext, Future }
-
 import zio.DefaultRuntime
+import zio.test.Async
 import zio.test.mock.MockSystem.Data
 import zio.test.TestUtils.label
 
 object SystemSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(env1, "fetch an environment variable and check that if it exists, return a reasonable value"),
     label(env2, "fetch an environment variable and check that if it does not exist, return None"),
     label(env3, "fetch an environment variable and check that if it is set, return the set value"),

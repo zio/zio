@@ -194,6 +194,17 @@ object TestAspect {
     }
 
   /**
+   * An aspect that returns the tests unchanged
+   */
+  val identity: TestAspectPoly =
+    new TestAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] = spec
+    }
+
+  /**
    * An aspect that marks tests as ignored.
    */
   val ignore: TestAspectPoly =
@@ -203,6 +214,28 @@ object TestAspect {
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         ZIO.succeed(TestSuccess.Ignored)
     }
+
+  def js[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
+    if (TestPlatform.isJS) that else identity
+
+  /**
+   * An aspect that only runs tests on ScalaJS.
+   */
+  val jsOnly: TestAspectPoly =
+    if (TestPlatform.isJS) identity else ignore
+
+  def jvm[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
+    if (TestPlatform.isJVM) that else identity
+
+  /**
+   * An aspect that only runs tests on the JVM.
+   */
+  val jvmOnly: TestAspectPoly =
+    if (TestPlatform.isJVM) identity else ignore
 
   /**
    * An aspect that executes the members of a suite in parallel.
