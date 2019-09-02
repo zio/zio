@@ -118,6 +118,22 @@ package object test extends CheckVariants {
     ZIO.fail(TestFailure.Runtime(cause))
 
   /**
+   * Creates an ignored test result.
+   */
+  final val ignore: ZTest[Any, Nothing, Nothing] =
+    ZIO.succeed(TestSuccess.Ignored)
+
+  /**
+   * Passes platform specific information to the specified function, which will
+   * use that information to create a test. If the platform is neither ScalaJS
+   * nor the JVM, an ignored test result will be returned.
+   */
+  final def platformSpecific[R, E, A, S](js: => A, jvm: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
+    if (TestPlatform.isJS) f(js)
+    else if (TestPlatform.isJVM) f(jvm)
+    else ignore
+
+  /**
    * Builds a suite containing a number of other specs.
    */
   final def suite[L, T](label: L)(specs: Spec[L, T]*): Spec[L, T] =
