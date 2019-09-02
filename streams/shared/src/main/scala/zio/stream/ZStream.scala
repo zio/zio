@@ -1913,7 +1913,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
    */
   final def crossWith[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B])(f: (A, B) => C): ZStream[R1, E1, C] =
-    self.flatMap(ls => that.map(rs => f(ls, rs)))
+    self.flatMap(l => that.map(r => f(l, r)))
 
   /**
    * Composes this stream with the specified stream to create a cartesian product of elements.
