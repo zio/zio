@@ -221,7 +221,7 @@ object TestAspect {
     if (TestPlatform.isJS) that else identity
 
   /**
-   * An aspect only runs tests on ScalaJS.
+   * An aspect that only runs tests on ScalaJS.
    */
   val jsOnly: TestAspectPoly =
     if (TestPlatform.isJS) identity else ignore
