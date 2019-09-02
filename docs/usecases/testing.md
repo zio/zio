@@ -57,7 +57,7 @@ When tests do fail, it is easy to see what went wrong because the test reporter 
 
 **Test Aspects**
 
-Test aspects are powerful tools for modifying behavior of individual tests or even entire suites that you have already written. Convenient syntax `@@` is provided for applying test aspects. So for example you could apply a timeout to a test by using ``test @@ timeout(60.seconds)` or only run a test on javascript by using `test @@ jsOnly`. Test aspects are highly composable so you can combine multiple test aspects together or apply them only to certain tests that match a predicate you specify.
+Test aspects are powerful tools for modifying behavior of individual tests or even entire suites that you have already written. Convenient syntax `@@` is provided for applying test aspects. So for example you could apply a timeout to a test by using `test @@ timeout(60.seconds)` or only run a test on javascript by using `test @@ jsOnly`. Test aspects are highly composable so you can combine multiple test aspects together or apply them only to certain tests that match a predicate you specify.
 
 **Zero Dependencies**
 
