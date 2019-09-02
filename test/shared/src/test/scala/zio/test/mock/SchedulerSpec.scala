@@ -1,16 +1,15 @@
 package zio.test.mock
 
-import scala.concurrent.{ ExecutionContext, Future }
-
 import zio._
 import zio.duration._
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
+import zio.test.Async
 import zio.test.TestUtils.label
 
 object SchedulerSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(e1, "scheduled tasks get executed"),
     label(e2, "scheduled tasks only get executed when time has passed"),
     label(e3, "scheduled tasks can be canceled"),
