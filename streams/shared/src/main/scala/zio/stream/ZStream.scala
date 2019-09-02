@@ -1795,6 +1795,35 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     mapAccum(0)((index, a) => (index + 1, (a, index)))
 
   /**
+   * Zips the two streams so that when a value is emitted by either of the two streams,
+   * it is combined with the latest value from the other stream to produce a result.
+   */
+  final def zipWithLatest[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B])(f0: (A, B) => C): ZStream[R1, E1, C] =
+    ZStream[R1, E1, C] {
+      for {
+        is    <- self.mergeEither(that).process
+        state <- Ref.make[(Option[A], Option[B])]((None, None)).toManaged_
+        pull: Pull[R1, E1, C] = {
+          def go: Pull[R1, E1, C] = is.flatMap { i =>
+            state
+              .modify[Pull[R1, E1, C]] {
+                case (previousLeft, previousRight) =>
+                  i match {
+                    case Left(a) =>
+                      previousRight.fold(go)(b => Pull.emit(f0(a, b))) -> (Some(a) -> previousRight)
+                    case Right(b) =>
+                      previousLeft.fold(go)(a => Pull.emit(f0(a, b))) -> (previousLeft -> Some(b))
+                  }
+              }
+              .flatten
+          }
+
+          go
+        }
+      } yield pull
+    }
+
+  /**
    * Composes this stream with the specified stream to create a cartesian product of elements
    * with a specified function.
    * The `that` stream would be run multiple times, for every element in the `this` stream.

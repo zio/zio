@@ -1,5 +1,8 @@
 package zio
 
+import scala.concurrent.Future
+
+import zio.clock.Clock
 import zio.duration._
 import zio.random._
 
@@ -30,6 +33,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
      retry exactly one time for `once` when second time succeeds - retryOrElse0 $retryOrElseEitherSucceed
   Retry a failed action 2 times and call `ensuring` should
      run the specified finalizer as soon as the schedule is complete $ensuring
+  Retry type parameters should infer correctly $retryTypeInference
   """
 
   def retryCollect[R, E, A, E1 >: E, S](
@@ -242,6 +246,23 @@ class RetrySpec extends BaseCrossPlatformSpec {
       finalizerV <- p.poll
     } yield (v must beNone) and (finalizerV.isDefined must beTrue)
 
+  def retryTypeInference = {
+    def foo[O](v: O): ZIO[Any with Clock, Error, Either[Failure, Success[O]]] =
+      ZIO.fromFuture { _ =>
+        Future.successful(v)
+      }.foldM(
+          _ => ZIO.fail(Error("Some error")),
+          ok => {
+            ZIO.succeed(Right(Success(ok)))
+          }
+        )
+        .retry(Schedule.spaced(2.seconds) && Schedule.recurs(1))
+        .catchAll(
+          error => ZIO.succeed(Left(Failure(error.message)))
+        )
+    foo("Ok").map(ok => ok must_=== Right(Success("Ok")))
+  }
+
   object TestRandom extends Random {
     object random extends Random.Service[Any] {
       val nextBoolean: UIO[Boolean] = UIO.succeed(false)
@@ -269,4 +290,8 @@ class RetrySpec extends BaseCrossPlatformSpec {
         UIO.succeed(list.reverse)
     }
   }
+
+  case class Error(message: String) extends Exception
+  case class Failure(message: String)
+  case class Success[O](content: O)
 }

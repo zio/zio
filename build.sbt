@@ -33,9 +33,12 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
-addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run")
+addCommandAlias(
+  "testJS",
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run;examplesJS/test:compile"
+)
 
 lazy val root = project
   .in(file("."))
@@ -109,7 +112,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core)
   .settings(stdSettings("zio-streams"))
   .settings(buildInfoSettings)
-  .settings(replSettings)
+  .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsJVM = streams.jvm
@@ -121,7 +124,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(coreTests % "test->test;compile->compile")
   .settings(stdSettings("zio-streams-tests"))
   .settings(buildInfoSettings)
-  .settings(replSettings)
+  .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")

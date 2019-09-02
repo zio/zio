@@ -170,7 +170,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
    */
-  final def effectAsyncM[E, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
+  final def effectAsyncM[E, A](register: (IO[E, A] => Unit) => IO[E, _]): IO[E, A] =
     ZIO.effectAsyncM(register)
 
   /**

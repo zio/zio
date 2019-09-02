@@ -185,9 +185,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     repeat                  $repeat
     short circuits          $repeatShortCircuits
 
-  Stream.spaced
-    spaced                        $spaced
-    spacedEither                  $spacedEither
+  Stream.schedule
+    scheduleElementsWith          $scheduleElementsWith
+    scheduleElementsEither        $scheduleElementsEither
+    scheduleWith                  $scheduleWith
+    scheduleEither                $scheduleEither
     repeated and spaced           $repeatedAndSpaced
     short circuits in schedule    $spacedShortCircuitsWhileInSchedule
     short circuits after schedule $spacedShortCircuitsAfterScheduleFinished
@@ -237,6 +239,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     zipWithIndex                $zipWithIndex
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
+    zipWithLatest               $zipWithLatest
   """
 
   def aggregate = unsafeRun {
@@ -1480,18 +1483,34 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       } yield result must_=== List(1, 1)
     )
 
-  private def spaced =
+  private def scheduleWith =
     unsafeRun(
       Stream("A", "B", "C")
-        .spaced(Schedule.recurs(0) *> Schedule.fromFunction((_) => "!"))
+        .scheduleWith(Schedule.recurs(3) *> Schedule.fromFunction((_) => "!"))(_.toLowerCase, identity)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "!", "B", "!", "C", "!"))
+        .map(_ must_=== List("a", "b", "c", "!"))
     )
 
-  private def spacedEither =
+  private def scheduleEither =
     unsafeRun(
       Stream("A", "B", "C")
-        .spacedEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+        .scheduleEither(Schedule.recurs(3) *> Schedule.fromFunction((_) => "!"))
+        .run(Sink.collectAll[Either[String, String]])
+        .map(_ must_=== List(Right("A"), Right("B"), Right("C"), Left("!")))
+    )
+
+  private def scheduleElementsWith =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .scheduleElementsWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(identity, _.toString)
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "123", "B", "123", "C", "123"))
+    )
+
+  private def scheduleElementsEither =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .scheduleElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
         .run(Sink.collectAll[Either[Int, String]])
         .map(_ must_=== List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123)))
     )
@@ -1499,7 +1518,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def repeatedAndSpaced =
     unsafeRun(
       Stream("A", "B", "C")
-        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.recurs(1) >>> Schedule.fromFunction((_) => "!"))
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
     )
@@ -1507,7 +1526,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def spacedShortCircuitsAfterScheduleFinished =
     unsafeRun(
       Stream("A", "B", "C")
-        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
         .take(3)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "!"))
@@ -1516,7 +1535,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def spacedShortCircuitsWhileInSchedule =
     unsafeRun(
       Stream("A", "B", "C")
-        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
         .take(4)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "!", "B"))
@@ -1780,6 +1799,19 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       .runCollect
       .either
       .map(_ must_=== Left("Ouch"))
+  }
+
+  private def zipWithLatest = unsafeRun {
+    val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
+    val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
+
+    withLatch { release =>
+      s1.zipWithLatest(s2)((_, _))
+        .take(8)
+        .runCollect
+        .tap(_ => release)
+        .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 2 -> 2, 2 -> 3, 2 -> 4, 3 -> 4))
+    }
   }
 
   private def interleave = unsafeRun {
