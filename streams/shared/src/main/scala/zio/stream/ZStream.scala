@@ -807,6 +807,15 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def filterNot(pred: A => Boolean): ZStream[R, E, A] = filter(a => !pred(a))
 
   /**
+   * Emits elements of this stream with a fixed delay in between, regardless of how long it
+   * takes to produce a value.
+   */
+  final def fixed[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
+    scheduleElementsEither((ZSchedule.identity[A1] && (ZSchedule.spaced(duration) && Schedule.recurs(0))).map(_._1)).collect {
+      case Right(x) => x
+    }
+
+  /**
    * Returns a stream made of the concatenation in strict order of all the streams
    * produced by passing each element of this stream to `f0`
    */
@@ -1418,6 +1427,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream(self.process.provide(r).map(_.provide(r)))
 
   /**
+   * An effectual version of `provide`, useful when the act of provision
+   * requires an effect.
+   */
+  final def provideM[E1 >: E](r: ZIO[Any, E1, R]): Stream[E1, A] =
+    provideSomeM(r)
+
+  /**
    * Uses the given [[Managed]] to provide the environment required to run this stream,
    * leaving no outstanding environments.
    */
@@ -1532,57 +1548,123 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
 
   /**
-   * Repeats each element of the stream using the provided schedule, additionally emitting schedule's output,
-   * each time a schedule is completed.
-   * Repeats are done in addition to the first execution, so that
-   * `spaced(Schedule.once)` means "emit element and if not short circuited, repeat element once".
+   * Schedules the output of the stream using the provided `schedule` and emits its output at
+   * the end (if `schedule` is finite).
    */
+  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+    scheduleEither(schedule).map(_.merge)
+
+  /**
+   * Schedules the output of the stream using the provided `schedule` and emits its output at
+   * the end (if `schedule` is finite).
+   */
+  final def scheduleEither[R1 <: R, E1 >: E, B](
+    schedule: ZSchedule[R1, A, B]
+  ): ZStream[R1 with Clock, E1, Either[B, A]] =
+    scheduleWith(schedule)(Right.apply, Left.apply)
+
+  /**
+   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   */
+  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+    scheduleElementsEither(schedule).map(_.merge)
+
+  /**
+   * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   */
+  final def scheduleElementsEither[R1 <: R, E1 >: E, B](
+    schedule: ZSchedule[R1, A, B]
+  ): ZStream[R1 with Clock, E1, Either[B, A]] =
+    scheduleElementsWith(schedule)(Right.apply, Left.apply)
+
+  /**
+   * Repeats each element of the stream using the provided schedule, additionally emitting the schedule's output
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
+   * and if not short circuited, repeat element once".
+   * Uses the provided functions to align the stream and schedule outputs on a common type.
+   */
+  final def scheduleElementsWith[R1 <: R, E1 >: E, B, C](
+    schedule: ZSchedule[R1, A, B]
+  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
+    ZStream[R1 with Clock, E1, C] {
+      for {
+        as    <- self.process
+        state <- Ref.make[Option[(A, schedule.State)]](None).toManaged_
+        pull = {
+          def go: Pull[R1 with Clock, E1, C] = state.get.flatMap {
+            case None =>
+              for {
+                a    <- as
+                init <- schedule.initial
+                _    <- state.set(Some(a -> init))
+              } yield f(a)
+
+            case Some((a, sched)) =>
+              for {
+                decision <- schedule.update(a, sched)
+                _        <- clock.sleep(decision.delay)
+                _        <- state.set(if (decision.cont) Some(a -> decision.state) else None)
+              } yield if (decision.cont) f(a) else g(decision.finish())
+          }
+
+          go
+        }
+      } yield pull
+    }
+
+  /**
+   * Schedules the output of the stream using the provided `schedule` and emits its output at
+   * the end (if `schedule` is finite).
+   * Uses the provided function to align the stream and schedule outputs on the same type.
+   */
+  final def scheduleWith[R1 <: R, E1 >: E, B, C](
+    schedule: ZSchedule[R1, A, B]
+  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
+    ZStream[R1 with Clock, E1, C] {
+      for {
+        as    <- self.process
+        init  <- schedule.initial.toManaged_
+        state <- Ref.make[(Boolean, schedule.State, Option[() => B])]((false, init, None)).toManaged_
+        pull = state.get.flatMap {
+          case (done, sched, decision0) =>
+            if (done) Pull.end
+            else
+              for {
+                a <- as.optional.mapError(Some(_))
+                c <- a match {
+                      case Some(a) =>
+                        for {
+                          decision <- schedule.update(a, sched)
+                          _        <- clock.sleep(decision.delay)
+                          _        <- state.set((!decision.cont, decision.state, Some(decision.finish)))
+                        } yield if (decision.cont) f(a) else g(decision.finish())
+
+                      case None =>
+                        state.set((false, sched, None)) *> decision0
+                          .fold[Pull[R1 with Clock, E1, C]](Pull.end)(b => Pull.emit(g(b())))
+                    }
+              } yield c
+        }
+      } yield pull
+    }
+
+  @deprecated("use scheduleElements", "1.0.0")
   final def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
-    spacedEither(schedule).map(_.merge)
+    scheduleElements(schedule)
 
   /**
    * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
    */
+  @deprecated("use scheduleElementsEither", "1.0.0")
   final def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
-    ZStream {
-      sealed trait State
-      object State {
-        case class Initial(sched: schedule.State)                               extends State
-        case class SleepAndFinish(delay: Duration, b: B)                        extends State
-        case class SleepAndRepeat(sched: schedule.State, delay: Duration, a: A) extends State
-      }
-
-      def decide(decision: ZSchedule.Decision[schedule.State, B], a: A): State =
-        if (decision.cont) State.SleepAndRepeat(decision.state, decision.delay, a)
-        else State.SleepAndFinish(decision.delay, decision.finish())
-
-      for {
-        as    <- self.process
-        init  <- schedule.initial.toManaged_
-        state <- Ref.make[State](State.Initial(init)).toManaged_
-        pull = state.get.flatMap {
-          case State.Initial(sched) =>
-            for {
-              a        <- as
-              decision <- schedule.update(a, sched)
-              _        <- state.set(decide(decision, a))
-            } yield Right(a)
-
-          case State.SleepAndRepeat(sched, delay, a) =>
-            for {
-              _        <- clock.sleep(delay)
-              decision <- schedule.update(a, sched)
-              _        <- state.set(decide(decision, a))
-            } yield Right(a)
-
-          case State.SleepAndFinish(delay, b) =>
-            for {
-              _ <- clock.sleep(delay)
-              _ <- state.set(State.Initial(init))
-            } yield Left(b)
-        }
-      } yield pull
-    }
+    scheduleElementsEither(schedule)
 
   /**
    * Takes the specified number of elements from this stream.
@@ -2208,21 +2290,6 @@ object ZStream extends ZStreamPlatformSpecific {
     ZStream(ZManaged.succeed(pull))
 
   /**
-   * Creates a stream from an effect producing a value of type `A` which repeats forever
-   */
-  final def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
-    fromEffect(fa).forever
-
-  /**
-   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
-   */
-  final def repeatEffectWith[R, E, A](
-    fa: ZIO[R, E, A],
-    schedule: ZSchedule[R, Unit, _]
-  ): ZStream[R with Clock, E, A] =
-    fromEffect(fa).repeat(schedule)
-
-  /**
    * Creates a stream from an iterable collection of values
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
@@ -2232,17 +2299,17 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   final def fromQueue[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
-    unfoldM(()) { _ =>
-      queue.take
-        .map(a => Some((a, ())))
-        .foldCauseM(
-          cause =>
-            // Dequeueing from a shutdown queue will result in interruption,
-            // so use that to signal the stream's end.
-            if (cause.interrupted) ZIO.succeed(None)
-            else ZIO.halt(cause),
-          ZIO.succeed
+    ZStream[R, E, A] {
+      ZManaged.reserve(
+        Reservation(
+          UIO(
+            queue.take.catchAllCause(
+              c => queue.isShutdown.flatMap(down => if (down && c.interrupted) Pull.end else Pull.halt(c))
+            )
+          ),
+          _ => UIO.unit
         )
+      )
     }
 
   /**
@@ -2255,6 +2322,11 @@ object ZStream extends ZStreamPlatformSpecific {
    * The stream that always halts with `cause`.
    */
   final def halt[E](cause: Cause[E]): ZStream[Any, E, Nothing] = fromEffect(ZIO.halt(cause))
+
+  /**
+   * The infinite stream of iterative function application: a, f(a), f(f(a)), f(f(f(a))), ...
+   */
+  final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] = ZStream.unfold(a)(a => Some(a -> f(a)))
 
   /**
    * Creates a single-valued stream from a managed resource
@@ -2296,6 +2368,21 @@ object ZStream extends ZStreamPlatformSpecific {
     unfold(min)(cur => if (cur > max) None else Some((cur, cur + 1)))
 
   /**
+   * Creates a stream from an effect producing a value of type `A` which repeats forever
+   */
+  final def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
+    fromEffect(fa).forever
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   */
+  final def repeatEffectWith[R, E, A](
+    fa: ZIO[R, E, A],
+    schedule: ZSchedule[R, Unit, _]
+  ): ZStream[R with Clock, E, A] =
+    fromEffect(fa).repeat(schedule)
+
+  /**
    * Creates a single-valued pure stream
    */
   final def succeed[A](a: A): Stream[Nothing, A] =
@@ -2303,7 +2390,7 @@ object ZStream extends ZStreamPlatformSpecific {
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    succeed(a)
+    fromEffect(ZIO.effectTotal(a))
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`
