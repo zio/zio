@@ -78,7 +78,7 @@
 <p>On the JVM, fibers will use threads, but will not consume <em>unlimited</em> threads. Instead, fibers yield cooperatively during periods of high-contention.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fib</span></span>(n: <span class="hljs-type">Int</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Int</span>] =
   <span class="hljs-keyword">if</span> (n &lt;= <span class="hljs-number">1</span>) {
-    <span class="hljs-type">IO</span>.succeedLazy(<span class="hljs-number">1</span>)
+    <span class="hljs-type">IO</span>.succeed(<span class="hljs-number">1</span>)
   } <span class="hljs-keyword">else</span> {
     <span class="hljs-keyword">for</span> {
       fiber1 &lt;- fib(n - <span class="hljs-number">2</span>).fork
@@ -103,7 +103,7 @@
 <li>The fiber has a defect that leads to a non-recoverable error. There are only two ways this can happen:
 <ol>
 <li>A partial function is passed to a higher-order function such as <code>map</code> or <code>flatMap</code>. For example, <code>io.map(_ =&gt; throw e)</code>, or <code>io.flatMap(a =&gt; throw e)</code>. The solution to this problem is to not to pass impure functions to purely functional libraries like ZIO, because doing so leads to violations of laws and destruction of equational reasoning.</li>
-<li>Error-throwing code was embedded into some value via <code>IO.succeedLazy</code>, <code>IO.sync</code>, etc. For importing partial effects into <code>IO</code>, the proper solution is to use a method such as <code>syncException</code>, which safely translates exceptions into values.</li>
+<li>Error-throwing code was embedded into some value via <code>IO.sync</code>, etc. For importing partial effects into <code>IO</code>, the proper solution is to use a method such as <code>syncException</code>, which safely translates exceptions into values.</li>
 </ol></li>
 </ul>
 <p>When a fiber is terminated, the reason for the termination, expressed as a <code>Throwable</code>, is passed to the fiber's supervisor, which may choose to log, print the stack trace, restart the fiber, or perform some other action appropriate to the context.</p>

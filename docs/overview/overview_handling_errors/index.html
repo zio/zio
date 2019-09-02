@@ -116,7 +116,7 @@
 <p>In the following example, <code>foldM</code> is used to handle both failure and success of the <code>readUrls</code> method:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> urls: <span class="hljs-type">UIO</span>[<span class="hljs-type">Content</span>] =
   readUrls(<span class="hljs-string">"urls.json"</span>).foldM(
-    error   =&gt; <span class="hljs-type">IO</span>.succeedLazy(<span class="hljs-type">NoContent</span>(error)), 
+    error   =&gt; <span class="hljs-type">IO</span>.succeed(<span class="hljs-type">NoContent</span>(error)), 
     success =&gt; fetchContent(success)
   )
 </code></pre>

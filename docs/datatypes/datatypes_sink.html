@@ -80,6 +80,9 @@ stream.run(sink)
 <p>Collecting all elements into <code>List[A]</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.collectAll[<span class="hljs-type">Int</span>]
 </code></pre>
+<p>Collecting the first element into an option (returns <code>None</code> for empty streams):</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.identity[<span class="hljs-type">Int</span>].optional
+</code></pre>
 <p>Collecting elements until the condition is not satisfied:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.collectAllWhile[<span class="hljs-type">Int</span>](_ &gt; <span class="hljs-number">2</span>)
 </code></pre>
@@ -95,14 +98,14 @@ stream.run(sink)
 <span class="hljs-type">Sink</span>.fail[<span class="hljs-type">Exception</span>](<span class="hljs-keyword">new</span> <span class="hljs-type">NotImplementedException</span>)
 </code></pre>
 <p>Basic fold accumulation of received elements:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.foldLeft[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)(_ + _)
+<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.foldLeft[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)(_ + _)
 </code></pre>
 <p>Fold where each fold step has to be described in sink <code>Step</code> API.
 A <code>foldLeft</code> uses <code>Step.more</code> in its implementation:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.fold[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)((acc, e) =&gt; <span class="hljs-type">ZSink</span>.<span class="hljs-type">Step</span>.more(acc + e))
 </code></pre>
 <p>Mapping over the received input elements:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.fromFunction[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](_ * <span class="hljs-number">2</span>).collectAll[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>]
+<pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>.fromFunction[<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>](_ * <span class="hljs-number">2</span>).collectAll
 </code></pre>
 <p><code>pull1</code> fails with given type in case of empty stream, otherwise continues with provided sink:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-type">Sink</span>
