@@ -2,10 +2,10 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ DefaultRuntime, Ref, UIO, ZIO }
+import zio.{ DefaultRuntime, Ref }
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.TestUtils.label
+import zio.test.TestUtils.{ execute, ignored, label, succeeded }
 
 object TestAspectSpec extends DefaultRuntime {
 
@@ -47,27 +47,4 @@ object TestAspectSpec extends DefaultRuntime {
       val spec = test("JVM-only")(assert(TestPlatform.isJVM, isTrue)) @@ jvmOnly
       if (TestPlatform.isJVM) succeeded(spec) else ignored(spec)
     }
-
-  def execute[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): UIO[ExecutedSpec[L, E, S]] =
-    TestExecutor.managed(mock.mockEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
-
-  def forAllTests[L, E, S](
-    execSpec: UIO[ExecutedSpec[L, E, S]]
-  )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
-    execSpec.map { results =>
-      results.forall { case Spec.TestCase(_, test) => f(test); case _ => true }
-    }
-
-  def succeeded[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
-    val execSpec = execute(spec)
-    forAllTests(execSpec)(_.isRight)
-  }
-
-  def ignored[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
-    val execSpec = execute(spec)
-    forAllTests(execSpec) {
-      case Right(TestSuccess.Ignored) => true
-      case _                          => false
-    }
-  }
 }
