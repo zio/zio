@@ -47,7 +47,7 @@ object Clock extends Serializable {
       def sleep(duration: Duration): UIO[Unit] =
         scheduler.scheduler.flatMap(
           scheduler =>
-            Effect.Live.effect.asyncInterrupt[Nothing, Unit] { k =>
+            Effect.Live.effect.asyncInterrupt[Any, Nothing, Unit] { k =>
               val canceler = scheduler
                 .schedule(() => k(ZIO.unit), duration)
 

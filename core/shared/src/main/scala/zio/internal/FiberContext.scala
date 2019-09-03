@@ -612,11 +612,11 @@ private[zio] final class FiberContext[E, A](
     zio => if (a.getAndSet(false) && exitAsync()) evaluateLater(zio)
   }
 
-  final def interrupt: UIO[Exit[E, A]] = Effect.Live.effect.asyncMaybe[Nothing, Exit[E, A]] { k =>
+  final def interrupt: UIO[Exit[E, A]] = Effect.Live.effect.asyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     kill0(x => k(ZIO.done(x)))
   }
 
-  final def await: UIO[Exit[E, A]] = Effect.Live.effect.asyncMaybe[Nothing, Exit[E, A]] { k =>
+  final def await: UIO[Exit[E, A]] = Effect.Live.effect.asyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
   }
 

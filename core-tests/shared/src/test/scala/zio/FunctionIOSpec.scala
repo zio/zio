@@ -1,6 +1,7 @@
 package zio
 
 import zio.FunctionIO._
+import zio.effect.Effect
 
 class FunctionIOSpec extends BaseCrossPlatformSpec {
   def is = "FunctionIOSpec".title ^ s2"""
@@ -161,7 +162,7 @@ class FunctionIOSpec extends BaseCrossPlatformSpec {
     unsafeRun(
       for {
         v <- whileDo[Nothing, Int](fromFunctionM[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10)))(
-              fromFunctionM[Nothing, Int, Int](a => IO.effectTotal[Int](a + 1))
+              fromFunctionM[Nothing, Int, Int](a => Effect.Live.effect.total[Int](a + 1))
             ).run(1)
       } yield v must_=== 10
     )
@@ -189,14 +190,20 @@ class FunctionIOSpec extends BaseCrossPlatformSpec {
   def e18b =
     unsafeRun(
       for {
-        a <- effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).either
+        a <- FunctionIO
+              .effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception)
+              .run(9)
+              .either
       } yield a must_=== Left("error")
     )
 
   def e19 =
     unsafeRun(
       for {
-        a <- effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).ignore
+        a <- FunctionIO
+              .effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception)
+              .run(9)
+              .ignore
       } yield a must be_==(())
     )
 }

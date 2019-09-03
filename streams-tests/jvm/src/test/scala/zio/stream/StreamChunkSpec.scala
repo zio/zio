@@ -2,9 +2,12 @@ package zio.stream
 
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
+import zio.effect.Effect
+
 import scala.{ Stream => _ }
 import scala.concurrent.duration._
 import zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
+
 import scala.annotation.tailrec
 
 class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
@@ -109,7 +112,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
       val result = unsafeRunSync {
         s.foreachWhile { a =>
-          IO.effectTotal {
+          Effect.Live.effect.total {
             if (cont(a)) {
               acc ::= a
               true
@@ -126,7 +129,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       var acc = List[Int]()
 
       val result = unsafeRunSync {
-        s.foreach(a => IO.effectTotal(acc ::= a))
+        s.foreach(a => Effect.Live.effect.total(acc ::= a))
       }
 
       result.map(_ => acc.reverse) must_=== slurp(s).map(_.toList)
@@ -154,7 +157,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     prop { (s: StreamChunk[String, String]) =>
       val withoutEffect = slurp(s)
       var acc           = List[String]()
-      val tap           = slurp(s.tap(a => IO.effectTotal(acc ::= a)))
+      val tap           = slurp(s.tap(a => Effect.Live.effect.total(acc ::= a)))
 
       (tap must_=== withoutEffect) and
         ((Success(acc.reverse) must_== withoutEffect) when withoutEffect.succeeded)

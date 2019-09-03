@@ -21,7 +21,7 @@ package zio.internal.tracing
  *
  * @param traceExecution Collect traces of most ZIO operations into a Full Execution Trace
  *
- * @param traceEffectOpsInExecution Add traces of ZIO.effect* operations in Full Execution Trace. Applies when
+ * @param traceEffectOpsInExecution Add traces of Effect.Live.effect* operations in Full Execution Trace. Applies when
  *                                  `traceExecution` is enabled. May multiply the amount of memory used by the
  *                                  tracing cache.
  *

@@ -20,6 +20,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 import ZStream.Pull
+import zio.effect.Effect
 
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of
@@ -2312,7 +2313,7 @@ object ZStream extends ZStreamPlatformSpecific {
 
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    fromEffect(ZIO.effectTotal(a))
+    fromEffect(Effect.Live.effect.total(a))
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`

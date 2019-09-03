@@ -3,6 +3,7 @@ package zio.blocking
 import java.util.concurrent.atomic.AtomicBoolean
 
 import zio.duration.Duration
+import zio.effect.Effect
 import zio.{ TestRuntime, UIO }
 
 final class BlockingSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
@@ -40,7 +41,7 @@ final class BlockingSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extend
 
   def e4 = {
     val release = new AtomicBoolean(false)
-    val cancel  = UIO.effectTotal(release.set(true))
+    val cancel  = Effect.Live.effect.total(release.set(true))
     val res     = unsafeRun(effectBlockingCancelable(blocking(release))(cancel).timeout(Duration.Zero))
     res must beNone
   }

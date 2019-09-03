@@ -1,6 +1,7 @@
 package zio
 
 import org.scalacheck._
+import zio.effect.Effect
 
 trait GenIO {
 
@@ -13,7 +14,7 @@ trait GenIO {
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] =
-    Arbitrary.arbitrary[A].map(a => IO.effectAsync[E, A](k => k(IO.succeed(a))))
+    Arbitrary.arbitrary[A].map(a => Effect.Live.effect.async[Any, E, A](k => k(IO.succeed(a))))
 
   /**
    * Randomly uses either `genSyncSuccess` or `genAsyncSuccess` with equal probability.
@@ -29,7 +30,7 @@ trait GenIO {
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] =
-    Arbitrary.arbitrary[E].map(err => IO.effectAsync[E, A](k => k(IO.fail(err))))
+    Arbitrary.arbitrary[E].map(err => Effect.Live.effect.async[Any, E, A](k => k(IO.fail(err))))
 
   /**
    * Randomly uses either `genSyncFailure` or `genAsyncFailure` with equal probability.

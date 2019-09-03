@@ -4,6 +4,7 @@ import org.specs2.execute.Result
 import org.specs2.matcher.{ Expectable, Matcher }
 import org.specs2.mutable
 import zio.duration._
+import zio.effect.Effect
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.SourceLocation
 
@@ -128,7 +129,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   object foreachTraceFixture {
-    def effectTotal = ZIO.effectTotal(())
+    def effectTotal = Effect.Live.effect.total(())
   }
 
   def foreachFail = {
@@ -350,7 +351,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         case 0 =>
           UIO(throw new Exception("oops!"))
         case _ =>
-          UIO.effectSuspendTotal(recursiveFork(i - 1)).fork.flatMap(_.join)
+          Effect.Live.effect.suspendTotal(recursiveFork(i - 1)).fork.flatMap(_.join)
       }
   }
 
@@ -375,7 +376,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val io = (for {
       _ <- ZIO.unit
       _ <- ZIO.unit
-      _ <- ZIO.effect(traceThis()).traced.traced.traced
+      _ <- Effect.Live.effect(traceThis()).traced.traced.traced
       _ <- ZIO.unit
       _ <- ZIO.unit
       _ <- ZIO.fail("end")
@@ -487,7 +488,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   object singleEffectTotalWithForCompFixture {
     def asyncDbCall(): Task[Unit] =
-      Task.effectSuspendTotalWith(_ => throw new Exception)
+      Effect.Live.effect.suspendTotalWith(_ => throw new Exception)
 
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()

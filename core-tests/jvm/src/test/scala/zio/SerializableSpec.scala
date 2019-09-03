@@ -2,14 +2,16 @@ package zio
 
 import java.io._
 
+import zio.effect.Effect
+
 class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def serializeAndBack[T](a: T): IO[_, T] = {
     import SerializableSpec._
 
     for {
-      obj       <- IO.effectTotal(serializeToBytes(a))
-      returnObj <- IO.effectTotal(getObjFromBytes[T](obj))
+      obj       <- Effect.Live.effect.total(serializeToBytes(a))
+      returnObj <- Effect.Live.effect.total(getObjFromBytes[T](obj))
     } yield returnObj
   }
 

@@ -48,8 +48,8 @@ import zio.{ InterruptStatus => InterruptS }
  *
  *  - '''Pure Values''' &mdash; `ZIO.succeed`
  *  - '''Error Effects''' &mdash; `ZIO.fail`
- *  - '''Synchronous Effects''' &mdash; `IO.effect`
- *  - '''Asynchronous Effects''' &mdash; `IO.effectAsync`
+ *  - '''Synchronous Effects''' &mdash; `Effect.Live.effect`
+ *  - '''Asynchronous Effects''' &mdash; `Effect.Live.effect.async`
  *  - '''Concurrent Effects''' &mdash; `IO#fork`
  *  - '''Resource Effects''' &mdash; `IO#bracket`
  *  - '''Contextual Effects''' &mdash; `ZIO.access`
@@ -1049,7 +1049,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
-   *   IO.effectTotal(5 / 0) *> IO.fail(DomainError())
+   *   Effect.Live.effect.total(5 / 0) *> IO.fail(DomainError())
    *
    * val caught: UIO[Unit] =
    *   veryBadIO.sandbox.catchAll {
@@ -1106,7 +1106,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect that models success with the specified lazily-evaluated
    * value. This method should not be used to capture effects. See
-   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
+   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[Effect.Live.effect]]` for capturing
    * partial effects.
    */
   @deprecated("use effectTotal", "1.0.0")
@@ -1120,7 +1120,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
-   *   IO.effectTotal(5 / 0) *> IO.fail(DomainError())
+   *   Effect.Live.effect.total(5 / 0) *> IO.fail(DomainError())
    *
    * val caught: IO[DomainError, Unit] =
    *   veryBadIO.sandboxWith(_.catchSome {
@@ -2067,7 +2067,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Returns a effect that will never produce anything. The moral
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
-  final val never: UIO[Nothing] = Effect.Live.effect.async[Nothing, Nothing](_ => ())
+  final val never: UIO[Nothing] = Effect.Live.effect.async[Any, Nothing, Nothing](_ => ())
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the

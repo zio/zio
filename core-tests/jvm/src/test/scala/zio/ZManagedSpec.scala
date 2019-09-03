@@ -3,12 +3,12 @@ package zio
 import java.util.concurrent.CountDownLatch
 
 import org.scalacheck.{ Gen, _ }
-
 import org.specs2.ScalaCheck
 import org.specs2.matcher.MatchResult
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.duration._
+import zio.effect.Effect
 
 import scala.collection.mutable
 
@@ -127,7 +127,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def invokesCleanupsInReverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(Effect.Live.effect.total { effects += x; () })(_ => Effect.Live.effect.total { effects += x; () })
 
     val (first, second, third) = (res(1), res(2), res(3))
 
@@ -275,7 +275,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def foldMFailure = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int): Managed[Unit, Unit] =
-      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      Managed.make(Effect.Live.effect.total { effects += x; () })(_ => Effect.Live.effect.total { effects += x; () })
 
     // foldM[Any, Unit, Unit] - if types were not specified, you get "type inferred to `Any`" compile error.
     val resource = Managed.fromEffect(IO.fail(())).foldM[Any, Unit, Unit](_ => res(1), _ => Managed.unit)
@@ -288,7 +288,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def foldMSuccess = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int): ZManaged[Any, Unit, Unit] =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(Effect.Live.effect.total { effects += x; () })(_ => Effect.Live.effect.total { effects += x; () })
 
     val resource = ZManaged.succeed(()).foldM(_ => ZManaged.unit, _ => res(1))
 
@@ -300,7 +300,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def foldMCleanup = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int): ZManaged[Any, Unit, Unit] =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(Effect.Live.effect.total { effects += x; () })(_ => Effect.Live.effect.total { effects += x; () })
 
     val resource = res(1).flatMap(_ => ZManaged.fail(())).foldM(_ => res(2), _ => res(3))
 
@@ -312,7 +312,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def foldMCleanupInterrupt1 = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int): ZManaged[Any, Unit, Unit] =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(Effect.Live.effect.total { effects += x; () })(_ => Effect.Live.effect.total { effects += x; () })
 
     val resource = res(1).flatMap(_ => ZManaged.fromEffect(ZIO.interrupt)).foldM(_ => res(2), _ => res(3))
 
@@ -324,7 +324,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def foldMCleanupInterrupt2 = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int): ZManaged[Any, Unit, Unit] =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(Effect.Live.effect.total { effects += x; () })(_ => Effect.Live.effect.total { effects += x; () })
 
     val resource = res(1).flatMap(_ => ZManaged.fail(())).foldM(_ => res(2), _ => res(3))
 
@@ -336,7 +336,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def foldMCleanupInterrupt3 = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int): ZManaged[Any, Unit, Unit] =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(Effect.Live.effect.total { effects += x; () })(_ => Effect.Live.effect.total { effects += x; () })
 
     val resource = res(1)
       .flatMap(_ => ZManaged.fail(()))
@@ -363,9 +363,10 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def retryReservation = {
     var retries = 0
 
-    val managed = ZManaged.make(ZIO.effectTotal(retries += 1) *> { if (retries == 3) ZIO.unit else ZIO.fail(()) }) {
-      _ =>
-        ZIO.unit
+    val managed = ZManaged.make(Effect.Live.effect.total(retries += 1) *> {
+      if (retries == 3) ZIO.unit else ZIO.fail(())
+    }) { _ =>
+      ZIO.unit
     }
 
     unsafeRun(managed.retry(Schedule.recurs(3)).use(_ => ZIO.unit))
@@ -375,7 +376,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def retryAcquisition = {
     var retries = 0
 
-    val managed = ZManaged.reserve(Reservation(ZIO.effectTotal(retries += 1) *> {
+    val managed = ZManaged.reserve(Reservation(Effect.Live.effect.total(retries += 1) *> {
       if (retries == 3) ZIO.unit else ZIO.fail(())
     }, _ => ZIO.unit))
 
@@ -389,12 +390,12 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged {
 
-      ZIO.effectTotal(retries1 += 1) *> {
+      Effect.Live.effect.total(retries1 += 1) *> {
         if (retries1 < 3) ZIO.fail(())
         else
           ZIO.succeed {
             Reservation(
-              ZIO.effectTotal(retries2 += 1) *> { if (retries2 == 3) ZIO.unit else ZIO.fail(()) },
+              Effect.Live.effect.total(retries2 += 1) *> { if (retries2 == 3) ZIO.unit else ZIO.fail(()) },
               _ => ZIO.unit
             )
           }
@@ -429,7 +430,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def zipParFailAcquisitionRelease = {
     var releases = 0
     val first    = ZManaged.unit
-    val second   = ZManaged.reserve(Reservation(ZIO.fail(()), _ => ZIO.effectTotal(releases += 1)))
+    val second   = ZManaged.reserve(Reservation(ZIO.fail(()), _ => Effect.Live.effect.total(releases += 1)))
 
     unsafeRunSync(first.zipPar(second).use(_ => ZIO.unit))
     releases must be_===(1)
@@ -541,7 +542,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   def foreachFinalizerOrder = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(Effect.Live.effect.total { effects += x; () })(_ => Effect.Live.effect.total { effects += x; () })
 
     val resources = ZManaged.foreach(List(1, 2, 3))(res)
 
@@ -854,11 +855,13 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     for {
       effects      <- Ref.make(0)
       reserveLatch <- Promise.make[Nothing, Unit]
-      baseRes = ZManaged.make(effects.update(_ + 1) *> ZIO.effectTotal(latch.countDown()) *> reserveLatch.await)(
+      baseRes = ZManaged.make(
+        effects.update(_ + 1) *> Effect.Live.effect.total(latch.countDown()) *> reserveLatch.await
+      )(
         _ => ZIO.unit
       )
       res   = f(baseRes)
-      _     <- res.use_(ZIO.unit).fork *> ZIO.effectTotal(latch.await())
+      _     <- res.use_(ZIO.unit).fork *> Effect.Live.effect.total(latch.await())
       count <- effects.get
       _     <- reserveLatch.succeed(())
     } yield count must be_===(n)
@@ -873,10 +876,13 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       effects      <- Ref.make(0)
       reserveLatch <- Promise.make[Nothing, Unit]
       baseRes = ZManaged.reserve(
-        Reservation(effects.update(_ + 1) *> ZIO.effectTotal(latch.countDown()) *> reserveLatch.await, _ => ZIO.unit)
+        Reservation(
+          effects.update(_ + 1) *> Effect.Live.effect.total(latch.countDown()) *> reserveLatch.await,
+          _ => ZIO.unit
+        )
       )
       res   = f(baseRes)
-      _     <- res.use_(ZIO.unit).fork *> ZIO.effectTotal(latch.await())
+      _     <- res.use_(ZIO.unit).fork *> Effect.Live.effect.total(latch.await())
       count <- effects.get
       _     <- reserveLatch.succeed(())
     } yield count must be_===(n)

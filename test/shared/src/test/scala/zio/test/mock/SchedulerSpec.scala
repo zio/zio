@@ -2,6 +2,7 @@ package zio.test.mock
 
 import zio._
 import zio.duration._
+import zio.effect.Effect
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
 import zio.test.Async
@@ -23,7 +24,7 @@ object SchedulerSpec extends DefaultRuntime {
         clock     <- MockClock.makeMock(MockClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
-        _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
+        _         <- Effect.Live.effect.total(runTask(scheduler, promise, 10.seconds))
         _         <- clock.adjust(10.seconds)
         _         <- promise.await
       } yield true
@@ -35,7 +36,7 @@ object SchedulerSpec extends DefaultRuntime {
         clock     <- MockClock.makeMock(MockClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
-        _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds + 1.nanosecond))
+        _         <- Effect.Live.effect.total(runTask(scheduler, promise, 10.seconds + 1.nanosecond))
         _         <- clock.adjust(10.seconds)
         executed  <- promise.poll.map(_.nonEmpty)
       } yield !executed
@@ -47,8 +48,8 @@ object SchedulerSpec extends DefaultRuntime {
         clock     <- MockClock.makeMock(MockClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
-        cancel    <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
-        canceled  <- ZIO.effectTotal(cancel())
+        cancel    <- Effect.Live.effect.total(runTask(scheduler, promise, 10.seconds))
+        canceled  <- Effect.Live.effect.total(cancel())
         _         <- clock.adjust(10.seconds)
         executed  <- promise.poll.map(_.nonEmpty)
       } yield !executed && canceled
@@ -60,10 +61,10 @@ object SchedulerSpec extends DefaultRuntime {
         clock     <- MockClock.makeMock(MockClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
-        cancel    <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
+        cancel    <- Effect.Live.effect.total(runTask(scheduler, promise, 10.seconds))
         _         <- clock.adjust(10.seconds)
         _         <- promise.await
-        canceled  <- ZIO.effectTotal(cancel())
+        canceled  <- Effect.Live.effect.total(cancel())
       } yield !canceled
     )
 
@@ -73,8 +74,8 @@ object SchedulerSpec extends DefaultRuntime {
         clock     <- MockClock.makeMock(MockClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
-        _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
-        _         <- ZIO.effectTotal(scheduler.shutdown())
+        _         <- Effect.Live.effect.total(runTask(scheduler, promise, 10.seconds))
+        _         <- Effect.Live.effect.total(scheduler.shutdown())
         _         <- promise.await
         time      <- clock.nanoTime
       } yield time == 10000000000L

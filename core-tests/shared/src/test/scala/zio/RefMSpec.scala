@@ -4,6 +4,7 @@ import zio.duration._
 import zio.test._
 import zio.test.Assertion._
 import zio.RefMSpecUtils._
+import zio.effect.Effect
 
 object RefMSpec
     extends DefaultRunnableSpec(
@@ -24,7 +25,7 @@ object RefMSpec
         testM("update") {
           for {
             refM  <- RefM.make(current)
-            value <- refM.update(_ => IO.effectTotal(update))
+            value <- refM.update(_ => Effect.Live.effect.total(update))
           } yield assert(value, equalTo(update))
         },
         testM("update with failure") {
@@ -58,7 +59,7 @@ object RefMSpec
         testM("modify") {
           for {
             refM  <- RefM.make(current)
-            r     <- refM.modify(_ => IO.effectTotal(("hello", update)))
+            r     <- refM.modify(_ => Effect.Live.effect.total(("hello", update)))
             value <- refM.get
           } yield assert(r, equalTo("hello")) && assert(value, equalTo(update))
         },

@@ -1,9 +1,9 @@
 package zio
 
 import scala.concurrent.Future
-
 import zio.clock.Clock
 import zio.duration._
+import zio.effect.Effect
 import zio.random._
 
 class RetrySpec extends BaseCrossPlatformSpec {
@@ -130,7 +130,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
 
   def fixedWithErrorPredicate = {
     var i = 0
-    val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
+    val io = Effect.Live.effect.total[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
@@ -142,7 +142,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
   def recurs10Retry = {
     var i                            = 0
     val strategy: Schedule[Any, Int] = Schedule.recurs(10)
-    val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
+    val io = Effect.Live.effect.total[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.succeed(i)
     }
     io.retry(strategy) must_=== 5
@@ -162,7 +162,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
 
   def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
     var i = 0
-    val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
+    val io = Effect.Live.effect.total[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = schedule.whileInput[String](_ == "KeepTryingError")

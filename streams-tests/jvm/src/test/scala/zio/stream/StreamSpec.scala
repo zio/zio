@@ -7,6 +7,7 @@ import scala.{ Stream => _ }
 import zio._
 import zio.duration._
 import zio.ZQueueSpecUtil.waitForSize
+import zio.effect.Effect
 
 class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
@@ -1088,7 +1089,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     var sum = 0
     val s   = Stream(1, 1, 1, 1, 1)
 
-    unsafeRun(s.foreach[Any, Nothing](a => IO.effectTotal(sum += a)))
+    unsafeRun(s.foreach[Any, Nothing](a => Effect.Live.effect.total(sum += a)))
     sum must_=== 5
   }
 
@@ -1099,7 +1100,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     unsafeRun(
       s.foreachWhile[Any, Nothing](
         a =>
-          IO.effectTotal(
+          Effect.Live.effect.total(
             if (sum >= 3) false
             else {
               sum += a;
@@ -1123,7 +1124,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     var sum = 0
     val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
-        IO.effectTotal {
+        Effect.Live.effect.total {
           sum += a;
           if (sum >= 9) false else true
         }
@@ -1590,7 +1591,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   private def tap = {
     var sum      = 0
-    val s        = Stream(1, 1).tap[Any, Nothing](a => IO.effectTotal(sum += a))
+    val s        = Stream(1, 1).tap[Any, Nothing](a => Effect.Live.effect.total(sum += a))
     val elements = unsafeRunSync(s.runCollect)
 
     (elements must_=== Success(List(1, 1))) and (sum must_=== 2)
