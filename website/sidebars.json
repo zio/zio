@@ -51,7 +51,8 @@
       "usecases/usecases_parallelism",
       "usecases/usecases_queuing",
       "usecases/usecases_scheduling",
-      "usecases/usecases_streaming"
+      "usecases/usecases_streaming",
+      "usecases/usecases_testing"
     ]
   },
   "advanced-sidebar": {
