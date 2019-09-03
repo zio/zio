@@ -103,13 +103,8 @@ package object test extends CheckVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
-    value.flatMap { a =>
-      assert(a, assertion).failures match {
-        case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
-        case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-      }
-    }
+  final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZIO[R, Nothing, TestResult] =
+    value.map(assert(_, assertion))
 
   /**
    * Creates a failed test result with the specified runtime cause.
