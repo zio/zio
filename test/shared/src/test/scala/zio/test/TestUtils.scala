@@ -2,10 +2,29 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ Schedule, ZIO }
+import zio.{ Schedule, UIO, ZIO }
 import zio.clock.Clock
+import zio.test.mock.MockEnvironment
 
 object TestUtils {
+
+  final def execute[L, E, S](spec: ZSpec[MockEnvironment, E, L, S]): UIO[ExecutedSpec[L, E, S]] =
+    TestExecutor.managed(mock.mockEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
+
+  final def forAllTests[L, E, S](
+    execSpec: UIO[ExecutedSpec[L, E, S]]
+  )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
+    execSpec.map { results =>
+      results.forall { case Spec.TestCase(_, test) => f(test); case _ => true }
+    }
+
+  final def ignored[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+    val execSpec = execute(spec)
+    forAllTests(execSpec) {
+      case Right(TestSuccess.Ignored) => true
+      case _                          => false
+    }
+  }
 
   final def label(test: => Future[Boolean], label: String): Async[(Boolean, String)] =
     Async
@@ -36,6 +55,11 @@ object TestUtils {
       val passed = tests.forall(_._1)
       if (passed) (passed, succeed(label)) :: offset else (passed, fail(label)) :: offset
     }
+
+  final def succeeded[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+    val execSpec = execute(spec)
+    forAllTests(execSpec)(_.isRight)
+  }
 
   final def timeit[A](label: String)(async: Async[A]): Async[A] =
     for {
