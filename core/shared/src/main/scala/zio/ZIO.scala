@@ -18,7 +18,7 @@ package zio
 
 import zio.clock.Clock
 import zio.duration._
-import zio.effect._
+import zio.effect.Effect
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 
@@ -1106,7 +1106,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect that models success with the specified lazily-evaluated
    * value. This method should not be used to capture effects. See
-   * `[[Effect.Live.effect.total]]` for capturing total effects, and `[[Effect.Live.effect]]` for capturing
+   * `[Effect.Live.effect.total]` for capturing total effects, and `[Effect.Live.effect]` for capturing
    * partial effects.
    */
   @deprecated("use effectTotal", "1.0.0")

@@ -17,6 +17,7 @@ You can lift pure values into `IO` with `IO.succeed`:
 
 ```scala mdoc:silent
 import zio._
+import zio.effect.Effect
 
 val value: UIO[String] = IO.succeed("Hello World")
 ```
@@ -38,7 +39,7 @@ because the `Nothing` type is _uninhabitable_, i.e. there can be no actual value
 You can use the `effectTotal` method of `IO` to import effectful synchronous code into your purely functional program:
 
 ```scala mdoc:silent
-val effectTotalTask: Task[Long] = IO.effectTotal(System.nanoTime())
+val effectTotalTask: Task[Long] = Effect.Live.effect.total(System.nanoTime())
 ```
 
 ```scala mdoc:invisible
@@ -53,7 +54,7 @@ If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain on
 
 ```scala mdoc:silent
 def readFile(name: String): IO[IOException, Array[Byte]] =
-  IO.effect(FileUtils.readFileToByteArray(new File(name))).refineToOrDie[IOException]
+  Effect.Live.effect(FileUtils.readFileToByteArray(new File(name))).refineToOrDie[IOException]
 ```
 
 You can use the `effectAsync` method of `IO` to import effectful asynchronous code into your purely functional program:
@@ -71,7 +72,7 @@ object Http {
 
 ```scala mdoc:silent
 def makeRequest(req: Request): IO[HttpException, Response] =
-  IO.effectAsync[HttpException, Response](k => Http.req(req, k))
+  Effect.Live.effect.async[Any, HttpException, Response](k => Http.req(req, k))
 ```
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.
@@ -128,8 +129,8 @@ import zio._
 ```scala mdoc:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
-def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)
+def openFile(s: String): IO[IOException, File] = Effect.Live.effect(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = Effect.Live.effect.total(???)
 def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
@@ -149,8 +150,8 @@ A helper method called `ensuring` provides a simpler analogue of `finally`:
 
 ```scala mdoc:silent
 var i: Int = 0
-val action: Task[String] = Task.effectTotal(i += 1) *> Task.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
+val action: Task[String] = Effect.Live.effect.total(i += 1) *> Task.fail(new Throwable("Boom!"))
+val cleanupAction: UIO[Unit] = Effect.Live.effect.total(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
 ### A full working example on using brackets
@@ -177,7 +178,7 @@ object Main extends App {
   }
 
   def convertBytes(is: FileInputStream, len: Long) =
-    Task.effect(println(new String(readAll(is, len), StandardCharsets.UTF_8))) // Java 8
+    Effect.Live.effect(println(new String(readAll(is, len), StandardCharsets.UTF_8))) // Java 8
   //Task.effect(println(new String(is.readAllBytes(), StandardCharsets.UTF_8))) // Java 11+
 
   // mybracket is just a value. Won't execute anything here until interpreted

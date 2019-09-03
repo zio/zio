@@ -7,6 +7,7 @@ This section explores some of the common ways to create ZIO effects from values,
 
 ```scala mdoc:invisible
 import zio.{ ZIO, Task, UIO, IO }
+import zio.effect.Effect
 ```
 
 ## From Success Values
@@ -29,7 +30,7 @@ The `succeed` method is eager, which means the value passed to `succeed` will be
 lazy val bigList = (0 to 1000000).toList
 lazy val bigString = bigList.map(_.toString).mkString("\n")
 
-val s3 = ZIO.effectTotal(bigString)
+val s3 = Effect.Live.effect.total(bigString)
 ```
 
 The value inside a successful effect constructed with `ZIO.effectTotal` will only be constructed if absolutely required.
@@ -136,7 +137,7 @@ A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
 import scala.io.StdIn
 
 val getStrLn: Task[Unit] =
-  ZIO.effect(StdIn.readLine())
+  Effect.Live.effect(StdIn.readLine())
 ```
 
 The error type of the resulting effect will always be `Throwable`, because side-effects may throw exceptions with any value of type `Throwable`.
@@ -145,7 +146,7 @@ If a given side-effect is known to not throw any exceptions, then the side-effec
 
 ```scala mdoc:silent
 def putStrLn(line: String): UIO[Unit] =
-  ZIO.effectTotal(println(line))
+  Effect.Live.effect.total(println(line))
 ```
 
 You should be careful when using `ZIO.effectTotal`&mdash;when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
@@ -156,7 +157,7 @@ If you wish to refine the error type of an effect (by treating other errors as f
 import java.io.IOException
 
 val getStrLn2: IO[IOException, String] =
-  ZIO.effect(StdIn.readLine()).refineToOrDie[IOException]
+  Effect.Live.effect(StdIn.readLine()).refineToOrDie[IOException]
 ```
 
 ### Asynchronous Side-Effects
@@ -176,7 +177,7 @@ object legacy {
 }
 
 val login: IO[AuthError, User] = 
-  IO.effectAsync[AuthError, User] { callback =>
+  Effect.Live.effect.async[Any, AuthError, User] { callback =>
     legacy.login(
       user => callback(IO.succeed(user)),
       err  => callback(IO.fail(err))
@@ -210,7 +211,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
+  effectBlockingCancelable(l.accept())(Effect.Live.effect.total(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -219,7 +220,7 @@ If a side-effect has already been converted into a ZIO effect, then instead of `
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
-  Task.effect {
+  Effect.Live.effect {
     Source.fromURL(url)(Codec.UTF8).mkString
   }
 

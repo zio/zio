@@ -105,7 +105,7 @@ object Effect extends Serializable {
      *  Returns a lazily constructed effect, whose construction may itself require
      * effects. The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
      * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
-     * do not use this method, use [[Effect.Live.effect.suspend]].
+     * do not use this method, use [Effect.Live.effect.suspend].
      */
     def suspendTotal[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A]
 
@@ -113,7 +113,7 @@ object Effect extends Serializable {
      * Returns a lazily constructed effect, whose construction may itself require effects.
      * The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
      * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
-     * do not use this method, use [[Effect.Live.effect.suspend]].
+     * do not use this method, use [Effect.Live.effect.suspend].
      */
     def suspendTotalWith[R, E, A](p: Platform => ZIO[R, E, A]): ZIO[R, E, A]
 

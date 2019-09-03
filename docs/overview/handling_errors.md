@@ -35,10 +35,11 @@ def sqrt(io: UIO[Double]): IO[String, Double] =
 If you want to catch and recover from all types of errors and effectfully attempt recovery, you can use the `catchAll` method:
 
 ```scala mdoc:invisible
+import zio.effect.Effect
 import java.io.{ FileNotFoundException, IOException }
 
 def openFile(s: String): IO[IOException, Array[Byte]] = 
-  ZIO.effect(???).refineToOrDie[IOException]
+  Effect.Live.effect(???).refineToOrDie[IOException]
 ```
 
 ```scala mdoc:silent

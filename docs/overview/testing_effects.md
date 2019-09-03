@@ -179,6 +179,8 @@ To test code that interacts with the database, we don't want to interact with a 
 Although you can use mocking libraries to create test modules, in this section, we will simply create a test module directly, to show that no magic is involved:
 
 ```scala mdoc:silent
+import zio.effect.Effect
+
 class TestService extends Database.Service {
   private var map: Map[UserID, UserProfile] = Map()
 
@@ -192,7 +194,7 @@ class TestService extends Database.Service {
     Task(map(id))
 
   def update(id: UserID, profile: UserProfile): Task[Unit] = 
-    Task.effect { map = map + (id -> profile) }
+    Effect.Live.effect { map = map + (id -> profile) }
 }
 trait TestDatabase extends Database {
   val database: TestService = new TestService

@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit
 import zio._
 import zio.console._
 import zio.duration.Duration
+import zio.effect.Effect
 
 val task = for {
   _ <- putStrLn("start")
@@ -37,7 +38,7 @@ val program = for {
 
   sem <- Semaphore.make(permits = 1)
 
-  seq <- ZIO.effectTotal(semTaskSeq(sem))
+  seq <- Effect.Live.effect.total(semTaskSeq(sem))
 
   _ <- ZIO.collectAllPar(seq)
 

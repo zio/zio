@@ -9,6 +9,7 @@ ZIO's resource management features work across synchronous, asynchronous, concur
 
 ```scala mdoc:invisible
 import zio._
+import zio.effect.Effect
 ```
 
 ## Finalizing
@@ -19,7 +20,7 @@ Like `try` / `finally`, the `ensuring` operation guarantees that if an effect be
 
 ```scala mdoc
 val finalizer = 
-  UIO.effectTotal(println("Finalizing!"))
+  Effect.Live.effect.total(println("Finalizing!"))
 
 val finalized: IO[String, Unit] = 
   IO.fail("Failed!").ensuring(finalizer)
@@ -51,7 +52,7 @@ The release effect is guaranteed to be executed by the runtime system, even in t
 import zio._
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
+def openFile(s: String): IO[IOException, File] = Effect.Live.effect(???).refineToOrDie[IOException]
 def closeFile(f: File): UIO[Unit] = UIO.unit
 def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
