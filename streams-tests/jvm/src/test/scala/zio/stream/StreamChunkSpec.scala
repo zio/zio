@@ -4,7 +4,7 @@ import scala.{ Stream => _ }
 import zio.{ Chunk, IO, Ref }
 import zio.test._
 import zio.test.Assertion.equalTo
-import generators._
+import StreamTestUtils._
 
 object StreamChunkSpec
     extends DefaultRunnableSpec(

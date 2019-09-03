@@ -1,12 +1,13 @@
-package zio
+package zio.stream
 
 import scala.reflect.ClassTag
 import zio.Chunk
 import zio.test.{ Gen, Sized }
 import zio.random.Random
+import zio._
 
-package object stream {
-  def chunkGen[A: ClassTag](a: Gen[Random, A]): Gen[Random with Sized, Chunk[A]] =
+object StreamTestUtils {
+  def chunkGen[R <: Random, A: ClassTag](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
     Gen.oneOf(
       Gen.const(Chunk.empty),
       a.map(Chunk.succeed),
@@ -20,6 +21,11 @@ package object stream {
         right <- chunkGen(a)
       } yield left ++ right
     )
+
+  val chunkWithLength: Gen[Random with Sized, (Chunk[Int], Int)] = for {
+    chunk <- chunkGen(Gen.anyInt).filter(_.length > 0)
+    len   <- Gen.int(0, chunk.length - 1)
+  } yield (chunk, len)
 
   def streamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[String, A]] =
     Gen.oneOf(genFailingStream(a), genPureStream(a))
@@ -58,5 +64,9 @@ package object stream {
       genPureStream(chunkGen(a)).map(StreamChunk(_)),
       genSucceededStream(chunkGen(a)).map(StreamChunk(_))
     )
+
+  def slurp[E, A](s: StreamChunk[E, A]): IO[E, Seq[A]] =
+    s.foldChunks(Chunk.empty: Chunk[A])(_ => true)((acc, el) => IO.succeed(acc ++ el))
+      .map(_.toSeq)
 
 }

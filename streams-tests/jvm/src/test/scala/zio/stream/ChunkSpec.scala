@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.Chunk
 import zio.test._
-import generators._
+import StreamTestUtils._
 
 object ChunkSpec
     extends DefaultRunnableSpec(
