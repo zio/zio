@@ -21,11 +21,13 @@ import zio.console.Console
 import zio.system.System
 import zio.random.Random
 import zio.blocking.Blocking
+import zio.effect.Effect
 import zio.internal.{ Platform, PlatformLive }
 
 trait DefaultRuntime extends Runtime[Clock with Console with System with Random with Blocking] {
   type Environment = Clock with Console with System with Random with Blocking
 
-  val Platform: Platform       = PlatformLive.Default
-  val Environment: Environment = new Clock.Live with Console.Live with System.Live with Random.Live with Blocking.Live
+  val Platform: Platform = PlatformLive.Default
+  val Environment: Environment =
+    new Clock.Live with Console.Live with System.Live with Random.Live with Effect.Live with Blocking.Live
 }
