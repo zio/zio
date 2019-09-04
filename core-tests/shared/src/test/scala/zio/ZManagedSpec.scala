@@ -579,9 +579,17 @@ object ZManagedSpec
               case (duration, _) =>
                 ZIO.succeed(assert(duration.toNanos, isGreaterThanEqualTo(40.milliseconds.toNanos)))
             }
+            def awaitSleeps(n: Int): ZIO[MockClock, Nothing, Unit] =
+              MockClock.sleeps.flatMap {
+                case x if x.length >= n => ZIO.unit
+                case _                  => ZIO.sleep(20.milliseconds).provide(zio.clock.Clock.Live) *> awaitSleeps(n)
+              }
             for {
               f      <- test.fork
-              _      <- MockClock.adjust(40.milliseconds)
+              _      <- awaitSleeps(1)
+              _      <- MockClock.adjust(20.milliseconds)
+              _      <- awaitSleeps(1)
+              _      <- MockClock.adjust(20.milliseconds)
               result <- f.join
             } yield result
           }
