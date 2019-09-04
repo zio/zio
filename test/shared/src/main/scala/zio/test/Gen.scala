@@ -108,6 +108,9 @@ object Gen {
         .map(Sample.shrinkIntegral(0))
     }
 
+  final val anyString: Gen[Random, String] =
+    string(anyChar)
+
   /**
    * A generator of booleans. Shrinks toward 'false'.
    */
