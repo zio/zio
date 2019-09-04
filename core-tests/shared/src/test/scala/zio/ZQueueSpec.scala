@@ -9,7 +9,7 @@ import zio.test.TestUtils.nonFlaky
 import zio.ZQueueSpecUtil.waitForSize
 
 object ZQueueSpec
-    extends DefaultRunnableSpec(
+    extends ZIOSpec(
       suite("ZQueueSpec")(
         testM("sequential offer and take") {
           for {
@@ -731,8 +731,7 @@ object ZQueueSpec
             } yield true
           }.map(assert(_, isTrue))
         }
-      ),
-      timeout = TimeoutStrategy.Error(60.seconds)
+      )
     )
 
 object ZQueueSpecUtil {

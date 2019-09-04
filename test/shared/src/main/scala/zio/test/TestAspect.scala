@@ -89,7 +89,7 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS] { self =>
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerS1, UpperS1] =
     self >>> that
 }
-object TestAspect {
+object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that runs the specified effect after every test.
