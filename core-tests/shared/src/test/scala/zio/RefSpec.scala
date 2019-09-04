@@ -1,12 +1,11 @@
 package zio
 
-import zio.duration._
 import zio.test._
 import zio.test.Assertion._
 import zio.RefSpecUtils._
 
 object RefSpec
-    extends DefaultRunnableSpec(
+    extends ZIOSpec(
       suite("RefSpec")(
         testM("get") {
           for {
@@ -66,8 +65,7 @@ object RefSpec
                      }
           } yield assert(value1, equalTo("changed")) && assert(value2, equalTo("closed"))
         }
-      ),
-      timeout = TimeoutStrategy.Error(60.seconds)
+      )
     )
 
 object RefSpecUtils {
