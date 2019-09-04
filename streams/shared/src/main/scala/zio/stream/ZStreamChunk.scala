@@ -45,6 +45,35 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
     ZStreamChunk(self.chunks.map(chunk => chunk.collect(p)))
 
   /**
+   * Drops the specified number of elements from this stream.
+   */
+  final def drop(n: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk {
+      ZStream[R, E, Chunk[A]] {
+        for {
+          chunks     <- self.chunks.process
+          counterRef <- Ref.make(n).toManaged_
+          pull = {
+            def go: Pull[R, E, Chunk[A]] =
+              chunks.flatMap { chunk =>
+                counterRef.get.flatMap { cnt =>
+                  if (cnt <= 0) Pull.emit(chunk)
+                  else {
+                    val remaining = chunk.drop(cnt)
+                    val dropped   = chunk.length - remaining.length
+                    counterRef.set(cnt - dropped) *>
+                      (if (remaining.isEmpty) go else Pull.emit(remaining))
+                  }
+                }
+              }
+
+            go
+          }
+        } yield pull
+      }
+    }
+
+  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
@@ -203,6 +232,28 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
    */
   final def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, Chunk[A1], B]): ZIO[R1, E1, B] =
     chunks.run(sink)
+
+  /**
+   * Takes the specified number of elements from this stream.
+   */
+  final def take(n: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk {
+      ZStream[R, E, Chunk[A]] {
+        for {
+          chunks     <- self.chunks.process
+          counterRef <- Ref.make(n).toManaged_
+          pull = counterRef.get.flatMap { cnt =>
+            if (cnt <= 0) Pull.end
+            else
+              for {
+                chunk <- chunks
+                taken = chunk.take(cnt)
+                _     <- counterRef.set(cnt - taken.length)
+              } yield taken
+          }
+        } yield pull
+      }
+    }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate

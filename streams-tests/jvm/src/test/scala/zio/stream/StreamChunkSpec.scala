@@ -18,7 +18,9 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   StreamChunk.filter        $filter
   StreamChunk.filterNot     $filterNot
   StreamChunk.mapConcat     $mapConcat
+  StreamChunk.drop          $drop
   StreamChunk.dropWhile     $dropWhile
+  StreamChunk.take          $take
   StreamChunk.takeWhile     $takeWhile
   StreamChunk.mapAccum      $mapAccum
   StreamChunk.mapM          $mapM
@@ -29,7 +31,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   StreamChunk.monadLaw1     $monadLaw1
   StreamChunk.monadLaw2     $monadLaw2
   StreamChunk.monadLaw3     $monadLaw3
-  StreamChunk.tap    $tap
+  StreamChunk.tap           $tap
   StreamChunk.foldLeft      $foldLeft
   StreamChunk.fold          $fold    
   StreamChunk.flattenChunks $flattenChunks
@@ -67,16 +69,24 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     }
   }
 
+  private def drop =
+    prop { (s: StreamChunk[String, String], n: Int) =>
+      slurp(s.drop(n)) must_=== slurp(s).map(_.drop(n))
+    }
+
   private def dropWhile =
     prop { (s: StreamChunk[String, String], p: String => Boolean) =>
       slurp(s.dropWhile(p)) must_=== slurp(s).map(_.dropWhile(p))
     }
 
+  private def take =
+    prop { (s: StreamChunk[Nothing, String], n: Int) =>
+      slurp(s.take(n)) must_=== slurp(s).map(_.take(n))
+    }
+
   private def takeWhile =
     prop { (s: StreamChunk[Nothing, String], p: String => Boolean) =>
-      val streamTakeWhile = slurp(s.takeWhile(p))
-      val listTakeWhile   = slurp(s).map(_.takeWhile(p))
-      streamTakeWhile must_=== listTakeWhile
+      slurp(s.takeWhile(p)) must_=== slurp(s).map(_.takeWhile(p))
     }
 
   private def concat =
