@@ -1,7 +1,5 @@
 package zio
 
-import java.util.concurrent.CountDownLatch
-
 import zio.Cause.Interrupt
 import zio.duration._
 import zio.Exit.Failure
@@ -704,6 +702,17 @@ object ZManagedSpec
     )
 
 object ZManagedSpecUtil {
+  def countDownLatch(n: Int): UIO[UIO[Unit]] =
+    Ref.make(n).map { counter =>
+      counter.update(_ - 1) *> {
+        def await: UIO[Unit] = counter.get.flatMap { n =>
+          if (n <= 0) ZIO.unit
+          else ZIO.sleep(10.milliseconds).provide(zio.clock.Clock.Live) *> await
+        }
+        await
+      }
+    }
+
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
     expected: Option[Exit[Nothing, Unit]]
@@ -731,36 +740,34 @@ object ZManagedSpecUtil {
   def testAcquirePar[R, E](
     n: Int,
     f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, _]
-  ) = {
-    val latch = new CountDownLatch(n)
+  ) =
     for {
       effects      <- Ref.make(0)
+      countDown    <- countDownLatch(n + 1)
       reserveLatch <- Promise.make[Nothing, Unit]
       baseRes = ZManaged.reserve(
-        Reservation(effects.update(_ + 1) *> ZIO.effectTotal(latch.countDown()) *> reserveLatch.await, _ => ZIO.unit)
+        Reservation(effects.update(_ + 1) *> countDown *> reserveLatch.await, _ => ZIO.unit)
       )
       res   = f(baseRes)
-      _     <- res.use_(ZIO.unit).fork *> ZIO.effectTotal(latch.await())
+      _     <- res.use_(ZIO.unit).fork *> countDown
       count <- effects.get
       _     <- reserveLatch.succeed(())
     } yield assert(count, equalTo(n))
-  }
 
   def testReservePar[R, E, A](
     n: Int,
     f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, A]
-  ) = {
-    val latch = new CountDownLatch(n)
+  ) =
     for {
       effects      <- Ref.make(0)
+      countDown    <- countDownLatch(n + 1)
       reserveLatch <- Promise.make[Nothing, Unit]
-      baseRes = ZManaged.make(effects.update(_ + 1) *> ZIO.effectTotal(latch.countDown()) *> reserveLatch.await)(
+      baseRes = ZManaged.make(effects.update(_ + 1) *> countDown *> reserveLatch.await)(
         _ => ZIO.unit
       )
       res   = f(baseRes)
-      _     <- res.use_(ZIO.unit).fork *> ZIO.effectTotal(latch.await())
+      _     <- res.use_(ZIO.unit).fork *> countDown
       count <- effects.get
       _     <- reserveLatch.succeed(())
     } yield assert(count, equalTo(n))
-  }
 }
