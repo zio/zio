@@ -205,6 +205,28 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
     chunks.run(sink)
 
   /**
+   * Takes the specified number of elements from this stream.
+   */
+  final def take(n: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk {
+      ZStream[R, E, Chunk[A]] {
+        for {
+          chunks     <- self.chunks.process
+          counterRef <- Ref.make(n).toManaged_
+          pull = counterRef.get.flatMap { cnt =>
+            if (cnt <= 0) Pull.end
+            else
+              for {
+                chunk <- chunks
+                taken = chunk.take(cnt)
+                _     <- counterRef.set(cnt - taken.length)
+              } yield taken
+          }
+        } yield pull
+      }
+    }
+
+  /**
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
