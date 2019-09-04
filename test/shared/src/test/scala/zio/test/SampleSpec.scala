@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 
 import zio.{ DefaultRuntime, UIO, ZIO }
 import zio.stream.ZStream
@@ -8,7 +8,7 @@ import zio.test.TestUtils.label
 
 object SampleSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(monadLeftIdentity, "monad left identity"),
     label(monadRightIdentity, "monad right identity"),
     label(monadAssociativity, "monad associativity"),

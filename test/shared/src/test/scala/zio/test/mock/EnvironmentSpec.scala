@@ -2,16 +2,17 @@ package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 import scala.util.{ Random => SRandom }
 
 import zio._
 import zio.duration._
+import zio.test.Async
 import zio.test.TestUtils.label
 
 object EnvironmentSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(currentTime, "Clock returns time when it is set"),
     label(putStrLn, "Console writes line to output"),
     label(getStrLn, "Console reads line from input"),
