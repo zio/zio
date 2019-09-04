@@ -413,7 +413,7 @@ object ZManagedSpec
               result     <- resultRef.get
             } yield assert(finalizers, equalTo(List("Second", "First"))) && assert(
               result,
-              isSome(equalTo(Exit.succeed("42")))
+              isSome(succeeds(equalTo("42")))
             )
           }
         ),
@@ -430,7 +430,7 @@ object ZManagedSpec
               result     <- resultRef.get
             } yield assert(finalizers, equalTo(List("First", "Second"))) && assert(
               result,
-              isSome(equalTo(Exit.succeed("42")))
+              isSome(succeeds(equalTo("42")))
             )
           }
         ),
@@ -638,7 +638,7 @@ object ZManagedSpec
               second = ZManaged.fromEffect(latch.await *> ZIO.fail(()))
               _      <- first.zipPar(second).use_(ZIO.unit)
             } yield ()).run
-              .map(assert[Exit[Unit, Unit]](_, equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.Interrupt)))))
+              .map(assert(_, fails(equalTo(()))))
           },
           testM("Runs finalizers if one acquisition fails") {
             for {
@@ -670,8 +670,7 @@ object ZManagedSpec
           }
         ),
         suite("flatten")(
-          Spec.test(
-            "Returns the same as ZManaged.flatten",
+          testM("Returns the same as ZManaged.flatten") {
             checkM(Gen.string(Gen.alphaNumericChar)) { str =>
               val test = for {
                 flatten1 <- ZManaged.succeed(ZManaged.succeed(str)).flatten
@@ -679,11 +678,10 @@ object ZManagedSpec
               } yield assert(flatten1, equalTo(flatten2))
               test.use[Any, Nothing, TestResult](r => ZIO.succeed(r))
             }
-          )
+          }
         ),
         suite("absolve")(
-          Spec.test(
-            "Returns the same as ZManaged.absolve",
+          testM("Returns the same as ZManaged.absolve") {
             checkM(Gen.string(Gen.alphaNumericChar)) { str =>
               val managedEither: ZManaged[Any, Nothing, Either[Nothing, String]] = ZManaged.succeed(Right(str))
               val test = for {
@@ -692,7 +690,7 @@ object ZManagedSpec
               } yield assert(abs1, equalTo(abs2))
               test.use[Any, Nothing, TestResult](result => ZIO.succeed(result))
             }
-          )
+          }
         )
       )
     )
