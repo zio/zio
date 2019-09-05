@@ -49,7 +49,7 @@ install_nodejs: &install_nodejs
   - run:
       name: Install node.js
       command: |
-        curl -sL https://deb.nodesource.com/setup_10.x | -E bash -
+        curl -sL https://deb.nodesource.com/setup_10.x | bash -
         apt-get install -y nodejs
         node -v
 
@@ -136,11 +136,6 @@ microsite: &microsite
             export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
             export TRAVIS_COMMIT="${CIRCLE_SHA1}"
             chown -R $USER:$USER /tmp
-            export NVM_DIR="/opt/circleci/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm install
-            nvm use
-            node -v
             ./sbt docs/docusaurusCreateSite
             ./sbt docs/docusaurusPublishGhpages
       - <<: *save_cache
