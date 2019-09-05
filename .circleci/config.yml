@@ -18,22 +18,9 @@ jdk_8: &jdk_8
 jdk_11: &jdk_11
   JDK_VERSION: 11
 
-machine_ubuntu: &machine_ubuntu
-  machine:
-    image: ubuntu-1604:201903-01
-
 docker_jvm: &docker_jvm
   docker:
-    - image: circleci/openjdk:${JDK_VERSION}-jdk-node
-
-install_jdk: &install_jdk
-  - run:
-      name: Install JDK
-      command: |
-        while $(ps aux | grep -i ' apt ' | grep -v grep > /dev/null); do sleep 1; done # Wait for apt to be ready
-        sudo add-apt-repository ppa:openjdk-r/ppa -y
-        sudo apt update
-        sudo apt install openjdk-${JDK_VERSION}-jdk -y
+    - image: adoptopenjdk/openjdk${JDK_VERSION}:latest
 
 load_cache: &load_cache
   - restore_cache:
@@ -62,10 +49,8 @@ install_nodejs: &install_nodejs
   - run:
       name: Install node.js
       command: |
-        export NVM_DIR="/opt/circleci/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm install
-        nvm use
+        curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+        sudo apt-get install -y nodejs
         node -v
 
 compile: &compile
@@ -139,7 +124,6 @@ microsite: &microsite
             - "b3:9b:af:d5:de:74:32:e7:7a:21:77:77:66:fe:2f:42"
       - checkout
       - <<: *load_cache
-      - <<: *install_jdk
       - <<: *install_nodejs
       - <<: *install_yarn
       - run:
@@ -261,7 +245,7 @@ jobs:
 
   microsite:
     <<: *microsite
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *jdk_8
 
