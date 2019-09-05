@@ -33,7 +33,7 @@ install_jdk: &install_jdk
         deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial main universe
         deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-updates main universe
         deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-backports main universe
-        deb http://security.ubuntu.com/ubuntu/ xenial-security main restricted universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-security main restricted universe
         EOF
 
         if [ $JDK_VERSION == 11 ]; then sudo add-apt-repository ppa:openjdk-r/ppa -y; fi
