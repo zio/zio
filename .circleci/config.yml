@@ -24,7 +24,7 @@ machine_ubuntu: &machine_ubuntu
 
 docker_jvm: &docker_jvm
   docker:
-    - image: timbru31/java-node:${JDK_VERSION}
+    - image: circleci/openjdk:${JDK_VERSION}-node
 
 install_jdk: &install_jdk
   - run:
