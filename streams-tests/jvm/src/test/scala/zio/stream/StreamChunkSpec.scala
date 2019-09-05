@@ -41,7 +41,17 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
-        testM("StreamChunk.dropWhile") {
+        testM("StreamChunk.drop") {
+          check(streamChunkGen(Gen.anyString)) { (s, n) =>
+            assert(slurp(s.drop(n)), equalTo(slurp(s).map(_.drop(n))))
+          }
+        },
+        test("StreamChunk.take") {
+          check(streamChunkGen(Gen.anyString)) { (s, n) =>
+            assert(slurp(s.take(n)), equalTo(slurp(s).map(_.take(n))))
+          }
+        },
+            testM("StreamChunk.dropWhile") {
           check(streamChunkGen(Gen.anyString), Gen[String => Boolean]) { (s, p) =>
             for {
               res1 <- slurp(s.dropWhile(p))
