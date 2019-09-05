@@ -28,8 +28,7 @@ install_jdk: &install_jdk
       command: |
         while $(ps aux | grep -i ' apt ' | grep -v grep > /dev/null); do sleep 1; done # Wait for apt to be ready
 
-        sudo rm -rf /etc/apt/sources.list.d
-
+        sudo rm /etc/apt/sources.list.d/*
         sudo tee /etc/apt/sources.list > /dev/null \<< 'EOF'
         deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial main universe
         deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-updates main universe
