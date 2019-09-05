@@ -34,20 +34,16 @@ install_jdk: &install_jdk
 load_cache: &load_cache
   - restore_cache:
       keys:
-        - sbt-cache
-        - apt-cache
+        - build-cache
 
 save_cache: &save_cache
   - save_cache:
-      key: sbt-cache
+      key: build-cache
       paths:
           - "~/.ivy2/cache"
           - "~/.sbt"
           - "~/.m2"
           - "~/website/node_modules"
-  - save_cache:
-      key: apt-cache
-      paths:
           - "/var/cache/apt/archives"
 
 install_yarn: &install_yarn
