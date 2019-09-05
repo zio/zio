@@ -18,9 +18,22 @@ jdk_8: &jdk_8
 jdk_11: &jdk_11
   JDK_VERSION: 11
 
+machine_ubuntu: &machine_ubuntu
+  machine:
+    image: ubuntu-1604:201903-01
+
 docker_jvm: &docker_jvm
   docker:
-    - image: adoptopenjdk/openjdk${JDK_VERSION}:latest
+    - image: timbru31/java-node:${JDK_VERSION}
+
+install_jdk: &install_jdk
+  - run:
+      name: Install JDK
+      command: |
+        while $(ps aux | grep -i ' apt ' | grep -v grep > /dev/null); do sleep 1; done # Wait for apt to be ready
+        sudo add-apt-repository ppa:openjdk-r/ppa -y
+        sudo apt update
+        sudo apt install openjdk-${JDK_VERSION}-jdk -y
 
 load_cache: &load_cache
   - restore_cache:
@@ -39,9 +52,9 @@ install_yarn: &install_yarn
   - run:
       name: Install Yarn
       command: |
-        curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
-        bash -c 'echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list'
-        apt update && apt install yarn -y
+        curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+        sudo bash -c 'echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list'
+        sudo apt update && sudo apt install yarn -y
         yarn policies set-version
         yarn -v
 
@@ -49,8 +62,10 @@ install_nodejs: &install_nodejs
   - run:
       name: Install node.js
       command: |
-        curl -sL https://deb.nodesource.com/setup_10.x | bash -
-        apt-get install -y nodejs
+        export NVM_DIR="/opt/circleci/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install
+        nvm use
         node -v
 
 compile: &compile
@@ -95,7 +110,6 @@ testJS: &testJS
   steps:
     - checkout
     - <<: *load_cache
-    - <<: *install_nodejs
     - run:
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJS
@@ -125,6 +139,7 @@ microsite: &microsite
             - "b3:9b:af:d5:de:74:32:e7:7a:21:77:77:66:fe:2f:42"
       - checkout
       - <<: *load_cache
+      - <<: *install_jdk
       - <<: *install_nodejs
       - <<: *install_yarn
       - run:
@@ -135,7 +150,12 @@ microsite: &microsite
             export GIT_USER=${GH_NAME}
             export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
             export TRAVIS_COMMIT="${CIRCLE_SHA1}"
-            chown -R $USER:$USER /tmp
+            sudo chown -R $USER:$USER /tmp
+            export NVM_DIR="/opt/circleci/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm install
+            nvm use
+            node -v
             ./sbt docs/docusaurusCreateSite
             ./sbt docs/docusaurusPublishGhpages
       - <<: *save_cache
@@ -241,7 +261,7 @@ jobs:
 
   microsite:
     <<: *microsite
-    <<: *docker_jvm
+    <<: *machine_ubuntu
     environment:
       - <<: *jdk_8
 
