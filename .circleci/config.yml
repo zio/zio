@@ -24,7 +24,7 @@ machine_ubuntu: &machine_ubuntu
 
 docker_jvm: &docker_jvm
   docker:
-    - image: circleci/openjdk:${JDK_VERSION}
+    - image: circleci/openjdk:${JDK_VERSION}-jdk-node
 
 install_jdk: &install_jdk
   - run:
@@ -110,7 +110,6 @@ testJS: &testJS
   steps:
     - checkout
     - <<: *load_cache
-    - <<: *install_nodejs
     - run:
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJS
