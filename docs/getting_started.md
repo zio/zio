@@ -33,19 +33,6 @@ import zio.console._
 
 object MyApp extends App {
 
-  /**
-    * `run` should return a ZIO value which has all its errors handled,
-    * which, in zio parlance, is aka an unexceptional ZIO value.
-    * .
-    * One way to do that, is to invoke `fold` over a ZIO value, to get an unexceptional ZIO value
-    * That requires two handler functions, one eh: E => B, other ah: A => B
-    * If myAppLogic fails, eh will be used to get from e:E to b:B
-    * if it suceeds, ah will be used to get from a:A to b:B
-    * .
-    * myAppLogic folded as below, produces a unexceptional ZIO value, with B being Int
-    * If myAppLogic fails, there will be a 1, it it succeeds, there will be a 0
-    * .
-    */
   def run(args: List[String]) =
     myAppLogic.fold(_ => 1, _ => 0)
 
@@ -57,6 +44,18 @@ object MyApp extends App {
     } yield ()
 }
 ```
+`run` should return a ZIO value which has all its errors handled,  
+which, in zio parlance, is aka an unexceptional ZIO value.  
+
+One way to do that, is to invoke `fold` over a ZIO value, to get an unexceptional ZIO value  
+That requires two handler functions, one `eh: E => B`, other `ah: A => B`  
+If myAppLogic fails, `eh` will be used to get from e:E to b:B  
+if it suceeds, `ah` will be used to get from a:A to b:B  
+
+myAppLogic, as folded above, produces a unexceptional ZIO value, with B being Int  
+If myAppLogic fails, (for whatever reasons), there will be a 1, it it succeeds, there will be a 0  
+
+---
 
 If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can create a runtime system in order to execute your ZIO programs:
 
