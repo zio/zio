@@ -95,6 +95,7 @@ testJS: &testJS
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_nodejs
     - run:
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJS
