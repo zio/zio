@@ -9,7 +9,7 @@ import zio.test.Gen
 import zio.test.mock._
 
 object ZManagedSpec
-    extends DefaultRunnableSpec(
+    extends ZIOSpec(
       suite("ZManaged")(
         suite("make")(
           testM("Invokes cleanups in reverse order of acquisition.") {
