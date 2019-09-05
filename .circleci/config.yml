@@ -22,6 +22,10 @@ machine_ubuntu: &machine_ubuntu
   machine:
     image: ubuntu-1604:201903-01
 
+docker_jvm: &docker_jvm
+  docker:
+    - image: circleci/openjdk:${JDK_VERSION}
+
 install_jdk: &install_jdk
   - run:
       name: Install JDK
@@ -161,14 +165,14 @@ microsite: &microsite
 jobs:
   lint:
     <<: *lint
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_212
       - <<: *jdk_8
 
   compile_dotty:
     <<: *compile
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_dotty
       - <<: *jdk_8
@@ -182,77 +186,77 @@ jobs:
 
   test_211_jdk8_jvm:
     <<: *testJVM
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_211
       - <<: *jdk_8
 
   test_212_jdk8_jvm:
     <<: *testJVM
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_212
       - <<: *jdk_8
 
   test_213_jdk8_jvm:
     <<: *testJVM
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_213
       - <<: *jdk_8
 
   test_dotty_jdk8_jvm:
     <<: *testJVM
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_dotty
       - <<: *jdk_8
 
   test_212_jdk11_jvm:
     <<: *testJVM
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_212
       - <<: *jdk_11
 
   test_211_jdk8_js:
     <<: *testJS
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_211
       - <<: *jdk_8
 
   test_212_jdk8_js:
     <<: *testJS
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_212
       - <<: *jdk_8
 
   test_213_jdk8_js:
     <<: *testJS
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_213
       - <<: *jdk_8
 
   release_211:
     <<: *release
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_211
       - <<: *jdk_8
 
   release_212:
     <<: *release
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_212
       - <<: *jdk_8
 
   release_213:
     <<: *release
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_213
       - <<: *jdk_8
