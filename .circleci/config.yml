@@ -101,7 +101,6 @@ testJVM: &testJVM
   steps:
     - checkout
     - <<: *load_cache
-    - <<: *install_jdk
     - run:
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJVM
@@ -111,7 +110,6 @@ testJS: &testJS
   steps:
     - checkout
     - <<: *load_cache
-    - <<: *install_jdk
     - <<: *install_nodejs
     - run:
         name: Run tests
@@ -142,6 +140,7 @@ microsite: &microsite
             - "b3:9b:af:d5:de:74:32:e7:7a:21:77:77:66:fe:2f:42"
       - checkout
       - <<: *load_cache
+      - <<: *install_jdk
       - <<: *install_nodejs
       - <<: *install_yarn
       - run:
@@ -179,7 +178,7 @@ jobs:
 
   mdoc:
     <<: *mdoc
-    <<: *machine_ubuntu
+    <<: *docker_jvm
     environment:
       - <<: *scala_212
       - <<: *jdk_8
