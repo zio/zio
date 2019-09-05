@@ -10,7 +10,7 @@ object StreamChunkSpec
     extends DefaultRunnableSpec(
       suite("StreamChunkSpec")(
         testM("StreamChunk.map") {
-          check(streamChunkGen(Gen.string(Gen.anyChar)), Gen[String => Int]) { (s, f) =>
+          check(streamChunkGen(Gen.anyString), Gen[String => Int]) { (s, f) =>
             for {
               res1 <- slurp(s.map(f))
               res2 <- slurp(s).map(_.map(f))
@@ -18,7 +18,7 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.filter") {
-          check(streamChunkGen(Gen.string(Gen.anyChar)), Gen[String => Boolean]) { (s, p) =>
+          check(streamChunkGen(Gen.anyString), Gen[String => Boolean]) { (s, p) =>
             for {
               res1 <- slurp(s.filter(p))
               res2 <- slurp(s).map(_.filter(p))
@@ -26,7 +26,7 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.filterNot") {
-          check(streamChunkGen(Gen.string(Gen.anyChar)), Gen[String => Boolean]) { (s, p) =>
+          check(streamChunkGen(Gen.anyString), Gen[String => Boolean]) { (s, p) =>
             for {
               res1 <- slurp(s.filterNot(p))
               res2 <- slurp(s).map(_.filterNot(p))
@@ -34,7 +34,7 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.mapConcat") {
-          check(streamChunkGen(Gen.string(Gen.anyChar)), Gen[String => Chunk[Int]]) { (s, f) =>
+          check(streamChunkGen(Gen.anyString), Gen[String => Chunk[Int]]) { (s, f) =>
             for {
               res1 <- slurp(s.mapConcat(f))
               res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
@@ -42,7 +42,7 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.dropWhile") {
-          check(streamChunkGen(Gen.string(Gen.anyChar)), Gen[String => Boolean]) { (s, p) =>
+          check(streamChunkGen(Gen.anyString), Gen[String => Boolean]) { (s, p) =>
             for {
               res1 <- slurp(s.dropWhile(p))
               res2 <- slurp(s).map(_.dropWhile(p))
@@ -50,7 +50,7 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.takeWhile") {
-          check(succeededStreamChunkGen(Gen.string(Gen.anyChar)), Gen[String => Boolean]) { (s, p) =>
+          check(succeededStreamChunkGen(Gen.anyString), Gen[String => Boolean]) { (s, p) =>
             for {
               res1 <- slurp(s.takeWhile(p))
               res2 <- slurp(s).map(_.takeWhile(p))
@@ -75,7 +75,7 @@ object StreamChunkSpec
           }
         ),
         testM("StreamChunk.++") {
-          check(streamChunkGen(Gen.string(Gen.anyChar)), streamChunkGen(Gen.string(Gen.anyChar))) { (s1, s2) =>
+          check(streamChunkGen(Gen.anyString), streamChunkGen(Gen.anyString)) { (s1, s2) =>
             for {
               res1 <- slurp(s1).zipWith(s2, _ ++ _)
               res2 <- slurp(s1 ++ s2)
@@ -84,7 +84,7 @@ object StreamChunkSpec
         },
         testM(
           "StreamChunk.zipWithIndex",
-          check(streamChunkGen(Gen.string(Gen.anyChar))) { s =>
+          check(streamChunkGen(Gen.anyString)) { s =>
             for {
               res1 <- slurp(s.zipWithIndex)
               res2 <- slurp(s).map(_.zipWithIndex)
@@ -108,7 +108,7 @@ object StreamChunkSpec
         testM("StreamChunk.foreach") {
           check(streamChunkGen(Gen.anyInt)) { s =>
             for {
-              acc <- Ref.make[List[Int]](Nil)
+              acc  <- Ref.make[List[Int]](Nil)
               res1 <- s.foreach(a => acc.update(a :: _)).map(_ => acc.reverse)
               res2 <- slurp(s).map(_.toList)
             } yield assert(res1, equalTo(res2))
@@ -143,7 +143,7 @@ object StreamChunkSpec
           }
         },
         // testM("StreamChunk.tap") {
-        //   check(streamChunkGen(Gen.string(Gen.anyChar))) { s =>
+        //   check(streamChunkGen(Gen.anyString)) { s =>
         //     val withoutEffect = slurp(s)
         //     var acc           = List[String]()
         //     val tap           = slurp(s.tap(a => IO.effectTotal(acc ::= a)))
@@ -153,7 +153,7 @@ object StreamChunkSpec
         //   }
         // },
         testM("StreamChunk.foldLeft") {
-          check(streamChunkGen(Gen.string(Gen.anyChar)), Gen.anyInt, Gen[(Int, String) => Int]) { (s, zero, f) =>
+          check(streamChunkGen(Gen.anyString), Gen.anyInt, Gen[(Int, String) => Int]) { (s, zero, f) =>
             for {
               res1 <- s.foldLeft(zero)(f)
               res2 <- slurp(s).map(_.foldLeft(zero)(f))
@@ -162,7 +162,7 @@ object StreamChunkSpec
         },
         testM("StreamChunk.fold") {
           check(
-            succeededStreamChunkGen(Gen.string(Gen.anyChar)),
+            succeededStreamChunkGen(Gen.anyString),
             Gen.anyInt,
             Gen[Int => Boolean],
             Gen[(Int, String) => Int]
@@ -174,7 +174,7 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.flattenChunks") {
-          check(streamChunkGen(Gen.string(Gen.anyChar))) { s =>
+          check(streamChunkGen(Gen.anyString)) { s =>
             for {
               res1 <- s.flattenChunks.foldLeft[String, List[String]](Nil)((acc, a) => a :: acc).map(_.reverse)
               res2 <- slurp(s)
@@ -182,7 +182,7 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.collect") {
-          check(streamChunkGen(Gen.string(Gen.anyChar)), Gen[PartialFunction[String, String]]) { (s, p) =>
+          check(streamChunkGen(Gen.anyString), Gen[PartialFunction[String, String]]) { (s, p) =>
             for {
               res1 <- slurp(s.collect(p))
               res2 <- slurp(s).map(_.collect(p))

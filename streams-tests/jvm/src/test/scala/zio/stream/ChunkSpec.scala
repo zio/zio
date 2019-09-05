@@ -33,7 +33,7 @@ object ChunkSpec
           }
         },
         testM("foldLeft") {
-          check(Gen.string(Gen.anyChar), Gen[(String, Int) => String], chunkGen(Gen.anyInt)) { (s0, f, c) =>
+          check(Gen.anyString, Gen[(String, Int) => String], chunkGen(Gen.anyInt)) { (s0, f, c) =>
             assert(c.foldLeft(s0)(f), equalTo(c.toArray.foldLeft(s0)(f)))
           }
         },
@@ -48,7 +48,7 @@ object ChunkSpec
           }
         },
         testM("filter") {
-          check(chunkGen(Gen.string(Gen.anyChar)), Gen[String => Boolean]) { (chunk, p) =>
+          check(chunkGen(Gen.anyString), Gen[String => Boolean]) { (chunk, p) =>
             assert(chunk.filter(p).toSeq, equalTo(chunk.toSeq.filter(p)))
           }
         },
