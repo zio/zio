@@ -39,9 +39,9 @@ install_yarn: &install_yarn
   - run:
       name: Install Yarn
       command: |
-        curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
-        sudo bash -c 'echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list'
-        sudo apt update && sudo apt install yarn -y
+        curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+        bash -c 'echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list'
+        apt update && apt install yarn -y
         yarn policies set-version
         yarn -v
 
@@ -49,8 +49,8 @@ install_nodejs: &install_nodejs
   - run:
       name: Install node.js
       command: |
-        curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
-        sudo apt-get install -y nodejs
+        curl -sL https://deb.nodesource.com/setup_10.x | -E bash -
+        apt-get install -y nodejs
         node -v
 
 compile: &compile
@@ -135,7 +135,7 @@ microsite: &microsite
             export GIT_USER=${GH_NAME}
             export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
             export TRAVIS_COMMIT="${CIRCLE_SHA1}"
-            sudo chown -R $USER:$USER /tmp
+            chown -R $USER:$USER /tmp
             export NVM_DIR="/opt/circleci/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm install
