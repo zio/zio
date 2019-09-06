@@ -108,7 +108,7 @@ object Gen {
         .map(Sample.shrinkIntegral(0))
     }
 
-  final val anyString: Gen[Random, String] =
+  final val anyString: Gen[Random with Sized, String] =
     string(anyChar)
 
   /**
