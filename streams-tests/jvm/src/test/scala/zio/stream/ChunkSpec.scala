@@ -136,6 +136,7 @@ object ChunkSpec
             Chunk(2, 2, 2).filter(onlyOdd) ++
             Chunk(3, 3, 3).filter(onlyOdd)
 
+          // ZIO TEST: equality on arrays does not work
           val array = Chunk.fromArray(concat.toArray)
 
           assert(array, equalTo(Chunk(1, 1, 1, 3, 3, 3)))
