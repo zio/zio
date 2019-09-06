@@ -11,6 +11,9 @@ object TestUtils {
   final def execute[L, E, S](spec: ZSpec[MockEnvironment, E, L, S]): UIO[ExecutedSpec[L, E, S]] =
     TestExecutor.managed(mock.mockEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
 
+  final def failed[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] =
+    succeeded(spec).map(!_)
+
   final def forAllTests[L, E, S](
     execSpec: UIO[ExecutedSpec[L, E, S]]
   )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
