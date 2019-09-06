@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 import scala.util.Random
 
 import zio.DefaultRuntime
@@ -8,7 +8,7 @@ import zio.test.TestUtils.label
 
 object AssertResultSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(allReturnsConjunctionOfAssertResults, "all returns conjunction of assert results"),
     label(andDistributesOverOr, "and distributes over or"),
     label(andIsAssociative, "and is associative"),

@@ -1,15 +1,16 @@
 package zio.test.mock
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 import scala.util.{ Random => SRandom }
 
 import zio.{ Chunk, DefaultRuntime, UIO }
 import zio.test.mock.MockRandom.{ DefaultData, Mock }
+import zio.test.Async
 import zio.test.TestUtils.label
 
 object RandomSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(referentiallyTransparent, "referential transparency"),
     label(forAllEqual(_.nextBoolean)(_.nextBoolean()), "nextBoolean"),
     label(forAllEqualBytes, "nextBytes"),
@@ -26,11 +27,11 @@ object RandomSpec extends DefaultRuntime {
     label(forAllBounded(_.nextLong)(_.nextLong(_)), "bounded nextLong generates values within the bounds")
   )
 
-  def referentiallyTransparent(implicit ec: ExecutionContext): Future[Boolean] = {
+  def referentiallyTransparent: Future[Boolean] = {
     val mock = MockRandom.makeMock(DefaultData)
-    val x    = unsafeRunToFuture(mock.flatMap[Any, Nothing, Int](_.nextInt))
-    val y    = unsafeRunToFuture(mock.flatMap[Any, Nothing, Int](_.nextInt))
-    x.zip(y).map { case (x, y) => x == y }
+    val x    = unsafeRun(mock.flatMap[Any, Nothing, Int](_.nextInt))
+    val y    = unsafeRun(mock.flatMap[Any, Nothing, Int](_.nextInt))
+    Future.successful(x == y)
   }
 
   def forAllEqual[A](f: Mock => UIO[A])(g: SRandom => A): Future[Boolean] = {

@@ -23,50 +23,31 @@ import zio.duration._
 import zio.test.mock.Live
 import zio.ZIO
 
-/**
- * A `TimeoutStrategy` adds logic to a `ZSpec` to handle long-running and
- * potentially non-terminating tests.
- */
-trait TimeoutStrategy {
-  def apply[R, E, L, S](spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S]
-}
-
-object TimeoutStrategy {
+trait TimeoutVariants {
 
   /**
-   * Fail tests with a runtime exception if they take longer than the specified
-   * duration.
+   * A test aspect that prints a warning to the console when a test takes
+   * longer than the specified duration.
    */
-  final case class Error(duration: Duration) extends TimeoutStrategy {
-    def apply[R, E, L, S](spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] =
-      TestAspect.timeout(duration)(spec)
-  }
+  def timeoutWarning(
+    duration: Duration
+  ): TestAspect[Nothing, Live[Clock] with Live[Console], Nothing, Any, Nothing, Any] =
+    new TestAspect[Nothing, Live[Clock] with Live[Console], Nothing, Any, Nothing, Any] {
+      def some[R <: Live[Clock] with Live[Console], E, S, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] = {
+        def loop(labels: List[L], spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] =
+          spec.caseValue match {
+            case Spec.SuiteCase(label, specs, exec) =>
+              Spec.suite(label, specs.map(loop(label :: labels, _)), exec)
+            case Spec.TestCase(label, test) =>
+              Spec.test(label, warn(labels, label, test, duration))
+          }
 
-  /**
-   * Print a warning to the console when tests take longer than the specified
-   * duration.
-   */
-  final case class Warn(duration: Duration) extends TimeoutStrategy {
-    def apply[R, E, L, S](spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] = {
-      def loop(labels: List[L], spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] =
-        spec.caseValue match {
-          case Spec.SuiteCase(label, specs, exec) =>
-            Spec.suite(label, specs.map(loop(label :: labels, _)), exec)
-          case Spec.TestCase(label, test) =>
-            Spec.test(label, warn(labels, label, test, duration))
-        }
-
-      loop(Nil, spec)
+        loop(Nil, spec)
+      }
     }
-  }
-
-  /**
-   * Do nothing.
-   */
-  final case object Ignore extends TimeoutStrategy {
-    def apply[R, E, L, S](spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
-      spec
-  }
 
   private def warn[R, E, L, S](
     suiteLabels: List[L],

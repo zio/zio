@@ -21,8 +21,10 @@ object TestMain {
       scope(RandomSpec.run, "RandomSpec"),
       scope(SampleSpec.run, "SampleSpec"),
       scope(SchedulerSpec.run, "SchedulerSpec"),
-      scope(SystemSpec.run, "SystemSpec")
-    ).flatten
+      scope(SystemSpec.run, "SystemSpec"),
+      scope(TestAspectSpec.run, "TestAspectSpec"),
+      scope(TestSpec.run, "TestSpec")
+    )
     report(testResults)
   }
 }
