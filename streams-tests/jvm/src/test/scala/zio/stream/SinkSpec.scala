@@ -6,7 +6,7 @@ import zio.{ clock, Chunk, IO, Ref, UIO, ZIO, ZIOSpec }
 import zio.clock._
 import zio.duration._
 import zio.test._
-import zio.test.Assertion.{ equalTo, fails, isLeft, isNone, isRight, isSome, succeeds }
+import zio.test.Assertion.{ equalTo, fails, isLeft, isNone, isRight, isSome, succeeds, isTrue, isFalse }
 import zio.test.mock.MockClock
 import StreamTestUtils._
 import ZSink.Step
@@ -1098,9 +1098,10 @@ object SinkSpec
               state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0xA2.toByte))
               string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
             } yield {
-              assert(Step.cont(state1), equalTo(true)) &&
-              assert(Step.cont(state2), equalTo(false)) &&
-              assert(string.getBytes("UTF-8"), equalTo(Array(0xC2.toByte, 0xA2.toByte)))
+              assert(Step.cont(state1), isTrue) &&
+              assert(Step.cont(state2), isFalse) &&
+              // ZIO TEST: array equality
+              assert(string.getBytes("UTF-8").toList, equalTo(List(0xC2.toByte, 0xA2.toByte)))
             }
           },
           testM("incomplete chunk 2") {
@@ -1110,9 +1111,10 @@ object SinkSpec
               state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0xB9.toByte))
               string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
             } yield {
-              assert(Step.cont(state1), equalTo(true)) &&
-              assert(Step.cont(state2), equalTo(false)) &&
-              assert(string.getBytes("UTF-8"), equalTo(Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte)))
+              assert(Step.cont(state1), isTrue) &&
+              assert(Step.cont(state2), isFalse) &&
+              // ZIO TEST: array equality
+              assert(string.getBytes("UTF-8").toList, equalTo(List(0xE0.toByte, 0xA4.toByte, 0xB9.toByte)))
             }
           },
           testM("incomplete chunk 3") {
@@ -1122,9 +1124,10 @@ object SinkSpec
               state2 <- ZSink.utf8DecodeChunk.step(Step.state(state1), Chunk(0x88.toByte))
               string <- ZSink.utf8DecodeChunk.extract(Step.state(state2))
             } yield {
-              assert(Step.cont(state1), equalTo(true)) &&
-              assert(Step.cont(state2), equalTo(false)) &&
-              assert(string.getBytes("UTF-8"), equalTo(Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte)))
+              assert(Step.cont(state1), isTrue) &&
+              assert(Step.cont(state2), isFalse) &&
+              // ZIO TEST: array equality
+              assert(string.getBytes("UTF-8").toList, equalTo(List(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte)))
             }
           },
           testM("chunk with leftover") {
@@ -1136,8 +1139,9 @@ object SinkSpec
                            Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)
                          )
             } yield {
-              assert(Step.cont(state1), equalTo(false)) &&
-              assert(Step.leftover(state1).flatMap(identity).toArray[Byte], equalTo(Array(0xF0.toByte, 0x90.toByte)))
+              assert(Step.cont(state1), isFalse) &&
+              // ZIO TEST: array equality
+              assert(Step.leftover(state1).flatMap(identity).toArray[Byte].toList, equalTo(List(0xF0.toByte, 0x90.toByte)))
             }
           }
         ),
