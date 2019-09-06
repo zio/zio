@@ -14,11 +14,12 @@ please contact us immediately so that we can support you.
 
 ## Moderation and Steering Committee
  
-The ZIO project's group of moderators is the Steering Committee team. The members, currently, are:
-* John De Goes (@jdegoes)
-* Salar Rahmanian (@softinio)
-* Kai (@neko-kai)
+The ZIO project's group of moderators is the Steering Committee team. The members currently are:
 * Itamar Ravid (@iravid)
+* John De Goes (@jdegoes)
+* Kai (@neko-kai)
+* Paul Shirshov (@pshirshov)
+* Salar Rahmanian (@softinio)
 
 The ZIO project requires that drastic moderation actions detailed in the code of 
 conduct - for example, removing a user from the Gitter channel - be agreed upon
