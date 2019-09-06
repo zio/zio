@@ -4,9 +4,10 @@ import zio.Chunk
 import zio.test._
 import zio.test.Assertion.equalTo
 import StreamTestUtils._
+import zio.ZIOSpec
 
 object ChunkSpec
-    extends DefaultRunnableSpec(
+    extends ZIOSpec(
       suite("ChunkSpec")(
         testM("apply") {
           check(chunkWithLength) {

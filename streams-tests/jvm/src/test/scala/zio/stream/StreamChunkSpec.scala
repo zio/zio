@@ -1,13 +1,14 @@
 package zio.stream
 
 import scala.{ Stream => _ }
-import zio.{ Chunk, IO, Ref }
+import zio.{ Chunk, Ref }
 import zio.test._
 import zio.test.Assertion.equalTo
 import StreamTestUtils._
+import zio.ZIOSpec
 
 object StreamChunkSpec
-    extends DefaultRunnableSpec(
+    extends ZIOSpec(
       suite("StreamChunkSpec")(
         // testM("StreamChunk.map") {
         //   checkM(streamChunkGen(Gen.anyString), Gen[String => Int]) { (s, f) =>

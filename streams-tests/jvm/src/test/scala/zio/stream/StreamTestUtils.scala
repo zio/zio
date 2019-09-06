@@ -6,7 +6,7 @@ import zio.test.{ Gen, Sized }
 import zio.random.Random
 import zio._
 import zio.test.assert
-import zio.test.{ Assertion, TestResult }
+import zio.test.TestResult
 import zio.test.Assertion.{ equalTo, isLeft, isRight, isTrue }
 
 object StreamTestUtils {
