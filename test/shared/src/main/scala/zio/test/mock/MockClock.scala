@@ -274,7 +274,7 @@ object MockClock {
   /**
    * Constructs a new `MockClock` with the specified initial state. This can
    * be useful for providing the required environment to an effect that
-   * requires a `Clock`, such as with [[ZIO.provide]].
+   * requires a `Clock`, such as with [[ZIO!.provide]].
    */
   def make(data: Data): UIO[MockClock] =
     makeMock(data).map { mock =>

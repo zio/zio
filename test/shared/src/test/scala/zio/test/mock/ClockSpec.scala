@@ -5,15 +5,13 @@ import java.time.ZoneId
 
 import zio._
 import zio.duration._
+import zio.test.Async
 import zio.test.mock.MockClock.DefaultData
 import zio.test.TestUtils.{ label, nonFlaky }
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-
 object ClockSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(e1, "sleep does not require passage of clock time"),
     label(e2, "sleep delays effect until time is adjusted"),
     label(e3, "sleep correctly handles multiple sleeps"),
@@ -202,7 +200,7 @@ object ClockSpec extends DefaultRuntime {
           _      <- MockClock.adjust(1.minute)
           result <- fiber.join
         } yield result == None
-        io.provideSomeM(MockClock.make(MockClock.DefaultData))
+        io.provideM(MockClock.make(MockClock.DefaultData))
       }
     }
 
@@ -220,7 +218,7 @@ object ClockSpec extends DefaultRuntime {
           d <- q.take.as(true)
           e <- q.poll.map(_.isEmpty)
         } yield a && b && c && d && e
-        io.provideSomeM(MockClock.make(MockClock.DefaultData))
+        io.provideM(MockClock.make(MockClock.DefaultData))
       }
     }
 }

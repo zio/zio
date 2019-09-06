@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.ZIO
 import zio.stream.ZStream
 
 /**
@@ -26,6 +27,10 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
 
   final def <*>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.zip(that)
+
+  final def filter(f: A => Boolean): ZStream[R, Nothing, Sample[R, A]] =
+    if (f(value)) ZStream(Sample(value, shrink.flatMap(_.filter(f))))
+    else shrink.flatMap(_.filter(f))
 
   final def flatMap[R1 <: R, B](f: A => Sample[R1, B]): Sample[R1, B] = {
     val sample = f(value)
@@ -40,6 +45,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
       ZStream.empty
     else
       ZStream(value) ++ shrink.dropWhile(v => !(f(v.value))).take(1).flatMap(_.shrinkSearch(f))
+
+  final def traverse[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): ZIO[R1, Nothing, Sample[R1, B]] =
+    f(value).map(Sample(_, shrink.mapM(_.traverse(f))))
 
   final def zip[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.flatMap(a => that.map(b => (a, b)))

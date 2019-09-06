@@ -4,13 +4,13 @@ scala_211: &scala_211
   SCALA_VERSION: 2.11.12
 
 scala_212: &scala_212
-  SCALA_VERSION: 2.12.8
+  SCALA_VERSION: 2.12.9
 
 scala_213: &scala_213
   SCALA_VERSION: 2.13.0
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.16.0-RC3
+  SCALA_VERSION: 0.19.1-bin-20190904-beba63a-NIGHTLY
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -27,7 +27,16 @@ install_jdk: &install_jdk
       name: Install JDK
       command: |
         while $(ps aux | grep -i ' apt ' | grep -v grep > /dev/null); do sleep 1; done # Wait for apt to be ready
-        sudo add-apt-repository ppa:openjdk-r/ppa -y
+
+        sudo rm /etc/apt/sources.list.d/*
+        sudo tee /etc/apt/sources.list > /dev/null \<< 'EOF'
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-updates main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-backports main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-security main restricted universe
+        EOF
+
+        if [ $JDK_VERSION == 11 ]; then sudo add-apt-repository ppa:openjdk-r/ppa -y; fi
         sudo apt update
         sudo apt install openjdk-${JDK_VERSION}-jdk -y
 
@@ -89,7 +98,7 @@ mdoc: &mdoc
     - run:
         name: Generate documentation
         command: |
-          ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc
+          ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
           ./sbt ++${SCALA_VERSION}! mdoc
     - <<: *save_cache
 
@@ -154,7 +163,6 @@ microsite: &microsite
             nvm install
             nvm use
             node -v
-            ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc
             ./sbt docs/docusaurusCreateSite
             ./sbt docs/docusaurusPublishGhpages
       - <<: *save_cache
@@ -209,32 +217,11 @@ jobs:
       - <<: *scala_dotty
       - <<: *jdk_8
 
-  test_211_jdk11_jvm:
-    <<: *testJVM
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_211
-      - <<: *jdk_11
-
   test_212_jdk11_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
-      - <<: *jdk_11
-
-  test_213_jdk11_jvm:
-    <<: *testJVM
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_213
-      - <<: *jdk_11
-
-  test_dotty_jdk11_jvm:
-    <<: *testJVM
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_dotty
       - <<: *jdk_11
 
   test_211_jdk8_js:
@@ -257,27 +244,6 @@ jobs:
     environment:
       - <<: *scala_213
       - <<: *jdk_8
-
-  test_211_jdk11_js:
-    <<: *testJS
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_211
-      - <<: *jdk_11
-
-  test_212_jdk11_js:
-    <<: *testJS
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_212
-      - <<: *jdk_11
-
-  test_213_jdk11_js:
-    <<: *testJS
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_213
-      - <<: *jdk_11
 
   release_211:
     <<: *release
@@ -350,30 +316,12 @@ workflows:
 #          filters:
 #            tags:
 #              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_211_jdk11_jvm:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - test_212_jdk11_jvm:
           requires:
             - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_213_jdk11_jvm:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-#      - test_dotty_jdk11_jvm:
-#          requires:
-#            - lint
-#          filters:
-#            tags:
-#              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - test_211_jdk8_js:
           requires:
             - lint
@@ -392,31 +340,16 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_211_jdk11_js:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_212_jdk11_js:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_213_jdk11_js:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - release_211:
           context: Sonatype
           requires:
             - test_211_jdk8_jvm
-            - test_211_jdk11_jvm
             - test_211_jdk8_js
-            - test_211_jdk11_js
+            - test_212_jdk8_jvm
+            - test_212_jdk11_jvm
+            - test_212_jdk8_js
+            - test_213_jdk8_jvm
+            - test_213_jdk8_js
           filters:
             branches:
               ignore: /.*/

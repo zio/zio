@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 
 import zio.{ DefaultRuntime, Managed, UIO, ZIO }
 import zio.random.Random
@@ -10,7 +10,7 @@ import zio.test.TestUtils.label
 
 object GenSpec extends DefaultRuntime {
 
-  def run(implicit ec: ExecutionContext): List[Future[(Boolean, String)]] = List(
+  val run: List[Async[(Boolean, String)]] = List(
     label(monadLeftIdentity, "monad left identity"),
     label(monadRightIdentity, "monad right identity"),
     label(monadAssociativity, "monad associativity"),
@@ -33,6 +33,7 @@ object GenSpec extends DefaultRuntime {
     label(doubleShrinksToBottomOfRange, "double shrinks to bottom of range"),
     label(eitherShrinksToLeft, "either shrinks to left"),
     label(filterFiltersValuesAccordingToPredicate, "filter filters values according to predicate"),
+    label(filterFiltersShrinksAccordingToPredicate, "filter filters shrinks according to predicate"),
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
     label(intGeneratesValuesInRange, "int generates values in range"),
     label(intShrinksToBottomOfRange, "int shrinks to bottom of range"),
@@ -157,6 +158,9 @@ object GenSpec extends DefaultRuntime {
 
   def filterFiltersValuesAccordingToPredicate: Future[Boolean] =
     checkSample(smallInt.filter(_ % 2 == 0))(_.forall(_ % 2 == 0))
+
+  def filterFiltersShrinksAccordingToPredicate: Future[Boolean] =
+    checkShrink(Gen.int(1, 10).filter(_ % 2 == 0))(2)
 
   def fromIterableConstructsDeterministicGenerators: Future[Boolean] = {
     val exhaustive = Gen.fromIterable(1 to 6)
@@ -295,45 +299,45 @@ object GenSpec extends DefaultRuntime {
       as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
       bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     } yield (as, bs)
-    val assertion = Assertion.assertion[(List[Int], List[Int])]("") {
+    def test(a: (List[Int], List[Int])): TestResult = a match {
       case (as, bs) =>
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
-        if (p) AssertResult.success else AssertResult.Failure(())
+        if (p) AssertResult.success(()) else assert((as, bs), Assertion.nothing)
     }
-    val test = checkSome(100)(gen)(assertion).map {
-      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
-        fragment.value.toString == "(List(0),List(1))" ||
-          fragment.value.toString == "(List(1),List(0))" ||
-          fragment.value.toString == "(List(0),List(-1))" ||
-          fragment.value.toString == "(List(-1),List(0))"
+    val property = checkSome(gen)(100)(test).map {
+      case AssertResult.Value(Left(failureDetails)) =>
+        failureDetails.fragment.value.toString == "(List(0),List(1))" ||
+          failureDetails.fragment.value.toString == "(List(1),List(0))" ||
+          failureDetails.fragment.value.toString == "(List(0),List(-1))" ||
+          failureDetails.fragment.value.toString == "(List(-1),List(0))"
       case _ => false
     }
-    unsafeRunToFuture(test)
+    unsafeRunToFuture(property)
   }
 
   def testShrinkingNonEmptyList: Future[Boolean] = {
-    val gen       = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
-    val assertion = Assertion.assertion[List[Int]]("")(_ => AssertResult.Failure(()))
-    val test = checkSome(100)(gen)(assertion).map {
-      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
-        fragment.value.toString == "List(0)"
+    val gen                            = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+    def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
+    val property = checkSome(gen)(100)(test).map {
+      case AssertResult.Value(Left(failureDetails)) =>
+        failureDetails.fragment.value.toString == "List(0)"
       case _ => false
     }
-    unsafeRunToFuture(test)
+    unsafeRunToFuture(property)
   }
 
   def testBogusEvenProperty: Future[Boolean] = {
     val gen = Gen.int(0, 100)
-    val assertion = Assertion.assertion[Int]("") { n =>
+    def test(n: Int): TestResult = {
       val p = n % 2 == 0
-      if (p) AssertResult.Success else AssertResult.Failure(())
+      if (p) AssertResult.success(()) else assert(n, Assertion.nothing)
     }
-    val test = checkSome(100)(gen)(assertion).map {
-      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
-        fragment.value.toString == "1"
+    val property = checkSome(gen)(100)(test).map {
+      case AssertResult.Value(Left(failureDetails)) =>
+        failureDetails.fragment.value.toString == "1"
       case _ => false
     }
-    unsafeRunToFuture(test)
+    unsafeRunToFuture(property)
   }
 
   def checkEqual[A](left: Gen[Random, A], right: Gen[Random, A]): Future[Boolean] =
@@ -351,14 +355,16 @@ object GenSpec extends DefaultRuntime {
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.map(_.value).forever.take(100).runCollect
 
-  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): ZIO[R, Nothing, Boolean] =
-    ZIO.collectAll(List.fill(100)(shrinksTo(gen))).map(_.forall(_ == a))
+  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): ZIO[R, Nothing, Boolean] = {
+    val shrinks = if (TestPlatform.isJS) 1 else 100
+    ZIO.collectAll(List.fill(shrinks)(shrinksTo(gen))).map(_.forall(_ == a))
+  }
 
   def shrinksTo[R, A](gen: Gen[R, A]): ZIO[R, Nothing, A] =
     shrinks(gen).map(_.reverse.head)
 
   def shrinks[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runCollect
+    gen.sample.forever.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runCollect
 
   def equal[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)

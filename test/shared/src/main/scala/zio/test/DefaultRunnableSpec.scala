@@ -16,11 +16,16 @@
 
 package zio.test
 
-import zio.DefaultRuntime
+import zio.duration._
+import zio.test.mock.MockEnvironment
 
 /**
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
  */
-abstract class DefaultRunnableSpec(spec: => ZSpec[DefaultRuntime#Environment, Nothing, String])
-    extends RunnableSpec(DefaultTestRunner)(spec)
+abstract class DefaultRunnableSpec(
+  spec: => ZSpec[MockEnvironment, Any, String, Any],
+  defautlTestAspects: List[TestAspect[Nothing, MockEnvironment, Nothing, Any, Nothing, Any]] = List(
+    TestAspect.timeoutWarning(60.seconds)
+  )
+) extends RunnableSpec(DefaultTestRunner)(defautlTestAspects.foldLeft(spec)(_ @@ _))
