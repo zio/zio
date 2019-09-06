@@ -6,7 +6,7 @@ import zio.{ clock, Chunk, IO, Ref, UIO, ZIO, ZIOSpec }
 import zio.clock._
 import zio.duration._
 import zio.test._
-import zio.test.Assertion.{ equalTo, fails, isLeft, isNone, isRight, isSome, succeeds, isTrue, isFalse }
+import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isNone, isRight, isSome, isTrue, succeeds }
 import zio.test.mock.MockClock
 import StreamTestUtils._
 import ZSink.Step
@@ -1141,7 +1141,10 @@ object SinkSpec
             } yield {
               assert(Step.cont(state1), isFalse) &&
               // ZIO TEST: array equality
-              assert(Step.leftover(state1).flatMap(identity).toArray[Byte].toList, equalTo(List(0xF0.toByte, 0x90.toByte)))
+              assert(
+                Step.leftover(state1).flatMap(identity).toArray[Byte].toList,
+                equalTo(List(0xF0.toByte, 0x90.toByte))
+              )
             }
           }
         ),
