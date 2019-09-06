@@ -31,6 +31,9 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
   final def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zip(that)
 
+  final def collect[B](pf: PartialFunction[A, B]): Gen[R, B] =
+    Gen(sample.flatMap(_.collect(pf)))
+
   final def filter(f: A => Boolean): Gen[R, A] =
     Gen(sample.flatMap(_.filter(f)))
 

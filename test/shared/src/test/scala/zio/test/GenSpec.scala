@@ -34,6 +34,8 @@ object GenSpec extends DefaultRuntime {
     label(eitherShrinksToLeft, "either shrinks to left"),
     label(filterFiltersValuesAccordingToPredicate, "filter filters values according to predicate"),
     label(filterFiltersShrinksAccordingToPredicate, "filter filters shrinks according to predicate"),
+    label(collectCollectsValuesAccordingToPredicate, "collect collects values according to predicate"),
+    label(collectCollectsShrinksAccordingToPredicate, "collect collects shrinks according to predicate"),
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
     label(intGeneratesValuesInRange, "int generates values in range"),
     label(intShrinksToBottomOfRange, "int shrinks to bottom of range"),
@@ -161,6 +163,12 @@ object GenSpec extends DefaultRuntime {
 
   def filterFiltersShrinksAccordingToPredicate: Future[Boolean] =
     checkShrink(Gen.int(1, 10).filter(_ % 2 == 0))(2)
+
+  def collectCollectsValuesAccordingToPredicate: Future[Boolean] =
+    checkSample(smallInt.collect { case x if x % 2 == 0 => x + 1 })(_.forall(x => (x - 1) % 2 == 0))
+
+  def collectCollectsShrinksAccordingToPredicate: Future[Boolean] =
+    checkShrink(Gen.int(1, 10).collect { case x if x % 2 == 0 => x + 1 })(3)
 
   def fromIterableConstructsDeterministicGenerators: Future[Boolean] = {
     val exhaustive = Gen.fromIterable(1 to 6)
