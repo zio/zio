@@ -7,7 +7,7 @@ import zio.random.Random
 import zio._
 import zio.test.assert
 import zio.test.{ Assertion, TestResult }
-import zio.test.Assertion.{ isLeft, isRight, equalTo, isTrue }
+import zio.test.Assertion.{ equalTo, isLeft, isRight, isTrue }
 
 object StreamTestUtils {
   import ZSink.Step
@@ -132,15 +132,15 @@ object StreamTestUtils {
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ): ZIO[Any, Nothing, Assertion[Either[String, Any]]] =
+    ): ZIO[Any, Nothing, TestResult] =
       for {
         zb  <- s.run(sink1).either
         zc  <- s.run(sink2).either
         zbc <- s.run(sink1.zipPar(sink2)).either
       } yield {
         zbc match {
-          case Left(e)       => assert(zb, isLeft(e)) or assert(zc, isLeft(e))
-          case Right((b, c)) => assert(zb, isRight(b)) and assert(zc, isRight(c))
+          case Left(e)       => assert(zb, isLeft(equalTo(e))) || assert(zc, isLeft(equalTo(e)))
+          case Right((b, c)) => assert(zb, isRight(equalTo(b))) && assert(zc, isRight(equalTo(c)))
         }
       }
 
