@@ -46,7 +46,7 @@ object BuildHelper {
   )
 
   val dottySettings = Seq(
-    crossScalaVersions += "0.17.0-RC1",
+    crossScalaVersions += "0.19.1-bin-20190904-beba63a-NIGHTLY",
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
       val old = (Compile / doc / sources).value
