@@ -45,6 +45,8 @@ object MockEnvironment {
         console <- MockConsole.makeMock(MockConsole.DefaultData)
         live    <- Live.makeService(new DefaultRuntime {}.Environment)
         random  <- MockRandom.makeMock(MockRandom.DefaultData)
+        time    <- live.provide(zio.clock.nanoTime)
+        _       <- random.setSeed(time)
         size    <- Sized.makeService(100)
         system  <- MockSystem.makeMock(MockSystem.DefaultData)
       } yield new MockEnvironment(clock, console, live, random, clock, size, system)
