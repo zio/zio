@@ -175,7 +175,7 @@ object StreamTestUtils {
       maybeProp.catchAll(_ => UIO.succeed(Assertion.anything))
     }
 
-    def laws[A, B: Diffable, C: Diffable](
+    def laws[A, B, C](
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
