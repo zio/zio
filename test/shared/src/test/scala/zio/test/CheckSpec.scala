@@ -4,14 +4,15 @@ import scala.concurrent.Future
 
 import zio.{ random, Chunk, DefaultRuntime }
 import zio.test.Assertion.{ equalTo, isLessThan }
-import zio.test.TestUtils.{ label, succeeded }
+import zio.test.TestUtils.{ failed, label, succeeded }
 
 object CheckSpec extends DefaultRuntime {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(effectualPropertiesCanBeTests, "effectual properties can be tested"),
     label(overloadedCheckMethodsWork, "overloaded check methods work"),
-    label(testsCanBeWrittenInPropertyBasedStyle, "tests can be written in property based style")
+    label(testsCanBeWrittenInPropertyBasedStyle, "tests can be written in property based style"),
+    label(testsWithFilteredGeneratorsTerminate, "tests with filtered generators terminate")
   )
 
   def effectualPropertiesCanBeTests: Future[Boolean] =
@@ -51,5 +52,15 @@ object CheckSpec extends DefaultRuntime {
         }
       }
       succeeded(chunkApply)
+    }
+
+  def testsWithFilteredGeneratorsTerminate: Future[Boolean] =
+    unsafeRunToFuture {
+      val filtered = testM("filtered") {
+        check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0)) { (a, b) =>
+          assert(a, equalTo(b))
+        }
+      }
+      failed(filtered)
     }
 }
