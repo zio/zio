@@ -55,7 +55,7 @@ trait CheckVariants {
    * the given random variable.
    */
   final def checkM[R, A](rv: Gen[R, A])(test: A => ZIO[R, Nothing, TestResult]): ZIO[R, Nothing, TestResult] =
-    checkSomeM(rv)(200)(test)
+    checkSomeM(rv)(50)(test)
 
   /**
    * A version of `checkM` that accepts two random variables.
