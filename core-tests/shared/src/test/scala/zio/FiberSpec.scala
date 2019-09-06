@@ -17,10 +17,7 @@ class FiberSpec extends BaseCrossPlatformSpec {
     for {
       ref <- Ref.make(false)
       fiber <- withLatch { release =>
-                (release *> IO.unit)
-                  .bracket_[Any, Nothing]
-                  .apply[Any](ref.set(true))(IO.never)
-                  .fork //    TODO: Dotty doesn't infer this properly
+                (release *> IO.unit).bracket_(ref.set(true))(IO.never).fork
               }
       _     <- fiber.toManaged.use(_ => IO.unit)
       _     <- fiber.await

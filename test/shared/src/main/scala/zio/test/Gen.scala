@@ -32,7 +32,7 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     self.zip(that)
 
   final def filter(f: A => Boolean): Gen[R, A] =
-    flatMap(a => if (f(a)) Gen.const(a) else Gen.empty)
+    Gen(sample.flatMap(_.filter(f)))
 
   final def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = Gen {
     self.sample.flatMap { sample =>
