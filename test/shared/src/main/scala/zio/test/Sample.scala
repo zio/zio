@@ -28,6 +28,10 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   final def <*>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.zip(that)
 
+  final def filter(f: A => Boolean): ZStream[R, Nothing, Sample[R, A]] =
+    if (f(value)) ZStream(Sample(value, shrink.flatMap(_.filter(f))))
+    else shrink.flatMap(_.filter(f))
+
   final def flatMap[R1 <: R, B](f: A => Sample[R1, B]): Sample[R1, B] = {
     val sample = f(value)
     Sample(sample.value, sample.shrink ++ shrink.map(_.flatMap(f)))

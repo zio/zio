@@ -33,6 +33,7 @@ object GenSpec extends DefaultRuntime {
     label(doubleShrinksToBottomOfRange, "double shrinks to bottom of range"),
     label(eitherShrinksToLeft, "either shrinks to left"),
     label(filterFiltersValuesAccordingToPredicate, "filter filters values according to predicate"),
+    label(filterFiltersShrinksAccordingToPredicate, "filter filters shrinks according to predicate"),
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
     label(intGeneratesValuesInRange, "int generates values in range"),
     label(intShrinksToBottomOfRange, "int shrinks to bottom of range"),
@@ -157,6 +158,9 @@ object GenSpec extends DefaultRuntime {
 
   def filterFiltersValuesAccordingToPredicate: Future[Boolean] =
     checkSample(smallInt.filter(_ % 2 == 0))(_.forall(_ % 2 == 0))
+
+  def filterFiltersShrinksAccordingToPredicate: Future[Boolean] =
+    checkShrink(Gen.int(1, 10).filter(_ % 2 == 0))(2)
 
   def fromIterableConstructsDeterministicGenerators: Future[Boolean] = {
     val exhaustive = Gen.fromIterable(1 to 6)
@@ -360,7 +364,7 @@ object GenSpec extends DefaultRuntime {
     shrinks(gen).map(_.reverse.head)
 
   def shrinks[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runCollect
+    gen.sample.forever.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runCollect
 
   def equal[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
