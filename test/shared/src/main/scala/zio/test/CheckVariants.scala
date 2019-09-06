@@ -218,7 +218,14 @@ trait CheckVariants {
       .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
       .map { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[TestResult](AssertResult.success(()))(identity)
+        failures.reverse.headOption.fold[TestResult](
+          BoolAlgebra.success {
+            FailureDetails(
+              AssertionValue(Assertion.anything, ()),
+              AssertionValue(Assertion.anything, ())
+            )
+          }
+        )(identity)
       }
 
   private final def reassociate[A, B, C, D](f: (A, B, C) => D): (((A, B), C)) => D = {

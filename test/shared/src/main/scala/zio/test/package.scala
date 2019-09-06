@@ -43,7 +43,8 @@ import zio.test.mock.MockEnvironment
  * }}}
  */
 package object test extends CheckVariants {
-  type TestResult = AssertResult[Either[FailureDetails, Unit]]
+  type AssertResult = BoolAlgebra[AssertionValue]
+  type TestResult   = BoolAlgebra[FailureDetails]
 
   /**
    * A `TestReporter[L, E, S]` is capable of reporting test results annotated
@@ -95,9 +96,8 @@ package object test extends CheckVariants {
    * Checks the assertion holds for the given value.
    */
   final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
-    assertion.run(value).map {
-      case Left(fragment) => Left(FailureDetails(fragment, AssertionValue(assertion, value)))
-      case _              => Right(())
+    assertion.run(value).map { fragment =>
+      FailureDetails(fragment, AssertionValue(assertion, value))
     }
 
   /**
@@ -148,7 +148,7 @@ package object test extends CheckVariants {
       label,
       assertion.flatMap { result =>
         result.failures match {
-          case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
+          case None           => ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
           case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
         }
       }
