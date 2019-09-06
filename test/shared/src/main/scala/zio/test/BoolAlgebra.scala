@@ -81,7 +81,7 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
       }, {
         _.swap
       }
-    ).swap.toOption
+    ).fold(Some(_), _ => None)
 
   /**
    * Folds over the result bottom up, first converting values to `B`
