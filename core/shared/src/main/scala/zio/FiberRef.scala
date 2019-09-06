@@ -48,11 +48,7 @@ final class FiberRef[A](private[zio] val initial: A) extends Serializable {
   final def locally[R, E, B](value: A)(use: ZIO[R, E, B]): ZIO[R, E, B] =
     for {
       oldValue <- get
-      b <- {
-        // TODO: Dotty doesn't infer this properly
-        val i0: ZIO.BracketAcquire_[R, E] = set(value).bracket_[R, E]
-        i0(set(oldValue))(use)
-      }
+      b        <- set(value).bracket_(set(oldValue))(use)
     } yield b
 
   /**
