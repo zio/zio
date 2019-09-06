@@ -140,10 +140,10 @@ object ChunkSpec
           assert(array, equalTo(Array(1, 1, 1, 3, 3, 3)))
         },
         test("toArrayOnConcatOfEmptyAndInts") {
-          assert(Chunk.empty ++ Chunk.fromArray(Array(1, 2, 3)), equalTo(Array(1, 2, 3)))
+          assert(Chunk.empty ++ Chunk.fromArray(Array(1, 2, 3)), equalTo(Chunk(1, 2, 3)))
         },
         test("filterConstFalseResultsInEmptyChunk") {
-          assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo(Chunk.empty))
+          assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo[Chunk[Int]](Chunk.empty))
         }
       )
     )

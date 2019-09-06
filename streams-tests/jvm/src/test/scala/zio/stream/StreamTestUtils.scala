@@ -6,8 +6,8 @@ import zio.test.{ Gen, Sized }
 import zio.random.Random
 import zio._
 import zio.test.assert
-import zio.test.Assertion
-import zio.test.Assertion.{ isLeft, isRight }
+import zio.test.{ Assertion, TestResult }
+import zio.test.Assertion.{ isLeft, isRight, equalTo, isTrue }
 
 object StreamTestUtils {
   import ZSink.Step
@@ -120,7 +120,7 @@ object StreamTestUtils {
       }
   }
 
-  def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], a: A) =
+  def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], a: A): ZIO[R, E, B] =
     for {
       init   <- sink.initial
       step   <- sink.step(Step.state(init), a)
@@ -148,7 +148,7 @@ object StreamTestUtils {
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ): ZIO[Any, Nothing, Assertion[((C, B), A)]] =
+    ): ZIO[Any, Nothing, TestResult] =
       for {
         res     <- s.run(sink1.zipPar(sink2).zip(ZSink.collectAll[A])).either
         swapped <- s.run(sink2.zipPar(sink1).zip(ZSink.collectAll[A])).either
@@ -162,26 +162,26 @@ object StreamTestUtils {
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ): ZIO[Any, Nothing, Assertion[AnyVal]] = {
+    ): ZIO[Any, Nothing, TestResult] = {
       val maybeProp = for {
         rem1 <- s.run(sink1.zipRight(ZSink.collectAll[A]))
         rem2 <- s.run(sink2.zipRight(ZSink.collectAll[A]))
         rem  <- s.run(sink1.zipPar(sink2).zipRight(ZSink.collectAll[A]))
       } yield {
         val (longer, shorter) = if (rem1.length <= rem2.length) (rem2, rem1) else (rem1, rem2)
-        assert(longer, equalTo(rem)) and assert(rem.endsWith(shorter), isTrue)
+        assert(longer, equalTo(rem)) && assert(rem.endsWith(shorter), isTrue)
       }
       //irrelevant if an error occurred
-      maybeProp.catchAll(_ => UIO.succeed(Assertion.anything))
+      maybeProp.catchAll(_ => UIO.succeed(assert(true, isTrue)))
     }
 
     def laws[A, B, C](
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ): ZIO[Any, Nothing, Assertion[Any]] =
+    ): ZIO[Any, Nothing, TestResult] =
       (coherence(s, sink1, sink2) <*> remainders(s, sink1, sink2) <*> swap(s, sink1, sink2)).map {
-        case ((c, r), s) => c and r and s
+        case ((c, r), s) => c && r && s
       }
   }
 

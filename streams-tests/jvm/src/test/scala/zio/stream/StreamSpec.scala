@@ -312,8 +312,8 @@ object ZStreamSpec
                       _ <- latch.await
                       l <- ref.get
                     } yield l
-                  }
-            } yield assert(l.reverse, equalTo((1 to 4).toList))
+                  }.run
+            } yield assert(l, succeeds(equalTo((4 to 1).toList)))
 
           }
         ),
@@ -435,7 +435,7 @@ object ZStreamSpec
                 list.foreach(a => k(Task.succeed(a)))
               }
 
-              assertM(s.take(list.size).runCollect, equalTo(Success(list)))
+              assertM(s.take(list.size).runCollect.run, succeeds(equalTo(list)))
 
             }
           }
@@ -449,7 +449,7 @@ object ZStreamSpec
                            None
                          }
                          .runCollect
-            } yield assert(result, equalTo(List()))
+            } yield assert(result, equalTo(List.empty[Int]))
           },
           testM("effectAsyncMaybe Some") {
             checkM(Gen.listOf(Gen.anyInt)) { list =>

@@ -93,7 +93,7 @@ object StreamChunkSpec
         testM("StreamChunk.++") {
           checkM(succeededStreamChunkGen(Gen.anyString), succeededStreamChunkGen(Gen.anyString)) { (s1, s2) =>
             for {
-              res1 <- slurp(s1).zipWith(s2, _ ++ _)
+              res1 <- slurp(s1).zipWith(slurp(s2))(_ ++ _)
               res2 <- slurp(s1 ++ s2)
             } yield assert(res1, equalTo(res2))
           }
