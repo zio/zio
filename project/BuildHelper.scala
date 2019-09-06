@@ -46,6 +46,7 @@ object BuildHelper {
   )
 
   val dottySettings = Seq(
+    // Keep this consistent with the version in .circleci/config.yml
     crossScalaVersions += "0.19.1-bin-20190904-beba63a-NIGHTLY",
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
