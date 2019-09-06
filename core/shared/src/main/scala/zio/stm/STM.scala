@@ -584,7 +584,7 @@ object STM {
     object TRez {
       final case class Fail[A](value: A)    extends TRez[A, Nothing]
       final case class Succeed[B](value: B) extends TRez[Nothing, B]
-      final case object Retry               extends TRez[Nothing, Nothing]
+      case object Retry               extends TRez[Nothing, Nothing]
     }
 
     abstract class Entry { self =>
