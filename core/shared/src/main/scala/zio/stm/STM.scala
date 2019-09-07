@@ -558,6 +558,10 @@ object STM {
                 Sync(globalLock) {
                   if (isValid(journal)) commitJournal(journal) else loop = true
                 }
+              } else {
+                Sync(globalLock) {
+                  if (isInvalid(journal)) loop = true
+                }
               }
 
             case _ =>
