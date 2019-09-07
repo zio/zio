@@ -593,11 +593,11 @@ object SinkSpec
           },
           testM("init error left") {
             val sink = initErrorSink <*> ZSink.identity[Int]
-            assertM[Any, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+            assertM[Any, Nothing, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
           },
           testM("init error right") {
             val sink = ZSink.identity[Int] <*> initErrorSink
-            assertM[Any, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+            assertM[Any, Nothing, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
           },
           testM("init error both") {
             val sink = initErrorSink <*> initErrorSink
@@ -605,11 +605,11 @@ object SinkSpec
           },
           testM("step error left") {
             val sink = stepErrorSink <*> ZSink.identity[Int]
-            assertM[Any, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+            assertM[Any, Nothing, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
           },
           testM("step error right") {
             val sink = ZSink.identity[Int] <*> stepErrorSink
-            assertM[Any, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+            assertM[Any, Nothing, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
           },
           testM("step error both") {
             val sink = stepErrorSink <*> stepErrorSink
@@ -617,11 +617,11 @@ object SinkSpec
           },
           testM("extract error left") {
             val sink = extractErrorSink <*> ZSink.identity[Int]
-            assertM[Any, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+            assertM[Any, Nothing, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
           },
           testM("extract error right") {
             val sink = ZSink.identity[Int] <*> extractErrorSink
-            assertM[Any, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+            assertM[Any, Nothing, Either[Any, (Int, Int)]](sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
           },
           testM("extract error both") {
             val sink = extractErrorSink <*> extractErrorSink

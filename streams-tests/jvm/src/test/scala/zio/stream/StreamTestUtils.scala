@@ -16,16 +16,16 @@ object StreamTestUtils {
     Gen.oneOf(
       Gen.const(Chunk.empty),
       a.map(Chunk.succeed),
-      Gen.listOf(a).map(as => Chunk.fromArray(as.toArray))
-      // ZIO TEST: recursive  genetors require lazy constructor
-      // for {
-      //   arr  <- chunkGen(a)
-      //   left <- Gen.int(0, arr.length)
-      // } yield arr.take(left),
-      // for {
-      //   left  <- chunkGen(a)
-      //   right <- chunkGen(a)
-      // } yield left ++ right
+      Gen.listOf(a).map(as => Chunk.fromArray(as.toArray)),
+      Gen.suspend(for {
+          arr  <- chunkGen(a)
+          left <- Gen.int(0, arr.length)
+        } yield arr.take(left))
+      ,
+      Gen.suspend(for {
+        left  <- chunkGen(a)
+        right <- chunkGen(a)
+      } yield left ++ right)
     )
 
   val chunkWithLength: Gen[Random with Sized, (Chunk[Int], Int)] = for {
