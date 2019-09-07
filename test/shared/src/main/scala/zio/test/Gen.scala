@@ -56,6 +56,9 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     }
   }
 
+  final def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B]): Gen[R1, B] =
+    flatMap(ev)
+
   final def map[B](f: A => B): Gen[R, B] =
     Gen(sample.map(_.map(f)))
 
@@ -283,6 +286,13 @@ object Gen {
 
   final def stringN[R <: Random](n: Int)(char: Gen[R, Char]): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
+
+  /**
+   * Lazily constructs a generator. This is useful to avoid infinite recursion
+   * when creating generators that refer to themselves.
+   */
+  final def suspend[R, A](gen: => Gen[R, A]): Gen[R, A] =
+    fromEffect(ZIO.effectTotal(gen)).flatten
 
   /**
    * A generator of uniformly distributed doubles between [0, 1].
