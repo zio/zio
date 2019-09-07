@@ -137,15 +137,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Converts the failure channel into an `Either`.
    */
-  final def either: STM[Nothing, Either[E, A]] =
-    new STM(
-      journal =>
-        self.exec(journal) match {
-          case TRez.Fail(e)    => TRez.Succeed(Left(e))
-          case TRez.Succeed(a) => TRez.Succeed(Right(a))
-          case TRez.Retry      => TRez.Retry
-        }
-    )
+  final def either: STM[Nothing, Either[E, A]] = fold(Left(_), Right(_))
 
   /**
    * Filters the value produced by this effect, retrying the transaction until
