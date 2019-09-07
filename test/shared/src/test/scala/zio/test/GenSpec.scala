@@ -36,6 +36,9 @@ object GenSpec extends DefaultRuntime {
     label(filterFiltersValuesAccordingToPredicate, "filter filters values according to predicate"),
     label(filterFiltersShrinksAccordingToPredicate, "filter filters shrinks according to predicate"),
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
+    label(functionGeneratesDifferentFunctions, "function generates different functions"),
+    label(functionGeneratesFunctionsThatAreNotConstant, "function generates functions that are not constant"),
+    label(functionGeneratesReferentiallyTransparentFunctions, "function generates referentially transparent functions"),
     label(intGeneratesValuesInRange, "int generates values in range"),
     label(intShrinksToBottomOfRange, "int shrinks to bottom of range"),
     label(listOfGeneratesSizesInRange, "listOf generates sizes in range"),
@@ -75,7 +78,8 @@ object GenSpec extends DefaultRuntime {
     label(zipWithShrinksCorrectly, "zipWith shrinks correctly"),
     label(testBogusReverseProperty, "integration test with bogus reverse property"),
     label(testShrinkingNonEmptyList, "integration test with shrinking nonempty list"),
-    label(testBogusEvenProperty, "integration test with bogus even property")
+    label(testBogusEvenProperty, "integration test with bogus even property"),
+    label(testTakeWhileProperty, "integration test with randomly generated functions")
   )
 
   val smallInt = Gen.int(-10, 10)
@@ -91,6 +95,8 @@ object GenSpec extends DefaultRuntime {
       head <- Gen.int(-10, 10)
     } yield head :: tail
   )
+
+  val genStringIntFn: Gen[Random, String => Int] = Gen.function(Gen.int(-10, 10))
 
   def monadLeftIdentity: Future[Boolean] =
     checkEqual(smallInt.flatMap(a => Gen.const(a)), smallInt)
@@ -177,6 +183,32 @@ object GenSpec extends DefaultRuntime {
     val actual     = exhaustive.zipWith(exhaustive)(_ + _)
     val expected   = (1 to 6).flatMap(x => (1 to 6).map(y => x + y))
     checkFinite(actual)(_ == expected)
+  }
+
+  def functionGeneratesDifferentFunctions: Future[Boolean] = {
+    val gen = for {
+      f <- genStringIntFn
+      g <- genStringIntFn
+      s <- Gen.string(Gen.anyChar)
+    } yield f(s) == g(s)
+    checkSample(gen)(_.exists(!_))
+  }
+
+  def functionGeneratesFunctionsThatAreNotConstant: Future[Boolean] = {
+    val gen = for {
+      f  <- genStringIntFn
+      s1 <- Gen.string(Gen.anyChar)
+      s2 <- Gen.string(Gen.anyChar)
+    } yield f(s1) == f(s2)
+    checkSample(gen)(_.exists(!_))
+  }
+
+  def functionGeneratesReferentiallyTransparentFunctions: Future[Boolean] = {
+    val gen = for {
+      f <- genStringIntFn
+      s <- Gen.string(Gen.anyChar)
+    } yield f(s) == f(s)
+    checkSample(gen)(_.forall(identity))
   }
 
   def intGeneratesValuesInRange: Future[Boolean] =
@@ -358,6 +390,19 @@ object GenSpec extends DefaultRuntime {
       case _ => false
     }
     unsafeRunToFuture(property)
+  }
+
+  def testTakeWhileProperty: Future[Boolean] = {
+    val ints                                      = Gen.listOf(Gen.int(-10, 10))
+    val intBooleanFn: Gen[Random, Int => Boolean] = Gen.function(Gen.boolean)
+    unsafeRunToFuture {
+      val takeWhileProp = testM("takeWhile") {
+        check(ints, intBooleanFn) { (as, f) =>
+          assert(as.takeWhile(f).forall(f), isTrue)
+        }
+      }
+      succeeded(takeWhileProp)
+    }
   }
 
   def checkEqual[A](left: Gen[Random, A], right: Gen[Random, A]): Future[Boolean] =
