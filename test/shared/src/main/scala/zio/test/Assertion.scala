@@ -50,7 +50,7 @@ class Assertion[-A] private (render: String, val run: (=> A) => AssertResult[Eit
    */
   final def apply(a: => A): AssertResult[Either[AssertionValue, Unit]] =
     run(a)
-
+    
   override final def equals(that: Any): Boolean = that match {
     case that: Assertion[_] => this.toString == that.toString
   }
@@ -131,10 +131,10 @@ object Assertion {
    * Makes a new assertion that requires a value equal the specified value.
    */
   final def equalTo[A](expected: A): Assertion[A] =
-    Assertion.assertion(s"equalTo(${expected})") { actual =>
-      if (actual == expected) AssertResult.success(())
-      else AssertResult.failure(())
-    }
+  Assertion.assertion(s"equalTo(${expected})") { actual =>
+    if (actual == expected) AssertResult.success(())
+    else AssertResult.failure(())
+  }
 
   /**
    * Makes a new assertion that requires an iterable contain one element
@@ -394,10 +394,9 @@ object Assertion {
     Assertion.assertionRec[A](s"throws(${assertion})") { (self, actual) =>
       try {
         val _ = actual
+        AssertResult.failure(AssertionValue(self, actual))
       } catch {
         case t: Throwable => assertion(t)
       }
-
-      AssertResult.failure(AssertionValue(self, actual))
     }
 }
