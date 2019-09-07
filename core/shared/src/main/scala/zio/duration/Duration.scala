@@ -107,15 +107,14 @@ object Duration {
 
     override def asJava: JavaDuration = JavaDuration.ofNanos(nanos)
 
-    override def render: String = toMillis match {
-      case 0                         => "0 milliseconds"
-      case 1                         => "1 millisecond"
-      case millis if millis < 1000   => s"$millis milliseconds"
-      case millis if millis < 2000   => "1 second"
-      case millis if millis < 60000  => s"${millis / 1000} seconds"
-      case millis if millis < 120000 => "1 minute"
-      case millis                    => s"${millis / 60000} minutes"
-    }
+    override def render: String =
+      toMillis match {
+        case millis if millis < 1000 => s"$millis ms"
+        case millis if millis < 60000 && millis % 1000 == 0 => s"${millis / 1000} s"
+        case millis if millis < 60000 => s"${millis / 1000} s ${millis % 1000} ms"
+        case millis if (millis % 60000) / 1000 == 0 => s"${millis / 60000} min"
+        case millis => s"${millis / 60000} min ${(millis % 60000) / 1000} s"
+      }
   }
 
   case object Infinity extends Duration {
