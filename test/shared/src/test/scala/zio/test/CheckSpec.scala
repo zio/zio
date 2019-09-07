@@ -2,18 +2,33 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ random, Chunk, DefaultRuntime }
+import zio.{ random, Chunk, DefaultRuntime, ZIO }
 import zio.test.Assertion.{ equalTo, isLessThan }
 import zio.test.TestUtils.{ failed, label, succeeded }
 
 object CheckSpec extends DefaultRuntime {
 
   val run: List[Async[(Boolean, String)]] = List(
+    label(checkMIsPolymorphicInErrorType, "checkM is polymorphic in error type"),
     label(effectualPropertiesCanBeTests, "effectual properties can be tested"),
+    label(errorInCheckMIsTestFailure, "error in checkM is test failure"),
     label(overloadedCheckMethodsWork, "overloaded check methods work"),
     label(testsCanBeWrittenInPropertyBasedStyle, "tests can be written in property based style"),
     label(testsWithFilteredGeneratorsTerminate, "tests with filtered generators terminate")
   )
+
+  def checkMIsPolymorphicInErrorType: Future[Boolean] =
+    unsafeRunToFuture {
+      val nextInt = testM("nextInt") {
+        checkM(Gen.int(1, 100)) { n =>
+          for {
+            _ <- ZIO.effect(())
+            r <- random.nextInt(n)
+          } yield assert(r, isLessThan(n))
+        }
+      }
+      succeeded(nextInt)
+    }
 
   def effectualPropertiesCanBeTests: Future[Boolean] =
     unsafeRunToFuture {
@@ -25,6 +40,19 @@ object CheckSpec extends DefaultRuntime {
         }
       }
       succeeded(nextInt)
+    }
+
+  def errorInCheckMIsTestFailure: Future[Boolean] =
+    unsafeRunToFuture {
+      val nextInt = testM("nextInt") {
+        checkM(Gen.int(1, 100)) { n =>
+          for {
+            _ <- ZIO.fail("fail")
+            r <- random.nextInt(n)
+          } yield assert(r, isLessThan(n))
+        }
+      }
+      failed(nextInt)
     }
 
   def overloadedCheckMethodsWork: Future[Boolean] =
