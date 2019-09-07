@@ -16,13 +16,10 @@
 
 package zio
 
-import zio.ZSchedule.Decision
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.random.{ nextDouble, Random }
 import zio.random.Random
-
-import scala.annotation.implicitNotFound
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -187,6 +184,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
 
   /**
+   * Returns a new schedule that maps this schedule to a constant output.
+   */
+  final def as[C](c: => C): ZSchedule[R, A, C] = map(_ => c)
+
+  /**
    * A named alias for `&&`.
    */
   final def both[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self && that
@@ -235,10 +237,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def compose[R1 <: R, C](that: ZSchedule[R1, C, A]): ZSchedule[R1, C, B] = self <<< that
 
-  /**
-   * Returns a new schedule that maps this schedule to a constant output.
-   */
-  final def const[C](c: => C): ZSchedule[R, A, C] = map(_ => c)
+  @deprecated("use as", "1.0.0")
+  final def const[C](c: => C): ZSchedule[R, A, C] = as(c)
 
   /**
    * Returns a new schedule that deals with a narrower class of inputs than
@@ -479,13 +479,19 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Returns a new schedule that maps this schedule to a Unit output.
    */
-  final def unit: ZSchedule[R, A, Unit] = const(())
+  final def unit: ZSchedule[R, A, Unit] = as(())
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
    * is satisfied on the input of the schedule.
    */
   final def untilInput[A1 <: A](f: A1 => Boolean): ZSchedule[R, A1, B] = !whileInput(f)
+
+  /**
+   * Returns a new schedule that continues the schedule only until the effectful predicate
+   * is satisfied on the input of the schedule.
+   */
+  final def untilInputM[A1 <: A](f: A1 => UIO[Boolean]): ZSchedule[R, A1, B] = !whileInputM(f)
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
@@ -504,7 +510,14 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * predicate is satisfied on the input of the schedule.
    */
   final def whileInput[A1 <: A](f: A1 => Boolean): ZSchedule[R, A1, B] =
-    check((a, _) => IO.succeed(f(a)))
+    whileInputM(a => IO.succeed(f(a)))
+
+  /**
+   * Returns a new schedule that continues this schedule so long as the
+   * effectful predicate is satisfied on the input of the schedule.
+   */
+  final def whileInputM[A1 <: A](f: A1 => UIO[Boolean]): ZSchedule[R, A1, B] =
+    check((a, _) => f(a))
 
   /**
    * Returns a new schedule that continues this schedule so long as the predicate
@@ -531,16 +544,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     self *> that
 }
 
-private[zio] trait Schedule_Functions extends Serializable {
-
-  type ConformsR[A]
-  implicit val ConformsAnyProof: ConformsR[Any]
+object ZSchedule {
 
   /**
-   * A schedule that recurs forever, producing a count of inputs.
-   * Not in alphabetic order because other vals below depend on it.
+   * A schedule that recurs forever, producing a count of repeats: 0, 1, 2, ...
    */
-  final val forever: Schedule[Any, Int] = Schedule.unfold(0)(_ + 1)
+  final val forever: Schedule[Any, Int] = unfold(0)(_ + 1)
 
   /**
    * A schedule that will recur forever with no delay, returning the decision
@@ -570,7 +579,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    */
   final val once: Schedule[Any, Unit] = recurs(1).unit
 
-  final def apply[R: ConformsR, S, A, B](
+  final def apply[R, S, A, B](
     initial0: ZIO[R, Nothing, S],
     update0: (A, S) => ZIO[R, Nothing, ZSchedule.Decision[S, B]]
   ): ZSchedule[R, A, B] =
@@ -586,38 +595,66 @@ private[zio] trait Schedule_Functions extends Serializable {
   final def collectAll[A]: Schedule[A, List[A]] = identity[A].collectAll
 
   /**
+   * A schedule that recurs as long as the condition f holds, collecting all inputs into a list.
+   */
+  final def collectWhile[A](f: A => Boolean): Schedule[A, List[A]] = this.doWhile(f).collectAll
+
+  /**
+   * A schedule that recurs as long as the effectful condition holds, collecting all inputs into a list.
+   */
+  final def collectWhileM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = this.doWhileM(f).collectAll
+
+  /**
+   * A schedule that recurs until the condition f failes, collecting all inputs into a list.
+   */
+  final def collectUntil[A](f: A => Boolean): Schedule[A, List[A]] = this.doUntil(f).collectAll
+
+  /**
+   * A schedule that recurs until the effectful condition f failes, collecting all inputs into a list.
+   */
+  final def collectUntilM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = this.doUntilM(f).collectAll
+
+  /**
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */
-  final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] = {
-    val delayed = s.modifyDelay((b, d) => IO.succeed(b + d))
-    delayed.reconsider((_, step) => step.copy(finish = () => step.delay)) // TODO: Dotty doesn't infer this properly
-  }
+  final def delayed[R, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] =
+    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
 
   /**
    * A schedule that recurs for as long as the predicate evaluates to true.
    */
   final def doWhile[A](f: A => Boolean): Schedule[A, A] =
-    identity[A].whileInput(f)
+    doWhileM(a => ZIO.succeed(f(a)))
+
+  /**
+   * A schedule that recurs for as long as the effectful predicate evaluates to true.
+   */
+  final def doWhileM[A](f: A => UIO[Boolean]): Schedule[A, A] =
+    identity[A].whileInputM(f)
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
-    identity[A].untilInput(f)
+    doUntilM(a => ZIO.succeed(f(a)))
+
+  /**
+   * A schedule that recurs for until the predicate evaluates to true.
+   */
+  final def doUntilM[A](f: A => UIO[Boolean]): Schedule[A, A] =
+    identity[A].untilInputM(f)
 
   /**
    * A schedule that recurs for until the input value becomes applicable to partial function
    * and then map that value with given function.
    * */
-  final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] = {
-    val idSchedule: Schedule[A, A] = identity[A] // TODO: Dotty doesn't infer this properly
-    idSchedule.reconsider { (a, decision) =>
+  final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] =
+    identity[A].reconsider { (a, decision) =>
       pf.lift(a).fold(Decision.cont(decision.delay, decision.state, Option.empty[B])) { b =>
         Decision.done(decision.delay, decision.state, Some(b))
       }
     }
-  }
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
@@ -661,7 +698,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A schedule that recurs forever, dumping input values to the specified
    * sink, and returning those same values unmodified.
    */
-  final def logInput[R: ConformsR, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
+  final def logInput[R, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
     identity[A].logInput(f)
 
   /**
@@ -687,48 +724,25 @@ private[zio] trait Schedule_Functions extends Serializable {
   /**
    * A schedule that recurs forever, returning the constant for every output.
    */
-  final def succeed[A](a: A): Schedule[Any, A] = forever.const(a)
+  final def succeed[A](a: A): Schedule[Any, A] = forever.as(a)
 
-  /**
-   * A schedule that recurs forever, returning the constant for every output (by-name version).
-   */
-  final def succeedLazy[A](a: => A): Schedule[Any, A] = forever.const(a)
+  @deprecated("use succeed", "1.0.0")
+  final def succeedLazy[A](a: => A): Schedule[Any, A] =
+    succeed(a)
 
   /**
    * A schedule that always recurs without delay, and computes the output
    * through recured application of a function to a base value.
    */
   final def unfold[A](a: => A)(f: A => A): Schedule[Any, A] =
-    unfoldM(IO.succeedLazy(a))(f.andThen(IO.succeedLazy[A](_)))
+    unfoldM(IO.succeed(a))(f.andThen(IO.succeed[A](_)))
 
   /**
    * A schedule that always recurs without delay, and computes the output
    * through recured application of a function to a base value.
    */
-  final def unfoldM[R: ConformsR, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ZSchedule[R, Any, A] =
+  final def unfoldM[R, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ZSchedule[R, Any, A] =
     ZSchedule[R, A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(Duration.Zero, a, a)))
-}
-
-object Schedule extends Schedule_Functions {
-  @implicitNotFound(
-    "The environment type of all Schedule methods must be Any. If you want to use an environment, please use ZSchedule."
-  )
-  sealed trait ConformsR1[A]
-
-  type ConformsR[A] = ConformsR1[A]
-  implicit val ConformsAnyProof: ConformsR1[Any] = new ConformsR1[Any] {}
-
-}
-
-object ZSchedule extends Schedule_Functions {
-  sealed trait ConformsR1[A]
-
-  private val _ConformsR1: ConformsR1[Any] = new ConformsR1[Any] {}
-
-  type ConformsR[A] = ConformsR1[A]
-  implicit def ConformsRProof[A]: ConformsR[A] = _ConformsR1.asInstanceOf[ConformsR1[A]]
-
-  implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
 
   sealed case class Decision[+A, +B] private[zio] (cont: Boolean, delay: Duration, state: A, finish: () => B) { self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))

@@ -160,7 +160,7 @@ trait ZQueue[RA, EA, RB, EB, A, B]
 ```
 
 Which is to say:
-- The queue may be offered values of type `A`. The enqueueing operations require an environment of type `RA` and may fail with errors of type `EB`;
+- The queue may be offered values of type `A`. The enqueueing operations require an environment of type `RA` and may fail with errors of type `EA`;
 - The queue will yield values of type `B`. The dequeueing operations require an environment of type `RB` and may fail with errors of type `EB`.
 
 Note how the basic `Queue[A]` cannot fail or require any environment for any of its operations.

@@ -52,7 +52,7 @@ sealed trait Chunk[@specialized +A] { self =>
     val len = self.length
 
     if (n <= 0) self
-    else if (n == len) Chunk.empty
+    else if (n >= len) Chunk.empty
     else
       self match {
         case Chunk.Slice(c, o, l)        => Chunk.Slice(c, o + n, l - n)
@@ -120,6 +120,12 @@ sealed trait Chunk[@specialized +A] { self =>
     if (j == 0) Chunk.Empty
     else Chunk.Slice(Chunk.Arr(dest), 0, j)
   }
+
+  /**
+   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
+   */
+  def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
+    flatMap(ev(_))
 
   /**
    * Returns the concatenation of mapping every element into a new chunk using
@@ -405,9 +411,9 @@ sealed trait Chunk[@specialized +A] { self =>
     toArray.mkString(s"${self.getClass.getSimpleName}(", ",", ")")
 
   /**
-   * Effectfully traverses the elements of this chunk.
+   * Effectfully maps the elements of this chunk.
    */
-  final def traverse[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
+  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
     val len                        = self.length
     var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
     var i                          = 0
@@ -435,9 +441,9 @@ sealed trait Chunk[@specialized +A] { self =>
   }
 
   /**
-   * Effectfully traverses the elements of this chunk purely for the effects.
+   * Effectfully maps the elements of this chunk purely for the effects.
    */
-  final def traverse_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = {
+  final def mapM_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = {
     val len               = self.length
     var zio: ZIO[R, E, _] = ZIO.unit
     var i                 = 0
@@ -450,6 +456,18 @@ sealed trait Chunk[@specialized +A] { self =>
 
     zio.unit
   }
+
+  /**
+   * Effectfully traverses the elements of this chunk.
+   */
+  @deprecated("use mapM", "1.0.0")
+  final def traverse[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = mapM(f)
+
+  /**
+   * Effectfully traverses the elements of this chunk purely for the effects.
+   */
+  @deprecated("use mapM_", "1.0.0")
+  final def traverse_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = mapM_(f)
 
   /**
    * Zips this chunk with the specified chunk using the specified combiner.
@@ -548,7 +566,12 @@ object Chunk {
   /**
    * Returns a singleton chunk, eagerly evaluated.
    */
-  final def succeed[@specialized A](a: A): Chunk[A] = Singleton(a)
+  final def single[@specialized A](a: A): Chunk[A] = Singleton(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed[@specialized A](a: A): Chunk[A] = single(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.

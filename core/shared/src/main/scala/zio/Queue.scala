@@ -16,442 +16,12 @@
 
 package zio
 
-import zio.ZQueue.internal._
+import zio.Queue.internal._
 import zio.internal.MutableConcurrentQueue
 
 import scala.annotation.tailrec
 
-/**
- * A `ZQueue[RA, EA, RB, EB, A, B]` is a lightweight, asynchronous queue into which values of
- * type `A` can be enqueued and of which elements of type `B` can be dequeued. The queue's
- * enqueueing operations may utilize an environment of type `RA` and may fail with errors of
- * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
- * with errors of type `EB`.
- */
-trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
-
-  /**
-   * Waits until the queue is shutdown.
-   * The `IO` returned by this method will not resume until the queue has been shutdown.
-   * If the queue is already shutdown, the `IO` will resume right away.
-   */
-  def awaitShutdown: UIO[Unit]
-
-  /**
-   * How many elements can hold in the queue
-   */
-  def capacity: Int
-
-  /**
-   * `true` if `shutdown` has been called.
-   */
-  def isShutdown: UIO[Boolean]
-
-  /**
-   * Places one value in the queue.
-   */
-  def offer(a: A): ZIO[RA, EA, Boolean]
-
-  /**
-   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and returns always true
-   * If the queue has reached capacity, then
-   * the fiber performing the `offerAll` will be suspended until there is room in
-   * the queue.
-   *
-   * For Unbounded Queue:
-   * Places all values in the queue and returns true.
-   *
-   * For Sliding Queue: uses `Sliding` Strategy
-   * If there is a room in the queue, it places the values and returns true otherwise it removed the old elements and
-   * enqueues the new ones
-   *
-   * For Dropping Queue: uses `Dropping` Strategy,
-   * It places the values in the queue but if there is no room it will not enqueue them and returns false
-   *
-   */
-  def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean]
-
-  /**
-   * Interrupts any fibers that are suspended on `offer` or `take`.
-   * Future calls to `offer*` and `take*` will be interrupted immediately.
-   */
-  def shutdown: UIO[Unit]
-
-  /**
-   * Retrieves the size of the queue, which is equal to the number of elements
-   * in the queue. This may be negative if fibers are suspended waiting for
-   * elements to be added to the queue.
-   */
-  def size: UIO[Int]
-
-  /**
-   * Removes the oldest value in the queue. If the queue is empty, this will
-   * return a computation that resumes when an item has been added to the queue.
-   */
-  def take: ZIO[RB, EB, B]
-
-  /**
-   * Removes all the values in the queue and returns the list of the values. If the queue
-   * is empty returns empty list.
-   */
-  def takeAll: ZIO[RB, EB, List[B]]
-
-  /**
-   * Takes up to max number of values in the queue.
-   */
-  def takeUpTo(max: Int): ZIO[RB, EB, List[B]]
-
-  /**
-   * Alias for `both`.
-   */
-  def &&[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
-  ): ZQueue[RA1, EA1, RB1, EB1, A1, (B, C)] =
-    both(that)
-
-  /**
-   * Like `bothWith`, but tuples the elements instead of applying a function.
-   */
-  def both[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
-  ): ZQueue[RA1, EA1, RB1, EB1, A1, (B, C)] =
-    bothWith(that)((_, _))
-
-  /**
-   * Like `bothWithM`, but uses a pure function.
-   */
-  def bothWith[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
-  )(f: (B, C) => D): ZQueue[RA1, EA1, RB1, EB1, A1, D] =
-    bothWithM(that)((a, b) => IO.succeed(f(a, b)))
-
-  /**
-   * Creates a new queue from this queue and another. Offering to the composite queue
-   * will broadcast the elements to both queues; taking from the composite queue
-   * will dequeue elements from both queues and apply the function point-wise.
-   *
-   * Note that using queues with different strategies may result in surprising behavior.
-   * For example, a dropping queue and a bounded queue composed together may apply `f`
-   * to different elements.
-   */
-  def bothWithM[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, R3 <: RB1, E3 >: EB1, D](
-    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
-  )(f: (B, C) => ZIO[R3, E3, D]): ZQueue[RA1, EA1, R3, E3, A1, D] =
-    new ZQueue[RA1, EA1, R3, E3, A1, D] {
-      def capacity: Int = math.min(self.capacity, that.capacity)
-
-      def offer(a: A1): ZIO[RA1, EA1, Boolean]               = self.offer(a).zipWithPar(that.offer(a))(_ && _)
-      def offerAll(as: Iterable[A1]): ZIO[RA1, EA1, Boolean] = self.offerAll(as).zipWithPar(that.offerAll(as))(_ && _)
-
-      def awaitShutdown: UIO[Unit] = self.awaitShutdown *> that.awaitShutdown
-      def size: UIO[Int]           = self.size.zipWithPar(that.size)(math.max)
-      def shutdown: UIO[Unit]      = self.shutdown.zipWithPar(that.shutdown)((_, _) => ())
-      def isShutdown: UIO[Boolean] = self.isShutdown
-      def take: ZIO[R3, E3, D]     = self.take.zipPar(that.take).flatMap(f.tupled)
-
-      def takeAll: ZIO[R3, E3, List[D]] =
-        self.takeAll.zipPar(that.takeAll).flatMap {
-          case (bs, cs) =>
-            val bsIt = bs.iterator
-            val csIt = cs.iterator
-
-            ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
-        }
-
-      def takeUpTo(max: Int): ZIO[R3, E3, List[D]] =
-        self.takeUpTo(max).zipPar(that.takeUpTo(max)).flatMap {
-          case (bs, cs) =>
-            val bsIt = bs.iterator
-            val csIt = cs.iterator
-
-            ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
-        }
-    }
-
-  /**
-   * Transforms elements enqueued into this queue with a pure function.
-   */
-  def contramap[C](f: C => A): ZQueue[RA, EA, RB, EB, C, B] =
-    new ZQueue[RA, EA, RB, EB, C, B] {
-      def capacity: Int = self.capacity
-
-      def offer(c: C): ZIO[RA, EA, Boolean] =
-        self.offer(f(c))
-
-      def offerAll(as: Iterable[C]): ZIO[RA, EA, Boolean] = self.offerAll(as.map(f))
-
-      def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
-      def size: UIO[Int]                           = self.size
-      def shutdown: UIO[Unit]                      = self.shutdown
-      def isShutdown: UIO[Boolean]                 = self.isShutdown
-      def take: ZIO[RB, EB, B]                     = self.take
-      def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
-      def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
-    }
-
-  /**
-   * Transforms elements enqueued into this queue with an effectful function.
-   */
-  def contramapM[RA2 <: RA, EA2 >: EA, C](f: C => ZIO[RA2, EA2, A]): ZQueue[RA2, EA2, RB, EB, C, B] =
-    new ZQueue[RA2, EA2, RB, EB, C, B] {
-      def capacity: Int = self.capacity
-
-      def offer(c: C): ZIO[RA2, EA2, Boolean] =
-        f(c).flatMap(self.offer)
-
-      def offerAll(as: Iterable[C]): ZIO[RA2, EA2, Boolean] =
-        ZIO.foreach(as)(f).flatMap(self.offerAll)
-
-      def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
-      def size: UIO[Int]                           = self.size
-      def shutdown: UIO[Unit]                      = self.shutdown
-      def isShutdown: UIO[Boolean]                 = self.isShutdown
-      def take: ZIO[RB, EB, B]                     = self.take
-      def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
-      def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
-    }
-
-  /**
-   * Applies a filter to elements enqueued into this queue. Elements that do not
-   * pass the filter will be immediately dropped.
-   */
-  def filterInput[A1 <: A](f: A1 => Boolean): ZQueue[RA, EA, RB, EB, A1, B] =
-    new ZQueue[RA, EA, RB, EB, A1, B] {
-      def capacity: Int = self.capacity
-
-      def offer(a: A1): ZIO[RA, EA, Boolean] =
-        if (f(a)) self.offer(a)
-        else IO.succeed(false)
-
-      def offerAll(as: Iterable[A1]): ZIO[RA, EA, Boolean] = {
-        val filtered = as filter f
-
-        if (filtered.isEmpty) ZIO.succeed(false)
-        else self.offerAll(filtered)
-      }
-
-      def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
-      def size: UIO[Int]                           = self.size
-      def shutdown: UIO[Unit]                      = self.shutdown
-      def isShutdown: UIO[Boolean]                 = self.isShutdown
-      def take: ZIO[RB, EB, B]                     = self.take
-      def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
-      def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
-    }
-
-  /**
-   * Like `filterInput`, but uses an effectful function to filter the elements.
-   */
-  def filterInputM[R2 <: RA, E2 >: EA, A1 <: A](f: A1 => ZIO[R2, E2, Boolean]): ZQueue[R2, E2, RB, EB, A1, B] =
-    new ZQueue[R2, E2, RB, EB, A1, B] {
-      def capacity: Int = self.capacity
-
-      def offer(a: A1): ZIO[R2, E2, Boolean] =
-        f(a) flatMap {
-          if (_) self.offer(a)
-          else IO.succeed(false)
-        }
-
-      def offerAll(as: Iterable[A1]): ZIO[R2, E2, Boolean] =
-        ZIO.foreach(as)(a => f(a).map(if (_) Some(a) else None)).flatMap { maybeAs =>
-          val filtered = maybeAs.flatten
-          if (filtered.isEmpty) ZIO.succeed(false)
-          else self.offerAll(filtered)
-        }
-
-      def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
-      def size: UIO[Int]                           = self.size
-      def shutdown: UIO[Unit]                      = self.shutdown
-      def isShutdown: UIO[Boolean]                 = self.isShutdown
-      def take: ZIO[RB, EB, B]                     = self.take
-      def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
-      def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
-    }
-
-  /*
-   * Transforms elements dequeued from this queue with a function.
-   */
-  def map[C](f: B => C): ZQueue[RA, EA, RB, EB, A, C] =
-    new ZQueue[RA, EA, RB, EB, A, C] {
-      def capacity: Int                                   = self.capacity
-      def offer(a: A): ZIO[RA, EA, Boolean]               = self.offer(a)
-      def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] = self.offerAll(as)
-      def awaitShutdown: UIO[Unit]                        = self.awaitShutdown
-      def size: UIO[Int]                                  = self.size
-      def shutdown: UIO[Unit]                             = self.shutdown
-      def isShutdown: UIO[Boolean]                        = self.isShutdown
-      def take: ZIO[RB, EB, C]                            = self.take.map(f)
-      def takeAll: ZIO[RB, EB, List[C]]                   = self.takeAll.map(_.map(f))
-      def takeUpTo(max: Int): ZIO[RB, EB, List[C]]        = self.takeUpTo(max).map(_.map(f))
-    }
-
-  /**
-   * Transforms elements dequeued from this queue with an effectful function.
-   */
-  def mapM[R2 <: RB, E2 >: EB, C](f: B => ZIO[R2, E2, C]): ZQueue[RA, EA, R2, E2, A, C] =
-    new ZQueue[RA, EA, R2, E2, A, C] {
-      def capacity: Int                                   = self.capacity
-      def offer(a: A): ZIO[RA, EA, Boolean]               = self.offer(a)
-      def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] = self.offerAll(as)
-      def awaitShutdown: UIO[Unit]                        = self.awaitShutdown
-      def size: UIO[Int]                                  = self.size
-      def shutdown: UIO[Unit]                             = self.shutdown
-      def isShutdown: UIO[Boolean]                        = self.isShutdown
-      def take: ZIO[R2, E2, C]                            = self.take.flatMap(f)
-      def takeAll: ZIO[R2, E2, List[C]]                   = self.takeAll.flatMap(ZIO.foreach(_)(f))
-      def takeUpTo(max: Int): ZIO[R2, E2, List[C]]        = self.takeUpTo(max).flatMap(ZIO.foreach(_)(f))
-    }
-
-  /**
-   * Take the head option of values in the queue.
-   */
-  final def poll: ZIO[RB, EB, Option[B]] =
-    takeUpTo(1).map(_.headOption)
-
-}
-
-object ZQueue {
-  private def unsafeCreate[A](
-    queue: MutableConcurrentQueue[A],
-    takers: MutableConcurrentQueue[Promise[Nothing, A]],
-    shutdownHook: Promise[Nothing, Unit],
-    strategy: Strategy[A]
-  ): ZQueue[Any, Nothing, Any, Nothing, A, A] = new ZQueue[Any, Nothing, Any, Nothing, A, A] {
-
-    private final val checkShutdownState: UIO[Unit] =
-      shutdownHook.poll.flatMap(_.fold[UIO[Unit]](IO.unit)(_ => IO.interrupt))
-
-    @tailrec
-    private final def pollTakersThenQueue(): Option[(Promise[Nothing, A], A)] =
-      // check if there is both a taker and an item in the queue, starting by the taker
-      if (!queue.isEmpty()) {
-        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-        val taker     = takers.poll(nullTaker)
-        if (taker == nullTaker) {
-          None
-        } else {
-          queue.poll(null.asInstanceOf[A]) match {
-            case null =>
-              unsafeOfferAll(takers, taker :: unsafePollAll(takers))
-              pollTakersThenQueue()
-            case a => Some((taker, a))
-          }
-        }
-      } else None
-
-    @tailrec
-    private final def unsafeCompleteTakers(): Unit =
-      pollTakersThenQueue() match {
-        case None =>
-        case Some((p, a)) =>
-          unsafeCompletePromise(p, a)
-          strategy.unsafeOnQueueEmptySpace(queue)
-          unsafeCompleteTakers()
-      }
-
-    private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.effectTotal(unsafeRemove(takers, taker))
-
-    final val capacity: Int = queue.capacity
-
-    final def offer(a: A): UIO[Boolean] = offerAll(List(a))
-
-    final def offerAll(as: Iterable[A]): UIO[Boolean] =
-      ZIO.suspend {
-        for {
-          _ <- checkShutdownState
-
-          remaining <- IO.effectTotal {
-                        val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
-                        val (forTakers, remaining) = as.splitAt(pTakers.size)
-                        (pTakers zip forTakers).foreach {
-                          case (taker, item) => unsafeCompletePromise(taker, item)
-                        }
-                        remaining
-                      }
-
-          added <- if (remaining.nonEmpty) {
-                    // not enough takers, offer to the queue
-                    for {
-                      surplus <- IO.effectTotal {
-                                  val as = unsafeOfferAll(queue, remaining.toList)
-                                  unsafeCompleteTakers()
-                                  as
-                                }
-                      res <- if (surplus.isEmpty) IO.succeed(true)
-                            else
-                              strategy.handleSurplus(surplus, queue) <*
-                                IO.effectTotal(unsafeCompleteTakers())
-                    } yield res
-                  } else IO.succeed(true)
-        } yield added
-      }
-
-    final val awaitShutdown: UIO[Unit] = shutdownHook.await
-
-    final val size: UIO[Int] = checkShutdownState.map(_ => queue.size() - takers.size() + strategy.surplusSize)
-
-    final val shutdown: UIO[Unit] =
-      IO.whenM(shutdownHook.succeed(()))(
-          IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interrupt) *> strategy.shutdown)
-        )
-        .uninterruptible
-
-    final val isShutdown: UIO[Boolean] = shutdownHook.poll.map(_.isDefined)
-
-    final val take: UIO[A] =
-      ZIO.suspend {
-        for {
-          _ <- checkShutdownState
-
-          item <- IO.effectTotal {
-                   val item = queue.poll(null.asInstanceOf[A])
-                   if (item != null) strategy.unsafeOnQueueEmptySpace(queue)
-                   item
-                 }
-
-          a <- if (item != null) IO.succeed(item)
-              else
-                for {
-                  p <- Promise.make[Nothing, A]
-                  // add the promise to takers, then:
-                  // - try take again in case a value was added since
-                  // - wait for the promise to be completed
-                  // - clean up resources in case of interruption
-                  a <- (IO.effectTotal {
-                        takers.offer(p)
-                        unsafeCompleteTakers()
-                      } *> p.await).onInterrupt(removeTaker(p))
-                } yield a
-        } yield a
-      }
-
-    final val takeAll: UIO[List[A]] =
-      ZIO.suspend {
-        for {
-          _ <- checkShutdownState
-
-          as <- IO.effectTotal {
-                 val as = unsafePollAll(queue)
-                 strategy.unsafeOnQueueEmptySpace(queue)
-                 as
-               }
-        } yield as
-      }
-
-    final def takeUpTo(max: Int): UIO[List[A]] =
-      ZIO.suspend {
-        for {
-          _ <- checkShutdownState
-
-          as <- IO.effectTotal {
-                 val as = unsafePollN(queue, max)
-                 strategy.unsafeOnQueueEmptySpace(queue)
-                 as
-               }
-        } yield as
-      }
-  }
-
+object Queue {
   private[zio] object internal {
 
     /**
@@ -507,7 +77,7 @@ object ZQueue {
       p.unsafeDone(IO.succeed(a))
 
     sealed trait Strategy[A] {
-      def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean]
+      def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A], checkShutdownState: UIO[Unit]): UIO[Boolean]
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit
 
@@ -517,7 +87,11 @@ object ZQueue {
     }
 
     case class Sliding[A]() extends Strategy[A] {
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = {
+      final def handleSurplus(
+        as: List[A],
+        queue: MutableConcurrentQueue[A],
+        checkShutdownState: UIO[Unit]
+      ): UIO[Boolean] = {
         @tailrec
         def unsafeSlidingOffer(as: List[A]): Unit =
           as match {
@@ -541,7 +115,11 @@ object ZQueue {
 
     case class Dropping[A]() extends Strategy[A] {
       // do nothing, drop the surplus
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = IO.succeed(false)
+      final def handleSurplus(
+        as: List[A],
+        queue: MutableConcurrentQueue[A],
+        checkShutdownState: UIO[Unit]
+      ): UIO[Boolean] = IO.succeed(false)
 
       final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
 
@@ -561,8 +139,12 @@ object ZQueue {
         ()
       }
 
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] =
-        ZIO.suspend {
+      final def handleSurplus(
+        as: List[A],
+        queue: MutableConcurrentQueue[A],
+        checkShutdownState: UIO[Unit]
+      ): UIO[Boolean] =
+        UIO.effectSuspendTotal {
           @tailrec
           def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
             as match {
@@ -580,7 +162,7 @@ object ZQueue {
             _ <- (IO.effectTotal {
                   unsafeOffer(as, p)
                   unsafeOnQueueEmptySpace(queue)
-                } *> p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
+                } *> checkShutdownState *> p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
           } yield true
         }
 
@@ -613,6 +195,146 @@ object ZQueue {
         } yield ()
     }
   }
+  private def unsafeCreate[A](
+    queue: MutableConcurrentQueue[A],
+    takers: MutableConcurrentQueue[Promise[Nothing, A]],
+    shutdownHook: Promise[Nothing, Unit],
+    strategy: Strategy[A]
+  ): Queue[A] = new ZQueue[Any, Nothing, Any, Nothing, A, A] {
+
+    private final val checkShutdownState: UIO[Unit] =
+      shutdownHook.poll.flatMap(_.fold[UIO[Unit]](IO.unit)(_ => IO.interrupt))
+
+    @tailrec
+    private final def pollTakersThenQueue(): Option[(Promise[Nothing, A], A)] =
+      // check if there is both a taker and an item in the queue, starting by the taker
+      if (!queue.isEmpty()) {
+        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
+        val taker     = takers.poll(nullTaker)
+        if (taker == nullTaker) {
+          None
+        } else {
+          queue.poll(null.asInstanceOf[A]) match {
+            case null =>
+              unsafeOfferAll(takers, taker :: unsafePollAll(takers))
+              pollTakersThenQueue()
+            case a => Some((taker, a))
+          }
+        }
+      } else None
+
+    @tailrec
+    private final def unsafeCompleteTakers(): Unit =
+      pollTakersThenQueue() match {
+        case None =>
+        case Some((p, a)) =>
+          unsafeCompletePromise(p, a)
+          strategy.unsafeOnQueueEmptySpace(queue)
+          unsafeCompleteTakers()
+      }
+
+    private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.effectTotal(unsafeRemove(takers, taker))
+
+    final val capacity: Int = queue.capacity
+
+    final def offer(a: A): UIO[Boolean] = offerAll(List(a))
+
+    final def offerAll(as: Iterable[A]): UIO[Boolean] =
+      UIO.effectSuspendTotal {
+        for {
+          _ <- checkShutdownState
+
+          remaining <- IO.effectTotal {
+                        val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
+                        val (forTakers, remaining) = as.splitAt(pTakers.size)
+                        (pTakers zip forTakers).foreach {
+                          case (taker, item) => unsafeCompletePromise(taker, item)
+                        }
+                        remaining
+                      }
+
+          added <- if (remaining.nonEmpty) {
+                    // not enough takers, offer to the queue
+                    for {
+                      surplus <- IO.effectTotal {
+                                  val as = unsafeOfferAll(queue, remaining.toList)
+                                  unsafeCompleteTakers()
+                                  as
+                                }
+                      res <- if (surplus.isEmpty) IO.succeed(true)
+                            else
+                              strategy.handleSurplus(surplus, queue, checkShutdownState) <*
+                                IO.effectTotal(unsafeCompleteTakers())
+                    } yield res
+                  } else IO.succeed(true)
+        } yield added
+      }
+
+    final val awaitShutdown: UIO[Unit] = shutdownHook.await
+
+    final val size: UIO[Int] = checkShutdownState.map(_ => queue.size() - takers.size() + strategy.surplusSize)
+
+    final val shutdown: UIO[Unit] =
+      IO.whenM(shutdownHook.succeed(()))(
+          IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interrupt) *> strategy.shutdown)
+        )
+        .uninterruptible
+
+    final val isShutdown: UIO[Boolean] = shutdownHook.poll.map(_.isDefined)
+
+    final val take: UIO[A] =
+      UIO.effectSuspendTotal {
+        for {
+          _ <- checkShutdownState
+
+          item <- IO.effectTotal {
+                   val item = queue.poll(null.asInstanceOf[A])
+                   if (item != null) strategy.unsafeOnQueueEmptySpace(queue)
+                   item
+                 }
+
+          a <- if (item != null) IO.succeed(item)
+              else
+                for {
+                  p <- Promise.make[Nothing, A]
+                  // add the promise to takers, then:
+                  // - try take again in case a value was added since
+                  // - wait for the promise to be completed
+                  // - clean up resources in case of interruption
+                  a <- (IO.effectTotal {
+                        takers.offer(p)
+                        unsafeCompleteTakers()
+                      } *> checkShutdownState *> p.await).onInterrupt(removeTaker(p))
+                } yield a
+        } yield a
+      }
+
+    final val takeAll: UIO[List[A]] =
+      UIO.effectSuspendTotal {
+        for {
+          _ <- checkShutdownState
+
+          as <- IO.effectTotal {
+                 val as = unsafePollAll(queue)
+                 strategy.unsafeOnQueueEmptySpace(queue)
+                 as
+               }
+        } yield as
+      }
+
+    final def takeUpTo(max: Int): UIO[List[A]] =
+      UIO.effectSuspendTotal {
+        for {
+          _ <- checkShutdownState
+
+          as <- IO.effectTotal {
+                 val as = unsafePollN(queue, max)
+                 strategy.unsafeOnQueueEmptySpace(queue)
+                 as
+               }
+        } yield as
+      }
+  }
 
   /**
    * Makes a new bounded queue.
@@ -622,6 +344,10 @@ object ZQueue {
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
    * the underlying [[zio.internal.impls.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
   final def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
@@ -633,6 +359,10 @@ object ZQueue {
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
    * the underlying [[zio.internal.impls.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
   final def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
@@ -645,12 +375,19 @@ object ZQueue {
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
    * the underlying [[zio.internal.impls.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
   final def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
 
   /**
    * Makes a new unbounded queue.
+   *
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
   final def unbounded[A]: UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))

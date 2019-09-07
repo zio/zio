@@ -8,7 +8,7 @@ import zio.blocking._
 trait ZStreamPlatformSpecific {
 
   /**
-   * Uses the provided `TaskR` value to create a [[ZStream]] of byte chunks, backed by
+   * Uses the provided `RIO` value to create a [[ZStream]] of byte chunks, backed by
    * the resulting `InputStream`. When data from the `InputStream` is exhausted,
    * the stream will close it.
    */
@@ -23,7 +23,7 @@ trait ZStreamPlatformSpecific {
           val bytesRead = is.read(buf)
 
           if (bytesRead < 0) None
-          else if (0 < bytesRead && bytesRead < buf.length) Some((Chunk.fromArray(buf).take(buf.length), ()))
+          else if (0 < bytesRead && bytesRead < buf.length) Some((Chunk.fromArray(buf).take(bytesRead), ()))
           else Some((Chunk.fromArray(buf), ()))
         } refineOrDie {
           case e: IOException => e

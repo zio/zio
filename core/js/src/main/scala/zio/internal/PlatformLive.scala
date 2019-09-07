@@ -20,7 +20,7 @@ import java.util.{ HashMap, Map => JMap }
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.global
-import zio.Exit.Cause
+import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 

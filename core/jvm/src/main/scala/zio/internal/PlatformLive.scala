@@ -18,18 +18,27 @@ package zio.internal
 
 import java.util.concurrent.{ Executor => _, _ }
 import java.util.{ Collections, WeakHashMap, Map => JMap }
-import zio.Exit.Cause
+import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
 
 import scala.concurrent.ExecutionContext
 
-import scala.concurrent.ExecutionContext
-
 object PlatformLive {
   lazy val Default = makeDefault()
   lazy val Global  = fromExecutionContext(ExecutionContext.global)
+
+  /**
+   * A Runtime with settings suitable for benchmarks, specifically
+   * with Tracing & auto-yielding disabled.
+   *
+   * Tracing adds a constant ~2x overhead on FlatMaps, however it's
+   * an optional feature and it's not valid to compare performance
+   * of ZIO with enabled Tracing with effect types _without_ a comparable
+   * feature.
+   * */
+  lazy val Benchmark = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
 
   final def makeDefault(yieldOpCount: Int = 2048): Platform = fromExecutor(ExecutorUtil.makeDefault(yieldOpCount))
 

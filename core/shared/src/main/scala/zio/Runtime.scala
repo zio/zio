@@ -16,9 +16,8 @@
 
 package zio
 
-import zio.Exit.Cause
 import zio.internal.Tracing
-import zio.internal.tracing.TracingConfig
+import zio.internal.tracing.{ TracingConfig, ZIOFn }
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
 
 /**
@@ -54,7 +53,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be done at the edges of your program.
    */
-  final def unsafeRun[E, A](zio: ZIO[R, E, A]): A =
+  final def unsafeRun[E, A](zio: => ZIO[R, E, A]): A =
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
@@ -63,7 +62,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunSync[E, A](zio: ZIO[R, E, A]): Exit[E, A] = {
+  final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
     unsafeRunAsync(zio)((x: Exit[E, A]) => result.set(x))
@@ -77,7 +76,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
+  final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
     val InitialInterruptStatus = InterruptStatus.Interruptible
 
     val context = new FiberContext[E, A](
@@ -91,7 +90,7 @@ trait Runtime[+R] {
       Platform.newWeakHashMap()
     )
 
-    context.evaluateNow(zio.asInstanceOf[IO[E, A]])
+    context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
   }
 
@@ -114,7 +113,10 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified new environment.
    */
-  final def const[R1](r1: R1): Runtime[R1] = map(_ => r1)
+  final def as[R1](r1: R1): Runtime[R1] = map(_ => r1)
+
+  @deprecated("use as", "1.0.0")
+  final def const[R1](r1: R1): Runtime[R1] = as(r1)
 
   /**
    * Constructs a new `Runtime` with the specified executor.
@@ -122,9 +124,9 @@ trait Runtime[+R] {
   final def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
 
   /**
-   * Constructs a new `Runtime` with the specified non-fatal predicate.
+   * Constructs a new `Runtime` with the specified fatal predicate.
    */
-  final def withNonFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withNonFatal(f))
+  final def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withFatal(f))
 
   /**
    * Constructs a new `Runtime` with the fatal error reporter.

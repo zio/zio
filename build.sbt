@@ -1,6 +1,6 @@
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
-import Scalaz._
+import BuildHelper._
 import xerial.sbt.Sonatype._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 
@@ -18,26 +18,26 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
+    ),
+    pgpPublicRing := file("/tmp/public.asc"),
+    pgpSecretRing := file("/tmp/secret.asc"),
+    releaseEarlyWith := SonatypePublisher,
+    scmInfo := Some(
+      ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
     )
   )
 )
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
-  ";coreJVM/test;interopCatsJVM/test;interopFutureJVM/test;interopJavaJVM/test;interopMonixJVM/test;interopReactiveStreamsJVM/test;interopScalaz7xJVM/test;interopSharedJVM/test;interopTwitterJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
-  ";coreJS/test;interopCatsJS/test;interopFutureJS/test;interopMonixJS/test;interopScalaz7xJS/test;interopSharedJS/test;interopTwitterJS/test;stacktracerJS/test;streamsJS/test"
-)
-
-pgpPublicRing := file("/tmp/public.asc")
-pgpSecretRing := file("/tmp/secret.asc")
-releaseEarlyWith := SonatypePublisher
-scmInfo := Some(
-  ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run;examplesJS/test:compile"
 )
 
 lazy val root = project
@@ -50,25 +50,20 @@ lazy val root = project
   .aggregate(
     coreJVM,
     coreJS,
+    coreTestsJVM,
+    coreTestsJS,
     docs,
     streamsJVM,
     streamsJS,
-    interopSharedJVM,
-    interopSharedJS,
-    interopCatsJVM,
-    interopCatsJS,
-    interopFutureJVM,
-    interopMonixJVM,
-    interopMonixJS,
-    interopScalaz7xJVM,
-    interopScalaz7xJS,
-    interopJavaJVM,
-    interopReactiveStreamsJVM,
-    interopTwitterJVM,
+    streamsTestsJVM,
+    streamsTestsJS,
     benchmarks,
-    testkitJVM,
+    testJVM,
+    testJS,
     stacktracerJS,
-    stacktracerJVM
+    stacktracerJVM,
+    testRunnerJS,
+    testRunnerJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -77,192 +72,79 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
   .settings(buildInfoSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
-    ),
-    publishArtifact in (Test, packageBin) := true
-  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
-  .configure(_.enablePlugins(JCStressPlugin))
-  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
-  .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
-      val old = (Compile / doc / sources).value
-      if (isDotty.value) {
-        Nil
-      } else {
-        old
-      }
-    }
-  )
+  .settings(dottySettings)
+  .settings(replSettings)
 
 lazy val coreJS = core.js
+
+lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
+  .in(file("core-tests"))
+  .dependsOn(core)
+  .dependsOn(test % "test->test;compile->compile")
+  .settings(stdSettings("core-tests"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner % "test->test;compile->compile")
+  .settings(buildInfoSettings)
+  .settings(publishArtifact in (Test, packageBin) := true)
   .settings(
-    libraryDependencies += "org.scala-js" %%% "scalajs-java-time" % "0.2.5" % Test
+    libraryDependencies ++= Seq(
+      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
+    )
+  )
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val coreTestsJVM = coreTests.jvm
+  .configure(_.enablePlugins(JCStressPlugin))
+  .settings(replSettings)
+
+lazy val coreTestsJS = coreTests.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
   )
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
+  .dependsOn(core)
   .settings(stdSettings("zio-streams"))
-  .settings(replSettings)
   .settings(buildInfoSettings)
-  .settings(replSettings)
+  .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
-  .dependsOn(core % "test->test;compile->compile")
 
 lazy val streamsJVM = streams.jvm
+lazy val streamsJS  = streams.js
 
-lazy val streamsJS = streams.js
+lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
+  .in(file("streams-tests"))
+  .dependsOn(streams)
+  .dependsOn(coreTests % "test->test;compile->compile")
+  .settings(stdSettings("zio-streams-tests"))
+  .settings(buildInfoSettings)
+  .settings(streamReplSettings)
+  .enablePlugins(BuildInfoPlugin)
 
-lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-shared"))
-  .settings(stdSettings("zio-interop-shared"))
-  .dependsOn(core % "test->test;compile->compile")
+lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
+lazy val streamsTestsJS  = streamsTests.js
 
-lazy val interopSharedJVM = interopShared.jvm
-lazy val interopSharedJS  = interopShared.js
-
-lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-cats"))
-  .settings(stdSettings("zio-interop-cats"))
+lazy val test = crossProject(JSPlatform, JVMPlatform)
+  .in(file("test"))
+  .dependsOn(core, streams)
+  .settings(stdSettings("zio-test"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect"   % "1.3.1" % Optional,
-      "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
-      "co.fs2"        %%% "fs2-core"      % "1.0.4" % Test
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
     )
   )
-  .dependsOn(core % "test->test;compile->compile")
 
-val CatsScalaCheckVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "1.13"
-    case _ =>
-      "1.14"
-  }
-}
-
-val ScalaCheckVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "1.13.5"
-    case _ =>
-      "1.14.0"
-  }
-}
-
-def majorMinor(version: String) = version.split('.').take(2).mkString(".")
-
-val CatsScalaCheckShapelessVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "1.1.8"
-    case _ =>
-      "1.2.0-1+7-a4ed6f38-SNAPSHOT" // TODO: Stable version
-  }
-}
-
-lazy val interopCatsJVM = interopCats.jvm
-  .dependsOn(interopSharedJVM)
-  // Below is for the cats law spec
-  // Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
-  // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
-  .settings(
-    resolvers += Resolver
-      .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
-    libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.1"                              % Test,
-      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.1"                              % Test,
-      "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
-      "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
-    ),
-    dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test
-  )
-  .dependsOn(interopSharedJVM)
-
-lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
-
-lazy val interopFuture = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-future"))
-  .settings(stdSettings("zio-interop-future"))
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
-
-lazy val interopMonix = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-monix"))
-  .settings(stdSettings("zio-interop-monix"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "io.monix" %%% "monix" % "3.0.0-RC2" % Optional
-    )
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopMonixJVM = interopMonix.jvm.dependsOn(interopSharedJVM)
-lazy val interopMonixJS  = interopMonix.js.dependsOn(interopSharedJS)
-
-lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-scalaz7x"))
-  .settings(stdSettings("zio-interop-scalaz7x"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core"               % "7.2.+" % Optional,
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.+" % Test
-    )
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopScalaz7xJVM = interopScalaz7x.jvm.dependsOn(interopSharedJVM)
-lazy val interopScalaz7xJS  = interopScalaz7x.js.dependsOn(interopSharedJS)
-
-lazy val interopJava = crossProject(JVMPlatform)
-  .in(file("interop-java"))
-  .settings(stdSettings("zio-interop-java"))
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
-
-val akkaVersion = "2.5.23"
-lazy val interopReactiveStreams = crossProject(JVMPlatform)
-  .in(file("interop-reactiveStreams"))
-  .settings(stdSettings("zio-interop-reactiveStreams"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.reactivestreams" % "reactive-streams"     % "1.0.2",
-      "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest"       %% "scalatest"           % "3.0.8" % "test",
-      "com.typesafe.akka"   %% "akka-stream"         % akkaVersion % "test",
-      "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
-    )
-  )
-  .dependsOn(streams % "test->test;compile->compile")
-
-lazy val interopReactiveStreamsJVM = interopReactiveStreams.jvm.dependsOn(interopSharedJVM)
-
-lazy val interopTwitter = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-twitter"))
-  .settings(stdSettings("zio-interop-twitter"))
-  .settings(
-    libraryDependencies += "com.twitter" %% "util-core" % "19.5.1"
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopTwitterJVM = interopTwitter.jvm.dependsOn(interopSharedJVM)
-
-lazy val testkit = crossProject(JVMPlatform)
-  .in(file("testkit"))
-  .settings(stdSettings("zio-testkit"))
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val testkitJVM = testkit.jvm
+lazy val testJVM = test.jvm
+lazy val testJS = test.js.settings(
+  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test,
+  scalaJSUseMainModuleInitializer in Test := true
+)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
@@ -270,46 +152,71 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
     )
   )
 
 lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
-  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
+  .settings(dottySettings)
+  .settings(replSettings)
+
+lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
+  .in(file("test-sbt"))
+  .settings(stdSettings("zio-test-sbt"))
   .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
-      val old = (Compile / doc / sources).value
-      if (isDotty.value) {
-        Nil
-      } else {
-        old
-      }
-    }
+    libraryDependencies ++= Seq(
+      "org.scala-lang"     % "scala-reflect"            % scalaVersion.value,
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
+    ),
+    mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.28"))
+  .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
+  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(test % "test->test;compile->compile")
+
+lazy val testRunnerJVM = testRunner.jvm
+lazy val testRunnerJS  = testRunner.js
+
+/**
+ * Examples sub-project that is not included in the root project.
+ * To run tests :
+ * `sbt "examplesJVM/test"`
+ */
+lazy val examples = crossProject(JVMPlatform, JSPlatform)
+  .in(file("examples"))
+  .settings(stdSettings("examples"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner % "test->test;compile->compile")
+
+lazy val examplesJS  = examples.js
+lazy val examplesJVM = examples.jvm
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
+    // skip 2.13 benchmarks until monix & twitter-util publish for 2.13
+    crossScalaVersions -= "2.13.0",
+    //
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
-        "io.monix"                 %% "monix"           % "3.0.0-RC2",
-        "org.typelevel"            %% "cats-effect"     % "1.3.1",
-        "co.fs2"                   %% "fs2-core"        % "1.0.4",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.9",
-        "com.twitter"              %% "util-collection" % "19.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.2.9.RELEASE",
+        "co.fs2"                   %% "fs2-core"        % "1.1.0-M1",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
-        "org.ow2.asm"              % "asm"              % "7.1"
+        "com.twitter"              %% "util-collection" % "19.1.0",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.25",
+        "io.monix"                 %% "monix"           % "3.0.0-RC2",
+        "io.projectreactor"        % "reactor-core"     % "3.2.12.RELEASE",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.12",
+        "org.ow2.asm"              % "asm"              % "7.1",
+        "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
+        "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
+        "org.typelevel"            %% "cats-effect"     % "2.0.0-RC2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
@@ -327,6 +234,9 @@ lazy val benchmarks = project.module
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
+    // skip 2.13 mdoc until mdoc is available for 2.13
+    crossScalaVersions -= "2.13.0",
+    //
     skip.in(publish) := true,
     moduleName := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
@@ -335,21 +245,21 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"             % "1.4.1"  % "provided",
-      "commons-io"          % "commons-io"                % "2.6"    % "provided",
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
-      "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided"
+      "com.github.ghik"     %% "silencer-lib"                % "1.4.2" % "provided",
+      "commons-io"          % "commons-io"                   % "2.6" % "provided",
+      "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
+      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC3",
+      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC3",
+      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC4",
+      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC3",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.0-RC1",
+      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC1"
     )
   )
   .dependsOn(
     coreJVM,
-    streamsJVM,
-    interopCatsJVM,
-    interopFutureJVM,
-    interopMonixJVM,
-    interopScalaz7xJVM,
-    interopJavaJVM,
-    interopReactiveStreamsJVM,
-    interopTwitterJVM
+    streamsJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)

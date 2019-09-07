@@ -57,3 +57,12 @@ a {
 .nav-footer .sitemap .nav-home {
   width: 150px;
 }
+
+.fixedHeaderContainer header .headerTitleWithLogo {
+    display: none;
+    font-size: 1.25em;
+    line-height: 18px;
+    margin: 0;
+    position: relative;
+    z-index: 9999;
+}
