@@ -1,7 +1,5 @@
 package zio.test
 
-import java.util.concurrent.ConcurrentHashMap
-
 import zio.ZIO
 
 /**
@@ -12,9 +10,9 @@ import zio.ZIO
  */
 final case class Fun[-A, +B] private (private val f: A => B, private val hash: A => Int) extends (A => B) {
 
-  final def apply(a: A): B = map.computeIfAbsent(hash(a), _ => f(a))
+  final def apply(a: A): B = map.getOrElseUpdate(hash(a), f(a))
 
-  private[this] final val map = new ConcurrentHashMap[Int, B]()
+  private[this] final val map = ConcurrentHashMap.empty[Int, B]
 }
 
 object Fun {
