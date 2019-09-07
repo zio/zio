@@ -6,7 +6,8 @@ import zio.{ DefaultRuntime, Managed, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.mock.MockRandom
-import zio.test.TestUtils.label
+import zio.test.Assertion._
+import zio.test.TestUtils.{ label, succeeded }
 
 object GenSpec extends DefaultRuntime {
 
@@ -59,6 +60,7 @@ object GenSpec extends DefaultRuntime {
     label(string1ShrinksToSingleCharacter, "string1 shrinks to single character"),
     label(stringNGeneratesStringsOfCorrectSize, "stringN generates strings of correct size"),
     label(stringNShrinksCharacters, "stringN shrinks characters"),
+    label(suspendLazilyConstructsAGenerator, "suspend lazily constructs a generator"),
     label(uniformGeneratesValuesInRange, "uniform generates values between 0 and 1"),
     label(uniformShrinksToZero, "uniform shrinks to zero"),
     label(unit, "unit generates the constant unit value"),
@@ -81,6 +83,14 @@ object GenSpec extends DefaultRuntime {
     if (n == 0) (n, ZStream.empty)
     else (n, ZStream(n - 1))
   }))
+
+  val genIntList: Gen[Random, List[Int]] = Gen.oneOf(
+    Gen.const(List.empty),
+    for {
+      tail <- Gen.suspend(genIntList)
+      head <- Gen.int(-10, 10)
+    } yield head :: tail
+  )
 
   def monadLeftIdentity: Future[Boolean] =
     checkEqual(smallInt.flatMap(a => Gen.const(a)), smallInt)
@@ -252,6 +262,16 @@ object GenSpec extends DefaultRuntime {
 
   def stringNShrinksCharacters: Future[Boolean] =
     checkShrink(Gen.stringN(10)(Gen.printableChar))("!!!!!!!!!!")
+
+  def suspendLazilyConstructsAGenerator: Future[Boolean] =
+    unsafeRunToFuture {
+      val reverseProp = testM("reverse") {
+        check(genIntList) { as =>
+          assert(as.reverse.reverse, equalTo(as))
+        }
+      }
+      succeeded(reverseProp)
+    }
 
   def uniformGeneratesValuesInRange: Future[Boolean] =
     checkSample(Gen.uniform)(_.forall(n => 0.0 <= n && n < 1.0))
