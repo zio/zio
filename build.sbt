@@ -247,8 +247,10 @@ lazy val zstack = crossProject(JVMPlatform)
 
 lazy val zstackJVM = zstack.jvm
   .settings(dottySettings)
-  .settings(replSettings)
-
+  .settings(zstackSettings)
+  .settings(
+    mainClass in (Compile, run) := Some("zio.zstack.App")
+    )
 lazy val zstackTests = crossProject(JVMPlatform)
   .in(file("zstack-tests"))
   .dependsOn(zstack)

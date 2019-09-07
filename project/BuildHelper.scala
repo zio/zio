@@ -73,6 +73,11 @@ object BuildHelper {
     }
   )
 
+  val zstackSettings = makeReplSettings {
+    """| import zio.zstack._
+    """.stripMargin
+  }
+
   val replSettings = makeReplSettings {
     """|import zio._
        |import zio.console._
