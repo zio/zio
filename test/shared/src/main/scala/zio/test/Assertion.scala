@@ -394,10 +394,9 @@ object Assertion {
     Assertion.assertionRec[A](s"throws(${assertion})") { (self, actual) =>
       try {
         val _ = actual
+        AssertResult.failure(AssertionValue(self, actual))
       } catch {
         case t: Throwable => assertion(t)
       }
-
-      AssertResult.failure(AssertionValue(self, actual))
     }
 }

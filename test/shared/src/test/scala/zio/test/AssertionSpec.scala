@@ -18,7 +18,8 @@ object AssertionSpec {
     label(Future.successful(testResult.isFailure), message)
 
   case class SampleUser(name: String, age: Int)
-  val sampleUser = SampleUser("User", 42)
+  val sampleUser      = SampleUser("User", 42)
+  val sampleException = new Exception
 
   val nameStartsWithA  = hasField[SampleUser, Boolean]("name", _.name.startsWith("A"), isTrue)
   val nameStartsWithU  = hasField[SampleUser, Boolean]("name", _.name.startsWith("U"), isTrue)
@@ -177,6 +178,10 @@ object AssertionSpec {
     testFailure(
       assert(Exit.fail("Some Error"), succeeds(equalTo("Some Error"))),
       message = "succeeds must fail when supplied value is Exit.fail"
+    ),
+    testSuccess(
+      assert(throw sampleException, throws(equalTo(sampleException))),
+      message = "throws must succeed when given assertion is correct"
     ),
     testSuccess(
       assert(sampleUser, nameStartsWithU && ageGreaterThan20),
