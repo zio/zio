@@ -105,7 +105,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Maps the error value of this effect to the specified constant value.
    */
   final def asError[E1](e1: E1): ZIO[R, E1, A] = mapError(_ => e1)
-  
+
   /**
    * Dies with a [[java.lang.AssertionError]] having the specified text message
    * unless the assertion holds true, in which case it proceeds with the underlaying effect.
