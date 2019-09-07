@@ -103,19 +103,30 @@ package object test extends CheckVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZTest[R, Nothing, Unit] =
-    value.flatMap { a =>
-      assert(a, assertion).failures match {
-        case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
-        case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-      }
-    }
+  final def assertM[R, E, A](value: ZIO[R, E, A], assertion: Assertion[A]): ZIO[R, E, TestResult] =
+    value.map(assert(_, assertion))
 
   /**
    * Creates a failed test result with the specified runtime cause.
    */
   final def fail[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
     ZIO.fail(TestFailure.Runtime(cause))
+
+  /**
+   * Creates an ignored test result.
+   */
+  final val ignore: ZTest[Any, Nothing, Nothing] =
+    ZIO.succeed(TestSuccess.Ignored)
+
+  /**
+   * Passes platform specific information to the specified function, which will
+   * use that information to create a test. If the platform is neither ScalaJS
+   * nor the JVM, an ignored test result will be returned.
+   */
+  final def platformSpecific[R, E, A, S](js: => A, jvm: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
+    if (TestPlatform.isJS) f(js)
+    else if (TestPlatform.isJVM) f(jvm)
+    else ignore
 
   /**
    * Builds a suite containing a number of other specs.
@@ -132,15 +143,17 @@ package object test extends CheckVariants {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, L, T](label: L)(assertion: ZIO[R, Nothing, TestResult]): ZSpec[R, Nothing, L, Unit] =
+  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
     Spec.test(
       label,
-      assertion.flatMap { result =>
-        result.failures match {
-          case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
-          case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-        }
-      }
+      assertion.foldCauseM(
+        cause => ZIO.fail(TestFailure.Runtime(cause)),
+        result =>
+          result.failures match {
+            case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
+            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+          }
+      )
     )
 
   /**

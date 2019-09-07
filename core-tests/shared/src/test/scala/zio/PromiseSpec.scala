@@ -1,11 +1,10 @@
 package zio
 
-import zio.duration._
 import zio.test._
 import zio.test.Assertion._
 
 object PromiseSpec
-    extends DefaultRunnableSpec(
+    extends ZIOSpec(
       suite("PromiseSpec")(
         testM("complete a promise using succeed") {
           for {
@@ -90,6 +89,5 @@ object PromiseSpec
             d <- p.isDone
           } yield assert(d, isTrue)
         }
-      ),
-      timeout = TimeoutStrategy.Error(60.seconds)
+      )
     )

@@ -1,12 +1,11 @@
 package zio
 
-import zio.duration._
 import zio.test._
 import zio.test.Assertion._
 import zio.RefMSpecUtils._
 
 object RefMSpec
-    extends DefaultRunnableSpec(
+    extends ZIOSpec(
       suite("RefMSpec")(
         testM("get") {
           for {
@@ -103,8 +102,7 @@ object RefMSpec
             value <- refM.modifySome("State doesn't change") { case Active => IO.fail(failure) }.run
           } yield assert(value, fails(equalTo(failure)))
         }
-      ),
-      timeout = TimeoutStrategy.Error(60.seconds)
+      )
     )
 
 object RefMSpecUtils {

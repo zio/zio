@@ -31,8 +31,22 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
   final def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zip(that)
 
-  final def filter(f: A => Boolean): Gen[R, A] =
-    flatMap(a => if (f(a)) Gen.const(a) else Gen.empty)
+  /**
+   * Filters the values produced by this generator, discarding any values that
+   * do not meet the specified predicate. Using `filter` can reduce test
+   * performance, especially if many values must be discarded. It is
+   * recommended to use combinators such as `map` and `flatMap` to create
+   * generators of the desired values instead.
+   *
+   * {{{
+   * val evens: Gen[Random, Int] = Gen.anyInt.map(_ * 2)
+   * }}}
+   */
+  final def filter(f: A => Boolean): Gen[R, A] = Gen {
+    sample.flatMap { sample =>
+      if (f(sample.value)) sample.filter(f) else ZStream.empty
+    }
+  }
 
   final def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = Gen {
     self.sample.flatMap { sample =>
@@ -41,6 +55,9 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
       values.map(_.flatMap(Sample(_, shrinks)))
     }
   }
+
+  final def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B]): Gen[R1, B] =
+    flatMap(ev)
 
   final def map[B](f: A => B): Gen[R, B] =
     Gen(sample.map(_.map(f)))
@@ -269,6 +286,13 @@ object Gen {
 
   final def stringN[R <: Random](n: Int)(char: Gen[R, Char]): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
+
+  /**
+   * Lazily constructs a generator. This is useful to avoid infinite recursion
+   * when creating generators that refer to themselves.
+   */
+  final def suspend[R, A](gen: => Gen[R, A]): Gen[R, A] =
+    fromEffect(ZIO.effectTotal(gen)).flatten
 
   /**
    * A generator of uniformly distributed doubles between [0, 1].

@@ -52,7 +52,7 @@ sealed trait Chunk[@specialized +A] { self =>
     val len = self.length
 
     if (n <= 0) self
-    else if (n == len) Chunk.empty
+    else if (n >= len) Chunk.empty
     else
       self match {
         case Chunk.Slice(c, o, l)        => Chunk.Slice(c, o + n, l - n)
