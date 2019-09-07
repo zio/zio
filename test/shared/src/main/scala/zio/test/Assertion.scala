@@ -98,7 +98,7 @@ object Assertion {
     final case class Infix(left: RenderParam, op: String, right: RenderParam)    extends Render
 
     /**
-     * Creates a string represetantion of a field accessor.
+     * Creates a string representation of a field accessor.
      */
     final def field(name: String): String =
       "_." + name
