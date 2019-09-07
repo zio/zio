@@ -71,6 +71,15 @@ class DurationSpec extends Specification {
           Zero multiplied with zero                                            $mul0
           Zero multiplied with one                                             $mul1
           One second multiplied with 60                                        $mul2
+
+        Render duration:
+          0 milliseconds   $render0ms
+          1 millisecond    $render1ms
+          2 milliseconds   $render2ms
+          1 second         $render1s
+          2 seconds        $render2s
+          1 minute         $render1min
+          2 minutes        $render2min
      """
 
   def pos1 =
@@ -222,4 +231,25 @@ class DurationSpec extends Specification {
 
   def mul2 =
     Duration(1, TimeUnit.SECONDS) * 60 must_=== Duration(1, TimeUnit.MINUTES)
+
+  def render0ms =
+    Duration(0, TimeUnit.MILLISECONDS).render must_=== "0 milliseconds"
+
+  def render1ms =
+    Duration(1, TimeUnit.MILLISECONDS).render must_=== "1 millisecond"
+
+  def render2ms =
+    Duration(2, TimeUnit.MILLISECONDS).render must_=== "2 milliseconds"
+
+  def render1s =
+    Duration(1, TimeUnit.SECONDS).render must_=== "1 second"
+
+  def render2s =
+    Duration(2, TimeUnit.SECONDS).render must_=== "2 seconds"
+
+  def render1min =
+    Duration(1, TimeUnit.MINUTES).render must_=== "1 minute"
+
+  def render2min =
+    Duration(2, TimeUnit.MINUTES).render must_=== "2 minutes"
 }
