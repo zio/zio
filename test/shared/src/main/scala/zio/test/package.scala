@@ -103,7 +103,7 @@ package object test extends CheckVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZIO[R, Nothing, TestResult] =
+  final def assertM[R, E, A](value: ZIO[R, E, A], assertion: Assertion[A]): ZIO[R, E, TestResult] =
     value.map(assert(_, assertion))
 
   /**
@@ -143,15 +143,17 @@ package object test extends CheckVariants {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, L, T](label: L)(assertion: ZIO[R, Nothing, TestResult]): ZSpec[R, Nothing, L, Unit] =
+  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
     Spec.test(
       label,
-      assertion.flatMap { result =>
-        result.failures match {
-          case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
-          case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-        }
-      }
+      assertion.foldCauseM(
+        cause => ZIO.fail(TestFailure.Runtime(cause)),
+        result =>
+          result.failures match {
+            case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
+            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+          }
+      )
     )
 
   /**
