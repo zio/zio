@@ -18,7 +18,7 @@ object AssertionSpec {
     label(Future.successful(testResult.isFailure), message)
 
   case class SampleUser(name: String, age: Int)
-  val sampleUser = SampleUser("User", 42)
+  val sampleUser      = SampleUser("User", 42)
   val sampleException = new Exception
 
   val nameStartsWithA  = hasField[SampleUser, Boolean]("name", _.name.startsWith("A"), isTrue)
