@@ -38,21 +38,26 @@ object GenSpec extends DefaultRuntime {
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
     label(intGeneratesValuesInRange, "int generates values in range"),
     label(intShrinksToBottomOfRange, "int shrinks to bottom of range"),
+    label(largeGeneratesSizesInRange, "large generates sizes in range"),
     label(listOfGeneratesSizesInRange, "listOf generates sizes in range"),
     label(listOfShrinksToEmptyList, "listOf shrinks to empty list"),
     label(listOf1GeneratesNonEmptyLists, "listOf1 generates nonempty lists"),
     label(listOf1ShrinksToSingletonList, "listOf1 shrinks to singleton list"),
     label(listOfNGeneratesListsOfCorrectSize, "listOfN generates lists of correct size"),
     label(listOfNShrinksElements, "listOfN shrinks elements"),
+    label(mapMMapsAnEffectualFunctionOverAGenerator, "mapMMapsAnEffectualFunctionOverAGenerator"),
+    label(mediumGeneratesSizesInRange, "medium generates sizes in range"),
     label(none, "none generates the constant empty value"),
     label(optionOfGeneratesOptionalValues, "optionOf generates optional values"),
     label(optionOfShrinksToNone, "optionOf shrinks to None"),
     label(printableCharGeneratesValuesInRange, "printableChar generates values in range"),
     label(printableCharShrinksToBottomOfRange, "printableChar shrinks to bottom of range"),
+    label(reshrinkAppliesNewShrinkingLogic, "reShrink applies new shrinking logic"),
     label(shortGeneratesValuesInRange, "short generates values in range"),
     label(shortShrinksToBottomOfRange, "short shrinks to bottom of range"),
     label(sizeCanBeModifiedLocally, "size can be modified locally"),
     label(sizedAccessesSizeInEnvironment, "sized accesses size in environment"),
+    label(smallGeneratesSizesInRange, "small generates sizes in range"),
     label(someShrinksToSmallestValue, "some shrinks to smallest value"),
     label(stringGeneratesSizesInRange, "string generates sizes in range"),
     label(stringShrinksToEmptyString, "string shrinks to empty string"),
@@ -185,6 +190,11 @@ object GenSpec extends DefaultRuntime {
   def intShrinksToBottomOfRange: Future[Boolean] =
     checkShrink(smallInt)(-10)
 
+  def largeGeneratesSizesInRange: Future[Boolean] = {
+    val gen = Gen.large(Gen.listOfN(_)(Gen.int(-10, 10)))
+    checkSample(gen)(_.forall(_.length <= 100))
+  }
+
   def listOfGeneratesSizesInRange: Future[Boolean] =
     checkSample(Gen.listOf(smallInt))(_.forall { as =>
       val n = as.length
@@ -206,6 +216,16 @@ object GenSpec extends DefaultRuntime {
   def listOfNShrinksElements: Future[Boolean] =
     checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-10))
 
+  def mapMMapsAnEffectualFunctionOverAGenerator: Future[Boolean] = {
+    val gen = Gen.int(1, 6).mapM(n => ZIO.succeed(n + 6))
+    checkSample(gen)(_.forall(n => 7 <= n && n <= 12))
+  }
+
+  def mediumGeneratesSizesInRange: Future[Boolean] = {
+    val gen = Gen.medium(Gen.listOfN(_)(Gen.int(-10, 10)))
+    checkSample(gen)(_.forall(_.length <= 100))
+  }
+
   def none: Future[Boolean] =
     checkSample(Gen.none)(_.forall(_ == None))
 
@@ -220,6 +240,11 @@ object GenSpec extends DefaultRuntime {
 
   def printableCharShrinksToBottomOfRange: Future[Boolean] =
     checkShrink(Gen.printableChar)('!')
+
+  def reshrinkAppliesNewShrinkingLogic: Future[Boolean] = {
+    val gen = Gen.int(0, 10).reshrink(Sample.shrinkIntegral(10))
+    checkShrink(gen)(10)
+  }
 
   def shortGeneratesValuesInRange: Future[Boolean] =
     checkSample(Gen.short(5, 10))(_.forall(n => 5 <= n && n <= 10))
@@ -238,6 +263,11 @@ object GenSpec extends DefaultRuntime {
 
   def sizedAccessesSizeInEnvironment: Future[Boolean] =
     checkSample(Gen.sized(Gen.const(_)), size = 50)(_.forall(_ == 50))
+
+  def smallGeneratesSizesInRange: Future[Boolean] = {
+    val gen = Gen.small(Gen.listOfN(_)(Gen.int(-10, 10)))
+    checkSample(gen)(_.forall(_.length < 8))
+  }
 
   def someShrinksToSmallestValue: Future[Boolean] =
     checkShrink(Gen.some(smallInt))(Some(-10))

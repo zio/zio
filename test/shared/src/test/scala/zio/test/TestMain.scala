@@ -18,6 +18,7 @@ object TestMain {
       scope(EnvironmentSpec.run, "EnvironmentSpec"),
       scope(GenSpec.run, "GenSpec"),
       scope(LiveSpec.run, "LiveSpec"),
+      scope(MathUtilsSpec.run, "MathSpec"),
       scope(RandomSpec.run, "RandomSpec"),
       scope(SampleSpec.run, "SampleSpec"),
       scope(SchedulerSpec.run, "SchedulerSpec"),
