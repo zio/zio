@@ -110,21 +110,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * A less powerful variant of `assert` where the success value produced by this
    * effect is not needed.
    */
-  final def assert_(assertion: Boolean, message: => String = ""): ZIO[R, E, A] =
-    self.assert(_ => assertion, message)
+  final def assert_(p: Boolean, message: => String = ""): ZIO[R, E, A] =
+    self.assert(_ => p, message)
 
   /**
-   * Dies with a [[zio.AssertionFailure]] having the specified text message
-   * if assertion on success value fails, otherwise proceeds with the underlaying effect.
+   * Dies with a [[zio.AssertionFailure]] having the specified text message and disabled
+   * ZIO tracing if assertion on success value fails, otherwise proceeds with the underlaying effect.
    */
-  final def assert(assertion: A => Boolean, message: => String = ""): ZIO[R, E, A] =
-    self.filterOrDie(assertion) {
-      val error =
-        if (message.isEmpty) "assertion failed"
-        else s"assertion failed: $message"
-
-      new AssertionFailure(error)
-    }
+  final def assert(p: A => Boolean, message: => String = ""): ZIO[R, E, A] =
+    self.filterOrDie(p)(AssertionFailure(message))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by

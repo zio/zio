@@ -19,7 +19,7 @@ package zio.test
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.{ Cause, ZIO }
+import zio.{ AssertionFailure, Cause, ZIO }
 import scala.{ Console => SConsole }
 import zio.duration.Duration
 
@@ -139,6 +139,7 @@ object DefaultTestReporter {
 
   private def renderCause(cause: Cause[Any], offset: Int): String =
     cause match {
+      case Cause.Die(AssertionFailure(message))     => message
       case Cause.Die(TestTimeoutException(message)) => message
       case _                                        => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
     }

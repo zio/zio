@@ -16,4 +16,10 @@
 
 package zio
 
-final case class AssertionFailure(message: String) extends Throwable(message, null, true, false)
+/**
+ * Represents assertion failure.
+ *
+ * This class is used to avoid constructing stack trace and special handling by `zio-test`.
+ */
+final case class AssertionFailure(message: String)
+    extends Throwable(if (message.isEmpty) "assertion failed" else s"assertion failed: $message", null, true, false)
