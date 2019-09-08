@@ -406,8 +406,8 @@ object Fiber {
    * @param fs `Iterable` of fibers to be joined
    * @return `UIO[Unit]`
    */
-  final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.join.unit).refailWithTrace
+  final def joinAll[E](fs: Iterable[Fiber[E, _]]): IO[E, Unit] =
+    fs.foldLeft[IO[E, Unit]](IO.unit)((io, f) => io *> f.join.unit).refailWithTrace
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
