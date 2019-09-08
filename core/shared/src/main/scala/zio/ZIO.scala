@@ -107,12 +107,27 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def asError[E1](e1: E1): ZIO[R, E1, A] = mapError(_ => e1)
 
   /**
-   * Dies with a [[java.lang.AssertionError]] having the specified text message
-   * unless the assertion holds true, in which case it proceeds with the underlaying effect.
+   * A less powerful variant of `assert` where the success value produced by this
+   * effect is not needed.
    */
-  final def assert(assertion: Boolean, message: String): ZIO[R, E, A] =
+  final def assert_(assertion: Boolean, message: => String = ""): ZIO[R, E, A] =
     if (assertion) self
-    else ZIO.die(new AssertionError(message))
+    else {
+      val error =
+        if (message.isEmpty) "assertion failed"
+        else s"assertion failed: $message"
+
+      ZIO.die(new AssertionError(error))
+    }
+
+  /**
+   * Dies with a [[java.lang.AssertionError]] having the specified text message
+   * if assertion on success value fails, otherwise proceeds with the underlaying effect.
+   */
+  final def assert(assertion: A => Boolean, message: => String = ""): ZIO[R, E, A] =
+    self.flatMap { value =>
+      self.assert_(assertion(value), message)
+    }
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
