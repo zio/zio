@@ -390,13 +390,24 @@ object Fiber {
     fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
 
   /**
-   * Joins all fibers, awaiting their completion.
+   * Awaits on all fibers to be completed, successfully or not.
+   *
+   * @param fs `Iterable` of fibers to be awaited
+   * @return `UIO[Unit]`
+   */
+  final def awaitAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
+    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
+
+  /**
+   * Joins all fibers, awaiting their _successful_ completion.
+   * Attempting to join a fiber that has errored will result in
+   * a catchable error, _if_ that error does not result from interruption.
    *
    * @param fs `Iterable` of fibers to be joined
    * @return `UIO[Unit]`
    */
-  final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
+  final def joinAll[E](fs: Iterable[Fiber[E, _]]): IO[E, Unit] =
+    fs.foldLeft[IO[E, Unit]](IO.unit)((io, f) => io *> f.join.unit).refailWithTrace
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
