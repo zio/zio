@@ -51,23 +51,23 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "IOLazySyntaxSpec".title ^ s2"""
    Generate a String:
-      `.sync` extension method returns the same UIO[String] as `IO.sync` does. $t1
+      `.effect` extension method returns the same UIO[String] as `IO.effect` does. $t1
    Generate a String:
-      `.sync` extension method returns the same Task[String] as `IO.sync` does. $t2
+      `.effect` extension method returns the same Task[String] as `IO.effect` does. $t2
    Generate a String:
-      `.syncCatch` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.sync` does. $t3
+      `.effect` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.effect` does. $t3
     """
 
   def t1 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
-      a <- lazyStr.sync
+      a <- lazyStr.effect
       b <- IO.effectTotal(lazyStr)
     } yield a must ===(b))
   }
 
   def t2 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
-      a <- lazyStr.sync
+      a <- lazyStr.effect
       b <- IO.effect(lazyStr)
     } yield a must ===(b))
   }
@@ -75,11 +75,10 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t3 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
     unsafeRun(for {
-      a <- lazyStr.sync.refineOrDie(partial)
+      a <- lazyStr.effect.refineOrDie(partial)
       b <- IO.effect(lazyStr).refineOrDie(partial)
     } yield a must ===(b))
   }
-
 }
 
 class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
