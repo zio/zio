@@ -126,7 +126,7 @@ object Assertion {
     /**
      * Construct a `RenderParam` from a value.
      */
-    final def param[A](value: Any): RenderParam =
+    final def param[A](value: A): RenderParam =
       RenderParam.Value(value)
 
     /**
