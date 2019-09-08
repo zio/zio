@@ -5,6 +5,7 @@ import zio.test._
 import zio.test.Assertion.equalTo
 import StreamTestUtils._
 import zio.ZIOSpec
+import zio.random.Random
 
 object ChunkSpec
     extends ZIOSpec(
@@ -33,26 +34,30 @@ object ChunkSpec
             assert(c.materialize.toSeq, equalTo(c.toSeq))
           }
         },
-        // testM("foldLeft") {
-        //   check(Gen.anyString, Gen[(String, Int) => String], chunkGen(Gen.anyInt)) { (s0, f, c) =>
-        //     assert(c.foldLeft(s0)(f), equalTo(c.toArray.foldLeft(s0)(f)))
-        //   }
-        // },
-        // testM("map") {
-        //   check(chunkGen(Gen.anyInt), Gen[Int => String]) { (c, f) =>
-        //     assert(c.map(f).toSeq, equalTo(c.toSeq.map(f)))
-        //   }
-        // },
-        // testM("flatMap") {
-        //   check(chunkGen(Gen.anyInt), Gen[Int => Chunk[Int]]) { (c, f) =>
-        //     assert(c.flatMap(f).toSeq, equalTo(c.toSeq.flatMap(f.andThen(_.toSeq))))
-        //   }
-        // },
-        // testM("filter") {
-        //   check(chunkGen(Gen.anyString), Gen[String => Boolean]) { (chunk, p) =>
-        //     assert(chunk.filter(p).toSeq, equalTo(chunk.toSeq.filter(p)))
-        //   }
-        // },
+        testM("foldLeft") {
+          val fn = Gen.function[Random with Sized, (String, Int), String](Gen.anyString)
+          check(Gen.anyString, fn, chunkGen(Gen.anyInt)) { (s0, f, c) =>
+            assert(c.foldLeft(s0)(Function.untupled(f)), equalTo(c.toArray.foldLeft(s0)(Function.untupled(f))))
+          }
+        },
+        testM("map") {
+          val fn = Gen.function[Random with Sized, Int, String](Gen.anyString)
+          check(chunkGen(Gen.anyInt), fn) { (c, f) =>
+            assert(c.map(f).toSeq, equalTo(c.toSeq.map(f)))
+          }
+        },
+        testM("flatMap") {
+          val fn = Gen.function[Random with Sized, Int, Chunk[Int]](chunkGen(Gen.anyInt))
+          check(chunkGen(Gen.anyInt), fn) { (c, f) =>
+            assert(c.flatMap(f).toSeq, equalTo(c.toSeq.flatMap(f.andThen(_.toSeq))))
+          }
+        },
+        testM("filter") {
+          val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+          check(chunkGen(Gen.anyString), fn) { (chunk, p) =>
+            assert(chunk.filter(p).toSeq, equalTo(chunk.toSeq.filter(p)))
+          }
+        },
         testM("drop chunk") {
           check(chunkGen(Gen.anyInt), Gen.anyInt) { (chunk, n) =>
             assert(chunk.drop(n).toSeq, equalTo(chunk.toSeq.drop(n)))
@@ -64,16 +69,16 @@ object ChunkSpec
               assert(c.take(n).toSeq, equalTo(c.toSeq.take(n)))
           }
         },
-        // testM("dropWhile chunk") {
-        //   check(chunkGen(Gen.anyInt), Gen[Int => Boolean]) { (c, p) =>
-        //     assert(c.dropWhile(p).toSeq, equalTo(c.toSeq.dropWhile(p)))
-        //   }
-        // },
-        // testM("takeWhile chunk") {
-        //   check(chunkGen(Gen.anyInt), Gen[Int => Boolean]) { (c, p) =>
-        //     assert(c.takeWhile(p).toSeq, equalTo(c.toSeq.takeWhile(p)))
-        //   }
-        // },
+        testM("dropWhile chunk") {
+          check(chunkGen(Gen.anyInt), intToBoolFn) { (c, p) =>
+            assert(c.dropWhile(p).toSeq, equalTo(c.toSeq.dropWhile(p)))
+          }
+        },
+        testM("takeWhile chunk") {
+          check(chunkGen(Gen.anyInt), intToBoolFn) { (c, p) =>
+            assert(c.takeWhile(p).toSeq, equalTo(c.toSeq.takeWhile(p)))
+          }
+        },
         testM("toArray") {
           check(chunkGen(Gen.anyInt)) { c =>
             assert(c.toArray.toSeq, equalTo(c.toSeq))
