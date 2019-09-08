@@ -4,8 +4,8 @@ import scala.{ Stream => _ }
 // import zio.{ Ref, Chunk }
 import zio.test._
 import zio.test.Assertion.equalTo
-import StreamTestUtils._
 import zio.ZIOSpec
+import StreamChunkUtils._
 
 object StreamChunkSpec
     extends ZIOSpec(

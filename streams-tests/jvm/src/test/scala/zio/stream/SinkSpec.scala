@@ -8,7 +8,7 @@ import zio.duration._
 import zio.test._
 import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isNone, isRight, isSome, isTrue, succeeds }
 import zio.test.mock.MockClock
-import StreamTestUtils._
+import SinkUtils._
 import ZSink.Step
 
 object SinkSpec
@@ -687,25 +687,7 @@ object SinkSpec
           }
         ),
         suite("Constructors")(
-          // testM("foldLeft") {
-          //   checkM(streamGen(Gen.anyString), Gen[(String, Int) => String], Gen.anyString) { (s, f, z) =>
-          //     for {
-          //       res1 <- s.run(ZSink.foldLeft(z)(f))
-          //       res2 <- s.runCollect.map(_.foldLeft(z)(f))
-          //     } yield assert(res1, equalTo(res2))
-          //   }
-          // },
-          // testM("fold") {
-          //   checkM(streamGen(Gen.anyInt), Gen[(String, Int) => String], Gen.anyString) { (s, f, z) =>
-          //     val ff = (acc: String, el: Int) => Step.more(f(acc, el))
-
-          //     for {
-          //       res1 <- s.run(ZSink.fold(z)(ff))
-          //       res2 <- s.runCollect.map(_.foldLeft(z)(f))
-          //     } yield assert(res1, equalTo(res2))
-          //   }
-          // },
-          testM("  short circuits") {
+          testM("short circuits") {
             val empty: Stream[Nothing, Int]     = ZStream.empty
             val single: Stream[Nothing, Int]    = ZStream.succeed(1)
             val double: Stream[Nothing, Int]    = ZStream(1, 2)
@@ -733,45 +715,38 @@ object SinkSpec
               assert(res4, fails(equalTo("Ouch")))
             }
           },
+          // testM("foldLeft") {
+          //   val fn = Gen.function[Random with Sized, (String, String), String](Gen.anyString)
+          //   checkM(streamOfStrings, fn, Gen.anyString) { (s, f, z) =>
+          //     val ft = Function.untupled(f)
+          //     for {
+          //       res1 <- s.run(ZSink.foldLeft(z)(ft))
+          //       res2 <- s.runCollect.map(_.foldLeft(z)(ft))
+          //     } yield assert(res1, equalTo(res2))
+          //   }
+          // },
+          // testM("fold") {
+          //   checkM(streamOfInts, tupleToStringFn, Gen.anyString) { (s, f, z) =>
+          //     val ff = (acc: String, el: Int) => Step.more(f(acc -> el))
+          //     val ft = Function.untupled(f)
+          //     for {
+          //       res1 <- s.run(ZSink.fold(z)(ff))
+          //       res2 <- s.runCollect.map(_.foldLeft(z)(ft))
+          //     } yield assert(res1, equalTo(res2))
+          //   }
+          // },
           // testM("foldM") {
-          //   checkM(streamGen(Gen.anyInt), Gen[(String, Int) => IO[String, String]], Gen.const(ZIO.unit)) { (s, f, z) =>
+          //   val fn = Gen.function[Random with Sized, (String, String), String](Gen.anyString)
+          //   checkM(streamOfInts, fn, Gen.const(ZIO.unit)) { (s, f, z) =>
           //     val ff = (acc: String, el: Int) => f(acc, el).map(Step.more)
           //     for {
           //       sinkResult <- z.flatMap(z => s.run(ZSink.foldM(z)(ff)))
           //       foldResult <- s.foldLeft(List[Int]())((acc, el) => el :: acc)
           //                      .map(_.reverse)
           //                      .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
-          //     } yield assert(foldResult, Assertion.succeeds(())) implies assert(sinkResult, equalTo(foldResult))
+          //     } yield assert(foldResult, succeeds(equalTo(()))) implies assert(sinkResult, equalTo(foldResult))
           //   }
           // },
-          testM("  short circuits") {
-            val empty: Stream[Nothing, Int]     = ZStream.empty
-            val single: Stream[Nothing, Int]    = ZStream.succeed(1)
-            val double: Stream[Nothing, Int]    = ZStream(1, 2)
-            val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
-
-            def run[E](stream: Stream[E, Int]) =
-              (for {
-                effects <- Ref.make[List[Int]](Nil)
-                sink = ZSink.foldM[Any, E, Int, Int, Int](0) { (_, a) =>
-                  effects.update(a :: _) *> IO.succeed(Step.done(30, Chunk.empty))
-                }
-                exit <- stream.run(sink)
-                n    <- effects.get
-              } yield (exit, n)).run
-
-            for {
-              res1 <- run(empty)
-              res2 <- run(single)
-              res3 <- run(double)
-              res4 <- run(failed)
-            } yield {
-              assert(res1, succeeds(equalTo((0, List.empty[Int])))) &&
-              assert(res2, succeeds(equalTo((30, List(1))))) &&
-              assert(res3, succeeds(equalTo((30, List(1))))) &&
-              assert(res4, fails(equalTo("Ouch")))
-            }
-          },
           testM("collectAllN") {
             assertM(Stream[Int](1, 2, 3).run(Sink.collectAllN[Int](2)), equalTo(List(1, 2)))
           },
@@ -794,11 +769,11 @@ object SinkSpec
             )
           },
           // testM("collectAllWhile") {
-          //   checkM(streamGen(Gen.anyString), Gen[String => Boolean]) { (s, f) =>
+          //   checkM(streamOfStrings, stringToBoolFn) { (s, f) =>
           //     for {
-          //       res1 <- s.run(ZSink.collectAllWhile(f))
-          //       res2 <- s.runCollect.map(_.takeWhile(f))
-          //     } yield assert(listResult, Assertion.succeeds(())) implies assert(sinkResult, equalTo(listResult))
+          //       res1 <- s.run(ZSink.collectAllWhile(f)).run
+          //       res2 <- s.runCollect.map(_.takeWhile(f)).run
+          //     } yield assert(res1, succeeds(equalTo(List.empty[Int]))) ==> assert(res1, equalTo(res2))
           //   }
           // },
           testM("foldWeighted") {

@@ -1,17 +1,17 @@
 package zio.stream
 
 import zio.Chunk
-import zio.test._
-import zio.test.Assertion.equalTo
-import StreamTestUtils._
 import zio.ZIOSpec
 import zio.random.Random
+import zio.test._
+import zio.test.Assertion.equalTo
+import ChunkUtils._
 
 object ChunkSpec
     extends ZIOSpec(
       suite("ChunkSpec")(
         testM("apply") {
-          check(chunkWithLength) {
+          check(chunkIxGen) {
             case (chunk, i) =>
               assert(chunk.apply(i), equalTo(chunk.toSeq.apply(i)))
           }
@@ -64,18 +64,18 @@ object ChunkSpec
           }
         },
         testM("take chunk") {
-          check(chunkWithLength) {
+          check(chunkIxGen) {
             case (c, n) =>
               assert(c.take(n).toSeq, equalTo(c.toSeq.take(n)))
           }
         },
         testM("dropWhile chunk") {
-          check(chunkGen(Gen.anyInt), intToBoolFn) { (c, p) =>
+          check(chunkGen(Gen.anyInt), toBoolFn[Random, Int]) { (c, p) =>
             assert(c.dropWhile(p).toSeq, equalTo(c.toSeq.dropWhile(p)))
           }
         },
         testM("takeWhile chunk") {
-          check(chunkGen(Gen.anyInt), intToBoolFn) { (c, p) =>
+          check(chunkGen(Gen.anyInt), toBoolFn[Random, Int]) { (c, p) =>
             assert(c.takeWhile(p).toSeq, equalTo(c.toSeq.takeWhile(p)))
           }
         },
