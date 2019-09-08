@@ -17,6 +17,23 @@
 package zio.test
 
 /**
- * `FailureDetails` keeps track of details relevant to failures.
+ * `GenFailureDetails` keeps track of relevant information related to a failure in a generative test.
  */
-final case class FailureDetails(fragment: AssertionValue, whole: AssertionValue, gen: Option[GenFailureDetails] = None)
+sealed trait GenFailureDetails {
+  type Value
+
+  val initialInput: Value
+  val shrinkedInput: Value
+  val iterations: Int
+}
+
+object GenFailureDetails {
+  def apply[A](initialInput0: A, shrinkedInput0: A, iterations0: Int): GenFailureDetails =
+    new GenFailureDetails {
+      type Value = A
+
+      val initialInput: Value  = initialInput0
+      val shrinkedInput: Value = shrinkedInput0
+      val iterations: Int      = iterations0
+    }
+}
