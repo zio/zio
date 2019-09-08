@@ -9,13 +9,17 @@ trait StreamUtils extends ChunkUtils {
     Gen.oneOf(impureStreamGen(a), pureStreamGen(a))
 
   def pureStreamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[Nothing, A]] =
-    Gen.listOf(a).map(Stream.fromIterable)
+    for {
+      n  <- Gen.int(0, 100)
+      xs <- Gen.listOfN(n)(a).map(Stream.fromIterable)
+    } yield xs
 
   def impureStreamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[String, A]] =
     for {
-      it <- Gen.listOf(a)
-      n  <- Gen.int(0, it.size - 1)
-    } yield ZStream.unfoldM((n, it)) {
+      n  <- Gen.int(1, 100)
+      i  <- Gen.int(0, n - 1)
+      it <- Gen.listOfN(n)(a)
+    } yield ZStream.unfoldM((i, it)) {
       case (_, Nil) | (0, _) =>
         IO.fail("fail-case")
       case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
