@@ -11,7 +11,7 @@ object ChunkSpec
     extends ZIOSpec(
       suite("ChunkSpec")(
         testM("apply") {
-          check(chunkIxGen) {
+          check(chunkIxGen(Gen.unit)) {
             case (chunk, i) =>
               assert(chunk.apply(i), equalTo(chunk.toSeq.apply(i)))
           }
@@ -64,7 +64,7 @@ object ChunkSpec
           }
         },
         testM("take chunk") {
-          check(chunkIxGen) {
+          check(chunkIxGen(Gen.unit)) {
             case (c, n) =>
               assert(c.take(n).toSeq, equalTo(c.toSeq.take(n)))
           }

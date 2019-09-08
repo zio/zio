@@ -6,11 +6,19 @@ import zio.random.Random
 import zio.test.{ Gen, Sized }
 
 trait ChunkUtils {
+  def chunkIxGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, (Chunk[A], Int)] =
+    for {
+      n      <- Gen.int(1, 100)
+      i      <- Gen.int(0, n - 1)
+      vector <- Gen.vectorOfN(n)(a)
+      chunk  = Chunk.fromIterable(vector)
+    } yield (chunk, i)
+
   def chunkGen[R <: Random, A: ClassTag](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
     Gen.oneOf(
       Gen.const(Chunk.empty),
       a.map(Chunk.succeed),
-      Gen.listOf(a).map(as => Chunk.fromArray(as.toArray)),
+      chunkIxGen(a).map(_._1),
       Gen.suspend(for {
         arr  <- chunkGen(a)
         left <- Gen.int(0, arr.length)
@@ -20,11 +28,6 @@ trait ChunkUtils {
         right <- chunkGen(a)
       } yield left ++ right)
     )
-
-  val chunkIxGen: Gen[Random with Sized, (Chunk[Int], Int)] = for {
-    chunk <- chunkGen(Gen.anyInt).filter(_.length > 0)
-    len   <- Gen.int(0, chunk.length - 1)
-  } yield (chunk, len)
 }
 
 object ChunkUtils extends ChunkUtils with GenUtils
