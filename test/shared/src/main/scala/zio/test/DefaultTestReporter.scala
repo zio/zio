@@ -108,12 +108,13 @@ object DefaultTestReporter {
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Seq[String] =
     failureDetails match {
       case Some(details) =>
-        Seq(
-          withOffset(offset + tabSize)(
-            s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: ${red(details.shrinkedInput.toString)}"
-          ),
-          withOffset(offset + tabSize)(s"Original input before shrinking was: ${red(details.initialInput.toString)}")
+        val shrinked = details.shrinkedInput.toString
+        val initial  = details.initialInput.toString
+        val renderShrinked = withOffset(offset + tabSize)(
+          s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: ${red(shrinked)}"
         )
+        if (initial == shrinked) Seq(renderShrinked)
+        else Seq(renderShrinked, withOffset(offset + tabSize)(s"Original input before shrinking was: ${red(initial)}"))
       case None => Seq()
     }
 
