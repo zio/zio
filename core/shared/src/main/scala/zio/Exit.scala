@@ -31,7 +31,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
 
   /**
    * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
@@ -46,12 +46,12 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
 
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
 
   /**
    * Replaces the success value with the one provided.
@@ -210,7 +210,7 @@ object Exit extends Serializable {
     exits.headOption.map { head =>
       exits
         .drop(1)
-        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
+        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
         .map(_.reverse)
     }
 
