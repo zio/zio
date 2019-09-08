@@ -40,11 +40,11 @@ install_jdk: &install_jdk
           wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
           sudo add-apt-repository https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ -y
         fi
-        sudo timeout 30s apt update
+        sudo apt update
         if [ $JDK_VERSION == 11 ]; then
-          sudo timeout 1m apt install -y adoptopenjdk-11-hotspot
+          sudo apt install -y adoptopenjdk-11-hotspot
         elif [ $JDK_VERSION == 8 ]; then
-          sudo timeout 1m apt install -y openjdk-8-jdk
+          sudo apt install -y openjdk-8-jdk
         fi
         java -version
 
