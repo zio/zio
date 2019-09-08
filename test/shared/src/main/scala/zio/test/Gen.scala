@@ -212,6 +212,29 @@ object Gen {
     Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random))))
 
   /**
+   * Constructs a generator of functions from `A` to `B` given a generator of
+   * `B` values. Two `A` values will be considered to be equal, and thus will
+   * be guaranteed to generate the same `B` value, if they have the same
+   * `hashCode`.
+   */
+  final def function[R, A, B](gen: Gen[R, B]): Gen[R, A => B] =
+    functionWith(gen)(_.hashCode)
+
+  /**
+   * Constructs a generator of functions from `A` to `B` given a generator of
+   * `B` values and a hashing function for `A` values. Two `A` values will be
+   * considered to be equal, and thus will be guaranteed to generate the same
+   * `B` value, if they have have the same hash. This is useful when `A` does
+   * not implement `hashCode` in a way that is constent with equality.
+   */
+  final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
+    Gen.fromEffect {
+      gen.sample.forever.process.use { pull =>
+        Fun.makeHash((_: A) => pull.optional.map(_.get.value))(hash)
+      }
+    }
+
+  /**
    * A generator of integers inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
