@@ -53,6 +53,18 @@ save_cache: &save_cache
           - "~/.m2"
           - "~/website/node_modules"
 
+store_artifacts: &store_artifacts
+  - store_artifacts:
+    path: target/test_reports
+
+store_jvm_test_results: &store_jvm_test_results
+  - store_test_results:
+    path: test-results/jvm
+
+store_js_test_results: &store_js_test_results
+  - store_test_results:
+    path: test-results/js
+
 install_yarn: &install_yarn
   - run:
       name: Install Yarn
@@ -109,8 +121,10 @@ testJVM: &testJVM
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJVM
+        command: ./sbt ++${SCALA_VERSION}! testJVM -- -oDF
     - <<: *save_cache
+    - <<: *store_artifacts
+    - <<: *store_jvm_test_results
 
 testJS: &testJS
   steps:
@@ -120,8 +134,10 @@ testJS: &testJS
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJS
+        command: ./sbt ++${SCALA_VERSION}! testJS -- -oDF
     - <<: *save_cache
+    - <<: *store_artifacts
+    - <<: *store_js_test_results
 
 release: &release
   steps:
