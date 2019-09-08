@@ -101,8 +101,21 @@ object DefaultTestReporter {
     withOffset(offset)(red("- " + label))
 
   private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] = failureDetails match {
-    case FailureDetails(fragment, whole) => renderAssertion(fragment, whole, offset)
+    case FailureDetails(fragment, whole, genFailureDetails) =>
+      renderGenFailureDetails(genFailureDetails, offset) ++ renderAssertion(fragment, whole, offset)
   }
+
+  private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Seq[String] =
+    failureDetails match {
+      case Some(details) =>
+        Seq(
+          withOffset(offset + tabSize)(
+            s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: ${red(details.shrinkedInput.toString)}"
+          ),
+          withOffset(offset + tabSize)(s"Original input before shrinking was: ${red(details.initialInput.toString)}")
+        )
+      case None => Seq()
+    }
 
   private def renderAssertion(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
     if (whole.assertion == fragment.assertion)
