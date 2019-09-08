@@ -79,7 +79,7 @@ compile: &compile
     - <<: *load_cache
     - run:
         name: Compile code
-        command: ./sbt ++${SCALA_VERSION}! compileJVM
+        command: ./sbt -Dsbt.supershell=false ++${SCALA_VERSION}! compileJVM
     - <<: *save_cache
 
 lint: &lint
@@ -88,7 +88,7 @@ lint: &lint
     - <<: *load_cache
     - run:
         name: Lint code
-        command: ./sbt ++${SCALA_VERSION}! check
+        command: ./sbt -Dsbt.supershell=false ++${SCALA_VERSION}! check
     - <<: *save_cache
 
 mdoc: &mdoc
@@ -98,8 +98,8 @@ mdoc: &mdoc
     - run:
         name: Generate documentation
         command: |
-          ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
-          ./sbt ++${SCALA_VERSION}! mdoc
+          ./sbt -Dsbt.supershell=false coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
+          ./sbt -Dsbt.supershell=false ++${SCALA_VERSION}! mdoc
     - <<: *save_cache
 
 testJVM: &testJVM
@@ -109,7 +109,7 @@ testJVM: &testJVM
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJVM
+        command: ./sbt -Dsbt.supershell=false ++${SCALA_VERSION}! testJVM
     - <<: *save_cache
 
 testJS: &testJS
@@ -120,7 +120,7 @@ testJS: &testJS
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJS
+        command: ./sbt -Dsbt.supershell=false ++${SCALA_VERSION}! testJS
     - <<: *save_cache
 
 release: &release
@@ -138,7 +138,7 @@ release: &release
           command: echo -n "${PGP_SECRET}" | base64 -d > /tmp/secret.asc
       - run:
           name: Release artifacts
-          command: ./sbt ++${SCALA_VERSION}! releaseEarly
+          command: ./sbt -Dsbt.supershell=false ++${SCALA_VERSION}! releaseEarly
 
 microsite: &microsite
   steps:
@@ -163,8 +163,8 @@ microsite: &microsite
             nvm install
             nvm use
             node -v
-            ./sbt docs/docusaurusCreateSite
-            ./sbt docs/docusaurusPublishGhpages
+            ./sbt -Dsbt.supershell=false docs/docusaurusCreateSite
+            ./sbt -Dsbt.supershell=false docs/docusaurusPublishGhpages
       - <<: *save_cache
 
 jobs:
