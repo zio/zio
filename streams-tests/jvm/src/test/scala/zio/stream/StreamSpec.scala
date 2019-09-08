@@ -408,15 +408,14 @@ object ZStreamSpec
 
         },
         suite("Stream.dropWhile")(
-          // testM("dropWhile") {
-          //   checkM(streamGen(Gen.anyByte), Gen[Byte => Boolean]) { (s, p) =>
-          //     for {
-          //       res1 <- s.dropWhile(p).runCollect
-          //       res2 <- s.runCollect.map(_.dropWhile(p))
-          //     } yield assert(res1, equalTo(res2))
-          //   }
-
-          // },
+          testM("dropWhile") {
+            checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
+              for {
+                res1 <- s.dropWhile(p).runCollect
+                res2 <- s.runCollect.map(_.dropWhile(p))
+              } yield assert(res1, equalTo(res2))
+            }
+          },
           testM("short circuits") {
             assertM(
               (Stream(1) ++ Stream.fail("Ouch"))
@@ -455,7 +454,7 @@ object ZStreamSpec
             checkM(listOfInts) { list =>
               val s = Stream.effectAsyncMaybe[Throwable, Int] { _ =>
                 Some(Stream.fromIterable(list))
-          }
+              }
 
               assertM(s.runCollect.map(_.take(list.size)).run, succeeds(equalTo(list)))
             }
@@ -578,14 +577,14 @@ object ZStreamSpec
 
         },
         suite("Stream.filter")(
-          // testM("filter") {
-          //   checkM(streamGen(Gen.anyByte), Gen[Byte => Boolean]) { (s, p) =>
-          //     for {
-          //       res1 <- s.filter(p).runCollect
-          //       res2 <- s.runCollect.map(_.filter(p))
-          //     } yield assert(res1, equalTo(res2))
-          //   }
-          // },
+          testM("filter") {
+            checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
+              for {
+                res1 <- s.filter(p).runCollect
+                res2 <- s.runCollect.map(_.filter(p))
+              } yield assert(res1, equalTo(res2))
+            }
+          },
           testM("short circuits #1") {
             assertM(
               (Stream(1) ++ Stream.fail("Ouch"))
@@ -629,7 +628,6 @@ object ZStreamSpec
           //       .either,
           //     isRight(equalTo(()))
           //   )
-
           // },
           testM("short circuits #2") {
             assertM(
@@ -695,15 +693,15 @@ object ZStreamSpec
         suite("Stream.flatMapPar/flattenPar/mergeAll")(
           // TODO: a type was inferred to be `Any`
           // testM("guarantee ordering") {
-          //   checkM(Gen.listOf(Gen.anyInt)) { m =>
-          //     val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect
-          //     val flatMapPar = Stream.fromIterable(m).flatMapPar(1)(i => Stream(i, i)).runCollect
+          //   checkM(listOfInts) { m =>
+          //     val s: Stream[Nothing, Int] = Stream.fromIterable(m)
+          //     val flatMap    = s.flatMap(i => Stream(i, i)).runCollect
+          //     val flatMapPar = s.flatMapPar(1)(i => Stream(i, i)).runCollect
           //     for {
           //       res1 <- flatMap
           //       res2 <- flatMapPar
           //     } yield assert(res1, equalTo(res2))
           //   }
-
           // },
           testM("consistent with flatMap") {
             checkM(Gen.anyInt, listOfInts) { (n, m) =>
@@ -1155,16 +1153,15 @@ object ZStreamSpec
           //       }
           //     }
         ),
-        // testM("Stream.map") {
-
-        //   checkM(streamGen(Gen.anyByte), Gen[Byte => Int]) { (s, f) =>
-        //     for {
-        //       res1 <- s.map(f).runCollect
-        //       res2 <- s.runCollect.map(_.map(f))
-        //     } yield assert(res1, equalTo(res2))
-        //   }
-
-        // },
+        testM("Stream.map") {
+          val fn = Gen.function[Random, Byte, Int](Gen.anyInt)
+          checkM(streamOfBytes, fn) { (s, f) =>
+            for {
+              res1 <- s.map(f).runCollect
+              res2 <- s.runCollect.map(_.map(f))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
         testM("Stream.mapAccum") {
           assertM(Stream(1, 1, 1).mapAccum(0)((acc, el) => (acc + el, acc + el)).runCollect, equalTo(List(1, 2, 3)))
 
@@ -1178,15 +1175,15 @@ object ZStreamSpec
           )
 
         },
-        // testM("Stream.mapConcat") {
-        //   checkM(streamGen(Gen.anyByte), Gen[Byte => Chunk[Int]]) { (s, f) =>
-        //     for {
-        //       res1 <- s.mapConcat(f).runCollect
-        //       res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
-        //     } yield assert(res1, equalTo(res2))
-        //   }
-
-        // },
+        testM("Stream.mapConcat") {
+          val fn = Gen.function[Random with Sized, Byte, Chunk[Int]](chunkGen(Gen.anyInt))
+          checkM(streamOfBytes, fn) { (s, f) =>
+            for {
+              res1 <- s.mapConcat(f).runCollect
+              res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
         // testM("Stream.mapM") {
         //   checkM(Gen.listOf(Gen.anyByte), Gen[Byte => IO[String, Byte]]) { (data, f) =>
         //     val s = Stream.fromIterable(data)
@@ -1239,7 +1236,6 @@ object ZStreamSpec
           //     val mapMPar = Stream.fromIterable(m).mapMPar(n)(UIO.succeed).runCollect
           //     assert(n > 0, isTrue) ==> assertM((mapM <*> mapMPar).map(_ == _), isTrue)
           //   }
-
           // }
         ),
         suite("Stream merging")(
