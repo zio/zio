@@ -29,7 +29,7 @@ object ZIOSyntax {
     def effectTotal[R, E]: ZIO[R, E, A] = ZIO.effectTotal(a())
     def effect[R]: ZIO[R, Throwable, A] = ZIO.effect(a())
     @deprecated("use effect", "1.0.0")
-    def sync[R]: ZIO[R, Throwable, A]   = effect
+    def sync[R]: ZIO[R, Throwable, A] = effect
   }
 
   final class IterableSyntax[R, E, A](val ios: Iterable[ZIO[R, E, A]]) extends AnyVal {
