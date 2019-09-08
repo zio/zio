@@ -215,7 +215,7 @@ object Assertion {
     Assertion.assertionRec[Exit[E, Any]]("fails")(param(assertion)) { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.failures.length > 0 => assertion.run(cause.failures.head)
-        case _                                                => BoolAlgebra.failure(AssertionValue(self, actual))
+        case _ => BoolAlgebra.failure(AssertionValue(self, actual))
       }
     }
 
