@@ -16,28 +16,14 @@
 
 package zio.test
 
-/**
- * An `AssertionValue` keeps track of a assertion and a value, existentially
- * hiding the type. This is used internally by the library to provide useful
- * error messages in the event of test failures.
- */
-sealed trait AssertionValue {
-  type Value
+import java.util.concurrent.{ ConcurrentHashMap => JConcurrentHashMap }
 
-  val value: Value
-
-  val assertion: Assertion[Value]
-
-  def negate: AssertionValue = AssertionValue(assertion.negate, value)
+private[test] final case class ConcurrentHashMap[K, V] private (private val map: JConcurrentHashMap[K, V]) {
+  final def getOrElseUpdate(key: K, op: => V): V =
+    map.computeIfAbsent(key, _ => op)
 }
 
-object AssertionValue {
-  def apply[A](assertion0: Assertion[A], value0: => A): AssertionValue =
-    new AssertionValue {
-      type Value = A
-
-      lazy val value = value0
-
-      val assertion = assertion0
-    }
+private[test] object ConcurrentHashMap {
+  final def empty[K, V]: ConcurrentHashMap[K, V] =
+    new ConcurrentHashMap[K, V](new JConcurrentHashMap[K, V]())
 }

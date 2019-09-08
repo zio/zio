@@ -45,6 +45,12 @@ To learn more about ZIO, see the following references:
 
 ---
 
+## Code of Conduct
+
+See the [Code of Conduct](CODE_OF_CONDUCT.md)
+
+---
+
 ### Legal
 
 Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reserved.

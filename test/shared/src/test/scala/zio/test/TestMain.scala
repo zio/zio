@@ -16,6 +16,7 @@ object TestMain {
       scope(ConsoleSpec.run, "ConsoleSpec"),
       scope(DefaultTestReporterSpec.run, "DefaultTestReporterSpec"),
       scope(EnvironmentSpec.run, "EnvironmentSpec"),
+      scope(FunSpec.run, "FunSpec"),
       scope(GenSpec.run, "GenSpec"),
       scope(LiveSpec.run, "LiveSpec"),
       scope(RandomSpec.run, "RandomSpec"),

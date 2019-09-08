@@ -3,7 +3,6 @@ package zio.test.mock
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.Future
-import scala.util.{ Random => SRandom }
 
 import zio._
 import zio.duration._
@@ -16,7 +15,7 @@ object EnvironmentSpec extends DefaultRuntime {
     label(currentTime, "Clock returns time when it is set"),
     label(putStrLn, "Console writes line to output"),
     label(getStrLn, "Console reads line from input"),
-    label(nextInt, "Random returns next integer when data is fed"),
+    label(nextInt, "Random returns next pseudorandom integer"),
     label(env, "System returns an environment variable when it is set"),
     label(property, "System returns a property when it is set "),
     label(lineSeparator, "System returns the line separator when it is set ")
@@ -52,11 +51,11 @@ object EnvironmentSpec extends DefaultRuntime {
     }
 
   def nextInt =
-    withEnvironment {
+    unsafeRunToFuture {
       for {
-        _ <- MockRandom.setSeed(4491842685265857478L)
-        n <- random.nextInt
-      } yield n == new SRandom(4491842685265857478L).nextInt()
+        i <- random.nextInt.provideManaged(MockEnvironment.Value)
+        j <- random.nextInt.provideManaged(MockEnvironment.Value)
+      } yield i != j
     }
 
   def env =

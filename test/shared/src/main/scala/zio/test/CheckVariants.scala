@@ -54,31 +54,31 @@ trait CheckVariants {
    * Checks the effectual test passes for "sufficient" numbers of samples from
    * the given random variable.
    */
-  final def checkM[R, A](rv: Gen[R, A])(test: A => ZIO[R, Nothing, TestResult]): ZIO[R, Nothing, TestResult] =
+  final def checkM[R, E, A](rv: Gen[R, A])(test: A => ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
     checkSomeM(rv)(200)(test)
 
   /**
    * A version of `checkM` that accepts two random variables.
    */
-  final def checkM[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    test: (A, B) => ZIO[R, Nothing, TestResult]
-  ): ZIO[R, Nothing, TestResult] =
+  final def checkM[R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+    test: (A, B) => ZIO[R, E, TestResult]
+  ): ZIO[R, E, TestResult] =
     checkM(rv1 <*> rv2)(test.tupled)
 
   /**
    * A version of `checkM` that accepts three random variables.
    */
-  final def checkM[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (A, B, C) => ZIO[R, Nothing, TestResult]
-  ): ZIO[R, Nothing, TestResult] =
+  final def checkM[R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+    test: (A, B, C) => ZIO[R, E, TestResult]
+  ): ZIO[R, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
    * A version of `checkM` that accepts four random variables.
    */
-  final def checkM[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-    test: (A, B, C, D) => ZIO[R, Nothing, TestResult]
-  ): ZIO[R, Nothing, TestResult] =
+  final def checkM[R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+    test: (A, B, C, D) => ZIO[R, E, TestResult]
+  ): ZIO[R, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
@@ -116,31 +116,31 @@ trait CheckVariants {
    * variable. This is useful for deterministic `Gen` that comprehensively
    * explore all possibilities in a given domain.
    */
-  final def checkAllM[R, A](rv: Gen[R, A])(test: A => ZIO[R, Nothing, TestResult]): ZIO[R, Nothing, TestResult] =
+  final def checkAllM[R, E, A](rv: Gen[R, A])(test: A => ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
     checkStream(rv.sample)(test)
 
   /**
    * A version of `checkAllM` that accepts two random variables.
    */
-  final def checkAllM[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    test: (A, B) => ZIO[R, Nothing, TestResult]
-  ): ZIO[R, Nothing, TestResult] =
+  final def checkAllM[R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+    test: (A, B) => ZIO[R, E, TestResult]
+  ): ZIO[R, E, TestResult] =
     checkAllM(rv1 <*> rv2)(test.tupled)
 
   /**
    * A version of `checkAllM` that accepts three random variables.
    */
-  final def checkAllM[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (A, B, C) => ZIO[R, Nothing, TestResult]
-  ): ZIO[R, Nothing, TestResult] =
+  final def checkAllM[R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+    test: (A, B, C) => ZIO[R, E, TestResult]
+  ): ZIO[R, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3)(reassociate(test))
 
   /**
    * A version of `checkAllM` that accepts four random variables.
    */
-  final def checkAllM[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
-    test: (A, B, C, D) => ZIO[R, Nothing, TestResult]
-  ): ZIO[R, Nothing, TestResult] =
+  final def checkAllM[R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+    test: (A, B, C, D) => ZIO[R, E, TestResult]
+  ): ZIO[R, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
 
   /**
@@ -178,54 +178,60 @@ trait CheckVariants {
    * Checks the effectual test passes for the specified number of samples from
    * the given random variable.
    */
-  final def checkSomeM[R, A](
-    rv: Gen[R, A]
-  )(n: Int)(test: A => ZIO[R, Nothing, TestResult]): ZIO[R, Nothing, TestResult] =
+  final def checkSomeM[R, E, A](rv: Gen[R, A])(n: Int)(test: A => ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
     checkStream(rv.sample.forever.take(n))(test)
 
   /**
    * A version of `checkSomeM` that accepts two random variables.
    */
-  final def checkSomeM[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+  final def checkSomeM[R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
     n: Int
-  )(test: (A, B) => ZIO[R, Nothing, TestResult]): ZIO[R, Nothing, TestResult] =
+  )(test: (A, B) => ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
     checkSomeM(rv1 <*> rv2)(n)(test.tupled)
 
   /**
    * A version of `checkSomeM` that accepts three random variables.
    */
-  final def checkSomeM[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  final def checkSomeM[R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     n: Int
-  )(test: (A, B, C) => ZIO[R, Nothing, TestResult]): ZIO[R, Nothing, TestResult] =
+  )(test: (A, B, C) => ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
     checkSomeM(rv1 <*> rv2 <*> rv3)(n)(reassociate(test))
 
   /**
    * A version of `checkSomeM` that accepts four random variables.
    */
-  final def checkSomeM[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+  final def checkSomeM[R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     n: Int
-  )(test: (A, B, C, D) => ZIO[R, Nothing, TestResult]): ZIO[R, Nothing, TestResult] =
+  )(test: (A, B, C, D) => ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
     checkSomeM(rv1 <*> rv2 <*> rv3 <*> rv4)(n)(reassociate(test))
 
-  private final def checkStream[R, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
-    test: A => ZIO[R, Nothing, TestResult]
-  ): ZIO[R, Nothing, TestResult] =
-    stream
-      .mapM(_.traverse(test))
-      .dropWhile(!_.value.isFailure) // Drop until we get to a failure
-      .take(1)                       // Get the first failure
-      .flatMap(_.shrinkSearch(_.isFailure).take(maxShrinks))
-      .run(ZSink.collectAll[TestResult]) // Collect all the shrunken failures
-      .map { failures =>
+  private final def checkStream[R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
+    test: A => ZIO[R, E, TestResult]
+  ): ZIO[R, E, TestResult] =
+    stream.zipWithIndex.mapM {
+      case (initial, index) =>
+        initial.traverse(
+          input =>
+            test(input)
+              .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+              .either
+        )
+    }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
+      .take(1)                                          // Get the first failure
+      .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks))
+      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken failures
+      .flatMap { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[TestResult](
-          BoolAlgebra.success {
-            FailureDetails(
-              AssertionValue(Assertion.anything, ()),
-              AssertionValue(Assertion.anything, ())
-            )
+        failures.reverse.headOption.fold[ZIO[R, E, TestResult]](
+          ZIO.succeed {
+            BoolAlgebra.success {
+              FailureDetails(
+                AssertionValue(Assertion.anything, ()),
+                AssertionValue(Assertion.anything, ())
+              )
+            }
           }
-        )(identity)
+        )(ZIO.fromEither(_))
       }
 
   private final def reassociate[A, B, C, D](f: (A, B, C) => D): (((A, B), C)) => D = {

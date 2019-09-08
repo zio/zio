@@ -17,27 +17,23 @@
 package zio.test
 
 /**
- * An `AssertionValue` keeps track of a assertion and a value, existentially
- * hiding the type. This is used internally by the library to provide useful
- * error messages in the event of test failures.
+ * `GenFailureDetails` keeps track of relevant information related to a failure in a generative test.
  */
-sealed trait AssertionValue {
+sealed trait GenFailureDetails {
   type Value
 
-  val value: Value
-
-  val assertion: Assertion[Value]
-
-  def negate: AssertionValue = AssertionValue(assertion.negate, value)
+  val initialInput: Value
+  val shrinkedInput: Value
+  val iterations: Int
 }
 
-object AssertionValue {
-  def apply[A](assertion0: Assertion[A], value0: => A): AssertionValue =
-    new AssertionValue {
+object GenFailureDetails {
+  def apply[A](initialInput0: A, shrinkedInput0: A, iterations0: Int): GenFailureDetails =
+    new GenFailureDetails {
       type Value = A
 
-      lazy val value = value0
-
-      val assertion = assertion0
+      val initialInput: Value  = initialInput0
+      val shrinkedInput: Value = shrinkedInput0
+      val iterations: Int      = iterations0
     }
 }
