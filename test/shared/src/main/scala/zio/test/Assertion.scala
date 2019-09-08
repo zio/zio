@@ -208,8 +208,11 @@ object Assertion {
    */
   final def equalTo[A](expected: A): Assertion[A] =
     Assertion.assertion("equalTo")(param(expected)) { actual =>
-      if (actual == expected) AssertResult.success(())
-      else AssertResult.failure(())
+      val equal = (expected, actual) match {
+        case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
+        case (left, right)                     => left == right
+      }
+      if (equal) AssertResult.success(()) else AssertResult.failure(())
     }
 
   /**
