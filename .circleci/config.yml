@@ -55,11 +55,11 @@ save_cache: &save_cache
 
 store_artifacts: &store_artifacts
   - store_artifacts:
-    path: target/test_reports
+      path: target/test_reports
 
 store_jvm_test_results: &store_jvm_test_results
   - store_test_results:
-    path: test-results/jvm
+      path: test-results/jvm
 
 store_js_test_results: &store_js_test_results
   - store_test_results:
