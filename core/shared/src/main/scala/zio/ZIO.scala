@@ -114,15 +114,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.assert(_ => assertion, message)
 
   /**
-   * Dies with a [[java.lang.AssertionError]] having the specified text message
+   * Dies with a [[zio.AssertionFailure]] having the specified text message
    * if assertion on success value fails, otherwise proceeds with the underlaying effect.
    */
   final def assert(assertion: A => Boolean, message: => String = ""): ZIO[R, E, A] =
-    self.map { value =>
-      if (message.isEmpty) Predef.assert(assertion(value))
-      else Predef.assert(assertion(value), message)
+    self.filterOrDie(assertion) {
+      val error =
+        if (message.isEmpty) "assertion failed"
+        else s"assertion failed: $message"
 
-      value
+      new AssertionFailure(error)
     }
 
   /**
@@ -332,6 +333,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
    */
   final def eventually: ZIO[R, Nothing, A] = self orElse eventually
+
+  /**
+   * Dies with specified `Throwable` if the predicate fails.
+   */
+  final def filterOrDie(p: A => Boolean)(t: => Throwable): ZIO[R, E, A] =
+    self.filterOrElse_(p)(ZIO.die(t))
+
+  /**
+   * Dies with a [[java.lang.RuntimeException]] having the specified text message
+   * if the predicate fails.
+   */
+  final def filterOrDieMessage(p: A => Boolean)(message: => String): ZIO[R, E, A] =
+    self.filterOrElse_(p)(ZIO.dieMessage(message))
 
   /**
    * Applies `f` if the predicate fails.
