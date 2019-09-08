@@ -16,8 +16,6 @@
 
 package zio.test
 
-import java.util.concurrent.TimeoutException
-
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
@@ -127,8 +125,8 @@ object DefaultTestReporter {
 
   private def renderCause(cause: Cause[Any], offset: Int): String =
     cause match {
-      case Cause.Die(value) if value.isInstanceOf[TimeoutException] => value.getMessage
-      case _                                                        => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+      case Cause.Die(TestTimeoutException(message)) => message
+      case _                                        => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
     }
 
   private def withOffset(n: Int)(s: String): String =

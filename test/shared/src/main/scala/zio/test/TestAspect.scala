@@ -16,8 +16,6 @@
 
 package zio.test
 
-import java.util.concurrent.TimeoutException
-
 import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration.Duration
 import zio.clock.Clock
@@ -290,7 +288,7 @@ object TestAspect extends TimeoutVariants {
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         Live.withLive(test)(_.timeout(duration)).flatMap {
           case None =>
-            ZIO.fail(TestFailure.Runtime(Cause.die(new TimeoutException(s"Timeout of ${duration.render} exceeded"))))
+            ZIO.fail(TestFailure.Runtime(Cause.die(TestTimeoutException(s"Timeout of ${duration.render} exceeded"))))
           case Some(v) => ZIO.succeed(v)
         }
     }
