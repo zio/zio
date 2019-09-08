@@ -59,11 +59,11 @@ store_artifacts: &store_artifacts
 
 store_jvm_test_results: &store_jvm_test_results
   - store_test_results:
-      path: test-results/jvm
+      path: test_results/jvm
 
 store_js_test_results: &store_js_test_results
   - store_test_results:
-    path: test-results/js
+      path: test_results/js
 
 install_yarn: &install_yarn
   - run:
