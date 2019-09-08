@@ -3,8 +3,8 @@ package zio.test
 import scala.concurrent.Future
 
 import zio.{ random, Chunk, DefaultRuntime, ZIO }
-import zio.test.Assertion.{ equalTo, isLessThan }
-import zio.test.TestUtils.{ failed, label, succeeded }
+import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
+import zio.test.TestUtils.{ execute, failed, forAllTests, label, succeeded }
 
 object CheckSpec extends DefaultRuntime {
 
@@ -14,7 +14,8 @@ object CheckSpec extends DefaultRuntime {
     label(errorInCheckMIsTestFailure, "error in checkM is test failure"),
     label(overloadedCheckMethodsWork, "overloaded check methods work"),
     label(testsCanBeWrittenInPropertyBasedStyle, "tests can be written in property based style"),
-    label(testsWithFilteredGeneratorsTerminate, "tests with filtered generators terminate")
+    label(testsWithFilteredGeneratorsTerminate, "tests with filtered generators terminate"),
+    label(failingTestsContainGenFailureDetails, "failing tests contain gen failure details")
   )
 
   def checkMIsPolymorphicInErrorType: Future[Boolean] =
@@ -90,5 +91,18 @@ object CheckSpec extends DefaultRuntime {
         }
       }
       failed(filtered)
+    }
+
+  def failingTestsContainGenFailureDetails: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = testM("GenFailureDetails") {
+        check(Gen.anyInt) { a =>
+          assert(a, isGreaterThan(0))
+        }
+      }
+      forAllTests(execute(spec)) {
+        case Left(TestFailure.Assertion(AssertResult.Value(details))) => details.gen.fold(false)(_.shrinkedInput == 0)
+        case _                                                        => false
+      }
     }
 }

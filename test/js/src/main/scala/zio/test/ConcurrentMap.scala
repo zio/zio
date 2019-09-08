@@ -16,7 +16,14 @@
 
 package zio.test
 
-/**
- * `FailureDetails` keeps track of details relevant to failures.
- */
-final case class FailureDetails(fragment: AssertionValue, whole: AssertionValue, gen: Option[GenFailureDetails] = None)
+import scala.collection.mutable.Map
+
+private[test] final case class ConcurrentHashMap[K, V] private (private val map: Map[K, V]) {
+  final def getOrElseUpdate(key: K, op: => V): V =
+    map.getOrElseUpdate(key, op)
+}
+
+private[test] object ConcurrentHashMap {
+  final def empty[K, V]: ConcurrentHashMap[K, V] =
+    new ConcurrentHashMap[K, V](Map.empty[K, V])
+}

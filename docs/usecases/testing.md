@@ -3,7 +3,17 @@ id: usecases_testing
 title:  "Testing"
 ---
 
-**ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. Begin by adding the required dependency on `zio-test`, and for SBT integration `zio-test-sbt` along with adding `new TestFramework("zio.test.sbt.ZTestFramework")` to your SBT settings. From there the fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
+**ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. Begin by adding the required configuration in your SBT settings:
+
+```scala
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-test"     % zioVersion % "test",
+  "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+),
+testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
+```
+
+From there the fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
 
 ```scala
 import zio._
