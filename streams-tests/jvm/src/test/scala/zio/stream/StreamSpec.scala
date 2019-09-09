@@ -65,6 +65,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   Stream.drain              $drain
 
+  Stream.dropUntil
+    dropUntil         $dropUntil
+    short circuits    $dropUntilShortCircuiting
+
   Stream.dropWhile
     dropWhile         $dropWhile
     short circuits    $dropWhileShortCircuiting
@@ -199,6 +203,8 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     take short circuits      $takeShortCircuits
     take(0) short circuits   $take0ShortCircuitsStreamNever
     take(1) short circuits   $take1ShortCircuitsStreamNever
+    takeUntil                $takeUntil
+    takeUntil short circuits $takeUntilShortCircuits
     takeWhile                $takeWhile
     takeWhile short circuits $takeWhileShortCircuits
 
@@ -608,6 +614,24 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         l   <- ref.get
       } yield l.reverse must_=== (0 to 10).toList
     )
+
+  private def dropUntil = {
+    def dropUntil[A](as: List[A])(f: A => Boolean): List[A] =
+      as.dropWhile(!f(_)).drop(1)
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
+      unsafeRunSync(s.dropUntil(p).runCollect) must_=== unsafeRunSync(s.runCollect.map(dropUntil(_)(p)))
+    }
+  }
+
+  private def dropUntilShortCircuiting =
+    unsafeRun {
+      (Stream(1) ++ Stream.fail("Ouch"))
+        .take(1)
+        .dropUntil(_ => false)
+        .runDrain
+        .either
+        .map(_ must beRight(()))
+    }
 
   private def dropWhile =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
@@ -1570,6 +1594,25 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       for {
         ints <- (Stream(1) ++ Stream.never).take(1).run(Sink.collectAll[Int])
       } yield ints must_=== List(1)
+    )
+
+  private def takeUntil = {
+    def takeUntil[A](as: List[A])(f: A => Boolean): List[A] =
+      as.takeWhile(!f(_)) ++ as.dropWhile(!f(_)).take(1)
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
+      val streamTakeWhile = unsafeRunSync(s.takeUntil(p).runCollect)
+      val listTakeWhile   = unsafeRunSync(s.runCollect.map(takeUntil(_)(p)))
+      listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
+    }
+  }
+
+  private def takeUntilShortCircuits =
+    unsafeRun(
+      (Stream(1) ++ Stream.fail("Ouch"))
+        .takeUntil(_ => true)
+        .runDrain
+        .either
+        .map(_ must beRight(()))
     )
 
   private def takeWhile =

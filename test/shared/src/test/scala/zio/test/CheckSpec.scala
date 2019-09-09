@@ -2,8 +2,8 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ random, Chunk, DefaultRuntime, ZIO }
-import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
+import zio.{ random, Chunk, DefaultRuntime, Ref, ZIO }
+import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isTrue }
 import zio.test.TestUtils.{ execute, failed, forAllTests, label, succeeded }
 
 object CheckSpec extends DefaultRuntime {
@@ -13,6 +13,7 @@ object CheckSpec extends DefaultRuntime {
     label(effectualPropertiesCanBeTests, "effectual properties can be tested"),
     label(errorInCheckMIsTestFailure, "error in checkM is test failure"),
     label(overloadedCheckMethodsWork, "overloaded check methods work"),
+    label(maxShrinksIsRespected, "max shrinks is respected"),
     label(testsCanBeWrittenInPropertyBasedStyle, "tests can be written in property based style"),
     label(testsWithFilteredGeneratorsTerminate, "tests with filtered generators terminate"),
     label(failingTestsContainGenFailureDetails, "failing tests contain gen failure details")
@@ -55,6 +56,26 @@ object CheckSpec extends DefaultRuntime {
       }
       failed(nextInt)
     }
+
+  def maxShrinksIsRespected: Future[Boolean] = {
+    val gen = Gen.listOfN(100)(Gen.int(-10, 10))
+    unsafeRunToFuture {
+      for {
+        ref <- Ref.make(0)
+        _ <- execute {
+              testM("shrink") {
+                checkM(gen <*> gen) { _ =>
+                  for {
+                    _ <- ref.update(_ + 1)
+                    p <- random.nextInt(10).map(_ != 0)
+                  } yield assert(p, isTrue)
+                }
+              }
+            }
+        result <- ref.get
+      } yield result <= 1200
+    }
+  }
 
   def overloadedCheckMethodsWork: Future[Boolean] =
     unsafeRunToFuture {

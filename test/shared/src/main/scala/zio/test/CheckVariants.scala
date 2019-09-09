@@ -222,7 +222,10 @@ trait CheckVariants {
       .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken failures
       .flatMap { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption
+        failures
+          .filter(_.fold(_ => true, _.isFailure))
+          .reverse
+          .headOption
           .fold[ZIO[R, E, TestResult]](ZIO.succeed(AssertResult.success(())))(ZIO.fromEither(_))
       }
 
