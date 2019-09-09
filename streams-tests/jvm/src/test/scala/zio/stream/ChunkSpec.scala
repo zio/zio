@@ -183,9 +183,10 @@ class ChunkSpec extends Specification with ScalaCheck {
     ((c1 == c2) && (c1.hashCode == c2.hashCode)) must beTrue
   }
 
-  def testzipAllWith =
+  def testzipAllWith = {
     (Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _) == Chunk(4, 4, 4)) &&
       (Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _) == Chunk(4, 4, 0)) &&
-      (Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _)) == Chunk
+      (Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _)) == Chunk(4, 4, 0)
 
+}
 }
