@@ -45,6 +45,14 @@ object AssertionSpec {
       message = "equalTo must fail when value does not equal specified value"
     ),
     testSuccess(
+      assert(Array(1, 2, 3), equalTo(Array(1, 2, 3))),
+      message = "equalTo must succeed when array equals specified array"
+    ),
+    testFailure(
+      assert(Array(1, 2, 3), equalTo(Array(1, 2, 4))),
+      message = "equalTo must fail when array does not equal specified array"
+    ),
+    testSuccess(
       assert(Seq(1, 42, 5), exists(equalTo(42))),
       message = "exists must succeed when at least one element of iterable satisfy specified assertion"
     ),
