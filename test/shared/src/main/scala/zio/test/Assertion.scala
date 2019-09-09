@@ -199,7 +199,12 @@ object Assertion {
    * Makes a new assertion that requires a value equal the specified value.
    */
   final def equalTo[A](expected: A): Assertion[A] =
-    Assertion.assertion("equalTo")(param(expected))(_ == expected)
+    Assertion.assertion("equalTo")(param(expected)) { actual =>
+      (expected, actual) match {
+        case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
+        case (left, right)                     => left == right
+      }
+    }
 
   /**
    * Makes a new assertion that requires an iterable contain one element
