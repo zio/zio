@@ -74,15 +74,7 @@ trait TimeoutVariants {
     suiteLabels.map(label => "in Suite \"" + label + "\", ").reverse.mkString
 
   private def renderTest[L](testLabel: L, duration: Duration): String =
-    "test " + "\"" + testLabel + "\"" + " has taken more than " + renderDuration(duration) +
+    "test " + "\"" + testLabel + "\"" + " has taken more than " + duration.render +
       " to execute. If this is not expected, consider using TestAspect.timeout to timeout runaway tests for faster diagnostics."
 
-  private def renderDuration(duration: Duration): String =
-    duration.toMillis match {
-      case 0     => "0 seconds"
-      case 1000  => "1 second"
-      case 60000 => "1 minute"
-      case millis if millis % 60000 == 0 => s"${millis / 60000} minutes"
-      case millis => s"${millis / 1000} seconds"
-    }
 }

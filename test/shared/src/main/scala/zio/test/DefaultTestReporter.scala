@@ -83,10 +83,9 @@ object DefaultTestReporter {
       }
     val (success, ignore, failure) = loop(executedSpec.mapLabel(_.toString))
     val total                      = success + ignore + failure
-    val seconds                    = duration.toMillis / 1000
     TestLogger.logLine(
       cyan(
-        s"Ran $total test${if (total == 1) "" else "s"} in $seconds second${if (seconds == 1) "" else "s"}: $success succeeded, $ignore ignored, $failure failed"
+        s"Ran $total test${if (total == 1) "" else "s"} in ${duration.render}: $success succeeded, $ignore ignored, $failure failed"
       )
     )
   }
@@ -139,7 +138,10 @@ object DefaultTestReporter {
     }
 
   private def renderCause(cause: Cause[Any], offset: Int): String =
-    cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+    cause match {
+      case Cause.Die(TestTimeoutException(message)) => message
+      case _                                        => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+    }
 
   private def withOffset(n: Int)(s: String): String =
     " " * n + s
