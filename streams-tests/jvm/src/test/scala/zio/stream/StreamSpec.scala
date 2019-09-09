@@ -67,7 +67,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   Stream.dropUntil
     dropUntil         $dropUntil
-    short circuits    $dropUntilShortCircuiting
 
   Stream.dropWhile
     dropWhile         $dropWhile
@@ -204,7 +203,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     take(0) short circuits   $take0ShortCircuitsStreamNever
     take(1) short circuits   $take1ShortCircuitsStreamNever
     takeUntil                $takeUntil
-    takeUntil short circuits $takeUntilShortCircuits
     takeWhile                $takeWhile
     takeWhile short circuits $takeWhileShortCircuits
 
@@ -622,16 +620,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       unsafeRunSync(s.dropUntil(p).runCollect) must_=== unsafeRunSync(s.runCollect.map(dropUntil(_)(p)))
     }
   }
-
-  private def dropUntilShortCircuiting =
-    unsafeRun {
-      (Stream(1) ++ Stream.fail("Ouch"))
-        .take(1)
-        .dropUntil(_ => false)
-        .runDrain
-        .either
-        .map(_ must beRight(()))
-    }
 
   private def dropWhile =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
@@ -1605,15 +1593,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
     }
   }
-
-  private def takeUntilShortCircuits =
-    unsafeRun(
-      (Stream(1) ++ Stream.fail("Ouch"))
-        .takeUntil(_ => true)
-        .runDrain
-        .either
-        .map(_ must beRight(()))
-    )
 
   private def takeWhile =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
