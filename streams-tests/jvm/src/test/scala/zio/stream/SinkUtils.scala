@@ -65,7 +65,7 @@ trait SinkUtils {
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ): ZIO[Any, Nothing, TestResult] =
+    ): UIO[TestResult] =
       for {
         zb  <- s.run(sink1).either
         zc  <- s.run(sink2).either
@@ -81,7 +81,7 @@ trait SinkUtils {
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ): ZIO[Any, Nothing, TestResult] =
+    ): UIO[TestResult] =
       for {
         res     <- s.run(sink1.zipPar(sink2).zip(ZSink.collectAll[A])).either
         swapped <- s.run(sink2.zipPar(sink1).zip(ZSink.collectAll[A])).either
@@ -95,7 +95,7 @@ trait SinkUtils {
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ): ZIO[Any, Nothing, TestResult] = {
+    ): UIO[TestResult] = {
       val maybeProp = for {
         rem1 <- s.run(sink1.zipRight(ZSink.collectAll[A]))
         rem2 <- s.run(sink2.zipRight(ZSink.collectAll[A]))
@@ -112,7 +112,7 @@ trait SinkUtils {
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ): ZIO[Any, Nothing, TestResult] =
+    ): UIO[TestResult] =
       (coherence(s, sink1, sink2) <*> remainders(s, sink1, sink2) <*> swap(s, sink1, sink2)).map {
         case ((c, r), s) => c && r && s
       }
