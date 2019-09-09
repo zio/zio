@@ -16,7 +16,7 @@
 
 package zio.test
 
-import scala.annotation.tailrec
+import scala.math.{ ceil, floor, log, pow }
 
 /**
  * `MathUtils` provides common math functions used in ZIO Test.
@@ -28,36 +28,21 @@ private[test] object MathUtils {
    * the nearest integer. If the specified integer is zero or negative returns
    * zero.
    */
-  final def log2Ceil(n: Int): Int = {
-    @tailrec
-    def loop(i: Int, j: Int): Int =
-      if (i <= 0) j
-      else loop(i >> 1, j + 1)
-    loop(n - 1, 0)
-  }
+  final def log2Ceil(n: Int): Int =
+    if (n <= 0) 0 else ceil(log(n.toDouble) / log(2.0)).toInt
 
   /**
    * Returns the base two logarithm of the specified integer, rounding down to
    * the nearest integer. If the specified integer is zero or negative returns
    * zero.
    */
-  final def log2Floor(n: Int): Int = {
-    @tailrec
-    def loop(i: Int, j: Int): Int =
-      if (i <= 1) j
-      else loop(i >> 1, j + 1)
-    loop(n, 0)
-  }
+  final def log2Floor(n: Int): Int =
+    if (n <= 0) 0 else floor(log(n.toDouble) / log(2.0)).toInt
 
   /**
    * Returns two raised to the specified power. If the specified power is
    * negative returns zero.
    */
-  final def pow2(n: Int): Int = {
-    @tailrec
-    def loop(i: Int, j: Int): Int =
-      if (j <= 0) i
-      else loop(i << 1, j - 1)
-    if (n < 0) 0 else loop(1, n)
-  }
+  final def pow2(n: Int): Int =
+    pow(2.0, n.toDouble).toInt
 }
