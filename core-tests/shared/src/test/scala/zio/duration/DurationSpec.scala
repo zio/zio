@@ -244,8 +244,8 @@ class DurationSpec extends Specification {
     Duration(2500, TimeUnit.MILLISECONDS).render must_=== "2 s 500 ms"
 
   def render1min =
-    Duration(1, TimeUnit.MINUTES).render must_=== "1 min"
+    Duration(1, TimeUnit.MINUTES).render must_=== "1 m"
 
   def render2min30 =
-    Duration(150, TimeUnit.SECONDS).render must_=== "2 min 30 s"
+    Duration(150, TimeUnit.SECONDS).render must_=== "2 m 30 s"
 }

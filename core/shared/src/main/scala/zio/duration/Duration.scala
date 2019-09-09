@@ -112,8 +112,8 @@ object Duration {
         case millis if millis < 1000 => s"$millis ms"
         case millis if millis < 60000 && millis % 1000 == 0 => s"${millis / 1000} s"
         case millis if millis < 60000 => s"${millis / 1000} s ${millis % 1000} ms"
-        case millis if (millis % 60000) / 1000 == 0 => s"${millis / 60000} min"
-        case millis => s"${millis / 60000} min ${(millis % 60000) / 1000} s"
+        case millis if (millis % 60000) / 1000 == 0 => s"${millis / 60000} m"
+        case millis => s"${millis / 60000} m ${(millis % 60000) / 1000} s"
       }
   }
 
