@@ -58,7 +58,7 @@ object CheckSpec extends DefaultRuntime {
     }
 
   def maxShrinksIsRespected: Future[Boolean] = {
-    val gen = Gen.listOfN(100)(Gen.int(-10, 10))
+    val gen = Gen.listOfN(10)(Gen.int(-10, 10))
     unsafeRunToFuture {
       for {
         ref <- Ref.make(0)

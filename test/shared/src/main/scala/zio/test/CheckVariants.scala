@@ -224,8 +224,7 @@ trait CheckVariants {
         // Get the "last" failure, the smallest according to the shrinker:
         failures
           .filter(_.fold(_ => true, _.isFailure))
-          .reverse
-          .headOption
+          .lastOption
           .fold[ZIO[R, E, TestResult]](ZIO.succeed(AssertResult.success(())))(ZIO.fromEither(_))
       }
 
