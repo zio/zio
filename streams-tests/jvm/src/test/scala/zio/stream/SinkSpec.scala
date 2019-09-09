@@ -1075,8 +1075,7 @@ object SinkSpec
             } yield {
               assert(Step.cont(state1), isTrue) &&
               assert(Step.cont(state2), isFalse) &&
-              // ZIO TEST: array equality
-              assert(string.getBytes("UTF-8").toList, equalTo(List(0xC2.toByte, 0xA2.toByte)))
+              assert(string.getBytes("UTF-8"), equalTo(Array(0xC2.toByte, 0xA2.toByte)))
             }
           },
           testM("incomplete chunk 2") {
@@ -1088,8 +1087,7 @@ object SinkSpec
             } yield {
               assert(Step.cont(state1), isTrue) &&
               assert(Step.cont(state2), isFalse) &&
-              // ZIO TEST: array equality
-              assert(string.getBytes("UTF-8").toList, equalTo(List(0xE0.toByte, 0xA4.toByte, 0xB9.toByte)))
+              assert(string.getBytes("UTF-8"), equalTo(Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte)))
             }
           },
           testM("incomplete chunk 3") {
@@ -1101,8 +1099,7 @@ object SinkSpec
             } yield {
               assert(Step.cont(state1), isTrue) &&
               assert(Step.cont(state2), isFalse) &&
-              // ZIO TEST: array equality
-              assert(string.getBytes("UTF-8").toList, equalTo(List(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte)))
+              assert(string.getBytes("UTF-8"), equalTo(Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte)))
             }
           },
           testM("chunk with leftover") {
@@ -1115,10 +1112,9 @@ object SinkSpec
                          )
             } yield {
               assert(Step.cont(state1), isFalse) &&
-              // ZIO TEST: array equality
               assert(
-                Step.leftover(state1).flatMap(identity).toArray[Byte].toList,
-                equalTo(List(0xF0.toByte, 0x90.toByte))
+                Step.leftover(state1).flatMap(identity).toArray[Byte],
+                equalTo(Array(0xF0.toByte, 0x90.toByte))
               )
             }
           }
