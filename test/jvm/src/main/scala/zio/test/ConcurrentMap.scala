@@ -16,7 +16,14 @@
 
 package zio.test
 
-/**
- * `FailureDetails` keeps track of details relevant to failures.
- */
-final case class FailureDetails(fragment: AssertionValue, whole: AssertionValue, gen: Option[GenFailureDetails] = None)
+import java.util.concurrent.{ ConcurrentHashMap => JConcurrentHashMap }
+
+private[test] final case class ConcurrentHashMap[K, V] private (private val map: JConcurrentHashMap[K, V]) {
+  final def getOrElseUpdate(key: K, op: => V): V =
+    map.computeIfAbsent(key, _ => op)
+}
+
+private[test] object ConcurrentHashMap {
+  final def empty[K, V]: ConcurrentHashMap[K, V] =
+    new ConcurrentHashMap[K, V](new JConcurrentHashMap[K, V]())
+}
