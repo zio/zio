@@ -141,10 +141,9 @@ object ChunkSpec
             Chunk(2, 2, 2).filter(onlyOdd) ++
             Chunk(3, 3, 3).filter(onlyOdd)
 
-          // ZIO TEST: equality on arrays does not work
-          val array = Chunk.fromArray(concat.toArray)
+          val array = concat.toArray
 
-          assert(array, equalTo(Chunk(1, 1, 1, 3, 3, 3)))
+          assert(array, equalTo(Array(1, 1, 1, 3, 3, 3)))
         },
         test("toArrayOnConcatOfEmptyAndInts") {
           assert(Chunk.empty ++ Chunk.fromArray(Array(1, 2, 3)), equalTo(Chunk(1, 2, 3)))
