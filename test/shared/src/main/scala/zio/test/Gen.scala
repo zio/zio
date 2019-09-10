@@ -142,7 +142,7 @@ object Gen {
     }
 
   /**
-   * A generator of shorts. Shrinks towards the empty string.
+   * A generator of strings. Shrinks towards the empty string.
    */
   final val anyString: Gen[Random with Sized, String] =
     Gen.string(Gen.anyChar)
