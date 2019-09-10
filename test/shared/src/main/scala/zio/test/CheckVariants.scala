@@ -227,6 +227,7 @@ trait CheckVariants {
           .lastOption
           .fold[ZIO[R, E, TestResult]](ZIO.succeed(AssertResult.success(())))(ZIO.fromEither(_))
       }
+      .untraced
 
   private final def reassociate[A, B, C, D](f: (A, B, C) => D): (((A, B), C)) => D = {
     case ((a, b), c) => f(a, b, c)
