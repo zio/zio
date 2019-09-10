@@ -71,11 +71,11 @@ object AssertionSpec {
       message = "fails must fail when error value does not satisfy specified assertion"
     ),
     testSuccess(
-      assert(Exit.die(someException), fails(equalTo(someException))),
+      assert(Exit.die(someException), dies(equalTo(someException))),
       message = "dies must succeed when exception satisfy specified assertion"
     ),
     testFailure(
-      assert(Exit.die(new RuntimeException("Bam!")), fails(equalTo(someException))),
+      assert(Exit.die(new RuntimeException("Bam!")), dies(equalTo(someException))),
       message = "fails must fail when exception does not satisfy specified assertion"
     ),
     testSuccess(
