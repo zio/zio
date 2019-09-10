@@ -18,7 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
-import zio.Exit
+import zio.{ Cause, Exit }
 import zio.test.Assertion._
 import zio.test.Assertion.Render._
 
@@ -232,6 +232,18 @@ object Assertion {
     Assertion.assertionRec[Exit[E, Any]]("fails")(param(assertion)) { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.failures.length > 0 => assertion.run(cause.failures.head)
+
+        case _ => AssertResult.failure(AssertionValue(self, actual))
+      }
+    }
+
+  /**
+   * Makes a new assertion that requires an exit value to fail.
+   */
+  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
+    Assertion.assertionRec[Exit[Nothing, Any]]("dies")(param(assertion)) { (self, actual) =>
+      actual match {
+        case Exit.Failure(Cause.Die(t)) => assertion.run(t)
 
         case _ => AssertResult.failure(AssertionValue(self, actual))
       }
