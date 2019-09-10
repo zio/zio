@@ -1017,12 +1017,11 @@ object ZStreamSpec
             .fromInputStream(is, chunkSize)
             .run(Sink.collectAll[Chunk[Byte]])
             .map { chunks =>
-              chunks.flatMap(_.toArray[Byte]).toArray.toList
+              chunks.flatMap(_.toArray[Byte]).toArray
             }
             .run
 
-          // ZIO Test: array equality
-          assertM(result, succeeds(equalTo(data.toList)))
+          assertM(result, succeeds(equalTo(data)))
         },
         testM("Stream.fromIterable") {
           checkM(listOfInts) { l =>
