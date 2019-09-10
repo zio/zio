@@ -216,7 +216,7 @@ lazy val benchmarks = project.module
         "org.ow2.asm"              % "asm"              % "7.1",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.typelevel"            %% "cats-effect"     % "2.0.0-RC2"
+        "org.typelevel"            %% "cats-effect"     % "2.0.0"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
