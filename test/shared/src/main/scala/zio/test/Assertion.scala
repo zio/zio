@@ -243,7 +243,11 @@ object Assertion {
   final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
     Assertion.assertionRec[Exit[Nothing, Any]]("dies")(param(assertion)) { (self, actual) =>
       actual match {
-        case Exit.Failure(Cause.Die(t)) => assertion.run(t)
+        case Exit.Failure(cause) if cause.died =>
+          cause.untraced match {
+            case Cause.Die(t) => assertion.run(t)
+            case _            => AssertResult.failure(AssertionValue(self, actual))
+          }
 
         case _ => AssertResult.failure(AssertionValue(self, actual))
       }
