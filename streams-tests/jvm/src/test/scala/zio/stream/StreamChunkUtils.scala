@@ -15,13 +15,13 @@ trait StreamChunkUtils extends StreamUtils {
 
   def succeededStreamChunkGen[R <: Random, A: ClassTag](a: Gen[R, A]): Gen[R with Sized, StreamChunk[Nothing, A]] =
     pureStreamGen(chunkGen(a)).map(StreamChunk(_))
-
+}
+  
+object StreamChunkUtils extends StreamChunkUtils with GenUtils {
   def slurp[E, A](s: StreamChunk[E, A]): IO[E, Seq[A]] =
     s.foldChunks(Chunk.empty: Chunk[A])(_ => true)((acc, el) => IO.succeed(acc ++ el))
       .map(_.toSeq)
-}
 
-object StreamChunkUtils extends StreamChunkUtils with GenUtils {
   def foldLazyList[S, T](list: List[T], zero: S)(cont: S => Boolean)(f: (S, T) => S): S = {
     @tailrec
     def loop(xs: List[T], state: S): S = xs match {
@@ -30,5 +30,4 @@ object StreamChunkUtils extends StreamChunkUtils with GenUtils {
     }
     loop(list, zero)
   }
-
 }
