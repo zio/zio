@@ -212,12 +212,12 @@ trait CheckVariants {
       case (initial, index) =>
         initial.traverse(
           input =>
-            test(input)
+            test(input).traced
               .map(_.map(_.left.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index))))))
               .either
         )
     }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
-      .take(1)                                          // Get the first failure
+      .take(1)                                         // Get the first failure
       .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks))
       .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken failures
       .flatMap { failures =>
