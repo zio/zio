@@ -26,6 +26,8 @@ object AssertionSpec {
   val ageLessThan20    = hasField[SampleUser, Int]("age", _.age, isLessThan(20))
   val ageGreaterThan20 = hasField[SampleUser, Int]("age", _.age, isGreaterThan(20))
 
+  val someException = new RuntimeException("Boom!")
+
   def run: List[Async[(Boolean, String)]] = List(
     testSuccess(assert(42, anything), message = "anything must always succeeds"),
     testSuccess(
@@ -67,6 +69,14 @@ object AssertionSpec {
     testFailure(
       assert(Exit.fail("Other Error"), fails(equalTo("Some Error"))),
       message = "fails must fail when error value does not satisfy specified assertion"
+    ),
+    testSuccess(
+      assert(Exit.die(someException), fails(equalTo(someException))),
+      message = "dies must succeed when exception satisfy specified assertion"
+    ),
+    testFailure(
+      assert(Exit.die(new RuntimeException("Bam!")), fails(equalTo(someException))),
+      message = "fails must fail when exception does not satisfy specified assertion"
     ),
     testSuccess(
       assert(Seq("a", "bb", "ccc"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3)))),
