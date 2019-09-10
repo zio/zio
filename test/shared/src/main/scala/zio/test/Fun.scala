@@ -16,6 +16,10 @@
 
 package zio.test
 
+import java.util.concurrent.ConcurrentHashMap
+
+import scala.collection.JavaConverters._
+
 import zio.ZIO
 
 /**
@@ -27,9 +31,14 @@ import zio.ZIO
 private[test] final case class Fun[-A, +B] private (private val f: A => B, private val hash: A => Int)
     extends (A => B) {
 
-  final def apply(a: A): B = map.getOrElseUpdate(hash(a), f(a))
+  final def apply(a: A): B =
+    map.getOrElseUpdate(hash(a), (a, f(a)))._2
 
-  private[this] final val map = ConcurrentHashMap.empty[Int, B]
+  override final def toString: String =
+    map.map { case (_, (a, b)) => a + " -> " + b }.mkString("Fun(", ", ", ")")
+
+  private[this] final val map =
+    new ConcurrentHashMap[Int, (A, B)].asScala
 }
 
 private[test] object Fun {
