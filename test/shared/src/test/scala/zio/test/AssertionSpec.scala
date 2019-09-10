@@ -76,7 +76,7 @@ object AssertionSpec {
     ),
     testFailure(
       assert(Exit.die(new RuntimeException("Bam!")), dies(equalTo(someException))),
-      message = "fails must fail when exception does not satisfy specified assertion"
+      message = "dies must fail when exception does not satisfy specified assertion"
     ),
     testSuccess(
       assert(Seq("a", "bb", "ccc"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3)))),
