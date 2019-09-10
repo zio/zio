@@ -23,6 +23,7 @@ object GenSpec extends DefaultRuntime {
     label(anyIntShrinksToZero, "anyInt shrinks to zero"),
     label(anyLongShrinksToZero, "anyLong shrinks to zero"),
     label(anyShortShrinksToZero, "anyShort shrinks to zero"),
+    label(anyStringShrinksToEmptyString, "anyString shrinks to empty string"),
     label(booleanGeneratesTrueAndFalse, "boolean generates true and false"),
     label(booleanShrinksToFalse, "boolean shrinks to false"),
     label(byteGeneratesValuesInRange, "byte generates values in range"),
@@ -146,6 +147,9 @@ object GenSpec extends DefaultRuntime {
 
   def anyShortShrinksToZero: Future[Boolean] =
     checkShrink(Gen.anyShort)(0)
+
+  def anyStringShrinksToEmptyString: Future[Boolean] =
+    checkShrink(Gen.anyString)("")
 
   def booleanGeneratesTrueAndFalse: Future[Boolean] =
     checkSample(Gen.boolean)(ps => ps.exists(identity) && ps.exists(!_))
