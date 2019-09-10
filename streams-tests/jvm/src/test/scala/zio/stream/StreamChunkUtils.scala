@@ -1,5 +1,6 @@
 package zio.stream
 
+import scala.annotation.tailrec
 import scala.reflect.ClassTag
 import zio.random.Random
 import zio.test.{ Gen, Sized }
@@ -20,4 +21,14 @@ trait StreamChunkUtils extends StreamUtils {
       .map(_.toSeq)
 }
 
-object StreamChunkUtils extends StreamChunkUtils with GenUtils
+object StreamChunkUtils extends StreamChunkUtils with GenUtils {
+  def foldLazyList[S, T](list: List[T], zero: S)(cont: S => Boolean)(f: (S, T) => S): S = {
+    @tailrec
+    def loop(xs: List[T], state: S): S = xs match {
+      case head :: tail if cont(state) => loop(tail, f(state, head))
+      case _                           => state
+    }
+    loop(list, zero)
+  }
+
+}

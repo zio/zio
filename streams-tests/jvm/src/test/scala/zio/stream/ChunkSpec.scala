@@ -17,12 +17,12 @@ object ChunkSpec
           }
         },
         testM("length") {
-          check(chunkGen(Gen.anyInt)) { chunk =>
+          check(chunkGen(intGen)) { chunk =>
             assert(chunk.length, equalTo(chunk.toSeq.length))
           }
         },
         testM("equality") {
-          check(chunkGen(Gen.anyInt), chunkGen(Gen.anyInt)) { (c1, c2) =>
+          check(chunkGen(intGen), chunkGen(intGen)) { (c1, c2) =>
             assert(c1.equals(c2), equalTo(c1.toSeq.equals(c2.toSeq)))
           }
         },
@@ -30,36 +30,36 @@ object ChunkSpec
           assert(Chunk(1, 2, 3, 4, 5), Assertion.not(equalTo(Chunk(1, 2, 3, 4, 5, 6))))
         },
         testM("materialize") {
-          check(chunkGen(Gen.anyInt)) { c =>
+          check(chunkGen(intGen)) { c =>
             assert(c.materialize.toSeq, equalTo(c.toSeq))
           }
         },
         testM("foldLeft") {
-          val fn = Gen.function[Random with Sized, (String, Int), String](Gen.anyString)
-          check(Gen.anyString, fn, chunkGen(Gen.anyInt)) { (s0, f, c) =>
+          val fn = Gen.function[Random with Sized, (String, Int), String](stringGen)
+          check(stringGen, fn, chunkGen(intGen)) { (s0, f, c) =>
             assert(c.foldLeft(s0)(Function.untupled(f)), equalTo(c.toArray.foldLeft(s0)(Function.untupled(f))))
           }
         },
         testM("map") {
-          val fn = Gen.function[Random with Sized, Int, String](Gen.anyString)
-          check(chunkGen(Gen.anyInt), fn) { (c, f) =>
+          val fn = Gen.function[Random with Sized, Int, String](stringGen)
+          check(chunkGen(intGen), fn) { (c, f) =>
             assert(c.map(f).toSeq, equalTo(c.toSeq.map(f)))
           }
         },
         testM("flatMap") {
-          val fn = Gen.function[Random with Sized, Int, Chunk[Int]](chunkGen(Gen.anyInt))
-          check(chunkGen(Gen.anyInt), fn) { (c, f) =>
+          val fn = Gen.function[Random with Sized, Int, Chunk[Int]](chunkGen(intGen))
+          check(chunkGen(intGen), fn) { (c, f) =>
             assert(c.flatMap(f).toSeq, equalTo(c.toSeq.flatMap(f.andThen(_.toSeq))))
           }
         },
         testM("filter") {
           val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
-          check(chunkGen(Gen.anyString), fn) { (chunk, p) =>
+          check(chunkGen(stringGen), fn) { (chunk, p) =>
             assert(chunk.filter(p).toSeq, equalTo(chunk.toSeq.filter(p)))
           }
         },
         testM("drop chunk") {
-          check(chunkGen(Gen.anyInt), Gen.anyInt) { (chunk, n) =>
+          check(chunkGen(intGen), intGen) { (chunk, n) =>
             assert(chunk.drop(n).toSeq, equalTo(chunk.toSeq.drop(n)))
           }
         },
@@ -70,22 +70,22 @@ object ChunkSpec
           }
         },
         testM("dropWhile chunk") {
-          check(chunkGen(Gen.anyInt), toBoolFn[Random, Int]) { (c, p) =>
+          check(chunkGen(intGen), toBoolFn[Random, Int]) { (c, p) =>
             assert(c.dropWhile(p).toSeq, equalTo(c.toSeq.dropWhile(p)))
           }
         },
         testM("takeWhile chunk") {
-          check(chunkGen(Gen.anyInt), toBoolFn[Random, Int]) { (c, p) =>
+          check(chunkGen(intGen), toBoolFn[Random, Int]) { (c, p) =>
             assert(c.takeWhile(p).toSeq, equalTo(c.toSeq.takeWhile(p)))
           }
         },
         testM("toArray") {
-          check(chunkGen(Gen.anyInt)) { c =>
+          check(chunkGen(intGen)) { c =>
             assert(c.toArray.toSeq, equalTo(c.toSeq))
           }
         },
         testM("foreach") {
-          check(chunkGen(Gen.anyInt)) { c =>
+          check(chunkGen(intGen)) { c =>
             var sum = 0
             c.foreach(sum += _)
 
@@ -93,7 +93,7 @@ object ChunkSpec
           }
         },
         testM("concat chunk") {
-          check(chunkGen(Gen.anyInt), chunkGen(Gen.anyInt)) { (c1, c2) =>
+          check(chunkGen(intGen), chunkGen(intGen)) { (c1, c2) =>
             assert((c1 ++ c2).toSeq, equalTo(c1.toSeq ++ c2.toSeq))
           }
         },
