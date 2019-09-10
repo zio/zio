@@ -16,7 +16,7 @@ trait StreamChunkUtils extends StreamUtils {
   def succeededStreamChunkGen[R <: Random, A: ClassTag](a: Gen[R, A]): Gen[R with Sized, StreamChunk[Nothing, A]] =
     pureStreamGen(chunkGen(a)).map(StreamChunk(_))
 }
-  
+
 object StreamChunkUtils extends StreamChunkUtils with GenUtils {
   def slurp[E, A](s: StreamChunk[E, A]): IO[E, Seq[A]] =
     s.foldChunks(Chunk.empty: Chunk[A])(_ => true)((acc, el) => IO.succeed(acc ++ el))
