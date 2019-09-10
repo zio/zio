@@ -634,6 +634,12 @@ object ZSchedule {
     identity[A].whileInputM(f)
 
   /**
+   * A schedule that recurs for as long as the predicate is equal.
+   */
+  final def doWhileEquals[A](a: A): Schedule[A, A] =
+    identity[A].whileInput(_ == a)
+
+  /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
@@ -644,6 +650,12 @@ object ZSchedule {
    */
   final def doUntilM[A](f: A => UIO[Boolean]): Schedule[A, A] =
     identity[A].untilInputM(f)
+
+  /**
+   * A schedule that recurs for until the predicate is equal.
+   */
+  final def doUntilEquals[A](a: A): Schedule[A, A] =
+    identity[A].untilInput(_ == a)
 
   /**
    * A schedule that recurs for until the input value becomes applicable to partial function

@@ -98,6 +98,12 @@ object Schedule {
     ZSchedule.doWhileM(f)
 
   /**
+   * See [[ZSchedule.doWhileEquals]]
+   */
+  final def doWhileEquals[A](a: A): Schedule[A, A] =
+    ZSchedule.doWhileEquals(a)
+
+  /**
    * See [[[ZSchedule.doUntil[A](f:* ZSchedule.doUntil]]]
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
@@ -108,6 +114,12 @@ object Schedule {
    */
   final def doUntilM[A](f: A => UIO[Boolean]): Schedule[A, A] =
     ZSchedule.doUntilM(f)
+
+  /**
+   * See [[ZSchedule.doUntilEquals]]
+   */
+  final def doUntilEquals[A](a: A): Schedule[A, A] =
+    ZSchedule.doUntilEquals(a)
 
   /**
    * See [[ZSchedule.doUntil[A,B](pf:* ZSchedule.doUntil]]]
