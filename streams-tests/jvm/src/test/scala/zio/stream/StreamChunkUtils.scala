@@ -20,4 +20,4 @@ trait StreamChunkUtils extends StreamUtils {
       .map(_.toSeq)
 }
 
-object StreamChunkUtils extends StreamChunkUtils
+object StreamChunkUtils extends StreamChunkUtils with GenUtils
