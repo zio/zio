@@ -407,6 +407,15 @@ object ZStreamSpec
           } yield assert(l.reverse, equalTo((0 to 10).toList))
 
         },
+        testM("dropUntil") {
+          def dropUntil[A](as: List[A])(f: A => Boolean): List[A] = as.dropWhile(!f(_)).drop(1)
+          checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
+            for {
+              res1 <- s.dropUntil(p).runCollect
+              res2 <- s.runCollect.map(dropUntil(_)(p))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
         suite("Stream.dropWhile")(
           testM("dropWhile") {
             checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
@@ -1519,14 +1528,23 @@ object ZStreamSpec
             assertM((Stream(1) ++ Stream.never).take(1).run(Sink.collectAll[Int]), equalTo(List(1)))
 
           },
-          // testM("takeWhile") {
-          //   checkM(streamOfBytes, Gen[Byte => Boolean]) { (s, p) =>
-          //     for {
-          //       streamTakeWhile <- s.takeWhile(p).runCollect
-          //       listTakeWhile   <- s.runCollect.map(_.takeWhile(p))
-          //     } yeld assert (listTakeWhile.succeeded, isTrue) implies assert(streamTakeWhile, equalTo(listTakeWhile))
-          //   }
-          // },
+          testM("takeUntil") {
+            def takeUntil[A](as: List[A])(f: A => Boolean): List[A] = as.takeWhile(!f(_)) ++ as.dropWhile(!f(_)).take(1)
+            checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
+              for {
+                streamTakeWhile <- s.takeUntil(p).runCollect.run
+                listTakeWhile   <- s.runCollect.map(takeUntil(_)(p)).run
+              } yield assert(listTakeWhile.succeeded, isFalse) || assert(streamTakeWhile, equalTo(listTakeWhile))
+            }
+          },
+          testM("takeWhile") {
+            checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
+              for {
+                streamTakeWhile <- s.takeWhile(p).runCollect.run
+                listTakeWhile   <- s.runCollect.map(_.takeWhile(p)).run
+              } yield assert(listTakeWhile.succeeded, isFalse) || assert(streamTakeWhile, equalTo(listTakeWhile))
+            }
+          },
           testM("takeWhile short circuits") {
             assertM(
               (Stream(1) ++ Stream.fail("Ouch"))
