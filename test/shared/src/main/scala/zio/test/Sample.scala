@@ -45,11 +45,17 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   final def map[B](f: A => B): Sample[R, B] =
     Sample(f(value), shrink.map(_.map(f)))
 
+  /**
+   * Converts the shrink tree into a stream of shrinkings by recursively
+   * searching the shrink tree, using the specified function to determine
+   * whether a value is a failure. The resulting stream will contain all
+   * values explored, regardless of whether they are successes or failures.
+   */
   final def shrinkSearch(f: A => Boolean): ZStream[R, Nothing, A] =
     if (!f(value))
-      ZStream.empty
+      ZStream(value)
     else
-      ZStream(value) ++ shrink.dropWhile(v => !(f(v.value))).take(1).flatMap(_.shrinkSearch(f))
+      ZStream(value) ++ shrink.takeUntil(v => f(v.value)).flatMap(_.shrinkSearch(f))
 
   final def traverse[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): ZIO[R1, Nothing, Sample[R1, B]] =
     f(value).map(Sample(_, shrink.mapM(_.traverse(f))))

@@ -730,6 +730,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     self.zipWithIndex.filter(_._2 > n - 1).map(_._1)
 
   /**
+   * Drops all elements of the stream until the specified predicate evaluates
+   * to `true`.
+   */
+  def dropUntil(pred: A => Boolean): ZStream[R, E, A] =
+    dropWhile(!pred(_)).drop(1)
+
+  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
@@ -1677,6 +1684,26 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         pull = counter.modify { c =>
           if (c >= n) (Pull.end, c)
           else (as, c + 1)
+        }.flatten
+      } yield pull
+    }
+
+  /**
+   * Takes all elements of the stream until the specified predicate evaluates
+   * to `true`.
+   */
+  def takeUntil(pred: A => Boolean): ZStream[R, E, A] =
+    ZStream[R, E, A] {
+      for {
+        as            <- self.process
+        keepTakingRef <- Ref.make(true).toManaged_
+        pull = keepTakingRef.get.flatMap { p =>
+          if (!p) UIO.succeed(Pull.end)
+          else
+            as.flatMap { a =>
+              if (pred(a)) keepTakingRef.set(false) *> UIO.succeed(Pull.emit(a))
+              else UIO.succeed(Pull.emit(a))
+            }
         }.flatten
       } yield pull
     }
