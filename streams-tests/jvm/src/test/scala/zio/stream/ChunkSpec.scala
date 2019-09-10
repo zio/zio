@@ -30,6 +30,7 @@ class ChunkSpec extends Specification with ScalaCheck {
   chunk negation $testNegation
   chunk substitutivity $testSubstitutivity
   chunk consistency $hashConsistency
+  chunk zipAllWith $testzipAllWith
   An Array-based chunk that is filtered empty and mapped must not throw NPEs. $nullArrayBug
   toArray on concat of a slice must work properly. $toArrayOnConcatOfSlice
   toArray on concat of empty and integers must work properly. $toArrayOnConcatOfEmptyAndInts
@@ -181,5 +182,10 @@ class ChunkSpec extends Specification with ScalaCheck {
     val c2 = (1, 2, 3)
     ((c1 == c2) && (c1.hashCode == c2.hashCode)) must beTrue
   }
+
+  def testzipAllWith =
+    (Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _) == Chunk(4, 4, 4)) &&
+      (Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _) == Chunk(4, 4, 0)) &&
+      (Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _)) == Chunk(4, 4, 0)
 
 }
