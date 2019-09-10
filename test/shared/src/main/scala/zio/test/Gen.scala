@@ -326,7 +326,7 @@ object Gen {
   final def short(min: Short, max: Short): Gen[Random, Short] =
     integral(min, max)
 
-  final val size: Gen[Sized, Int] =
+  final def size: Gen[Sized, Int] =
     Gen.fromEffect(Sized.size)
 
   /**
