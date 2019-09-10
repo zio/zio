@@ -222,16 +222,19 @@ trait CheckVariants {
       .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken failures
       .flatMap { failures =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures.reverse.headOption.fold[ZIO[R, E, TestResult]](
-          ZIO.succeed {
-            BoolAlgebra.success {
-              FailureDetails(
-                AssertionValue(Assertion.anything, ()),
-                AssertionValue(Assertion.anything, ())
-              )
+        failures
+          .filter(_.fold(_ => true, _.isFailure))
+          .lastOption
+          .fold[ZIO[R, E, TestResult]](
+            ZIO.succeed {
+              BoolAlgebra.success {
+                FailureDetails(
+                  AssertionValue(Assertion.anything, ()),
+                  AssertionValue(Assertion.anything, ())
+                )
+              }
             }
-          }
-        )(ZIO.fromEither(_))
+          )(ZIO.fromEither(_))
       }
 
   private final def reassociate[A, B, C, D](f: (A, B, C) => D): (((A, B), C)) => D = {

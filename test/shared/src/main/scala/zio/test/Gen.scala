@@ -21,6 +21,7 @@ import scala.collection.immutable.SortedMap
 import zio.{ UIO, ZIO }
 import zio.random._
 import zio.stream.{ Stream, ZStream }
+import zio.test.MathUtils._
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
@@ -61,6 +62,21 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
   final def map[B](f: A => B): Gen[R, B] =
     Gen(sample.map(_.map(f)))
+
+  /**
+   * Maps an effectual function over a generator.
+   */
+  final def mapM[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
+    Gen(sample.mapM(_.traverse(f)))
+
+  /**
+   * Discards the shrinker for this generator and applies a new shrinker by
+   * mapping each value to a sample using the specified function. This is
+   * useful when the process to shrink a value is simpler than the process used
+   * to generate it.
+   */
+  final def reshrink[R1 <: R, B](f: A => Sample[R1, B]): Gen[R1, B] =
+    Gen(sample.map(sample => f(sample.value)))
 
   final def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.flatMap(a => that.map(b => (a, b)))
@@ -252,14 +268,35 @@ object Gen {
         .map(Sample.shrinkIntegral(min))
     }
 
+  /**
+   * A sized generator that uses a uniform distribution of size values, so a
+   * large number of larger sizes will be generated.
+   */
+  final def large[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
+    size.flatMap(max => Gen.int(min, max)).flatMap(f)
+
   final def listOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    sized(n => int(0, n max 0)).flatMap(listOfN(_)(g))
+    medium(listOfN(_)(g))
 
   final def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    sized(n => int(1, n max 1)).flatMap(listOfN(_)(g))
+    medium(listOfN(_)(g), 1)
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+
+  /**
+   * A sized generator that uses an exponential distribution of size values, so
+   * the majority of sizes will be towards the lower end of the range but some
+   * larger sizes will be generated as well.
+   */
+  final def medium[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+    val gen = for {
+      max <- size
+      i   <- Gen.int(log2Floor(min), log2Ceil(max))
+      j   <- Gen.int(min, math.max(min, math.min(pow2(i), max)))
+    } yield j
+    gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
+  }
 
   /**
    * A constant generator of the empty value.
@@ -289,7 +326,7 @@ object Gen {
   final def short(min: Short, max: Short): Gen[Random, Short] =
     integral(min, max)
 
-  final val size: Gen[Sized, Int] =
+  final def size: Gen[Sized, Int] =
     Gen.fromEffect(Sized.size)
 
   /**
@@ -297,6 +334,13 @@ object Gen {
    */
   final def sized[R <: Sized, A](f: Int => Gen[R, A]): Gen[R, A] =
     size.flatMap(f)
+
+  /**
+   * A sized generator that uses a logarithmic distribution of size values, so
+   * all sizes generated will be small.
+   */
+  final def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
+    size.flatMap(max => Gen.int(min, math.max(min, log2Ceil(max)))).flatMap(f)
 
   final def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
