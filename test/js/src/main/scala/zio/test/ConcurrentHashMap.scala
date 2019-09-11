@@ -19,6 +19,8 @@ package zio.test
 import scala.collection.mutable.Map
 
 private[test] final case class ConcurrentHashMap[K, V] private (private val map: Map[K, V]) {
+  final def foldLeft[B](z: B)(f: (B, (K, V)) => B): B =
+    map.foldLeft(z)(f)
   final def getOrElseUpdate(key: K, op: => V): V =
     map.getOrElseUpdate(key, op)
 }

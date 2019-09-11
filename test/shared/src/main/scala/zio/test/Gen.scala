@@ -141,8 +141,11 @@ object Gen {
         .map(Sample.shrinkIntegral(0))
     }
 
+  /**
+   * A generator of strings. Shrinks towards the empty string.
+   */
   final val anyString: Gen[Random with Sized, String] =
-    string(anyChar)
+    Gen.string(Gen.anyChar)
 
   /**
    * A generator of booleans. Shrinks toward 'false'.

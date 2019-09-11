@@ -27,9 +27,15 @@ import zio.ZIO
 private[test] final case class Fun[-A, +B] private (private val f: A => B, private val hash: A => Int)
     extends (A => B) {
 
-  final def apply(a: A): B = map.getOrElseUpdate(hash(a), f(a))
+  final def apply(a: A): B =
+    map.getOrElseUpdate(hash(a), (a, f(a)))._2
 
-  private[this] final val map = ConcurrentHashMap.empty[Int, B]
+  override final def toString: String = {
+    val mappings = map.foldLeft(List.empty[String]) { case (acc, (_, (a, b))) => s"$a -> $b" :: acc }
+    mappings.mkString("Fun(", ", ", ")")
+  }
+
+  private[this] final val map = ConcurrentHashMap.empty[Int, (A, B)]
 }
 
 private[test] object Fun {
