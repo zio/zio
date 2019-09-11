@@ -302,7 +302,7 @@ object GenSpec extends DefaultRuntime {
 
   def smallGeneratesSizesInRange: Future[Boolean] = {
     val gen = Gen.small(Gen.listOfN(_)(Gen.int(-10, 10)))
-    checkSample(gen)(_.forall(_.length < 8))
+    checkSample(gen)(_.forall(_.length <= 50))
   }
 
   def someShrinksToSmallestValue: Future[Boolean] =

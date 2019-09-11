@@ -279,13 +279,13 @@ object Gen {
    * large number of larger sizes will be generated.
    */
   final def large[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
-    size.flatMap(max => Gen.int(min, max)).flatMap(f)
+    size.flatMap(max => int(min, max)).flatMap(f)
 
   final def listOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    medium(listOfN(_)(g))
+    small(listOfN(_)(g))
 
   final def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    medium(listOfN(_)(g), 1)
+    small(listOfN(_)(g), 1)
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
@@ -298,8 +298,8 @@ object Gen {
   final def medium[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
       max <- size
-      i   <- Gen.int(log2Floor(min), log2Ceil(max))
-      j   <- Gen.int(min, math.max(min, math.min(pow2(i), max)))
+      i   <- int(log2Floor(min), log2Ceil(max))
+      j   <- int(min, math.max(min, math.min(pow2(i), max)))
     } yield j
     gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
   }
@@ -342,11 +342,19 @@ object Gen {
     size.flatMap(f)
 
   /**
-   * A sized generator that uses a logarithmic distribution of size values, so
-   * all sizes generated will be small.
+   * A sized generator that uses a combination of logarithmic and uniform
+   * distributions, so the values generated will be strongly concentrated
+   * towards the lower end of the range but a few larger values will still be
+   * generated.
    */
-  final def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
-    size.flatMap(max => Gen.int(min, math.max(min, log2Ceil(max)))).flatMap(f)
+  final def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+    val gen = for {
+      max <- size
+      i   <- int(0, 9)
+      j   <- int(min, math.max(min, if (i > 0) log2Ceil(max) else max / 2))
+    } yield j
+    gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
+  }
 
   final def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
