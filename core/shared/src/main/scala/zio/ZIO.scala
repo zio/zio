@@ -876,9 +876,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )(res: Exit[E0, A]): ZIO[R1, Nothing, _] = {
 
       val handleRes =
-        (f(res, loser) <* {
-          ZIO.when(res.succeeded)(winner.inheritFiberRefs) *> inherit.set(Some(leftWins))
-        }).to(done)
+        winner.poll.flatMap {
+          case Some(Exit.Success(_)) => winner.inheritFiberRefs
+          case _                     => ZIO.unit
+        } *> (f(res, loser) <* inherit.set(Some(leftWins))).to(done)
 
       ZIO.flatten(raceDone.modify(b => (if (b) ZIO.unit else handleRes) -> true))
     }
