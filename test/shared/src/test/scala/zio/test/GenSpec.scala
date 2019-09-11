@@ -184,10 +184,10 @@ object GenSpec extends DefaultRuntime {
     checkShrink(Gen.either(smallInt, smallInt))(Left(-10))
 
   def exponentialGeneratesValuesInRange: Future[Boolean] =
-    checkSample(Gen.exponential(1.0))(_.forall(_ >= 0))
+    checkSample(Gen.exponential)(_.forall(_ >= 0))
 
   def exponentialShrinksToZero: Future[Boolean] =
-    checkShrink(Gen.exponential(1.0))(0.0)
+    checkShrink(Gen.exponential)(0.0)
 
   def filterFiltersValuesAccordingToPredicate: Future[Boolean] =
     checkSample(smallInt.filter(_ % 2 == 0))(_.forall(_ % 2 == 0))
