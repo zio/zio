@@ -5,7 +5,7 @@ import zio.test.Assertion._
 import zio.RefSpecUtils._
 
 object RefSpec
-    extends ZIOSpec(
+    extends ZIOBaseSpec(
       suite("RefSpec")(
         testM("get") {
           for {

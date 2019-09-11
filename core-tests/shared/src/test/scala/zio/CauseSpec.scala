@@ -2,11 +2,11 @@ package zio
 
 import org.specs2.{ ScalaCheck, Specification }
 
-class ExitSpec extends Specification with ScalaCheck {
+class CauseSpec extends Specification with ScalaCheck {
   import Cause._
   import ArbitraryCause._
 
-  def is = "ExitSpec".title ^ s2"""
+  def is = "CauseSpec".title ^ s2"""
     Cause
       `Cause#died` and `Cause#stripFailures` are consistent $e1
       `Cause.equals` is symmetric $e2
