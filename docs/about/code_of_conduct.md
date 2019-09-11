@@ -1,4 +1,7 @@
-# Code of Conduct
+---
+id: about_coc
+title:  "ZIO Code of Conduct"
+---
 
 We are committed to providing a friendly, safe and welcoming
 environment for all, regardless of level of experience, gender, gender
@@ -14,13 +17,13 @@ communication channels. If you are being harassed, please contact us immediately
 ## Moderation and Steering Committee
  
 The ZIO project is moderated by the Steering Committee team members:
-* Itamar Ravid (@iravid)
-* John De Goes (@jdegoes)
-* Kai (@neko-kai)
-* Paul Shirshov (@pshirshov)
-* Pierre Ricadat (@ghostdogpr)
-* Salar Rahmanian (@softinio)
-* Wiem Zine El Abidine (@wi101)
+* Itamar Ravid [@iravid](https://github.com/iravid)
+* John De Goes [@jdegoes](https://github.com/jdegoes)
+* Kai [@neko-kai](https://github.com/neko-kai)
+* Paul Shirshov [@pshirshov](https://github.com/pshirshov)
+* Pierre Ricadat [@ghostdogpr](https://github.com/ghostdogpr)
+* Salar Rahmanian [@softinio](https://github.com/softinio)
+* Wiem Zine El Abidine [@wi101](https://github.com/wi101)
 
 The ZIO project requires that drastic moderation actions detailed in the code of 
 conduct - for example, removing a user from the Gitter channel - be agreed upon
