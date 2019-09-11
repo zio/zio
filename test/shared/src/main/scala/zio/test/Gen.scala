@@ -21,7 +21,6 @@ import scala.collection.immutable.SortedMap
 import zio.{ UIO, ZIO }
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.test.MathUtils._
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
@@ -199,6 +198,13 @@ object Gen {
     Gen(Stream.empty)
 
   /**
+   * A generator of exponentially distributed double values with the specified
+   * scaling factor. The shrinker will shrink toward `0`.
+   */
+  final def exponential(factor: Double): Gen[Random, Double] =
+    uniform.map(-factor * math.log(_)).reshrink(Sample.shrinkFractional(0.0))
+
+  /**
    * Constructs a generator from an effect that constructs a value.
    */
   final def fromEffect[R, A](effect: ZIO[R, Nothing, A]): Gen[R, A] =
@@ -298,9 +304,8 @@ object Gen {
   final def medium[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
       max <- size
-      i   <- int(log2Floor(min), log2Ceil(max))
-      j   <- int(min, math.max(min, math.min(pow2(i), max)))
-    } yield j
+      n   <- exponential(max / 10.0)
+    } yield clamp(math.round(n).toInt, min, max)
     gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
   }
 
@@ -350,9 +355,8 @@ object Gen {
   final def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
       max <- size
-      i   <- int(0, 9)
-      j   <- int(min, math.max(min, if (i > 0) log2Ceil(max) else max / 2))
-    } yield j
+      n   <- exponential(max / 25.0)
+    } yield clamp(math.round(n).toInt, min, max)
     gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
   }
 
@@ -407,4 +411,12 @@ object Gen {
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
+
+  /**
+   * Restricts an integer to the specified range.
+   */
+  private final def clamp(n: Int, min: Int, max: Int): Int =
+    if (n < min) min
+    else if (n > max) max
+    else n
 }

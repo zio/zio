@@ -34,6 +34,8 @@ object GenSpec extends DefaultRuntime {
     label(doubleGeneratesValuesInRange, "double generates values in range"),
     label(doubleShrinksToBottomOfRange, "double shrinks to bottom of range"),
     label(eitherShrinksToLeft, "either shrinks to left"),
+    label(exponentialGeneratesValuesInRange, "exponential generates values between 0 and positive infinity"),
+    label(exponentialShrinksToZero, "exponential shrinks to zero"),
     label(filterFiltersValuesAccordingToPredicate, "filter filters values according to predicate"),
     label(filterFiltersShrinksAccordingToPredicate, "filter filters shrinks according to predicate"),
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
@@ -181,6 +183,12 @@ object GenSpec extends DefaultRuntime {
   def eitherShrinksToLeft: Future[Boolean] =
     checkShrink(Gen.either(smallInt, smallInt))(Left(-10))
 
+  def exponentialGeneratesValuesInRange: Future[Boolean] =
+    checkSample(Gen.exponential(1.0))(_.forall(_ >= 0))
+
+  def exponentialShrinksToZero: Future[Boolean] =
+    checkShrink(Gen.exponential(1.0))(0.0)
+
   def filterFiltersValuesAccordingToPredicate: Future[Boolean] =
     checkSample(smallInt.filter(_ % 2 == 0))(_.forall(_ % 2 == 0))
 
@@ -302,7 +310,7 @@ object GenSpec extends DefaultRuntime {
 
   def smallGeneratesSizesInRange: Future[Boolean] = {
     val gen = Gen.small(Gen.listOfN(_)(Gen.int(-10, 10)))
-    checkSample(gen)(_.forall(_.length <= 50))
+    checkSample(gen)(_.forall(_.length <= 100))
   }
 
   def someShrinksToSmallestValue: Future[Boolean] =
