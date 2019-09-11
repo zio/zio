@@ -869,30 +869,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       f: (Exit[E0, A], Fiber[E1, B]) => ZIO[R1, E2, C],
       winner: Fiber[E0, A],
       loser: Fiber[E1, B],
-      waitForLeft: Boolean,
-      race: Ref[Boolean],
+      leftWins: Boolean,
+      raceDone: Ref[Boolean],
       inherit: Ref[Option[Boolean]],
       done: Promise[E2, C]
     )(res: Exit[E0, A]): ZIO[R1, Nothing, _] = {
 
       val handleRes =
         (f(res, loser) <* {
-          ZIO.when(res.succeeded)(winner.inheritFiberRefs) *> inherit.set(Some(waitForLeft))
+          ZIO.when(res.succeeded)(winner.inheritFiberRefs) *> inherit.set(Some(leftWins))
         }).to(done)
 
-      ZIO.flatten(race.modify(b => (if (b) ZIO.unit else handleRes) -> true))
+      ZIO.flatten(raceDone.modify(b => (if (b) ZIO.unit else handleRes) -> true))
     }
 
     for {
-      done    <- Promise.make[E2, C]
-      race    <- Ref.make[Boolean](false)
-      inherit <- Ref.make(None: Option[Boolean])
+      done     <- Promise.make[E2, C]
+      raceDone <- Ref.make[Boolean](false)
+      inherit  <- Ref.make(None: Option[Boolean])
       c <- ZIO.uninterruptibleMask { restore =>
             for {
               left   <- ZIO.interruptible(self).fork
               right  <- ZIO.interruptible(that).fork
-              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, race, inherit, done)).fork
-              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, race, inherit, done)).fork
+              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork
+              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done)).fork
 
               inheritFiberRefs = inherit.get.flatMap {
                 case None        => ZIO.unit
