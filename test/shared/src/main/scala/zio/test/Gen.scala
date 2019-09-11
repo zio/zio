@@ -281,8 +281,8 @@ object Gen {
     }
 
   /**
-   * A sized generator that uses a uniform distribution of size values, so a
-   * large number of larger sizes will be generated.
+   * A sized generator that uses a uniform distribution of size values. A large
+   * number of larger sizes will be generated.
    */
   final def large[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
     size.flatMap(max => int(min, max)).flatMap(f)
@@ -297,8 +297,8 @@ object Gen {
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
 
   /**
-   * A sized generator that uses an exponential distribution of size values, so
-   * the majority of sizes will be towards the lower end of the range but some
+   * A sized generator that uses an exponential distribution of size values.
+   * The majority of sizes will be towards the lower end of the range but some
    * larger sizes will be generated as well.
    */
   final def medium[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
@@ -347,10 +347,9 @@ object Gen {
     size.flatMap(f)
 
   /**
-   * A sized generator that uses a combination of logarithmic and uniform
-   * distributions, so the values generated will be strongly concentrated
-   * towards the lower end of the range but a few larger values will still be
-   * generated.
+   * A sized generator that uses an exponential distribution of size values.
+   * The values generated will be strongly concentrated towards the lower end
+   * of the range but a few larger values will still be generated.
    */
   final def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
