@@ -4,11 +4,10 @@ import scala.{ Stream => _ }
 import zio.{ test => _, _ }
 import zio.duration._
 import zio.test._
-import zio.test.Assertion.{ dies, equalTo, isTrue }
-// import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isRight, isSome, succeeds }
-// import zio.random.Random
+import zio.test.Assertion.{ dies, equalTo, isFalse, isLeft, isRight, isSome, isTrue, succeeds }
+import zio.random.Random
 
-// import StreamUtils._
+import StreamUtils._
 
 object ZStreamSpec
     extends ZIOSpec(
@@ -155,971 +154,959 @@ object ZStreamSpec
             } yield assert(result, isTrue)
 
           }
-        )
-        //   suite("Stream.bracket")(
-        //     testM("bracket") {
-        //       for {
-        //         done           <- Ref.make(false)
-        //         iteratorStream = Stream.bracket(UIO(0 to 2))(_ => done.set(true)).flatMap(Stream.fromIterable)
-        //         result         <- iteratorStream.run(Sink.collectAll[Int])
-        //         released       <- done.get
-        //       } yield assert(result, equalTo(List(0, 1, 2))) && assert(released, isTrue)
-
-        //     },
-        //     testM("bracket short circuits") {
-        //       for {
-        //         done <- Ref.make(false)
-        //         iteratorStream = Stream
-        //           .bracket(UIO(0 to 3))(_ => done.set(true))
-        //           .flatMap(Stream.fromIterable)
-        //           .take(2)
-        //         result   <- iteratorStream.run(Sink.collectAll[Int])
-        //         released <- done.get
-        //       } yield assert(result, equalTo(List(0, 1))) && assert(released, isTrue)
-
-        //     },
-        //     testM("no acquisition when short circuiting") {
-        //       for {
-        //         acquired       <- Ref.make(false)
-        //         iteratorStream = (Stream(1) ++ Stream.bracket(acquired.set(true))(_ => UIO.unit)).take(0)
-        //         _              <- iteratorStream.run(Sink.drain)
-        //         result         <- acquired.get
-        //       } yield assert(result, isFalse)
-
-        //     },
-        //     testM("releases when there are defects") {
-        //       for {
-        //         ref <- Ref.make(false)
-        //         _ <- Stream
-        //               .bracket(ZIO.unit)(_ => ref.set(true))
-        //               .flatMap(_ => Stream.fromEffect(ZIO.dieMessage("boom")))
-        //               .run(Sink.drain)
-        //               .run
-        //         released <- ref.get
-        //       } yield assert(released, isTrue)
-
-        //     }
-        //   ),
-        //   suite("Stream.broadcast")(
-        //     testM("Values") {
-        //       val expected = List(0, 1, 2, 3, 4, 5)
-        //       assertM(
-        //         Stream
-        //           .range(0, 5)
-        //           .broadcast(2, 12)
-        //           .use {
-        //             case s1 :: s2 :: Nil =>
-        //               for {
-        //                 out1 <- s1.runCollect
-        //                 out2 <- s2.runCollect
-        //               } yield out1 -> out2
-        //             case _ =>
-        //               ZIO.fail("Wrong number of streams produced")
-        //           }
-        //           .run,
-        //         succeeds(equalTo((expected, expected)))
-        //       )
-
-        //     },
-        //     testM("Errors") {
-        //       assertM(
-        //         (Stream.range(0, 1) ++ Stream.fail("Boom")).broadcast(2, 12).use {
-        //           case s1 :: s2 :: Nil =>
-        //             for {
-        //               out1 <- s1.runCollect.either
-        //               out2 <- s2.runCollect.either
-        //             } yield Some(out1 -> out2)
-        //           case _ =>
-        //             ZIO.succeed(None)
-        //         },
-        //         isSome(equalTo[(Either[String, List[Int]], Either[String, List[Int]])]((Left("Boom"), Left("Boom"))))
-        //       )
-        //     },
-        //     testM("BackPressure") {
-        //       assertM(
-        //         Stream
-        //           .range(0, 5)
-        //           .broadcast(2, 2)
-        //           .use {
-        //             case s1 :: s2 :: Nil =>
-        //               for {
-        //                 ref       <- Ref.make[List[Int]](Nil)
-        //                 latch1    <- Promise.make[Nothing, Unit]
-        //                 fib       <- s1.tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2)).runDrain.fork
-        //                 _         <- latch1.await
-        //                 snapshot1 <- ref.get
-        //                 _         <- s2.runDrain
-        //                 _         <- fib.await
-        //                 snapshot2 <- ref.get
-        //               } yield snapshot1 -> snapshot2
-        //             case _ =>
-        //               ZIO.fail("Wrong number of streams produced")
-        //           }
-        //           .run,
-        //         succeeds(equalTo((List(2, 1, 0), List(5, 4, 3, 2, 1, 0))))
-        //       )
-        //     },
-        //     testM("Unsubscribe") {
-        //       assertM(
-        //         Stream
-        //           .range(0, 5)
-        //           .broadcast(2, 2)
-        //           .use {
-        //             case s1 :: s2 :: Nil =>
-        //               for {
-        //                 _    <- s1.process.use_(ZIO.unit).ignore
-        //                 out2 <- s2.runCollect
-        //               } yield out2
-        //             case _ =>
-        //               ZIO.fail("Wrong number of streams produced")
-        //           }
-        //           .run,
-        //         succeeds(equalTo(List(0, 1, 2, 3, 4, 5)))
-        //       )
-        //     }
-        //   ),
-        //   suite("Stream.buffer")(
-        //     testM("buffer the Stream") {
-        //       checkM(listOfInts) { list =>
-        //         assertM(
-        //           Stream
-        //             .fromIterable(list)
-        //             .buffer(2)
-        //             .run(Sink.collectAll[Int]),
-        //           equalTo(list)
-        //         )
-        //       }
-        //     },
-        //     testM("buffer the Stream with Error") {
-        //       val e = new RuntimeException("boom")
-        //       assertM(
-        //         (Stream.range(0, 10) ++ Stream.fail(e))
-        //           .buffer(2)
-        //           .run(Sink.collectAll[Int])
-        //           .run,
-        //         fails(equalTo(e))
-        //       )
-
-        //     },
-        //     testM("fast producer progress independently") {
-        //       for {
-        //         ref   <- Ref.make(List[Int]())
-        //         latch <- Promise.make[Nothing, Unit]
-        //         s     = Stream.range(1, 5).tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4)).buffer(2)
-        //         l <- s.process.use { as =>
-        //               for {
-        //                 _ <- as
-        //                 _ <- latch.await
-        //                 l <- ref.get
-        //               } yield l
-        //             }.run
-        //       } yield assert(l, succeeds(equalTo((4 to 1).toList)))
-
-        //     }
-        //   ),
-        //   suite("Stream.catchAllCause")(
-        //     // Getting "a type was inferred to be `Any`" with the following tests:
-        //     // testM("recovery from errors") {
-        //     //   val s1 = Stream(1, 2) ++ Stream.fail("Boom")
-        //     //   val s2 = Stream(3, 4)
-
-        //     //   assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
-        //     // },
-        //     // testM("recovery from defects") {
-        //     //   val s1 = Stream(1, 2) ++ Stream.dieMessage("Boom")
-        //     //   val s2 = Stream(3, 4)
-
-        //     //   assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
-
-        //     // },
-        //     // testM("happy path") {
-        //     //   val s1 = Stream(1, 2)
-        //     //   val s2 = Stream(3, 4)
-
-        //     //   assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2)))
-
-        //     // },
-        //     testM("executes finalizers") {
-        //       for {
-        //         fins   <- Ref.make(List[String]())
-        //         s1     = (Stream(1, 2) ++ Stream.fail("Boom")).ensuring(fins.update("s1" :: _))
-        //         s2     = (Stream(3, 4) ++ Stream.fail("Boom")).ensuring(fins.update("s2" :: _))
-        //         _      <- s1.catchAllCause(_ => s2).runCollect.run
-        //         result <- fins.get
-        //       } yield assert(result, equalTo(List("s2", "s1")))
-        //     }
-        //     // testM("failures on the scope") {
-        //     //   val s1 = Stream(1, 2) ++ ZStream(ZManaged.fail("Boom"))
-        //     //   val s2 = Stream(3, 4)
-
-        //     //   assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
-        //     // }
-        //   ),
-        //   testM("Stream.collect") {
-        //     assertM(Stream(Left(1), Right(2), Left(3)).collect {
-        //       case Right(n) => n
-        //     }.runCollect, equalTo(List(2)))
-
-        //   },
-        //   suite("Stream.collectWhile")(
-        //     testM("collectWhile") {
-        //       assertM(
-        //         Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) => v }.runCollect,
-        //         equalTo(List(1, 2, 3))
-        //       )
-        //     },
-        //     testM("collectWhile short circuits") {
-        //       assertM(
-        //         (Stream(Option(1)) ++ Stream.fail("Ouch")).collectWhile {
-        //           case None => 1
-        //         }.runDrain.either,
-        //         isRight(equalTo(()))
-        //       )
-
-        //     }
-        //   ),
-        //   suite("Stream.concat")(
-        //     // testM("concat") {
-        //     //   checkM(streamOfBytes, streamOfBytes) { (s1, s2) =>
-        //     //     for {
-        //     //       listConcat   <- s1.runCollect.zipWith(s2.runCollect)(_ ++ _)
-        //     //       streamConcat <- (s1 ++ s2).runCollect
-        //     //     } yield {
-        //     //       assert(streamConcat.succeeded && listConcat.succeeded, isTrue) ==> assert(
-        //     //         streamConcat,
-        //     //         equalTo(listConcat)
-        //     //       )
-        //     //     }
-        //     //   }
-        //     // },
-        //     testM("finalizer order") {
-        //       for {
-        //         log       <- Ref.make[List[String]](Nil)
-        //         _         <- (Stream.finalizer(log.update("Second" :: _)) ++ Stream.finalizer(log.update("First" :: _))).runDrain
-        //         execution <- log.get
-        //       } yield assert(execution, equalTo(List("First", "Second")))
-        //     }
-        //   ),
-        //   testM("Stream.drain") {
-        //     for {
-        //       ref <- Ref.make(List[Int]())
-        //       _   <- Stream.range(0, 10).mapM(i => ref.update(i :: _)).drain.run(Sink.drain)
-        //       l   <- ref.get
-        //     } yield assert(l.reverse, equalTo((0 to 10).toList))
-
-        //   },
-        //   testM("dropUntil") {
-        //     def dropUntil[A](as: List[A])(f: A => Boolean): List[A] = as.dropWhile(!f(_)).drop(1)
-        //     checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
-        //       for {
-        //         res1 <- s.dropUntil(p).runCollect
-        //         res2 <- s.runCollect.map(dropUntil(_)(p))
-        //       } yield assert(res1, equalTo(res2))
-        //     }
-        //   },
-        //   suite("Stream.dropWhile")(
-        //     testM("dropWhile") {
-        //       checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
-        //         for {
-        //           res1 <- s.dropWhile(p).runCollect
-        //           res2 <- s.runCollect.map(_.dropWhile(p))
-        //         } yield assert(res1, equalTo(res2))
-        //       }
-        //     },
-        //     testM("short circuits") {
-        //       assertM(
-        //         (Stream(1) ++ Stream.fail("Ouch"))
-        //           .take(1)
-        //           .dropWhile(_ => true)
-        //           .runDrain
-        //           .either,
-        //         isRight(equalTo(()))
-        //       )
-        //     }
-        //   ),
-        //   suite("Stream.effectAsync")(
-        //     testM("effectAsync") {
-        //       checkM(listOfInts) { list =>
-        //         val s = Stream.effectAsync[Throwable, Int] { k =>
-        //           list.foreach(a => k(Task.succeed(a)))
-        //         }
-
-        //         assertM(s.take(list.size).runCollect.run, succeeds(equalTo(list)))
-
-        //       }
-        //     }
-        //   ),
-        //   suite("Stream.effectAsyncMaybe")(
-        //     testM("effectAsyncMaybe signal end stream") {
-        //       for {
-        //         result <- Stream
-        //                    .effectAsyncMaybe[Nothing, Int] { k =>
-        //                      k(IO.fail(None))
-        //                      None
-        //                    }
-        //                    .runCollect
-        //       } yield assert(result, equalTo(List.empty[Int]))
-        //     },
-        //     testM("effectAsyncMaybe Some") {
-        //       checkM(listOfInts) { list =>
-        //         val s = Stream.effectAsyncMaybe[Throwable, Int] { _ =>
-        //           Some(Stream.fromIterable(list))
-        //         }
-
-        //         assertM(s.runCollect.map(_.take(list.size)).run, succeeds(equalTo(list)))
-        //       }
-        //     },
-        //     testM("effectAsyncMaybe None") {
-        //       checkM(listOfInts) { list =>
-        //         val s = Stream.effectAsyncMaybe[Throwable, Int] { k =>
-        //           list.foreach(a => k(Task.succeed(a)))
-        //           None
-        //         }
-
-        //         assertM(s.take(list.size).runCollect.run, succeeds(equalTo(list)))
-        //       }
-        //     }
-        //   ),
-        //   suite("Stream.effectAsyncM")(
-        //     testM("effectAsyncM") {
-        //       val list = List(1, 2, 3)
-        //       assertM(
-        //         (for {
-        //           latch <- Promise.make[Nothing, Unit]
-        //           fiber <- ZStream
-        //                     .effectAsyncM[Any, Throwable, Int] { k =>
-        //                       latch.succeed(()) *>
-        //                         Task.succeed {
-        //                           list.foreach(a => k(Task.succeed(a)))
-        //                         }
-        //                     }
-        //                     .take(list.size)
-        //                     .run(Sink.collectAll[Int])
-        //                     .fork
-        //           _ <- latch.await
-        //           s <- fiber.join
-        //         } yield s).run,
-        //         succeeds(equalTo(list))
-        //       )
-        //     },
-        //     testM("effectAsyncM signal end stream") {
-        //       assertM(
-        //         Stream
-        //           .effectAsyncM[Nothing, Int] { k =>
-        //             k(IO.fail(None))
-        //             UIO.succeed(())
-        //           }
-        //           .runCollect
-        //           .run,
-        //         succeeds(equalTo(List.empty[Int]))
-        //       )
-
-        //     }
-        //   ),
-        //   suite("Stream.effectAsyncInterrupt")(
-        //     testM("effectAsyncInterrupt Left") {
-        //       for {
-        //         cancelled <- Ref.make(false)
-        //         latch     <- Promise.make[Nothing, Unit]
-        //         fiber <- Stream
-        //                   .effectAsyncInterrupt[Nothing, Unit] { offer =>
-        //                     offer(ZIO.succeed(())); Left(cancelled.set(true))
-        //                   }
-        //                   .tap(_ => latch.succeed(()))
-        //                   .run(Sink.collectAll[Unit])
-        //                   .fork
-        //         _      <- latch.await
-        //         _      <- fiber.interrupt
-        //         result <- cancelled.get
-        //       } yield assert(result, isTrue)
-
-        //     },
-        //     testM("effectAsyncInterrupt Right") {
-        //       checkM(listOfInts) { list =>
-        //         val s = Stream.effectAsyncInterrupt[Throwable, Int] { _ =>
-        //           Right(Stream.fromIterable(list))
-        //         }
-        //         assertM(s.take(list.size).runCollect.run, succeeds(equalTo(list)))
-        //       }
-        //     },
-        //     testM("effectAsyncInterrupt signal end stream") {
-        //       assertM(
-        //         Stream
-        //           .effectAsyncInterrupt[Nothing, Int] { k =>
-        //             k(IO.fail(None))
-        //             Left(UIO.succeed(()))
-        //           }
-        //           .runCollect,
-        //         equalTo(List.empty[Int])
-        //       )
-
-        //     }
-        //   ),
-        //   testM("Stream.ensuring") {
-        //     for {
-        //       log <- Ref.make[List[String]](Nil)
-        //       _ <- (for {
-        //             _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-        //             _ <- Stream.fromEffect(log.update("Use" :: _))
-        //           } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
-        //       execution <- log.get
-        //     } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
-        //   },
-        //   testM("Stream.ensuringFirst") {
-        //     for {
-        //       log <- Ref.make[List[String]](Nil)
-        //       _ <- (for {
-        //             _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-        //             _ <- Stream.fromEffect(log.update("Use" :: _))
-        //           } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
-        //       execution <- log.get
-        //     } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
-        //   },
-        //   testM("Stream.finalizer") {
-        //     for {
-        //       log <- Ref.make[List[String]](Nil)
-        //       _ <- (for {
-        //             _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-        //             _ <- Stream.finalizer(log.update("Use" :: _))
-        //           } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
-        //       execution <- log.get
-        //     } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
-
-        //   },
-        //   suite("Stream.filter")(
-        //     testM("filter") {
-        //       checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
-        //         for {
-        //           res1 <- s.filter(p).runCollect
-        //           res2 <- s.runCollect.map(_.filter(p))
-        //         } yield assert(res1, equalTo(res2))
-        //       }
-        //     },
-        //     testM("short circuits #1") {
-        //       assertM(
-        //         (Stream(1) ++ Stream.fail("Ouch"))
-        //           .filter(_ => true)
-        //           .take(1)
-        //           .runDrain
-        //           .either,
-        //         isRight(equalTo(()))
-        //       )
-
-        //     },
-        //     testM("short circuits #2") {
-        //       assertM(
-        //         (Stream(1) ++ Stream.fail("Ouch"))
-        //           .take(1)
-        //           .filter(_ => true)
-        //           .runDrain
-        //           .either,
-        //         isRight(equalTo(()))
-        //       )
-
-        //     }
-        //   ),
-        //   suite("Stream.filterM")(
-        //     // testM("filterM") {
-        //     //   checkM(streamOfBytes, Gen[Byte => Boolean]) { (s, p) =>
-        //     //     for {
-        //     //       res1 <- s.filterM(s => IO.succeed(p(s))).runCollect
-        //     //       res2 <- s.runCollect.map(_.filter(p))
-        //     //     } yield assert(res1, equalTo(res2))
-        //     //   }
-
-        //     // },
-        //     // TODO: A type was inferred to be `Any`
-        //     // testM("short circuits #1") {
-        //     //   assertM(
-        //     //     (Stream(1) ++ Stream.fail("Ouch"))
-        //     //       .take(1)
-        //     //       .filterM(_ => UIO.succeed(true))
-        //     //       .runDrain
-        //     //       .either,
-        //     //     isRight(equalTo(()))
-        //     //   )
-        //     // },
-        //     testM("short circuits #2") {
-        //       assertM(
-        //         (Stream(1) ++ Stream.fail("Ouch"))
-        //           .filterM(_ => UIO.succeed(true))
-        //           .take(1)
-        //           .runDrain
-        //           .either,
-        //         isRight(equalTo(()))
-        //       )
-
-        //     }
-        //   ),
-        //   suite("Stream.flatMap")(
-        //     testM("deep flatMap stack safety") {
-        //       def fib(n: Int): Stream[Nothing, Int] =
-        //         if (n <= 1) Stream.succeed(n)
-        //         else
-        //           fib(n - 1).flatMap { a =>
-        //             fib(n - 2).flatMap { b =>
-        //               Stream.succeed(a + b)
-        //             }
-        //           }
-
-        //       val stream   = fib(20)
-        //       val expected = 6765
-
-        //       assertM(stream.runCollect.either, isRight(equalTo(List(expected))))
-
-        //     }
-        //     // testM("left identity") {
-        //     //   checkM(intGen, Gen[Int => Stream[String, Int]])(
-        //     //     (x, f) =>
-        //     //       for {
-        //     //         res1 <- Stream(x).flatMap(f).runCollect
-        //     //         res2 <- f(x).runCollect
-        //     //       } yield assert(res1, equalTo(res2))
-        //     //   )
-        //     // },
-        //     //     testM("right identity") {
-        //     //       checkM(pureStreamGen(intGen))(
-        //     //         m =>
-        //     //           for {
-        //     //             res1 <- m.flatMap(i => Stream(i)).runCollect
-        //     //             res2 <- m.runCollect
-        //     //           } yield assert(res1, equalTo(res2))
-        //     //       )
-
-        //     // },
-        //     // testM("associativity") {
-        //     //   checkM(streamOfInts, Gen[Int => Stream[String, Int]], Gen[Int => Stream[String, Int]]) {
-        //     //     (m, f, g) =>
-        //     //       val leftStream  = m.flatMap(f).flatMap(g)
-        //     //       val rightStream = m.flatMap(x => f(x).flatMap(g))
-        //     //       for {
-        //     //         res1 <- leftStream.runCollect
-        //     //         res2 <- rightStream.runCollect
-        //     //       } yield assert(res1, equalTo(res2))
-        //     //   }
-
-        //     // }
-        //   ),
-        //   suite("Stream.flatMapPar/flattenPar/mergeAll")(
-        //     // TODO: a type was inferred to be `Any`
-        //     // testM("guarantee ordering") {
-        //     //   checkM(listOfInts) { m =>
-        //     //     val s: Stream[Nothing, Int] = Stream.fromIterable(m)
-        //     //     val flatMap    = s.flatMap(i => Stream(i, i)).runCollect
-        //     //     val flatMapPar = s.flatMapPar(1)(i => Stream(i, i)).runCollect
-        //     //     for {
-        //     //       res1 <- flatMap
-        //     //       res2 <- flatMapPar
-        //     //     } yield assert(res1, equalTo(res2))
-        //     //   }
-        //     // },
-        //     testM("consistent with flatMap") {
-        //       checkM(intGen, listOfInts) { (n, m) =>
-        //         val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect.map(_.toSet)
-        //         val flatMapPar = Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i)).runCollect.map(_.toSet)
-        //         if (n > 0)
-        //           UIO.succeed(assert(true, isTrue))
-        //         else
-        //           for {
-        //             res1 <- flatMap
-        //             res2 <- flatMapPar
-        //           } yield assert(res1, equalTo(res2))
-        //       }
-        //     },
-        //     testM("short circuiting") {
-        //       assertM(
-        //         Stream
-        //           .mergeAll(2)(
-        //             Stream.never,
-        //             Stream(1)
-        //           )
-        //           .take(1)
-        //           .run(Sink.collectAll[Int]),
-        //         equalTo(List(1))
-        //       )
-
-        //     },
-        //     testM("interruption propagation") {
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         fiber <- Stream(())
-        //                   .flatMapPar(1)(
-        //                     _ =>
-        //                       Stream.fromEffect(
-        //                         (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
-        //                       )
-        //                   )
-        //                   .run(Sink.collectAll[Unit])
-        //                   .fork
-        //         _         <- latch.await
-        //         _         <- fiber.interrupt
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue)
-
-        //     },
-        //     testM("inner errors interrupt all fibers") {
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         result <- Stream(
-        //                    Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
-        //                    Stream.fromEffect(latch.await *> ZIO.fail("Ouch"))
-        //                  ).flatMapPar(2)(identity)
-        //                    .run(Sink.drain)
-        //                    .either
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
-
-        //     },
-        //     testM("outer errors interrupt all fibers") {
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.fail("Ouch")))
-        //                    .flatMapPar(2) { _ =>
-        //                      Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
-        //                    }
-        //                    .run(Sink.drain)
-        //                    .either
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
-
-        //     },
-        //     testM("inner defects interrupt all fibers") {
-        //       val ex = new RuntimeException("Ouch")
-
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         result <- Stream(
-        //                    Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
-        //                    Stream.fromEffect(latch.await *> ZIO.die(ex))
-        //                  ).flatMapPar(2)(identity)
-        //                    .run(Sink.drain)
-        //                    .run
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue) && assert(result, fails(equalTo(ex)))
-
-        //     },
-        //     testM("outer defects interrupt all fibers") {
-        //       val ex = new RuntimeException()
-
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.die(ex)))
-        //                    .flatMapPar(2) { _ =>
-        //                      Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
-        //                    }
-        //                    .run(Sink.drain)
-        //                    .run
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue) && assert(result, fails(equalTo(ex)))
-
-        //     },
-        //     testM("finalizer ordering") {
-        //       for {
-        //         execution <- Ref.make[List[String]](Nil)
-        //         inner = Stream
-        //           .bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
-        //         _ <- Stream
-        //               .bracket(execution.update("OuterAcquire" :: _).as(inner))(
-        //                 _ => execution.update("OuterRelease" :: _)
-        //               )
-        //               .flatMapPar(2)(identity)
-        //               .runDrain
-        //         results <- execution.get
-        //       } yield assert(results, equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")))
-
-        //     }
-        //   ),
-        //   suite("Stream.flatMapParSwitch")(
-        //     testM("guarantee ordering no parallelism   $flatMapParSwitchGuaranteeOrderingNoParallelism") {
-        //       for {
-        //         lastExecuted <- Ref.make(false)
-        //         semaphore    <- Semaphore.make(1)
-        //         _ <- Stream(1, 2, 3, 4)
-        //               .flatMapParSwitch(1) { i =>
-        //                 if (i > 3) Stream.bracket(UIO.unit)(_ => lastExecuted.set(true)).flatMap(_ => Stream.empty)
-        //                 else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
-        //               }
-        //               .runDrain
-        //         result <- semaphore.withPermit(lastExecuted.get)
-        //       } yield assert(result, isTrue)
-
-        //     },
-        //     testM("guarantee ordering with parallelism $flatMapParSwitchGuaranteeOrderingWithParallelism") {
-        //       for {
-        //         lastExecuted <- Ref.make(0)
-        //         semaphore    <- Semaphore.make(4)
-        //         _ <- Stream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
-        //               .flatMapParSwitch(4) { i =>
-        //                 if (i > 8) Stream.bracket(UIO.unit)(_ => lastExecuted.update(_ + 1)).flatMap(_ => Stream.empty)
-        //                 else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
-        //               }
-        //               .runDrain
-        //         result <- semaphore.withPermits(4)(lastExecuted.get)
-        //       } yield assert(result, equalTo(4))
-
-        //     },
-        //     testM("short circuiting                    $flatMapParSwitchShortCircuiting") {
-
-        //       assertM(
-        //         Stream(Stream.never, Stream(1))
-        //           .flatMapParSwitch(2)(identity)
-        //           .take(1)
-        //           .runCollect,
-        //         equalTo(List(1))
-        //       )
-
-        //     },
-        //     testM("interruption propagation            $flatMapParSwitchInterruptionPropagation") {
-
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         fiber <- Stream(())
-        //                   .flatMapParSwitch(1)(
-        //                     _ =>
-        //                       Stream.fromEffect(
-        //                         (latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))
-        //                       )
-        //                   )
-        //                   .runCollect
-        //                   .fork
-        //         _         <- latch.await
-        //         _         <- fiber.interrupt
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue)
-        //     },
-        //     testM("inner errors interrupt all fibers   $flatMapParSwitchInnerErrorsInterruptAllFibers") {
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         result <- Stream(
-        //                    Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))),
-        //                    Stream.fromEffect(latch.await *> IO.fail("Ouch"))
-        //                  ).flatMapParSwitch(2)(identity).runDrain.either
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
-
-        //     },
-        //     testM("outer errors interrupt all fibers") {
-
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         result <- (Stream(()) ++ Stream.fromEffect(latch.await *> IO.fail("Ouch")))
-        //                    .flatMapParSwitch(2) { _ =>
-        //                      Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true)))
-        //                    }
-        //                    .runDrain
-        //                    .either
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
-
-        //     },
-        //     testM("inner defects interrupt all fibers  $flatMapParSwitchInnerDefectsInterruptAllFibers") {
-
-        //       val ex = new RuntimeException("Ouch")
-
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         result <- Stream(
-        //                    Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
-        //                    Stream.fromEffect(latch.await *> ZIO.die(ex))
-        //                  ).flatMapParSwitch(2)(identity)
-        //                    .run(Sink.drain)
-        //                    .run
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue) && assert(result, fails(equalTo(ex)))
-
-        //     },
-        //     testM("outer defects interrupt all fibers  $flatMapParSwitchOuterDefectsInterruptAllFibers") {
-        //       val ex = new RuntimeException()
-
-        //       for {
-        //         substreamCancelled <- Ref.make[Boolean](false)
-        //         latch              <- Promise.make[Nothing, Unit]
-        //         result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.die(ex)))
-        //                    .flatMapParSwitch(2) { _ =>
-        //                      Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
-        //                    }
-        //                    .run(Sink.drain)
-        //                    .run
-        //         cancelled <- substreamCancelled.get
-        //       } yield assert(cancelled, isTrue) && assert(result, fails(equalTo(ex)))
-
-        //     },
-        //     testM("finalizer ordering") {
-        //       for {
-        //         execution <- Ref.make(List.empty[String])
-        //         inner     = Stream.bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
-        //         _ <- Stream
-        //               .bracket(execution.update("OuterAcquire" :: _).as(inner))(
-        //                 _ => execution.update("OuterRelease" :: _)
-        //               )
-        //               .flatMapParSwitch(2)(identity)
-        //               .runDrain
-        //         results <- execution.get
-        //       } yield assert(results, equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")))
-
-        //     }
-        //   ),
-        //   suite("Stream.foreach/foreachWhile")(
-        //     testM("foreach") {
-        //       var sum = 0
-        //       val s   = Stream(1, 1, 1, 1, 1)
-
-        //       assertM(s.foreach[Any, Nothing](a => IO.effectTotal(sum += a)) *> ZIO.effectTotal(sum), equalTo(5))
-        //     },
-        //     testM("foreachWhile") {
-        //       var sum = 0
-        //       val s   = Stream(1, 1, 1, 1, 1, 1)
-
-        //       assertM(
-        //         s.foreachWhile[Any, Nothing](
-        //           a =>
-        //             IO.effectTotal(
-        //               if (sum >= 3) false
-        //               else {
-        //                 sum += a;
-        //                 true
-        //               }
-        //             )
-        //         ) *> ZIO.effectTotal(sum),
-        //         equalTo(3)
-        //       )
-        //     },
-        //     testM("foreachWhile short circuits") {
-        //       for {
-        //         flag    <- Ref.make(true)
-        //         _       <- (Stream(true, true, false) ++ Stream.fromEffect(flag.set(false)).drain).foreachWhile(ZIO.succeed)
-        //         skipped <- flag.get
-        //       } yield assert(skipped, isTrue)
-        //     }
-        //   ),
-        //   testM("Stream.forever") {
-        //     var sum = 0
-        //     val s = Stream(1).forever.foreachWhile[Any, Nothing](
-        //       a =>
-        //         IO.effectTotal {
-        //           sum += a;
-        //           if (sum >= 9) false else true
-        //         }
-        //     )
-        //     assertM(s *> ZIO.effectTotal(sum), equalTo(9))
-
-        //   },
-        //   //   testM("Stream.fromChunk") {
-        //   //     checkM(chunkGen(intGen)) { c =>
-        //   //       assertM(Stream.fromChunk(c).runCollect.run, succeeds(equalTo(c.toSeq.toList)))
-        //   //     }
-        //   //   },
-        //   testM("Stream.fromInputStream") {
-        //     import java.io.ByteArrayInputStream
-        //     val chunkSize = ZStreamChunk.DefaultChunkSize
-        //     val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
-        //     val is        = new ByteArrayInputStream(data)
-        //     val result = ZStream
-        //       .fromInputStream(is, chunkSize)
-        //       .run(Sink.collectAll[Chunk[Byte]])
-        //       .map { chunks =>
-        //         chunks.flatMap(_.toArray[Byte]).toArray
-        //       }
-        //       .run
-
-        //     assertM(result, succeeds(equalTo(data)))
-        //   },
-        //   testM("Stream.fromIterable") {
-        //     checkM(listOfInts) { l =>
-        //       assertM(Stream.fromIterable(l).runCollect, equalTo(l))
-        //     }
-        //   },
-        //   //   testM("Stream.fromQueue") {
-        //   //     checkM(chunkGen(intGen)) { c =>
-        //   //       for {
-        //   //         queue <- Queue.unbounded[Int]
-        //   //         _     <- queue.offerAll(c.toSeq)
-        //   //         fiber <- Stream
-        //   //                   .fromQueue(queue)
-        //   //                   .fold[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
-        //   //                   .map(_.reverse)
-        //   //                   .fork
-        //   //         _     <- ZQueueSpecUtil.waitForSize(queue, -1)
-        //   //         _     <- queue.shutdown
-        //   //         items <- fiber.join
-        //   //       } yield assert(items, equalTo(c.toSeq.toList))
-        //   //     }
-        //   //   },
-        //   suite("Stream.groupBy")(
-        //     testM("values") {
-        //       val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
-        //       assertM(
-        //         Stream
-        //           .fromIterable(words)
-        //           .groupByKey(identity, 8192) {
-        //             case (k, s) =>
-        //               s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
-        //                 .take(1)
-        //                 .map((k -> _))
-        //           }
-        //           .runCollect
-        //           .map(_.toMap),
-        //         equalTo((0 to 100).map((_.toString -> 1000)).toMap)
-        //       )
-
-        //     },
-        //     testM("first") {
-        //       val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
-        //       assertM(
-        //         Stream
-        //           .fromIterable(words)
-        //           .groupByKey(identity, 1050)
-        //           .first(2) {
-        //             case (k, s) =>
-        //               s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
-        //                 .take(1)
-        //                 .map((k -> _))
-        //           }
-        //           .runCollect
-        //           .map(_.toMap),
-        //         equalTo((0 to 1).map((_.toString -> 1000)).toMap)
-        //       )
-
-        //     },
-        //     testM("filter") {
-        //       val words = List.fill(1000)(0 to 100).flatten
-        //       assertM(
-        //         Stream
-        //           .fromIterable(words)
-        //           .groupByKey(identity, 1050)
-        //           .filter(_ <= 5) {
-        //             case (k, s) =>
-        //               s.transduce(Sink.foldLeft[Int, Int](0) { case (acc, _) => acc + 1 })
-        //                 .take(1)
-        //                 .map((k -> _))
-        //           }
-        //           .runCollect
-        //           .map(_.toMap),
-        //         equalTo((0 to 5).map((_ -> 1000)).toMap)
-        //       )
-
-        //     },
-        //     testM("outer errors") {
-
-        //       val words = List("abc", "test", "test", "foo")
-        //       assertM(
-        //         (Stream.fromIterable(words) ++ Stream.fail("Boom"))
-        //           .groupByKey(identity) { case (_, s) => s.drain }
-        //           .runCollect
-        //           .either,
-        //         isLeft(equalTo("Boom"))
-        //       )
-        //     }
-        //   ),
+        ),
+          suite("Stream.bracket")(
+            testM("bracket") {
+              for {
+                done           <- Ref.make(false)
+                iteratorStream = Stream.bracket(UIO(0 to 2))(_ => done.set(true)).flatMap(Stream.fromIterable)
+                result         <- iteratorStream.run(Sink.collectAll[Int])
+                released       <- done.get
+              } yield assert(result, equalTo(List(0, 1, 2))) && assert(released, isTrue)
+
+            },
+            testM("bracket short circuits") {
+              for {
+                done <- Ref.make(false)
+                iteratorStream = Stream
+                  .bracket(UIO(0 to 3))(_ => done.set(true))
+                  .flatMap(Stream.fromIterable)
+                  .take(2)
+                result   <- iteratorStream.run(Sink.collectAll[Int])
+                released <- done.get
+              } yield assert(result, equalTo(List(0, 1))) && assert(released, isTrue)
+
+            },
+            testM("no acquisition when short circuiting") {
+              for {
+                acquired       <- Ref.make(false)
+                iteratorStream = (Stream(1) ++ Stream.bracket(acquired.set(true))(_ => UIO.unit)).take(0)
+                _              <- iteratorStream.run(Sink.drain)
+                result         <- acquired.get
+              } yield assert(result, isFalse)
+
+            },
+            testM("releases when there are defects") {
+              for {
+                ref <- Ref.make(false)
+                _ <- Stream
+                      .bracket(ZIO.unit)(_ => ref.set(true))
+                      .flatMap(_ => Stream.fromEffect(ZIO.dieMessage("boom")))
+                      .run(Sink.drain)
+                      .run
+                released <- ref.get
+              } yield assert(released, isTrue)
+
+            }
+          ),
+          suite("Stream.broadcast")(
+            testM("Values") {
+              val expected = List(0, 1, 2, 3, 4, 5)
+              assertM(
+                Stream
+                  .range(0, 5)
+                  .broadcast(2, 12)
+                  .use {
+                    case s1 :: s2 :: Nil =>
+                      for {
+                        out1 <- s1.runCollect
+                        out2 <- s2.runCollect
+                      } yield out1 -> out2
+                    case _ =>
+                      ZIO.fail("Wrong number of streams produced")
+                  }
+                  .run,
+                succeeds(equalTo((expected, expected)))
+              )
+
+            },
+            testM("Errors") {
+              assertM(
+                (Stream.range(0, 1) ++ Stream.fail("Boom")).broadcast(2, 12).use {
+                  case s1 :: s2 :: Nil =>
+                    for {
+                      out1 <- s1.runCollect.either
+                      out2 <- s2.runCollect.either
+                    } yield Some(out1 -> out2)
+                  case _ =>
+                    ZIO.succeed(None)
+                },
+                isSome(equalTo[(Either[String, List[Int]], Either[String, List[Int]])]((Left("Boom"), Left("Boom"))))
+              )
+            },
+            testM("BackPressure") {
+              assertM(
+                Stream
+                  .range(0, 5)
+                  .broadcast(2, 2)
+                  .use {
+                    case s1 :: s2 :: Nil =>
+                      for {
+                        ref       <- Ref.make[List[Int]](Nil)
+                        latch1    <- Promise.make[Nothing, Unit]
+                        fib       <- s1.tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2)).runDrain.fork
+                        _         <- latch1.await
+                        snapshot1 <- ref.get
+                        _         <- s2.runDrain
+                        _         <- fib.await
+                        snapshot2 <- ref.get
+                      } yield snapshot1 -> snapshot2
+                    case _ =>
+                      ZIO.fail("Wrong number of streams produced")
+                  }
+                  .run,
+                succeeds(equalTo((List(2, 1, 0), List(5, 4, 3, 2, 1, 0))))
+              )
+            },
+            testM("Unsubscribe") {
+              assertM(
+                Stream
+                  .range(0, 5)
+                  .broadcast(2, 2)
+                  .use {
+                    case s1 :: s2 :: Nil =>
+                      for {
+                        _    <- s1.process.use_(ZIO.unit).ignore
+                        out2 <- s2.runCollect
+                      } yield out2
+                    case _ =>
+                      ZIO.fail("Wrong number of streams produced")
+                  }
+                  .run,
+                succeeds(equalTo(List(0, 1, 2, 3, 4, 5)))
+              )
+            }
+          ),
+          suite("Stream.buffer")(
+            testM("buffer the Stream") {
+              checkM(listOfInts) { list =>
+                assertM(
+                  Stream
+                    .fromIterable(list)
+                    .buffer(2)
+                    .run(Sink.collectAll[Int]),
+                  equalTo(list)
+                )
+              }
+            },
+            // testM("buffer the Stream with Error") {
+            //   val e = new RuntimeException("boom")
+            //   assertM(
+            //     (Stream.range(0, 10) ++ Stream.fail(e))
+            //       .buffer(2)
+            //       .run(Sink.collectAll[Int])
+            //       .run,
+            //     dies(equalTo(e))
+            //   )
+
+            // },
+            testM("fast producer progress independently") {
+              for {
+                ref   <- Ref.make(List[Int]())
+                latch <- Promise.make[Nothing, Unit]
+                s     = Stream.range(1, 5).tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4)).buffer(2)
+                l <- s.process.use { as =>
+                      for {
+                        _ <- as
+                        _ <- latch.await
+                        l <- ref.get
+                      } yield l
+                    }.run
+              } yield assert(l, succeeds(equalTo((4 to 1).toList)))
+
+            }
+          ),
+          suite("Stream.catchAllCause")(
+            // Getting "a type was inferred to be `Any`" with the following tests:
+            // testM("recovery from errors") {
+            //   val s1 = Stream(1, 2) ++ Stream.fail("Boom")
+            //   val s2 = Stream(3, 4)
+
+            //   assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
+            // },
+            // testM("recovery from defects") {
+            //   val s1 = Stream(1, 2) ++ Stream.dieMessage("Boom")
+            //   val s2 = Stream(3, 4)
+
+            //   assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
+
+            // },
+            // testM("happy path") {
+            //   val s1 = Stream(1, 2)
+            //   val s2 = Stream(3, 4)
+
+            //   assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2)))
+
+            // },
+            testM("executes finalizers") {
+              for {
+                fins   <- Ref.make(List[String]())
+                s1     = (Stream(1, 2) ++ Stream.fail("Boom")).ensuring(fins.update("s1" :: _))
+                s2     = (Stream(3, 4) ++ Stream.fail("Boom")).ensuring(fins.update("s2" :: _))
+                _      <- s1.catchAllCause(_ => s2).runCollect.run
+                result <- fins.get
+              } yield assert(result, equalTo(List("s2", "s1")))
+            }
+            // testM("failures on the scope") {
+            //   val s1 = Stream(1, 2) ++ ZStream(ZManaged.fail("Boom"))
+            //   val s2 = Stream(3, 4)
+
+            //   assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
+            // }
+          ),
+          testM("Stream.collect") {
+            assertM(Stream(Left(1), Right(2), Left(3)).collect {
+              case Right(n) => n
+            }.runCollect, equalTo(List(2)))
+
+          },
+          suite("Stream.collectWhile")(
+            testM("collectWhile") {
+              assertM(
+                Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) => v }.runCollect,
+                equalTo(List(1, 2, 3))
+              )
+            },
+            testM("collectWhile short circuits") {
+              assertM(
+                (Stream(Option(1)) ++ Stream.fail("Ouch")).collectWhile {
+                  case None => 1
+                }.runDrain.either,
+                isRight(equalTo(()))
+              )
+
+            }
+          ),
+          suite("Stream.concat")(
+            // testM("concat") {
+            //   checkM(streamOfBytes, streamOfBytes) { (s1, s2) =>
+            //     for {
+            //       listConcat   <- s1.runCollect.zipWith(s2.runCollect)(_ ++ _)
+            //       streamConcat <- (s1 ++ s2).runCollect
+            //     } yield {
+            //       assert(streamConcat.succeeded && listConcat.succeeded, isTrue) ==> assert(
+            //         streamConcat,
+            //         equalTo(listConcat)
+            //       )
+            //     }
+            //   }
+            // },
+            testM("finalizer order") {
+              for {
+                log       <- Ref.make[List[String]](Nil)
+                _         <- (Stream.finalizer(log.update("Second" :: _)) ++ Stream.finalizer(log.update("First" :: _))).runDrain
+                execution <- log.get
+              } yield assert(execution, equalTo(List("First", "Second")))
+            }
+          ),
+          testM("Stream.drain") {
+            for {
+              ref <- Ref.make(List[Int]())
+              _   <- Stream.range(0, 10).mapM(i => ref.update(i :: _)).drain.run(Sink.drain)
+              l   <- ref.get
+            } yield assert(l.reverse, equalTo((0 to 10).toList))
+
+          },
+          testM("dropUntil") {
+            def dropUntil[A](as: List[A])(f: A => Boolean): List[A] = as.dropWhile(!f(_)).drop(1)
+            checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
+              for {
+                res1 <- s.dropUntil(p).runCollect
+                res2 <- s.runCollect.map(dropUntil(_)(p))
+              } yield assert(res1, equalTo(res2))
+            }
+          },
+          suite("Stream.dropWhile")(
+            testM("dropWhile") {
+              checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
+                for {
+                  res1 <- s.dropWhile(p).runCollect
+                  res2 <- s.runCollect.map(_.dropWhile(p))
+                } yield assert(res1, equalTo(res2))
+              }
+            },
+            testM("short circuits") {
+              assertM(
+                (Stream(1) ++ Stream.fail("Ouch"))
+                  .take(1)
+                  .dropWhile(_ => true)
+                  .runDrain
+                  .either,
+                isRight(equalTo(()))
+              )
+            }
+          ),
+          suite("Stream.effectAsync")(
+            testM("effectAsync") {
+              checkM(listOfInts) { list =>
+                val s = Stream.effectAsync[Throwable, Int] { k =>
+                  list.foreach(a => k(Task.succeed(a)))
+                }
+
+                assertM(s.take(list.size).runCollect.run, succeeds(equalTo(list)))
+
+              }
+            }
+          ),
+          suite("Stream.effectAsyncMaybe")(
+            testM("effectAsyncMaybe signal end stream") {
+              for {
+                result <- Stream
+                           .effectAsyncMaybe[Nothing, Int] { k =>
+                             k(IO.fail(None))
+                             None
+                           }
+                           .runCollect
+              } yield assert(result, equalTo(List.empty[Int]))
+            },
+            testM("effectAsyncMaybe Some") {
+              checkM(listOfInts) { list =>
+                val s = Stream.effectAsyncMaybe[Throwable, Int] { _ =>
+                  Some(Stream.fromIterable(list))
+                }
+
+                assertM(s.runCollect.map(_.take(list.size)).run, succeeds(equalTo(list)))
+              }
+            },
+            testM("effectAsyncMaybe None") {
+              checkM(listOfInts) { list =>
+                val s = Stream.effectAsyncMaybe[Throwable, Int] { k =>
+                  list.foreach(a => k(Task.succeed(a)))
+                  None
+                }
+
+                assertM(s.take(list.size).runCollect.run, succeeds(equalTo(list)))
+              }
+            }
+          ),
+          suite("Stream.effectAsyncM")(
+            testM("effectAsyncM") {
+              val list = List(1, 2, 3)
+              assertM(
+                (for {
+                  latch <- Promise.make[Nothing, Unit]
+                  fiber <- ZStream
+                            .effectAsyncM[Any, Throwable, Int] { k =>
+                              latch.succeed(()) *>
+                                Task.succeed {
+                                  list.foreach(a => k(Task.succeed(a)))
+                                }
+                            }
+                            .take(list.size)
+                            .run(Sink.collectAll[Int])
+                            .fork
+                  _ <- latch.await
+                  s <- fiber.join
+                } yield s).run,
+                succeeds(equalTo(list))
+              )
+            },
+            testM("effectAsyncM signal end stream") {
+              assertM(
+                Stream
+                  .effectAsyncM[Nothing, Int] { k =>
+                    k(IO.fail(None))
+                    UIO.succeed(())
+                  }
+                  .runCollect
+                  .run,
+                succeeds(equalTo(List.empty[Int]))
+              )
+
+            }
+          ),
+          suite("Stream.effectAsyncInterrupt")(
+            testM("effectAsyncInterrupt Left") {
+              for {
+                cancelled <- Ref.make(false)
+                latch     <- Promise.make[Nothing, Unit]
+                fiber <- Stream
+                          .effectAsyncInterrupt[Nothing, Unit] { offer =>
+                            offer(ZIO.succeed(())); Left(cancelled.set(true))
+                          }
+                          .tap(_ => latch.succeed(()))
+                          .run(Sink.collectAll[Unit])
+                          .fork
+                _      <- latch.await
+                _      <- fiber.interrupt
+                result <- cancelled.get
+              } yield assert(result, isTrue)
+
+            },
+            testM("effectAsyncInterrupt Right") {
+              checkM(listOfInts) { list =>
+                val s = Stream.effectAsyncInterrupt[Throwable, Int] { _ =>
+                  Right(Stream.fromIterable(list))
+                }
+                assertM(s.take(list.size).runCollect.run, succeeds(equalTo(list)))
+              }
+            },
+            testM("effectAsyncInterrupt signal end stream") {
+              assertM(
+                Stream
+                  .effectAsyncInterrupt[Nothing, Int] { k =>
+                    k(IO.fail(None))
+                    Left(UIO.succeed(()))
+                  }
+                  .runCollect,
+                equalTo(List.empty[Int])
+              )
+
+            }
+          ),
+          testM("Stream.ensuring") {
+            for {
+              log <- Ref.make[List[String]](Nil)
+              _ <- (for {
+                    _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                    _ <- Stream.fromEffect(log.update("Use" :: _))
+                  } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
+              execution <- log.get
+            } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
+          },
+          testM("Stream.ensuringFirst") {
+            for {
+              log <- Ref.make[List[String]](Nil)
+              _ <- (for {
+                    _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                    _ <- Stream.fromEffect(log.update("Use" :: _))
+                  } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
+              execution <- log.get
+            } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
+          },
+          testM("Stream.finalizer") {
+            for {
+              log <- Ref.make[List[String]](Nil)
+              _ <- (for {
+                    _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                    _ <- Stream.finalizer(log.update("Use" :: _))
+                  } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
+              execution <- log.get
+            } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
+
+          },
+          suite("Stream.filter")(
+            testM("filter") {
+              checkM(streamOfBytes, toBoolFn[Random, Byte]) { (s, p) =>
+                for {
+                  res1 <- s.filter(p).runCollect
+                  res2 <- s.runCollect.map(_.filter(p))
+                } yield assert(res1, equalTo(res2))
+              }
+            },
+            testM("short circuits #1") {
+              assertM(
+                (Stream(1) ++ Stream.fail("Ouch"))
+                  .filter(_ => true)
+                  .take(1)
+                  .runDrain
+                  .either,
+                isRight(equalTo(()))
+              )
+
+            },
+            testM("short circuits #2") {
+              assertM(
+                (Stream(1) ++ Stream.fail("Ouch"))
+                  .take(1)
+                  .filter(_ => true)
+                  .runDrain
+                  .either,
+                isRight(equalTo(()))
+              )
+
+            }
+          ),
+          suite("Stream.filterM")(
+            // testM("filterM") {
+            //   checkM(streamOfBytes, Gen[Byte => Boolean]) { (s, p) =>
+            //     for {
+            //       res1 <- s.filterM(s => IO.succeed(p(s))).runCollect
+            //       res2 <- s.runCollect.map(_.filter(p))
+            //     } yield assert(res1, equalTo(res2))
+            //   }
+
+            // },
+            // TODO: A type was inferred to be `Any`
+            // testM("short circuits #1") {
+            //   assertM(
+            //     (Stream(1) ++ Stream.fail("Ouch"))
+            //       .take(1)
+            //       .filterM(_ => UIO.succeed(true))
+            //       .runDrain
+            //       .either,
+            //     isRight(equalTo(()))
+            //   )
+            // },
+            testM("short circuits #2") {
+              assertM(
+                (Stream(1) ++ Stream.fail("Ouch"))
+                  .filterM(_ => UIO.succeed(true))
+                  .take(1)
+                  .runDrain
+                  .either,
+                isRight(equalTo(()))
+              )
+
+            }
+          ),
+          suite("Stream.flatMap")(
+            testM("deep flatMap stack safety") {
+              def fib(n: Int): Stream[Nothing, Int] =
+                if (n <= 1) Stream.succeed(n)
+                else
+                  fib(n - 1).flatMap { a =>
+                    fib(n - 2).flatMap { b =>
+                      Stream.succeed(a + b)
+                    }
+                  }
+
+              val stream   = fib(20)
+              val expected = 6765
+
+              assertM(stream.runCollect.either, isRight(equalTo(List(expected))))
+
+            }
+            // testM("left identity") {
+            //   checkM(intGen, Gen[Int => Stream[String, Int]])(
+            //     (x, f) =>
+            //       for {
+            //         res1 <- Stream(x).flatMap(f).runCollect
+            //         res2 <- f(x).runCollect
+            //       } yield assert(res1, equalTo(res2))
+            //   )
+            // },
+            //     testM("right identity") {
+            //       checkM(pureStreamGen(intGen))(
+            //         m =>
+            //           for {
+            //             res1 <- m.flatMap(i => Stream(i)).runCollect
+            //             res2 <- m.runCollect
+            //           } yield assert(res1, equalTo(res2))
+            //       )
+
+            // },
+            // testM("associativity") {
+            //   checkM(streamOfInts, Gen[Int => Stream[String, Int]], Gen[Int => Stream[String, Int]]) {
+            //     (m, f, g) =>
+            //       val leftStream  = m.flatMap(f).flatMap(g)
+            //       val rightStream = m.flatMap(x => f(x).flatMap(g))
+            //       for {
+            //         res1 <- leftStream.runCollect
+            //         res2 <- rightStream.runCollect
+            //       } yield assert(res1, equalTo(res2))
+            //   }
+
+            // }
+          ),
+          // suite("Stream.flatMapPar/flattenPar/mergeAll")(
+          //   // TODO: a type was inferred to be `Any`
+          //   // testM("guarantee ordering") {
+          //   //   checkM(listOfInts) { m =>
+          //   //     val s: Stream[Nothing, Int] = Stream.fromIterable(m)
+          //   //     val flatMap    = s.flatMap(i => Stream(i, i)).runCollect
+          //   //     val flatMapPar = s.flatMapPar(1)(i => Stream(i, i)).runCollect
+          //   //     for {
+          //   //       res1 <- flatMap
+          //   //       res2 <- flatMapPar
+          //   //     } yield assert(res1, equalTo(res2))
+          //   //   }
+          //   // },
+          //   testM("consistent with flatMap") {
+          //     checkM(intGen, listOfInts) { (n, m) =>
+          //       val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect.map(_.toSet)
+          //       val flatMapPar = Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i)).runCollect.map(_.toSet)
+          //       if (n > 0)
+          //         UIO.succeed(assert(true, isTrue))
+          //       else
+          //         for {
+          //           res1 <- flatMap
+          //           res2 <- flatMapPar
+          //         } yield assert(res1, equalTo(res2))
+          //     }
+          //   },
+          //   testM("short circuiting") {
+          //     assertM(
+          //       Stream
+          //         .mergeAll(2)(
+          //           Stream.never,
+          //           Stream(1)
+          //         )
+          //         .take(1)
+          //         .run(Sink.collectAll[Int]),
+          //       equalTo(List(1))
+          //     )
+
+          //   },
+          //   testM("interruption propagation") {
+          //     for {
+          //       substreamCancelled <- Ref.make[Boolean](false)
+          //       latch              <- Promise.make[Nothing, Unit]
+          //       fiber <- Stream(())
+          //                 .flatMapPar(1)(
+          //                   _ =>
+          //                     Stream.fromEffect(
+          //                       (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
+          //                     )
+          //                 )
+          //                 .run(Sink.collectAll[Unit])
+          //                 .fork
+          //       _         <- latch.await
+          //       _         <- fiber.interrupt
+          //       cancelled <- substreamCancelled.get
+          //     } yield assert(cancelled, isTrue)
+
+          //   },
+          //   testM("inner errors interrupt all fibers") {
+          //     for {
+          //       substreamCancelled <- Ref.make[Boolean](false)
+          //       latch              <- Promise.make[Nothing, Unit]
+          //       result <- Stream(
+          //                  Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
+          //                  Stream.fromEffect(latch.await *> ZIO.fail("Ouch"))
+          //                ).flatMapPar(2)(identity)
+          //                  .run(Sink.drain)
+          //                  .either
+          //       cancelled <- substreamCancelled.get
+          //     } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
+
+          //   },
+          //   testM("outer errors interrupt all fibers") {
+          //     for {
+          //       substreamCancelled <- Ref.make[Boolean](false)
+          //       latch              <- Promise.make[Nothing, Unit]
+          //       result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.fail("Ouch")))
+          //                  .flatMapPar(2) { _ =>
+          //                    Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
+          //                  }
+          //                  .run(Sink.drain)
+          //                  .either
+          //       cancelled <- substreamCancelled.get
+          //     } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
+
+          //   },
+          //   testM("inner defects interrupt all fibers") {
+          //     val ex = new RuntimeException("Ouch")
+
+          //     for {
+          //       substreamCancelled <- Ref.make[Boolean](false)
+          //       latch              <- Promise.make[Nothing, Unit]
+          //       result <- Stream(
+          //                  Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
+          //                  Stream.fromEffect(latch.await *> ZIO.die(ex))
+          //                ).flatMapPar(2)(identity)
+          //                  .run(Sink.drain)
+          //                  .run
+          //       cancelled <- substreamCancelled.get
+          //     } yield assert(cancelled, isTrue) && assert(result, dies(equalTo(ex)))
+
+          //   },
+          //   testM("outer defects interrupt all fibers") {
+          //     val ex = new RuntimeException()
+
+          //     for {
+          //       substreamCancelled <- Ref.make[Boolean](false)
+          //       latch              <- Promise.make[Nothing, Unit]
+          //       result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.die(ex)))
+          //                  .flatMapPar(2) { _ =>
+          //                    Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
+          //                  }
+          //                  .run(Sink.drain)
+          //                  .run
+          //       cancelled <- substreamCancelled.get
+          //     } yield assert(cancelled, isTrue) && assert(result, dies(equalTo(ex)))
+
+          //   },
+          //   testM("finalizer ordering") {
+          //     for {
+          //       execution <- Ref.make[List[String]](Nil)
+          //       inner = Stream
+          //         .bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
+          //       _ <- Stream
+          //             .bracket(execution.update("OuterAcquire" :: _).as(inner))(
+          //               _ => execution.update("OuterRelease" :: _)
+          //             )
+          //             .flatMapPar(2)(identity)
+          //             .runDrain
+          //       results <- execution.get
+          //     } yield assert(results, equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")))
+
+          //   }
+          // ),
+          suite("Stream.flatMapParSwitch")(
+            testM("guarantee ordering no parallelism") {
+              for {
+                lastExecuted <- Ref.make(false)
+                semaphore    <- Semaphore.make(1)
+                _ <- Stream(1, 2, 3, 4)
+                      .flatMapParSwitch(1) { i =>
+                        if (i > 3) Stream.bracket(UIO.unit)(_ => lastExecuted.set(true)).flatMap(_ => Stream.empty)
+                        else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+                      }
+                      .runDrain
+                result <- semaphore.withPermit(lastExecuted.get)
+              } yield assert(result, isTrue)
+            },
+            testM("guarantee ordering with parallelism") {
+              for {
+                lastExecuted <- Ref.make(0)
+                semaphore    <- Semaphore.make(4)
+                _ <- Stream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+                      .flatMapParSwitch(4) { i =>
+                        if (i > 8) Stream.bracket(UIO.unit)(_ => lastExecuted.update(_ + 1)).flatMap(_ => Stream.empty)
+                        else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+                      }
+                      .runDrain
+                result <- semaphore.withPermits(4)(lastExecuted.get)
+              } yield assert(result, equalTo(4))
+            },
+            testM("short circuiting") {
+              assertM(
+                Stream(Stream.never, Stream(1))
+                  .flatMapParSwitch(2)(identity)
+                  .take(1)
+                  .runCollect,
+                equalTo(List(1))
+              )
+            },
+            testM("interruption propagation") {
+              for {
+                substreamCancelled <- Ref.make[Boolean](false)
+                latch              <- Promise.make[Nothing, Unit]
+                fiber <- Stream(())
+                          .flatMapParSwitch(1)(
+                            _ =>
+                              Stream.fromEffect(
+                                (latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))
+                              )
+                          )
+                          .runCollect
+                          .fork
+                _         <- latch.await
+                _         <- fiber.interrupt
+                cancelled <- substreamCancelled.get
+              } yield assert(cancelled, isTrue)
+            },
+            testM("inner errors interrupt all fibers") {
+              for {
+                substreamCancelled <- Ref.make[Boolean](false)
+                latch              <- Promise.make[Nothing, Unit]
+                result <- Stream(
+                           Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))),
+                           Stream.fromEffect(latch.await *> IO.fail("Ouch"))
+                         ).flatMapParSwitch(2)(identity).runDrain.either
+                cancelled <- substreamCancelled.get
+              } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
+            },
+            testM("outer errors interrupt all fibers") {
+              for {
+                substreamCancelled <- Ref.make[Boolean](false)
+                latch              <- Promise.make[Nothing, Unit]
+                result <- (Stream(()) ++ Stream.fromEffect(latch.await *> IO.fail("Ouch")))
+                           .flatMapParSwitch(2) { _ =>
+                             Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true)))
+                           }
+                           .runDrain
+                           .either
+                cancelled <- substreamCancelled.get
+              } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
+            },
+            testM("inner defects interrupt all fibers") {
+              val ex = new RuntimeException("Ouch")
+
+              for {
+                substreamCancelled <- Ref.make[Boolean](false)
+                latch              <- Promise.make[Nothing, Unit]
+                result <- Stream(
+                           Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
+                           Stream.fromEffect(latch.await *> ZIO.die(ex))
+                         ).flatMapParSwitch(2)(identity)
+                           .run(Sink.drain)
+                           .run
+                cancelled <- substreamCancelled.get
+              } yield assert(cancelled, isTrue) && assert(result, dies(equalTo(ex)))
+            },
+            testM("outer defects interrupt all fibers") {
+              val ex = new RuntimeException()
+
+              for {
+                substreamCancelled <- Ref.make[Boolean](false)
+                latch              <- Promise.make[Nothing, Unit]
+                result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.die(ex)))
+                           .flatMapParSwitch(2) { _ =>
+                             Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
+                           }
+                           .run(Sink.drain)
+                           .run
+                cancelled <- substreamCancelled.get
+              } yield assert(cancelled, isTrue) && assert(result, dies(equalTo(ex)))
+            },
+            testM("finalizer ordering") {
+              for {
+                execution <- Ref.make(List.empty[String])
+                inner     = Stream.bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
+                _ <- Stream
+                      .bracket(execution.update("OuterAcquire" :: _).as(inner))(
+                        _ => execution.update("OuterRelease" :: _)
+                      )
+                      .flatMapParSwitch(2)(identity)
+                      .runDrain
+                results <- execution.get
+              } yield assert(results, equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")))
+            }
+          ),
+          suite("Stream.foreach/foreachWhile")(
+            testM("foreach") {
+              var sum = 0
+              val s   = Stream(1, 1, 1, 1, 1)
+
+              assertM(s.foreach[Any, Nothing](a => IO.effectTotal(sum += a)) *> ZIO.effectTotal(sum), equalTo(5))
+            },
+            testM("foreachWhile") {
+              var sum = 0
+              val s   = Stream(1, 1, 1, 1, 1, 1)
+
+              assertM(
+                s.foreachWhile[Any, Nothing](
+                  a =>
+                    IO.effectTotal(
+                      if (sum >= 3) false
+                      else {
+                        sum += a;
+                        true
+                      }
+                    )
+                ) *> ZIO.effectTotal(sum),
+                equalTo(3)
+              )
+            },
+            testM("foreachWhile short circuits") {
+              for {
+                flag    <- Ref.make(true)
+                _       <- (Stream(true, true, false) ++ Stream.fromEffect(flag.set(false)).drain).foreachWhile(ZIO.succeed)
+                skipped <- flag.get
+              } yield assert(skipped, isTrue)
+            }
+          ),
+          testM("Stream.forever") {
+            var sum = 0
+            val s = Stream(1).forever.foreachWhile[Any, Nothing](
+              a =>
+                IO.effectTotal {
+                  sum += a;
+                  if (sum >= 9) false else true
+                }
+            )
+            assertM(s *> ZIO.effectTotal(sum), equalTo(9))
+
+          },
+          //   testM("Stream.fromChunk") {
+          //     checkM(chunkGen(intGen)) { c =>
+          //       assertM(Stream.fromChunk(c).runCollect.run, succeeds(equalTo(c.toSeq.toList)))
+          //     }
+          //   },
+          testM("Stream.fromInputStream") {
+            import java.io.ByteArrayInputStream
+            val chunkSize = ZStreamChunk.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            val is        = new ByteArrayInputStream(data)
+            val result = ZStream
+              .fromInputStream(is, chunkSize)
+              .run(Sink.collectAll[Chunk[Byte]])
+              .map { chunks =>
+                chunks.flatMap(_.toArray[Byte]).toArray
+              }
+              .run
+
+            assertM(result, succeeds(equalTo(data)))
+          },
+          testM("Stream.fromIterable") {
+            checkM(listOfInts) { l =>
+              assertM(Stream.fromIterable(l).runCollect, equalTo(l))
+            }
+          },
+          //   testM("Stream.fromQueue") {
+          //     checkM(chunkGen(intGen)) { c =>
+          //       for {
+          //         queue <- Queue.unbounded[Int]
+          //         _     <- queue.offerAll(c.toSeq)
+          //         fiber <- Stream
+          //                   .fromQueue(queue)
+          //                   .fold[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
+          //                   .map(_.reverse)
+          //                   .fork
+          //         _     <- ZQueueSpecUtil.waitForSize(queue, -1)
+          //         _     <- queue.shutdown
+          //         items <- fiber.join
+          //       } yield assert(items, equalTo(c.toSeq.toList))
+          //     }
+            // },
+          suite("Stream.groupBy")(
+            testM("values") {
+              val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+              assertM(
+                Stream
+                  .fromIterable(words)
+                  .groupByKey(identity, 8192) {
+                    case (k, s) =>
+                      s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
+                        .take(1)
+                        .map((k -> _))
+                  }
+                  .runCollect
+                  .map(_.toMap),
+                equalTo((0 to 100).map((_.toString -> 1000)).toMap)
+              )
+
+            },
+            testM("first") {
+              val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+              assertM(
+                Stream
+                  .fromIterable(words)
+                  .groupByKey(identity, 1050)
+                  .first(2) {
+                    case (k, s) =>
+                      s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
+                        .take(1)
+                        .map((k -> _))
+                  }
+                  .runCollect
+                  .map(_.toMap),
+                equalTo((0 to 1).map((_.toString -> 1000)).toMap)
+              )
+
+            },
+            testM("filter") {
+              val words = List.fill(1000)(0 to 100).flatten
+              assertM(
+                Stream
+                  .fromIterable(words)
+                  .groupByKey(identity, 1050)
+                  .filter(_ <= 5) {
+                    case (k, s) =>
+                      s.transduce(Sink.foldLeft[Int, Int](0) { case (acc, _) => acc + 1 })
+                        .take(1)
+                        .map((k -> _))
+                  }
+                  .runCollect
+                  .map(_.toMap),
+                equalTo((0 to 5).map((_ -> 1000)).toMap)
+              )
+
+            },
+            testM("outer errors") {
+
+              val words = List("abc", "test", "test", "foo")
+              assertM(
+                (Stream.fromIterable(words) ++ Stream.fail("Boom"))
+                  .groupByKey(identity) { case (_, s) => s.drain }
+                  .runCollect
+                  .either,
+                isLeft(equalTo("Boom"))
+              )
+            }
+          ),
         //   suite("Stream interleaving")(
         //     testM("interleave") {
         //       val s1 = Stream(2, 3)
