@@ -1255,15 +1255,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.run.flatMap(x => p.complete(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
-   * Converts the effect into a [[scala.concurrent.Future]].
+   * Converts the effect into a [[CancelableFuture]], which is a [[scala.concurrent.Future]].
    */
-  final def toFuture(implicit ev2: E <:< Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
+  final def toFuture(implicit ev2: E <:< Throwable): ZIO[R, Nothing, CancelableFuture[E, A]] =
     self toFutureWith ev2
 
   /**
-   * Converts the effect into a [[scala.concurrent.Future]].
+   * Converts the effect into a [[CancelableFuture]], which is a [[scala.concurrent.Future]].
    */
-  final def toFutureWith(f: E => Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
+  final def toFutureWith(f: E => Throwable): ZIO[R, Nothing, CancelableFuture[E, A]] =
     self.fork >>= (_.toFutureWith(f))
 
   /**

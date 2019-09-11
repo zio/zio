@@ -255,7 +255,7 @@ trait Fiber[+E, +A] { self =>
    * @param ev implicit witness that E is a subtype of Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFuture(implicit ev: E <:< Throwable): UIO[Future[A]] =
+  final def toFuture(implicit ev: E <:< Throwable): UIO[CancelableFuture[E, A]] =
     toFutureWith(ev)
 
   /**
@@ -263,19 +263,18 @@ trait Fiber[+E, +A] { self =>
    * any errors to [[java.lang.Throwable]] with the specified conversion function.
    *
    * @param f function to the error into a Throwable
-   * @return `UIO[Future[A]]`
+   * @return `UIO[CancelableFuture[E, A]]`
    */
-  final def toFutureWith(f: E => Throwable): UIO[Future[A]] =
+  final def toFutureWith(f: E => Throwable): UIO[CancelableFuture[E, A]] =
     UIO.effectTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
 
-      UIO.effectTotal(p.future) <* self.await
+      UIO(CancelableFuture.unsafeMake(p.future, this.interrupt)) <* self.await
         .flatMap[Any, Nothing, p.type](_.foldM[Any, Nothing, p.type](failure, success))
         .fork
-
     }.flatten
 
   /**
