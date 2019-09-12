@@ -21,7 +21,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
-    zio.test.test(label)(assertion).mapTest(_.map(_ => TestSuccess.Succeeded(AssertResult.unit)))
+    zio.test.test(label)(assertion).mapTest(_.map(_ => TestSuccess.Succeeded(BoolAlgebra.unit)))
 
   val test1 = makeTest("Addition works fine") {
     assert(1 + 1, equalTo(2))
