@@ -36,6 +36,7 @@ final class TestAnnotation[V] private (
   override final lazy val hashCode = (identifier, classTag).hashCode
 }
 object TestAnnotation {
+
   /**
    * An annotation for timing.
    */

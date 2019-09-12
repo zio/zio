@@ -44,6 +44,7 @@ class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRe
   private final def update[V](key: TestAnnotation[V], f: V => V): TestAnnotationMap = overwrite(key, f(get(key)))
 }
 object TestAnnotationMap {
+
   /**
    * An empty annotation map.
    */
