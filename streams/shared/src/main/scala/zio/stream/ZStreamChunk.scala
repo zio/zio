@@ -39,6 +39,15 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
     ZStreamChunk(chunks ++ that.chunks)
 
   /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` chunks in a queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def buffer(capacity: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk(chunks.buffer(capacity))
+
+  /**
    * Collects a filtered, mapped subset of the stream.
    */
   final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
