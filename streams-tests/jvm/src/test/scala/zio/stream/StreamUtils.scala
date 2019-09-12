@@ -30,9 +30,9 @@ trait StreamUtils extends ChunkUtils {
 }
 
 object StreamUtils extends StreamUtils with GenUtils {
-  val streamOfBytes   = streamGen(Gen.anyByte)
-  val streamOfInts    = streamGen(intGen)
-  val streamOfStrings = streamGen(stringGen)
+  val streamOfBytes   = pureStreamGen(Gen.anyByte)
+  val streamOfInts    = pureStreamGen(intGen)
+  val streamOfStrings = pureStreamGen(stringGen)
 
   val listOfInts = Gen.listOf(intGen)
 
