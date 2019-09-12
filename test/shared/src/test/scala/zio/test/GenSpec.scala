@@ -54,6 +54,7 @@ object GenSpec extends DefaultRuntime {
     label(none, "none generates the constant empty value"),
     label(optionOfGeneratesOptionalValues, "optionOf generates optional values"),
     label(optionOfShrinksToNone, "optionOf shrinks to None"),
+    label(partialFunctionGeneratesPartialFunctions, "partialFunction generates partial functions"),
     label(printableCharGeneratesValuesInRange, "printableChar generates values in range"),
     label(printableCharShrinksToBottomOfRange, "printableChar shrinks to bottom of range"),
     label(reshrinkAppliesNewShrinkingLogic, "reShrink applies new shrinking logic"),
@@ -270,6 +271,16 @@ object GenSpec extends DefaultRuntime {
 
   def optionOfShrinksToNone: Future[Boolean] =
     checkShrink(Gen.option(smallInt))(None)
+
+  def partialFunctionGeneratesPartialFunctions: Future[Boolean] = {
+    val gen = for {
+      f <- Gen.partialFunction[Random, String, Int](Gen.int(-10, 10))
+      s <- Gen.string(Gen.anyChar)
+    } yield f.lift(s)
+    checkSample(gen) { results =>
+      results.exists(_.isEmpty) && results.exists(_.nonEmpty)
+    }
+  }
 
   def printableCharGeneratesValuesInRange: Future[Boolean] =
     checkSample(Gen.printableChar)(_.forall(c => 33 <= c && c <= 126))
