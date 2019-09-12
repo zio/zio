@@ -18,7 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
-import zio.Exit
+import zio.{ Cause, Exit }
 import zio.test.Assertion._
 import zio.test.Assertion.Render._
 
@@ -27,8 +27,7 @@ import zio.test.Assertion.Render._
  * proposition, assertions compose using logical conjuction and disjunction,
  * and can be negated.
  */
-class Assertion[-A] private (render: Render, val run: (=> A) => AssertResult[Either[AssertionValue, Unit]])
-    extends ((=> A) => AssertResult[Either[AssertionValue, Unit]]) {
+class Assertion[-A] private (render: Render, val run: (=> A) => AssertResult) extends ((=> A) => AssertResult) {
   self =>
 
   /**
@@ -50,7 +49,7 @@ class Assertion[-A] private (render: Render, val run: (=> A) => AssertResult[Eit
   /**
    * Evaluates the assertion with the specified value.
    */
-  final def apply(a: => A): AssertResult[Either[AssertionValue, Unit]] =
+  final def apply(a: => A): AssertResult =
     run(a)
 
   override final def equals(that: Any): Boolean = that match {
@@ -157,20 +156,16 @@ object Assertion {
    * Makes a new assertion that always succeeds.
    */
   final val anything: Assertion[Any] =
-    Assertion.assertion[Any]("anything")()(_ => AssertResult.success(()))
+    Assertion.assertion[Any]("anything")()(_ => true)
 
   /**
    * Makes a new `Assertion` from a pretty-printing and a function.
    */
-  final def assertion[A](
-    name: String
-  )(params: RenderParam*)(run: (=> A) => AssertResult[Either[Unit, Unit]]): Assertion[A] =
+  final def assertion[A](name: String)(params: RenderParam*)(run: (=> A) => Boolean): Assertion[A] =
     assertionRec[A](name)(params: _*)(
       (assertion, a) =>
-        run(a).map {
-          case Left(_) => Left(AssertionValue(assertion, a))
-          case _       => Right(())
-        }
+        if (run(a)) BoolAlgebra.success(AssertionValue(assertion, a))
+        else BoolAlgebra.failure(AssertionValue(assertion, a))
     )
 
   /**
@@ -178,7 +173,7 @@ object Assertion {
    */
   final def assertionDirect[A](
     name: String
-  )(params: RenderParam*)(run: (=> A) => AssertResult[Either[AssertionValue, Unit]]): Assertion[A] =
+  )(params: RenderParam*)(run: (=> A) => AssertResult): Assertion[A] =
     new Assertion(function(name, List(params.toList)), run)
 
   /**
@@ -188,7 +183,7 @@ object Assertion {
    */
   final def assertionRec[A](
     name: String
-  )(params: RenderParam*)(run: (Assertion[A], => A) => AssertResult[Either[AssertionValue, Unit]]): Assertion[A] = {
+  )(params: RenderParam*)(run: (Assertion[A], => A) => AssertResult): Assertion[A] = {
     lazy val assertion: Assertion[A] = assertionDirect[A](name)(params: _*)(a => run(assertion, a))
     assertion
   }
@@ -198,9 +193,21 @@ object Assertion {
    * element.
    */
   final def contains[A](element: A): Assertion[Iterable[A]] =
-    Assertion.assertion("contains")(param(element)) { actual =>
-      if (!actual.exists(_ == element)) AssertResult.failure(())
-      else AssertResult.success(())
+    Assertion.assertion("contains")(param(element))(_.exists(_ == element))
+
+  /**
+   * Makes a new assertion that requires an exit value to die.
+   */
+  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
+    Assertion.assertionRec[Exit[Nothing, Any]]("dies")(param(assertion)) { (self, actual) =>
+      actual match {
+        case Exit.Failure(cause) if cause.died =>
+          cause.untraced match {
+            case Cause.Die(t) => assertion.run(t)
+            case _            => BoolAlgebra.failure(AssertionValue(self, actual))
+          }
+        case _ => BoolAlgebra.failure(AssertionValue(self, actual))
+      }
     }
 
   /**
@@ -208,11 +215,10 @@ object Assertion {
    */
   final def equalTo[A](expected: A): Assertion[A] =
     Assertion.assertion("equalTo")(param(expected)) { actual =>
-      val equal = (expected, actual) match {
+      (expected, actual) match {
         case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
         case (left, right)                     => left == right
       }
-      if (equal) AssertResult.success(()) else AssertResult.failure(())
     }
 
   /**
@@ -220,10 +226,7 @@ object Assertion {
    * satisfying the given assertion.
    */
   final def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertion("exists")(param(assertion)) { actual =>
-      if (!actual.exists(assertion.test(_))) AssertResult.failure(())
-      else AssertResult.success(())
-    }
+    Assertion.assertion("exists")(param(assertion))(_.exists(assertion.test))
 
   /**
    * Makes a new assertion that requires an exit value to fail.
@@ -232,8 +235,7 @@ object Assertion {
     Assertion.assertionRec[Exit[E, Any]]("fails")(param(assertion)) { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.failures.length > 0 => assertion.run(cause.failures.head)
-
-        case _ => AssertResult.failure(AssertionValue(self, actual))
+        case _                                                => BoolAlgebra.failure(AssertionValue(self, actual))
       }
     }
 
@@ -242,14 +244,14 @@ object Assertion {
    * satisfying the given assertion.
    */
   final def forall[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionDirect[Iterable[A]]("forall")(param(assertion)) { actual =>
+    Assertion.assertionRec[Iterable[A]]("forall")(param(assertion)) { (self, actual) =>
       actual.map(assertion(_)).toList match {
         case head :: tail =>
           tail.foldLeft(head) {
-            case (AssertResult.Value(Right(_)), next) => next
-            case (acc, _)                             => acc
+            case (result, next) if result.isSuccess => next
+            case (acc, _)                           => acc
           }
-        case Nil => AssertResult.success(())
+        case Nil => BoolAlgebra.success(AssertionValue(self, actual))
       }
     }
 
@@ -270,11 +272,8 @@ object Assertion {
    * by the specified assertion.
    */
   final def hasSize[A](assertion: Assertion[Int]): Assertion[Iterable[A]] =
-    Assertion.assertion[Iterable[A]]("hasSize")(param(assertion)) { actual =>
-      assertion.run(actual.size).map {
-        case Left(_) => Left(())
-        case _       => Right(())
-      }
+    Assertion.assertion("hasSize")(param(assertion)) { actual =>
+      assertion.test(actual.size)
     }
 
   /**
@@ -291,17 +290,16 @@ object Assertion {
   ): Assertion[Sum] =
     Assertion.assertionRec[Sum]("isCase")(param(termName), param(unapply(termName)), param(assertion)) {
       (self, actual) =>
-        term(actual).fold[AssertResult[Either[AssertionValue, Unit]]](
-          AssertResult.failure(AssertionValue(self, actual))
+        term(actual).fold[AssertResult](
+          BoolAlgebra.failure(AssertionValue(self, actual))
         )(assertion(_))
     }
 
   /**
    * Makes a new assertion that requires a value be true.
    */
-  final def isFalse: Assertion[Boolean] = Assertion.assertion(s"isFalse")() { actual =>
-    if (!actual) AssertResult.success(()) else AssertResult.failure(())
-  }
+  final def isFalse: Assertion[Boolean] =
+    Assertion.assertion("isFalse")()(!_)
 
   /**
    * Makes a new assertion that requires the numeric value be greater than
@@ -309,8 +307,7 @@ object Assertion {
    */
   final def isGreaterThan[A: Numeric](reference: A): Assertion[A] =
     Assertion.assertion("isGreaterThan")(param(reference)) { actual =>
-      if (implicitly[Numeric[A]].compare(actual, reference) > 0) AssertResult.success(())
-      else AssertResult.failure(())
+      implicitly[Numeric[A]].compare(actual, reference) > 0
     }
 
   /**
@@ -319,8 +316,7 @@ object Assertion {
    */
   final def isGreaterThanEqualTo[A: Numeric](reference: A): Assertion[A] =
     Assertion.assertion("isGreaterThanEqualTo")(param(reference)) { actual =>
-      if (implicitly[Numeric[A]].compare(actual, reference) >= 0) AssertResult.success(())
-      else AssertResult.failure(())
+      implicitly[Numeric[A]].compare(actual, reference) >= 0
     }
 
   /**
@@ -329,8 +325,8 @@ object Assertion {
   final def isInterrupted: Assertion[Exit[Any, Any]] =
     Assertion.assertionRec[Exit[Any, Any]]("isInterrupted")() { (self, actual) =>
       actual match {
-        case Exit.Failure(cause) if cause.interrupted => AssertResult.success(())
-        case _                                        => AssertResult.failure(AssertionValue(self, actual))
+        case Exit.Failure(cause) if cause.interrupted => BoolAlgebra.success(AssertionValue(self, actual))
+        case _                                        => BoolAlgebra.failure(AssertionValue(self, actual))
       }
     }
 
@@ -342,7 +338,7 @@ object Assertion {
     Assertion.assertionRec[Either[A, Any]]("isLeft")(param(assertion)) { (self, actual) =>
       actual match {
         case Left(a)  => assertion.run(a)
-        case Right(_) => AssertResult.failure(AssertionValue(self, actual))
+        case Right(_) => BoolAlgebra.failure(AssertionValue(self, actual))
       }
     }
 
@@ -352,8 +348,7 @@ object Assertion {
    */
   final def isLessThan[A: Numeric](reference: A): Assertion[A] =
     Assertion.assertion("isLessThan")(param(reference)) { actual =>
-      if (implicitly[Numeric[A]].compare(actual, reference) < 0) AssertResult.success(())
-      else AssertResult.failure(())
+      implicitly[Numeric[A]].compare(actual, reference) < 0
     }
 
   /**
@@ -362,19 +357,14 @@ object Assertion {
    */
   final def isLessThanEqualTo[A: Numeric](reference: A): Assertion[A] =
     Assertion.assertion("isLessThanEqualTo")(param(reference)) { actual =>
-      if (implicitly[Numeric[A]].compare(actual, reference) <= 0) AssertResult.success(())
-      else AssertResult.failure(())
+      implicitly[Numeric[A]].compare(actual, reference) <= 0
     }
 
   /**
    * Makes a new assertion that requires a None value.
    */
-  final val isNone: Assertion[Option[Any]] = Assertion.assertion(s"isNone")() { actual =>
-    actual match {
-      case None    => AssertResult.success(())
-      case Some(_) => AssertResult.failure(())
-    }
-  }
+  final val isNone: Assertion[Option[Any]] =
+    Assertion.assertion("isNone")()(_.isEmpty)
 
   /**
    * Makes a new assertion that requires a Right value satisfying a specified
@@ -384,7 +374,7 @@ object Assertion {
     Assertion.assertionRec[Either[Any, A]]("isRight")(param(assertion)) { (self, actual) =>
       actual match {
         case Right(a) => assertion.run(a)
-        case Left(_)  => AssertResult.failure(AssertionValue(self, actual))
+        case Left(_)  => BoolAlgebra.failure(AssertionValue(self, actual))
       }
     }
 
@@ -396,7 +386,7 @@ object Assertion {
     Assertion.assertionRec[Option[A]]("isSome")(param(assertion)) { (self, actual) =>
       actual match {
         case Some(a) => assertion.run(a)
-        case None    => AssertResult.failure(AssertionValue(self, actual))
+        case None    => BoolAlgebra.failure(AssertionValue(self, actual))
       }
     }
 
@@ -406,15 +396,14 @@ object Assertion {
   final def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
     Assertion.assertionRec[Any]("isSubtype")(param(C.runtimeClass.getSimpleName)) { (self, actual) =>
       if (C.runtimeClass.isAssignableFrom(actual.getClass())) assertion(actual.asInstanceOf[A])
-      else AssertResult.failure(AssertionValue(self, actual))
+      else BoolAlgebra.failure(AssertionValue(self, actual))
     }
 
   /**
    * Makes a new assertion that requires a value be true.
    */
-  final def isTrue: Assertion[Boolean] = Assertion.assertion(s"isTrue")() { actual =>
-    if (actual) AssertResult.success(()) else AssertResult.failure(())
-  }
+  final def isTrue: Assertion[Boolean] =
+    Assertion.assertion("isTrue")()(identity(_))
 
   /**
    * Makes a new assertion that requires the value be unit.
@@ -422,8 +411,8 @@ object Assertion {
   final def isUnit: Assertion[Any] =
     Assertion.assertion("isUnit")() { actual =>
       actual match {
-        case () => AssertResult.success(())
-        case _  => AssertResult.failure(())
+        case () => true
+        case _  => false
       }
     }
 
@@ -433,9 +422,9 @@ object Assertion {
    */
   final def isWithin[A: Numeric](min: A, max: A): Assertion[A] =
     Assertion.assertion("isWithin")(param(min), param(max)) { actual =>
-      if (implicitly[Numeric[A]].compare(actual, min) < 0) AssertResult.failure(())
-      else if (implicitly[Numeric[A]].compare(actual, max) > 0) AssertResult.failure(())
-      else AssertResult.success(())
+      if (implicitly[Numeric[A]].compare(actual, min) < 0) false
+      else if (implicitly[Numeric[A]].compare(actual, max) > 0) false
+      else true
     }
 
   /**
@@ -443,15 +432,15 @@ object Assertion {
    */
   final def not[A](assertion: Assertion[A]): Assertion[A] =
     Assertion.assertionRec[A]("not")(param(assertion)) { (self, actual) =>
-      if (assertion.run(actual).isSuccess) AssertResult.failure(AssertionValue(self, actual))
-      else AssertResult.success(())
+      if (assertion.run(actual).isSuccess) BoolAlgebra.failure(AssertionValue(self, actual))
+      else BoolAlgebra.success(AssertionValue(self, actual))
     }
 
   /**
    * Makes a new assertion that always fails.
    */
   final val nothing: Assertion[Any] = Assertion.assertionRec[Any]("nothing")() { (self, actual) =>
-    AssertResult.failure(AssertionValue(self, actual))
+    BoolAlgebra.failure(AssertionValue(self, actual))
   }
 
   /**
@@ -462,7 +451,7 @@ object Assertion {
       actual match {
         case Exit.Success(a) => assertion.run(a)
 
-        case exit => AssertResult.failure(AssertionValue(self, exit))
+        case exit => BoolAlgebra.failure(AssertionValue(self, exit))
       }
     }
 
@@ -473,7 +462,7 @@ object Assertion {
     Assertion.assertionRec[A]("throws")(param(assertion)) { (self, actual) =>
       try {
         val _ = actual
-        AssertResult.failure(AssertionValue(self, actual))
+        BoolAlgebra.failure(AssertionValue(self, actual))
       } catch {
         case t: Throwable => assertion(t)
       }

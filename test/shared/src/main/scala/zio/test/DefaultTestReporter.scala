@@ -45,7 +45,7 @@ object DefaultTestReporter {
               case Left(TestFailure.Assertion(result)) =>
                 result.fold(
                   details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-                )(_ && _, _ || _)
+                )(_ && _, _ || _, !_)
               case Left(TestFailure.Runtime(cause)) =>
                 rendered(
                   Test,
@@ -210,5 +210,12 @@ case class RenderedResult(caseType: CaseType, label: String, status: Status, off
       case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
       case (Passed, _)      => self
       case (_, Passed)      => that
+    }
+
+  def unary_! : RenderedResult =
+    self.status match {
+      case Ignored => self
+      case Failed  => self.copy(status = Passed)
+      case Passed  => self.copy(status = Failed)
     }
 }

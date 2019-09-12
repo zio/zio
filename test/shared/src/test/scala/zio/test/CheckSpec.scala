@@ -122,8 +122,8 @@ object CheckSpec extends DefaultRuntime {
         }
       }
       forAllTests(execute(spec)) {
-        case Left(TestFailure.Assertion(AssertResult.Value(details))) => details.gen.fold(false)(_.shrinkedInput == 0)
-        case _                                                        => false
+        case Left(TestFailure.Assertion(BoolAlgebra.Value(details))) => details.gen.fold(false)(_.shrinkedInput == 0)
+        case _                                                       => false
       }
     }
 }

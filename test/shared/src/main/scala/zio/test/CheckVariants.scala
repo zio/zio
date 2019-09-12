@@ -212,21 +212,31 @@ trait CheckVariants {
       case (initial, index) =>
         initial.traverse(
           input =>
-            test(input)
-              .map(_.map(_.left.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index))))))
+            test(input).traced
+              .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
               .either
         )
     }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
       .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks))
-      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken failures
-      .flatMap { failures =>
+      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken values
+      .flatMap { shrinks =>
         // Get the "last" failure, the smallest according to the shrinker:
-        failures
+        shrinks
           .filter(_.fold(_ => true, _.isFailure))
           .lastOption
-          .fold[ZIO[R, E, TestResult]](ZIO.succeed(AssertResult.success(())))(ZIO.fromEither(_))
+          .fold[ZIO[R, E, TestResult]](
+            ZIO.succeed {
+              BoolAlgebra.success {
+                FailureDetails(
+                  AssertionValue(Assertion.anything, ()),
+                  AssertionValue(Assertion.anything, ())
+                )
+              }
+            }
+          )(ZIO.fromEither(_))
       }
+      .untraced
 
   private final def reassociate[A, B, C, D](f: (A, B, C) => D): (((A, B), C)) => D = {
     case ((a, b), c) => f(a, b, c)

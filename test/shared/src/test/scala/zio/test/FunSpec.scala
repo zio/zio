@@ -12,7 +12,8 @@ object FunSpec extends DefaultRuntime {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(funConvertsEffectsIntoPureFunctions, "fun converts effects into pure functions"),
-    label(funDoesNotHaveRaceConditions, "fun does not have race conditions")
+    label(funDoesNotHaveRaceConditions, "fun does not have race conditions"),
+    label(funIsShowable, "fun is showable")
   )
 
   def funConvertsEffectsIntoPureFunctions: Future[Boolean] =
@@ -29,5 +30,15 @@ object FunSpec extends DefaultRuntime {
         f       <- Fun.make((_: Int) => random.nextInt(6))
         results <- ZIO.foreachPar(List.range(0, 1000))(n => ZIO.effectTotal((n % 6, f(n % 6))))
       } yield results.distinct.length == 6
+    }
+
+  def funIsShowable: Future[Boolean] =
+    unsafeRunToFuture {
+      for {
+        f <- Fun.make((_: String) => random.nextBoolean)
+        p = f("Scala")
+        q = f("Haskell")
+      } yield f.toString == s"Fun(Scala -> $p, Haskell -> $q)" ||
+        f.toString == s"Fun(Haskell -> $q, Scala -> $p)"
     }
 }
