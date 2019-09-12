@@ -30,4 +30,7 @@ object StreamChunkUtils extends StreamChunkUtils with GenUtils {
     }
     loop(list, zero)
   }
+
+  val chunksOfInts    = succeededStreamChunkGen(intGen)
+  val chunksOfStrings = succeededStreamChunkGen(stringGen)
 }
