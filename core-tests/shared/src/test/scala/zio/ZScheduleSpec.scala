@@ -6,8 +6,8 @@ import zio.clock.Clock
 import zio.duration._
 import zio.random._
 
-class ScheduleSpec extends BaseCrossPlatformSpec {
-  def is = "ScheduleSpec".title ^ s2"""
+class ZScheduleSpec extends BaseCrossPlatformSpec {
+  def is = "ZScheduleSpec".title ^ s2"""
    Repeat on success according to a provided strategy
       for 'recurs(a negative number)' repeats 0 additional time $repeatNeg
       for 'recurs(0)' does repeats 0 additional time $repeat0
