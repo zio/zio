@@ -493,10 +493,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   }
 
   /**
-   * Allow a faster producer to progress independently of a slower consumer by buffering
+   * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a queue.
    *
-   * @note when possible, prefer capacities that are powers of 2 for better performance.
+   * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def buffer(capacity: Int): ZStream[R, E, A] =
     ZStream.managed(self.toQueue(capacity)).flatMap { queue =>
@@ -2221,6 +2221,14 @@ object ZStream extends ZStreamPlatformSpecific {
     fa.flatMapPar(n, outputBuffer)(identity)
 
   /**
+   * Like [[flattenPar]], but executes all streams concurrently.
+   */
+  final def flattenParUnbounded[R, E, A](outputBuffer: Int = 16)(
+    fa: ZStream[R, E, ZStream[R, E, A]]
+  ): ZStream[R, E, A] =
+    flattenPar(Int.MaxValue, outputBuffer)(fa)
+
+  /**
    * Creates a stream from a [[zio.Chunk]] of values
    */
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
@@ -2309,6 +2317,13 @@ object ZStream extends ZStreamPlatformSpecific {
     streams: ZStream[R, E, A]*
   ): ZStream[R, E, A] =
     flattenPar(n, outputBuffer)(fromIterable(streams))
+
+  /**
+   * Like [[mergeAll]], but runs all streams concurrently.
+   */
+  final def mergeAllUnbounded[R, E, A](outputBuffer: Int = 16)(
+    streams: ZStream[R, E, A]*
+  ): ZStream[R, E, A] = mergeAll(Int.MaxValue, outputBuffer)(streams: _*)
 
   /**
    * Constructs a stream from a range of integers (inclusive).
