@@ -320,6 +320,26 @@ object Gen {
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
 
   /**
+   * Constructs a generator of partial functions from `A` to `B` given a
+   * generator of `B` values. Two `A` values will be considered to be equal,
+   * and thus will be guaranteed to generate the same `B` value or both be
+   * outside the partial functon's domain, if they have the same `hashCode`.
+   */
+  final def partialFunction[R <: Random, A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
+    partialFunctionWith(gen)(_.hashCode)
+
+  /**
+   * Constructs a generator of partial functions from `A` to `B` given a
+   * generator of `B` values and a hashing function for `A` values. Two `A`
+   * values will be considered to be equal, and thus will be guaranteed to
+   * generate the same `B` value or both be outside the partial function's
+   * domain, if they have have the same hash. This is useful when `A` does not
+   * implement `hashCode` in a way that is constent with equality.
+   */
+  final def partialFunctionWith[R <: Random, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
+    functionWith(option(gen))(hash).map(Function.unlift)
+
+  /**
    * A generator of printable characters. Shrinks toward '!'.
    */
   final val printableChar: Gen[Random, Char] =
