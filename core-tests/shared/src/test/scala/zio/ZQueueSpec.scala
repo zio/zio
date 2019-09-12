@@ -9,7 +9,7 @@ import zio.test.TestUtils.nonFlaky
 import zio.ZQueueSpecUtil.waitForSize
 
 object ZQueueSpec
-    extends ZIOSpec(
+    extends ZIOBaseSpec(
       suite("ZQueueSpec")(
         testM("sequential offer and take") {
           for {

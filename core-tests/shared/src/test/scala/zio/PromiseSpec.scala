@@ -4,7 +4,7 @@ import zio.test._
 import zio.test.Assertion._
 
 object PromiseSpec
-    extends ZIOSpec(
+    extends ZIOBaseSpec(
       suite("PromiseSpec")(
         testM("complete a promise using succeed") {
           for {

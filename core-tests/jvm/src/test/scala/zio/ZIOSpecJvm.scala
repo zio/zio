@@ -8,12 +8,13 @@ import scala.collection.mutable
 import scala.util.Try
 import zio.Cause.{ die, fail, interrupt, Both }
 import zio.duration._
+import zio.syntax._
 import zio.test.mock.MockClock
 
-class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
+class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
 
-  def is = "IOSpec".title ^ s2"""
+  def is = "ZIOSpecJvm".title ^ s2"""
    Generate a list of String and a f: String => Task[Int]:
       `IO.foreach` returns the list of results. $t1
    Create a list of Strings and pass an f: String => IO[String, Int]:
@@ -110,6 +111,36 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `foreachParN` runs effects in parallel $testForeachParN_Parallel
    Check `foreachParN` propogates error $testForeachParN_Error
    Check `foreachParN` interrupts effects on first failure $testForeachParN_Interruption
+
+   Eager - Generate a String:
+      `.succeed` extension method returns the same UIO[String] as `IO.succeed` does. $eagerT1
+   Eager - Generate a String:
+      `.fail` extension method returns the same IO[String, Nothing] as `IO.fail` does. $eagerT2
+   Eager - Generate a String:
+      `.ensure` extension method returns the same IO[E, Option[A]] => IO[E, A] as `IO.ensure` does. $eagerT3
+
+   Lazy - Generate a String:
+      `.effect` extension method returns the same UIO[String] as `IO.effect` does. $lazyT1
+   Lazy - Generate a String:
+      `.effect` extension method returns the same Task[String] as `IO.effect` does. $lazyT2
+   Lazy - Generate a String:
+      `.effect` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.effect` does. $lazyT3
+
+   Generate an Iterable of Char:
+     `.mergeAll` extension method returns the same IO[E, B] as `IO.mergeAll` does. $iterableT1
+   Generate an Iterable of Char:
+     `.parAll` extension method returns the same IO[E, List[A]] as `IO.parAll` does. $iterableT2
+   Generate an Iterable of Char:
+     `.forkAll` extension method returns the same UIO[Fiber[E, List[A]]] as `IO.forkAll` does. $iterableT3
+   Generate an Iterable of Char:
+     `.sequence` extension method returns the same IO[E, List[A]] as `IO.sequence` does. $iterableT4
+
+   Generate a Tuple2 of (Int, String):
+     `.map2` extension method should combine them to an IO[E, Z] with a function (A, B) => Z. $tupleT1
+   Generate a Tuple3 of (Int, String, String):
+     `.map3` extension method should combine them to an IO[E, Z] with a function (A, B, C) => Z. $tupleT2
+   Generate a Tuple4 of (Int, String, String, String):
+     `.map4` extension method should combine them to an IO[E, C] with a function (A, B, C, D) => Z. $tupleT3
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -832,5 +863,112 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
     val io = ZIO.foreachParN(4)(actions)(a => a)
     unsafeRun(io.either) must_=== Left("C")
+  }
+
+  def eagerT1 = forAll(Gen.alphaStr) { str =>
+    unsafeRun(for {
+      a <- str.succeed
+      b <- IO.succeed(str)
+    } yield a must ===(b))
+  }
+
+  def eagerT2 = forAll(Gen.alphaStr) { str =>
+    unsafeRun(for {
+      a <- str.fail.either
+      b <- IO.fail(str).either
+    } yield a must ===(b))
+  }
+
+  def eagerT3 = forAll(Gen.alphaStr) { str =>
+    val ioSome = IO.succeed(Some(42))
+    unsafeRun(for {
+      a <- str.require(ioSome)
+      b <- IO.require(str)(ioSome)
+    } yield a must ===(b))
+  }
+
+  def lazyT1 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
+    unsafeRun(for {
+      a <- lazyStr.effect
+      b <- IO.effectTotal(lazyStr)
+    } yield a must ===(b))
+  }
+
+  def lazyT2 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
+    unsafeRun(for {
+      a <- lazyStr.effect
+      b <- IO.effect(lazyStr)
+    } yield a must ===(b))
+  }
+
+  def lazyT3 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
+    val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
+    unsafeRun(for {
+      a <- lazyStr.effect.refineOrDie(partial)
+      b <- IO.effect(lazyStr).refineOrDie(partial)
+    } yield a must ===(b))
+  }
+
+  val TestData = "supercalifragilisticexpialadocious".toList
+
+  def iterableT1 = {
+    val ios                          = TestData.map(IO.succeed)
+    val zero                         = List.empty[Char]
+    def merger[A](as: List[A], a: A) = a :: as
+    unsafeRun(for {
+      merged1 <- ios.mergeAll(zero)(merger)
+      merged2 <- IO.mergeAll(ios)(zero)(merger)
+    } yield merged1 must ===(merged2))
+  }
+
+  def iterableT2 = {
+    val ios = TestData.map(IO.effectTotal(_))
+    unsafeRun(for {
+      parAll1 <- ios.collectAllPar
+      parAll2 <- IO.collectAllPar(ios)
+    } yield parAll1 must ===(parAll2))
+  }
+
+  def iterableT3 = {
+    val ios: Iterable[IO[String, Char]] = TestData.map(IO.effectTotal(_))
+    unsafeRun(for {
+      f1       <- ios.forkAll
+      forkAll1 <- f1.join
+      f2       <- IO.forkAll(ios)
+      forkAll2 <- f2.join
+    } yield forkAll1 must ===(forkAll2))
+  }
+
+  def iterableT4 = {
+    val ios = TestData.map(IO.effectTotal(_))
+    unsafeRun(for {
+      sequence1 <- ios.collectAll
+      sequence2 <- IO.collectAll(ios)
+    } yield sequence1 must ===(sequence2))
+  }
+
+  def tupleT1 = forAll(Gen.posNum[Int], Gen.alphaStr) { (int: Int, str: String) =>
+    def f(i: Int, s: String): String = i.toString + s
+    val ios                          = (IO.succeed(int), IO.succeed(str))
+    unsafeRun(for {
+      map2 <- ios.map2[String](f)
+    } yield map2 must ===(f(int, str)))
+  }
+
+  def tupleT2 = forAll(Gen.posNum[Int], Gen.alphaStr, Gen.alphaStr) { (int: Int, str1: String, str2: String) =>
+    def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
+    val ios                                       = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2))
+    unsafeRun(for {
+      map3 <- ios.map3[String](f)
+    } yield map3 must ===(f(int, str1, str2)))
+  }
+
+  def tupleT3 = forAll(Gen.posNum[Int], Gen.alphaStr, Gen.alphaStr, Gen.alphaStr) {
+    (int: Int, str1: String, str2: String, str3: String) =>
+      def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
+      val ios                                                   = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2), IO.succeed(str3))
+      unsafeRun(for {
+        map4 <- ios.map4[String](f)
+      } yield map4 must ===(f(int, str1, str2, str3)))
   }
 }
