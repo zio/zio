@@ -213,7 +213,7 @@ trait CheckVariants {
         initial.traverse(
           input =>
             test(input).traced
-              .map(_.map(_.left.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index))))))
+              .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
               .either
         )
     }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
@@ -225,7 +225,16 @@ trait CheckVariants {
         shrinks
           .filter(_.fold(_ => true, _.isFailure))
           .lastOption
-          .fold[ZIO[R, E, TestResult]](ZIO.succeed(AssertResult.success(())))(ZIO.fromEither(_))
+          .fold[ZIO[R, E, TestResult]](
+            ZIO.succeed {
+              BoolAlgebra.success {
+                FailureDetails(
+                  AssertionValue(Assertion.anything, ()),
+                  AssertionValue(Assertion.anything, ())
+                )
+              }
+            }
+          )(ZIO.fromEither(_))
       }
       .untraced
 

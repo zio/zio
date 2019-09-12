@@ -32,11 +32,11 @@ sealed trait AssertionValue {
 }
 
 object AssertionValue {
-  def apply[A](assertion0: Assertion[A], value0: A): AssertionValue =
+  def apply[A](assertion0: Assertion[A], value0: => A): AssertionValue =
     new AssertionValue {
       type Value = A
 
-      val value = value0
+      lazy val value = value0
 
       val assertion = assertion0
     }
