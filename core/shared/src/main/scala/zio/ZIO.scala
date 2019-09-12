@@ -315,6 +315,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def eventually: ZIO[R, Nothing, A] = self orElse eventually
 
   /**
+   * Dies with specified `Throwable` if the predicate fails.
+   */
+  final def filterOrDie(p: A => Boolean)(t: => Throwable): ZIO[R, E, A] =
+    self.filterOrElse_(p)(ZIO.die(t))
+
+  /**
+   * Dies with a [[java.lang.RuntimeException]] having the specified text message
+   * if the predicate fails.
+   */
+  final def filterOrDieMessage(p: A => Boolean)(message: => String): ZIO[R, E, A] =
+    self.filterOrElse_(p)(ZIO.dieMessage(message))
+
+  /**
    * Applies `f` if the predicate fails.
    */
   final def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
