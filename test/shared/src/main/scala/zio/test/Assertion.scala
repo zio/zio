@@ -18,7 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
-import zio.Exit
+import zio.{ Cause, Exit }
 import zio.test.Assertion._
 import zio.test.Assertion.Render._
 
@@ -194,6 +194,21 @@ object Assertion {
    */
   final def contains[A](element: A): Assertion[Iterable[A]] =
     Assertion.assertion("contains")(param(element))(_.exists(_ == element))
+
+  /**
+   * Makes a new assertion that requires an exit value to die.
+   */
+  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
+    Assertion.assertionRec[Exit[Nothing, Any]]("dies")(param(assertion)) { (self, actual) =>
+      actual match {
+        case Exit.Failure(cause) if cause.died =>
+          cause.untraced match {
+            case Cause.Die(t) => assertion.run(t)
+            case _            => BoolAlgebra.failure(AssertionValue(self, actual))
+          }
+        case _ => BoolAlgebra.failure(AssertionValue(self, actual))
+      }
+    }
 
   /**
    * Makes a new assertion that requires a value equal the specified value.
