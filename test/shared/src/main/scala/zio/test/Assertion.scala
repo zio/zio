@@ -443,6 +443,9 @@ object Assertion {
     BoolAlgebra.failure(AssertionValue(self, actual))
   }
 
+  final def substring(element: String): Assertion[String] =
+    Assertion.assertion("substring")(param(element))(_.contains(element))
+
   /**
    * Makes a new assertion that requires an exit value to succeed.
    */
