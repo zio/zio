@@ -131,14 +131,15 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
-        // testM("StreamChunk.monadLaw1") {
-        //   checkM(intGen, Gen[Int => StreamChunk[String, Int]]) { (x, f) =>
-        //     for {
-        //       res1 <- slurp(ZStreamChunk.succeed(Chunk(x)).flatMap(f))
-        //       res2 <- slurp(f(x))
-        //     } yield assert(res1, equalTo(res2))
-        //   }
-        // },
+        testM("StreamChunk.monadLaw1") {
+          val fn = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](succeededStreamChunkGen(intGen))
+          checkM(intGen, fn) { (x, f) =>
+            for {
+              res1 <- slurp(ZStreamChunk.succeed(Chunk(x)).flatMap(f))
+              res2 <- slurp(f(x))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
         testM("StreamChunk.monadLaw2") {
           checkM(succeededStreamChunkGen(intGen)) { m =>
             for {
@@ -147,18 +148,18 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
-        testM("StreamChunk.monadLaw3") {
-          val fn = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](succeededStreamChunkGen(intGen))
-          checkM(succeededStreamChunkGen(intGen), fn, fn) { (m, f, g) =>
-            val leftStream: StreamChunk[Nothing, Int]  = m.flatMap(f).flatMap(g)
-            val rightStream: StreamChunk[Nothing, Int] = m.flatMap(x => f(x).flatMap(g))
+        // testM("StreamChunk.monadLaw3") {
+        //   val fn = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](succeededStreamChunkGen(intGen))
+        //   checkM(succeededStreamChunkGen(intGen), fn, fn) { (m, f, g) =>
+        //     val leftStream: StreamChunk[Nothing, Int]  = m.flatMap(f).flatMap(g)
+        //     val rightStream: StreamChunk[Nothing, Int] = m.flatMap(x => f(x).flatMap(g))
 
-            for {
-              res1 <- slurp(leftStream)
-              res2 <- slurp(rightStream)
-            } yield assert(res1, equalTo(res2))
-          }
-        },
+        //     for {
+        //       res1 <- slurp(leftStream)
+        //       res2 <- slurp(rightStream)
+        //     } yield assert(res1, equalTo(res2))
+        //   }
+        // },
         testM("StreamChunk.tap") {
           checkM(succeededStreamChunkGen(stringGen)) { s =>
             for {
