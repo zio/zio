@@ -126,16 +126,20 @@ object DefaultTestReporter {
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(whole.value.toString) +
-        " did not satisfy " +
+        renderSatisfied(whole) +
         highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
     }
 
   private def renderFragment(fragment: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(fragment.value.toString) +
-        " did not satisfy " +
+        renderSatisfied(fragment) +
         cyan(fragment.assertion.toString)
     }
+
+  private def renderSatisfied(fragment: AssertionValue): String =
+    if (fragment.assertion.test(fragment.value)) " satisfied "
+    else " did not satisfy "
 
   private def renderCause(cause: Cause[Any], offset: Int): String =
     cause match {
