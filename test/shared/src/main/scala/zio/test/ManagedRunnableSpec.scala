@@ -19,6 +19,11 @@ package zio.test
 import zio.duration._
 import zio.Managed
 
+/**
+ * A managed runnable spec that allows the user to provide a managed resource
+ * to the entire suite. This can be useful when the resource is expensive to
+ * create and should only be created once for the entire suite.
+ */
 abstract class ManagedRunnableSpec[R](managed: Managed[Nothing, R])(
   spec: => ZSpec[R, Any, String, Any],
   defaultTestAspects: List[TestAspect[Nothing, R, Nothing, Any, Nothing, Any]] = List(
