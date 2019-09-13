@@ -21,7 +21,6 @@ import zio.clock.Clock
 import zio.duration.Duration
 
 object Sink {
-  import ZSink.Step
 
   /**
    * see [[ZSink.await]]
@@ -104,8 +103,10 @@ object Sink {
   /**
    * see [[ZSink.fold]]
    */
-  final def fold[A0, A, S](z: S)(f: (S, A) => Step[S, A0]): Sink[Nothing, A0, A, S] =
-    ZSink.fold(z)(f)
+  final def fold[A0, A, S](
+    z: S
+  )(contFn: S => Boolean)(f: (S, A) => (S, Chunk[A0])): Sink[Nothing, A0, A, S] =
+    ZSink.fold(z)(contFn)(f)
 
   /**
    * see [[ZSink.foldLeft]]
@@ -114,10 +115,18 @@ object Sink {
     ZSink.foldLeft(z)(f)
 
   /**
+   * see [[ZSink.foldLeftM]]
+   */
+  final def foldLeftM[E, A, S](z: S)(f: (S, A) => IO[E, S]): Sink[E, Nothing, A, S] =
+    ZSink.foldLeftM(z)(f)
+
+  /**
    * see [[ZSink.foldM]]
    */
-  final def foldM[E, A0, A, S](z: S)(f: (S, A) => IO[E, Step[S, A0]]): Sink[E, A0, A, S] =
-    ZSink.foldM(z)(f)
+  final def foldM[E, A0, A, S](
+    z: S
+  )(contFn: S => Boolean)(f: (S, A) => IO[E, (S, Chunk[A0])]): Sink[E, A0, A, S] =
+    ZSink.foldM(z)(contFn)(f)
 
   /**
    * see [[ZSink.foldUntilM]]
