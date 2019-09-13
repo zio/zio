@@ -27,7 +27,7 @@ class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRe
     })
 
   /**
-   * Appends the specified annotation to the annotation map.8
+   * Appends the specified annotation to the annotation map.
    */
   final def annotate[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
     update(key, key.combine(_, value))
