@@ -13,14 +13,15 @@ object ArbitraryStream {
 
       val succeedingStream: Gen[Stream[String, T]] = genPureStream
 
-      Gen.oneOf(failingStream, succeedingStream)
+      val failingStreamEffect: Gen[StreamEffect[String, T]] = genFailingStreamEffect
+
+      val succeedingStreamEffect: Gen[StreamEffect[String, T]] = genPureStreamEffect
+
+      Gen.oneOf(failingStream, succeedingStream, failingStreamEffect, succeedingStreamEffect)
     }
 
   def genPureStream[T: ClassTag: Arbitrary]: Gen[Stream[Nothing, T]] =
     Arbitrary.arbitrary[Iterable[T]].map(Stream.fromIterable)
-
-  def genSucceededStream[T: ClassTag: Arbitrary]: Gen[Stream[Nothing, T]] =
-    Arbitrary.arbitrary[List[T]].map(Stream.fromIterable)
 
   def genFailingStream[T: ClassTag: Arbitrary]: Gen[Stream[String, T]] =
     for {
@@ -30,5 +31,17 @@ object ArbitraryStream {
       case (_, Nil) | (0, _) =>
         IO.fail("fail-case")
       case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
+    }
+
+  def genPureStreamEffect[T: ClassTag: Arbitrary]: Gen[StreamEffect[Nothing, T]] =
+    Arbitrary.arbitrary[Iterable[T]].map(StreamEffect.fromIterable)
+
+  def genFailingStreamEffect[T: ClassTag: Arbitrary]: Gen[StreamEffect[String, T]] =
+    for {
+      it <- Arbitrary.arbitrary[List[T]]
+      n  <- Gen.choose(0, it.size)
+    } yield StreamEffect.unfold((n, it)) {
+      case (_, Nil) | (0, _) => None
+      case (n, head :: rest) => Some((head, (n - 1, rest)))
     }
 }
