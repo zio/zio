@@ -43,11 +43,11 @@ trait ZSinkPlatformSpecific {
   def fromOutputStream(
     os: OutputStream
   ): ZSink[Blocking, IOException, Nothing, Chunk[Byte], Int] =
-    ZSink.foldM(0) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+    ZSink.foldM(0)(_ => true) { (bytesWritten, byteChunk: Chunk[Byte]) =>
       effectBlocking {
         val bytes = byteChunk.toArray
         os.write(bytes)
-        ZSink.Step.more(bytesWritten + bytes.length)
+        (bytesWritten + bytes.length, Chunk.empty)
       }.refineOrDie {
         case e: IOException => e
       }
