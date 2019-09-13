@@ -3,33 +3,44 @@ package zio.blocking
 import java.util.concurrent.atomic.AtomicBoolean
 
 import zio.duration.Duration
-import zio.{ TestRuntime, UIO }
+import zio.{ UIO, ZIOBaseSpec }
+import BlockingSpecUtil._
+import zio.test._
+import zio.test.Assertion._
 
-final class BlockingSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+class BlockingSpec
+    extends ZIOBaseSpec(
+      suite("BlockingSpec")(
+        suite("Make a Blocking Service and verify that that")(
+          testM("effectBlocking` completes successfully") {
+            for {
+              io <- effectBlocking(())
+            } yield assert(io, equalTo(()))
+          },
+          testM("effectBlockingCancelable` completes successfully") {
+            for {
+              io <- effectBlockingCancelable(())(UIO.unit)
+            } yield assert(io, equalTo(()))
+          },
+          testM("effectBlocking` can be interrupted") {
+            for {
+              io <- effectBlocking(Thread.sleep(50000)).timeout(Duration.Zero)
+            } yield assert(io, isNone)
+          },
+          testM("effectBlockingCancelable` can be interrupted") {
+            val release = new AtomicBoolean(false)
+            val cancel  = UIO.effectTotal(release.set(true))
+            for {
+              io <- effectBlockingCancelable(blockingAtomic(release))(cancel)
+                     .timeout(Duration.Zero)
+            } yield assert(io, isNone)
+          }
+        )
+      )
+    )
 
-  def is =
-    "BlockingSpec".title ^
-      s2"""
-    Make a Blocking Service and
-    verify that
-      `effectBlocking` completes successfully $e1
-      `effectBlockingCancelable` completes successfully $e2
-      `effectBlocking` can be interrupted $e3
-      `effectBlockingCancelable` can be interrupted $e4
-    """
-
-  def e1 =
-    unsafeRun(effectBlocking(())).must_===(())
-
-  def e2 =
-    unsafeRun(effectBlockingCancelable(())(UIO.unit)).must_===(())
-
-  def e3 = {
-    val res = unsafeRun(effectBlocking(Thread.sleep(50000)).timeout(Duration.Zero))
-    res must beNone
-  }
-
-  def blocking(released: AtomicBoolean) =
+object BlockingSpecUtil {
+  def blockingAtomic(released: AtomicBoolean): Unit =
     while (!released.get()) {
       try {
         Thread.sleep(10L)
@@ -37,11 +48,4 @@ final class BlockingSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extend
         case _: InterruptedException => ()
       }
     }
-
-  def e4 = {
-    val release = new AtomicBoolean(false)
-    val cancel  = UIO.effectTotal(release.set(true))
-    val res     = unsafeRun(effectBlockingCancelable(blocking(release))(cancel).timeout(Duration.Zero))
-    res must beNone
-  }
 }
