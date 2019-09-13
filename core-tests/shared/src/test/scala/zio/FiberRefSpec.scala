@@ -3,10 +3,10 @@ package zio
 import zio.FiberRefSpecUtil._
 import zio.clock.Clock
 import zio.duration._
-import zio.test._
-import zio.test.environment.Live
 import zio.test.Assertion._
 import zio.test.TestAspect._
+import zio.test._
+import zio.test.environment.Live
 
 object FiberRefSpec
     extends ZIOBaseSpec(
@@ -241,14 +241,85 @@ object FiberRefSpec
               _        <- looser.raceAll(Iterable.fill(63)(looser)).orElse(ZIO.unit)
               value    <- fiberRef.get
             } yield assert(value, equalTo(initial))
+          },
+          testM("an unsafe handle is initialized and updated properly") {
+            for {
+              fiberRef <- FiberRef.make(initial)
+              handle   <- fiberRef.unsafeHandle
+              value1   <- UIO(handle.unsafeGet())
+              _        <- fiberRef.set(update1)
+              value2   <- UIO(handle.unsafeGet())
+              _        <- UIO(handle.unsafeSet(update2))
+              value3   <- fiberRef.get
+            } yield assert((value1, value2, value3), equalTo((initial, update1, update2)))
+          },
+          testM("unsafe handles work properly when initialized in a race") {
+            for {
+              fiberRef   <- FiberRef.make(initial)
+              initHandle = fiberRef.unsafeHandle
+              handle     <- ZIO.raceAll(initHandle, Iterable.fill(64)(initHandle))
+              value1     <- UIO(handle.unsafeGet())
+              doUpdate   = fiberRef.set(update)
+              _          <- ZIO.raceAll(doUpdate, Iterable.fill(64)(doUpdate))
+              value2     <- UIO(handle.unsafeGet())
+            } yield assert(value1, equalTo(initial)) && assert(value2, equalTo(update))
+          },
+          testM("unsafe handles work properly when accessed concurrently") {
+            for {
+              fiberRef <- FiberRef.make(0)
+              setAndGet = (value: Int) =>
+                setRefOrHandle(fiberRef, value) *> fiberRef.unsafeHandle.flatMap(h => UIO(h.unsafeGet()))
+              n      = 64
+              fiber  <- ZIO.forkAll(1.to(n).map(setAndGet))
+              values <- fiber.join
+            } yield assert(values, equalTo(1.to(n).toList))
+          },
+          testM("unsafe handles don't see updates from other fibers") {
+            for {
+              fiberRef <- FiberRef.make(initial)
+              handle   <- fiberRef.unsafeHandle
+              value1   <- UIO(handle.unsafeGet())
+              n        = 64
+              fiber    <- ZIO.forkAll(Iterable.fill(n)(fiberRef.set(update).race(UIO(handle.unsafeSet(update)))))
+              _        <- fiber.await
+              value2   <- UIO(handle.unsafeGet())
+            } yield assert(value1, equalTo(initial)) && assert(value2, equalTo(initial))
+          },
+          testM("unsafe handles keep their values if there are async boundaries") {
+            for {
+              fiberRef <- FiberRef.make(0)
+
+              test = (i: Int) =>
+                for {
+                  handle <- fiberRef.unsafeHandle
+                  _      <- setRefOrHandle(fiberRef, handle, i)
+                  _      <- ZIO.yieldNow
+                  value  <- UIO(handle.unsafeGet())
+                } yield assert(value, equalTo(i))
+
+              n       = 64
+              results <- ZIO.reduceAllPar(test(1), 2.to(n).map(test))(_ && _)
+            } yield results
           }
         )
       )
-    )
+    ) {
+
+  override def runner =
+    super.runner.withPlatform(_.withFiberContextPropagation(true))
+}
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
   val looseTimeAndCpu: ZIO[Live[Clock], Nothing, (Int, Int)] = Live.live {
     ZIO.yieldNow.repeat(ZSchedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100))
   }
+
+  def setRefOrHandle(fiberRef: FiberRef[Int], value: Int): UIO[Unit] =
+    if (value % 2 == 0) fiberRef.set(value)
+    else fiberRef.unsafeHandle.flatMap(h => UIO(h.unsafeSet(value)))
+
+  def setRefOrHandle(fiberRef: FiberRef[Int], handle: FiberRef.UnsafeHandle[Int], value: Int): UIO[Unit] =
+    if (value % 2 == 0) fiberRef.set(value)
+    else UIO(handle.unsafeSet(value))
 }

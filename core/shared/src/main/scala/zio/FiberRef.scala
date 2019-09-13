@@ -16,6 +16,9 @@
 
 package zio
 
+import zio.FiberRef.UnsafeHandle
+import zio.internal.FiberContext
+
 /**
  * Fiber's counterpart for Java's `ThreadLocal`. Value is automatically propagated
  * to child on fork and merged back in after joining child.
@@ -46,7 +49,7 @@ package zio
  * @tparam A
  */
 final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] val combine: (A, A) => A)
-    extends Serializable {
+    extends Serializable { self =>
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
@@ -104,9 +107,68 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
     (result, result)
   }
 
+  /**
+   * Returns a handle that can be used to interact with this `FiberRef` from side effecting code.
+   *
+   * This feature is meant to be used for integration with side effecting code, that needs to access fiber specific data,
+   * like MDC contexts and the like.
+   *
+   * Important: Enable `Platform.fiberContextPropagation` if you want to use this.
+   */
+  final def unsafeHandle: UIO[UnsafeHandle[A]] =
+    ZIO.effectSuspendTotalWith { platform =>
+      if (platform.fiberContextPropagation) ZIO.unit
+      else ZIO.dieMessage("Unsafe handles require Platform.fiberContextPropagation to be enabled.")
+    } *> ZIO.effectTotal {
+      new UnsafeHandle[A](initial) {
+        def unsafeGet(fallback: => A): A = {
+          val fiberContext = FiberContext.current.get()
+
+          Option {
+            if (fiberContext eq null) null
+            else fiberContext.fiberRefLocals.get(self)
+          }.map(_.asInstanceOf[A]).getOrElse(fallback)
+        }
+
+        def unsafeSet(a: A, fallback: A => Unit): Unit = {
+          val fiberContext = FiberContext.current.get()
+          val fiberRef     = self.asInstanceOf[FiberRef[Any]]
+
+          if (fiberContext eq null) fallback(a)
+          else fiberContext.fiberRefLocals.put(fiberRef, a)
+
+          ()
+        }
+      }
+    }
 }
 
 object FiberRef extends Serializable {
+
+  /**
+   * A handle that allows interaction with fiber refs from side effecting code
+   */
+  abstract class UnsafeHandle[A] private[FiberRef] (initial: A) {
+
+    /**
+     * Unsafely reads from the associated `FiberRef`
+     *
+     * @param fallback a fallback that is used if reading from the `FiberRef` is not possible, for example because the ZIO
+     *                 interpreter has already exited, or because the handle is read from a thread not managed by ZIO.
+     */
+    def unsafeGet(fallback: => A = initial): A
+
+    /**
+     * Unsafely writes to the associated `FiberRef`
+     *
+     * @param fallback a fallback that is used if writing to the `FiberRef` is not possible, for example because the ZIO
+     *                 interpreter has already exited, or because the handle is accessed from a thread not managed by ZIO.
+     */
+    def unsafeSet(
+      a: A,
+      fallback: A => Unit = _ => throw new IllegalStateException("Cannot set fiber ref via unsafe handle")
+    ): Unit
+  }
 
   /**
    * Creates a new `FiberRef` with given initial value.
