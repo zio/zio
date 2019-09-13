@@ -443,8 +443,11 @@ object Assertion {
     BoolAlgebra.failure(AssertionValue(self, actual))
   }
 
-  final def substring(element: String): Assertion[String] =
-    Assertion.assertion("substring")(param(element))(_.contains(element))
+  /**
+   * Makes a new assertion that search a substring.
+   */
+  final def hasSubstring(element: String): Assertion[String] =
+    Assertion.assertion("hasSubstring")(param(element))(_.contains(element))
 
   /**
    * Makes a new assertion that requires an exit value to succeed.

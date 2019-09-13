@@ -12,7 +12,7 @@ class SystemSpec
         testM("Fetch an environment variable and check that If it exists, return a reasonable value") {
           for {
             io <- system.env("PATH")
-          } yield assert(io, isSome(substring(File.separator + "bin")))
+          } yield assert(io, isSome(hasSubstring(File.separator + "bin")))
         },
         testM("Fetch an environment variable and check that If it does not exist, return None") {
           for {
