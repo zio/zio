@@ -84,7 +84,7 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     self.zip(that).map(f.tupled)
 }
 
-object Gen {
+object Gen extends GenZIO {
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
@@ -397,6 +397,12 @@ object Gen {
    */
   final def suspend[R, A](gen: => Gen[R, A]): Gen[R, A] =
     fromEffect(ZIO.effectTotal(gen)).flatten
+
+  /**
+   * A generator of throwables.
+   */
+  final def throwable: Gen[Random, Throwable] =
+    Gen.const(new Throwable)
 
   /**
    * A generator of uniformly distributed doubles between [0, 1].
