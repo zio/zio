@@ -1008,10 +1008,10 @@ object ZManaged {
     ZManaged(acquire.map(r => Reservation(IO.succeed(r), _ => release(r))))
 
   /**
-   * Lifts a synchronous effect into `ZManaged[R, E, R]` with a release action.
+   * Lifts a synchronous effect into `ZManaged[R, Throwable, R]` with a release action.
    */
-  final def makeEffect[R, E, A](acquire: => A)(release: A => _): ZManaged[R, E, A] =
-    make(Task(acquire).orDie)(a => Task(release(a)).orDie)
+  final def makeEffect[R, A](acquire: => A)(release: A => _): ZManaged[R, Throwable, A] =
+    make(Task(acquire))(a => Task(release(a)).orDie)
 
   /**
    * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action that handles `Exit`.

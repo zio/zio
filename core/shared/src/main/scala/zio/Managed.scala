@@ -164,7 +164,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.makeEffect]]
    */
-  final def makeEffect[E, A](acquire: => A)(release: A => _): Managed[E, A] =
+  final def makeEffect[A](acquire: => A)(release: A => _): Managed[Throwable, A] =
     ZManaged.makeEffect(acquire)(release)
 
   /**
