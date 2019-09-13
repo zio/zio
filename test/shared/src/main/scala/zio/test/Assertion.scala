@@ -446,8 +446,8 @@ object Assertion {
   /**
    * Makes a new assertion that search a substring.
    */
-  final def hasSubstring(element: String): Assertion[String] =
-    Assertion.assertion("hasSubstring")(param(element))(_.contains(element))
+  final def containsString(element: String): Assertion[String] =
+    Assertion.assertion("containsString")(param(element))(_.contains(element))
 
   /**
    * Makes a new assertion that requires an exit value to succeed.

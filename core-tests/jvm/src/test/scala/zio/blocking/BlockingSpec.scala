@@ -11,29 +11,20 @@ import zio.test.Assertion._
 class BlockingSpec
     extends ZIOBaseSpec(
       suite("BlockingSpec")(
-        suite("Make a Blocking Service and verify that that")(
+        suite("Make a Blocking Service and verify that")(
           testM("effectBlocking` completes successfully") {
-            for {
-              io <- effectBlocking(())
-            } yield assert(io, equalTo(()))
+            assertM(effectBlocking(()), isUnit)
           },
           testM("effectBlockingCancelable` completes successfully") {
-            for {
-              io <- effectBlockingCancelable(())(UIO.unit)
-            } yield assert(io, equalTo(()))
+            assertM(effectBlockingCancelable(())(UIO.unit), isUnit)
           },
           testM("effectBlocking` can be interrupted") {
-            for {
-              io <- effectBlocking(Thread.sleep(50000)).timeout(Duration.Zero)
-            } yield assert(io, isNone)
+            assertM(effectBlocking(Thread.sleep(50000)).timeout(Duration.Zero), isNone)
           },
-          testM("effectBlockingCancelable` can be interrupted") {
+          testM("effectBlockingCancelable can be interrupted") {
             val release = new AtomicBoolean(false)
             val cancel  = UIO.effectTotal(release.set(true))
-            for {
-              io <- effectBlockingCancelable(blockingAtomic(release))(cancel)
-                     .timeout(Duration.Zero)
-            } yield assert(io, isNone)
+            assertM(effectBlockingCancelable(blockingAtomic(release))(cancel).timeout(Duration.Zero), isNone)
           }
         )
       )
