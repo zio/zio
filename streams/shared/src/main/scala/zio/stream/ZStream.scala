@@ -87,7 +87,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
     sealed abstract class State
     object State {
-      case class Empty(state: sink.State, notifyConsumer: Promise[Nothing, Unit])       extends State
+      case class Empty(state: sink.State, notifyConsumer: Promise[Nothing, Unit]) extends State
+      case class Leftovers(state: sink.State, leftovers: Chunk[A1], notifyConsumer: Promise[Nothing, Unit])
+          extends State
       case class BatchMiddle(state: sink.State, notifyProducer: Promise[Nothing, Unit]) extends State
       case class BatchEnd(state: sink.State, notifyProducer: Promise[Nothing, Unit])    extends State
       case class Error(e: Cause[E1])                                                    extends State
@@ -116,19 +118,23 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                          (notifyConsumer.succeed(()).as(true), State.BatchMiddle(step, notifyProducer))
                        )
                      else
-                       sink.extract(step).flatMap {
-                         case (_, leftover) =>
-                           UIO.succeed(
-                             (
-                               // Notify the consumer, wait for them to take the aggregate so we know
-                               // it's time to progress, and process the leftovers
-                               notifyConsumer.succeed(()) *> notifyProducer.await *>
-                                 leftover.foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)),
-                               State.BatchEnd(step, notifyProducer)
-                             )
-                           )
-                       }
+                       UIO.succeed(
+                         (
+                           // Notify the consumer, wait for them to take the aggregate so we know
+                           // it's time to progress, and process the leftovers
+                           notifyConsumer.succeed(()) *> notifyProducer.await.as(true),
+                           State.BatchEnd(step, notifyProducer)
+                         )
+                       )
           } yield result
+
+        case State.Leftovers(state, leftovers, notifyConsumer) =>
+          UIO.succeed(
+            (
+              (leftovers ++ Chunk.single(a)).foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)),
+              State.Empty(state, notifyConsumer)
+            )
+          )
 
         case State.BatchMiddle(state, notifyProducer) =>
           // The logic here is the same as the Empty state, except we don't need
@@ -138,16 +144,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
             result <- if (sink.cont(step))
                        UIO.succeed((UIO.succeed(true), State.BatchMiddle(step, notifyProducer)))
                      else
-                       sink.extract(step).flatMap {
-                         case (_, leftover) =>
-                           UIO.succeed(
-                             (
-                               notifyProducer.await *>
-                                 leftover.foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)),
-                               State.BatchEnd(step, notifyProducer)
-                             )
-                           )
-                       }
+                       UIO.succeed((notifyProducer.await.as(true), State.BatchEnd(step, notifyProducer)))
           } yield result
 
         // The producer shouldn't actually see these states, but we still use sane
@@ -158,38 +155,52 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       }.flatten
 
     // This function is used in an unfold, so `None` means stop consuming
-    def consume(stateVar: Ref[State], permits: Semaphore): ZIO[R1, E1, Option[Chunk[B]]] =
+    def consume(stateVar: Ref[State], permits: Semaphore): ZIO[R1, Option[E1], Chunk[B]] =
       withStateVar(stateVar, permits) {
         // If the state is empty, wait for a notification from the producer
-        case s @ State.Empty(_, notify) => UIO.succeed((notify.await.as(Some(Chunk.empty)), s))
+        case s @ State.Empty(_, notify) => UIO.succeed((notify.await.as(Chunk.empty), s))
+
+        case s @ State.Leftovers(_, _, notify) => UIO.succeed((notify.await.as(Chunk.empty), s))
 
         case State.BatchMiddle(state, notifyProducer) =>
-          for {
+          (for {
             initial        <- sink.initial
             notifyConsumer <- Promise.make[Nothing, Unit]
-          } yield (
+            extractResult  <- sink.extract(state)
+            (b, leftovers) = extractResult
+            nextState = if (leftovers.isEmpty) State.Empty(initial, notifyConsumer)
+            else State.Leftovers(initial, leftovers, notifyConsumer)
             // Inform the producer that we took the batch, extract the sink and emit the data
-            notifyProducer.succeed(()) *> sink.extract(state).map { case (b, _) => Some(Chunk.single(b)) },
-            State.Empty(initial, notifyConsumer)
-          )
+          } yield (notifyProducer.succeed(()).as(Chunk.single(b)), nextState)).mapError(Some(_))
 
         case State.BatchEnd(state, notifyProducer) =>
-          for {
+          (for {
             initial        <- sink.initial
             notifyConsumer <- Promise.make[Nothing, Unit]
-          } yield (
-            notifyProducer.succeed(()) *> sink.extract(state).map { case (b, _) => Some(Chunk.single(b)) },
-            State.Empty(initial, notifyConsumer)
-          )
+            extractResult  <- sink.extract(state)
+            (b, leftovers) = extractResult
+            nextState = if (leftovers.isEmpty) State.Empty(initial, notifyConsumer)
+            else State.Leftovers(initial, leftovers, notifyConsumer)
+          } yield (notifyProducer.succeed(()).as(Chunk.single(b)), nextState)).mapError(Some(_))
 
-        case State.Error(cause) => ZIO.halt(cause)
-        case State.End          => ZIO.succeed((UIO.succeed(None), State.End))
+        case e @ State.Error(cause) => ZIO.succeed((ZIO.halt(cause.map(Some(_))), e))
+        case State.End              => ZIO.succeed((ZIO.fail(None), State.End))
       }.flatten
 
-    def drainAndSet(stateVar: Ref[State], permits: Semaphore, s: State): UIO[Unit] =
+    def drainAndSet(stateVar: Ref[State], permits: Semaphore, s: State): ZIO[R1, E1, Unit] =
       withStateVar(stateVar, permits) {
         // If the state is empty, it's ok to overwrite it. We just need to notify the consumer.
         case State.Empty(_, notifyNext) => UIO.succeed((notifyNext.succeed(()).unit, s))
+
+        // If there are leftovers, we need to process them and re-run.
+        case State.Leftovers(state, leftovers, notifyNext) =>
+          UIO.succeed(
+            (
+              leftovers.foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)) *>
+                drainAndSet(stateVar, permits, s),
+              State.Empty(state, notifyNext)
+            )
+          )
 
         // For these states (middle/end), we need to wait until the consumer notified us
         // that they took the data. Then rerun.
@@ -219,7 +230,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                      )
                      .fork
         bs <- ZStream
-               .unfoldM(())(_ => consume(stateVar, permits).map(_.map((_, ()))))
+               .fromPull(consume(stateVar, permits))
                .mapConcat(identity)
                .process
                .ensuringFirst(producer.interrupt.fork)
@@ -260,6 +271,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     sealed abstract class State
     object State {
       case class Empty(state: sink.State, notifyConsumer: Promise[Nothing, Unit]) extends State
+      case class Leftovers(state: sink.State, leftovers: Chunk[A1], notifyConsumer: Promise[Nothing, Unit])
+          extends State
       case class BatchMiddle(
         state: sink.State,
         notifyProducer: Promise[Nothing, Unit],
@@ -297,14 +310,19 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                        // to take the data. Then we process the leftovers.
                        UIO.succeed(
                          (
-                           notifyConsumer.succeed(()) *> notifyProducer.await *> sink.extract(step).flatMap {
-                             case (_, leftover) =>
-                               leftover.foldMLazy(true)(identity)((_, a) => produce(out, permits, a))
-                           },
+                           notifyConsumer.succeed(()) *> notifyProducer.await.as(true),
                            State.BatchEnd(step, notifyProducer)
                          )
                        )
           } yield result
+
+        case State.Leftovers(state, leftovers, notifyConsumer) =>
+          UIO.succeed(
+            (
+              (leftovers ++ Chunk.single(a)).foldMLazy(true)(identity)((_, a) => produce(out, permits, a)).as(true),
+              State.Empty(state, notifyConsumer)
+            )
+          )
 
         case State.BatchMiddle(currentState, notifyProducer, notifyConsumer) =>
           for {
@@ -319,10 +337,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                      else
                        UIO.succeed(
                          (
-                           notifyConsumer.succeed(()) *> notifyProducer.await *> sink.extract(step).flatMap {
-                             case (_, leftover) =>
-                               leftover.foldMLazy(true)(identity)((_, a) => produce(out, permits, a))
-                           },
+                           notifyConsumer.succeed(()) *> notifyProducer.await.as(true),
                            State.BatchEnd(step, notifyProducer)
                          )
                        )
@@ -369,21 +384,29 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                                UIO.succeed(Some(Chunk.empty -> UnfoldState(None, decision.state, notifyDone))) -> s
                              )
 
+                           // Leftovers state has the same meaning as the empty state for us
+                           case s @ State.Leftovers(_, _, notifyDone) =>
+                             UIO.succeed(
+                               UIO.succeed(Some(Chunk.empty -> UnfoldState(None, decision.state, notifyDone))) -> s
+                             )
+
                            case State.BatchMiddle(sinkState, notifyProducer, _) =>
                              // The schedule's delay expired before the sink signalled completion. So we extract
                              // the sink anyway and empty the state.
                              for {
-                               batch          <- sink.extract(sinkState)
-                               sinkInitial    <- sink.initial
-                               notifyConsumer <- Promise.make[Nothing, Unit]
-                               s              = State.Empty(sinkInitial, notifyConsumer)
+                               extractResult      <- sink.extract(sinkState)
+                               (batch, leftovers) = extractResult
+                               sinkInitial        <- sink.initial
+                               notifyConsumer     <- Promise.make[Nothing, Unit]
+                               s = if (leftovers.isEmpty) State.Empty(sinkInitial, notifyConsumer)
+                               else State.Leftovers(sinkInitial, leftovers, notifyConsumer)
                                action = notifyProducer
                                  .succeed(())
                                  .as(
                                    Some(
                                      Chunk
-                                       .single(Right(batch._1)) -> UnfoldState(
-                                       Some(batch._1),
+                                       .single(Right(batch)) -> UnfoldState(
+                                       Some(batch),
                                        decision.state,
                                        notifyConsumer
                                      )
@@ -394,17 +417,19 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                            case State.BatchEnd(sinkState, notifyProducer) =>
                              // The sink signalled completion, so we extract it and empty the state.
                              for {
-                               batch          <- sink.extract(sinkState)
-                               sinkInitial    <- sink.initial
-                               notifyConsumer <- Promise.make[Nothing, Unit]
-                               s              = State.Empty(sinkInitial, notifyConsumer)
+                               extractResult      <- sink.extract(sinkState)
+                               (batch, leftovers) = extractResult
+                               sinkInitial        <- sink.initial
+                               notifyConsumer     <- Promise.make[Nothing, Unit]
+                               s = if (leftovers.isEmpty) State.Empty(sinkInitial, notifyConsumer)
+                               else State.Leftovers(sinkInitial, leftovers, notifyConsumer)
                                action = notifyProducer
                                  .succeed(())
                                  .as(
                                    Some(
                                      Chunk
-                                       .single(Right(batch._1)) -> UnfoldState(
-                                       Some(batch._1),
+                                       .single(Right(batch)) -> UnfoldState(
+                                       Some(batch),
                                        decision.state,
                                        notifyConsumer
                                      )
@@ -427,6 +452,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
           scheduleInit <- schedule.initial
           notify <- out.get.flatMap {
                      case State.Empty(_, notifyConsumer)          => UIO.succeed(notifyConsumer)
+                     case State.Leftovers(_, _, notifyConsumer)   => UIO.succeed(notifyConsumer)
                      case State.BatchMiddle(_, _, notifyConsumer) => UIO.succeed(notifyConsumer)
                      // If we're at the end of the batch or the end of the stream, we start off with
                      // an already completed promise to skip the schedule's delay.
@@ -440,11 +466,24 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         } yield stream
       }
 
-    def drainAndSet(stateVar: Ref[State], permits: Semaphore, s: State): UIO[Unit] =
+    def drainAndSet(stateVar: Ref[State], permits: Semaphore, s: State): ZIO[R1, E1, Unit] =
       withStateVar(stateVar, permits) {
         // It's ok to overwrite an empty state - we just need to notify the consumer
         // so it'll take the data
         case State.Empty(_, notifyNext) => UIO.succeed((notifyNext.succeed(()).unit, s))
+
+        // If there are leftovers, we need to process them and retry
+        case State.Leftovers(state, leftovers, notifyNext) =>
+          UIO.succeed(
+            (
+              leftovers.foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)) *> drainAndSet(
+                stateVar,
+                permits,
+                s
+              ),
+              State.Empty(state, notifyNext)
+            )
+          )
 
         // For these states, we wait for the consumer to take the data and retry
         case existing @ State.BatchMiddle(_, notifyProducer, notifyConsumer) =>
