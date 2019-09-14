@@ -1247,7 +1247,7 @@ object ZSink extends ZSinkPlatformSpecific {
 
       type State = FoldWeightedState[S, A]
 
-      val initial = UIO.succeed(FoldWeightedState(z, 0L, true, Chunk.empty))
+      val initial = UIO.succeed(FoldWeightedState[S, A](z, 0L, true, Chunk.empty))
 
       def step(state: State, a: A) =
         costFn(a).flatMap { cost =>
@@ -1278,7 +1278,7 @@ object ZSink extends ZSinkPlatformSpecific {
   )(costFn: A => Long, max: Long)(
     f: (S, A) => S
   ): ZSink[Any, Nothing, A, A, S] =
-    foldWeightedDecompose(z)(costFn, max, Chunk.single[A](_))(f)
+    foldWeightedDecompose(z)(costFn, max, (a: A) => Chunk.single(a))(f)
 
   /**
    * Creates a sink that folds elements of type `A` into a structure
@@ -1297,7 +1297,7 @@ object ZSink extends ZSinkPlatformSpecific {
 
       type State = FoldWeightedState[S, A]
 
-      val initialPure = FoldWeightedState(z, 0L, true, Chunk.empty)
+      val initialPure = FoldWeightedState[S, A](z, 0L, true, Chunk.empty)
 
       def stepPure(state: State, a: A) = {
         val newCost = costFn(a) + state.cost

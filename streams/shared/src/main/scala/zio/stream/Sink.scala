@@ -154,7 +154,7 @@ object Sink {
    */
   final def foldWeightedDecomposeM[E, E1 >: E, A, S](
     z: S
-  )(costFn: A => IO[E, Long], max: Long, decompose: A => IO[E, Chunk[A]] = (a: A) => IO.succeed(Chunk.single(a)))(
+  )(costFn: A => IO[E, Long], max: Long, decompose: A => IO[E, Chunk[A]])(
     f: (S, A) => IO[E1, S]
   ): Sink[E1, A, A, S] =
     ZSink.foldWeightedDecomposeM[Any, Any, E, E1, A, S](z)(costFn, max, decompose)(f)
@@ -174,7 +174,7 @@ object Sink {
    */
   final def foldWeightedDecompose[A, S](
     z: S
-  )(costFn: A => Long, max: Long, decompose: A => Chunk[A] = Chunk.single[A](_))(
+  )(costFn: A => Long, max: Long, decompose: A => Chunk[A])(
     f: (S, A) => S
   ): Sink[Nothing, A, A, S] =
     ZSink.foldWeightedDecompose(z)(costFn, max, decompose)(f)
