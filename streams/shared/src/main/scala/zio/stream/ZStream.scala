@@ -1817,40 +1817,58 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream[R1, E1, B] {
       for {
         as           <- self.process
-        sink         <- managedSink
-        init         <- sink.initial.toManaged_
-        sinkStateRef <- Ref.make[(sink.State, Boolean)]((init, false)).toManaged_
-        done         <- Ref.make(false).toManaged_
+        sink         <- managedSink.map(_.mapError(Some(_)))
+        doneRef      <- Ref.make(false).toManaged_
+        leftoversRef <- Ref.make[Chunk[A1]](Chunk.empty).toManaged_
         pull = {
-          def go(state: sink.State, needsExtractOnEnd: Boolean): Pull[R1, E1, B] =
-            if (!sink.cont(state))
-              (for {
-                res           <- sink.extract(state)
-                (b, leftover) = res
-                newInit       <- sink.initial
-                _ <- sink
-                      .stepChunk(newInit, leftover)
-                      .tap(leftoverStep => sinkStateRef.set((leftoverStep, !leftover.isEmpty)))
-              } yield b).mapError(Some(_))
-            else
-              as.foldM(
-                {
-                  case None =>
-                    done.set(true) *>
-                      (if (needsExtractOnEnd) sink.extract(state).mapError(Some(_)).map(_._1)
-                       else Pull.end)
-                  case Some(e) => Pull.fail(e)
-                },
-                sink.step(state, _).mapError(Some(_)).flatMap(go(_, true))
-              )
-
-          done.get.flatMap {
-            if (_) Pull.end
-            else
-              sinkStateRef.get.flatMap {
-                case (lastStep, needsExtractOnEnd) => go(lastStep, needsExtractOnEnd)
+          def go(s: sink.State, dirty: Boolean): Pull[R1, E1, B] =
+            if (!dirty) {
+              leftoversRef.get.flatMap { leftovers =>
+                doneRef.get.flatMap { done =>
+                  if (done)
+                    Pull.end
+                  else if (leftovers.notEmpty)
+                    sink.stepChunkSlice(s, leftovers).flatMap {
+                      case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
+                    } else
+                    as flatMap { a =>
+                      sink
+                        .step(s, a)
+                        .flatMap(s => go(s, true))
+                    }
+                }
               }
-          }
+            } else {
+              doneRef.get.flatMap { done =>
+                if (done || !sink.cont(s))
+                  sink.extract(s).flatMap {
+                    case (b, leftovers) =>
+                      leftoversRef
+                        .update(_ ++ leftovers)
+                        .when(leftovers.notEmpty)
+                        .as(b)
+                  } else
+                  as.foldM(
+                    {
+                      case e @ Some(_) => ZIO.fail(e)
+                      case None =>
+                        doneRef.set(true) *>
+                          sink.extract(s).flatMap {
+                            case (b, leftovers) =>
+                              leftoversRef
+                                .update(_ ++ leftovers)
+                                .when(leftovers.notEmpty)
+                                .as(b)
+                          }
+                    },
+                    sink
+                      .step(s, _)
+                      .flatMap(s => go(s, true))
+                  )
+              }
+            }
+
+          sink.initial.flatMap(s => go(s, false))
         }
       } yield pull
     }

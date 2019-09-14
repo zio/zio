@@ -86,5 +86,16 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
     loop(state, 0)
   }
 
+  final def stepChunkSlicePure[A1 <: A](state: State, as: Chunk[A1]): (State, Chunk[A1]) = {
+    val len = as.length
+
+    def loop(state: State, i: Int): (State, Chunk[A1]) =
+      if (i >= len) (state, Chunk.empty)
+      else if (self.cont(state)) loop(stepPure(state, as(i)), i + 1)
+      else (state, as.splitAt(i)._2)
+
+    loop(state, 0)
+  }
+
   def stepPure(s: State, a: A): State
 }
