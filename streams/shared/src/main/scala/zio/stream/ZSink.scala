@@ -1221,6 +1221,10 @@ object ZSink extends ZSinkPlatformSpecific {
    * Creates a sink that effectfully folds elements of type `A` into a structure
    * of type `S`, until `max` worth of elements (determined by the `costFn`) have
    * been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * cause the stream to hang. See [[ZSink.foldWeightedDecomposeM]] for
+   * a variant that can handle these.
    */
   final def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
     z: S
@@ -1234,6 +1238,10 @@ object ZSink extends ZSinkPlatformSpecific {
    * Creates a sink that effectfully folds elements of type `A` into a structure
    * of type `S`, until `max` worth of elements (determined by the `costFn`) have
    * been folded.
+   *
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `S` aggregate to cross `max` into smaller elements. See
+   * [[ZSink.foldWeightedDecompose]] for an example.
    */
   final def foldWeightedDecomposeM[R, R1 <: R, E, E1 >: E, A, S](
     z: S
@@ -1271,7 +1279,9 @@ object ZSink extends ZSinkPlatformSpecific {
    * of type `S`, until `max` worth of elements (determined by the `costFn`)
    * have been folded.
    *
-   * @note In case
+   * @note Elements that have an individual cost larger than `max` will
+   * cause the stream to hang. See [[ZSink.foldWeightedDecompose]] for
+   * a variant that can handle these.
    */
   final def foldWeighted[A, S](
     z: S
@@ -1285,7 +1295,25 @@ object ZSink extends ZSinkPlatformSpecific {
    * of type `S`, until `max` worth of elements (determined by the `costFn`)
    * have been folded.
    *
-   * @note In case
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `S` aggregate to cross `max` into smaller elements. For
+   * example:
+   * {{{
+   * Stream(1, 5, 1)
+   *  .transduce(
+   *    Sink
+   *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
+   *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
+   *        el :: acc
+   *      }
+   *      .map(_.reverse)
+   *  )
+   *  .runCollect
+   * }}}
+   *
+   * The stream would emit the elements `List(1), List(4), List(1, 1)`.
+   * The [[ZSink.foldWeightedDecomposeM]] allows the decompose function
+   * to return a `ZIO` value, and consequently it allows the sink to fail.
    */
   final def foldWeightedDecompose[A, S](
     z: S
