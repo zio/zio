@@ -196,6 +196,12 @@ object Assertion {
     Assertion.assertion("contains")(param(element))(_.exists(_ == element))
 
   /**
+   * Makes a new assertion that requires a substring to be present.
+   */
+  final def containsString(element: String): Assertion[String] =
+    Assertion.assertion("containsString")(param(element))(_.contains(element))
+
+  /**
    * Makes a new assertion that requires an exit value to die.
    */
   final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
@@ -442,12 +448,6 @@ object Assertion {
   final val nothing: Assertion[Any] = Assertion.assertionRec[Any]("nothing")() { (self, actual) =>
     BoolAlgebra.failure(AssertionValue(self, actual))
   }
-
-  /**
-   * Makes a new assertion that search a substring.
-   */
-  final def containsString(element: String): Assertion[String] =
-    Assertion.assertion("containsString")(param(element))(_.contains(element))
 
   /**
    * Makes a new assertion that requires an exit value to succeed.

@@ -12,13 +12,13 @@ class BlockingSpec
     extends ZIOBaseSpec(
       suite("BlockingSpec")(
         suite("Make a Blocking Service and verify that")(
-          testM("effectBlocking` completes successfully") {
+          testM("effectBlocking completes successfully") {
             assertM(effectBlocking(()), isUnit)
           },
-          testM("effectBlockingCancelable` completes successfully") {
+          testM("effectBlockingCancelable completes successfully") {
             assertM(effectBlockingCancelable(())(UIO.unit), isUnit)
           },
-          testM("effectBlocking` can be interrupted") {
+          testM("effectBlocking can be interrupted") {
             assertM(effectBlocking(Thread.sleep(50000)).timeout(Duration.Zero), isNone)
           },
           testM("effectBlockingCancelable can be interrupted") {

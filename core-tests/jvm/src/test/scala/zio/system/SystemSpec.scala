@@ -13,7 +13,7 @@ class SystemSpec
           testM("If it exists, return a reasonable value") {
             assertM(system.env("PATH"), isSome(containsString(File.separator + "bin")))
           },
-          testM("Fetch an environment variable and check that If it does not exist, return None") {
+          testM("If it does not exist, return None") {
             assertM(system.env("QWERTY"), isNone)
           }
         ),

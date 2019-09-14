@@ -228,7 +228,7 @@ object AssertionSpec {
     ),
     testSuccess(
       assert("this is a value", containsString("is a")),
-      message = "hasSubstring must succeed when string is found"
+      message = "containsString must succeed when string is found"
     ),
     testFailure(
       assert("this is a value", containsString("_NOTHING_")),
