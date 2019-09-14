@@ -22,6 +22,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     error propagation                    $aggregateErrorPropagation2
     interruption propagation             $aggregateInterruptionPropagation
     interruption propagation             $aggregateInterruptionPropagation2
+    leftover handling                    $aggregateLeftoverHandling
 
   Stream.aggregateWithin
     aggregateWithin                      $aggregateWithin
@@ -29,6 +30,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     error propagation                    $aggregateWithinErrorPropagation2
     interruption propagation             $aggregateWithinInterruptionPropagation
     interruption propagation             $aggregateWithinInterruptionPropagation2
+    leftover handling                    $aggregateWithinLeftoverHandling
 
   Stream.bracket
     bracket                              $bracket
@@ -312,6 +314,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     } yield result must_=== true
   }
 
+  private def aggregateLeftoverHandling = unsafeRun {
+    val data = List(1, 2, 2, 3, 2, 3)
+    Stream(data: _*)
+      .aggregate(
+        Sink
+          .foldWeighted(List[Int]())((i: Int) => i.toLong, 4) { (acc, el) =>
+            el :: acc
+          }
+          .map(_.reverse)
+      )
+      .runCollect
+      .map { result =>
+        result.flatten must_=== data
+      }
+  }
+
   def aggregateWithin = unsafeRun {
     for {
       result <- Stream(1, 1, 1, 1, 2)
@@ -383,6 +401,26 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       _      <- fiber.interrupt
       result <- cancelled.get
     } yield result must_=== true
+  }
+
+  private def aggregateWithinLeftoverHandling = unsafeRun {
+    val data = List(1, 2, 2, 3, 2, 3)
+    Stream(data: _*)
+      .aggregateWithin(
+        Sink
+          .foldWeighted(List[Int]())((i: Int) => i.toLong, 4) { (acc, el) =>
+            el :: acc
+          }
+          .map(_.reverse),
+        Schedule.spaced(100.millis)
+      )
+      .collect {
+        case Right(v) => v
+      }
+      .runCollect
+      .map { result =>
+        result.flatten must_=== data
+      }
   }
 
   private def bracket =
