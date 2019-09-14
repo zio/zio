@@ -28,11 +28,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       extract error $asErrorExtractError
 
     chunked
-      happy path    $chunkedHappyPath
-      empty         $chunkedEmpty
-      init error    $chunkedInitError
-      step error    $chunkedStepError
-      extract error $chunkedExtractError
+      happy path      $chunkedHappyPath
+      empty           $chunkedEmpty
+      init error      $chunkedInitError
+      step error      $chunkedStepError
+      extract error   $chunkedExtractError
+      leftover        $chunkedLeftover
+      leftover append $chunkedLeftoverAppend
 
     collectAll
       happy path    $collectAllHappyPath
@@ -393,6 +395,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(sinkIteration(sink, Chunk.single(1)).either.map(_ must_=== Left("Ouch")))
   }
 
+  private def chunkedLeftover = {
+    val sink = ZSink.collectAllN[Int](2).chunked
+    val test = for {
+      init   <- sink.initial
+      step   <- sink.step(init, Chunk(1, 2, 3, 4, 5))
+      result <- sink.extract(step)
+    } yield result must_=== ((List(1, 2), Chunk(3, 4, 5)))
+    unsafeRun(test)
+  }
+
+  private def chunkedLeftoverAppend = {
+    val sink = ZSink.ignoreWhile[Int](_ < 0).chunked
+    val test = for {
+      init   <- sink.initial
+      step   <- sink.step(init, Chunk(1, 2, 3, 4, 5))
+      result <- sink.extract(step)
+    } yield result._2 must_=== Chunk(1, 2, 3, 4, 5)
+    unsafeRun(test)
+  }
+
   private def collectAllHappyPath = {
     val sink = ZSink.identity[Int].collectAll
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== ((List(1), Chunk.empty))))
@@ -464,7 +486,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
   private def collectAllWhileFalsePredicate = {
     val errorMsg = "No elements have been consumed by the sink"
-    val sink     = ZSink.identity[Int].collectAllWhile(_ < 0).mapError(_ => errorMsg)
+    val sink     = ZSink.identity[Int].collectAllWhile(_ < 0).asError(errorMsg)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(errorMsg)))
   }
 

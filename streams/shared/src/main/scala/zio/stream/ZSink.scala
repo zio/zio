@@ -163,18 +163,14 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def asError[E1](e1: E1): ZSink[R, E1, A0, A, B] = self.mapError(_ => e1)
 
-  /**
-   * Takes a `Sink`, and lifts it to be chunked in its input. This
-   * will not improve performance, but can be used to adapt non-chunked sinks
-   * wherever chunked sinks are required.
-   */
-  final def chunked: ZSink[R, E, A0, Chunk[A], B] =
-    new ZSink[R, E, A0, Chunk[A], B] {
-      type State = self.State
-      val initial                         = self.initial
-      def step(state: State, a: Chunk[A]) = self.stepChunk(state, a)
-      def extract(state: State)           = self.extract(state)
-      def cont(state: State)              = self.cont(state)
+  private[ZSink] final def chunked[A00 >: A0, A1 <: A](implicit ev: A1 =:= A00): ZSink[R, E, A00, Chunk[A1], B] =
+    new ZSink[R, E, A00, Chunk[A1], B] {
+      type State = (self.State, Chunk[A00])
+      val initial = self.initial.map((_, Chunk.empty))
+      def step(state: State, a: Chunk[A1]) =
+        self.stepChunkSlice(state._1, a).map { case (s, chunk) => (s, chunk.map(ev)) }
+      def extract(state: State) = self.extract(state._1).map { case (b, leftover) => (b, leftover ++ state._2) }
+      def cont(state: State)    = self.cont(state._1)
     }
 
   private[ZSink] final def collectAll[A00 >: A0, A1 <: A](
@@ -936,6 +932,13 @@ object ZSink extends ZSinkPlatformSpecific {
     final def ? : ZSink[R, E, A, A, Option[B]] = sink.?
 
     /**
+     * Takes a `Sink`, and lifts it to be chunked in its input. This
+     * will not improve performance, but can be used to adapt non-chunked sinks
+     * wherever chunked sinks are required.
+     */
+    final def chunked: ZSink[R, E, A, Chunk[A], B] = sink.chunked
+
+    /**
      * Accumulates the output into a list.
      */
     final def collectAll: ZSink[R, E, A, A, List[B]] = sink.collectAll
@@ -986,6 +989,13 @@ object ZSink extends ZSinkPlatformSpecific {
      * error in stepping or extraction, produces `None`.
      */
     final def ? : ZSink[R, E, A, A, Option[B]] = sink.?
+
+    /**
+     * Takes a `Sink`, and lifts it to be chunked in its input. This
+     * will not improve performance, but can be used to adapt non-chunked sinks
+     * wherever chunked sinks are required.
+     */
+    final def chunked: ZSink[R, E, A, Chunk[A], B] = sink.chunked
 
     /**
      * Accumulates the output into a list.
