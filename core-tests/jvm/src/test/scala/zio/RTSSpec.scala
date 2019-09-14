@@ -1215,10 +1215,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testRaceBothInterruptsLoser =
     unsafeRun(for {
-      s      <- Semaphore.make(0L)
+      latch  <- Promise.make[Nothing, Unit]
       effect <- Promise.make[Nothing, Int]
-      winner = s.acquire *> IO.effectAsync[Throwable, Unit](_(IO.unit))
-      loser  = IO.bracket(s.release)(_ => effect.succeed(42).unit)(_ => IO.never)
+      winner = latch.await *> IO.effectAsync[Throwable, Unit](_(IO.unit))
+      loser  = IO.bracket(latch.succeed(()))(_ => effect.succeed(42).unit)(_ => IO.never)
       race   = winner raceEither loser
       _      <- race.either
       b      <- effect.await
