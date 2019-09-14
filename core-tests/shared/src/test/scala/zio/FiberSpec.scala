@@ -36,25 +36,23 @@ class FiberSpec extends BaseCrossPlatformSpec {
 
   def e3 =
     for {
-      fiberRef  <- FiberRef.make(initial)
-      semaphore <- Semaphore.make(2)
-      _         <- semaphore.acquireN(2)
-      child1    <- (fiberRef.set("child1") *> semaphore.release).fork
-      child2    <- (fiberRef.set("child2") *> semaphore.release).fork
-      _         <- semaphore.acquireN(2)
-      _         <- child1.orElse(child2).inheritFiberRefs
-      value     <- fiberRef.get
+      fiberRef <- FiberRef.make(initial)
+      latch1   <- Promise.make[Nothing, Unit]
+      latch2   <- Promise.make[Nothing, Unit]
+      child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
+      child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
+      _        <- latch1.await *> latch2.await *> child1.orElse(child2).inheritFiberRefs
+      value    <- fiberRef.get
     } yield value must beTheSameAs("child1")
 
   def e4 =
     for {
-      fiberRef  <- FiberRef.make(initial)
-      semaphore <- Semaphore.make(2)
-      _         <- semaphore.acquireN(2)
-      child1    <- (fiberRef.set("child1") *> semaphore.release).fork
-      child2    <- (fiberRef.set("child2") *> semaphore.release).fork
-      _         <- semaphore.acquireN(2)
-      _         <- child1.zip(child2).inheritFiberRefs
-      value     <- fiberRef.get
+      fiberRef <- FiberRef.make(initial)
+      latch1   <- Promise.make[Nothing, Unit]
+      latch2   <- Promise.make[Nothing, Unit]
+      child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
+      child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
+      _        <- latch1.await *> latch2.await *> child1.zip(child2).inheritFiberRefs
+      value    <- fiberRef.get
     } yield value must beTheSameAs("child1")
 }

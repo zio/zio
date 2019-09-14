@@ -3,58 +3,54 @@
 
 package zio
 
-import zio.duration._
-
 class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is =
     "SemaphoreSpec".title ^ s2"""
     Make a Semaphore and
     verify that
-      `acquire` permits sequentially $e1
-      `acquire` permits in parallel $e2
-      `acquireN`s can be parallel with `releaseN`s $e3
-      individual `acquireN`s can be parallel with individual `releaseN`s $e4
+      `withPermit` performed sequentially $e1
+      `withPermit` performed in parallel $e2
+      multiple `withPermits` can be performed in sequence $e3
+      multiple `withPermits` can be performed in parallel $e4
       semaphores and fibers play ball together $e5
-      `acquire` doesn't leak permits upon cancellation $e6
-      `withPermit` does not leak fibers or permits upon cancellation $e7
-      `withPermitManaged` does not leak fibers or permits upon cancellation $e8
+      `withPermit` doesn't leak permits upon failure $e6
+      `withPermit` does not leak permits upon cancellation $e7
+      `withPermitManaged` does not leak permits upon cancellation $e8
     """
 
   def e1 = {
     val n = 20L
     unsafeRun(for {
       semaphore <- Semaphore.make(n)
-      available <- IO.foreach((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
-    } yield available must_=== 0)
+      available <- IO.foreach((0L until n).toList)(_ => semaphore.withPermit(semaphore.available))
+    } yield available.forall(_ == 19))
   }
 
   def e2 = {
     val n = 20L
     unsafeRun(for {
       semaphore <- Semaphore.make(n)
-      available <- IO.foreachPar((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
-    } yield available must_=== 0)
+      available <- IO.foreachPar((0L until n).toList)(_ => semaphore.withPermit(semaphore.available))
+    } yield available.forall(_ < 20))
   }
 
   def e3 =
-    offsettingReleasesAcquires(
-      (s, permits) => IO.foreach(permits)(s.acquireN).unit,
-      (s, permits) => IO.foreach(permits.reverse)(s.releaseN).unit
+    offsettingWithPermits(
+      (s, permits) => IO.foreach(permits)(s.withPermits(_)(IO.unit)).unit
     )
 
   def e4 =
-    offsettingReleasesAcquires(
-      (s, permits) => IO.foreachPar(permits)(amount => s.acquireN(amount)).unit,
-      (s, permits) => IO.foreachPar(permits.reverse)(amount => s.releaseN(amount)).unit
+    offsettingWithPermits(
+      (s, permits) => IO.foreachPar(permits)(s.withPermits(_)(IO.unit)).unit
     )
 
   def e5 = {
     val n = 1L
     unsafeRun(for {
-      s <- Semaphore.make(n).tap(_.acquire)
-      _ <- s.release.fork
-      _ <- s.acquire
+      s <- Semaphore.make(n)
+      _ <- s.withPermit(IO.unit).fork
+      _ <- s.withPermit(IO.unit)
     } yield () must_=== (()))
   }
 
@@ -65,47 +61,47 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     val n = 1L
     unsafeRun(for {
       s       <- Semaphore.make(n)
-      _       <- s.acquireN(2).timeout(1.milli).either
-      permits <- s.release *> clock.sleep(10.millis) *> s.available
-    } yield permits) must_=== 2
+      _       <- s.withPermit(IO.fail("fail")).either
+      permits <- s.available
+    } yield permits) must_=== 1
   }
 
   /**
    * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
    */
   def e7 = {
-    val n = 0L
+    val n = 1L
     unsafeRun(for {
       s       <- Semaphore.make(n)
-      _       <- s.withPermit(s.release).timeout(1.milli).either
-      permits <- s.release *> clock.sleep(10.millis) *> s.available
+      fiber   <- s.withPermit(IO.never).fork
+      _       <- fiber.interrupt.either
+      permits <- s.available
     } yield permits must_=== 1L)
   }
 
   private def e8 = {
+    val n = 1L
     val test = for {
-      s       <- Semaphore.make(0)
-      _       <- s.withPermitManaged.use(_ => s.release).timeout(1.millisecond).either
-      permits <- (s.release *> clock.sleep(10.milliseconds) *> s.available)
+      s       <- Semaphore.make(n)
+      fiber   <- s.withPermitManaged.use(_ => IO.never).fork
+      _       <- fiber.interrupt.either
+      permits <- s.available
     } yield permits must_=== 1L
 
     unsafeRun(test)
   }
 
-  def offsettingReleasesAcquires(
-    acquires: (Semaphore, Vector[Long]) => UIO[Unit],
-    releases: (Semaphore, Vector[Long]) => UIO[Unit]
+  def offsettingWithPermits(
+    withPermits: (Semaphore, Vector[Long]) => UIO[Unit]
   ) = {
     val permits = Vector(1L, 0L, 20L, 4L, 0L, 5L, 2L, 1L, 1L, 3L)
 
     unsafeRun(for {
-      semaphore     <- Semaphore.make(0L)
-      acquiresFiber <- acquires(semaphore, permits).fork
-      releasesFiber <- releases(semaphore, permits).fork
-      _             <- acquiresFiber.join
-      _             <- releasesFiber.join
-      count         <- semaphore.available
-    } yield count must_=== 0)
+      semaphore <- Semaphore.make(20L)
+      fiber     <- withPermits(semaphore, permits).fork
+      _         <- fiber.join
+      count     <- semaphore.available
+    } yield count must_=== 20L)
   }
 
 }
