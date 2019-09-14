@@ -225,6 +225,14 @@ object AssertionSpec {
     test(
       !nameStartsWithA.test(sampleUser),
       message = "test must return false when given element does not satisfy assertion"
+    ),
+    testSuccess(
+      assert("this is a value", containsString("is a")),
+      message = "containsString must succeed when string is found"
+    ),
+    testFailure(
+      assert("this is a value", containsString("_NOTHING_")),
+      message = "containsString must return false when the string is not contained"
     )
   )
 }
