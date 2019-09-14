@@ -215,42 +215,45 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
 
           self.processEffect.flatMap { thunk =>
             Managed.effectTotal {
-              var state             = sink.initialPure
-              var needsExtractOnEnd = false
-              var done              = false
+              var done                 = false
+              var leftovers: Chunk[A1] = Chunk.empty
 
               () => {
-                if (done) {
-                  StreamEffect.end
-                } else {
-                  while (!done && sink.cont(state)) {
-                    try {
+                def go(state: sink.State, dirty: Boolean): B =
+                  if (!dirty) {
+                    if (done) StreamEffect.end
+                    else if (leftovers.notEmpty) {
+                      val (newState, newLeftovers) = sink.stepChunkSlicePure(state, leftovers)
+                      leftovers = newLeftovers
+                      go(newState, true)
+                    } else {
                       val a = thunk()
-                      state = sink.stepPure(state, a)
-                      needsExtractOnEnd = true
-                    } catch {
-                      case StreamEffect.End =>
-                        done = true
+                      go(sink.stepPure(state, a), true)
+                    }
+                  } else {
+                    if (done || !sink.cont(state)) {
+                      sink.extractPure(state) match {
+                        case Left(e) => StreamEffect.fail(e)
+                        case Right((b, newLeftovers)) =>
+                          leftovers = leftovers ++ newLeftovers
+                          b
+                      }
+                    } else {
+                      try go(sink.stepPure(state, thunk()), true)
+                      catch {
+                        case StreamEffect.End =>
+                          done = true
+                          sink.extractPure(state) match {
+                            case Left(e) => StreamEffect.fail(e)
+                            case Right((b, newLeftovers)) =>
+                              leftovers = leftovers ++ newLeftovers
+                              b
+                          }
+                      }
                     }
                   }
 
-                  if (done) {
-                    if (needsExtractOnEnd)
-                      sink.extractPure(state) match {
-                        case Left(e)       => StreamEffect.fail(e)
-                        case Right((b, _)) => b
-                      } else StreamEffect.end
-                  } else {
-                    sink.extractPure(state) match {
-                      case Left(e) => StreamEffect.fail(e)
-                      case Right((b, leftover)) =>
-                        val newInit = sink.initialPure
-                        state = sink.stepChunkPure(newInit, leftover)
-                        needsExtractOnEnd = !leftover.isEmpty
-                        b
-                    }
-                  }
-                }
+                go(sink.initialPure, false)
               }
             }
           }

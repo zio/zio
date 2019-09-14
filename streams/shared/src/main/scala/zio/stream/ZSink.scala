@@ -624,6 +624,17 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     loop(state, 0)
   }
 
+  final def stepChunkSlice[A1 <: A](state: State, as: Chunk[A1]): ZIO[R, E, (State, Chunk[A1])] = {
+    val len = as.length
+
+    def loop(state: State, i: Int): ZIO[R, E, (State, Chunk[A1])] =
+      if (i >= len) UIO.succeed(state -> Chunk.empty)
+      else if (self.cont(state)) self.step(state, as(i)).flatMap(loop(_, i + 1))
+      else UIO.succeed(state -> as.splitAt(i)._2)
+
+    loop(state, 0)
+  }
+
   /**
    * Runs both sinks in parallel on the input, returning the result from the
    * one that finishes successfully first.
@@ -1054,6 +1065,8 @@ object ZSink extends ZSinkPlatformSpecific {
     class NegativeArgument(message: String) extends IllegalArgumentException(message)
 
     class NonpositiveArgument(message: String) extends IllegalArgumentException(message)
+
+    case class FoldWeightedState[S, A](s: S, cost: Long, cont: Boolean, leftovers: Chunk[A])
   }
 
   /**
@@ -1208,55 +1221,126 @@ object ZSink extends ZSinkPlatformSpecific {
    * Creates a sink that effectfully folds elements of type `A` into a structure
    * of type `S`, until `max` worth of elements (determined by the `costFn`) have
    * been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * cause the stream to hang. See [[ZSink.foldWeightedDecomposeM]] for
+   * a variant that can handle these.
    */
   final def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
     z: S
-  )(costFn: A => ZIO[R, E, Long], max: Long)(f: (S, A) => ZIO[R1, E1, S]): ZSink[R1, E1, A, A, S] =
-    new ZSink[R1, E1, A, A, S] {
-      type State = (S, Long, Boolean, Chunk[A])
+  )(
+    costFn: A => ZIO[R, E, Long],
+    max: Long
+  )(f: (S, A) => ZIO[R1, E1, S]): ZSink[R1, E1, A, A, S] =
+    foldWeightedDecomposeM[R, R1, E1, E1, A, S](z)(costFn, max, (a: A) => UIO.succeed(Chunk.single(a)))(f)
 
-      val initial = UIO.succeed((z, 0L, true, Chunk.empty))
+  /**
+   * Creates a sink that effectfully folds elements of type `A` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `S` aggregate to cross `max` into smaller elements. See
+   * [[ZSink.foldWeightedDecompose]] for an example.
+   */
+  final def foldWeightedDecomposeM[R, R1 <: R, E, E1 >: E, A, S](
+    z: S
+  )(
+    costFn: A => ZIO[R, E, Long],
+    max: Long,
+    decompose: A => ZIO[R, E, Chunk[A]]
+  )(f: (S, A) => ZIO[R1, E1, S]): ZSink[R1, E1, A, A, S] =
+    new ZSink[R1, E1, A, A, S] {
+      import internal.FoldWeightedState
+
+      type State = FoldWeightedState[S, A]
+
+      val initial = UIO.succeed(FoldWeightedState[S, A](z, 0L, true, Chunk.empty))
 
       def step(state: State, a: A) =
         costFn(a).flatMap { cost =>
-          val newCost = cost + state._2
+          val newCost = cost + state.cost
 
-          if (newCost > max) UIO.succeed((state._1, state._2, false, Chunk.single(a)))
-          else if (newCost == max) {
-            f(state._1, a).map((_, newCost, false, Chunk.empty))
-          } else f(state._1, a).map((_, newCost, true, Chunk.empty))
+          if (newCost > max)
+            decompose(a).map(leftovers => state.copy(cont = false, leftovers = state.leftovers ++ leftovers))
+          else if (newCost == max)
+            f(state.s, a).map(FoldWeightedState(_, newCost, false, Chunk.empty))
+          else
+            f(state.s, a).map(FoldWeightedState(_, newCost, true, Chunk.empty))
         }
 
-      def extract(state: State) = UIO.succeed((state._1, state._4))
+      def extract(state: State) = UIO.succeed((state.s, state.leftovers))
 
-      def cont(state: State) = state._3
+      def cont(state: State) = state.cont
     }
 
   /**
    * Creates a sink that folds elements of type `A` into a structure
    * of type `S`, until `max` worth of elements (determined by the `costFn`)
    * have been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * cause the stream to hang. See [[ZSink.foldWeightedDecompose]] for
+   * a variant that can handle these.
    */
   final def foldWeighted[A, S](
     z: S
-  )(costFn: A => Long, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
-    new SinkPure[Nothing, A, A, S] {
-      type State = (S, Long, Boolean, Chunk[A])
+  )(costFn: A => Long, max: Long)(
+    f: (S, A) => S
+  ): ZSink[Any, Nothing, A, A, S] =
+    foldWeightedDecompose(z)(costFn, max, (a: A) => Chunk.single(a))(f)
 
-      val initialPure = (z, 0L, true, Chunk.empty)
+  /**
+   * Creates a sink that folds elements of type `A` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`)
+   * have been folded.
+   *
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `S` aggregate to cross `max` into smaller elements. For
+   * example:
+   * {{{
+   * Stream(1, 5, 1)
+   *  .transduce(
+   *    Sink
+   *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
+   *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
+   *        el :: acc
+   *      }
+   *      .map(_.reverse)
+   *  )
+   *  .runCollect
+   * }}}
+   *
+   * The stream would emit the elements `List(1), List(4), List(1, 1)`.
+   * The [[ZSink.foldWeightedDecomposeM]] allows the decompose function
+   * to return a `ZIO` value, and consequently it allows the sink to fail.
+   */
+  final def foldWeightedDecompose[A, S](
+    z: S
+  )(costFn: A => Long, max: Long, decompose: A => Chunk[A])(
+    f: (S, A) => S
+  ): ZSink[Any, Nothing, A, A, S] =
+    new SinkPure[Nothing, A, A, S] {
+      import internal.FoldWeightedState
+
+      type State = FoldWeightedState[S, A]
+
+      val initialPure = FoldWeightedState[S, A](z, 0L, true, Chunk.empty)
 
       def stepPure(state: State, a: A) = {
-        val newCost = costFn(a) + state._2
+        val newCost = costFn(a) + state.cost
 
-        if (newCost > max) (state._1, state._2, false, Chunk.single(a))
-        else if (newCost == max) {
-          (f(state._1, a), newCost, false, Chunk.empty)
-        } else (f(state._1, a), newCost, true, Chunk.empty)
+        if (newCost > max)
+          state.copy(cont = false, leftovers = state.leftovers ++ decompose(a))
+        else if (newCost == max)
+          FoldWeightedState(f(state.s, a), newCost, false, Chunk.empty)
+        else
+          FoldWeightedState(f(state.s, a), newCost, true, Chunk.empty)
       }
 
-      def extractPure(state: State) = Right((state._1, state._4))
+      def extractPure(state: State) = Right((state.s, state.leftovers))
 
-      def cont(state: State) = state._3
+      def cont(state: State) = state.cont
     }
 
   /**

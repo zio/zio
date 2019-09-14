@@ -231,9 +231,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     collectAllWhile $collectAllWhile
 
-    foldWeighted $foldWeighted
+    foldWeighted           $foldWeighted
+    foldWeightedDecompose  $foldWeightedDecompose
 
-    foldWeightedM $foldWeightedM
+    foldWeightedM          $foldWeightedM
+    foldWeightedDecomposeM $foldWeightedDecomposeM
 
     foldUntil $foldUntil
 
@@ -1297,9 +1299,22 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
   private def foldWeighted = unsafeRun {
     Stream[Long](1, 5, 2, 3)
-      .transduce(Sink.foldWeighted(List[Long]())((_: Long) * 2, 12)((acc, el) => el :: acc).map(_.reverse))
+      .transduce(Sink.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse))
       .runCollect
       .map(_ must_=== List(List(1, 5), List(2, 3)))
+  }
+
+  private def foldWeightedDecompose = unsafeRun {
+    Stream(1, 5, 1)
+      .transduce(
+        Sink
+          .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
+            el :: acc
+          }
+          .map(_.reverse)
+      )
+      .runCollect
+      .map(_ must_=== List(List(1), List(4), List(1, 1)))
   }
 
   private def foldWeightedM = unsafeRun {
@@ -1311,6 +1326,23 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       )
       .runCollect
       .map(_ must_=== List(List(1, 5), List(2, 3)))
+  }
+
+  private def foldWeightedDecomposeM = unsafeRun {
+    Stream(1, 5, 1)
+      .transduce(
+        Sink
+          .foldWeightedDecomposeM(List[Int]())(
+            (i: Int) => UIO.succeed(i.toLong),
+            4,
+            (i: Int) => UIO.succeed(Chunk(i - 1, 1))
+          ) { (acc, el) =>
+            UIO.succeed(el :: acc)
+          }
+          .map(_.reverse)
+      )
+      .runCollect
+      .map(_ must_=== List(List(1), List(4), List(1, 1)))
   }
 
   private def foldUntil = unsafeRun {
