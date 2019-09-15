@@ -206,7 +206,10 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.collect") {
-          checkM(succeededStreamChunkGen(stringGen), Gen.partialFunction[Random with Sized, String, String](Gen.anyString)) { (s, p) =>
+          checkM(
+            pureStreamChunkGen(stringGen),
+            Gen.partialFunction[Random with Sized, String, String](Gen.anyString)
+          ) { (s, p) =>
             for {
               res1 <- slurp(s.collect(p))
               res2 <- slurp(s).map(_.collect(p))

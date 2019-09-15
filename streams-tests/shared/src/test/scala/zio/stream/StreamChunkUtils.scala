@@ -15,7 +15,7 @@ trait StreamChunkUtils extends StreamUtils {
       pureStreamEffectGen(chunkGen(a)).map(StreamEffectChunk(_))
     )
 
-  def succeededStreamChunkGen[R <: Random, A: ClassTag](a: Gen[R, A]): Gen[R with Sized, StreamChunk[Nothing, A]] =
+  def pureStreamChunkGen[R <: Random, A: ClassTag](a: Gen[R, A]): Gen[R with Sized, StreamChunk[Nothing, A]] =
     Gen.oneOf(
       pureStreamGen(chunkGen(a)).map(StreamChunk(_)),
       pureStreamEffectGen(chunkGen(a)).map(StreamEffectChunk(_))
@@ -36,6 +36,6 @@ object StreamChunkUtils extends StreamChunkUtils with GenUtils {
     loop(list, zero)
   }
 
-  val chunksOfInts    = succeededStreamChunkGen(intGen)
-  val chunksOfStrings = succeededStreamChunkGen(stringGen)
+  val chunksOfInts    = pureStreamChunkGen(intGen)
+  val chunksOfStrings = pureStreamChunkGen(stringGen)
 }
