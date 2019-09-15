@@ -17,7 +17,7 @@ trait StreamUtils extends ChunkUtils {
       } yield xs
     )
 
-  def impureStreamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[String, A]] =
+  def failingStreamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[String, A]] =
     for {
       n  <- Gen.int(1, 20)
       i  <- Gen.int(0, n - 1)
@@ -27,6 +27,20 @@ trait StreamUtils extends ChunkUtils {
         IO.fail("fail-case")
       case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
     }
+
+  def pureStreamEffectGen[R >: Random, A](a: Gen[R, A]): Gen[R with Sized, StreamEffect[Nothing, A]] =
+    Gen.small(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable)
+
+  def genFailingStreamEffect[R <: Ramdom, A](a: Gen[R, A]): Gen[R with Sized, StreamEffect[String, A]] =
+    for {
+      n  <- Gen.int(1, 20)
+      i  <- Gen.int(0, n - 1)
+      it <- Gen.listOfN(n)(a)
+    } yield StreamEffect.unfold((n, it)) {
+      case (_, Nil) | (0, _) => None
+      case (n, head :: rest) => Some((head, (n - 1, rest)))
+    }
+
 }
 
 object StreamUtils extends StreamUtils with GenUtils {
