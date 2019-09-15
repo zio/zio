@@ -86,6 +86,10 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       init error    $flatMapInitError
       step error    $flatMapStepError
       extract error $flatMapExtractError
+      self done     $flatMapSelfDone
+      self more     $flatMapSelfMore
+      pass leftover $flatMapPassLeftover
+      end leftover  $flatMapEndLeftover
 
     filter
       happy path      $filterHappyPath
@@ -608,6 +612,54 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   private def flatMapExtractError = {
     val sink = extractErrorSink.flatMap(n => ZSink.succeed(n.toString))
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def flatMapSelfDone = {
+    val sink = ZSink.succeed(3).flatMap(n => ZSink.collectAllN[Int](n.toLong))
+    val test = for {
+      init   <- sink.initial
+      step1  <- sink.step(init, 1)
+      step2  <- sink.step(step1, 2)
+      step3  <- sink.step(step2, 3)
+      result <- sink.extract(step3)
+    } yield result must_=== ((List(1, 2, 3), Chunk.empty))
+    unsafeRun(test)
+  }
+
+  private def flatMapSelfMore = {
+    val sink = ZSink.collectAll[Int].flatMap(list => ZSink.succeed[Int](list.headOption.getOrElse(0)))
+    val test = for {
+      init   <- sink.initial
+      step1  <- sink.step(init, 1)
+      step2  <- sink.step(step1, 2)
+      step3  <- sink.step(step2, 3)
+      result <- sink.extract(step3)
+    } yield result must_=== ((1, Chunk.empty))
+    unsafeRun(test)
+  }
+
+  private def flatMapPassLeftover = {
+    val sink = ZSink.ignoreWhile[Int](_ < 3).flatMap(_ => ZSink.identity[Int])
+    val test = for {
+      init   <- sink.initial
+      step1  <- sink.step(init, 1)
+      step2  <- sink.step(step1, 2)
+      step3  <- sink.step(step2, 3)
+      result <- sink.extract(step3)
+    } yield result must_=== ((3, Chunk.empty))
+    unsafeRun(test)
+  }
+
+  private def flatMapEndLeftover = {
+    val sink = ZSink.ignoreWhile[Int](_ < 3).flatMap(_ => ZSink.ignoreWhile[Int](_ < 3))
+    val test = for {
+      init   <- sink.initial
+      step1  <- sink.step(init, 1)
+      step2  <- sink.step(step1, 2)
+      step3  <- sink.step(step2, 3)
+      result <- sink.extract(step3)
+    } yield result must_=== (((), Chunk.single(3)))
+    unsafeRun(test)
   }
 
   private def filterHappyPath = {

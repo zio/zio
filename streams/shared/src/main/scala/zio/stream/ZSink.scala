@@ -58,7 +58,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def *>[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, C] =
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, C] =
     zip(that).map(_._2)
 
   /**
@@ -66,7 +66,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def <*[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, B] =
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, B] =
     zip(that).map(_._1)
 
   /**
@@ -74,7 +74,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def <*>[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, (B, C)] =
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, (B, C)] =
     self zip that
 
   /**
@@ -150,7 +150,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   @deprecated("use <*>", "1.0.0")
   final def ~[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, (B, C)] =
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, (B, C)] =
     zip(that)
 
   /**
@@ -301,48 +301,77 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def flatMap[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     f: B => ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, C] =
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, C] =
     new ZSink[R1, E1, A00, A1, C] {
-      type State = Either[self.State, (ZSink[R1, E1, A00, A1, C], Any)]
+      type State = Either[self.State, (ZSink[R1, E1, A00, A1, C], Any, Chunk[A00])]
 
-      val initial = self.initial.map(Left(_))
+      val initial = self.initial.flatMap { init =>
+        if (self.cont(init)) UIO.succeed((Left(init)))
+        else
+          self.extract(init).flatMap {
+            case (b, leftover) =>
+              val that = f(b)
+              that.initial.flatMap { s1 =>
+                that.stepChunkSlice(s1, leftover.map(ev)).map {
+                  case (s2, chunk) =>
+                    Right((that, s2, chunk.map(ev2)))
+                }
+              }
+          }
+      }
 
       def step(state: State, a: A1) =
         state match {
           case Left(s1) =>
-            self.step(s1, a).flatMap { s1 =>
-              if (self.cont(s1)) UIO.succeed(Left(s1))
+            self.step(s1, a).flatMap { s2 =>
+              if (self.cont(s2)) UIO.succeed(Left(s2))
               else
-                self.extract(s1).flatMap {
-                  case (b, as) =>
+                self.extract(s2).flatMap {
+                  case (b, leftover) =>
                     val that = f(b)
-
-                    that.initial.flatMap { s2 =>
-                      that.stepChunk(s2, as.map(ev)).map(s3 => Right((that, s3)))
+                    that.initial.flatMap { init =>
+                      that.stepChunkSlice(init, leftover.map(ev)).map {
+                        case (s3, chunk) =>
+                          Right((that, s3, chunk.map(ev2)))
+                      }
                     }
                 }
             }
 
-          case Right((that, s2)) =>
-            that.step(s2.asInstanceOf[that.State], a).map(s2 => Right((that, s2)))
+          // If `that` needs to continue, it will have already processed all
+          // of the leftovers from `self`.
+          case Right((that, s1, _)) =>
+            that.step(s1.asInstanceOf[that.State], a).map(s2 => Right((that, s2, Chunk.empty)))
         }
 
       def extract(state: State) =
         state match {
           case Left(s1) =>
             self.extract(s1).flatMap {
-              case (b, _) =>
+              case (b, leftover) =>
                 val that = f(b)
-                that.initial.flatMap(s2 => that.extract(s2))
+                that.initial.flatMap { init =>
+                  that.stepChunkSlice(init, leftover.map(ev)).flatMap {
+                    case (s2, chunk) =>
+                      that.extract(s2).map {
+                        case (c, cLeftover) =>
+                          (c, cLeftover ++ chunk.map(ev2))
+                      }
+                  }
+                }
             }
 
-          case Right((that, s2)) => that.extract(s2.asInstanceOf[that.State])
+          case Right((that, s2, chunk)) =>
+            that.extract(s2.asInstanceOf[that.State]).map {
+              case (c, leftover) =>
+                (c, leftover ++ chunk)
+            }
         }
 
       def cont(state: State) =
         state match {
-          case Left(s1)          => self.cont(s1)
-          case Right((that, s2)) => that.cont(s2.asInstanceOf[that.State])
+          case Left(s1)             => self.cont(s1)
+          case Right((that, s2, _)) => that.cont(s2.asInstanceOf[that.State])
         }
     }
 
@@ -892,7 +921,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def zip[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, (B, C)] =
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, (B, C)] =
     flatMap(b => that.map(c => (b, c)))
 
   /**
@@ -900,7 +929,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def zipLeft[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, B] =
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, B] =
     self <* that
 
   /**
@@ -908,7 +937,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def zipRight[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
-  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, C] =
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, C] =
     self *> that
 
   /**
@@ -916,7 +945,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def zipWith[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C, D](
     that: ZSink[R1, E1, A00, A1, C]
-  )(f: (B, C) => D)(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, D] =
+  )(f: (B, C) => D)(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, D] =
     zip(that).map(f.tupled)
 
 }
