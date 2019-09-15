@@ -505,15 +505,15 @@ object Assertion {
       range.isInRange(actual)
     }
 
-  final def isEmpty: Assertion[Traversable[_]] = Assertion.assertion("isEmpty")() { actual =>
+  final def isEmpty: Assertion[Iterable[_]] = Assertion.assertion("isEmpty")() { actual =>
     actual.isEmpty
   }
 
-  final def nonEmpty: Assertion[Traversable[_]] = Assertion.assertion("nonEmpty")() { actual =>
+  final def nonEmpty: Assertion[Iterable[_]] = Assertion.assertion("nonEmpty")() { actual =>
     actual.nonEmpty
   }
 
-  final def containsElement[A](element: A): Assertion[Traversable[A]] =
+  final def containsElement[A](element: A): Assertion[Iterable[A]] =
     Assertion.assertion("containsElement")(param(element)) { actual =>
       actual.exists(_ == element)
     }
