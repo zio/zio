@@ -621,8 +621,10 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       step1  <- sink.step(init, 1)
       step2  <- sink.step(step1, 2)
       step3  <- sink.step(step2, 3)
-      result <- sink.extract(step3)
-    } yield result must_=== ((List(1, 2, 3), Chunk.empty))
+      step4  <- sink.step(step3, 4)
+      step5  <- sink.step(step4, 5)
+      result <- sink.extract(step5)
+    } yield result must_=== ((List(1, 2, 3), Chunk(4, 5)))
     unsafeRun(test)
   }
 

@@ -338,8 +338,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
                 }
             }
 
-          // If `that` needs to continue, it will have already processed all
-          // of the leftovers from `self`.
+          // If `that` needs to continue, it will have already processed all of the
+          // leftovers from `self`, because they were stepped in `initial` or `case Left` above.
           case Right((that, s1, _)) =>
             that.step(s1.asInstanceOf[that.State], a).map(s2 => Right((that, s2, Chunk.empty)))
         }
