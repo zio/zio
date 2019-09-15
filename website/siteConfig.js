@@ -40,6 +40,7 @@ const siteConfig = {
     { doc: 'advanced/advanced_index', label: 'Advanced' },
     { doc: 'resources/resources', label: 'Resources' },
     { doc: 'ecosystem/ecosystem', label: 'Ecosystem' },
+    { doc: 'about/about_index', label: 'About' },
   ],
 
   // If you have users set above, you add it here:

@@ -34,6 +34,8 @@ object GenSpec extends DefaultRuntime {
     label(doubleGeneratesValuesInRange, "double generates values in range"),
     label(doubleShrinksToBottomOfRange, "double shrinks to bottom of range"),
     label(eitherShrinksToLeft, "either shrinks to left"),
+    label(exponentialGeneratesValuesInRange, "exponential generates values between 0 and positive infinity"),
+    label(exponentialShrinksToZero, "exponential shrinks to zero"),
     label(filterFiltersValuesAccordingToPredicate, "filter filters values according to predicate"),
     label(filterFiltersShrinksAccordingToPredicate, "filter filters shrinks according to predicate"),
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
@@ -54,6 +56,7 @@ object GenSpec extends DefaultRuntime {
     label(none, "none generates the constant empty value"),
     label(optionOfGeneratesOptionalValues, "optionOf generates optional values"),
     label(optionOfShrinksToNone, "optionOf shrinks to None"),
+    label(partialFunctionGeneratesPartialFunctions, "partialFunction generates partial functions"),
     label(printableCharGeneratesValuesInRange, "printableChar generates values in range"),
     label(printableCharShrinksToBottomOfRange, "printableChar shrinks to bottom of range"),
     label(reshrinkAppliesNewShrinkingLogic, "reShrink applies new shrinking logic"),
@@ -181,6 +184,12 @@ object GenSpec extends DefaultRuntime {
   def eitherShrinksToLeft: Future[Boolean] =
     checkShrink(Gen.either(smallInt, smallInt))(Left(-10))
 
+  def exponentialGeneratesValuesInRange: Future[Boolean] =
+    checkSample(Gen.exponential)(_.forall(_ >= 0))
+
+  def exponentialShrinksToZero: Future[Boolean] =
+    checkShrink(Gen.exponential)(0.0)
+
   def filterFiltersValuesAccordingToPredicate: Future[Boolean] =
     checkSample(smallInt.filter(_ % 2 == 0))(_.forall(_ % 2 == 0))
 
@@ -271,6 +280,16 @@ object GenSpec extends DefaultRuntime {
   def optionOfShrinksToNone: Future[Boolean] =
     checkShrink(Gen.option(smallInt))(None)
 
+  def partialFunctionGeneratesPartialFunctions: Future[Boolean] = {
+    val gen = for {
+      f <- Gen.partialFunction[Random, String, Int](Gen.int(-10, 10))
+      s <- Gen.string(Gen.anyChar)
+    } yield f.lift(s)
+    checkSample(gen) { results =>
+      results.exists(_.isEmpty) && results.exists(_.nonEmpty)
+    }
+  }
+
   def printableCharGeneratesValuesInRange: Future[Boolean] =
     checkSample(Gen.printableChar)(_.forall(c => 33 <= c && c <= 126))
 
@@ -302,7 +321,7 @@ object GenSpec extends DefaultRuntime {
 
   def smallGeneratesSizesInRange: Future[Boolean] = {
     val gen = Gen.small(Gen.listOfN(_)(Gen.int(-10, 10)))
-    checkSample(gen)(_.forall(_.length < 8))
+    checkSample(gen)(_.forall(_.length <= 100))
   }
 
   def someShrinksToSmallestValue: Future[Boolean] =

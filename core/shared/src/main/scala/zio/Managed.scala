@@ -162,6 +162,12 @@ object Managed {
     ZManaged.make(acquire)(release)
 
   /**
+   * See [[zio.ZManaged.makeEffect]]
+   */
+  final def makeEffect[A](acquire: => A)(release: A => _): Managed[Throwable, A] =
+    ZManaged.makeEffect(acquire)(release)
+
+  /**
    * See [[zio.ZManaged.makeExit]]
    */
   final def makeExit[E, A](acquire: IO[E, A])(release: (A, Exit[_, _]) => UIO[_]): Managed[E, A] =

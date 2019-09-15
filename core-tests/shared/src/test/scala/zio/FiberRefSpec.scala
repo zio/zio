@@ -1,5 +1,7 @@
 package zio
 
+import zio.duration.Duration
+
 class FiberRefSpec extends BaseCrossPlatformSpec {
   override def is = "FiberRefSpec".title ^ s2"""
    Create a new FiberRef with a specified value and check if:
@@ -17,9 +19,14 @@ class FiberRefSpec extends BaseCrossPlatformSpec {
       `updateSome` not changes value.                          $e12
       `modify` changes value.                                  $e13
       `modifySome` not changes value.                          $e14
+      its value is inherited after simple race.                $e15
+      its value is inherited after a race with a bad winner.   $e16
+      its value is not inherited after a race of losers.       $e17
+      the value of the looser is inherited in zipPar           $e18
+      nothing gets inherited with a failure in zipPar          $e19
     """
 
-  val (initial, update) = ("initial", "update")
+  val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
 
   def e1 =
     for {
@@ -131,4 +138,49 @@ class FiberRefSpec extends BaseCrossPlatformSpec {
                }
       value2 <- fiberRef.get
     } yield (value1 must beEqualTo(2)) and (value2 must beTheSameAs(initial))
+
+  def e15 =
+    for {
+      fiberRef <- FiberRef.make(initial)
+      _        <- fiberRef.set(update1).race(fiberRef.set(update2))
+      value    <- fiberRef.get
+    } yield (value must_=== update1) or (value must_=== update2)
+
+  def e16 =
+    for {
+      fiberRef   <- FiberRef.make(initial)
+      badWinner  = fiberRef.set(update1) *> ZIO.fail("ups")
+      goodLooser = fiberRef.set(update2) *> clock.sleep(Duration.fromNanos(100))
+      _          <- badWinner.race(goodLooser)
+      value      <- fiberRef.get
+    } yield value must_=== update2
+
+  def e17 =
+    for {
+      fiberRef <- FiberRef.make(initial)
+      looser1  = fiberRef.set(update1) *> ZIO.fail("ups1")
+      looser2  = fiberRef.set(update2) *> ZIO.fail("ups2")
+      _        <- looser1.race(looser2).catchAll(_ => ZIO.unit)
+      value    <- fiberRef.get
+    } yield value must_=== initial
+
+  def e18 =
+    for {
+      fiberRef <- FiberRef.make(initial)
+      latch    <- Promise.make[Nothing, Unit]
+      winner   = fiberRef.set(update1) *> latch.succeed(()).unit
+      looser   = latch.await *> fiberRef.set(update2) *> ZIO.yieldNow
+      _        <- winner.zipPar(looser)
+      value    <- fiberRef.get
+    } yield value must_=== update2
+
+  def e19 =
+    for {
+      fiberRef <- FiberRef.make(initial)
+      success  = fiberRef.set(update)
+      failure1 = fiberRef.set(update1) *> ZIO.fail(":-(")
+      failure2 = fiberRef.set(update2) *> ZIO.fail(":-O")
+      _        <- success.zipPar(failure1.zipPar(failure2)).orElse(ZIO.unit)
+      value    <- fiberRef.get
+    } yield value must_=== initial
 }

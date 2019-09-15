@@ -21,7 +21,6 @@ import scala.collection.immutable.SortedMap
 import zio.{ UIO, ZIO }
 import zio.random._
 import zio.stream.{ Stream, ZStream }
-import zio.test.MathUtils._
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
@@ -199,6 +198,13 @@ object Gen {
     Gen(Stream.empty)
 
   /**
+   * A generator of exponentially distributed doubles with mean `1`.
+   * The shrinker will shrink toward `0`.
+   */
+  final val exponential: Gen[Random, Double] =
+    uniform.map(n => -math.log(1 - n))
+
+  /**
    * Constructs a generator from an effect that constructs a value.
    */
   final def fromEffect[R, A](effect: ZIO[R, Nothing, A]): Gen[R, A] =
@@ -275,32 +281,31 @@ object Gen {
     }
 
   /**
-   * A sized generator that uses a uniform distribution of size values, so a
-   * large number of larger sizes will be generated.
+   * A sized generator that uses a uniform distribution of size values. A large
+   * number of larger sizes will be generated.
    */
   final def large[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
-    size.flatMap(max => Gen.int(min, max)).flatMap(f)
+    size.flatMap(max => int(min, max)).flatMap(f)
 
   final def listOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    medium(listOfN(_)(g))
+    small(listOfN(_)(g))
 
   final def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    medium(listOfN(_)(g), 1)
+    small(listOfN(_)(g), 1)
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
 
   /**
-   * A sized generator that uses an exponential distribution of size values, so
-   * the majority of sizes will be towards the lower end of the range but some
+   * A sized generator that uses an exponential distribution of size values.
+   * The majority of sizes will be towards the lower end of the range but some
    * larger sizes will be generated as well.
    */
   final def medium[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
       max <- size
-      i   <- Gen.int(log2Floor(min), log2Ceil(max))
-      j   <- Gen.int(min, math.max(min, math.min(pow2(i), max)))
-    } yield j
+      n   <- exponential
+    } yield clamp(math.round(n * max / 10.0).toInt, min, max)
     gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
   }
 
@@ -318,6 +323,26 @@ object Gen {
 
   final def oneOf[R <: Random, A](as: Gen[R, A]*): Gen[R, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
+
+  /**
+   * Constructs a generator of partial functions from `A` to `B` given a
+   * generator of `B` values. Two `A` values will be considered to be equal,
+   * and thus will be guaranteed to generate the same `B` value or both be
+   * outside the partial functon's domain, if they have the same `hashCode`.
+   */
+  final def partialFunction[R <: Random, A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
+    partialFunctionWith(gen)(_.hashCode)
+
+  /**
+   * Constructs a generator of partial functions from `A` to `B` given a
+   * generator of `B` values and a hashing function for `A` values. Two `A`
+   * values will be considered to be equal, and thus will be guaranteed to
+   * generate the same `B` value or both be outside the partial function's
+   * domain, if they have have the same hash. This is useful when `A` does not
+   * implement `hashCode` in a way that is constent with equality.
+   */
+  final def partialFunctionWith[R <: Random, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
+    functionWith(option(gen))(hash).map(Function.unlift)
 
   /**
    * A generator of printable characters. Shrinks toward '!'.
@@ -342,11 +367,17 @@ object Gen {
     size.flatMap(f)
 
   /**
-   * A sized generator that uses a logarithmic distribution of size values, so
-   * all sizes generated will be small.
+   * A sized generator that uses an exponential distribution of size values.
+   * The values generated will be strongly concentrated towards the lower end
+   * of the range but a few larger values will still be generated.
    */
-  final def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
-    size.flatMap(max => Gen.int(min, math.max(min, log2Ceil(max)))).flatMap(f)
+  final def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+    val gen = for {
+      max <- size
+      n   <- exponential
+    } yield clamp(math.round(n * max / 25.0).toInt, min, max)
+    gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
+  }
 
   final def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
@@ -399,4 +430,12 @@ object Gen {
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
+
+  /**
+   * Restricts an integer to the specified range.
+   */
+  private final def clamp(n: Int, min: Int, max: Int): Int =
+    if (n < min) min
+    else if (n > max) max
+    else n
 }
