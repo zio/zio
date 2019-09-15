@@ -11,14 +11,14 @@ trait StreamChunkUtils extends StreamUtils {
     Gen.oneOf(
       failingStreamGen(chunkGen(a)).map(StreamChunk(_)),
       pureStreamGen(chunkGen(a)).map(StreamChunk(_)),
-      genFailingStreamEffect[Chunk[T]].map(StreamEffectChunk(_)),
-      pureStreamEffectGen[Chunk[T]].map(StreamEffectChunk(_))
+      failingStreamEffectGen(chunkGen(a)).map(StreamEffectChunk(_)),
+      pureStreamEffectGen(chunkGen(a)).map(StreamEffectChunk(_))
     )
 
   def succeededStreamChunkGen[R <: Random, A: ClassTag](a: Gen[R, A]): Gen[R with Sized, StreamChunk[Nothing, A]] =
     Gen.oneOf(
       pureStreamGen(chunkGen(a)).map(StreamChunk(_)),
-      genPureStreamEffect[Chunk[T]].map(StreamEffectChunk(_))
+      pureStreamEffectGen(chunkGen(a)).map(StreamEffectChunk(_))
     )
 }
 

@@ -204,14 +204,14 @@ object StreamChunkSpec
               res2 <- slurp(s)
             } yield assert(res1, equalTo(res2))
           }
+        },
+        testM("StreamChunk.collect") {
+          checkM(succeededStreamChunkGen(stringGen), Gen.partialFunction[Random with Sized, String, String](Gen.anyString)) { (s, p) =>
+            for {
+              res1 <- slurp(s.collect(p))
+              res2 <- slurp(s).map(_.collect(p))
+            } yield assert(res1, equalTo(res2))
+          }
         }
-        // testM("StreamChunk.collect") {
-        //   checkM(streamChunkGen(stringGen), Gen[PartialFunction[String, String]]) { (s, p) =>
-        //     for {
-        //       res1 <- slurp(s.collect(p))
-        //       res2 <- slurp(s).map(_.collect(p))
-        //     } yield assert(res1, equalTo(res2))
-        //   }
-        // }
       )
     )
