@@ -149,9 +149,11 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.monadLaw3") {
-          val otherInts = pureStreamChunkGen(Gen.small(Gen.listOfN(_)(Gen.int(0, 100))).map(Chunk.fromIterable))
-          val fn        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts)
-          checkSomeM(chunksOfInts, fn, fn)(5) { (m, f, g) =>
+          val otherInts1 = pureStreamChunkGen(Gen.small(Gen.listOfN(_)(Gen.int(0, 100))).map(Chunk.fromIterable))
+          val otherInts2 = pureStreamChunkGen(Gen.small(Gen.listOfN(_)(Gen.int(-100, -1))).map(Chunk.fromIterable))
+          val fn1        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts1)
+          val fn2        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts2)
+          checkSomeM(chunksOfInts, fn1, fn2)(5) { (m, f, g) =>
             val leftStream: StreamChunk[Nothing, Int]  = m.flatMap(f).flatMap(g)
             val rightStream: StreamChunk[Nothing, Int] = m.flatMap(f(_).flatMap(g))
 
