@@ -233,6 +233,86 @@ object AssertionSpec {
     testFailure(
       assert("this is a value", containsString("_NOTHING_")),
       message = "containsString must return false when the string is not contained"
+    ),
+    testSuccess(
+      assert("", isEmptyString),
+      message = "isEmptyString must succeed when the string is empty"
+    ),
+    testFailure(
+      assert("some string", isEmptyString),
+      message = "isEmptyString must fail when the string is not empty"
+    ),
+    testSuccess(
+      assert("some string", nonEmptyString),
+      message = "nonEmptyString must succeed when the string is not empty"
+    ),
+    testFailure(
+      assert("", nonEmptyString),
+      message = "nonEmptyString must fail when the string is empty"
+    ),
+    testSuccess(
+      assert("Some String", equalsIgnoreCase("some string")),
+      message = "equalsIgnoreCase must succeed when the supplied value matches"
+    ),
+    testFailure(
+      assert("Some Other String", equalsIgnoreCase("some string")),
+      message = "equalsIgnoreCase must fail when the supplied value does not match"
+    ),
+    testSuccess(
+      assert("zio", startsWith("z")),
+      message = "startsWith must succeed when the supplied value starts with the specified string"
+    ),
+    testFailure(
+      assert("zio", startsWith("o")),
+      message = "startsWith must fail when the supplied value does not start with the specified string"
+    ),
+    testSuccess(
+      assert("zio", endsWith("o")),
+      message = "endsWith must succeed when the supplied value ends with the specified string"
+    ),
+    testFailure(
+      assert("zio", endsWith("z")),
+      message = "endsWith must fail when the supplied value does not end with the specified string"
+    ),
+    testSuccess(
+      assert("(123) 456-7890", matchesRegex("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$")),
+      message = "matches must succeed when the string matches the regex"
+    ),
+    testFailure(
+      assert("456-7890", matchesRegex("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$")),
+      message = "matches must fail when the string does not match the regex"
+    ),
+    testSuccess(
+      assert(5.5, approximatelyEquals(5.0 +- 3.0)),
+      message = "approximatelyEquals must succeed when number is within range"
+    ),
+    testFailure(
+      assert(50.0, approximatelyEquals(5.0 +- 3.0)),
+      message = "approximatelyEquals must fail when number is not within range"
+    ),
+    testSuccess(
+      assert(Seq(), isEmpty),
+      message = "isEmpty must succeed when the traversable is empty"
+    ),
+    testFailure(
+      assert(Seq(1, 2, 3), isEmpty),
+      message = "isEmpty must fail when the traversable is not empty"
+    ),
+    testSuccess(
+      assert(Seq(1, 2, 3), nonEmpty),
+      message = "nonEmpty must succeed when the traversable is not empty"
+    ),
+    testFailure(
+      assert(Seq(), nonEmpty),
+      message = "nonEmpty must fail when the traversable is empty"
+    ),
+    testSuccess(
+      assert(Seq(1, 2, 3), containsElement(2)),
+      message = "containsElement must succeed when the traversable contains the element"
+    ),
+    testFailure(
+      assert(Seq(1, 2, 3), containsElement(5)),
+      message = "containsElement must fail when the traversable does not contain the element"
     )
   )
 }

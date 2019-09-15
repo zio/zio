@@ -473,4 +473,52 @@ object Assertion {
         case t: Throwable => assertion(t)
       }
     }
+
+  final def isEmptyString: Assertion[String] = Assertion.assertion(s"isEmpty")() { actual =>
+    actual.isEmpty
+  }
+
+  final def nonEmptyString[A <: String]: Assertion[String] = Assertion.assertion(s"nonEmpty")() { actual =>
+    actual.nonEmpty
+  }
+
+  final def equalsIgnoreCase(other: String): Assertion[String] = Assertion.assertion("equalsIgnoreCase")(param(other)) {
+    actual =>
+      actual.equalsIgnoreCase(other)
+  }
+
+  final def startsWith(prefix: String): Assertion[String] = Assertion.assertion("startsWith")(param(prefix)) { actual =>
+    actual.startsWith(prefix)
+  }
+
+  final def endsWith(suffix: String): Assertion[String] = Assertion.assertion("endsWith")(param(suffix)) { actual =>
+    actual.endsWith(suffix)
+  }
+
+  final def matchesRegex(regex: String): Assertion[String] = Assertion.assertion("matchesRegex")(param(regex)) {
+    actual =>
+      actual.matches(regex)
+  }
+
+  final def approximatelyEquals[A](range: NumericRange[A]): Assertion[A] =
+    Assertion.assertion("approximatelyEquals")(param(range)) { actual =>
+      range.isInRange(actual)
+    }
+
+  final def isEmpty: Assertion[Traversable[_]] = Assertion.assertion("isEmpty")() { actual =>
+    actual.isEmpty
+  }
+
+  final def nonEmpty: Assertion[Traversable[_]] = Assertion.assertion("nonEmpty")() { actual =>
+    actual.nonEmpty
+  }
+
+  final def containsElement[A](element: A): Assertion[Traversable[A]] =
+    Assertion.assertion("containsElement")(param(element)) { actual =>
+      actual.exists(_ == element)
+    }
+
+  implicit class ZIONumericOps[A: Numeric](reference: A) {
+    def +-(offset: A) = NumericRange(reference, offset)
+  }
 }
