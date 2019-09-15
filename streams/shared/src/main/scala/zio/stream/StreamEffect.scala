@@ -223,7 +223,7 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
                   if (!dirty) {
                     if (done) StreamEffect.end
                     else if (leftovers.notEmpty) {
-                      val (newState, newLeftovers) = sink.stepChunkSlicePure(state, leftovers)
+                      val (newState, newLeftovers) = sink.stepChunkPure(state, leftovers)
                       leftovers = newLeftovers
                       go(newState, true)
                     } else {
