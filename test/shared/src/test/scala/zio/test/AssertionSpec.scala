@@ -243,12 +243,12 @@ object AssertionSpec {
       message = "isEmptyString must fail when the string is not empty"
     ),
     testSuccess(
-      assert("some string", nonEmptyString),
-      message = "nonEmptyString must succeed when the string is not empty"
+      assert("some string", isNonEmptyString),
+      message = "isNonEmptyString must succeed when the string is not empty"
     ),
     testFailure(
-      assert("", nonEmptyString),
-      message = "nonEmptyString must fail when the string is empty"
+      assert("", isNonEmptyString),
+      message = "isNonEmptyString must fail when the string is empty"
     ),
     testSuccess(
       assert("Some String", equalsIgnoreCase("some string")),
@@ -299,12 +299,12 @@ object AssertionSpec {
       message = "isEmpty must fail when the traversable is not empty"
     ),
     testSuccess(
-      assert(Seq(1, 2, 3), nonEmpty),
-      message = "nonEmpty must succeed when the traversable is not empty"
+      assert(Seq(1, 2, 3), isNonEmpty),
+      message = "isNonEmpty must succeed when the traversable is not empty"
     ),
     testFailure(
-      assert(Seq(), nonEmpty),
-      message = "nonEmpty must fail when the traversable is empty"
+      assert(Seq(), isNonEmpty),
+      message = "isNonEmpty must fail when the traversable is empty"
     ),
     testSuccess(
       assert(Seq(1, 2, 3), containsElement(2)),

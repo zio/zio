@@ -478,7 +478,7 @@ object Assertion {
     actual.isEmpty
   }
 
-  final def nonEmptyString[A <: String]: Assertion[String] = Assertion.assertion(s"nonEmpty")() { actual =>
+  final def isNonEmptyString: Assertion[String] = Assertion.assertion(s"isNonEmptyString")() { actual =>
     actual.nonEmpty
   }
 
@@ -509,7 +509,7 @@ object Assertion {
     actual.isEmpty
   }
 
-  final def nonEmpty: Assertion[Iterable[_]] = Assertion.assertion("nonEmpty")() { actual =>
+  final def isNonEmpty: Assertion[Iterable[_]] = Assertion.assertion("isNonEmpty")() { actual =>
     actual.nonEmpty
   }
 
