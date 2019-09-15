@@ -8,7 +8,7 @@ import BlockingSpecUtil._
 import zio.test._
 import zio.test.Assertion._
 
-class BlockingSpec
+object BlockingSpec
     extends ZIOBaseSpec(
       suite("BlockingSpec")(
         suite("Make a Blocking Service and verify that")(
