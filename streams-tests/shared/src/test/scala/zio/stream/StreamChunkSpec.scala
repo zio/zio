@@ -148,18 +148,19 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
-        // testM("StreamChunk.monadLaw3") {
-        //   val fn = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](chunksOfInts)
-        //   check(chunksOfInts, fn, fn) { (m, f, g) =>
-        //     val leftStream: StreamChunk[Nothing, Int]  = m.flatMap(f).flatMap(g)
-        //     val rightStream: StreamChunk[Nothing, Int] = m.flatMap(x => f(x).flatMap(g))
+        testM("StreamChunk.monadLaw3") {
+          val otherInts = pureStreamChunkGen(Gen.small(Gen.listOfN(_)(Gen.int(0, 100))).map(Chunk.fromIterable))
+          val fn        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts)
+          checkSomeM(chunksOfInts, fn, fn)(5) { (m, f, g) =>
+            val leftStream: StreamChunk[Nothing, Int]  = m.flatMap(f).flatMap(g)
+            val rightStream: StreamChunk[Nothing, Int] = m.flatMap(f(_).flatMap(g))
 
-        //     for {
-        //       res1 <- slurp(leftStream)
-        //       res2 <- slurp(rightStream)
-        //     } yield assert(res1, equalTo(res2))
-        //   }
-        // },
+            for {
+              res1 <- slurp(leftStream)
+              res2 <- slurp(rightStream)
+            } yield assert(res1, equalTo(res2))
+          }
+        },
         testM("StreamChunk.tap") {
           checkM(chunksOfStrings) { s =>
             for {
@@ -207,7 +208,7 @@ object StreamChunkSpec
         },
         testM("StreamChunk.collect") {
           checkM(
-            pureStreamChunkGen(stringGen),
+            pureStreamChunkGen(chunkGen(stringGen)),
             Gen.partialFunction[Random with Sized, String, String](Gen.anyString)
           ) { (s, p) =>
             for {
