@@ -11,22 +11,22 @@ trait StreamUtils extends ChunkUtils {
   def pureStreamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[Nothing, A]] =
     Gen.oneOf(
       Gen.const(Stream.empty),
-      for {
-        n  <- Gen.int(1, 20)
-        xs <- Gen.listOfN(n)(a).map(Stream.fromIterable)
-      } yield xs
+      Gen.medium(Gen.listOfN(_)(a).map(Stream.fromIterable), 1)
     )
 
   def failingStreamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[String, A]] =
-    for {
-      n  <- Gen.int(1, 20)
-      i  <- Gen.int(0, n - 1)
-      it <- Gen.listOfN(n)(a)
-    } yield ZStream.unfoldM((i, it)) {
-      case (_, Nil) | (0, _) =>
-        IO.fail("fail-case")
-      case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
-    }
+    Gen.medium(
+      n =>
+        for {
+          i  <- Gen.int(0, n - 1)
+          it <- Gen.listOfN(n)(a)
+        } yield ZStream.unfoldM((i, it)) {
+          case (_, Nil) | (0, _) =>
+            IO.fail("fail-case")
+          case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
+        },
+      1
+    )
 
   def pureStreamEffectGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, StreamEffect[Nothing, A]] =
     Gen.small(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable)
