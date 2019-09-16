@@ -7,7 +7,7 @@ import zio.test.{ Gen, Sized }
 import zio.{ Chunk, IO }
 
 trait StreamChunkUtils extends StreamUtils {
-  def streamChunkGen[R <: Random, A: ClassTag](as: Gen[R, Chunk[A]]): Gen[R with Sized, StreamChunk[String, A]] =
+  def streamChunkGen[R <: Random with Sized, A: ClassTag](as: Gen[R, Chunk[A]]): Gen[R, StreamChunk[String, A]] =
     Gen.oneOf(
       failingStreamGen(as).map(StreamChunk(_)),
       pureStreamGen(as).map(StreamChunk(_)),
@@ -15,7 +15,7 @@ trait StreamChunkUtils extends StreamUtils {
       pureStreamEffectGen(as).map(StreamEffectChunk(_))
     )
 
-  def pureStreamChunkGen[R <: Random, A: ClassTag](as: Gen[R, Chunk[A]]): Gen[R with Sized, StreamChunk[Nothing, A]] =
+  def pureStreamChunkGen[R <: Random with Sized, A: ClassTag](as: Gen[R, Chunk[A]]): Gen[R, StreamChunk[Nothing, A]] =
     Gen.oneOf(
       pureStreamGen(as).map(StreamChunk(_)),
       pureStreamEffectGen(as).map(StreamEffectChunk(_))
@@ -36,6 +36,6 @@ object StreamChunkUtils extends StreamChunkUtils with GenUtils {
     loop(list, zero)
   }
 
-  val chunksOfInts    = pureStreamChunkGen(chunkGen(intGen))
-  val chunksOfStrings = pureStreamChunkGen(chunkGen(stringGen))
+  val chunksOfInts    = pureStreamChunkGen(smallChunks(intGen))
+  val chunksOfStrings = pureStreamChunkGen(smallChunks(stringGen))
 }
