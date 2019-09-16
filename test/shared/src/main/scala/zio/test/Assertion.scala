@@ -474,11 +474,11 @@ object Assertion {
       }
     }
 
-  final def isEmptyString: Assertion[String] = Assertion.assertion(s"isEmpty")() { actual =>
+  final val isEmptyString: Assertion[String] = Assertion.assertion(s"isEmptyString")() { actual =>
     actual.isEmpty
   }
 
-  final def isNonEmptyString: Assertion[String] = Assertion.assertion(s"isNonEmptyString")() { actual =>
+  final val isNonEmptyString: Assertion[String] = Assertion.assertion(s"isNonEmptyString")() { actual =>
     actual.nonEmpty
   }
 
@@ -500,25 +500,20 @@ object Assertion {
       actual.matches(regex)
   }
 
-  final def approximatelyEquals[A](range: NumericRange[A]): Assertion[A] =
-    Assertion.assertion("approximatelyEquals")(param(range)) { actual =>
-      range.isInRange(actual)
+  final def approximatelyEquals[A: Numeric](reference: A, tolerance: A): Assertion[A] =
+    Assertion.assertion("approximatelyEquals")(param(reference), param(tolerance)) { actual =>
+      val referenceType = implicitly[Numeric[A]]
+      val max           = referenceType.plus(reference, tolerance)
+      val min           = referenceType.minus(reference, tolerance)
+
+      referenceType.gteq(actual, min) && referenceType.lteq(actual, max)
     }
 
-  final def isEmpty: Assertion[Iterable[_]] = Assertion.assertion("isEmpty")() { actual =>
+  final val isEmpty: Assertion[Iterable[Any]] = Assertion.assertion("isEmpty")() { actual =>
     actual.isEmpty
   }
 
-  final def isNonEmpty: Assertion[Iterable[_]] = Assertion.assertion("isNonEmpty")() { actual =>
+  final val isNonEmpty: Assertion[Iterable[Any]] = Assertion.assertion("isNonEmpty")() { actual =>
     actual.nonEmpty
-  }
-
-  final def containsElement[A](element: A): Assertion[Iterable[A]] =
-    Assertion.assertion("containsElement")(param(element)) { actual =>
-      actual.exists(_ == element)
-    }
-
-  implicit class ZIONumericOps[A: Numeric](reference: A) {
-    def +-(offset: A) = NumericRange(reference, offset)
   }
 }

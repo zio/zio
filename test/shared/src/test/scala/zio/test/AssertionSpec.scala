@@ -283,11 +283,11 @@ object AssertionSpec {
       message = "matches must fail when the string does not match the regex"
     ),
     testSuccess(
-      assert(5.5, approximatelyEquals(5.0 +- 3.0)),
+      assert(5.5, approximatelyEquals(5.0, 3.0)),
       message = "approximatelyEquals must succeed when number is within range"
     ),
     testFailure(
-      assert(50.0, approximatelyEquals(5.0 +- 3.0)),
+      assert(50.0, approximatelyEquals(5.0, 3.0)),
       message = "approximatelyEquals must fail when number is not within range"
     ),
     testSuccess(
@@ -305,14 +305,6 @@ object AssertionSpec {
     testFailure(
       assert(Seq(), isNonEmpty),
       message = "isNonEmpty must fail when the traversable is empty"
-    ),
-    testSuccess(
-      assert(Seq(1, 2, 3), containsElement(2)),
-      message = "containsElement must succeed when the traversable contains the element"
-    ),
-    testFailure(
-      assert(Seq(1, 2, 3), containsElement(5)),
-      message = "containsElement must fail when the traversable does not contain the element"
     )
   )
 }
