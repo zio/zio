@@ -37,7 +37,7 @@ object StreamChunkSpec
         },
         testM("StreamChunk.mapConcat") {
           val fn = Gen.function[Random with Sized, String, Chunk[Int]](smallChunks(intGen))
-          checkM(chunksOfStrings, fn) { (s, f) =>
+          checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
             for {
               res1 <- slurp(s.mapConcat(f))
               res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
