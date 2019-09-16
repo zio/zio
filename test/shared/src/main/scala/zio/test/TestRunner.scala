@@ -27,8 +27,8 @@ import zio.internal.{ Platform, PlatformLive }
  * with an `S`, using labels of type `L`. Test runners require a test executor,
  * a platform, and a reporter.
  */
-case class TestRunner[L, -T, E, S](
-  executor: TestExecutor[L, T, E, S],
+case class TestRunner[R, L, -T, E, S](
+  executor: TestExecutor[R, L, T, E, S],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[L, E, S] = DefaultTestReporter()
 ) { self =>
@@ -38,7 +38,7 @@ case class TestRunner[L, -T, E, S](
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: Spec[L, T]): URIO[TestLogger with Clock, ExecutedSpec[L, E, S]] =
+  final def run(spec: Spec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[L, E, S]] =
     executor(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
       case (duration, results) => reporter(duration, results).as(results)
     }
@@ -47,7 +47,7 @@ case class TestRunner[L, -T, E, S](
    * An unsafe, synchronous run of the specified spec.
    */
   final def unsafeRun(
-    spec: Spec[L, T],
+    spec: Spec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
   ): ExecutedSpec[L, E, S] =
@@ -56,7 +56,11 @@ case class TestRunner[L, -T, E, S](
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
-  final def unsafeRunAsync(spec: Spec[L, T], testLogger: TestLogger = defaultTestLogger, clock: Clock = Clock.Live)(
+  final def unsafeRunAsync(
+    spec: Spec[R, E, L, T],
+    testLogger: TestLogger = defaultTestLogger,
+    clock: Clock = Clock.Live
+  )(
     k: ExecutedSpec[L, E, S] => Unit
   ): Unit =
     Runtime((), platform).unsafeRunAsync(run(spec).provide(buildEnv(testLogger, clock))) {
@@ -68,7 +72,7 @@ case class TestRunner[L, -T, E, S](
    * An unsafe, synchronous run of the specified spec.
    */
   final def unsafeRunSync(
-    spec: Spec[L, T],
+    spec: Spec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
   ): Exit[Nothing, ExecutedSpec[L, E, S]] =

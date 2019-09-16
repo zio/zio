@@ -17,7 +17,7 @@ object TestUtils {
   final def forAllTests[L, E, S](
     execSpec: UIO[ExecutedSpec[L, E, S]]
   )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
-    execSpec.map { results =>
+    execSpec.flatMap { results =>
       results.forall { case Spec.TestCase(_, test) => f(test); case _ => true }
     }
 

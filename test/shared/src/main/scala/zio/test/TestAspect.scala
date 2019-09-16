@@ -162,7 +162,7 @@ object TestAspect extends TimeoutVariants {
       def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] = spec.transform[L, ZIO[R, TestFailure[E], TestSuccess[S]]] {
+      ): ZSpec[R, E, L, S] = spec.transform[R, E, L, ZIO[R, TestFailure[E], TestSuccess[S]]] {
         case Spec.SuiteCase(label, specs, None) if (predicate(label)) => Spec.SuiteCase(label, specs, Some(exec))
         case c                                                        => c
       }
@@ -303,7 +303,7 @@ object TestAspect extends TimeoutVariants {
       predicate: L => Boolean,
       spec: ZSpec[R, E, L, S]
     ): ZSpec[R, E, L, S] =
-      spec.transform[L, ZIO[R, TestFailure[E], TestSuccess[S]]] {
+      spec.transform[R, E, L, ZIO[R, TestFailure[E], TestSuccess[S]]] {
         case c @ Spec.SuiteCase(_, _, _) => c
         case Spec.TestCase(label, test)  => Spec.TestCase(label, if (predicate(label)) perTest(test) else test)
       }

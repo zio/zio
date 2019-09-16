@@ -1,7 +1,9 @@
 package zio.test.sbt
 
 import sbt.testing._
+
 import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
+import zio.UIO
 
 case class ZTestEvent(
   fullyQualifiedName: String,
@@ -19,12 +21,15 @@ object ZTestEvent {
     executedSpec: ExecutedSpec[L, E, S],
     fullyQualifiedName: String,
     fingerprint: Fingerprint
-  ): Seq[ZTestEvent] = {
-    def loop(executedSpec: ExecutedSpec[String, E, S]): Seq[ZTestEvent] =
+  ): UIO[Seq[ZTestEvent]] = {
+    def loop(executedSpec: ExecutedSpec[String, E, S]): UIO[Seq[ZTestEvent]] =
       executedSpec.caseValue match {
-        case Spec.SuiteCase(_, executedSpecs, _) => executedSpecs.flatMap(loop)
+        case Spec.SuiteCase(_, executedSpecs, _) =>
+          executedSpecs.flatMap(UIO.foreach(_)(loop).map(_.flatten))
         case Spec.TestCase(label, result) =>
-          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
+          UIO.succeed {
+            Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
+          }
       }
     loop(executedSpec.mapLabel(_.toString))
   }

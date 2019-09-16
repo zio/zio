@@ -16,33 +16,22 @@
 
 package zio.test
 
-import zio.Managed
+import zio.{ Managed, ZIO }
 
 object TestExecutor {
-
-  def managed[R, E, L, S](environment: Managed[Nothing, R]): TestExecutor[L, ZTest[R, E, S], E, S] =
+  def managed[R, E, L, S](environment: Managed[Nothing, R]): TestExecutor[R, L, ZTest[R, E, S], E, S] =
     (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
-      spec.foreachExec(defExec) { test =>
-        test
-          .provideManaged(environment)
-          .foldCause(
-            _.failureOrCause.fold(Left(_), c => Left(TestFailure.Runtime(c))),
-            Right(_)
-          )
-      }
-    }
-
-  def managedSuite[R, E, L, S](environment: Managed[Nothing, R]): TestExecutor[L, ZTest[R, E, S], E, S] =
-    (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
-      environment.use { r =>
-        spec.foreachExec(defExec) { test =>
-          test
-            .provide(r)
-            .foldCause(
-              _.failureOrCause.fold(Left(_), c => Left(TestFailure.Runtime(c))),
-              Right(_)
-            )
-        }
-      }
+      spec
+        .provideManaged(environment)
+        .foreachExec(defExec)(
+          e => ZIO.succeed(Left(TestFailure.Runtime(zio.Cause.fail(e)))),
+          test =>
+            test
+              .provideManaged(environment)
+              .foldCause(
+                _.failureOrCause.fold(Left(_), c => Left(TestFailure.Runtime(c))),
+                Right(_)
+              )
+        )
     }
 }

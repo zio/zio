@@ -166,7 +166,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     unsafeRunToFuture(r.use[Any, E, A](f))
 
   def MockTestRunner(mockEnvironment: MockEnvironment) =
-    TestRunner[String, ZTest[MockEnvironment, String, Unit], String, Unit](
+    TestRunner[MockEnvironment, String, ZTest[MockEnvironment, String, Unit], String, Unit](
       executor = TestExecutor.managed[MockEnvironment, String, String, Unit](Managed.succeed(mockEnvironment)),
       reporter = DefaultTestReporter()
     )
