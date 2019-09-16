@@ -474,11 +474,11 @@ object Assertion {
       }
     }
 
-  final val isEmptyString: Assertion[String] = Assertion.assertion(s"isEmptyString")() { actual =>
+  final val isEmptyString: Assertion[String] = Assertion.assertion("isEmptyString")() { actual =>
     actual.isEmpty
   }
 
-  final val isNonEmptyString: Assertion[String] = Assertion.assertion(s"isNonEmptyString")() { actual =>
+  final val isNonEmptyString: Assertion[String] = Assertion.assertion("isNonEmptyString")() { actual =>
     actual.nonEmpty
   }
 
