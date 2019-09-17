@@ -21,7 +21,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
-    zio.test.test(label)(assertion).mapTest(_.map(_ => TestSuccess.Succeeded(AssertResult.unit)))
+    zio.test.test(label)(assertion).mapTest(_.map(_ => TestSuccess.Succeeded(BoolAlgebra.unit)))
 
   val test1 = makeTest("Addition works fine") {
     assert(1 + 1, equalTo(2))
@@ -89,7 +89,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def reportStats(success: Int, ignore: Int, failure: Int) = {
     val total = success + ignore + failure
     cyan(
-      s"Ran $total test${if (total == 1) "" else "s"} in 0 seconds: $success succeeded, $ignore ignored, $failure failed"
+      s"Ran $total test${if (total == 1) "" else "s"} in 0 ms: $success succeeded, $ignore ignored, $failure failed"
     ) + "\n"
   }
 

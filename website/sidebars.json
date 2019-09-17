@@ -73,5 +73,12 @@
     "Ecosystem": [
       "ecosystem/ecosystem"
     ]
+  },
+  "about-sidebar": {
+      "About": [
+          "about/about_index",
+          "about/about_contributing",
+          "about/about_coc"
+      ]
   }
 }

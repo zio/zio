@@ -315,6 +315,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def eventually: ZIO[R, Nothing, A] = self orElse eventually
 
   /**
+   * Dies with specified `Throwable` if the predicate fails.
+   */
+  final def filterOrDie(p: A => Boolean)(t: => Throwable): ZIO[R, E, A] =
+    self.filterOrElse_(p)(ZIO.die(t))
+
+  /**
+   * Dies with a [[java.lang.RuntimeException]] having the specified text message
+   * if the predicate fails.
+   */
+  final def filterOrDieMessage(p: A => Boolean)(message: => String): ZIO[R, E, A] =
+    self.filterOrElse_(p)(ZIO.dieMessage(message))
+
+  /**
    * Applies `f` if the predicate fails.
    */
   final def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
@@ -867,22 +880,41 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   ): ZIO[R1, E2, C] = {
     def arbiter[E0, E1, A, B](
       f: (Exit[E0, A], Fiber[E1, B]) => ZIO[R1, E2, C],
+      winner: Fiber[E0, A],
       loser: Fiber[E1, B],
-      race: Ref[Int],
+      leftWins: Boolean,
+      raceDone: Ref[Boolean],
+      inherit: Ref[Option[Boolean]],
       done: Promise[E2, C]
-    )(res: Exit[E0, A]): ZIO[R1, Nothing, _] =
-      ZIO.flatten(race.modify((c: Int) => (if (c > 0) ZIO.unit else f(res, loser).to(done).unit) -> (c + 1)))
+    )(res: Exit[E0, A]): ZIO[R1, Nothing, _] = {
+
+      val handleRes =
+        winner.poll.flatMap {
+          case Some(Exit.Success(_)) => winner.inheritFiberRefs
+          case _                     => ZIO.unit
+        } *> (f(res, loser) <* inherit.set(Some(leftWins))).to(done)
+
+      ZIO.flatten(raceDone.modify(b => (if (b) ZIO.unit else handleRes) -> true))
+    }
 
     for {
-      done <- Promise.make[E2, C]
-      race <- Ref.make[Int](0)
+      done     <- Promise.make[E2, C]
+      raceDone <- Ref.make[Boolean](false)
+      inherit  <- Ref.make(None: Option[Boolean])
       c <- ZIO.uninterruptibleMask { restore =>
             for {
-              left  <- ZIO.interruptible(self).fork
-              right <- ZIO.interruptible(that).fork
-              _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
-              _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
-              c     <- restore(done.await).onInterrupt(left.interrupt *> right.interrupt)
+              left   <- ZIO.interruptible(self).fork
+              right  <- ZIO.interruptible(that).fork
+              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork
+              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done)).fork
+
+              inheritFiberRefs = inherit.get.flatMap {
+                case None        => ZIO.unit
+                case Some(true)  => left2.inheritFiberRefs
+                case Some(false) => right2.inheritFiberRefs
+              }
+
+              c <- restore(done.await <* inheritFiberRefs).onInterrupt(left.interrupt *> right.interrupt)
             } yield c
           }
     } yield c

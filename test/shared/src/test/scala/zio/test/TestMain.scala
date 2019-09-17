@@ -10,12 +10,13 @@ object TestMain {
   def main(args: Array[String]): Unit = {
     val testResults = List(
       scope(AssertionSpec.run, "AssertionSpec"),
-      scope(AssertResultSpec.run, "AssertResultSpec"),
+      scope(BoolAlgebraSpec.run, "BoolAlgebraSpec"),
       scope(CheckSpec.run, "CheckSpec"),
       scope(ClockSpec.run, "ClockSpec"),
       scope(ConsoleSpec.run, "ConsoleSpec"),
       scope(DefaultTestReporterSpec.run, "DefaultTestReporterSpec"),
       scope(EnvironmentSpec.run, "EnvironmentSpec"),
+      scope(FunSpec.run, "FunSpec"),
       scope(GenSpec.run, "GenSpec"),
       scope(LiveSpec.run, "LiveSpec"),
       scope(RandomSpec.run, "RandomSpec"),

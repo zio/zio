@@ -43,7 +43,8 @@ import zio.test.mock.MockEnvironment
  * }}}
  */
 package object test extends CheckVariants {
-  type TestResult = AssertResult[Either[FailureDetails, Unit]]
+  type AssertResult = BoolAlgebra[AssertionValue]
+  type TestResult   = BoolAlgebra[FailureDetails]
 
   /**
    * A `TestReporter[L, E, S]` is capable of reporting test results annotated
@@ -95,15 +96,14 @@ package object test extends CheckVariants {
    * Checks the assertion holds for the given value.
    */
   final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
-    assertion.run(value).map {
-      case Left(fragment) => Left(FailureDetails(fragment, AssertionValue(assertion, value)))
-      case _              => Right(())
+    assertion.run(value).map { fragment =>
+      FailureDetails(fragment, AssertionValue(assertion, value))
     }
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  final def assertM[R, A](value: ZIO[R, Nothing, A], assertion: Assertion[A]): ZIO[R, Nothing, TestResult] =
+  final def assertM[R, E, A](value: ZIO[R, E, A], assertion: Assertion[A]): ZIO[R, E, TestResult] =
     value.map(assert(_, assertion))
 
   /**
@@ -138,20 +138,22 @@ package object test extends CheckVariants {
    * Builds a spec with a single pure test.
    */
   final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
-    testM(label)(ZIO.succeed(assertion))
+    testM(label)(ZIO.effectTotal(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, L, T](label: L)(assertion: ZIO[R, Nothing, TestResult]): ZSpec[R, Nothing, L, Unit] =
+  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
     Spec.test(
       label,
-      assertion.flatMap { result =>
-        result.failures match {
-          case None           => ZIO.succeed(TestSuccess.Succeeded(AssertResult.unit))
-          case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-        }
-      }
+      assertion.foldCauseM(
+        cause => ZIO.fail(TestFailure.Runtime(cause)),
+        result =>
+          result.failures match {
+            case None           => ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+          }
+      )
     )
 
   /**

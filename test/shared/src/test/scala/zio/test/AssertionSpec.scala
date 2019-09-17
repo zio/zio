@@ -18,12 +18,15 @@ object AssertionSpec {
     label(Future.successful(testResult.isFailure), message)
 
   case class SampleUser(name: String, age: Int)
-  val sampleUser = SampleUser("User", 42)
+  val sampleUser      = SampleUser("User", 42)
+  val sampleException = new Exception
 
   val nameStartsWithA  = hasField[SampleUser, Boolean]("name", _.name.startsWith("A"), isTrue)
   val nameStartsWithU  = hasField[SampleUser, Boolean]("name", _.name.startsWith("U"), isTrue)
   val ageLessThan20    = hasField[SampleUser, Int]("age", _.age, isLessThan(20))
   val ageGreaterThan20 = hasField[SampleUser, Int]("age", _.age, isGreaterThan(20))
+
+  val someException = new RuntimeException("Boom!")
 
   def run: List[Async[(Boolean, String)]] = List(
     testSuccess(assert(42, anything), message = "anything must always succeeds"),
@@ -44,6 +47,14 @@ object AssertionSpec {
       message = "equalTo must fail when value does not equal specified value"
     ),
     testSuccess(
+      assert(Array(1, 2, 3), equalTo(Array(1, 2, 3))),
+      message = "equalTo must succeed when array equals specified array"
+    ),
+    testFailure(
+      assert(Array(1, 2, 3), equalTo(Array(1, 2, 4))),
+      message = "equalTo must fail when array does not equal specified array"
+    ),
+    testSuccess(
       assert(Seq(1, 42, 5), exists(equalTo(42))),
       message = "exists must succeed when at least one element of iterable satisfy specified assertion"
     ),
@@ -58,6 +69,14 @@ object AssertionSpec {
     testFailure(
       assert(Exit.fail("Other Error"), fails(equalTo("Some Error"))),
       message = "fails must fail when error value does not satisfy specified assertion"
+    ),
+    testSuccess(
+      assert(Exit.die(someException), dies(equalTo(someException))),
+      message = "dies must succeed when exception satisfy specified assertion"
+    ),
+    testFailure(
+      assert(Exit.die(new RuntimeException("Bam!")), dies(equalTo(someException))),
+      message = "dies must fail when exception does not satisfy specified assertion"
     ),
     testSuccess(
       assert(Seq("a", "bb", "ccc"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3)))),
@@ -179,6 +198,10 @@ object AssertionSpec {
       message = "succeeds must fail when supplied value is Exit.fail"
     ),
     testSuccess(
+      assert(throw sampleException, throws(equalTo(sampleException))),
+      message = "throws must succeed when given assertion is correct"
+    ),
+    testSuccess(
       assert(sampleUser, nameStartsWithU && ageGreaterThan20),
       message = "and must succeed when both assertions are satisfied"
     ),
@@ -202,6 +225,14 @@ object AssertionSpec {
     test(
       !nameStartsWithA.test(sampleUser),
       message = "test must return false when given element does not satisfy assertion"
+    ),
+    testSuccess(
+      assert("this is a value", containsString("is a")),
+      message = "containsString must succeed when string is found"
+    ),
+    testFailure(
+      assert("this is a value", containsString("_NOTHING_")),
+      message = "containsString must return false when the string is not contained"
     )
   )
 }

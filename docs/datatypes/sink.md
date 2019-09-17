@@ -72,11 +72,11 @@ Basic fold accumulation of received elements:
 Sink.foldLeft[Int, Int](0)(_ + _)
 ```
 
-Fold where each fold step has to be described in sink `Step` API.
-A `foldLeft` uses `Step.more` in its implementation:
+A fold with control over continuation and the remainder produced by the sink. 
+`foldLeft` is implemented as a fold that always continues and produces no remainder.
 
 ```scala mdoc:silent
-Sink.fold[Nothing, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
+Sink.fold[Nothing, Int, Int](0)(_ => true)((acc, n) => (acc + n, Chunk.empty))
 ```
 
 Mapping over the received input elements:
@@ -90,7 +90,7 @@ Sink.fromFunction[Int, Int](_ * 2).collectAll
 ```scala mdoc:silent
 Sink
   .pull1[String, Int, Int, Int](IO.fail("Empty stream, no value to pull"))(init => Sink
-  .fold(init)((acc, e) => ZSink.Step.more(acc + e)))
+  .foldLeft[Int, Int](init)(_ + _))
 ```
 
 `read1` tries to read head element from stream,
@@ -117,8 +117,7 @@ Sink.collectAll[Int].filter[Int](_ > 100)
 Running two sinks in parallel and returning the one that completed earlier:
 
 ```scala mdoc:silent
-Sink.fold[Int, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
-  .race(Sink.identity[Int])
+Sink.foldLeft[Int, Int](0)(_ + _).race(Sink.identity[Int])
 ```
 
 For transforming given input into some sink we can use `contramap` which

@@ -45,7 +45,7 @@ object DefaultTestReporter {
               case Left(TestFailure.Assertion(result)) =>
                 result.fold(
                   details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-                )(_ && _, _ || _)
+                )(_ && _, _ || _, !_)
               case Left(TestFailure.Runtime(cause)) =>
                 rendered(
                   Test,
@@ -83,10 +83,9 @@ object DefaultTestReporter {
       }
     val (success, ignore, failure) = loop(executedSpec.mapLabel(_.toString))
     val total                      = success + ignore + failure
-    val seconds                    = duration.toMillis / 1000
     TestLogger.logLine(
       cyan(
-        s"Ran $total test${if (total == 1) "" else "s"} in $seconds second${if (seconds == 1) "" else "s"}: $success succeeded, $ignore ignored, $failure failed"
+        s"Ran $total test${if (total == 1) "" else "s"} in ${duration.render}: $success succeeded, $ignore ignored, $failure failed"
       )
     )
   }
@@ -101,8 +100,22 @@ object DefaultTestReporter {
     withOffset(offset)(red("- " + label))
 
   private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] = failureDetails match {
-    case FailureDetails(fragment, whole) => renderAssertion(fragment, whole, offset)
+    case FailureDetails(fragment, whole, genFailureDetails) =>
+      renderGenFailureDetails(genFailureDetails, offset) ++ renderAssertion(fragment, whole, offset)
   }
+
+  private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Seq[String] =
+    failureDetails match {
+      case Some(details) =>
+        val shrinked = details.shrinkedInput.toString
+        val initial  = details.initialInput.toString
+        val renderShrinked = withOffset(offset + tabSize)(
+          s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: ${red(shrinked)}"
+        )
+        if (initial == shrinked) Seq(renderShrinked)
+        else Seq(renderShrinked, withOffset(offset + tabSize)(s"Original input before shrinking was: ${red(initial)}"))
+      case None => Seq()
+    }
 
   private def renderAssertion(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
     if (whole.assertion == fragment.assertion)
@@ -113,19 +126,26 @@ object DefaultTestReporter {
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(whole.value.toString) +
-        " did not satisfy " +
+        renderSatisfied(whole) +
         highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
     }
 
   private def renderFragment(fragment: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(fragment.value.toString) +
-        " did not satisfy " +
+        renderSatisfied(fragment) +
         cyan(fragment.assertion.toString)
     }
 
+  private def renderSatisfied(fragment: AssertionValue): String =
+    if (fragment.assertion.test(fragment.value)) " satisfied "
+    else " did not satisfy "
+
   private def renderCause(cause: Cause[Any], offset: Int): String =
-    cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+    cause match {
+      case Cause.Die(TestTimeoutException(message)) => message
+      case _                                        => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+    }
 
   private def withOffset(n: Int)(s: String): String =
     " " * n + s
@@ -194,5 +214,12 @@ case class RenderedResult(caseType: CaseType, label: String, status: Status, off
       case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
       case (Passed, _)      => self
       case (_, Passed)      => that
+    }
+
+  def unary_! : RenderedResult =
+    self.status match {
+      case Ignored => self
+      case Failed  => self.copy(status = Passed)
+      case Passed  => self.copy(status = Failed)
     }
 }

@@ -497,6 +497,36 @@ sealed trait Chunk[@specialized +A] { self =>
     }
   }
 
+  def zipAllWith[@specialized B, @specialized C](
+    that: Chunk[B]
+  )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C] = {
+
+    val size = self.length.max(that.length)
+
+    if (size == 0) Chunk.empty
+    else {
+      var j                       = 0
+      implicit val C: ClassTag[C] = Chunk.Tags.fromValue(if (self.length > 0) left(self(0)) else right(that(0)))
+      val dest                    = Array.ofDim[C](size)
+
+      while (j < size) {
+        val c =
+          if (j < self.length) {
+            if (j < that.length) both(self(j), that(j))
+            else (left(self(j)))
+          } else right(that(j))
+
+        dest(j) = c
+
+        j = j + 1
+
+      }
+
+      Chunk.Arr(dest)
+
+    }
+  }
+
   /**
    * Zips this chunk with the index of every element.
    */

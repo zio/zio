@@ -435,20 +435,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testBracketRethrownCaughtErrorInUsage = {
-    val io =
-      IO.absolve(
-        IO.unit
-          .bracket_[Any, Nothing]
-          .apply[Any](IO.unit)(TaskExampleError)
-          .either //    TODO: Dotty doesn't infer this properly
-      )
+    val io = IO.absolve(IO.unit.bracket_(IO.unit)(TaskExampleError).either)
 
     unsafeRunSync(io) must_=== Exit.Failure(fail(ExampleError))
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.unit.bracket_[Any, Nothing].apply[Any](AsyncUnit[Nothing])(asyncExampleError[Unit]) //    TODO: Dotty doesn't infer this properly
-    val io2 = AsyncUnit[Throwable].bracket_[Any, Throwable].apply[Any](IO.unit)(asyncExampleError[Unit])
+    val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
+    val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
 
     unsafeRunSync(io1) must_=== Exit.Failure(fail(ExampleError))
     unsafeRunSync(io2) must_=== Exit.Failure(fail(ExampleError))
@@ -793,12 +787,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       exitLatch  <- Promise.make[Nothing, Int]
       bracketed = IO
         .succeed(21)
-        .bracketExit[Any, Error, Int]( // TODO: Dotty doesn't infer curried version
-          (r: Int, exit: Exit[Error, Int]) =>
+        .bracketExit(
+          (r: Int, exit: Exit[_, _]) =>
             if (exit.interrupted) exitLatch.succeed(r)
-            else IO.die(new Error("Unexpected case")),
-          (a: Int) => startLatch.succeed(a) *> IO.never *> IO.succeed(1)
-        )
+            else IO.die(new Error("Unexpected case"))
+        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
       fiber      <- bracketed.fork
       startValue <- startLatch.await
       _          <- fiber.interrupt.fork
@@ -1153,10 +1146,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
       f <- (
-            p1.succeed(())
-              .bracket_[Any, Nothing]
-              .apply[Any](pa.succeed(1).unit)(IO.never) race //    TODO: Dotty doesn't infer this properly
-              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never)
+            p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never) race
+              p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never)
           ).interruptChildren.fork
       _ <- p1.await *> p2.await
 
@@ -1172,11 +1163,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
       f <- (
-            p1.succeed(())
-              .bracket_[Any, Nothing]
-              .apply[Any](pa.succeed(1).unit)(IO.never)
-              .fork *> //    TODO: Dotty doesn't infer this properly
-              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork *>
+            p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never).fork *>
+              p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never).fork *>
               IO.never
           ).interruptChildren.fork
       _ <- p1.await *> p2.await
@@ -1192,13 +1180,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       _ <- (for {
             p1 <- Promise.make[Nothing, Unit]
             p2 <- Promise.make[Nothing, Unit]
-            _ <- p1
-                  .succeed(())
-                  .bracket_[Any, Nothing]
-                  .apply[Any](pa.succeed(1).unit)(IO.never)
-                  .fork //    TODO: Dotty doesn't infer this properly
-            _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
-            _ <- p1.await *> p2.await
+            _  <- p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never).fork
+            _  <- p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never).fork
+            _  <- p1.await *> p2.await
           } yield ()).interruptChildren
       r <- pa.await zip pb.await
     } yield r must_=== (1 -> 2))

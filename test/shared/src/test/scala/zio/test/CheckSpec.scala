@@ -2,17 +2,35 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ random, Chunk, DefaultRuntime }
-import zio.test.Assertion.{ equalTo, isLessThan }
-import zio.test.TestUtils.{ label, succeeded }
+import zio.{ random, Chunk, DefaultRuntime, Ref, ZIO }
+import zio.test.Assertion._
+import zio.test.TestUtils.{ execute, failed, forAllTests, label, succeeded }
 
 object CheckSpec extends DefaultRuntime {
 
   val run: List[Async[(Boolean, String)]] = List(
+    label(checkMIsPolymorphicInErrorType, "checkM is polymorphic in error type"),
     label(effectualPropertiesCanBeTests, "effectual properties can be tested"),
+    label(errorInCheckMIsTestFailure, "error in checkM is test failure"),
     label(overloadedCheckMethodsWork, "overloaded check methods work"),
-    label(testsCanBeWrittenInPropertyBasedStyle, "tests can be written in property based style")
+    label(maxShrinksIsRespected, "max shrinks is respected"),
+    label(testsCanBeWrittenInPropertyBasedStyle, "tests can be written in property based style"),
+    label(testsWithFilteredGeneratorsTerminate, "tests with filtered generators terminate"),
+    label(failingTestsContainGenFailureDetails, "failing tests contain gen failure details")
   )
+
+  def checkMIsPolymorphicInErrorType: Future[Boolean] =
+    unsafeRunToFuture {
+      val nextInt = testM("nextInt") {
+        checkM(Gen.int(1, 100)) { n =>
+          for {
+            _ <- ZIO.effect(())
+            r <- random.nextInt(n)
+          } yield assert(r, isLessThan(n))
+        }
+      }
+      succeeded(nextInt)
+    }
 
   def effectualPropertiesCanBeTests: Future[Boolean] =
     unsafeRunToFuture {
@@ -25,6 +43,52 @@ object CheckSpec extends DefaultRuntime {
       }
       succeeded(nextInt)
     }
+
+  def errorInCheckMIsTestFailure: Future[Boolean] =
+    unsafeRunToFuture {
+      val nextInt = testM("nextInt") {
+        checkM(Gen.int(1, 100)) { n =>
+          for {
+            _ <- ZIO.fail("fail")
+            r <- random.nextInt(n)
+          } yield assert(r, isLessThan(n))
+        }
+      }
+      failed(nextInt)
+    }
+
+  def implicationWorksCorrectly: Future[Boolean] =
+    unsafeRunToFuture {
+      val sortedProp = testM("sorted") {
+        check(Gen.listOf(Gen.int(-10, 10))) { ns =>
+          val nss      = ns.sorted
+          val nonEmpty = assert(nss, hasSize(isGreaterThan(0)))
+          val sorted   = assert(nss.zip(nss.tail).exists { case (a, b) => a > b }, isFalse)
+          nonEmpty ==> sorted
+        }
+      }
+      succeeded(sortedProp)
+    }
+
+  def maxShrinksIsRespected: Future[Boolean] = {
+    val gen = Gen.listOfN(10)(Gen.int(-10, 10))
+    unsafeRunToFuture {
+      for {
+        ref <- Ref.make(0)
+        _ <- execute {
+              testM("shrink") {
+                checkM(gen <*> gen) { _ =>
+                  for {
+                    _ <- ref.update(_ + 1)
+                    p <- random.nextInt(10).map(_ != 0)
+                  } yield assert(p, isTrue)
+                }
+              }
+            }
+        result <- ref.get
+      } yield result <= 1200
+    }
+  }
 
   def overloadedCheckMethodsWork: Future[Boolean] =
     unsafeRunToFuture {
@@ -51,5 +115,28 @@ object CheckSpec extends DefaultRuntime {
         }
       }
       succeeded(chunkApply)
+    }
+
+  def testsWithFilteredGeneratorsTerminate: Future[Boolean] =
+    unsafeRunToFuture {
+      val filtered = testM("filtered") {
+        check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0)) { (a, b) =>
+          assert(a, equalTo(b))
+        }
+      }
+      failed(filtered)
+    }
+
+  def failingTestsContainGenFailureDetails: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = testM("GenFailureDetails") {
+        check(Gen.anyInt) { a =>
+          assert(a, isGreaterThan(0))
+        }
+      }
+      forAllTests(execute(spec)) {
+        case Left(TestFailure.Assertion(BoolAlgebra.Value(details))) => details.gen.fold(false)(_.shrinkedInput == 0)
+        case _                                                       => false
+      }
     }
 }
