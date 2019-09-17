@@ -32,12 +32,14 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * Returns a new spec with the suite labels distinguished by `Left`, and the
    * test labels distinguished by `Right`.
    */
-  final def distinguish: Spec[R, E, Either[L, L], T] =
-    transform[R, E, Either[L, L], T] {
-      case SuiteCase(label, specs, exec) => SuiteCase(Left(label), specs, exec)
-      case TestCase(label, test)         => TestCase(Right(label), test)
-      case EffectCase(_)                 => ???
+  final def distinguish: Spec[R, E, Either[L, L], T] = {
+    def loop(spec: Spec[R, E, L, T]): Spec[R, E, Either[L, L], T] = spec.caseValue match {
+      case SuiteCase(label, specs, exec) => Spec.suite(Left(label), specs.map(loop), exec)
+      case TestCase(label, test)         => Spec.test(Right(label), test)
+      case EffectCase(effect)            => Spec.effect(effect.map(specs => loop(Spec(specs)).caseValue))
     }
+    loop(self)
+  }
 
   /**
    * Determines if any node in the spec is satisfied by the given predicate.
@@ -103,16 +105,28 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    */
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
-  )(failure: E => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZIO[R1, E1, Spec[R1, E1, L, A]] = {
-    val _ = failure
-    foldM[R1, E1, Spec[R1, E1, L, A]](defExec) {
-      case s @ SuiteCase(_, _, _) =>
-        ZIO.succeed(Spec(s))
+  )(failure: E => ZIO[R1, E1, Nothing], success: T => ZIO[R1, E1, A]): ZIO[R1, E1, Spec[R1, E1, L, A]] = {
+    val _ = defExec
+    def loop(spec: Spec[R, E, L, T]): ZIO[R1, E1, Spec[R1, E1, L, A]] = spec.caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        exec.getOrElse(defExec) match {
+          case ExecutionStrategy.Parallel =>
+            ZIO.foreachPar(specs)(loop).map(a => Spec.suite(label, a.toVector, exec))
+          case ExecutionStrategy.ParallelN(n) =>
+            ZIO.foreachParN(n)(specs)(loop).map(a => Spec.suite(label, a.toVector, exec))
+          case ExecutionStrategy.Sequential =>
+            ZIO.foreach(specs)(loop).map(a => Spec.suite(label, a.toVector, exec))
+        }
       case TestCase(label, test) =>
-        success(test).map(test => Spec.test(label, test))
-      case EffectCase(_) =>
-        ???
+        success(test).map(Spec.test(label, _))
+      case EffectCase(effect) =>
+        //Spec.effect(effect.map(spec => spec.map(loop)))
+        effect.foldM(
+          e => failure(e),
+          a => loop(Spec(a))
+        )
     }
+    loop(self)
   }
 
   /**
@@ -121,7 +135,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * reconstructing the spec with the same structure.
    */
   final def foreach[R1 <: R, E1, A](
-    failure: E => ZIO[R1, E1, A],
+    failure: E => ZIO[R1, E1, Nothing],
     success: T => ZIO[R1, E1, A]
   ): ZIO[R1, E1, Spec[R1, E1, L, A]] =
     foreachExec(ExecutionStrategy.Sequential)(failure, success)
@@ -132,7 +146,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * reconstructing the spec with the same structure.
    */
   final def foreachPar[R1 <: R, E1, A](
-    failure: E => ZIO[R1, E1, A],
+    failure: E => ZIO[R1, E1, Nothing],
     success: T => ZIO[R1, E1, A]
   ): ZIO[R1, E1, Spec[R1, E1, L, A]] =
     foreachExec(ExecutionStrategy.Parallel)(failure, success)
@@ -144,43 +158,52 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    */
   final def foreachParN[R1 <: R, E1, A](
     n: Int
-  )(failure: E => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZIO[R1, E1, Spec[R1, E1, L, A]] =
+  )(failure: E => ZIO[R1, E1, Nothing], success: T => ZIO[R1, E1, A]): ZIO[R1, E1, Spec[R1, E1, L, A]] =
     foreachExec(ExecutionStrategy.ParallelN(n))(failure, success)
 
   /**
    * Returns a new spec with remapped labels.
    */
-  final def mapLabel[L1](f: L => L1): Spec[R, E, L1, T] =
-    transform[R, E, L1, T] {
-      case SuiteCase(label, specs, exec) => SuiteCase(f(label), specs, exec)
-      case TestCase(label, test)         => TestCase(f(label), test)
-      case EffectCase(_)                 => ???
+  final def mapLabel[L1](f: L => L1): Spec[R, E, L1, T] = {
+    def loop(spec: Spec[R, E, L, T]): Spec[R, E, L1, T] = spec.caseValue match {
+      case SuiteCase(label, specs, exec) => Spec.suite(f(label), specs.map(loop), exec)
+      case TestCase(label, test)         => Spec.test(f(label), test)
+      case EffectCase(effect)            => Spec.effect(effect.map(specs => loop(Spec(specs)).caseValue))
     }
+    loop(self)
+  }
 
   /**
    * Returns a new spec with remapped tests.
    */
-  final def mapTest[T1](f: T => T1): Spec[R, E, L, T1] =
-    transform[R, E, L, T1] {
-      case SuiteCase(label, specs, exec) => SuiteCase(label, specs, exec)
-      case TestCase(label, test)         => TestCase(label, f(test))
-      case EffectCase(_)                 => ???
+  final def mapTest[T1](f: T => T1): Spec[R, E, L, T1] = {
+    def loop(spec: Spec[R, E, L, T]): Spec[R, E, L, T1] = spec.caseValue match {
+      case SuiteCase(label, specs, exec) => Spec.suite(label, specs.map(loop), exec)
+      case TestCase(label, test)         => Spec.test(label, f(test))
+      case EffectCase(effect)            => Spec.effect(effect.map(specs => loop(Spec(specs)).caseValue))
     }
+    loop(self)
+  }
 
-  final def provideManaged[E1 >: E](r: Managed[E1, R]): Spec[Any, E1, L, T] =
-    transform[Any, E1, L, T] {
-      case SuiteCase(label, specs, exec) => SuiteCase(label, specs.map(_.provideManaged(r)), exec)
-      case TestCase(label, test)         => TestCase(label, test)
-      case EffectCase(_)                 => ???
+  final def provideManaged[E1 >: E](r: Managed[E1, R]): Spec[Any, E1, L, T] = {
+    def loop(spec: Spec[R, E, L, T]): Spec[Any, E1, L, T] = spec.caseValue match {
+      case SuiteCase(label, specs, exec) => Spec.suite(label, specs.map(loop), exec)
+      case TestCase(label, test)         => Spec.test(label, test)
+      case EffectCase(effect)            => Spec.effect(effect.provideManaged(r).map(specs => loop(Spec(specs)).caseValue))
     }
+    loop(self)
+  }
 
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
    */
-  final def size: ZIO[R, E, Int] = fold[ZIO[R, E, Int]] {
-    case SuiteCase(_, counts, _) => ZIO.collectAll(counts).map(_.sum)
-    case TestCase(_, _)          => ZIO.succeed(1)
-    case EffectCase(_)           => ???
+  final def size: ZIO[R, E, Int] = {
+    def loop(spec: Spec[R, E, L, T]): ZIO[R, E, Int] = spec.caseValue match {
+      case SuiteCase(_, specs, _) => ZIO.foreach(specs)(loop).map(_.sum)
+      case TestCase(_, _)         => ZIO.succeed(1)
+      case EffectCase(effect)     => effect.flatMap(specs => loop(Spec(specs)))
+    }
+    loop(self)
   }
 
   /**
@@ -198,27 +221,28 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   /**
    * Transforms the spec statefully, one layer at a time.
    */
-  // final def transformAccum[R1, E1, L1, T1, Z](
-  //   z0: Z
-  // )(
-  //   f: (Z, SpecCase[R1, E, L, T, Spec[R1, E1, L1, T1]]) => (Z, SpecCase[R1, E1, L1, T1, Spec[R1, E1, L1, T1]])
-  // ): ZIO[R, E, (Z, Spec[R1, E1, L1, T1])] =
-  //   caseValue match {
-  //     case SuiteCase(label, specs, exec) =>
-  //       for {
-  //         specs <- specs
-  //         result <- ZIO.foldLeft(specs)(z0 -> Vector.empty[Spec[R1, E1, L1, T1]]) {
-  //                    case ((z, vector), spec) =>
-  //                      spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
-  //                  }
-  //         (z, specs1)     = result
-  //         res             = f(z, SuiteCase(label, ZIO.succeed(specs1), exec))
-  //         (z1, caseValue) = res
-  //       } yield z1 -> Spec(caseValue)
-  //     case t @ TestCase(_, _) =>
-  //       val (z, caseValue) = f(z0, t)
-  //       ZIO.succeed(z -> Spec(caseValue))
-  //   }
+  final def transformAccum[R1, E1, L1, T1, Z](
+    z0: Z
+  )(
+    f: (Z, SpecCase[R1, E, L, T, Spec[R1, E1, L1, T1]]) => (Z, SpecCase[R1, E1, L1, T1, Spec[R1, E1, L1, T1]])
+  ): ZIO[R, E, (Z, Spec[R1, E1, L1, T1])] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        for {
+          result <- ZIO.foldLeft(specs)(z0 -> Vector.empty[Spec[R1, E1, L1, T1]]) {
+                     case ((z, vector), spec) =>
+                       spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
+                   }
+          (z, specs1)     = result
+          res             = f(z, SuiteCase(label, specs1, exec))
+          (z1, caseValue) = res
+        } yield z1 -> Spec(caseValue)
+      case t @ TestCase(_, _) =>
+        val (z, caseValue) = f(z0, t)
+        ZIO.succeed(z -> Spec(caseValue))
+      case EffectCase(effect) =>
+        effect.flatMap(specs => Spec(specs).transformAccum(z0)(f))
+    }
 }
 
 object Spec {
