@@ -2501,14 +2501,6 @@ object ZIO extends ZIOFunctions {
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  implicit final class ZIOInvariant[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
-    final def bracket: ZIO.BracketAcquire[R, E, A] =
-      new ZIO.BracketAcquire(self)
-
-    final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
-      new ZIO.BracketExitAcquire(self)
-  }
-
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
     /**
