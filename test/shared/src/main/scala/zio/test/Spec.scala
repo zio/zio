@@ -120,7 +120,6 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       case TestCase(label, test) =>
         success(test).map(Spec.test(label, _))
       case EffectCase(effect) =>
-        //Spec.effect(effect.map(spec => spec.map(loop)))
         effect.foldM(
           e => failure(e),
           a => loop(Spec(a))
