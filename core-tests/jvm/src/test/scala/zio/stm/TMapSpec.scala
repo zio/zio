@@ -16,11 +16,14 @@
 
 package zio.stm
 
-import zio._
+import zio.test.Assertion._
+import zio.test._
+import zio.ZIOBaseSpec
 
-final class TMapSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
-  def is =
-    "TMapSpec".title ^
-      s2"""
-        """
-}
+object TMapSpec extends ZIOBaseSpec(
+  suite("TMapSpec")(
+    test("zio test template") {
+      assert(1, equalTo(1))
+    }
+  )
+)
