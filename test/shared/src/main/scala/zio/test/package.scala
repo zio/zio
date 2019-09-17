@@ -132,7 +132,7 @@ package object test extends CheckVariants {
    * Builds a suite containing a number of other specs.
    */
   final def suite[R, E, L, T](label: L)(specs: Spec[R, E, L, T]*): Spec[R, E, L, T] =
-    Spec.suite(label, ZIO.succeed(specs.toVector), None)
+    Spec.suite(label, specs.toVector, None)
 
   /**
    * Builds a spec with a single pure test.

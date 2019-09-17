@@ -25,11 +25,13 @@ object ZTestEvent {
     def loop(executedSpec: ExecutedSpec[String, E, S]): UIO[Seq[ZTestEvent]] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
-          executedSpecs.flatMap(UIO.foreach(_)(loop).map(_.flatten))
+          UIO.foreach(executedSpecs)(loop).map(_.flatten)
         case Spec.TestCase(label, result) =>
           UIO.succeed {
             Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
           }
+        case Spec.EffectCase(effect) =>
+          effect.flatMap(specs => loop(Spec(specs)))
       }
     loop(executedSpec.mapLabel(_.toString))
   }

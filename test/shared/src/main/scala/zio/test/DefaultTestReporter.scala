@@ -30,15 +30,16 @@ object DefaultTestReporter {
       executedSpec.caseValue match {
         case Spec.SuiteCase(label, executedSpecs, _) =>
           for {
-            specs         <- executedSpecs
-            failures      <- UIO.foreach(specs)(_.exists { case Spec.TestCase(_, test) => test.isLeft; case _ => false })
+            failures <- UIO.foreach(executedSpecs)(_.exists {
+                         case Spec.TestCase(_, test) => test.isLeft; case _ => false
+                       })
             hasFailures   = failures.exists(identity)
             status        = if (hasFailures) Failed else Passed
             renderedLabel = if (hasFailures) renderFailureLabel(label, depth) else renderSuccessLabel(label, depth)
-            rest          <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
+            rest          <- UIO.foreach(executedSpecs)(loop(_, depth + tabSize)).map(_.flatten)
           } yield rendered(Suite, label, status, depth, renderedLabel) +: rest
         case Spec.TestCase(label, result) =>
-          UIO.succeed {
+          UIO {
             Seq(
               result match {
                 case Right(TestSuccess.Succeeded(_)) =>
@@ -60,6 +61,8 @@ object DefaultTestReporter {
               }
             )
           }
+        case Spec.EffectCase(effect) =>
+          effect.flatMap(specs => loop(Spec(specs), depth))
       }
     loop(executedSpec, 0)
   }
@@ -77,8 +80,7 @@ object DefaultTestReporter {
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {
-            specs <- executedSpecs
-            stats <- UIO.foreach(specs)(loop)
+            stats <- UIO.foreach(executedSpecs)(loop)
           } yield stats.foldLeft((0, 0, 0)) {
             case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
           }
@@ -90,6 +92,8 @@ object DefaultTestReporter {
               case Right(TestSuccess.Ignored)      => (0, 1, 0)
             }
           }
+        case Spec.EffectCase(effect) =>
+          effect.flatMap(specs => loop(Spec(specs)))
       }
     for {
       stats                      <- loop(executedSpec.mapLabel(_.toString))
