@@ -18,6 +18,26 @@ package zio.test.mock
 
 import zio.{ IO, UIO, ZIO }
 
+/**
+ * The `Live` trait provides access to the "live" environment from within the
+ * mock environment for effects such as printing test results to the console or
+ * timing out tests where it is necessary to access the real environment.
+ *
+ * The easiest way to access the "live" environment is to use the `live` method
+ * with an effect that would otherwise access the mock environment.
+ *
+ * {{{
+ * import zio.clock
+ * import zio.test.mock._
+ *
+ * val realTime = live(clock.nanoTime)
+ * }}}
+ *
+ * The `withLive` method can be used to apply a transformation to an effect
+ * with the live environment while ensuring that the effect itself still runs
+ * with the mock environment, for example to time out a test. Both of these
+ * methods are re-exported in the `mock` package for easy availability.
+ */
 trait Live[+R] {
   def live: Live.Service[R]
 }
@@ -28,9 +48,19 @@ object Live {
     def provide[E, A](zio: ZIO[R, E, A]): IO[E, A]
   }
 
+  /**
+   * Provide an effect with the "live" environment.
+   */
   def live[R, E, A](zio: ZIO[R, E, A]): ZIO[Live[R], E, A] =
     ZIO.accessM[Live[R]](_.live.provide(zio))
 
+  /**
+   * Constructs a new `Live` instance with an environment `R`. This should
+   * typically not be necessary as `MockEnvironment` provides access to live
+   * versions of all the standard ZIO environmental effecs but could be useful
+   * if you are creating your own mock interfaces and want to be able to access
+   * the live version of these interfaces at the same time.
+   */
   def make[R](r: R): UIO[Live[R]] =
     makeService(r).map { service =>
       new Live[R] {
@@ -38,6 +68,13 @@ object Live {
       }
     }
 
+  /**
+   * Constructs a new `Live` service that implements the `Live` interface.
+   * This typically should not be necessary as `MockEnvironment` provides
+   * access to live versions of all the standard ZIO environment types but
+   * could be useful if you are mixing in interfaces to create your own
+   * environment type.
+   */
   def makeService[R](r: R): UIO[Live.Service[R]] =
     UIO.succeed {
       new Live.Service[R] {
@@ -46,6 +83,11 @@ object Live {
       }
     }
 
+  /**
+   * Provides a transformation function with access to the live environment
+   * while ensuring that the effect itself is provided with the mock
+   * environment.
+   */
   def withLive[R, R1, E, E1, A, B](zio: ZIO[R, E, A])(f: IO[E, A] => ZIO[R1, E1, B]): ZIO[R with Live[R1], E1, B] =
     ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))
 }
