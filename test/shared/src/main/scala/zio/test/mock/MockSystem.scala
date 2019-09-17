@@ -31,7 +31,7 @@ import zio.system.System
  * import zio.test.mock._
  *
  * for {
- *   _ <- MockSystem.putProperty("java.vm.name", "VM")
+ *   _      <- MockSystem.putProperty("java.vm.name", "VM")
  *   result <- system.property("java.vm.name")
  * } yield result == Some("VM")
  * }}}

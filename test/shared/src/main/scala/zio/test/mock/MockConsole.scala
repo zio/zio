@@ -40,8 +40,9 @@ import zio._
  * console.
  *
  * {{{
- * import zio._
+ * import zio.console._
  * import zio.test.mock._
+ * import zio.ZIO
  *
  * val sayHello = for {
  *   name <- getStrLn
