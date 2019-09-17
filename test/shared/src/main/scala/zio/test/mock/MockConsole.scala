@@ -50,10 +50,10 @@ import zio._
  * } yield ()
  *
  * for {
- *   _ <- MockConsole.feedLines("John, "Jane", "Sally")
- *   _ <- ZIO.collectAll_(List.fill(3)(sayHello))
+ *   _ <- MockConsole.feedLines("John", "Jane", "Sally")
+ *   _ <- ZIO.collectAll(List.fill(3)(sayHello))
  *   result <- MockConsole.output
- * } yield result = Vector("Hello, John!\n", "Hello, Jane!\n", "Hello, Sally!\n")
+ * } yield result == Vector("Hello, John!\n", "Hello, Jane!\n", "Hello, Sally!\n")
  * }}}
  */
 trait MockConsole extends Console {
