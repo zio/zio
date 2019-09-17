@@ -260,10 +260,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def aggregateErrorPropagation1 =
     unsafeRun {
-      val e    = new RuntimeException("Boom")
-      val sink = ZSink.die(e)
+      val e = new RuntimeException("Boom")
       Stream(1, 1, 1, 1)
-        .aggregate(sink)
+        .aggregate(ZSink.die(e))
         .runCollect
         .run
         .map(_ must_=== Exit.Failure(Cause.Die(e)))
@@ -286,8 +285,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     for {
       latch     <- Promise.make[Nothing, Unit]
       cancelled <- Ref.make(false)
-      sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true) { (acc, el) =>
-        if (el == 1) UIO.succeed((el :: acc, Chunk.empty))
+      sink = Sink.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+        if (el == 1) UIO.succeed((el :: acc, Chunk[Int]()))
         else
           (latch.succeed(()) *> UIO.never)
             .onInterrupt(cancelled.set(true))
@@ -335,7 +334,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       result <- Stream(1, 1, 1, 1, 2)
                  .aggregateWithin(
                    Sink
-                     .fold[Int, Int, (List[Int], Boolean)]((Nil, true))(_._2) { (acc, el: Int) =>
+                     .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
                        if (el == 1) ((el :: acc._1, true), Chunk.empty)
                        else if (el == 2 && acc._1.isEmpty) ((el :: acc._1, false), Chunk.empty)
                        else ((acc._1, false), Chunk.single(el))
@@ -349,10 +348,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   private def aggregateWithinErrorPropagation1 =
     unsafeRun {
-      val e    = new RuntimeException("Boom")
-      val sink = ZSink.die(e)
+      val e = new RuntimeException("Boom")
       Stream(1, 1, 1, 1)
-        .aggregateWithin(sink, Schedule.spaced(30.minutes))
+        .aggregateWithin(ZSink.die(e), Schedule.spaced(30.minutes))
         .runCollect
         .run
         .map(_ must_=== Exit.Failure(Cause.Die(e)))
@@ -375,8 +373,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     for {
       latch     <- Promise.make[Nothing, Unit]
       cancelled <- Ref.make(false)
-      sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true) { (acc, el) =>
-        if (el == 1) UIO.succeed((el :: acc, Chunk.empty))
+      sink = Sink.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+        if (el == 1) UIO.succeed((el :: acc, Chunk[Int]()))
         else
           (latch.succeed(()) *> UIO.never)
             .onInterrupt(cancelled.set(true))
@@ -1405,7 +1403,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val s2 = Stream(1, 2)
 
     s1.mergeWith(s2)(_.toString, _.toString)
-      .run(Sink.succeed("done"))
+      .run(Sink.succeed[String, String]("done"))
       .map(_ must_=== "done")
   }
 
@@ -1732,7 +1730,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   }
 
   private def transduceNoRemainder = unsafeRun {
-    val sink = Sink.fold(100)(_ % 2 == 0)((s, a: Int) => (s + a, Chunk.empty))
+    val sink = Sink.fold(100)(_ % 2 == 0)((s, a: Int) => (s + a, Chunk[Int]()))
     ZStream(1, 2, 3, 4).transduce(sink).runCollect.map(_ must_=== List(101, 105, 104))
   }
 

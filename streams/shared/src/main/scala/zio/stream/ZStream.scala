@@ -1867,7 +1867,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                   if (done)
                     Pull.end
                   else if (leftovers.notEmpty)
-                    sink.stepChunkSlice(s, leftovers).flatMap {
+                    sink.stepChunk(s, leftovers).flatMap {
                       case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
                     } else
                     as flatMap { a =>
