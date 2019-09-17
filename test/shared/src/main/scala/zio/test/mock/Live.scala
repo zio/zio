@@ -49,7 +49,7 @@ object Live {
   }
 
   /**
-   * Provide an effect with the "live" environment.
+   * Provides an effect with the "live" environment.
    */
   def live[R, E, A](zio: ZIO[R, E, A]): ZIO[Live[R], E, A] =
     ZIO.accessM[Live[R]](_.live.provide(zio))
@@ -57,7 +57,7 @@ object Live {
   /**
    * Constructs a new `Live` instance with an environment `R`. This should
    * typically not be necessary as `MockEnvironment` provides access to live
-   * versions of all the standard ZIO environmental effecs but could be useful
+   * versions of all the standard ZIO environmental effects but could be useful
    * if you are creating your own mock interfaces and want to be able to access
    * the live version of these interfaces at the same time.
    */

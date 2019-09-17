@@ -22,9 +22,9 @@ import zio.Managed
 
 /**
  * The `mock` package contains testable versions of all the standard ZIO
- * environment types through the `MockClock`, `MockConsole`, `MockSystem`, and
- * `MockRandom` modules. See the documentation on the individual modules for
- * more detail about using each of them.
+ * environment types through the [[MockClock]], [[MockConsole]],
+ * [[MockSystem]], and [[MockRandom]] modules. See the documentation on the
+ * individual modules for more detail about using each of them.
  *
  * If you are using ZIO Test and extending `DefaultRunnableSpec` a
  * `MockEnvironment` containing all of them will be automatically provided to

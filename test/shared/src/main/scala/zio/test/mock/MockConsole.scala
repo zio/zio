@@ -80,7 +80,7 @@ object MockConsole {
       }.unit
 
     /**
-     * Writes the specified string to the output buffer followed by a new line
+     * Writes the specified string to the output buffer followed by a newline
      * character.
      */
     override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
@@ -162,21 +162,21 @@ object MockConsole {
     ZIO.accessM(_.console.feedLines(lines: _*))
 
   /**
-   * Access a `MockConsole` instance in the environment and returns the
+   * Accesses a `MockConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
   val output: ZIO[MockConsole, Nothing, Vector[String]] =
     ZIO.accessM(_.console.output)
 
   /**
-   * Access a `MockConsole` instance in the environment and clears the input
+   * Accesses a `MockConsole` instance in the environment and clears the input
    * buffer.
    */
   val clearInput: ZIO[MockConsole, Nothing, Unit] =
     ZIO.accessM(_.console.clearInput)
 
   /**
-   * Access a `MockConsole` instance in the environment and clears the output
+   * Accesses a `MockConsole` instance in the environment and clears the output
    * buffer.
    */
   val clearOutput: ZIO[MockConsole, Nothing, Unit] =

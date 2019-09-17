@@ -161,7 +161,7 @@ object MockSystem {
 
   /**
    * The default initial state of the `MockSystem` with no environment variable
-   * or system property mappings and the system line separate set to the new
+   * or system property mappings and the system line separator set to the new
    * line character.
    */
   val DefaultData: Data = Data(Map(), Map(), "\n")
