@@ -1490,14 +1490,14 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
-   * and then repeat again according to the provided schedule. The schedule output will be emitted at the end of each repetition.
+   * and then repeat again according to the provided schedule. The schedule output will be emitted at the beginning of each repetition.
    */
   final def repeatEither[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZStream[R1 with Clock, E, Either[B, A]] =
     repeatWith(schedule)(Right(_), Left(_))
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
-   * and then repeat again according to the provided schedule. The schedule output will be emitted at the end of each repetition and
+   * and then repeat again according to the provided schedule. The schedule output will be emitted at the beginning of each repetition and
    * can be unified with the stream elements using the provided functions
    */
   final def repeatWith[R1 <: R, B, C](
@@ -1515,7 +1515,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
               s2 = if (decision.cont)
                 ZStream
                   .fromEffect(schedStateRef.set(decision.state) *> clock.sleep(decision.delay))
-                  .drain ++ self.map(f) ++ ZStream.succeed(g(decision.finish())) ++ repeated
+                  .drain ++ ZStream.succeed(g(decision.finish())) ++ self.map(f) ++ repeated
               else
                 ZStream.empty
             } yield s2

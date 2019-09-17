@@ -1471,7 +1471,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       Stream(1)
         .repeatEither(Schedule.recurs(4))
         .run(Sink.collectAll[Either[Int, Int]])
-        .map(_ must_=== List(Right(1), Right(1), Left(1), Right(1), Left(2), Right(1), Left(3), Right(1), Left(4)))
+        .map(_ must_=== List(Right(1), Left(1), Right(1), Left(2), Right(1), Left(3), Right(1), Left(4), Right(1)))
     )
 
   private def repeatEitherShortCircuits =
@@ -1481,7 +1481,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         _ <- Stream
               .fromEffect(ref.update(1 :: _))
               .repeatEither(Schedule.spaced(10.millis))
-              .take(2)
+              .take(3) // take one schedule output
               .run(Sink.drain)
         result <- ref.get
       } yield result must_=== List(1, 1)
