@@ -46,7 +46,7 @@ import zio._
  *
  * val sayHello = for {
  *   name <- getStrLn
- *   _    <- putStrLn(s"Hello, $name!")
+ *   _    <- putStrLn("Hello, " + name + "!")
  * } yield ()
  *
  * for {
