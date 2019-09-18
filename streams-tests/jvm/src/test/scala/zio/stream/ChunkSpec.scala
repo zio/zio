@@ -152,9 +152,15 @@ object ChunkSpec
           assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo[Chunk[Int]](Chunk.empty))
         },
         test("def testzipAllWith") {
-          assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 4))) &&
-          assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 0))) &&
-          assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 0)))
+          try {
+            assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 4))) &&
+            assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 0))) &&
+            assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 0)))
+          } catch {
+            case th: Throwable =>
+              th.printStackTrace()
+              throw th
+          }
         }
       )
     )
