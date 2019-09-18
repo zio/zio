@@ -518,7 +518,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
   final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
-    schedule: ZSchedule[R1, Option[B], C]): ZStream[R1 with Clock, E1, B] = aggregateWithinEither(sink, schedule).collect {
+    schedule: ZSchedule[R1, Option[B], C]
+  ): ZStream[R1 with Clock, E1, B] = aggregateWithinEither(sink, schedule).collect {
     case Right(v) => v
   }
 

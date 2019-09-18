@@ -8,7 +8,7 @@ import zio._
 import zio.duration._
 import zio.ZQueueSpecUtil.waitForSize
 
-class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
+class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
   import ArbitraryChunk._
   import ArbitraryStream._
@@ -430,16 +430,16 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def aggregateWithin = unsafeRun {
     for {
       result <- Stream(1, 1, 1, 1, 2)
-        .aggregateWithin(
-          Sink.fold(List[Int]())(
-            (acc, el: Int) =>
-              if (el == 1) ZSink.Step.more(el :: acc)
-              else if (el == 2 && acc.isEmpty) ZSink.Step.done(el :: acc, Chunk.empty)
-              else ZSink.Step.done(acc, Chunk.single(el))
-          ),
-          ZSchedule.spaced(30.minutes)
-        )
-        .runCollect
+                 .aggregateWithin(
+                   Sink.fold(List[Int]())(
+                     (acc, el: Int) =>
+                       if (el == 1) ZSink.Step.more(el :: acc)
+                       else if (el == 2 && acc.isEmpty) ZSink.Step.done(el :: acc, Chunk.empty)
+                       else ZSink.Step.done(acc, Chunk.single(el))
+                   ),
+                   ZSchedule.spaced(30.minutes)
+                 )
+                 .runCollect
     } yield result must_=== List(List(1, 1, 1, 1), List(2))
   }
 
