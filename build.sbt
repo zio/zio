@@ -175,7 +175,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.28"))
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.29"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core % "test->test;compile->compile")
   .dependsOn(test % "test->test;compile->compile")
