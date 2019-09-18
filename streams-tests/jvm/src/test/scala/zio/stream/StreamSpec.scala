@@ -407,10 +407,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     } yield result must_=== true
   }
 
-  private def aggregateWithinLeftoverHandling = unsafeRun {
+  private def aggregateWithinEitherLeftoverHandling = unsafeRun {
     val data = List(1, 2, 2, 3, 2, 3)
     Stream(data: _*)
-      .aggregateWithin(
+      .aggregateWithinEither(
         Sink
           .foldWeighted(List[Int]())((i: Int) => i.toLong, 4) { (acc, el) =>
             el :: acc
@@ -431,12 +431,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     for {
       result <- Stream(1, 1, 1, 1, 2)
                  .aggregateWithin(
-                   Sink.fold(List[Int]())(
-                     (acc, el: Int) =>
-                       if (el == 1) ZSink.Step.more(el :: acc)
-                       else if (el == 2 && acc.isEmpty) ZSink.Step.done(el :: acc, Chunk.empty)
-                       else ZSink.Step.done(acc, Chunk.single(el))
-                   ),
+                   Sink
+                     .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
+                       if (el == 1) ((el :: acc._1, true), Chunk.empty)
+                       else if (el == 2 && acc._1.isEmpty) ((el :: acc._1, false), Chunk.empty)
+                       else ((acc._1, false), Chunk.single(el))
+                     }
+                     .map(_._1),
                    ZSchedule.spaced(30.minutes)
                  )
                  .runCollect
