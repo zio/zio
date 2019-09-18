@@ -192,6 +192,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     repeat                  $repeat
     short circuits          $repeatShortCircuits
 
+  Stream.repeatEither
+    emits schedule output   $repeatEither
+    short circuits          $repeatEitherShortCircuits
+
   Stream.schedule
     scheduleElementsWith          $scheduleElementsWith
     scheduleElementsEither        $scheduleElementsEither
@@ -262,10 +266,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   def aggregateErrorPropagation1 =
     unsafeRun {
-      val e    = new RuntimeException("Boom")
-      val sink = ZSink.die(e)
+      val e = new RuntimeException("Boom")
       Stream(1, 1, 1, 1)
-        .aggregate(sink)
+        .aggregate(ZSink.die(e))
         .runCollect
         .run
         .map(_ must_=== Exit.Failure(Cause.Die(e)))
@@ -288,8 +291,8 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     for {
       latch     <- Promise.make[Nothing, Unit]
       cancelled <- Ref.make(false)
-      sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true) { (acc, el) =>
-        if (el == 1) UIO.succeed((el :: acc, Chunk.empty))
+      sink = Sink.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+        if (el == 1) UIO.succeed((el :: acc, Chunk[Int]()))
         else
           (latch.succeed(()) *> UIO.never)
             .onInterrupt(cancelled.set(true))
@@ -337,7 +340,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       result <- Stream(1, 1, 1, 1, 2)
                  .aggregateWithinEither(
                    Sink
-                     .fold[Int, Int, (List[Int], Boolean)]((Nil, true))(_._2) { (acc, el: Int) =>
+                     .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
                        if (el == 1) ((el :: acc._1, true), Chunk.empty)
                        else if (el == 2 && acc._1.isEmpty) ((el :: acc._1, false), Chunk.empty)
                        else ((acc._1, false), Chunk.single(el))
@@ -351,10 +354,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   private def aggregateWithinEitherErrorPropagation1 =
     unsafeRun {
-      val e    = new RuntimeException("Boom")
-      val sink = ZSink.die(e)
+      val e = new RuntimeException("Boom")
       Stream(1, 1, 1, 1)
-        .aggregateWithinEither(sink, Schedule.spaced(30.minutes))
+        .aggregateWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
         .runCollect
         .run
         .map(_ must_=== Exit.Failure(Cause.Die(e)))
@@ -377,8 +379,8 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     for {
       latch     <- Promise.make[Nothing, Unit]
       cancelled <- Ref.make(false)
-      sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true) { (acc, el) =>
-        if (el == 1) UIO.succeed((el :: acc, Chunk.empty))
+      sink = Sink.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+        if (el == 1) UIO.succeed((el :: acc, Chunk[Int]()))
         else
           (latch.succeed(()) *> UIO.never)
             .onInterrupt(cancelled.set(true))
@@ -1423,7 +1425,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     val s2 = Stream(1, 2)
 
     s1.mergeWith(s2)(_.toString, _.toString)
-      .run(Sink.succeed("done"))
+      .run(Sink.succeed[String, String]("done"))
       .map(_ must_=== "done")
   }
 
@@ -1526,6 +1528,27 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
               .fromEffect(ref.update(1 :: _))
               .repeat(Schedule.spaced(10.millis))
               .take(2)
+              .run(Sink.drain)
+        result <- ref.get
+      } yield result must_=== List(1, 1)
+    )
+
+  private def repeatEither =
+    unsafeRun(
+      Stream(1)
+        .repeatEither(Schedule.recurs(4))
+        .run(Sink.collectAll[Either[Int, Int]])
+        .map(_ must_=== List(Right(1), Right(1), Left(1), Right(1), Left(2), Right(1), Left(3), Right(1), Left(4)))
+    )
+
+  private def repeatEitherShortCircuits =
+    unsafeRun(
+      for {
+        ref <- Ref.make[List[Int]](Nil)
+        _ <- Stream
+              .fromEffect(ref.update(1 :: _))
+              .repeatEither(Schedule.spaced(10.millis))
+              .take(3) // take one schedule output
               .run(Sink.drain)
         result <- ref.get
       } yield result must_=== List(1, 1)
@@ -1750,7 +1773,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   }
 
   private def transduceNoRemainder = unsafeRun {
-    val sink = Sink.fold(100)(_ % 2 == 0)((s, a: Int) => (s + a, Chunk.empty))
+    val sink = Sink.fold(100)(_ % 2 == 0)((s, a: Int) => (s + a, Chunk[Int]()))
     ZStream(1, 2, 3, 4).transduce(sink).runCollect.map(_ must_=== List(101, 105, 104))
   }
 
