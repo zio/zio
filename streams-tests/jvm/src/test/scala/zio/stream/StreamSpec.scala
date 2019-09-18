@@ -24,13 +24,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     interruption propagation             $aggregateInterruptionPropagation2
     leftover handling                    $aggregateLeftoverHandling
 
+  Stream.aggregateWithinEither
+    aggregateWithinEither                 $aggregateWithinEither
+    error propagation                     $aggregateWithinEitherErrorPropagation1
+    error propagation                     $aggregateWithinEitherErrorPropagation2
+    interruption propagation              $aggregateWithinEitherInterruptionPropagation
+    interruption propagation              $aggregateWithinEitherInterruptionPropagation2
+    aggregateWithinEitherLeftoverHandling $aggregateWithinEitherLeftoverHandling
+
   Stream.aggregateWithin
     aggregateWithin                      $aggregateWithin
-    error propagation                    $aggregateWithinErrorPropagation1
-    error propagation                    $aggregateWithinErrorPropagation2
-    interruption propagation             $aggregateWithinInterruptionPropagation
-    interruption propagation             $aggregateWithinInterruptionPropagation2
-    leftover handling                    $aggregateWithinLeftoverHandling
 
   Stream.bracket
     bracket                              $bracket
@@ -333,10 +336,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       }
   }
 
-  def aggregateWithin = unsafeRun {
+  def aggregateWithinEither = unsafeRun {
     for {
       result <- Stream(1, 1, 1, 1, 2)
-                 .aggregateWithin(
+                 .aggregateWithinEither(
                    Sink
                      .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
                        if (el == 1) ((el :: acc._1, true), Chunk.empty)
@@ -350,30 +353,30 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     } yield result must_=== List(Right(List(1, 1, 1, 1)), Right(List(2)))
   }
 
-  private def aggregateWithinErrorPropagation1 =
+  private def aggregateWithinEitherErrorPropagation1 =
     unsafeRun {
       val e = new RuntimeException("Boom")
       Stream(1, 1, 1, 1)
-        .aggregateWithin(ZSink.die(e), Schedule.spaced(30.minutes))
+        .aggregateWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
         .runCollect
         .run
         .map(_ must_=== Exit.Failure(Cause.Die(e)))
     }
 
-  private def aggregateWithinErrorPropagation2 = unsafeRun {
+  private def aggregateWithinEitherErrorPropagation2 = unsafeRun {
     val e = new RuntimeException("Boom")
     val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]())(_ => true) { (_, _) =>
       ZIO.die(e)
     }
 
     Stream(1, 1)
-      .aggregateWithin(sink, Schedule.spaced(30.minutes))
+      .aggregateWithinEither(sink, Schedule.spaced(30.minutes))
       .runCollect
       .run
       .map(_ must_=== Exit.Failure(Cause.Die(e)))
   }
 
-  private def aggregateWithinInterruptionPropagation = unsafeRun {
+  private def aggregateWithinEitherInterruptionPropagation = unsafeRun {
     for {
       latch     <- Promise.make[Nothing, Unit]
       cancelled <- Ref.make(false)
@@ -383,14 +386,14 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
           (latch.succeed(()) *> UIO.never)
             .onInterrupt(cancelled.set(true))
       }
-      fiber  <- Stream(1, 1, 2).aggregateWithin(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
+      fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
       _      <- latch.await
       _      <- fiber.interrupt
       result <- cancelled.get
     } yield result must_=== true
   }
 
-  private def aggregateWithinInterruptionPropagation2 = unsafeRun {
+  private def aggregateWithinEitherInterruptionPropagation2 = unsafeRun {
     for {
       latch     <- Promise.make[Nothing, Unit]
       cancelled <- Ref.make(false)
@@ -398,17 +401,17 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         (latch.succeed(()) *> UIO.never)
           .onInterrupt(cancelled.set(true))
       }
-      fiber  <- Stream(1, 1, 2).aggregateWithin(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
+      fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
       _      <- latch.await
       _      <- fiber.interrupt
       result <- cancelled.get
     } yield result must_=== true
   }
 
-  private def aggregateWithinLeftoverHandling = unsafeRun {
+  private def aggregateWithinEitherLeftoverHandling = unsafeRun {
     val data = List(1, 2, 2, 3, 2, 3)
     Stream(data: _*)
-      .aggregateWithin(
+      .aggregateWithinEither(
         Sink
           .foldWeighted(List[Int]())((i: Int) => i.toLong, 4) { (acc, el) =>
             el :: acc
@@ -423,6 +426,23 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .map { result =>
         result.flatten must_=== data
       }
+  }
+
+  def aggregateWithin = unsafeRun {
+    for {
+      result <- Stream(1, 1, 1, 1, 2)
+                 .aggregateWithin(
+                   Sink
+                     .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
+                       if (el == 1) ((el :: acc._1, true), Chunk.empty)
+                       else if (el == 2 && acc._1.isEmpty) ((el :: acc._1, false), Chunk.empty)
+                       else ((acc._1, false), Chunk.single(el))
+                     }
+                     .map(_._1),
+                   ZSchedule.spaced(30.minutes)
+                 )
+                 .runCollect
+    } yield result must_=== List(List(1, 1, 1, 1), List(2))
   }
 
   private def bracket =

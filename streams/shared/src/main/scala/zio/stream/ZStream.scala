@@ -249,8 +249,17 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    *
    * Aggregated elements will be fed into the schedule to determine the delays between
    * pulls.
+   *
+   * @param sink used for the aggregation
+   * @param schedule signalling for when to stop the aggregation
+   * @tparam R1 environment type
+   * @tparam E1 error type
+   * @tparam A1 type of the values consumed by the given sink
+   * @tparam B type of the value produced by the given sink and consumed by the given schedule
+   * @tparam C type of the value produced by the given schedule
+   * @return `ZStream[R1 with Clock, E1, Either[C, B]]`
    */
-  final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
+  final def aggregateWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
     schedule: ZSchedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E1, Either[C, B]] = {
@@ -514,6 +523,25 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                .ensuringFirst(producer.interrupt.fork)
       } yield bs
     }
+  }
+
+  /**
+   * Uses `aggregateWithinEither` but only returns the `Right` results.
+   *
+   * @param sink used for the aggregation
+   * @param schedule signalling for when to stop the aggregation
+   * @tparam R1 environment type
+   * @tparam E1 error type
+   * @tparam A1 type of the values consumed by the given sink
+   * @tparam B type of the value produced by the given sink and consumed by the given schedule
+   * @tparam C type of the value produced by the given schedule
+   * @return `ZStream[R1 with Clock, E1, B]`
+   */
+  final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
+    sink: ZSink[R1, E1, A1, A1, B],
+    schedule: ZSchedule[R1, Option[B], C]
+  ): ZStream[R1 with Clock, E1, B] = aggregateWithinEither(sink, schedule).collect {
+    case Right(v) => v
   }
 
   /**
