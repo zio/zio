@@ -401,7 +401,7 @@ object Gen extends GenZIO {
   /**
    * A generator of throwables.
    */
-  final def throwable: Gen[Random, Throwable] =
+  final val throwable: Gen[Random, Throwable] =
     Gen.const(new Throwable)
 
   /**

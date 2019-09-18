@@ -22,48 +22,50 @@ import zio.random.Random
 trait GenZIO {
 
   /**
-   * Constructs a generator of `IO[E, A]` effects given generators of `E` and
-   * `A` values.
+   * A generator of effects that are the result of chaining the specified
+   * effect with itself a random number of times.
    */
-  final def io[R <: Random, E, A](e: Gen[R, E], a: Gen[R, A]): Gen[R, IO[E, A]] =
-    Gen.either(e, a).map(ZIO.fromEither(_))
+  final def chained[R <: Random with Sized, Env, E, A](gen: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
+    Gen.small(chainedN(_)(gen))
 
   /**
-   * Constructs a generator of `RIO[R, A]` effects given a generator of `A`
-   * values.
+   * A generator of effects that are the result of chaining the specified
+   * effect with itself a given number of times.
    */
-  final def rio[R <: Random, R1, A](a: Gen[R, A]): Gen[R, RIO[R1, A]] =
-    Gen
-      .function[R, R1, Either[Throwable, A]](Gen.either(Gen.throwable, a))
-      .map(f => ZIO.fromFunctionM(r => ZIO.fromEither(f(r))))
+  final def chainedN[R <: Random, Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
+    Gen.listOfN(n min 1)(zio).map(_.reduce(_ *> _))
 
   /**
-   * Constructs a generator of `Task[A]` effects given a generator of `A`
-   * values.
+   * A generator of effects that are the result of applying concurrency
+   * combinators to the specified effect that are guaranteed not to change its
+   * value.
    */
-  final def task[R <: Random, A](a: Gen[R, A]): Gen[R, Task[A]] =
-    Gen.either(Gen.throwable, a).map(ZIO.fromEither(_))
+  final def concurrent[R, E, A](zio: ZIO[R, E, A]): Gen[Any, ZIO[R, E, A]] =
+    Gen.const(zio.race(ZIO.never))
 
   /**
-   * Constructs a generator of `UIO[A]` effects given a generator of `A`
-   * values.
+   * A generator of effects that have died with a `Throwable`.
    */
-  final def uio[R <: Random, A](a: Gen[R, A]): Gen[R, UIO[A]] =
-    a.map(ZIO.succeed)
+  final def died[R](gen: Gen[R, Throwable]): Gen[R, ZIO[Any, Nothing, Nothing]] =
+    gen.map(ZIO.die)
 
   /**
-   * Constructs a generator of `URIO[A]` effects given a generator of `A`
-   * values.
+   * A generator of effects that have failed with an error.
    */
-  final def urio[R <: Random, R1, A](a: Gen[R, A]): Gen[R, URIO[R1, A]] =
-    Gen.function[R, R1, A](a).map(f => ZIO.fromFunction(f))
+  final def failures[R, E](gen: Gen[R, E]): Gen[R, ZIO[Any, E, Nothing]] =
+    gen.map(ZIO.fail)
 
   /**
-   * Constructs a generator of `ZIO[R, E, A]` effects given generators of
-   * `E` and `A` values.
+   * A generator of effects that are the result of applying parallelism
+   * combinators to the specified effect that are guaranteed not to change its
+   * value.
    */
-  final def zio[R <: Random, R1, E, A](e: Gen[R, E], a: Gen[R, A]): Gen[R, ZIO[R1, E, A]] =
-    Gen
-      .function[R, R1, Either[E, A]](Gen.either(e, a))
-      .map(f => ZIO.fromFunctionM(r => ZIO.fromEither(f(r))))
+  final def parallel[R, E, A](zio: ZIO[R, E, A]): Gen[Any, ZIO[R, E, A]] =
+    successes(Gen.unit).map(_.zipParRight(zio))
+
+  /**
+   * A generator of successful effects.
+   */
+  final def successes[R, A](gen: Gen[R, A]): Gen[R, ZIO[Any, Nothing, A]] =
+    gen.map(ZIO.succeed)
 }
