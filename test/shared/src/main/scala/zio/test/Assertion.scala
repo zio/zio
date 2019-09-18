@@ -213,6 +213,11 @@ object Assertion {
   final def containsString(element: String): Assertion[String] =
     Assertion.assertion("containsString")(param(element))(_.contains(element))
 
+  final def containsTheSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    Assertion.assertion("containsTheSameElements")(param(other)) { actual =>
+      actual.size == other.size && actual.toSet.diff(other.toSet).isEmpty
+    }
+
   /**
    * Makes a new assertion that requires an exit value to die.
    */
