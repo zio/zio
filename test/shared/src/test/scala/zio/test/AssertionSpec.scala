@@ -317,6 +317,14 @@ object AssertionSpec {
     testSuccess(
       assert(Seq(4, 3, 1, 2), containsTheSameElements(Seq(1, 2, 3, 4))),
       message = "containsTheSameElements must succeed when both iterables contain the same elements in different order"
+    ),
+    testFailure(
+      assert(
+        Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"),
+        containsTheSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
+      ),
+      message =
+        "containsTheSameElements must fail when both iterables have the same size, have the same values but they appear a different number of times."
     )
   )
 }

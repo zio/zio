@@ -213,10 +213,20 @@ object Assertion {
   final def containsString(element: String): Assertion[String] =
     Assertion.assertion("containsString")(param(element))(_.contains(element))
 
-  final def containsTheSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    Assertion.assertion("containsTheSameElements")(param(other)) { actual =>
-      actual.size == other.size && actual.toSet.diff(other.toSet).isEmpty
+  final def containsTheSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] = {
+    def hasSameElementsAndCount(actual: Iterable[A], other: Iterable[A]): Boolean = {
+      val actualWithCounter = actual.groupBy(identity).mapValues(_.size)
+      val otherWithCounter  = other.groupBy(identity).mapValues(_.size)
+      val diff = actualWithCounter ++ otherWithCounter.map {
+        case (k, v) => k -> (v - actualWithCounter.getOrElse(k, 0))
+      }
+      !diff.exists(_._2 != 0)
     }
+
+    Assertion.assertion("containsTheSameElements")(param(other)) { actual =>
+      actual.size == other.size && hasSameElementsAndCount(actual, other)
+    }
+  }
 
   /**
    * Makes a new assertion that requires an exit value to die.
