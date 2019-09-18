@@ -604,7 +604,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       acquire <- Promise.make[Nothing, Unit]
       fiber <- IO
                 .effectAsyncM[Nothing, Unit] { _ =>
-                  IO.bracket(acquire.succeed(()))(_ => release.succeed(()))(_ => IO.never)
+                  acquire.succeed(()).bracket(_ => release.succeed(()))(_ => IO.never)
                 }
                 .fork
       _ <- acquire.await
@@ -676,7 +676,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket(promise.succeed(()) <* IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        fiber   <- (promise.succeed(()) <* IO.never).bracket(_ => IO.unit)(_ => IO.unit).fork
         res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
@@ -1084,7 +1084,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   def testBracketUseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.never).fork
+        fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt
       } yield res
     unsafeRun(io) must_=== Exit.interrupt
