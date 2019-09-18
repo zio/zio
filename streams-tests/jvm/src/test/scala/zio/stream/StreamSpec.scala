@@ -25,11 +25,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     leftover handling                    $aggregateLeftoverHandling
 
   Stream.aggregateWithinEither
-    aggregateWithinEither                $aggregateWithinEither
-    error propagation                    $aggregateWithinEitherErrorPropagation1
-    error propagation                    $aggregateWithinEitherErrorPropagation2
-    interruption propagation             $aggregateWithinEitherInterruptionPropagation
-    interruption propagation             $aggregateWithinEitherInterruptionPropagation2
+    aggregateWithinEither                 $aggregateWithinEither
+    error propagation                     $aggregateWithinEitherErrorPropagation1
+    error propagation                     $aggregateWithinEitherErrorPropagation2
+    interruption propagation              $aggregateWithinEitherInterruptionPropagation
+    interruption propagation              $aggregateWithinEitherInterruptionPropagation2
+    aggregateWithinEitherLeftoverHandling $aggregateWithinEitherLeftoverHandling
 
   Stream.aggregateWithin
     aggregateWithin                      $aggregateWithin
