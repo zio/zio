@@ -213,7 +213,7 @@ lazy val benchmarks = project.module
   .settings(replSettings)
   .settings(
     // skip 2.13 benchmarks until twitter-util publishes for 2.13
-    crossScalaVersions -= "2.13.0",
+    crossScalaVersions -= "2.13.1",
     //
     skip in publish := true,
     libraryDependencies ++=
@@ -247,7 +247,7 @@ lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
     // skip 2.13 mdoc until mdoc is available for 2.13
-    crossScalaVersions -= "2.13.0",
+    crossScalaVersions -= "2.13.1",
     //
     skip.in(publish) := true,
     moduleName := "zio-docs",
