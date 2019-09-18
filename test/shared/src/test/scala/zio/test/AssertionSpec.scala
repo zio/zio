@@ -313,6 +313,10 @@ object AssertionSpec {
     testFailure(
       assert(Seq(1, 2, 3, 4), containsTheSameElements(Seq(1, 2, 3))),
       message = "containsTheSameElements must fail when the iterables do not contain the same elements"
+    ),
+    testSuccess(
+      assert(Seq(4, 3, 1, 2), containsTheSameElements(Seq(1, 2, 3, 4))),
+      message = "containsTheSameElements must succeed when both iterables contain the same elements in different order"
     )
   )
 }
