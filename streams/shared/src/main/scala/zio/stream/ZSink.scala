@@ -1883,4 +1883,9 @@ object ZSink extends ZSinkPlatformSpecific {
 
       def cont(state: State) = state._3
     }
+
+  implicit class Ops[R, E, A0, A, B](val self: ZSink[R, E, A0, A, B]) extends AnyVal {
+    final def andThen[R1 <: R, E1 >: E, C, A00](that: ZSink[R1, E1, B, B, C]): ZSink[R1, E1, A0, A, C] =
+      new AndThenSink[R1, R, E1, E, A, B, A0, C, A00](self, that)
+  }
 }
