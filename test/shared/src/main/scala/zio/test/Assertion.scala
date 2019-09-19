@@ -214,13 +214,15 @@ object Assertion {
     Assertion.assertion("containsString")(param(element))(_.contains(element))
 
   final def containsTheSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] = {
+    def toMapWithCounter(i: Iterable[A]) = i.groupBy(identity).view.map(v => (v._1, v._2.size)).toMap
+
     def hasSameElementsAndCount(actual: Iterable[A], other: Iterable[A]): Boolean = {
-      val actualWithCounter = actual.groupBy(identity).mapValues(_.size)
-      val otherWithCounter  = other.groupBy(identity).mapValues(_.size)
-      val diff = actualWithCounter ++ otherWithCounter.map {
+      val actualWithCounter = toMapWithCounter(actual)
+      val otherWithCounter  = toMapWithCounter(other)
+      val counterDiff = actualWithCounter ++ otherWithCounter.map {
         case (k, v) => k -> (v - actualWithCounter.getOrElse(k, 0))
       }
-      !diff.exists(_._2 != 0)
+      !counterDiff.exists(_._2 != 0)
     }
 
     Assertion.assertion("containsTheSameElements")(param(other)) { actual =>
