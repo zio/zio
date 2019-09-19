@@ -621,7 +621,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
               } yield a
             }
 
-            Pull.sequenceCauseOption(e) match {
+            Cause.sequenceCauseOption(e) match {
               case None    => Pull.end
               case Some(c) => next(c)
             }
@@ -1330,7 +1330,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream {
       self.process
         .mapErrorCause(f)
-        .map(_.mapErrorCause(Pull.sequenceCauseOption(_) match {
+        .map(_.mapErrorCause(Cause.sequenceCauseOption(_) match {
           case None    => Cause.fail(None)
           case Some(c) => f(c).map(Some(_))
         }))
@@ -2141,31 +2141,6 @@ object ZStream extends ZStreamPlatformSpecific {
     def dieMessage(m: String): Pull[Any, Nothing, Nothing]   = UIO.dieMessage(m)
     def done[E, A](e: Exit[E, A]): Pull[Any, E, A]           = IO.done(e).mapError(Some(_))
     def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A] = p.await.mapError(Some(_))
-
-    def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
-      c match {
-        case Cause.Traced(cause, trace) => sequenceCauseOption(cause).map(Cause.Traced(_, trace))
-        case Cause.Meta(cause, data)    => sequenceCauseOption(cause).map(Cause.Meta(_, data))
-        case Cause.Interrupt            => Some(Cause.Interrupt)
-        case d @ Cause.Die(_)           => Some(d)
-        case Cause.Fail(Some(e))        => Some(Cause.Fail(e))
-        case Cause.Fail(None)           => None
-        case Cause.Then(left, right) =>
-          (sequenceCauseOption(left), sequenceCauseOption(right)) match {
-            case (Some(cl), Some(cr)) => Some(Cause.Then(cl, cr))
-            case (None, Some(cr))     => Some(cr)
-            case (Some(cl), None)     => Some(cl)
-            case (None, None)         => None
-          }
-
-        case Cause.Both(left, right) =>
-          (sequenceCauseOption(left), sequenceCauseOption(right)) match {
-            case (Some(cl), Some(cr)) => Some(Cause.Both(cl, cr))
-            case (None, Some(cr))     => Some(cr)
-            case (Some(cl), None)     => Some(cl)
-            case (None, None)         => None
-          }
-      }
   }
 
   implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
@@ -2298,7 +2273,7 @@ object ZStream extends ZStreamPlatformSpecific {
                           k =>
                             runtime.unsafeRunAsync_(
                               k.foldCauseM(
-                                Pull.sequenceCauseOption(_) match {
+                                Cause.sequenceCauseOption(_) match {
                                   case None    => output.offer(Pull.end).unit
                                   case Some(c) => output.offer(Pull.halt(c)).unit
                                 },
@@ -2331,7 +2306,7 @@ object ZStream extends ZStreamPlatformSpecific {
               k =>
                 runtime.unsafeRunAsync_(
                   k.foldCauseM(
-                    Pull.sequenceCauseOption(_) match {
+                    Cause.sequenceCauseOption(_) match {
                       case None    => output.offer(Pull.end).unit
                       case Some(c) => output.offer(Pull.halt(c)).unit
                     },
@@ -2361,7 +2336,7 @@ object ZStream extends ZStreamPlatformSpecific {
                            k =>
                              runtime.unsafeRunAsync_(
                                k.foldCauseM(
-                                 Pull.sequenceCauseOption(_) match {
+                                 Cause.sequenceCauseOption(_) match {
                                    case None    => output.offer(Pull.end).unit
                                    case Some(c) => output.offer(Pull.halt(c)).unit
                                  },

@@ -25,7 +25,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 
   final def defects: List[Throwable] =
     self
-      .fold(List.empty[Throwable]) {
+      .foldLeft(List.empty[Throwable]) {
         case (z, Die(v)) => v :: z
       }
       .reverse
@@ -39,6 +39,13 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       case Meta(cause, _)    => cause.died
       case _                 => false
     }
+
+  /**
+   * Returns the `Throwable` associated with the first `Die` in this `Cause` if
+   * one exists.
+   */
+  final def dieOption: Option[Throwable] =
+    fold(_ => None, t => Some(t), None)(_ orElse _, _ orElse _, (z, _) => z)
 
   final def failed: Boolean =
     self match {
@@ -62,19 +69,40 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 
   final def failures[E1 >: E]: List[E1] =
     self
-      .fold(List.empty[E1]) {
+      .foldLeft(List.empty[E1]) {
         case (z, Fail(v)) => v :: z
       }
       .reverse
 
-  final def fold[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z =
-    (f.lift(z -> self).getOrElse(z), self) match {
-      case (z, Then(left, right)) => right.fold(left.fold(z)(f))(f)
-      case (z, Both(left, right)) => right.fold(left.fold(z)(f))(f)
-      case (z, Traced(cause, _))  => cause.fold(z)(f)
-      case (z, Meta(cause, _))    => cause.fold(z)(f)
-
-      case (z, _) => z
+  final def fold[Z](
+    failCase: E => Z,
+    dieCase: Throwable => Z,
+    interruptCase: => Z
+  )(thenCase: (Z, Z) => Z, bothCase: (Z, Z) => Z, tracedCase: (Z, ZTrace) => Z): Z =
+    self match {
+      case Fail(value) =>
+        failCase(value)
+      case Die(value) =>
+        dieCase(value)
+      case Interrupt =>
+        interruptCase
+      case Then(left, right) =>
+        thenCase(
+          left.fold(failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase),
+          right.fold(failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase)
+        )
+      case Both(left, right) =>
+        bothCase(
+          left.fold(failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase),
+          right.fold(failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase)
+        )
+      case Traced(cause, trace) =>
+        tracedCase(
+          cause.fold(failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase),
+          trace
+        )
+      case Meta(cause, _) =>
+        cause.fold(failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase)
     }
 
   final def interrupted: Boolean =
@@ -219,8 +247,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
               causeToSequential(Meta(left, data))
             case Traced(c, _) =>
               causeToSequential(Meta(c, data))
-            case Meta(c, d) =>
-              causeToSequential(Meta(c, Data(data.stackless || d.stackless)))
+            case m @ Meta(_, _) =>
+              causeToSequential(m)
           } else causeToSequential(cause)
 
       }
@@ -306,22 +334,61 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 
   final def traces: List[ZTrace] =
     self
-      .fold(List.empty[ZTrace]) {
+      .foldLeft(List.empty[ZTrace]) {
         case (z, Traced(_, trace)) => trace :: z
       }
       .reverse
 
+  private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z =
+    (f.lift(z -> self).getOrElse(z), self) match {
+      case (z, Then(left, right)) => right.foldLeft(left.foldLeft(z)(f))(f)
+      case (z, Both(left, right)) => right.foldLeft(left.foldLeft(z)(f))(f)
+      case (z, Traced(cause, _))  => cause.foldLeft(z)(f)
+      case (z, Meta(cause, _))    => cause.foldLeft(z)(f)
+
+      case (z, _) => z
+    }
 }
 
 object Cause extends Serializable {
 
-  final def die(defect: Throwable): Cause[Nothing]               = Die(defect)
-  final def fail[E](error: E): Cause[E]                          = Fail(error)
-  final val interrupt: Cause[Nothing]                            = Interrupt
-  final def stackless[E](cause: Cause[E]): Cause[E]              = Meta(cause, Data(true))
-  final def traced[E](cause: Cause[E], trace: ZTrace): Traced[E] = Traced(cause, trace)
+  final def die(defect: Throwable): Cause[Nothing]              = Die(defect)
+  final def fail[E](error: E): Cause[E]                         = Fail(error)
+  final val interrupt: Cause[Nothing]                           = Interrupt
+  final def stack[E](cause: Cause[E]): Cause[E]                 = Meta(cause, Data(false))
+  final def stackless[E](cause: Cause[E]): Cause[E]             = Meta(cause, Data(true))
+  final def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Traced(cause, trace)
 
-  final case class Fail[E](value: E) extends Cause[E] {
+  /**
+   * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by
+   * recursively stripping out any failures with the error `None`.
+   */
+  final def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
+    c match {
+      case Cause.Traced(cause, trace) => sequenceCauseOption(cause).map(Cause.Traced(_, trace))
+      case Cause.Meta(cause, data)    => sequenceCauseOption(cause).map(Cause.Meta(_, data))
+      case Cause.Interrupt            => Some(Cause.Interrupt)
+      case d @ Cause.Die(_)           => Some(d)
+      case Cause.Fail(Some(e))        => Some(Cause.Fail(e))
+      case Cause.Fail(None)           => None
+      case Cause.Then(left, right) =>
+        (sequenceCauseOption(left), sequenceCauseOption(right)) match {
+          case (Some(cl), Some(cr)) => Some(Cause.Then(cl, cr))
+          case (None, Some(cr))     => Some(cr)
+          case (Some(cl), None)     => Some(cl)
+          case (None, None)         => None
+        }
+
+      case Cause.Both(left, right) =>
+        (sequenceCauseOption(left), sequenceCauseOption(right)) match {
+          case (Some(cl), Some(cr)) => Some(Cause.Both(cl, cr))
+          case (None, Some(cr))     => Some(cr)
+          case (Some(cl), None)     => Some(cl)
+          case (None, None)         => None
+        }
+    }
+
+  private case class Fail[E](value: E) extends Cause[E] {
     override final def equals(that: Any): Boolean = that match {
       case fail: Fail[_]     => value == fail.value
       case traced: Traced[_] => this == traced.cause
@@ -330,13 +397,23 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Die(value: Throwable) extends Cause[Nothing] {
+  object Fail {
+    def apply[E](value: E): Cause[E] =
+      new Fail(value)
+  }
+
+  private case class Die(value: Throwable) extends Cause[Nothing] {
     override final def equals(that: Any): Boolean = that match {
       case die: Die          => value == die.value
       case traced: Traced[_] => this == traced.cause
       case meta: Meta[_]     => this == meta.cause
       case _                 => false
     }
+  }
+
+  object Die {
+    final def apply(value: Throwable): Cause[Nothing] =
+      new Die(value)
   }
 
   case object Interrupt extends Cause[Nothing] {
@@ -349,7 +426,7 @@ object Cause extends Serializable {
   }
 
   // Traced is excluded completely from equals & hashCode
-  final case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
+  private case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
     override final def hashCode: Int = cause.hashCode()
     override final def equals(obj: Any): Boolean = obj match {
       case traced: Traced[_] => cause == traced.cause
@@ -358,8 +435,13 @@ object Cause extends Serializable {
     }
   }
 
+  object Traced {
+    def apply[E](cause: Cause[E], trace: ZTrace): Cause[E] =
+      new Traced(cause, trace)
+  }
+
   // Meta is excluded completely from equals & hashCode
-  final case class Meta[E](cause: Cause[E], data: Data) extends Cause[E] {
+  private case class Meta[E](cause: Cause[E], data: Data) extends Cause[E] {
     override final def hashCode: Int = cause.hashCode
     override final def equals(obj: Any): Boolean = obj match {
       case traced: Traced[_] => cause == traced
@@ -368,7 +450,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+  private case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
     override final def equals(that: Any): Boolean = that match {
       case traced: Traced[_] => self.equals(traced.cause)
       case meta: Meta[_]     => self.equals(meta.cause)
@@ -398,7 +480,12 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+  object Then {
+    def apply[E](left: Cause[E], right: Cause[E]): Cause[E] =
+      new Then(left, right)
+  }
+
+  private case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
     override final def equals(that: Any): Boolean = that match {
       case traced: Traced[_] => self.equals(traced.cause)
       case meta: Meta[_]     => self.equals(meta.cause)
@@ -421,16 +508,12 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Data private[Cause] (stackless: Boolean)
-
-  object Data {
-    final def apply(stackless: Boolean): Data =
-      new Data(stackless)
-    final def unapply(data: Data): Option[Boolean] =
-      Some(data.stackless)
-    final def copy(stackless: Boolean): Data =
-      Data(stackless)
+  object Both {
+    def apply[E](left: Cause[E], right: Cause[E]): Cause[E] =
+      new Both(left, right)
   }
+
+  private case class Data(stackless: Boolean)
 
   private[Cause] def sym(f: (Cause[_], Cause[_]) => Boolean): (Cause[_], Cause[_]) => Boolean =
     (l, r) => f(l, r) || f(r, l)
