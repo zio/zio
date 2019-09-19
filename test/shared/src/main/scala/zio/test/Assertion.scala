@@ -240,7 +240,7 @@ object Assertion {
    */
   final def equalTo[A](expected: A): Assertion[A] =
     Assertion.assertion("equalTo")(param(expected)) { actual =>
-      (expected, actual) match {
+      (actual, expected) match {
         case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
         case (left, right)                     => left == right
       }

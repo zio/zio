@@ -489,7 +489,7 @@ object Cause extends Serializable {
     override final def equals(that: Any): Boolean = that match {
       case traced: Traced[_] => self.equals(traced.cause)
       case meta: Meta[_]     => self.equals(meta.cause)
-      case other: Cause[_]   => eq(other) || sym(assoc)(self, other) || comm(other)
+      case other: Cause[_]   => eq(other) || sym(assoc)(self, other) || sym(dist)(self, other) || comm(other)
       case _                 => false
     }
     override final def hashCode: Int = flatten(self).hashCode
@@ -498,10 +498,22 @@ object Cause extends Serializable {
       case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right
       case _                          => false
     }
+
     private def assoc(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
       case (Both(Both(al, bl), cl), Both(ar, Both(br, cr))) => al == ar && bl == br && cl == cr
       case _                                                => false
     }
+
+    private def dist(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
+      case (Both(Then(al1, bl), Then(al2, cl)), Then(ar, Both(br, cr)))
+          if al1 == al2 && al1 == ar && bl == br && cl == cr =>
+        true
+      case (Both(Then(al, cl1), Then(bl, cl2)), Then(Both(ar, br), cr))
+          if cl1 == cl2 && al == ar && bl == br && cl1 == cr =>
+        true
+      case _ => false
+    }
+
     private def comm(that: Cause[_]): Boolean = (self, that) match {
       case (Both(al, bl), Both(ar, br)) => al == br && bl == ar
       case _                            => false
