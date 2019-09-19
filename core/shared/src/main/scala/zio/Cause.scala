@@ -359,7 +359,7 @@ object Cause extends Serializable {
   }
 
   // Meta is excluded completely from equals & hashCode
-  case class Meta[E] private (cause: Cause[E], private val data: Data) extends Cause[E] {
+  case class Meta[E](cause: Cause[E], data: Data) extends Cause[E] {
     override final def hashCode: Int = cause.hashCode
     override final def equals(obj: Any): Boolean = obj match {
       case traced: Traced[_] => cause == traced
