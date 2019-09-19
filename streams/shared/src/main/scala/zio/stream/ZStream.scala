@@ -1964,6 +1964,14 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
 
   /**
+   * Filters any 'None'.
+   */
+  final def unNone[A1](implicit ev: A <:< Option[A1]): ZStream[R, E, A1] = {
+    val _ = ev
+    self.asInstanceOf[ZStream[R, E, Option[A1]]].collect { case Some(a) => a }
+  }
+
+  /**
    * Zips this stream together with the specified stream.
    */
   final def zip[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
