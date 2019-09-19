@@ -65,7 +65,7 @@ protected[zio] abstract class MutableConcurrentQueue[A] {
    * param.
    *
    * @note that if there's no meaningful default for your type, you
-   * can alway use `poll(null)`. Not the best, but reasonable price
+   * can always use `poll(null)`. Not the best, but reasonable price
    * to pay for lower heap churn from not using [[scala.Option]] here.
    */
   def poll(default: A): A
