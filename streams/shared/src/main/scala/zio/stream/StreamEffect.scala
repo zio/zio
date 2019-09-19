@@ -36,14 +36,13 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
           {
-            var ob: Option[B]                        = None
-            val pfOpt: PartialFunction[A, Option[B]] = pf.andThen(Some(_))
+            var b = null.asInstanceOf[B]
 
-            while (ob.isEmpty) {
-              ob = pfOpt.applyOrElse(thunk(), (_: A) => None)
+            while (b == null) {
+              b = pf.applyOrElse(thunk(), (_: A) => null.asInstanceOf[B])
             }
 
-            ob.get
+            b
           }
         }
       }
@@ -102,21 +101,21 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
   final def foldLazyPure[S](s: S)(cont: S => Boolean)(f: (S, A) => S): Managed[E, S] =
     processEffect.flatMap { thunk =>
       def fold(): Either[E, S] = {
-        var state            = s
-        var done             = false
-        var error: Option[E] = None
+        var state = s
+        var done  = false
+        var error = null.asInstanceOf[E]
 
-        while (!done && error.isEmpty && cont(state)) {
+        while (!done && error == null && cont(state)) {
           try {
             val a = thunk()
             state = f(state, a)
           } catch {
-            case StreamEffect.Failure(e) => error = Some(e.asInstanceOf[E])
+            case StreamEffect.Failure(e) => error = e.asInstanceOf[E]
             case StreamEffect.End        => done = true
           }
         }
 
-        error.fold[Either[E, S]](Right(state))(Left(_))
+        if (error == null) Right(state) else Left(error)
       }
 
       Managed.effectTotal(Managed.fromEither(fold())).flatten
@@ -223,7 +222,7 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
                   if (!dirty) {
                     if (done) StreamEffect.end
                     else if (leftovers.notEmpty) {
-                      val (newState, newLeftovers) = sink.stepChunkSlicePure(state, leftovers)
+                      val (newState, newLeftovers) = sink.stepChunkPure(state, leftovers)
                       leftovers = newLeftovers
                       go(newState, true)
                     } else {

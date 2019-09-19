@@ -113,6 +113,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def bimap[E2, B](f: E => E2, g: A => B): ZIO[R, E2, B] = mapError(f).map(g)
 
   /**
+   * Shorthand for the uncurried version of `ZIO.bracket`.
+   */
+  final def bracket[R1 <: R, E1 >: E, B](
+    release: A => ZIO[R1, Nothing, _],
+    use: A => ZIO[R1, E1, B]
+  ): ZIO[R1, E1, B] = ZIO.bracket(self, release, use)
+
+  /**
+   * Shorthand for the curried version of `ZIO.bracket`.
+   */
+  final def bracket[R1 <: R, E1 >: E]: ZIO.BracketAcquire[R1, E1, A] = ZIO.bracket(self)
+
+  /**
    * A less powerful variant of `bracket` where the resource acquired by this
    * effect is not needed.
    */
@@ -2507,14 +2520,6 @@ object ZIO extends ZIOFunctions {
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  implicit final class ZIOInvariant[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
-    final def bracket: ZIO.BracketAcquire[R, E, A] =
-      new ZIO.BracketAcquire(self)
-
-    final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
-      new ZIO.BracketExitAcquire(self)
-  }
-
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
     /**
@@ -2522,7 +2527,8 @@ object ZIO extends ZIOFunctions {
      * This resource will get automatically closed, because it implements `AutoCloseable`.
      */
     def bracketAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      io.bracket(a => UIO(a.close()))(use)
+      // TODO: Dotty doesn't infer this properly: io.bracket[R1, E1](a => UIO(a.close()))(use)
+      bracket(io)(a => UIO(a.close()))(use)
 
     /**
      * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].

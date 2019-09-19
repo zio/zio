@@ -91,9 +91,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(publishArtifact in (Test, packageBin) := true)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -172,9 +172,9 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
     )
   )
 
@@ -193,7 +193,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.28"))
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.29"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core % "test->test;compile->compile")
   .dependsOn(test % "test->test;compile->compile")

@@ -249,8 +249,17 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    *
    * Aggregated elements will be fed into the schedule to determine the delays between
    * pulls.
+   *
+   * @param sink used for the aggregation
+   * @param schedule signalling for when to stop the aggregation
+   * @tparam R1 environment type
+   * @tparam E1 error type
+   * @tparam A1 type of the values consumed by the given sink
+   * @tparam B type of the value produced by the given sink and consumed by the given schedule
+   * @tparam C type of the value produced by the given schedule
+   * @return `ZStream[R1 with Clock, E1, Either[C, B]]`
    */
-  final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
+  final def aggregateWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
     schedule: ZSchedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E1, Either[C, B]] = {
@@ -514,6 +523,25 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                .ensuringFirst(producer.interrupt.fork)
       } yield bs
     }
+  }
+
+  /**
+   * Uses `aggregateWithinEither` but only returns the `Right` results.
+   *
+   * @param sink used for the aggregation
+   * @param schedule signalling for when to stop the aggregation
+   * @tparam R1 environment type
+   * @tparam E1 error type
+   * @tparam A1 type of the values consumed by the given sink
+   * @tparam B type of the value produced by the given sink and consumed by the given schedule
+   * @tparam C type of the value produced by the given schedule
+   * @return `ZStream[R1 with Clock, E1, B]`
+   */
+  final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
+    sink: ZSink[R1, E1, A1, A1, B],
+    schedule: ZSchedule[R1, Option[B], C]
+  ): ZStream[R1 with Clock, E1, B] = aggregateWithinEither(sink, schedule).collect {
+    case Right(v) => v
   }
 
   /**
@@ -1543,26 +1571,42 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  final def repeat[R1 <: R](schedule: ZSchedule[R1, Unit, Any]): ZStream[R1 with Clock, E, A] =
-    ZStream[R1 with Clock, E, A] {
+  final def repeat[R1 <: R, B, C](schedule: ZSchedule[R1, Unit, B]): ZStream[R1 with Clock, E, A] =
+    repeatEither(schedule) collect { case Right(a) => a }
+
+  /**
+   * Repeats the entire stream using the specified schedule. The stream will execute normally,
+   * and then repeat again according to the provided schedule. The schedule output will be emitted at the end of each repetition.
+   */
+  final def repeatEither[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZStream[R1 with Clock, E, Either[B, A]] =
+    repeatWith(schedule)(Right(_), Left(_))
+
+  /**
+   * Repeats the entire stream using the specified schedule. The stream will execute normally,
+   * and then repeat again according to the provided schedule. The schedule output will be emitted at the end of each repetition and
+   * can be unified with the stream elements using the provided functions
+   */
+  final def repeatWith[R1 <: R, B, C](
+    schedule: ZSchedule[R1, Unit, B]
+  )(f: A => C, g: B => C): ZStream[R1 with Clock, E, C] =
+    ZStream[R1 with Clock, E, C] {
       for {
         scheduleInit  <- schedule.initial.toManaged_
         schedStateRef <- Ref.make(scheduleInit).toManaged_
         stream = {
-          def repeated: ZStream[R1 with Clock, E, A] = ZStream.unwrap {
+          def repeated: ZStream[R1 with Clock, E, C] = ZStream.unwrap {
             for {
               scheduleState <- schedStateRef.get
               decision      <- schedule.update((), scheduleState)
               s2 = if (decision.cont)
                 ZStream
                   .fromEffect(schedStateRef.set(decision.state) *> clock.sleep(decision.delay))
-                  .drain ++ self ++ repeated
+                  .drain ++ self.map(f) ++ Stream.succeed(g(decision.finish())) ++ repeated
               else
                 ZStream.empty
             } yield s2
           }
-
-          self ++ repeated
+          self.map(f) ++ repeated
         }
         as <- stream.process
       } yield as
@@ -1867,7 +1911,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                   if (done)
                     Pull.end
                   else if (leftovers.notEmpty)
-                    sink.stepChunkSlice(s, leftovers).flatMap {
+                    sink.stepChunk(s, leftovers).flatMap {
                       case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
                     } else
                     as flatMap { a =>
