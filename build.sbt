@@ -33,11 +33,11 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;streamsTestsSpecs2JVM/test;testJVM/test:run;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;streamsTestsSpecs2JS/test;testJS/test:run;examplesJS/test:compile"
 )
 
 lazy val root = project
@@ -57,6 +57,8 @@ lazy val root = project
     streamsJS,
     streamsTestsJVM,
     streamsTestsJS,
+    streamsTestsSpecs2JVM,
+    streamsTestsSpecs2JS,
     benchmarks,
     testJVM,
     testJS,
