@@ -216,7 +216,7 @@ object Assertion {
   final def containsTheSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
     Assertion.assertion("containsTheSameElements")(param(other)) { actual =>
       val actualSeq = actual.toSeq
-      val otherSeq = other.toSeq
+      val otherSeq  = other.toSeq
       actualSeq.diff(otherSeq).isEmpty && otherSeq.diff(actualSeq).isEmpty
     }
 
