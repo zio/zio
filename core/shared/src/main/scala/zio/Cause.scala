@@ -36,6 +36,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       case Then(left, right) => left.died || right.died
       case Both(left, right) => left.died || right.died
       case Traced(cause, _)  => cause.died
+      case Meta(cause, _)    => cause.died
       case _                 => false
     }
 
@@ -45,6 +46,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       case Then(left, right) => left.failed || right.failed
       case Both(left, right) => left.failed || right.failed
       case Traced(cause, _)  => cause.failed
+      case Meta(cause, _)    => cause.failed
       case _                 => false
     }
 
@@ -70,6 +72,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       case (z, Then(left, right)) => right.fold(left.fold(z)(f))(f)
       case (z, Both(left, right)) => right.fold(left.fold(z)(f))(f)
       case (z, Traced(cause, _))  => cause.fold(z)(f)
+      case (z, Meta(cause, _))    => cause.fold(z)(f)
 
       case (z, _) => z
     }
@@ -80,6 +83,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       case Then(left, right) => left.interrupted || right.interrupted
       case Both(left, right) => left.interrupted || right.interrupted
       case Traced(cause, _)  => cause.interrupted
+      case Meta(cause, _)    => cause.interrupted
       case _                 => false
     }
 
@@ -91,11 +95,13 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     case Then(left, right)    => Then(left.map(f), right.map(f))
     case Both(left, right)    => Both(left.map(f), right.map(f))
     case Traced(cause, trace) => Traced(cause.map(f), trace)
+    case Meta(cause, data)    => Meta(cause.map(f), data)
   }
 
   final def untraced: Cause[E] =
     self match {
-      case Traced(cause, _) => cause.untraced
+      case Traced(cause, _)  => cause.untraced
+      case Meta(cause, data) => Meta(cause.untraced, data)
 
       case c @ Fail(_) => c
       case c @ Die(_)  => c
@@ -197,6 +203,25 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
                 Failure("An error was rethrown with a new trace." :: renderTrace(Some(trace))) :: causeToSequential(c).all
               )
           }
+        case Meta(cause, data) =>
+          if (data.stackless) cause match {
+            case Cause.Fail(error) =>
+              renderFail(List(error.toString), None)
+            case Cause.Die(t) =>
+              Sequential(
+                List(Failure("An unchecked error was produced" :: t.toString :: renderTrace(None)))
+              )
+            case Cause.Interrupt =>
+              renderInterrupt(None)
+            case Cause.Then(first, _) =>
+              causeToSequential(Meta(first, data))
+            case Cause.Both(left, _) =>
+              causeToSequential(Meta(left, data))
+            case Traced(c, _) =>
+              causeToSequential(Meta(c, data))
+            case Meta(c, d) =>
+              causeToSequential(Meta(c, Data(data.stackless || d.stackless)))
+          } else causeToSequential(cause)
 
       }
 
@@ -274,6 +299,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         }
 
       case Traced(c, trace) => c.stripFailures.map(Traced(_, trace))
+      case Meta(c, data)    => c.stripFailures.map(Meta(_, data))
     }
 
   final def succeeded: Boolean = !failed
@@ -292,12 +318,14 @@ object Cause extends Serializable {
   final def die(defect: Throwable): Cause[Nothing]               = Die(defect)
   final def fail[E](error: E): Cause[E]                          = Fail(error)
   final val interrupt: Cause[Nothing]                            = Interrupt
+  final def stackless[E](cause: Cause[E]): Cause[E]              = Meta(cause, Data(true))
   final def traced[E](cause: Cause[E], trace: ZTrace): Traced[E] = Traced(cause, trace)
 
   final case class Fail[E](value: E) extends Cause[E] {
     override final def equals(that: Any): Boolean = that match {
       case fail: Fail[_]     => value == fail.value
       case traced: Traced[_] => this == traced.cause
+      case meta: Meta[_]     => this == meta.cause
       case _                 => false
     }
   }
@@ -306,6 +334,7 @@ object Cause extends Serializable {
     override final def equals(that: Any): Boolean = that match {
       case die: Die          => value == die.value
       case traced: Traced[_] => this == traced.cause
+      case meta: Meta[_]     => this == meta.cause
       case _                 => false
     }
   }
@@ -314,6 +343,7 @@ object Cause extends Serializable {
     override final def equals(that: Any): Boolean =
       (this eq that.asInstanceOf[AnyRef]) || (that match {
         case traced: Traced[_] => this == traced.cause
+        case meta: Meta[_]     => this == meta.cause
         case _                 => false
       })
   }
@@ -323,6 +353,17 @@ object Cause extends Serializable {
     override final def hashCode: Int = cause.hashCode()
     override final def equals(obj: Any): Boolean = obj match {
       case traced: Traced[_] => cause == traced.cause
+      case meta: Meta[_]     => cause == meta.cause
+      case _                 => cause == obj
+    }
+  }
+
+  // Meta is excluded completely from equals & hashCode
+  case class Meta[E] private (cause: Cause[E], private val data: Data) extends Cause[E] {
+    override final def hashCode: Int = cause.hashCode
+    override final def equals(obj: Any): Boolean = obj match {
+      case traced: Traced[_] => cause == traced
+      case meta: Meta[_]     => cause == meta.cause
       case _                 => cause == obj
     }
   }
@@ -330,6 +371,7 @@ object Cause extends Serializable {
   final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
     override final def equals(that: Any): Boolean = that match {
       case traced: Traced[_] => self.equals(traced.cause)
+      case meta: Meta[_]     => self.equals(meta.cause)
       case other: Cause[_]   => eq(other) || sym(assoc)(other, self) || sym(dist)(self, other)
       case _                 => false
     }
@@ -359,6 +401,7 @@ object Cause extends Serializable {
   final case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
     override final def equals(that: Any): Boolean = that match {
       case traced: Traced[_] => self.equals(traced.cause)
+      case meta: Meta[_]     => self.equals(meta.cause)
       case other: Cause[_]   => eq(other) || sym(assoc)(self, other) || comm(other)
       case _                 => false
     }
@@ -376,6 +419,17 @@ object Cause extends Serializable {
       case (Both(al, bl), Both(ar, br)) => al == br && bl == ar
       case _                            => false
     }
+  }
+
+  final case class Data private[Cause] (stackless: Boolean)
+
+  object Data {
+    final def apply(stackless: Boolean): Data =
+      new Data(stackless)
+    final def unapply(data: Data): Option[Boolean] =
+      Some(data.stackless)
+    final def copy(stackless: Boolean): Data =
+      Data(stackless)
   }
 
   private[Cause] def sym(f: (Cause[_], Cause[_]) => Boolean): (Cause[_], Cause[_]) => Boolean =

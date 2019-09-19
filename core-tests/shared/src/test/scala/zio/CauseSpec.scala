@@ -18,6 +18,9 @@ class CauseSpec extends Specification with ScalaCheck {
     Both
       `Both.equals` satisfies associativity $e6
       `Both.equals` satisfies commutativity $e7
+    Meta
+      `Meta` is excluded from equals $e9
+      `Meta` is excluded from hashCode $e10
       """
 
   private def e1 = prop { c: Cause[String] =>
@@ -35,18 +38,18 @@ class CauseSpec extends Specification with ScalaCheck {
     }.set(minTestsOk = 10, maxDiscardRatio = 99.0f)
 
   private def e4 = prop { (a: Cause[String], b: Cause[String], c: Cause[String]) =>
-    Then(Then(a, b), c) must_== Then(a, Then(b, c))
-    Then(a, Then(b, c)) must_== Then(Then(a, b), c)
+    (Then(Then(a, b), c) must_== Then(a, Then(b, c))) &&
+    (Then(a, Then(b, c)) must_== Then(Then(a, b), c))
   }
 
   private def e5 = prop { (a: Cause[String], b: Cause[String], c: Cause[String]) =>
-    Then(a, Both(b, c)) must_== Both(Then(a, b), Then(a, c))
-    Then(Both(a, b), c) must_== Both(Then(a, c), Then(b, c))
+    (Then(a, Both(b, c)) must_== Both(Then(a, b), Then(a, c))) &&
+    (Then(Both(a, b), c) must_== Both(Then(a, c), Then(b, c)))
   }
 
   private def e6 = prop { (a: Cause[String], b: Cause[String], c: Cause[String]) =>
-    Both(Both(a, b), c) must_== Both(a, Both(b, c))
-    Both(Both(a, b), c) must_== Both(a, Both(b, c))
+    (Both(Both(a, b), c) must_== Both(a, Both(b, c))) &&
+    (Both(Both(a, b), c) must_== Both(a, Both(b, c)))
   }
 
   private def e7 = prop { (a: Cause[String], b: Cause[String]) =>
@@ -55,5 +58,14 @@ class CauseSpec extends Specification with ScalaCheck {
 
   private def e8 = prop { (c: Cause[String]) =>
     c.untraced.traces.headOption must beNone
+  }
+
+  private def e9 = prop { (c: Cause[String]) =>
+    (Cause.stackless(c) must_== c) &&
+    (c must_== Cause.stackless(c))
+  }
+
+  private def e10 = prop { (c: Cause[String]) =>
+    Cause.stackless(c).hashCode must_== c.hashCode
   }
 }

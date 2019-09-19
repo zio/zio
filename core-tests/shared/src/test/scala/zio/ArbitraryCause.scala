@@ -14,6 +14,9 @@ object ArbitraryCause {
           arbCause[T].arbitrary.map(Traced(_, ZTrace(0, Nil, Nil, None)))
         },
         Gen.lzy {
+          arbCause[T].arbitrary.map(Cause.stackless)
+        },
+        Gen.lzy {
           for {
             left  <- arbCause[T].arbitrary
             right <- arbCause[T].arbitrary

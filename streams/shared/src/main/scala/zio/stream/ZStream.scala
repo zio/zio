@@ -2145,6 +2145,7 @@ object ZStream extends ZStreamPlatformSpecific {
     def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
       c match {
         case Cause.Traced(cause, trace) => sequenceCauseOption(cause).map(Cause.Traced(_, trace))
+        case Cause.Meta(cause, data)    => sequenceCauseOption(cause).map(Cause.Meta(_, data))
         case Cause.Interrupt            => Some(Cause.Interrupt)
         case d @ Cause.Die(_)           => Some(d)
         case Cause.Fail(Some(e))        => Some(Cause.Fail(e))
