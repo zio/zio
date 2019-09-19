@@ -120,17 +120,35 @@ lazy val streamsJS  = streams.js
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
+  .dependsOn(core)
+  .dependsOn(coreTests % "test->test;compile->compile")
+  .settings(stdSettings("core-tests"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner % "test->test;compile->compile")
+  .settings(buildInfoSettings)
+  .settings(publishArtifact in (Test, packageBin) := true)
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val streamsTestsJVM = streamsTests.jvm
+  .configure(_.enablePlugins(JCStressPlugin))
+  .settings(replSettings)
+
+lazy val streamsTestsJS = streamsTests.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  )
+
+lazy val streamsTestsSpecs2 = crossProject(JSPlatform, JVMPlatform)
+  .in(file("streams-tests-specs2"))
   .dependsOn(streams)
   .dependsOn(coreTests % "test->test;compile->compile")
-  .dependsOn(testRunner % "test->test;compile->compile")
   .settings(stdSettings("zio-streams-tests"))
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(buildInfoSettings)
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
-lazy val streamsTestsJS  = streamsTests.js
+lazy val streamsTestsSpecs2JVM = streamsTestsSpecs2.jvm.dependsOn(coreTestsJVM % "test->compile")
+lazy val streamsTestsSpecs2JS  = streamsTestsSpecs2.js
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
