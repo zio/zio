@@ -213,22 +213,12 @@ object Assertion {
   final def containsString(element: String): Assertion[String] =
     Assertion.assertion("containsString")(param(element))(_.contains(element))
 
-  final def containsTheSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] = {
-    def toMapWithCounter(i: Iterable[A]) = i.groupBy(identity).view.map(v => (v._1, v._2.size)).toMap
-
-    def hasSameElementsAndCount(actual: Iterable[A], other: Iterable[A]): Boolean = {
-      val actualWithCounter = toMapWithCounter(actual)
-      val otherWithCounter  = toMapWithCounter(other)
-      val counterDiff = actualWithCounter ++ otherWithCounter.map {
-        case (k, v) => k -> (v - actualWithCounter.getOrElse(k, 0))
-      }
-      !counterDiff.exists(_._2 != 0)
-    }
-
+  final def containsTheSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
     Assertion.assertion("containsTheSameElements")(param(other)) { actual =>
-      actual.size == other.size && hasSameElementsAndCount(actual, other)
+      val actualSeq = actual.toSeq
+      val otherSeq = other.toSeq
+      actualSeq.diff(otherSeq).isEmpty && otherSeq.diff(actualSeq).isEmpty
     }
-  }
 
   /**
    * Makes a new assertion that requires an exit value to die.
