@@ -770,7 +770,7 @@ object ZSchedule {
 
     final def unary_! = copy(cont = !cont)
 
-    final def delayed(f: Duration => Duration): Decision[R, A, B] = copy(duration = f(duration))
+    final def delayed(f: Duration => Duration): Decision[Clock, A, B] = copy(duration = f(duration), delay = Live)
 
     final def combineWith[R1 <: R, C, D](
       that: Decision[R1, C, D]
@@ -796,7 +796,8 @@ object ZSchedule {
   final case object Live extends Delay[Clock] {
     def apply(d: Duration): ZIO[Clock, Nothing, Unit] =
       clock.sleep(d)
-    def combine[R1 <: Clock](that: Delay[R1]): Delay[R1] = this
+    def combine[R1 <: Clock](that: Delay[R1]): Delay[R1] =
+      this
   }
   final case object Mock extends Delay[Any] {
     def apply(d: Duration): ZIO[Any, Nothing, Unit] =
