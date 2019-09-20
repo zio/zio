@@ -181,6 +181,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     mergeWith short circuit       $mergeWithShortCircuit
     mergeWith prioritizes failure $mergeWithPrioritizesFailure
 
+  Stream.paginate            $paginate
+
   Stream.partitionEither
     values        $partitionEitherValues
     errors        $partitionEitherErrors
@@ -1441,6 +1443,18 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .map(_ must_=== Left("Ouch"))
   }
 
+  private def paginate = unsafeRun {
+    val s = (0, List(1, 2, 3))
+
+    ZStream
+      .paginate(s) {
+        case (x, Nil)      => ZIO.succeed(x -> None)
+        case (x, x0 :: xs) => ZIO.succeed(x -> Some(x0 -> xs))
+      }
+      .runCollect
+      .map(_ must_=== List(0, 1, 2, 3))
+  }
+
   private def partitionEitherValues =
     unsafeRun {
       Stream
@@ -1900,7 +1914,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .map(_ must_=== Left("Ouch"))
   }
 
-  private def zipWithLatest = unsafeRun {
+  private def zipWithLatest = flaky {
     val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
     val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
 

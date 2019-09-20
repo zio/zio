@@ -2518,6 +2518,21 @@ object ZStream extends ZStreamPlatformSpecific {
   ): ZStream[R, E, A] = mergeAll(Int.MaxValue, outputBuffer)(streams: _*)
 
   /**
+   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
+  final def paginate[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
+    ZStream[R, E, A] {
+      for {
+        ref <- Ref.make[Option[S]](Some(s)).toManaged_
+      } yield ref.get.flatMap({
+        case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s) *> Pull.emit(a) })
+        case None    => Pull.end
+      })
+    }
+
+  /**
    * Constructs a stream from a range of integers (inclusive).
    */
   final def range(min: Int, max: Int): Stream[Nothing, Int] =

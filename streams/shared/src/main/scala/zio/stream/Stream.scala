@@ -143,6 +143,12 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.fromPull(pull)
 
   /**
+   * See [[ZStream.paginate]]
+   */
+  final def paginate[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
+    ZStream.paginate(s)(f)
+
+  /**
    * See [[ZStream.repeatEffect]]
    */
   final def repeatEffect[E, A](fa: IO[E, A]): Stream[E, A] =
