@@ -1900,7 +1900,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .map(_ must_=== Left("Ouch"))
   }
 
-  private def zipWithLatest = unsafeRun {
+  private def zipWithLatest = flaky {
     val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
     val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
 
