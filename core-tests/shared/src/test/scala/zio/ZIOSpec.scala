@@ -5,13 +5,13 @@ import zio.test.Assertion._
 
 object ZIOSpec
     extends ZIOBaseSpec(
-      suite("ZIOSpec")(
+      suite("ZIO#parallelErrors")(
         testM("oneFailure") {
           for {
             f1     <- IO.fail("error1").fork
             f2     <- IO.succeed("success1").fork
             errors <- f1.zip(f2).join.parallelErrors[String].flip
-          } yield assert(errors, equalTo(::("error1", List())))
+          } yield assert(errors, equalTo("error1" :: Nil))
         },
         testM("allFailures") {
           for {
