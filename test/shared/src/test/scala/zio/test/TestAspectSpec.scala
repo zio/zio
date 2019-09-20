@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ DefaultRuntime, Ref }
+import zio.{ DefaultRuntime, Managed, Ref }
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils.{ execute, ignored, label, succeeded }
@@ -10,11 +10,25 @@ import zio.test.TestUtils.{ execute, ignored, label, succeeded }
 object TestAspectSpec extends DefaultRuntime {
 
   val run: List[Async[(Boolean, String)]] = List(
+    label(aroundEvaluatesTestsInsideContextOfManaged, "around evaluates tests inside context of Managed"),
     label(jsAppliesTestAspectOnlyOnJS, "js applies test aspect only on ScalaJS"),
     label(jsOnlyRunsTestsOnlyOnScalaJS, "jsOnly runs tests only on ScalaJS"),
     label(jvmAppliesTestAspectOnlyOnJVM, "jvm applies test aspect only on ScalaJS"),
     label(jvmOnlyRunsTestsOnlyOnTheJVM, "jvmOnly runs tests only on the JVM")
   )
+
+  def aroundEvaluatesTestsInsideContextOfManaged: Future[Boolean] =
+    unsafeRunToFuture {
+      for {
+        ref <- Ref.make(0)
+        spec = testM("test") {
+          assertM(ref.get, equalTo(1))
+        } @@ around(Managed.make(ref.set(1))(_ => ref.set(-1)))
+        _      <- execute(spec)
+        result <- succeeded(spec)
+        after  <- ref.get
+      } yield result && (after == -1)
+    }
 
   def jsAppliesTestAspectOnlyOnJS: Future[Boolean] =
     unsafeRunToFuture {

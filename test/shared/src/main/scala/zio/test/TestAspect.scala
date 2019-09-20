@@ -101,9 +101,20 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * Constructs an aspect that evaluates every test inside the context of a `Managed`.
+   */
+  def around[R0, E0](managed: ZManaged[R0, E0, Any]) =
+    new TestAspect.PerTest[Any, R0, E0, Any, Nothing, Any] {
+      def perTest[R >: Any <: R0, E >: E0 <: Any, S >: Nothing <: Any](
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        managed.foldCauseM(c => ZManaged.fail(TestFailure.Runtime(c)), ZManaged.succeed).use(_ => test)
+    }
+
+  /**
    * Constructs an aspect that evaluates every test inside the context of the managed function.
    */
-  def around[R0, E0, S0](
+  def aroundTest[R0, E0, S0](
     managed: ZManaged[R0, TestFailure[E0], TestSuccess[S0] => ZIO[R0, TestFailure[E0], TestSuccess[S0]]]
   ) =
     new TestAspect.PerTest[Nothing, R0, E0, Any, S0, S0] {
