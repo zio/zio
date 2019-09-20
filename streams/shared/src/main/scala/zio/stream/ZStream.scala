@@ -2517,8 +2517,8 @@ object ZStream extends ZStreamPlatformSpecific {
   ): ZStream[R, E, A] = mergeAll(Int.MaxValue, outputBuffer)(streams: _*)
 
   /**
-   * Like [[unfoldM]], but alloews the emission of values to end one step further than
-   * the unfolding of the state. This is useful for embedding with paginated APIs,
+   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
   final def paginate[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
