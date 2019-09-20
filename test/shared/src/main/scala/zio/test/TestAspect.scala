@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
+import zio.{ Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration.Duration
 import zio.clock.Clock
 import zio.test.mock.Live
@@ -251,25 +251,28 @@ object TestAspect extends TimeoutVariants {
    */
   def retry[R0, E0, S0](
     schedule: ZSchedule[R0, TestFailure[E0], S0]
-  ): TestAspect[Nothing, R0 with Live[Clock], Nothing, E0, Nothing, S0] =
-    new TestAspect.PerTest[Nothing, R0 with Live[Clock], Nothing, E0, Nothing, S0] {
-      def perTest[R >: Nothing <: R0 with Live[Clock], E >: Nothing <: E0, S >: Nothing <: S0](
+  ): TestAspect[Nothing, Live[R0], Nothing, E0, Nothing, S0] =
+    new TestAspect.PerTest[Nothing, Live[R0], Nothing, E0, Nothing, S0] {
+      def perTest[R >: Nothing <: Live[R0], E >: Nothing <: E0, S >: Nothing <: S0](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
-        def loop(state: schedule.State): ZIO[R with Live[Clock], TestFailure[E], TestSuccess[S]] =
+        def loop(state: schedule.State): ZIO[R with Live[R0], TestFailure[E], TestSuccess[S]] =
           test.foldM(
             err =>
-              schedule
-                .update(err, state)
+              Live
+                .live(
+                  schedule
+                    .update(err, state)
+                )
                 .flatMap(
                   decision =>
-                    if (decision.cont) Live.live(clock.sleep(decision.delay)) *> loop(decision.state)
+                    if (decision.cont) Live.live(decision.delay(decision.duration)) *> loop(decision.state)
                     else ZIO.fail(err)
                 ),
             succ => ZIO.succeed(succ)
           )
 
-        schedule.initial.flatMap(loop)
+        Live.live(schedule.initial).flatMap(loop)
       }
     }
 

@@ -55,7 +55,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Updates the schedule based on a new input and the current state.
    */
-  val update: (A, State) => ZIO[R, Nothing, ZSchedule.Decision[State, B]]
+  val update: (A, State) => ZIO[R, Nothing, ZSchedule.Decision[R, State, B]]
 
   /**
    * Returns a new schedule that continues only as long as both schedules
@@ -255,7 +255,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the specified pure modification
    * applied to each delay produced by this schedule.
    */
-  final def delayed(f: Duration => Duration): ZSchedule[R, A, B] =
+  final def delayed(f: Duration => Duration): ZSchedule[R with Clock, A, B] =
     modifyDelay((_, d) => IO.succeed(f(d)))
 
   /**
@@ -345,12 +345,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0.
    */
-  final def jittered: ZSchedule[R with Random, A, B] = jittered(0.0, 1.0)
+  final def jittered: ZSchedule[R with Clock with Random, A, B] = jittered(0.0, 1.0)
 
   /**
    * Applies random jitter to the schedule bounded by the specified factors, with a given random generator.
    */
-  final def jittered(min: Double, max: Double): ZSchedule[R with Random, A, B] =
+  final def jittered(min: Double, max: Double): ZSchedule[R with Clock with Random, A, B] =
     modifyDelay((_, d) => nextDouble.map(random => d * min * (1 - random) + d * max * random))
 
   /**
@@ -385,12 +385,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the specified effectful modification
    * applied to each delay produced by this schedule.
    */
-  final def modifyDelay[R1 <: R](f: (B, Duration) => ZIO[R1, Nothing, Duration]): ZSchedule[R1, A, B] =
+  final def modifyDelay[R1 <: R](f: (B, Duration) => ZIO[R1, Nothing, Duration]): ZSchedule[R1 with Clock, A, B] =
     updated(
       update =>
         (a, s) =>
           update(a, s).flatMap { step =>
-            f(step.finish(), step.delay).map(d => step.delayed(_ => d))
+            f(step.finish(), step.duration).map(d => step.delayed(_ => d))
           }
     )
 
@@ -399,24 +399,24 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * for every decision of this schedule. This can be used to create schedules
    * that log failures, decisions, or computed values.
    */
-  final def onDecision[A1 <: A](f: (A1, ZSchedule.Decision[State, B]) => UIO[Unit]): ZSchedule[R, A1, B] =
+  final def onDecision[A1 <: A](f: (A1, ZSchedule.Decision[R, State, B]) => UIO[Unit]): ZSchedule[R, A1, B] =
     updated(update => (a, s) => update(a, s).tap(step => f(a, step)))
 
   /**
    * Returns a new schedule that reconsiders the decision made by this schedule.
    */
-  final def reconsider[A1 <: A, C](
-    f: (A1, ZSchedule.Decision[State, B]) => ZSchedule.Decision[State, C]
-  ): ZSchedule[R, A1, C] =
+  final def reconsider[R1 <: R, A1 <: A, C](
+    f: (A1, ZSchedule.Decision[R, State, B]) => ZSchedule.Decision[R1, State, C]
+  ): ZSchedule[R1, A1, C] =
     reconsiderM((a, s) => IO.succeed(f(a, s)))
 
   /**
    * Returns a new schedule that effectfully reconsiders the decision made by
    * this schedule.
    */
-  final def reconsiderM[A1 <: A, C](
-    f: (A1, ZSchedule.Decision[State, B]) => UIO[ZSchedule.Decision[State, C]]
-  ): ZSchedule[R, A1, C] =
+  final def reconsiderM[R1 <: R, A1 <: A, C](
+    f: (A1, ZSchedule.Decision[R, State, B]) => UIO[ZSchedule.Decision[R1, State, C]]
+  ): ZSchedule[R1, A1, C] =
     updated(
       update =>
         (a: A1, s: State) =>
@@ -444,7 +444,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         case Nil => IO.succeed(acc)
         case a :: as =>
           self.update(a, s).flatMap {
-            case ZSchedule.Decision(cont, delay, s, finish) =>
+            case ZSchedule.Decision(cont, delay, s, finish, _) =>
               val acc2 = (delay -> finish()) :: acc
 
               if (cont) run0(as, s, acc2)
@@ -467,8 +467,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def updated[R1 <: R, A1 <: A, B1](
     f: (
-      (A, State) => ZIO[R, Nothing, ZSchedule.Decision[State, B]]
-    ) => (A1, State) => ZIO[R1, Nothing, ZSchedule.Decision[State, B1]]
+      (A, State) => ZIO[R, Nothing, ZSchedule.Decision[R, State, B]]
+    ) => (A1, State) => ZIO[R1, Nothing, ZSchedule.Decision[R1, State, B1]]
   ): ZSchedule[R1, A1, B1] =
     new ZSchedule[R1, A1, B1] {
       type State = self.State
@@ -557,15 +557,15 @@ object ZSchedule {
    * what their decision is, e.g. `Schedule.recurs(5) >>> Schedule.decision`.
    */
   final val decision: Schedule[Any, Boolean] =
-    forever.reconsider[Any, Boolean]((_, d) => d.copy(finish = () => d.cont))
+    forever.reconsider[Any, Any, Boolean]((_, d) => d.copy(finish = () => d.cont))
 
   /**
    * A schedule that will recur forever with no delay, returning the duration
    * between steps. You can chain this onto the end of schedules to find out
-   * what their delay is, e.g. `Schedule.spaced(1.second) >>> Schedule.delay`.
+   * what their delay is, e.g. `ZSchedule.spaced(1.second) >>> Schedule.delay`.
    */
   final val delay: Schedule[Any, Duration] =
-    forever.reconsider[Any, Duration]((_, d) => d.copy(finish = () => d.delay))
+    forever.reconsider[Any, Any, Duration]((_, d) => d.copy(finish = () => d.duration))
 
   /**
    * A schedule that never executes. Note that negating this schedule does not
@@ -581,7 +581,7 @@ object ZSchedule {
 
   final def apply[R, S, A, B](
     initial0: ZIO[R, Nothing, S],
-    update0: (A, S) => ZIO[R, Nothing, ZSchedule.Decision[S, B]]
+    update0: (A, S) => ZIO[R, Nothing, ZSchedule.Decision[R, S, B]]
   ): ZSchedule[R, A, B] =
     new ZSchedule[R, A, B] {
       type State = S
@@ -618,8 +618,9 @@ object ZSchedule {
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */
-  final def delayed[R, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] =
-    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
+  final def delayed[R, A](s: ZSchedule[R, A, Duration]): ZSchedule[R with Clock, A, Duration] =
+    s.modifyDelay((b, d) => IO.succeed(b + d))
+      .reconsider((_, step) => step.copy(finish = () => step.duration, delay = Live))
 
   /**
    * A schedule that recurs for as long as the predicate evaluates to true.
@@ -663,8 +664,8 @@ object ZSchedule {
    * */
   final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] =
     identity[A].reconsider { (a, decision) =>
-      pf.lift(a).fold(Decision.cont(decision.delay, decision.state, Option.empty[B])) { b =>
-        Decision.done(decision.delay, decision.state, Some(b))
+      pf.lift(a).fold(Decision.cont(decision.duration, decision.state, Option.empty[B])) { b =>
+        Decision.done(decision.duration, decision.state, Some(b))
       }
     }
 
@@ -673,7 +674,7 @@ object ZSchedule {
    * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
+  final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, Duration] =
     delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
 
   /**
@@ -681,7 +682,7 @@ object ZSchedule {
    * preceding two delays (similar to the fibonacci sequence). Returns the
    * current duration between recurrences.
    */
-  final def fibonacci(one: Duration): Schedule[Any, Duration] =
+  final def fibonacci(one: Duration): ZSchedule[Clock, Any, Duration] =
     delayed(unfold[(Duration, Duration)]((Duration.Zero, one)) {
       case (a1, a2) => (a2, a1 + a2)
     }.map(_._1))
@@ -703,7 +704,7 @@ object ZSchedule {
    * interval, given by `base * n` where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def linear(base: Duration): Schedule[Any, Duration] =
+  final def linear(base: Duration): ZSchedule[Clock, Any, Duration] =
     delayed(forever.map(i => base * i.doubleValue()))
 
   /**
@@ -730,7 +731,7 @@ object ZSchedule {
    * |action|-----interval-----|action|-----interval-----|action|
    * </pre>
    */
-  final def spaced(interval: Duration): Schedule[Any, Int] =
+  final def spaced(interval: Duration): ZSchedule[Clock, Any, Int] =
     forever.delayed(_ + interval)
 
   /**
@@ -756,28 +757,52 @@ object ZSchedule {
   final def unfoldM[R, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ZSchedule[R, Any, A] =
     ZSchedule[R, A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(Duration.Zero, a, a)))
 
-  sealed case class Decision[+A, +B] private[zio] (cont: Boolean, delay: Duration, state: A, finish: () => B) { self =>
-    final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
-    final def leftMap[C](f: A => C): Decision[C, B]             = copy(state = f(state))
-    final def rightMap[C](f: B => C): Decision[A, C]            = copy(finish = () => f(finish()))
+  sealed case class Decision[-R, +A, +B] private[zio] (
+    cont: Boolean,
+    duration: Duration,
+    state: A,
+    finish: () => B,
+    delay: Delay[R] = Mock
+  ) { self =>
+    final def bimap[C, D](f: A => C, g: B => D): Decision[R, C, D] = copy(state = f(state), finish = () => g(finish()))
+    final def leftMap[C](f: A => C): Decision[R, C, B]             = copy(state = f(state))
+    final def rightMap[C](f: B => C): Decision[R, A, C]            = copy(finish = () => f(finish()))
 
     final def unary_! = copy(cont = !cont)
 
-    final def delayed(f: Duration => Duration): Decision[A, B] = copy(delay = f(delay))
+    final def delayed(f: Duration => Duration): Decision[R, A, B] = copy(duration = f(duration))
 
-    final def combineWith[C, D](
-      that: Decision[C, D]
-    )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): Decision[(A, C), (B, D)] =
+    final def combineWith[R1 <: R, C, D](
+      that: Decision[R1, C, D]
+    )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): Decision[R1, (A, C), (B, D)] =
       Decision(
         g(self.cont, that.cont),
-        f(self.delay, that.delay),
+        f(self.duration, that.duration),
         (self.state, that.state),
-        () => (self.finish(), that.finish())
+        () => (self.finish(), that.finish()),
+        self.delay.combine(that.delay)
       )
   }
   object Decision {
-    final def cont[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(true, d, a, () => b)
-    final def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, d, a, () => b)
+    final def cont[A, B](d: Duration, a: A, b: => B): Decision[Any, A, B] = Decision(true, d, a, () => b)
+    final def delay[A, B](d: Duration, a: A, b: => B): Decision[Clock, A, B] =
+      Decision(true, d, a, () => b, Live)
+    final def done[A, B](d: Duration, a: A, b: => B): Decision[Any, A, B] = Decision(false, d, a, () => b)
+  }
+
+  sealed trait Delay[-R] extends (Duration => ZIO[R, Nothing, Unit]) {
+    def combine[R1 <: R](that: Delay[R1]): Delay[R1]
+  }
+  final case object Live extends Delay[Clock] {
+    def apply(d: Duration): ZIO[Clock, Nothing, Unit] =
+      clock.sleep(d)
+    def combine[R1 <: Clock](that: Delay[R1]): Delay[R1] = this
+  }
+  final case object Mock extends Delay[Any] {
+    def apply(d: Duration): ZIO[Any, Nothing, Unit] =
+      ZIO.unit
+    def combine[R1 <: Any](that: Delay[R1]): Delay[R1] =
+      that
   }
 
   /**
@@ -825,7 +850,7 @@ object ZSchedule {
                 val n = 1 +
                   (if (await < 0) ((now - start) / nanos).toInt else n0)
 
-                Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
+                Decision.delay(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
               }
           }
       )

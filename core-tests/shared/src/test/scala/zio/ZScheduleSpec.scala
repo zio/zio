@@ -119,7 +119,7 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
       (for {
         ref <- Ref.make(0)
         _   <- incr(ref).repeat(Schedule.recurs(42))
-      } yield ()).foldM(
+      } yield ()).foldM[Any, Nothing, String](
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )
@@ -226,8 +226,8 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
             .update(err, state)
             .flatMap(
               step =>
-                if (!step.cont) IO.succeed((Left(err), (step.delay, step.finish()) :: ss))
-                else loop(step.state, (step.delay, step.finish()) :: ss)
+                if (!step.cont) IO.succeed((Left(err), (step.duration, step.finish()) :: ss))
+                else loop(step.state, (step.duration, step.finish()) :: ss)
             ),
         suc => IO.succeed((Right(suc), ss))
       )
@@ -289,16 +289,16 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
   }
 
   def retryNUnitIntervalJittered = {
-    val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
-    val scheduled: UIO[List[(Duration, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
+    val schedule: ZSchedule[Clock with Random, Int, Int] = ZSchedule.recurs(5).delayed(_ => 500.millis).jittered
+    val scheduled: UIO[List[(Duration, Int)]]            = schedule.run(List(1, 2, 3, 4, 5)).provide(TestEnvironment)
 
     val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
     scheduled must_=== expected
   }
 
   def retryNCustomIntervalJittered = {
-    val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
-    val scheduled: UIO[List[(Duration, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
+    val schedule: ZSchedule[Clock with Random, Int, Int] = ZSchedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
+    val scheduled: UIO[List[(Duration, Int)]]            = schedule.run(List(1, 2, 3, 4, 5)).provide(TestEnvironment)
 
     val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
     scheduled must_=== expected
@@ -309,7 +309,7 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
     val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
-    val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
+    val strategy = ZSchedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
     val retried  = retryCollect(io, strategy)
     val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
     retried must_=== expected
@@ -325,18 +325,18 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
   }
 
   def fibonacci =
-    checkErrorWithPredicate(Schedule.fibonacci(100.millis), List(1, 1, 2, 3, 5))
+    checkErrorWithPredicate(ZSchedule.fibonacci(100.millis), List(1, 1, 2, 3, 5))
 
   def linear =
-    checkErrorWithPredicate(Schedule.linear(100.millis), List(1, 2, 3, 4, 5))
+    checkErrorWithPredicate(ZSchedule.linear(100.millis), List(1, 2, 3, 4, 5))
 
   def exponential =
-    checkErrorWithPredicate(Schedule.exponential(100.millis), List(2, 4, 8, 16, 32))
+    checkErrorWithPredicate(ZSchedule.exponential(100.millis), List(2, 4, 8, 16, 32))
 
   def exponentialWithFactor =
-    checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
+    checkErrorWithPredicate(ZSchedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
 
-  def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
+  def checkErrorWithPredicate(schedule: ZSchedule[Clock, Any, Duration], expectedSteps: List[Int]) = {
     var i = 0
     val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
@@ -432,14 +432,15 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
             ZIO.succeed(Right(Success(ok)))
           }
         )
-        .retry(Schedule.spaced(2.seconds) && Schedule.recurs(1))
+        .retry(ZSchedule.spaced(2.seconds) && Schedule.recurs(1))
         .catchAll(
           error => ZIO.succeed(Left(Failure(error.message)))
         )
     foo("Ok").map(ok => ok must_=== Right(Success("Ok")))
   }
 
-  object TestRandom extends Random {
+  object TestEnvironment extends Clock with Random {
+    val clock: Clock.Service[Any] = Clock.Live.clock
     object random extends Random.Service[Any] {
       val nextBoolean: UIO[Boolean] = UIO.succeed(false)
       def nextBytes(length: Int): UIO[Chunk[Byte]] =

@@ -262,7 +262,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def aggregateWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
     schedule: ZSchedule[R1, Option[B], C]
-  ): ZStream[R1 with Clock, E1, Either[C, B]] = {
+  ): ZStream[R1, E1, Either[C, B]] = {
     /*
      * How this works:
      *
@@ -373,7 +373,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       unfoldState: UnfoldState,
       stateVar: Ref[State],
       permits: Semaphore
-    ): ZIO[R1 with Clock, E1, Option[(Chunk[Either[C, B]], UnfoldState)]] =
+    ): ZIO[R1, E1, Option[(Chunk[Either[C, B]], UnfoldState)]] =
       for {
         decision <- schedule.update(unfoldState.lastBatch, unfoldState.scheduleState)
         result <- if (!decision.cont)
@@ -384,7 +384,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                    )
                  else
                    for {
-                     _ <- unfoldState.nextBatchCompleted.await.timeout(decision.delay)
+                     _ <- unfoldState.nextBatchCompleted.await
+                           .map(Option(_))
+                           .race(decision.delay(decision.duration).as(None))
                      r <- withStateVar(stateVar, permits) {
                            case s @ State.Empty(_, notifyDone) =>
                              // Empty state means the producer hasn't done anything yet, so nothing to do other
@@ -506,7 +508,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         case _ => UIO.succeed((UIO.unit, s))
       }.flatten
 
-    ZStream[R1 with Clock, E1, Either[C, B]] {
+    ZStream[R1, E1, Either[C, B]] {
       for {
         initSink  <- sink.initial.toManaged_
         initAwait <- Promise.make[Nothing, Unit].toManaged_
@@ -535,12 +537,12 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * @tparam A1 type of the values consumed by the given sink
    * @tparam B type of the value produced by the given sink and consumed by the given schedule
    * @tparam C type of the value produced by the given schedule
-   * @return `ZStream[R1 with Clock, E1, B]`
+   * @return `ZStream[R1, E1, B]`
    */
   final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
     schedule: ZSchedule[R1, Option[B], C]
-  ): ZStream[R1 with Clock, E1, B] = aggregateWithinEither(sink, schedule).collect {
+  ): ZStream[R1, E1, B] = aggregateWithinEither(sink, schedule).collect {
     case Right(v) => v
   }
 
@@ -1571,14 +1573,14 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  final def repeat[R1 <: R, B, C](schedule: ZSchedule[R1, Unit, B]): ZStream[R1 with Clock, E, A] =
+  final def repeat[R1 <: R, B, C](schedule: ZSchedule[R1, Unit, B]): ZStream[R1, E, A] =
     repeatEither(schedule) collect { case Right(a) => a }
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule. The schedule output will be emitted at the end of each repetition.
    */
-  final def repeatEither[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZStream[R1 with Clock, E, Either[B, A]] =
+  final def repeatEither[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZStream[R1, E, Either[B, A]] =
     repeatWith(schedule)(Right(_), Left(_))
 
   /**
@@ -1588,19 +1590,19 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def repeatWith[R1 <: R, B, C](
     schedule: ZSchedule[R1, Unit, B]
-  )(f: A => C, g: B => C): ZStream[R1 with Clock, E, C] =
-    ZStream[R1 with Clock, E, C] {
+  )(f: A => C, g: B => C): ZStream[R1, E, C] =
+    ZStream[R1, E, C] {
       for {
         scheduleInit  <- schedule.initial.toManaged_
         schedStateRef <- Ref.make(scheduleInit).toManaged_
         stream = {
-          def repeated: ZStream[R1 with Clock, E, C] = ZStream.unwrap {
+          def repeated: ZStream[R1, E, C] = ZStream.unwrap {
             for {
               scheduleState <- schedStateRef.get
               decision      <- schedule.update((), scheduleState)
               s2 = if (decision.cont)
                 ZStream
-                  .fromEffect(schedStateRef.set(decision.state) *> clock.sleep(decision.delay))
+                  .fromEffect(schedStateRef.set(decision.state))
                   .drain ++ self.map(f) ++ Stream.succeed(g(decision.finish())) ++ repeated
               else
                 ZStream.empty
@@ -1653,7 +1655,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Schedules the output of the stream using the provided `schedule` and emits its output at
    * the end (if `schedule` is finite).
    */
-  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1, E, A1] =
     scheduleEither(schedule).map(_.merge)
 
   /**
@@ -1662,7 +1664,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def scheduleEither[R1 <: R, E1 >: E, B](
     schedule: ZSchedule[R1, A, B]
-  ): ZStream[R1 with Clock, E1, Either[B, A]] =
+  ): ZStream[R1, E1, Either[B, A]] =
     scheduleWith(schedule)(Right.apply, Left.apply)
 
   /**
@@ -1671,7 +1673,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
    * and if not short circuited, repeat element once".
    */
-  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1, E, A1] =
     scheduleElementsEither(schedule).map(_.merge)
 
   /**
@@ -1682,7 +1684,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def scheduleElementsEither[R1 <: R, E1 >: E, B](
     schedule: ZSchedule[R1, A, B]
-  ): ZStream[R1 with Clock, E1, Either[B, A]] =
+  ): ZStream[R1, E1, Either[B, A]] =
     scheduleElementsWith(schedule)(Right.apply, Left.apply)
 
   /**
@@ -1694,13 +1696,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def scheduleElementsWith[R1 <: R, E1 >: E, B, C](
     schedule: ZSchedule[R1, A, B]
-  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
-    ZStream[R1 with Clock, E1, C] {
+  )(f: A => C, g: B => C): ZStream[R1, E1, C] =
+    ZStream[R1, E1, C] {
       for {
         as    <- self.process
         state <- Ref.make[Option[(A, schedule.State)]](None).toManaged_
         pull = {
-          def go: Pull[R1 with Clock, E1, C] = state.get.flatMap {
+          def go: Pull[R1, E1, C] = state.get.flatMap {
             case None =>
               for {
                 a    <- as
@@ -1711,7 +1713,6 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
             case Some((a, sched)) =>
               for {
                 decision <- schedule.update(a, sched)
-                _        <- clock.sleep(decision.delay)
                 _        <- state.set(if (decision.cont) Some(a -> decision.state) else None)
               } yield if (decision.cont) f(a) else g(decision.finish())
           }
@@ -1728,8 +1729,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
     schedule: ZSchedule[R1, A, B]
-  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
-    ZStream[R1 with Clock, E1, C] {
+  )(f: A => C, g: B => C): ZStream[R1, E1, C] =
+    ZStream[R1, E1, C] {
       for {
         as    <- self.process
         init  <- schedule.initial.toManaged_
@@ -1744,13 +1745,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                       case Some(a) =>
                         for {
                           decision <- schedule.update(a, sched)
-                          _        <- clock.sleep(decision.delay)
+                          _        <- decision.delay(decision.duration)
                           _        <- state.set((!decision.cont, decision.state, Some(decision.finish)))
                         } yield if (decision.cont) f(a) else g(decision.finish())
 
                       case None =>
                         state.set((false, sched, None)) *> decision0
-                          .fold[Pull[R1 with Clock, E1, C]](Pull.end)(b => Pull.emit(g(b())))
+                          .fold[Pull[R1, E1, C]](Pull.end)(b => Pull.emit(g(b())))
                     }
               } yield c
         }
@@ -1758,14 +1759,14 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     }
 
   @deprecated("use scheduleElements", "1.0.0")
-  final def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+  final def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1, E, A1] =
     scheduleElements(schedule)
 
   /**
    * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
    */
   @deprecated("use scheduleElementsEither", "1.0.0")
-  final def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
+  final def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1, E, Either[B, A]] =
     scheduleElementsEither(schedule)
 
   /**
@@ -2534,7 +2535,7 @@ object ZStream extends ZStreamPlatformSpecific {
   final def repeatEffectWith[R, E, A](
     fa: ZIO[R, E, A],
     schedule: ZSchedule[R, Unit, _]
-  ): ZStream[R with Clock, E, A] =
+  ): ZStream[R, E, A] =
     fromEffect(fa).repeat(schedule)
 
   /**

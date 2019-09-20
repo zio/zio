@@ -17,7 +17,6 @@
 package zio.stream
 
 import zio._
-import zio.clock.Clock
 import zio.Cause
 
 object Stream extends ZStreamPlatformSpecific {
@@ -152,10 +151,10 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.repeatEffectWith]]
    */
-  final def repeatEffectWith[E, A](
+  final def repeatEffectWith[R, E, A](
     fa: IO[E, A],
-    schedule: Schedule[Unit, _]
-  ): ZStream[Clock, E, A] = ZStream.repeatEffectWith(fa, schedule)
+    schedule: ZSchedule[R, Unit, _]
+  ): ZStream[R, E, A] = ZStream.repeatEffectWith(fa, schedule)
 
   /**
    * See [[ZStream.fromIterable]]

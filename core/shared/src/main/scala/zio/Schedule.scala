@@ -50,8 +50,8 @@ object Schedule {
 
   final def apply[S, A, B](
     initial0: UIO[S],
-    update0: (A, S) => UIO[ZSchedule.Decision[S, B]]
-  ): Schedule[A, B] =
+    update0: (A, S) => UIO[ZSchedule.Decision[Any, S, B]]
+  ): ZSchedule[Any, A, B] =
     ZSchedule(initial0, update0)
 
   /**
@@ -78,12 +78,6 @@ object Schedule {
    * See [[ZSchedule.collectUntilM]]
    */
   final def collectUntilM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = ZSchedule.collectUntilM(f)
-
-  /**
-   * See [[ZSchedule.delayed]]
-   */
-  final def delayed[A](s: Schedule[A, Duration]): Schedule[A, Duration] =
-    ZSchedule.delayed(s)
 
   /**
    * See [[ZSchedule.doWhile]]
@@ -128,18 +122,6 @@ object Schedule {
     ZSchedule.doUntil(pf)
 
   /**
-   * See [[ZSchedule.exponential]]
-   */
-  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
-    ZSchedule.exponential(base, factor)
-
-  /**
-   * See [[ZSchedule.fibonacci]]
-   */
-  final def fibonacci(one: Duration): Schedule[Any, Duration] =
-    ZSchedule.fibonacci(one)
-
-  /**
    * See [[ZSchedule.fromFunction]]
    */
   final def fromFunction[A, B](f: A => B): Schedule[A, B] = ZSchedule.fromFunction(f)
@@ -151,12 +133,6 @@ object Schedule {
     ZSchedule.identity
 
   /**
-   * See [[ZSchedule.linear]]
-   */
-  final def linear(base: Duration): Schedule[Any, Duration] =
-    ZSchedule.linear(base)
-
-  /**
    * See [[ZSchedule.logInput]]
    */
   final def logInput[A](f: A => UIO[Unit]): Schedule[A, A] =
@@ -166,12 +142,6 @@ object Schedule {
    * See [[ZSchedule.recurs]]
    */
   final def recurs(n: Int): Schedule[Any, Int] = ZSchedule.recurs(n)
-
-  /**
-   * See [[ZSchedule.spaced]]
-   */
-  final def spaced(interval: Duration): Schedule[Any, Int] =
-    ZSchedule.spaced(interval)
 
   /**
    * See [[ZSchedule.succeed]]
