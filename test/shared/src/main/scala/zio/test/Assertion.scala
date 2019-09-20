@@ -302,7 +302,7 @@ object Assertion {
 
   /**
    * Makes a new assertion that requires an Iterable to have the same elements
-   * than the specified Iterable.
+   * as the specified Iterable, though not necessarily in the same order
    */
   final def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
     Assertion.assertion("hasSameElements")(param(other)) { actual =>
