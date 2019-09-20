@@ -1972,6 +1972,17 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   }
 
   /**
+   * Filters any 'Take'.
+   */
+  final def unTake[E1 >: E, A1](implicit ev: A <:< Take[E1, A1]): ZStream[R, E1, A1] = {
+    val _ = ev
+    self
+      .asInstanceOf[ZStream[R, E, Take[E1, A1]]]
+      .mapM(t => Take.option(UIO.succeed(t)))
+      .collectWhile { case Some(a) => a }
+  }
+
+  /**
    * Zips this stream together with the specified stream.
    */
   final def zip[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
@@ -2173,11 +2184,6 @@ object ZStream extends ZStreamPlatformSpecific {
             case (None, None)         => None
           }
       }
-  }
-
-  implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
-    def unTake: ZStream[R, E, A] =
-      s.mapM(t => Take.option(UIO.succeed(t))).collectWhile { case Some(v) => v }
   }
 
   /**
