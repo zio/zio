@@ -213,14 +213,6 @@ object Assertion {
   final def containsString(element: String): Assertion[String] =
     Assertion.assertion("containsString")(param(element))(_.contains(element))
 
-  final def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec[Iterable[A]]("hasSameElements")(param(other)) { (_, actual) =>
-      val actualSeq = actual.toSeq
-      val otherSeq  = other.toSeq
-
-      isEmpty(actualSeq.diff(otherSeq)) && isEmpty(otherSeq.diff(actualSeq))
-    }
-
   /**
    * Makes a new assertion that requires an exit value to die.
    */
@@ -306,6 +298,18 @@ object Assertion {
   final def hasField[A, B](name: String, proj: A => B, assertion: Assertion[B]): Assertion[A] =
     Assertion.assertionDirect[A]("hasField")(param(quoted(name)), param(field(name)), param(assertion)) { actual =>
       assertion(proj(actual))
+    }
+
+  /**
+   * Makes a new assertion that requires an Iterable to have the same elements
+   * than the specified Iterable.
+   */
+  final def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    Assertion.assertion("hasSameElements")(param(other)) { actual =>
+      val actualSeq = actual.toSeq
+      val otherSeq  = other.toSeq
+
+      actualSeq.diff(otherSeq).isEmpty && otherSeq.diff(actualSeq).isEmpty
     }
 
   /**
