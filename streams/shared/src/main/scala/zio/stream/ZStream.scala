@@ -1713,6 +1713,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
             case Some((a, sched)) =>
               for {
                 decision <- schedule.update(a, sched)
+                _        <- decision.delay(decision.duration)
                 _        <- state.set(if (decision.cont) Some(a -> decision.state) else None)
               } yield if (decision.cont) f(a) else g(decision.finish())
           }
