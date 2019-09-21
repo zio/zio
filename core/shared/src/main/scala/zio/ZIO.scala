@@ -1993,16 +1993,26 @@ private[zio] trait ZIOFunctions extends Serializable {
    * For a sequential version of this method, see `foreach_`.
    */
   final def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
-    ZIO
-      .succeed(as.iterator)
-      .flatMap { i =>
-        def loop(a: A): ZIO[R, E, Unit] =
-          if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
-          else f(a).unit
-        if (i.hasNext) loop(i.next)
-        else ZIO.unit
-      }
-      .refailWithTrace
+    for {
+      resultPromise <- Promise.make[E, Unit]
+      counter       <- Ref.make(0)
+      _ <- ZIO
+            .traverse(as) { a =>
+              resultPromise.await
+                .zipPar(
+                  f(a)
+                    .foldCauseM(cause => resultPromise.halt(cause), _ => {
+                      counter.modify { c =>
+                        val next = c + 1
+                        if (next == as.size) (resultPromise.succeed(()), next) else (UIO.unit, next)
+                      }.flatten
+                    })
+                )
+                .fork
+            }
+            .fork
+      _ <- resultPromise.await
+    } yield ()
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
