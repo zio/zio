@@ -16,6 +16,8 @@
 
 package zio.stream
 
+import java.io.InputStream
+
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
@@ -2164,7 +2166,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     self zipRight that
 }
 
-object ZStream extends ZStreamPlatformSpecific {
+object ZStream {
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
@@ -2468,6 +2470,12 @@ object ZStream extends ZStreamPlatformSpecific {
     fa: ZStream[R, E, ZStream[R, E, A]]
   ): ZStream[R, E, A] =
     flattenPar(Int.MaxValue, outputBuffer)(fa)
+
+  /**
+   * Creates a stream from a [[java.io.InputStream]]
+   */
+  final def fromInputStream(is: InputStream): Stream[Nothing, Byte] =
+    StreamEffect.fromInputStream(is)
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values

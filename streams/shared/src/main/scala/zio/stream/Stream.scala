@@ -16,11 +16,13 @@
 
 package zio.stream
 
+import java.io.InputStream
+
 import zio._
 import zio.clock.Clock
 import zio.Cause
 
-object Stream extends ZStreamPlatformSpecific {
+object Stream {
   import ZStream.Pull
 
   /**
@@ -124,6 +126,12 @@ object Stream extends ZStreamPlatformSpecific {
     fa: Stream[E, Stream[E, A]]
   ): Stream[E, A] =
     ZStream.flattenPar(n, outputBuffer)(fa)
+
+  /**
+   * See [[ZStream.fromInputStream]]
+   */
+  final def fromInputStream(is: InputStream): Stream[Nothing, Byte] =
+    ZStream.fromInputStream(is)
 
   /**
    * See [[ZStream.fromChunk]]

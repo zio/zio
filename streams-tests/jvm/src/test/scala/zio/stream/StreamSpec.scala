@@ -1183,7 +1183,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
               sum += a;
               true
             }
-          )
+        )
       )
     )
     sum must_=== 3
@@ -1204,7 +1204,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         IO.effectTotal {
           sum += a;
           if (sum >= 9) false else true
-        }
+      }
     )
 
     unsafeRun(s)
@@ -1220,8 +1220,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val chunkSize = ZStreamChunk.DefaultChunkSize
     val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
     val is        = new ByteArrayInputStream(data)
-    ZStream.fromInputStream(is, chunkSize).run(Sink.collectAll[Chunk[Byte]]) map { chunks =>
-      chunks.flatMap(_.toArray[Byte]).toArray must_=== data
+    ZStream.fromInputStream(is).run(Sink.collectAll[Byte]) map { bytes =>
+      bytes.toArray must_=== data
     }
   }
 
@@ -1512,11 +1512,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
               other     <- s2.runCollect
               _         <- fib.await
               snapshot2 <- ref.get
-            } yield (snapshot1 must_=== List(2, 0)) && (snapshot2 must_=== List(4, 2, 0)) && (other must_=== List(
-              1,
-              3,
-              5
-            ))
+            } yield
+              (snapshot1 must_=== List(2, 0)) && (snapshot2 must_=== List(4, 2, 0)) && (other must_=== List(
+                1,
+                3,
+                5
+              ))
         }
     }
 

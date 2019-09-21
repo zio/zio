@@ -16,6 +16,8 @@
 
 package zio.stream
 
+import java.io.InputStream
+
 import zio._
 
 private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E, () => A])
@@ -320,6 +322,25 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def fromInputStream(is: InputStream): StreamEffect[Any, Nothing, Byte] =
+    StreamEffect[Any, Nothing, Byte] {
+      Managed.effectTotal {
+        def pull(): Byte = {
+          val a = is.read()
+          if (a < 0) {
+            end
+          } else {
+            a.toByte
+          }
+        }
+
+        () => pull()
+      }
+    }
+
+  /**
+   * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
+   */
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect[Any, Nothing, A] {
       Managed.effectTotal {
