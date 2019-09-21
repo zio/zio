@@ -113,7 +113,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
         }
     }
 
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
+    IO.flatten(state.modify(loop(toRelease, _, IO.unit))).uninterruptible
 
   }
 
