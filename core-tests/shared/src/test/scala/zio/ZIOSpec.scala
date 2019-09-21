@@ -8,6 +8,29 @@ import zio.test.Assertion._
 object ZIOSpec
     extends ZIOBaseSpec(
       suite("ZIO")(
+        suite("forkAll")(
+          testM("happy-path") {
+            val list = (1 to 1000).toList
+            assertM(ZIO.forkAll(list.map(a => ZIO.effectTotal(a))).flatMap(_.join), equalTo(list))
+          },
+          testM("empty input") {
+            assertM(ZIO.forkAll(List.empty).flatMap(_.join), equalTo(List.empty))
+          },
+          testM("propagate failures") {
+            val boom = new Exception
+            for {
+              fiber  <- ZIO.forkAll(List(ZIO.fail(boom)))
+              result <- fiber.join.flip
+            } yield assert(result, equalTo(boom))
+          },
+          testM("propagates defects") {
+            val boom = new Exception("boom")
+            for {
+              fiber  <- ZIO.forkAll(List(ZIO.die(boom)))
+              result <- fiber.join.sandbox.flip
+            } yield assert(result, equalTo(Cause.die(boom)))
+          }
+        ),
         suite("parallelErrors")(
           testM("oneFailure") {
             for {
