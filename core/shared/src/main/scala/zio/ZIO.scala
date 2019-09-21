@@ -737,10 +737,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.accessM(_.fold(self.provide, that.provide))
 
   final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
-    ZIO.accessM[Either[R, R1]] {
-      case Left(a)  => self.provide(a).map(Left(_))
-      case Right(b) => that.provide(b).map(Right(_))
-    }
+    ZIO.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
   /**
    * Returns a successful effect if the value is `Left`, or fails with the error `None`.
