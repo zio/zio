@@ -147,6 +147,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.fromChunk          $fromChunk
   Stream.fromInputStream    $fromInputStream
   Stream.fromIterable       $fromIterable
+  Stream.fromIterator       $fromIterator
   Stream.fromQueue          $fromQueue
 
   Stream.groupBy
@@ -1226,6 +1227,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   private def fromIterable = prop { l: List[Int] =>
     unsafeRunSync(Stream.fromIterable(l).runCollect) must_=== Success(l)
+  }
+
+  private def fromIterator = prop { l: List[Int] =>
+    unsafeRunSync(Stream.fromIterator(UIO.effectTotal(l.iterator)).runCollect) must_=== Success(l)
   }
 
   private def fromQueue = prop { c: Chunk[Int] =>
