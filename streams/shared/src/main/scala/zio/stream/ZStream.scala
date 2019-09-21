@@ -1613,6 +1613,14 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     }
 
   /**
+    * Retries the Pull given the retry policy
+    */
+  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S]): ZStream[R1 with Clock, E, A] = {
+    ZStream(ZManaged(self.process.reserve.retry(policy)))
+  }
+
+
+  /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
   def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
