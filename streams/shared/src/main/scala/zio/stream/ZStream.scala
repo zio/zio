@@ -2503,7 +2503,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an iterator
    */
   final def fromIterator[A](iterator: ZManaged[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
-    managed(iterator).flatMap(StreamEffect.fromIteratorUnsafe)
+    iterator.flatMap(StreamEffect.fromIterator)
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values

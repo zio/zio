@@ -311,10 +311,12 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromIteratorUnsafe[A](iterator: Iterator[A]): StreamEffect[Nothing, A] =
-    StreamEffect[Nothing, A] {
-      Managed.effectTotal { () =>
-        if (iterator.hasNext) iterator.next() else end
+  final def fromIterator[E, A](iterator: Managed[E, Iterator[A]]): StreamEffect[E, A] =
+    StreamEffect[E, A] {
+      iterator.flatMap { iterator =>
+        Managed.effectTotal { () =>
+          if (iterator.hasNext) iterator.next() else end
+        }
       }
     }
 
