@@ -203,11 +203,18 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
     ZStreamChunk(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
 
   /**
-   * Maps each element to a chunk, and flattens the chunks into the output of
+   * Maps each element to a chunk and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
+  def mapConcatChunk[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.flatMap(f)))
+
+  /**
+   * Maps each element to an iterable and flattens the iterable into the output of
+   * this stream.
+   */
+  def mapConcat[B](f: A => Iterable[B]): ZStreamChunk[R, E, B] =
+    mapConcatChunk(f andThen Chunk.fromIterable)
 
   /**
    * Maps over elements of the stream with the specified effectful function.
