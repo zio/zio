@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.Cause.Traced
 import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration.Duration
 import zio.clock.Clock
@@ -187,8 +188,12 @@ object TestAspect extends TimeoutVariants {
 
         test.foldCauseM(
           _.untraced match {
+            case Cause.Fail(TestFailure.Runtime(Traced(e, _))) if p.run(e).isSuccess =>
+              ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+
             case Cause.Fail(TestFailure.Runtime(e)) if p.run(e).isSuccess =>
               ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+
             case other => {
               println(s"other = $other")
               failValue

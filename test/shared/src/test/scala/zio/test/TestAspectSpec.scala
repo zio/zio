@@ -58,7 +58,7 @@ object TestAspectSpec extends DefaultRuntime {
   def failureMakesTestsPassOnAGivenCause: Future[Boolean] =
     unsafeRunToFuture {
       val spec = test("failure aspect")(assert(throw new NullPointerException(), isFalse)) @@ failure(
-        Assertion.assertion[Cause[NullPointerException]]("")()(_ == Cause.Fail(new NullPointerException()))
+        Assertion.assertion[Cause[NullPointerException]]("")()(_.isInstanceOf[Cause[NullPointerException]])
       )
       succeeded(spec)
     }
