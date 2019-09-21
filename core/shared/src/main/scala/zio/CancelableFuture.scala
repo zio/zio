@@ -22,8 +22,9 @@ import scala.util.Try
 
 private[zio] abstract class CancelableFuture[+E, +A](val future: Future[A])
     extends Future[A]
-    with FutureTransformCompat[A]
-    with Cancelable[E, A] {
+    with FutureTransformCompat[A] {
+
+  def cancel: Exit[E, A]
 
   def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
     future.onComplete(f)(executor)

@@ -255,7 +255,7 @@ trait Fiber[+E, +A] { self =>
    * @param ev implicit witness that E is a subtype of Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFuture(implicit ev: E <:< Throwable): UIO[Future[A] with Cancelable[E, A]] =
+  final def toFuture(implicit ev: E <:< Throwable): UIO[CancelableFuture[E, A]] =
     toFutureWith(ev)
 
   /**
@@ -265,7 +265,7 @@ trait Fiber[+E, +A] { self =>
    * @param f function to the error into a Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFutureWith(f: E => Throwable): UIO[Future[A] with Cancelable[E, A]] =
+  final def toFutureWith(f: E => Throwable): UIO[CancelableFuture[E, A]] =
     UIO.effectTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
