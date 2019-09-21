@@ -139,6 +139,9 @@ release: &release
           name: Fetch git tags
           command: git fetch --tags
       - <<: *load_cache
+      - run: 
+          name: Write sonatype credentials
+          command: echo "credentials += Credentials(\"Sonatype Nexus Repository Manager\", \"oss.sonatype.org\", \"$SONATYPE_USER\", \"$SONATYPE_PASSWORD\")" > ~/.sbt/1.0/sonatype.sbt
       - run:
           name: Write PGP public key
           command: echo -n "${PGP_PUBLIC}" | base64 -d > /tmp/public.asc
