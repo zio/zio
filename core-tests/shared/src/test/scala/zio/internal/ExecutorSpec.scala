@@ -1,9 +1,11 @@
 package zio.internal
-
 import java.util.concurrent.RejectedExecutionException
 
+import zio.ZIOBaseSpec
+import zio.test.Assertion._
+import zio.test._
+
 import scala.concurrent.ExecutionContext
-import org.specs2.Specification
 
 final class TestExecutor(val submitResult: Boolean) extends Executor {
   val here: Boolean                       = true
@@ -35,9 +37,9 @@ object TestExecutor {
   }
 }
 
-class ExecutorSpec extends Specification {
+object SpecDescription {
   def is =
-    "ExecutorSpec".title ^ s2"""
+    """ExecutorSpec
       Create the default unyielding executor and check that:
         When converted to an EC, it reports Throwables to stdout                   $exec1
 
@@ -55,24 +57,41 @@ class ExecutorSpec extends Specification {
         Runnables can be submitted                                                 $unyield1
         When converted to an ExecutionContext, it accepts Runnables                $unyield2
     """
-
-  def exec1 = {
-    val t = new CheckPrintThrowable
-    TestExecutor.failing.asEC.reportFailure(t)
-    t.printed must beTrue
-  }
-
-  def fail1 = TestExecutor.failing.submitOrThrow(() => ()) must throwA[RejectedExecutionException]
-  def fail2 = TestExecutor.failing.asEC.execute(() => ()) must throwA[RejectedExecutionException]
-  def fail3 =
-    Executor
-      .fromExecutionContext(1)(TestExecutor.badEC)
-      .submitOrThrow(() => ()) must throwA[RejectedExecutionException]
-
-  def yield1 = TestExecutor.y.submitOrThrow(() => ()) must not(throwA[RejectedExecutionException])
-  def yield2 = TestExecutor.y.asEC.execute(() => ()) must not(throwA[RejectedExecutionException])
-  def yield3 = Executor.fromExecutionContext(1)(TestExecutor.ec).submit(() => ()) must beTrue
-
-  def unyield1 = TestExecutor.u.submitOrThrow(() => ()) must not(throwA[RejectedExecutionException])
-  def unyield2 = TestExecutor.u.asEC.execute(() => ()) must not(throwA[RejectedExecutionException])
 }
+
+object ExecutorSpec
+  extends ZIOBaseSpec(
+    suite("ExecutorSpecNew")(
+      test("exec1") {
+        val t = new CheckPrintThrowable
+        TestExecutor.failing.asEC.reportFailure(t)
+        assert(t.printed, isTrue)
+      },
+      test("fail1") {
+        assert(TestExecutor.failing.submitOrThrow(() => ()), throwsA[RejectedExecutionException])
+      },
+      test("fail2") {
+        assert(TestExecutor.failing.asEC.execute(() => ()), throwsA[RejectedExecutionException])
+      },
+      test("fail3") {
+        assert(Executor
+          .fromExecutionContext(1)(TestExecutor.badEC)
+          .submitOrThrow(() => ()), throwsA[RejectedExecutionException])
+      },
+      test("yield1") {
+        assert(TestExecutor.y.submitOrThrow(() => ()), not(throwsA[RejectedExecutionException]))
+      },
+      test("yield2") {
+        assert(TestExecutor.y.asEC.execute(() => ()), not(throwsA[RejectedExecutionException]))
+      },
+      test("yield3") {
+        assert(Executor.fromExecutionContext(1)(TestExecutor.ec).submit(() => ()), not(throwsA[RejectedExecutionException]))
+      },
+      test("unyield1") {
+        assert(TestExecutor.u.submitOrThrow(() => ()), not(throwsA[RejectedExecutionException]))
+      },
+      test("unyield2") {
+        assert(TestExecutor.u.asEC.execute(() => ()), not(throwsA[RejectedExecutionException]))
+      }
+    )
+  )
