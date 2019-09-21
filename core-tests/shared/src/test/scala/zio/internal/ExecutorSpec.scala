@@ -35,8 +35,14 @@ object TestExecutor {
     override def execute(r: Runnable): Unit            = ()
     override def reportFailure(cause: Throwable): Unit = ()
   }
+
+  // backward compatibility for scala 2.11.12
+  val runnable = new Runnable {
+    override def run(): Unit = ()
+  }
 }
-// suite(   suite())
+
+
 object ExecutorSpec
     extends ZIOBaseSpec(
       suite("ExecutorSpec")(
@@ -49,40 +55,32 @@ object ExecutorSpec
         ),
         suite("Create an executor that cannot have tasks submitted to and check that:")(
           test("It throws an exception upon submission") {
-            assert(TestExecutor.failing.submitOrThrow(() => ()), throwsA[RejectedExecutionException])
-          },
-          test("When converted to an ExecutionContext, it throws an exception") {
-            assert(TestExecutor.failing.asEC.execute(() => ()), throwsA[RejectedExecutionException])
-          },
-          test("When created from an EC, throw when fed an effect") {
             assert(
-              Executor
-                .fromExecutionContext(1)(TestExecutor.badEC)
-                .submitOrThrow(() => ()),
+              TestExecutor.failing.submitOrThrow(TestExecutor.runnable),
               throwsA[RejectedExecutionException]
             )
           }
         ),
         suite("Create a yielding executor and check that:")(
           test("Runnables can be submitted ") {
-            assert(TestExecutor.y.submitOrThrow(() => ()), not(throwsA[RejectedExecutionException]))
+            assert(TestExecutor.y.submitOrThrow(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
           },
           test("When converted to an ExecutionContext, it accepts Runnables") {
-            assert(TestExecutor.y.asEC.execute(() => ()), not(throwsA[RejectedExecutionException]))
+            assert(TestExecutor.y.asEC.execute(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
           },
           test("When created from an EC, must not throw when fed an effect ") {
             assert(
-              Executor.fromExecutionContext(1)(TestExecutor.ec).submit(() => ()),
+              Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable),
               not(throwsA[RejectedExecutionException])
             )
           }
         ),
         suite("Create an unyielding executor and check that:")(
           test("Runnables can be submitted") {
-            assert(TestExecutor.u.submitOrThrow(() => ()), not(throwsA[RejectedExecutionException]))
+            assert(TestExecutor.u.submitOrThrow(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
           },
           test("When converted to an ExecutionContext, it accepts Runnables") {
-            assert(TestExecutor.u.asEC.execute(() => ()), not(throwsA[RejectedExecutionException]))
+            assert(TestExecutor.u.asEC.execute(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
           }
         )
       )
