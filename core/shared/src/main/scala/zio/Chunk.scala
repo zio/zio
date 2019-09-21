@@ -52,7 +52,7 @@ sealed trait Chunk[@specialized +A] { self =>
     val len = self.length
 
     if (n <= 0) self
-    else if (n == len) Chunk.empty
+    else if (n >= len) Chunk.empty
     else
       self match {
         case Chunk.Slice(c, o, l)        => Chunk.Slice(c, o + n, l - n)
@@ -120,6 +120,12 @@ sealed trait Chunk[@specialized +A] { self =>
     if (j == 0) Chunk.Empty
     else Chunk.Slice(Chunk.Arr(dest), 0, j)
   }
+
+  /**
+   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
+   */
+  def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
+    flatMap(ev(_))
 
   /**
    * Returns the concatenation of mapping every element into a new chunk using
@@ -488,6 +494,36 @@ sealed trait Chunk[@specialized +A] { self =>
       }
 
       Chunk.Arr(dest)
+    }
+  }
+
+  def zipAllWith[@specialized B, @specialized C](
+    that: Chunk[B]
+  )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C] = {
+
+    val size = self.length.max(that.length)
+
+    if (size == 0) Chunk.empty
+    else {
+      var j                       = 0
+      implicit val C: ClassTag[C] = Chunk.Tags.fromValue(if (self.length > 0) left(self(0)) else right(that(0)))
+      val dest                    = Array.ofDim[C](size)
+
+      while (j < size) {
+        val c =
+          if (j < self.length) {
+            if (j < that.length) both(self(j), that(j))
+            else (left(self(j)))
+          } else right(that(j))
+
+        dest(j) = c
+
+        j = j + 1
+
+      }
+
+      Chunk.Arr(dest)
+
     }
   }
 

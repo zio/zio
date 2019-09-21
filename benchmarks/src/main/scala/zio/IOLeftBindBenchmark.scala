@@ -120,11 +120,11 @@ class IOLeftBindBenchmark {
 
   private[this] def zioLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =
-      if (i % depth == 0) IO.succeedLazy[Int](i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => IO.succeedLazy(i))
-      else IO.succeedLazy(i)
+      if (i % depth == 0) IO.effectTotal[Int](i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => IO.effectTotal(i))
+      else IO.effectTotal(i)
 
-    runtime.unsafeRun(IO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
+    runtime.unsafeRun(IO.effectTotal(0).flatMap[Any, Nothing, Int](loop))
   }
 
   @Benchmark

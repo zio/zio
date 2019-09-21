@@ -1,30 +1,27 @@
 package zio.test.mock
 
-import scala.Predef.{ assert => SAssert, _ }
-
 import zio.DefaultRuntime
+import zio.test.Async
 import zio.test.mock.MockSystem.Data
+import zio.test.TestUtils.label
 
 object SystemSpec extends DefaultRuntime {
 
-  def run(): Unit = {
-    SAssert(env1, "MockSystem fetch an environment variable and check that if it exists, return a reasonable value")
-    SAssert(env2, "MockSystem fetch an environment variable and check that if it does not exist, return None")
-    SAssert(env3, "MockSystem fetch an environment variable and check that if it is set, return the set value")
-    SAssert(env4, "MockSystem fetch an environment variable and check that if it is cleared, return None")
-    SAssert(prop1, "MockSystem fetch a VM property and check that if it exists, return a reasonable value")
-    SAssert(prop2, "MockSystem fetch a VM property and check that if it does not exist, return None")
-    SAssert(prop3, "MockSystem fetch a VM property and check that if it is set, return the set value")
-    SAssert(prop4, "MockSystem fetch a VM property and check that if it is cleared, return None")
-    SAssert(
-      lineSep1,
-      "MockSystem fetch the system's line separator and check that it is identical to Data.lineSeparator"
-    )
-    SAssert(lineSep2, "MockSystem fetch the system's line separator and check that if it is set, return the set value")
-  }
+  val run: List[Async[(Boolean, String)]] = List(
+    label(env1, "fetch an environment variable and check that if it exists, return a reasonable value"),
+    label(env2, "fetch an environment variable and check that if it does not exist, return None"),
+    label(env3, "fetch an environment variable and check that if it is set, return the set value"),
+    label(env4, "fetch an environment variable and check that if it is cleared, return None"),
+    label(prop1, "fetch a VM property and check that if it exists, return a reasonable value"),
+    label(prop2, "fetch a VM property and check that if it does not exist, return None"),
+    label(prop3, "fetch a VM property and check that if it is set, return the set value"),
+    label(prop4, "fetch a VM property and check that if it is cleared, return None"),
+    label(lineSep1, "fetch the system's line separator and check that it is identical to Data.lineSeparator"),
+    label(lineSep2, "fetch the system's line separator and check that if it is set, return the set value")
+  )
 
   def env1 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data(envs = Map("k1" -> "v1")))
         env        <- mockSystem.env("k1")
@@ -32,7 +29,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def env2 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data())
         env        <- mockSystem.env("k1")
@@ -40,7 +37,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def env3 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data())
         _          <- mockSystem.putEnv("k1", "v1")
@@ -49,7 +46,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def env4 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data(envs = Map("k1" -> "v1")))
         _          <- mockSystem.clearEnv("k1")
@@ -58,7 +55,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def prop1 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data(properties = Map("k1" -> "v1")))
         prop       <- mockSystem.property("k1")
@@ -66,7 +63,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def prop2 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data())
         prop       <- mockSystem.property("k1")
@@ -74,7 +71,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def prop3 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data())
         _          <- mockSystem.putProperty("k1", "v1")
@@ -83,7 +80,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def prop4 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data(properties = Map("k1" -> "v1")))
         _          <- mockSystem.clearProperty("k1")
@@ -92,7 +89,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def lineSep1 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data(lineSeparator = ","))
         lineSep    <- mockSystem.lineSeparator
@@ -100,7 +97,7 @@ object SystemSpec extends DefaultRuntime {
     )
 
   def lineSep2 =
-    unsafeRun(
+    unsafeRunToFuture(
       for {
         mockSystem <- MockSystem.makeMock(Data())
         _          <- mockSystem.setLineSeparator(",")

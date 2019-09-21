@@ -23,7 +23,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): Task[A] = ZIO.apply(a)
+  final def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
    * @see See [[zio.ZIO.access]]
@@ -110,6 +110,42 @@ object RIO {
     ZIO.collectAllParN(n)(as)
 
   /**
+   * @see See [[zio.ZIO.collectAllSuccesses]]
+   */
+  final def collectAllSuccesses[R, A](in: Iterable[RIO[R, A]]): RIO[R, List[A]] =
+    ZIO.collectAllSuccesses(in)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesPar]]
+   */
+  final def collectAllSuccessesPar[R, A](as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
+    ZIO.collectAllSuccessesPar(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesParN]]
+   */
+  final def collectAllSuccessesParN[E, A](n: Int)(as: Iterable[RIO[E, A]]): RIO[E, List[A]] =
+    ZIO.collectAllSuccessesParN(n)(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWith]]
+   */
+  final def collectAllWith[R, A, B](in: Iterable[RIO[R, A]])(f: PartialFunction[A, B]): RIO[R, List[B]] =
+    ZIO.collectAllWith(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithPar]]
+   */
+  final def collectAllWithPar[R, A, B](as: Iterable[RIO[R, A]])(f: PartialFunction[A, B]): RIO[R, List[B]] =
+    ZIO.collectAllWithPar(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithParN]]
+   */
+  final def collectAllWithParN[R, A, B](n: Int)(as: Iterable[RIO[R, A]])(f: PartialFunction[A, B]): RIO[R, List[B]] =
+    ZIO.collectAllWithParN(n)(as)(f)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -149,13 +185,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[A](register: (Task[A] => Unit) => Option[Task[A]]): Task[A] =
+  final def effectAsyncMaybe[R, A](register: (RIO[R, A] => Unit) => Option[RIO[R, A]]): RIO[R, A] =
     ZIO.effectAsyncMaybe(register)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
    */
-  final def effectAsyncM[R, A](register: (RIO[R, A] => Unit) => ZIO[R, Nothing, _]): RIO[R, A] =
+  final def effectAsyncM[R, A](register: (RIO[R, A] => Unit) => RIO[R, _]): RIO[R, A] =
     ZIO.effectAsyncM(register)
 
   /**
@@ -163,6 +199,28 @@ object RIO {
    */
   final def effectAsyncInterrupt[R, A](register: (RIO[R, A] => Unit) => Either[Canceler, RIO[R, A]]): RIO[R, A] =
     ZIO.effectAsyncInterrupt(register)
+
+  /**
+   * Returns a lazily constructed effect, whose construction may itself require effects.
+   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+   */
+  final def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(_ => rio)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotal]]
+   */
+  final def effectSuspendTotal[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendTotalWith(_ => rio)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotalWith]]
+   */
+  final def effectSuspendTotalWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendTotalWith(p)
+
+  /**
+   * Returns a lazily constructed effect, whose construction may itself require effects.
+   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+   */
+  final def effectSuspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -388,8 +446,8 @@ object RIO {
   /**
    * @see See [[zio.ZIO.require]]
    */
-  final def require[R, A](error: Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
-    ZIO.require(error)
+  final def require[A](error: Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
+    ZIO.require[Any, Throwable, A](error)
 
   /**
    * @see See [[zio.ZIO.reserve]]
@@ -423,10 +481,9 @@ object RIO {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  /**
-   * @see See [[zio.ZIO.succeedLazy]]
-   */
-  final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
+  @deprecated("use effectTotal", "1.0.0")
+  final def succeedLazy[A](a: => A): UIO[A] =
+    effectTotal(a)
 
   /**
    * @see See [[zio.ZIO.interruptChildren]]
@@ -472,17 +529,11 @@ object RIO {
   final def superviseStatus[R, A](status: SuperviseStatus)(taskr: RIO[R, A]): RIO[R, A] =
     ZIO.superviseStatus(status)(taskr)
 
-  /**
-   * @see See [[zio.ZIO.suspend]]
-   */
-  final def suspend[R, A](taskr: => RIO[R, A]): RIO[R, A] =
-    ZIO.suspend(taskr)
+  @deprecated("use effectSuspendTotal", "1.0.0")
+  final def suspend[R, A](rio: => RIO[R, A]): RIO[R, A] = effectSuspendTotalWith(_ => rio)
 
-  /**
-   * [[zio.ZIO.suspendWith]]
-   */
-  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(io)
+  @deprecated("use effectSuspendTotalWith", "1.0.0")
+  final def suspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.swap]]

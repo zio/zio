@@ -29,17 +29,9 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
+- [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 
-## ZIO Compatible Libraries
 
-If you know a useful library that works with ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
+## ZIO Interoperability Libraries
 
-- [Cats](https://github.com/typelevel/cats), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://github.com/typelevel/cats-effect)
-- [Scalaz](https://github.com/scalaz/scalaz)
-- [Monix](https://github.com/monix/monix)
-- [Doobie](https://github.com/tpolecat/doobie)
-- [Http4s](https://github.com/http4s/http4s)
-- [FS2](https://github.com/functional-streams-for-scala/fs2)
-- [Circe](https://github.com/circe/circe)
-- [Reactive Streams](https://github.com/reactive-streams/reactive-streams-jvm)
-- [Twitter Futures](https://github.com/twitter/util)
+ZIO provides the ability to interoperate with other parts of the broader ecosystem, see [Interop](../interop/index.md) for overview.

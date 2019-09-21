@@ -9,7 +9,7 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
+  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.1" % "test")
   val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.2"  % "provided")
 
   private val stdOptions = Seq(
@@ -46,7 +46,8 @@ object BuildHelper {
   )
 
   val dottySettings = Seq(
-    crossScalaVersions += "0.16.0-RC3",
+    // Keep this consistent with the version in .circleci/config.yml
+    crossScalaVersions += "0.19.1-bin-20190904-beba63a-NIGHTLY",
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
       val old = (Compile / doc / sources).value
@@ -58,7 +59,28 @@ object BuildHelper {
     }
   )
 
-  val replSettings = Seq(
+  val replSettings = makeReplSettings {
+    """|import zio._
+       |import zio.console._
+       |import zio.duration._
+       |object replRTS extends DefaultRuntime {}
+       |import replRTS._
+       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+    """.stripMargin
+  }
+
+  val streamReplSettings = makeReplSettings {
+    """|import zio._
+       |import zio.console._
+       |import zio.duration._
+       |import zio.stream._
+       |object replRTS extends DefaultRuntime {}
+       |import replRTS._
+       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+    """.stripMargin
+  }
+
+  def makeReplSettings(initialCommandsStr: String) = Seq(
     // In the repl most warnings are useless or worse.
     // This is intentionally := as it's more direct to enumerate the few
     // options we do want than to try to subtract off the ones we don't.
@@ -73,14 +95,7 @@ object BuildHelper {
       "-Xsource:2.13",
       "-Yrepl-class-based"
     ),
-    initialCommands in Compile in console := """
-                                               |import zio._
-                                               |import zio.console._
-                                               |import zio.duration._
-                                               |object replRTS extends DefaultRuntime {}
-                                               |import replRTS._
-                                               |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
-    """.stripMargin
+    initialCommands in Compile in console := initialCommandsStr
   )
 
   def extraOptions(scalaVersion: String, optimize: Boolean) =
@@ -130,7 +145,7 @@ object BuildHelper {
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.8", "2.13.0", "2.11.12"),
+    crossScalaVersions := Seq("2.12.9", "2.13.0", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps,

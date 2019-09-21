@@ -16,43 +16,43 @@
 
 package zio.test.mock
 
-import scala.concurrent.ExecutionContext
-
-import zio._
+import zio.{ DefaultRuntime, Managed }
 import zio.blocking.Blocking
-import zio.internal.PlatformLive
 import zio.scheduler.Scheduler
+import zio.test.Sized
 
 case class MockEnvironment(
+  blocking: Blocking.Service[Any],
   clock: MockClock.Mock,
   console: MockConsole.Mock,
+  live: Live.Service[DefaultRuntime#Environment],
   random: MockRandom.Mock,
-  scheduler: MockScheduler,
-  system: MockSystem.Mock,
-  blocking: Blocking.Service[Any]
+  scheduler: MockClock.Mock,
+  sized: Sized.Service[Any],
+  system: MockSystem.Mock
 ) extends Blocking
+    with Live[DefaultRuntime#Environment]
     with MockClock
     with MockConsole
     with MockRandom
-    with Scheduler
     with MockSystem
+    with Scheduler
+    with Sized
 
 object MockEnvironment {
 
   val Value: Managed[Nothing, MockEnvironment] =
     Managed.fromEffect {
       for {
-        bootstrap <- ZIO.effectTotal(PlatformLive.fromExecutionContext(ExecutionContext.global))
-        clock     <- MockClock.makeMock(MockClock.DefaultData)
-        console   <- MockConsole.makeMock(MockConsole.DefaultData)
-        random    <- MockRandom.makeMock(MockRandom.DefaultData)
-        scheduler = MockScheduler(clock.clockState, Runtime(Clock(clock), bootstrap))
-        system    <- MockSystem.makeMock(MockSystem.DefaultData)
-        blocking  = Blocking.Live.blocking
-      } yield new MockEnvironment(clock, console, random, scheduler, system, blocking)
+        clock    <- MockClock.makeMock(MockClock.DefaultData)
+        console  <- MockConsole.makeMock(MockConsole.DefaultData)
+        live     <- Live.makeService(new DefaultRuntime {}.Environment)
+        random   <- MockRandom.makeMock(MockRandom.DefaultData)
+        time     <- live.provide(zio.clock.nanoTime)
+        _        <- random.setSeed(time)
+        size     <- Sized.makeService(100)
+        system   <- MockSystem.makeMock(MockSystem.DefaultData)
+        blocking = Blocking.Live.blocking
+      } yield new MockEnvironment(blocking, clock, console, live, random, clock, size, system)
     }
-
-  private def Clock(mockClock: MockClock.Mock): MockClock = new MockClock {
-    val clock = mockClock
-  }
 }

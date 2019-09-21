@@ -16,25 +16,18 @@
 
 package zio.test
 
-import zio.{ Managed, UIO, ZIO }
+import zio.Managed
 
-trait TestExecutor[L, -T] {
-  def execute(spec: Spec[L, T], defExec: ExecutionStrategy): UIO[ExecutedSpec[L]]
-}
 object TestExecutor {
-  def managed[R, E, L](environment: Managed[E, R]): TestExecutor[L, ZTest[R, E]] =
-    new TestExecutor[L, ZTest[R, E]] {
-      def execute(spec: ZSpec[R, E, L], defExec: ExecutionStrategy): UIO[ExecutedSpec[L]] =
-        spec.foldM[Any, Nothing, ExecutedSpec[L]](defExec) {
-          case Spec.SuiteCase(label, specs, exec) => ZIO.succeed(Spec.suite(label, specs, exec))
-
-          case Spec.TestCase(label, test) =>
-            val provided = test.provideManaged(environment)
-
-            provided.foldCauseM(
-              e => ZIO.succeed(Spec.test(label, fail(e))),
-              a => ZIO.succeed(Spec.test(label, a))
-            )
-        }
+  def managed[R, E, L, S](environment: Managed[Nothing, R]): TestExecutor[L, ZTest[R, E, S], E, S] =
+    (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
+      spec.foreachExec(defExec) { test =>
+        test
+          .provideManaged(environment)
+          .foldCause(
+            _.failureOrCause.fold(Left(_), c => Left(TestFailure.Runtime(c))),
+            Right(_)
+          )
+      }
     }
 }

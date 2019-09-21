@@ -25,6 +25,12 @@ object Managed {
     ZManaged.absolve(v)
 
   /**
+   * See [[zio.ZManaged]]
+   */
+  final def apply[E, A](reserve: IO[E, Reservation[Any, E, A]]): Managed[E, A] =
+    ZManaged.apply(reserve)
+
+  /**
    * See [[zio.ZManaged.collectAll]]
    */
   final def collectAll[E, A1, A2](ms: Iterable[Managed[E, A2]]): Managed[E, List[A2]] =
@@ -59,6 +65,12 @@ object Managed {
    */
   final def done[E, A](r: Exit[E, A]): Managed[E, A] =
     ZManaged.done(r)
+
+  /**
+   * See [[zio.ZManaged.effectTotal]]
+   */
+  final def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
+    ZManaged.effectTotal(r)
 
   /**
    * See [[zio.ZManaged.fail]]
@@ -148,6 +160,12 @@ object Managed {
    */
   final def make[E, A](acquire: IO[E, A])(release: A => UIO[_]): Managed[E, A] =
     ZManaged.make(acquire)(release)
+
+  /**
+   * See [[zio.ZManaged.makeEffect]]
+   */
+  final def makeEffect[A](acquire: => A)(release: A => _): Managed[Throwable, A] =
+    ZManaged.makeEffect(acquire)(release)
 
   /**
    * See [[zio.ZManaged.makeExit]]
@@ -240,11 +258,9 @@ object Managed {
   final def succeed[A](r: A): Managed[Nothing, A] =
     ZManaged.succeed(r)
 
-  /**
-   * See [[zio.ZManaged.succeedLazy]]
-   */
+  @deprecated("use effectTotal", "1.0.0")
   final def succeedLazy[A](r: => A): Managed[Nothing, A] =
-    ZManaged.succeedLazy(r)
+    effectTotal(r)
 
   /**
    * See [[zio.ZManaged.suspend]]
@@ -287,6 +303,11 @@ object Managed {
    */
   final def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverseParN_(n)(as)(f)
+
+  /**
+   * See [[zio.ZManaged]]
+   */
+  final def unapply[E, A](v: Managed[E, A]) = ZManaged.unapply(v)
 
   /**
    * See [[zio.ZManaged.unit]]

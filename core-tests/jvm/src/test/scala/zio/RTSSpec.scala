@@ -7,6 +7,7 @@ import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import zio.Cause.{ die, fail, Fail, Then }
 import zio.duration._
+import zio.internal.PlatformLive
 import zio.clock.Clock
 
 import scala.annotation.tailrec
@@ -17,167 +18,166 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   def is = {
     s2"""
   RTS synchronous correctness
-    widen Nothing                           $testWidenNothing
-    evaluation of point                     $testPoint
-    blocking caches threads                 $testBlockingThreadCaching
-    point must be lazy                      $testPointIsLazy
-    now must be eager                       $testNowIsEager
-    suspend must be lazy                    $testSuspendIsLazy
-    suspend must be evaluatable             $testSuspendIsEvaluatable
-    point, bind, map                        $testSyncEvalLoop
-    effect, bind, map                       $testSyncEvalLoopEffect
-    effect, bind, map, redeem               $testSyncEvalLoopEffectThrow
-    sync effect                             $testEvalOfSyncEffect
-    sync on defer                           $testManualSyncOnDefer
-    deep effects                            $testEvalOfDeepSyncEffect
-    flip must make error into value         $testFlipError
-    flip must make value into error         $testFlipValue
-    flipping twice returns identical value  $testFlipDouble
+    widen Nothing                                 $testWidenNothing
+    blocking caches threads                       $testBlockingThreadCaching
+    now must be eager                             $testNowIsEager
+    effectSuspend must be lazy                    $testSuspendIsLazy
+    effectSuspendTotal must not catch throwable   $testSuspendTotalThrowable
+    effectSuspend must catch throwable            $testSuspendCatchThrowable
+    effectSuspendWith must catch throwable        $testSuspendWithCatchThrowable
+    suspend must be evaluatable                   $testSuspendIsEvaluatable
+    point, bind, map                              $testSyncEvalLoop
+    effect, bind, map                             $testSyncEvalLoopEffect
+    effect, bind, map, redeem                     $testSyncEvalLoopEffectThrow
+    sync effect                                   $testEvalOfSyncEffect
+    deep effects                                  $testEvalOfDeepSyncEffect
+    flip must make error into value               $testFlipError
+    flip must make value into error               $testFlipValue
+    flipping twice returns identical value        $testFlipDouble
 
   RTS failure
-    error in sync effect                    $testEvalOfRedeemOfSyncEffectError
-    attempt . fail                          $testEvalOfAttemptOfFail
-    deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
-    deep attempt fail error                 $testAttemptOfDeepFailError
-    attempt . sandbox . terminate           $testSandboxAttemptOfTerminate
-    fold . sandbox . terminate              $testSandboxFoldOfTerminate
-    catch sandbox terminate                 $testSandboxTerminate
-    uncaught fail                           $testEvalOfUncaughtFail
-    uncaught fail supervised                $testEvalOfUncaughtFailSupervised
-    uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
-    uncaught supervised sync effect error   $testEvalOfUncaughtThrownSupervisedSyncEffect
-    deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
-    deep uncaught fail                      $testEvalOfDeepUncaughtFail
-    catch failing finalizers with fail      $testFailOfMultipleFailingFinalizers
-    catch failing finalizers with terminate $testTerminateOfMultipleFailingFinalizers
-    run preserves interruption status       $testRunInterruptIsInterrupted
-    run swallows inner interruption         $testRunSwallowsInnerInterrupt
-    timeout a long computation              $testTimeoutOfLongComputation
-    catchAllCause                           $testCatchAllCause
+    error in sync effect                          $testEvalOfRedeemOfSyncEffectError
+    attempt . fail                                $testEvalOfAttemptOfFail
+    deep attempt sync effect error                $testAttemptOfDeepSyncEffectError
+    deep attempt fail error                       $testAttemptOfDeepFailError
+    attempt . sandbox . terminate                 $testSandboxAttemptOfTerminate
+    fold . sandbox . terminate                    $testSandboxFoldOfTerminate
+    catch sandbox terminate                       $testSandboxTerminate
+    uncaught fail                                 $testEvalOfUncaughtFail
+    uncaught fail supervised                      $testEvalOfUncaughtFailSupervised
+    uncaught sync effect error                    $testEvalOfUncaughtThrownSyncEffect
+    uncaught supervised sync effect error         $testEvalOfUncaughtThrownSupervisedSyncEffect
+    deep uncaught sync effect error               $testEvalOfDeepUncaughtThrownSyncEffect
+    deep uncaught fail                            $testEvalOfDeepUncaughtFail
+    catch failing finalizers with fail            $testFailOfMultipleFailingFinalizers
+    catch failing finalizers with terminate       $testTerminateOfMultipleFailingFinalizers
+    run preserves interruption status             $testRunInterruptIsInterrupted
+    run swallows inner interruption               $testRunSwallowsInnerInterrupt
+    timeout a long computation                    $testTimeoutOfLongComputation
+    catchAllCause                                 $testCatchAllCause
+    exception in fromFuture does not kill fiber   $testFromFutureDoesNotKillFiber
 
   RTS finalizers
-    fail ensuring                           $testEvalOfFailEnsuring
-    fail on error                           $testEvalOfFailOnError
-    finalizer errors not caught             $testErrorInFinalizerCannotBeCaught
-    finalizer errors reported               $testErrorInFinalizerIsReported
-    bracket exit is usage result            $testExitIsUsageResult
-    error in just acquisition               $testBracketErrorInAcquisition
-    error in just release                   $testBracketErrorInRelease
-    error in just usage                     $testBracketErrorInUsage
-    rethrown caught error in acquisition    $testBracketRethrownCaughtErrorInAcquisition
-    rethrown caught error in release        $testBracketRethrownCaughtErrorInRelease
-    rethrown caught error in usage          $testBracketRethrownCaughtErrorInUsage
-    test eval of async fail                 $testEvalOfAsyncAttemptOfFail
-    bracket regression 1                    $testBracketRegression1
-    interrupt waits for finalizer           $testInterruptWaitsForFinalizer
+    fail ensuring                                 $testEvalOfFailEnsuring
+    fail on error                                 $testEvalOfFailOnError
+    finalizer errors not caught                   $testErrorInFinalizerCannotBeCaught
+    finalizer errors reported                     $testErrorInFinalizerIsReported
+    bracket exit is usage result                  $testExitIsUsageResult
+    error in just acquisition                     $testBracketErrorInAcquisition
+    error in just release                         $testBracketErrorInRelease
+    error in just usage                           $testBracketErrorInUsage
+    rethrown caught error in acquisition          $testBracketRethrownCaughtErrorInAcquisition
+    rethrown caught error in release              $testBracketRethrownCaughtErrorInRelease
+    rethrown caught error in usage                $testBracketRethrownCaughtErrorInUsage
+    test eval of async fail                       $testEvalOfAsyncAttemptOfFail
+    bracket regression 1                          $testBracketRegression1
+    interrupt waits for finalizer                 $testInterruptWaitsForFinalizer
 
   RTS synchronous stack safety
-    deep map of point                       $testDeepMapOfPoint
-    deep map of now                         $testDeepMapOfNow
-    deep map of sync effect                 $testDeepMapOfSyncEffectIsStackSafe
-    deep attempt                            $testDeepAttemptIsStackSafe
-    deep flatMap                            $testDeepFlatMapIsStackSafe
-    deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
-    deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
+    deep map of now                               $testDeepMapOfNow
+    deep map of sync effect                       $testDeepMapOfSyncEffectIsStackSafe
+    deep attempt                                  $testDeepAttemptIsStackSafe
+    deep flatMap                                  $testDeepFlatMapIsStackSafe
+    deep absolve/attempt is identity              $testDeepAbsolveAttemptIsIdentity
+    deep async absolve/attempt is identity        $testDeepAsyncAbsolveAttemptIsIdentity
 
   RTS asynchronous correctness
-    simple async must return                $testAsyncEffectReturns
-    simple asyncIO must return              $testAsyncIOEffectReturns
-    deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
-    interrupt of asyncPure register         $testAsyncPureInterruptRegister
-    sleep 0 must return                     $testSleepZeroReturns
-    shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
-    effectAsyncM can fail before registering $testEffectAsyncMCanFail
+    simple async must return                      $testAsyncEffectReturns
+    simple asyncIO must return                    $testAsyncIOEffectReturns
+    deep asyncIO doesn't block threads            $testDeepAsyncIOThreadStarvation
+    interrupt of asyncPure register               $testAsyncPureInterruptRegister
+    sleep 0 must return                           $testSleepZeroReturns
+    shallow bind of async chain                   $testShallowBindOfAsyncChainIsCorrect
+    effectAsyncM can fail before registering      $testEffectAsyncMCanFail
+    effectAsyncM can defect before registering    $testEffectAsyncMCanDefect
+    second callback call is ignored               $testAsyncSecondCallback
 
   RTS concurrency correctness
-    shallow fork/join identity              $testForkJoinIsId
-    deep fork/join identity                 $testDeepForkJoinIsId
-    asyncPure creation is interruptible     $testAsyncPureCreationIsInterruptible
-    asyncInterrupt runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
-    supervising returns fiber refs          $testSupervising
-    supervising in unsupervised returns Nil $testSupervisingUnsupervised
-    supervise fibers                        $testSupervise
-    supervise fibers in supervised          $testSupervised
-    supervise fibers in race                $testSuperviseRace
-    supervise fibers in fork                $testSuperviseFork
-    race of fail with success               $testRaceChoosesWinner
-    race of terminate with success          $testRaceChoosesWinnerInTerminate
-    race of fail with fail                  $testRaceChoosesFailure
-    race of value & never                   $testRaceOfValueNever
-    raceAll of values                       $testRaceAllOfValues
-    raceAll of failures                     $testRaceAllOfFailures
-    raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
-    firstSuccessOf of values                $testFirstSuccessOfValues
-    firstSuccessOf of failures              $testFirstSuccessOfFailures
-    firstSuccessOF of failures & 1 success  $testFirstSuccessOfFailuresOneSuccess
-    raceAttempt interrupts loser on success $testRaceAttemptInterruptsLoserOnSuccess
-    raceAttempt interrupts loser on failure $testRaceAttemptInterruptsLoserOnFailure
-    par regression                          $testPar
-    par of now values                       $testRepeatedPar
-    mergeAll                                $testMergeAll
-    mergeAllEmpty                           $testMergeAllEmpty
-    reduceAll                               $testReduceAll
-    reduceAll Empty List                    $testReduceAllEmpty
-    timeout of failure                      $testTimeoutFailure
-    timeout of terminate                    $testTimeoutTerminate
+    shallow fork/join identity                    $testForkJoinIsId
+    deep fork/join identity                       $testDeepForkJoinIsId
+    asyncPure creation is interruptible           $testAsyncPureCreationIsInterruptible
+    asyncInterrupt runs cancel token on interrupt $testAsync0RunsCancelTokenOnInterrupt
+    supervising returns fiber refs                $testSupervising
+    supervising in unsupervised returns Nil       $testSupervisingUnsupervised
+    supervise fibers                              $testSupervise
+    supervise fibers in supervised                $testSupervised
+    supervise fibers in race                      $testSuperviseRace
+    supervise fibers in fork                      $testSuperviseFork
+    race of fail with success                     $testRaceChoosesWinner
+    race of terminate with success                $testRaceChoosesWinnerInTerminate
+    race of fail with fail                        $testRaceChoosesFailure
+    race of value & never                         $testRaceOfValueNever
+    raceAll of values                             $testRaceAllOfValues
+    raceAll of failures                           $testRaceAllOfFailures
+    raceAll of failures & one success             $testRaceAllOfFailuresOneSuccess
+    firstSuccessOf of values                      $testFirstSuccessOfValues
+    firstSuccessOf of failures                    $testFirstSuccessOfFailures
+    firstSuccessOF of failures & 1 success        $testFirstSuccessOfFailuresOneSuccess
+    raceAttempt interrupts loser on success       $testRaceAttemptInterruptsLoserOnSuccess
+    raceAttempt interrupts loser on failure       $testRaceAttemptInterruptsLoserOnFailure
+    par regression                                $testPar
+    par of now values                             $testRepeatedPar
+    mergeAll                                      $testMergeAll
+    mergeAllEmpty                                 $testMergeAllEmpty
+    reduceAll                                     $testReduceAll
+    reduceAll Empty List                          $testReduceAllEmpty
+    timeout of failure                            $testTimeoutFailure
+    timeout of terminate                          $testTimeoutTerminate
 
   RTS regression tests
-    deadlock regression 1                   $testDeadlockRegression
-    check interruption regression 1         $testInterruptionRegression1
-    manual sync interruption                $testManualSyncInterruption
+    deadlock regression 1                         $testDeadlockRegression
+    check interruption regression 1               $testInterruptionRegression1
+    max yield Ops 1                               $testOneMaxYield
 
   RTS option tests
-    lifting a value to an option            $testLiftingOptionalValue
-    using the none value                    $testLiftingNoneValue
+    lifting a value to an option                  $testLiftingOptionalValue
+    using the none value                          $testLiftingNoneValue
 
   RTS either helper tests
-      lifting a value into right            $liftValueIntoRight
-      lifting a value into left             $liftValueIntoLeft
+      lifting a value into right                  $liftValueIntoRight
+      lifting a value into left                   $liftValueIntoLeft
 
   RTS interruption
-    blocking IO is effect blocking          $testBlockingIOIsEffectBlocking
-    sync forever is interruptible           $testInterruptSyncForever
-    interrupt of never                      $testNeverIsInterruptible
-    asyncPure is interruptible              $testAsyncPureIsInterruptible
-    async is interruptible                  $testAsyncIsInterruptible
-    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
-    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
-    bracket use is interruptible            $testBracketUseIsInterruptible
-    bracket0 use is interruptible           $testBracket0UseIsInterruptible
-    bracket release called on interrupt     $testBracketReleaseOnInterrupt
-    bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
-    redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
-    finalizer can detect interruption       $testFinalizerCanDetectInterruption
-    interruption of raced                   $testInterruptedOfRaceInterruptsContestents
-    cancelation is guaranteed               $testCancelationIsGuaranteed
-    interruption of unending bracket        $testInterruptionOfUnendingBracket
-    recovery of error in finalizer          $testRecoveryOfErrorInFinalizer
-    recovery of interruptible               $testRecoveryOfInterruptible
-    sandbox of interruptible                $testSandboxOfInterruptible
-    run of interruptible                    $testRunOfInterruptible
-    alternating interruptibility            $testAlternatingInterruptibility
-    interruption after defect               $testInterruptionAfterDefect
-    interruption after defect 2             $testInterruptionAfterDefect2
-    cause reflects interruption             $testCauseReflectsInterruption
-    bracket use inherits interrupt status   $testUseInheritsInterruptStatus
-    bracket use inherits interrupt status 2 $testCauseUseInheritsInterruptStatus
-    async can be uninterruptible            $testAsyncCanBeUninterruptible
+    blocking IO is effect blocking                $testBlockingIOIsEffectBlocking
+    sync forever is interruptible                 $testInterruptSyncForever
+    interrupt of never                            $testNeverIsInterruptible
+    asyncPure is interruptible                    $testAsyncPureIsInterruptible
+    async is interruptible                        $testAsyncIsInterruptible
+    bracket is uninterruptible                    $testBracketAcquireIsUninterruptible
+    bracket0 is uninterruptible                   $testBracket0AcquireIsUninterruptible
+    bracket use is interruptible                  $testBracketUseIsInterruptible
+    bracket0 use is interruptible                 $testBracket0UseIsInterruptible
+    bracket release called on interrupt           $testBracketReleaseOnInterrupt
+    bracket0 release called on interrupt          $testBracket0ReleaseOnInterrupt
+    redeem + ensuring + interrupt                 $testRedeemEnsuringInterrupt
+    finalizer can detect interruption             $testFinalizerCanDetectInterruption
+    interruption of raced                         $testInterruptedOfRaceInterruptsContestents
+    cancelation is guaranteed                     $testCancelationIsGuaranteed
+    interruption of unending bracket              $testInterruptionOfUnendingBracket
+    recovery of error in finalizer                $testRecoveryOfErrorInFinalizer
+    recovery of interruptible                     $testRecoveryOfInterruptible
+    sandbox of interruptible                      $testSandboxOfInterruptible
+    run of interruptible                          $testRunOfInterruptible
+    alternating interruptibility                  $testAlternatingInterruptibility
+    interruption after defect                     $testInterruptionAfterDefect
+    interruption after defect 2                   $testInterruptionAfterDefect2
+    cause reflects interruption                   $testCauseReflectsInterruption
+    bracket use inherits interrupt status         $testUseInheritsInterruptStatus
+    bracket use inherits interrupt status 2       $testCauseUseInheritsInterruptStatus
+    async can be uninterruptible                  $testAsyncCanBeUninterruptible
 
   RTS environment
-    provide is modular                      $testProvideIsModular
-    provideManaged is modular               $testProvideManagedIsModular
-    effectAsync can use environment         $testAsyncCanUseEnvironment
+    provide is modular                            $testProvideIsModular
+    provideManaged is modular                     $testProvideManagedIsModular
+    effectAsync can use environment               $testAsyncCanUseEnvironment
 
   RTS forking inheritability
-    interruption status is heritable        $testInterruptStatusIsHeritable
-    executor is hereditble                  $testExecutorIsHeritable
-    supervision is heritable                $testSupervisionIsHeritable
-    supervision inheritance                 $testSupervisingInheritance
+    interruption status is heritable              $testInterruptStatusIsHeritable
+    executor is hereditble                        $testExecutorIsHeritable
+    supervision is heritable                      $testSupervisionIsHeritable
+    supervision inheritance                       $testSupervisingInheritance
   """
   }
-
-  def testPoint =
-    unsafeRun(IO.succeedLazy(1)) must_=== 1
 
   def testWidenNothing = {
     val op1 = IO.effectTotal[String]("1")
@@ -191,22 +191,30 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(result) must_=== "12"
   }
 
-  def testPointIsLazy =
-    IO.succeedLazy(throw new Error("Not lazy")) must not(throwA[Throwable])
-
   @silent
   def testNowIsEager =
     IO.succeed(throw new Error("Eager")) must (throwA[Error])
 
   def testSuspendIsLazy =
-    IO.suspend(throw new Error("Eager")) must not(throwA[Throwable])
+    IO.effectSuspendTotal(throw new Error("Eager")) must not(throwA[Throwable])
+
+  def testSuspendTotalThrowable =
+    unsafeRun(ZIO.effectSuspendTotal[Any, Nothing, Any](throw ExampleError).sandbox.either) must_=== Left(
+      die(ExampleError)
+    )
+
+  def testSuspendCatchThrowable =
+    unsafeRun(ZIO.effectSuspend[Any, Nothing](throw ExampleError).either) must_=== Left(ExampleError)
+
+  def testSuspendWithCatchThrowable =
+    unsafeRun(ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either) must_=== Left(ExampleError)
 
   def testSuspendIsEvaluatable =
-    unsafeRun(IO.suspend(IO.succeedLazy[Int](42))) must_=== 42
+    unsafeRun(IO.effectSuspendTotal(IO.effectTotal[Int](42))) must_=== 42
 
   def testSyncEvalLoop = {
     def fibIo(n: Int): Task[BigInt] =
-      if (n <= 1) IO.succeedLazy(n)
+      if (n <= 1) IO.succeed(n)
       else
         for {
           a <- fibIo(n - 1)
@@ -252,7 +260,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testFlipDouble = {
-    val io = IO.succeedLazy(100)
+    val io = IO.succeed(100)
     unsafeRun(io.flip.flip) must_=== unsafeRun(io)
   }
 
@@ -264,20 +272,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(sumIo(1000)) must_=== sum(1000)
   }
 
-  def testManualSyncOnDefer = {
-    def sync[A](effect: => A): IO[Throwable, A] =
-      IO.effectTotal(effect)
-        .foldCauseM({
-          case Cause.Die(t) => IO.fail(t)
-          case cause        => IO.halt(cause)
-        }, IO.succeed(_))
-
-    def putStrLn(text: String): IO[Throwable, Unit] =
-      sync(println(text))
-
-    unsafeRun(putStrLn("Hello")) must_=== (())
-  }
-
   @silent
   def testEvalOfRedeemOfSyncEffectError =
     unsafeRun(
@@ -286,7 +280,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testEvalOfAttemptOfFail = Seq(
     unsafeRun(TaskExampleError.either) must_=== Left(ExampleError),
-    unsafeRun(IO.suspend(IO.suspend(TaskExampleError).either)) must_=== Left(
+    unsafeRun(IO.effectSuspendTotal(IO.effectSuspendTotal(TaskExampleError).either)) must_=== Left(
       ExampleError
     )
   )
@@ -406,7 +400,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     @volatile var reported: Exit[Nothing, Int] = null
 
     unsafeRun {
-      IO.succeedLazy[Int](42)
+      IO.succeed[Int](42)
         .ensuring(IO.die(ExampleError))
         .fork
         .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
@@ -416,7 +410,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testExitIsUsageResult =
-    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeedLazy[Int](42))) must_=== 42
+    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeed[Int](42))) must_=== 42
 
   def testBracketErrorInAcquisition =
     unsafeRunSync(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit)) must_=== Exit.Failure(fail(ExampleError))
@@ -441,20 +435,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testBracketRethrownCaughtErrorInUsage = {
-    val io =
-      IO.absolve(
-        IO.unit
-          .bracket_[Any, Nothing]
-          .apply[Any](IO.unit)(TaskExampleError)
-          .either //    TODO: Dotty doesn't infer this properly
-      )
+    val io = IO.absolve(IO.unit.bracket_(IO.unit)(TaskExampleError).either)
 
     unsafeRunSync(io) must_=== Exit.Failure(fail(ExampleError))
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.unit.bracket_[Any, Nothing].apply[Any](AsyncUnit[Nothing])(asyncExampleError[Unit]) //    TODO: Dotty doesn't infer this properly
-    val io2 = AsyncUnit[Throwable].bracket_[Any, Throwable].apply[Any](IO.unit)(asyncExampleError[Unit])
+    val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
+    val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
 
     unsafeRunSync(io1) must_=== Exit.Failure(fail(ExampleError))
     unsafeRunSync(io2) must_=== Exit.Failure(fail(ExampleError))
@@ -527,6 +515,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       f <- ZIO fail "Uh oh!"
     } yield f) catchAllCause ZIO.succeed) must_=== Fail("Uh oh!")
 
+  def testFromFutureDoesNotKillFiber = {
+    val e = new RuntimeException("Foo")
+    unsafeRun(ZIO.fromFuture(_ => throw e).either) must_=== Left(e)
+  }
+
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): Task[Int] =
       if (n <= 0) ref.get
@@ -548,9 +541,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
     (l must_=== 0) and (r must_=== 1000)
   }
-
-  def testDeepMapOfPoint =
-    unsafeRun(deepMapPoint(10000)) must_=== 10000
 
   def testDeepMapOfNow =
     unsafeRun(deepMapNow(10000)) must_=== 10000
@@ -579,7 +569,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testDeepAbsolveAttemptIsIdentity =
-    unsafeRun((0 until 1000).foldLeft(IO.succeedLazy[Int](42))((acc, _) => IO.absolve(acc.either))) must_=== 42
+    unsafeRun((0 until 1000).foldLeft(IO.succeed[Int](42))((acc, _) => IO.absolve(acc.either))) must_=== 42
 
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafeRun(
@@ -614,7 +604,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       acquire <- Promise.make[Nothing, Unit]
       fiber <- IO
                 .effectAsyncM[Nothing, Unit] { _ =>
-                  IO.bracket(acquire.succeed(()))(_ => release.succeed(()))(_ => IO.never)
+                  acquire.succeed(()).bracket(_ => release.succeed(()))(_ => IO.never)
                 }
                 .fork
       _ <- acquire.await
@@ -630,11 +620,33 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
         .map(_ must_=== "Ouch")
     }
 
+  def testEffectAsyncMCanDefect =
+    unsafeRun {
+      ZIO
+        .effectAsyncM[Any, String, Unit](_ => ZIO.effectTotal(throw new Error("Ouch")))
+        .run
+        .map(_.fold(_.defects.headOption.map(_.getMessage), _ => None))
+        .map(_ must beSome("Ouch"))
+    }
+
+  def testAsyncSecondCallback =
+    unsafeRun(for {
+      _ <- IO.effectAsync[Throwable, Int] { k =>
+            k(IO.succeed(42))
+            Thread.sleep(500)
+            k(IO.succeed(42))
+          }
+      res <- IO.effectAsync[Throwable, String] { k =>
+              Thread.sleep(1000)
+              k(IO.succeed("ok"))
+            }
+    } yield res) must_=== "ok"
+
   def testSleepZeroReturns =
     unsafeRun(clock.sleep(1.nanos)) must_=== ((): Unit)
 
   def testShallowBindOfAsyncChainIsCorrect = {
-    val result = (0 until 10).foldLeft[Task[Int]](IO.succeedLazy[Int](0)) { (acc, _) =>
+    val result = (0 until 10).foldLeft[Task[Int]](IO.succeed[Int](0)) { (acc, _) =>
       acc.flatMap(n => IO.effectAsync[Throwable, Int](_(IO.succeed(n + 1))))
     }
 
@@ -642,7 +654,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testForkJoinIsId =
-    unsafeRun(IO.succeedLazy[Int](42).fork.flatMap(_.join)) must_=== 42
+    unsafeRun(IO.succeed[Int](42).fork.flatMap(_.join)) must_=== 42
 
   def testDeepForkJoinIsId = {
     val n = 20
@@ -664,7 +676,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket(promise.succeed(()) <* IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        fiber   <- (promise.succeed(()) <* IO.never).bracket(_ => IO.unit)(_ => IO.unit).fork
         res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
@@ -775,12 +787,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       exitLatch  <- Promise.make[Nothing, Int]
       bracketed = IO
         .succeed(21)
-        .bracketExit[Any, Error, Int]( // TODO: Dotty doesn't infer curried version
-          (r: Int, exit: Exit[Error, Int]) =>
+        .bracketExit(
+          (r: Int, exit: Exit[_, _]) =>
             if (exit.interrupted) exitLatch.succeed(r)
-            else IO.die(new Error("Unexpected case")),
-          (a: Int) => startLatch.succeed(a) *> IO.never *> IO.succeed(1)
-        )
+            else IO.die(new Error("Unexpected case"))
+        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
       fiber      <- bracketed.fork
       startValue <- startLatch.await
       _          <- fiber.interrupt.fork
@@ -862,7 +873,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(for {
       ref <- Ref.make(false)
       fiber <- withLatch { release =>
-                (ZIO.succeedLazy(throw new Error).run *> release *> ZIO.never)
+                (ZIO.effect(throw new Error).run *> release *> ZIO.never)
                   .ensuring(ref.set(true))
                   .fork
               }
@@ -874,7 +885,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(for {
       ref <- Ref.make(false)
       fiber <- withLatch { release =>
-                (ZIO.succeedLazy(throw new Error).run *> release *> ZIO.unit.forever)
+                (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
                   .ensuring(ref.set(true))
                   .fork
               }
@@ -1009,7 +1020,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
         ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
         _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
         fibs <- ZIO.children
-        _    <- ref.get.map(list => println(list.mkString(", ")))
       } yield fibs must have size 1).supervised
     )
   }
@@ -1074,7 +1084,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   def testBracketUseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.never).fork
+        fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt
       } yield res
     unsafeRun(io) must_=== Exit.interrupt
@@ -1093,7 +1103,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
       withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
 
-    unsafeRun(
+    flaky(
       (for {
         ref   <- Ref.make(List.empty[Fiber[_, _]])
         fibs0 <- ZIO.children
@@ -1106,7 +1116,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   }
 
   def testSupervisingUnsupervised =
-    unsafeRun(
+    flaky(
       for {
         ref  <- Ref.make(Option.empty[Fiber[_, _]])
         _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
@@ -1115,35 +1125,35 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     )
 
   def testSupervise = {
-    var counter = 0
-    unsafeRun((for {
-      ref <- Ref.make(List.empty[Fiber[_, _]])
-      _   <- (clock.sleep(200.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
-      _   <- (clock.sleep(400.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
-    } yield ()).handleChildrenWith { fs =>
-      fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> IO.effectTotal(counter += 1))
-    })
-    counter must_=== 2
+    def makeChild(n: Int, fibers: Ref[List[Fiber[_, _]]]) =
+      (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork.tap(fiber => fibers.update(fiber :: _))
+
+    flaky(for {
+      fibers  <- Ref.make(List.empty[Fiber[_, _]])
+      counter <- Ref.make(0)
+      _ <- (makeChild(1, fibers) *> makeChild(2, fibers)).handleChildrenWith { fs =>
+            fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> counter.update(_ + 1).unit)
+          }
+      value <- counter.get
+    } yield value must_=== 2)
   }
 
   def testSuperviseRace =
-    unsafeRun(for {
+    flaky(for {
       pa <- Promise.make[Nothing, Int]
       pb <- Promise.make[Nothing, Int]
 
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
       f <- (
-            p1.succeed(())
-              .bracket_[Any, Nothing]
-              .apply[Any](pa.succeed(1).unit)(IO.never) race //    TODO: Dotty doesn't infer this properly
-              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never)
+            p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never) race
+              p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never)
           ).interruptChildren.fork
       _ <- p1.await *> p2.await
 
       _ <- f.interrupt
       r <- pa.await zip pb.await
-    } yield r) must_=== (1 -> 2)
+    } yield r must_=== (1 -> 2))
 
   def testSuperviseFork =
     flaky(for {
@@ -1153,11 +1163,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
       f <- (
-            p1.succeed(())
-              .bracket_[Any, Nothing]
-              .apply[Any](pa.succeed(1).unit)(IO.never)
-              .fork *> //    TODO: Dotty doesn't infer this properly
-              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork *>
+            p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never).fork *>
+              p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never).fork *>
               IO.never
           ).interruptChildren.fork
       _ <- p1.await *> p2.await
@@ -1173,13 +1180,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       _ <- (for {
             p1 <- Promise.make[Nothing, Unit]
             p2 <- Promise.make[Nothing, Unit]
-            _ <- p1
-                  .succeed(())
-                  .bracket_[Any, Nothing]
-                  .apply[Any](pa.succeed(1).unit)(IO.never)
-                  .fork //    TODO: Dotty doesn't infer this properly
-            _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
-            _ <- p1.await *> p2.await
+            _  <- p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never).fork
+            _  <- p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never).fork
+            _  <- p1.await *> p2.await
           } yield ()).interruptChildren
       r <- pa.await zip pb.await
     } yield r must_=== (1 -> 2))
@@ -1194,7 +1197,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(IO.fail(42).race(IO.fail(42)).either) must_=== Left(42)
 
   def testRaceOfValueNever =
-    unsafeRun(IO.succeedLazy(42).race(IO.never)) must_=== 42
+    unsafeRun(IO.effectTotal(42).race(IO.never)) must_=== 42
 
   def testRaceOfFailNever =
     unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
@@ -1269,12 +1272,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testReduceAll =
     unsafeRun(
-      IO.reduceAll(IO.succeedLazy(1), List(2, 3, 4).map(IO.succeedLazy[Int](_)))(_ + _)
+      IO.reduceAll(IO.effectTotal(1), List(2, 3, 4).map(IO.succeed[Int](_)))(_ + _)
     ) must_=== 10
 
   def testReduceAllEmpty =
     unsafeRun(
-      IO.reduceAll(IO.succeedLazy(1), Seq.empty)(_ + _)
+      IO.reduceAll(IO.effectTotal(1), Seq.empty)(_ + _)
     ) must_=== 1
 
   def testTimeoutFailure =
@@ -1328,21 +1331,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   }
 
-  def testManualSyncInterruption = {
-    def sync[A](effect: => A): IO[Throwable, A] =
-      IO.effectTotal(effect)
-        .foldCauseM({
-          case Cause.Die(t) => IO.fail(t)
-          case cause        => IO.halt(cause)
-        }, IO.succeed(_))
+  def testOneMaxYield = {
+    val rts = new DefaultRuntime {
+      override val Platform = PlatformLive.Default.withExecutor(PlatformLive.ExecutorUtil.makeDefault(1))
+    }
 
-    def putStr(text: String): IO[Throwable, Unit] =
-      sync(scala.io.StdIn.print(text))
-
-    unsafeRun(
+    rts.unsafeRun(
       for {
-        fiber <- putStr(".").forever.fork
-        _     <- fiber.interrupt
+        _ <- UIO.unit
+        _ <- UIO.unit
       } yield true
     )
   }
@@ -1395,15 +1392,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     if (n <= 0) 0
     else n + sum(n - 1)
 
-  def deepMapPoint(n: Int): UIO[Int] = {
-    @tailrec
-    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
-      if (n <= 0) acc
-      else loop(n - 1, acc.map(_ + 1))
-
-    loop(n, IO.succeedLazy(0))
-  }
-
   def deepMapNow(n: Int): UIO[Int] = {
     @tailrec
     def loop(n: Int, acc: UIO[Int]): UIO[Int] =
@@ -1435,7 +1423,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     else fib(n - 1) + fib(n - 2)
 
   def concurrentFib(n: Int): Task[BigInt] =
-    if (n <= 1) IO.succeedLazy[BigInt](n)
+    if (n <= 1) IO.succeed[BigInt](n)
     else
       for {
         f1 <- concurrentFib(n - 1).fork
@@ -1448,7 +1436,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testMergeAll =
     unsafeRun(
-      IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(0) { (b, a) =>
+      IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeed[String](_)))(0) { (b, a) =>
         b + a.length
       }
     ) must_=== 10
@@ -1457,13 +1445,4 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(
       IO.mergeAll(List.empty[UIO[Int]])(0)(_ + _)
     ) must_=== 0
-
-  def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
-    (1 to 100).foldLeft[org.specs2.matcher.MatchResult[Any]](true must_=== true) {
-      case (acc, _) =>
-        acc and unsafeRun(v)
-    }
-
-  def flaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
-    eventually(unsafeRun(v.timeout(1.second)).get)
 }

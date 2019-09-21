@@ -2,25 +2,27 @@ package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 
-import scala.Predef.{ assert => SAssert }
+import scala.concurrent.Future
 
 import zio._
 import zio.duration._
+import zio.test.Async
+import zio.test.TestUtils.label
 
 object EnvironmentSpec extends DefaultRuntime {
 
-  def run(): Unit = {
-    SAssert(currentTime, "MockEnvironment Clock returns time when it is set")
-    SAssert(putStrLn, "MockEnvironment Console writes line to output")
-    SAssert(getStrLn, "MockEnvironment Console reads line from input")
-    SAssert(nextInt, "MockEnvironment Random returns next integer when data is fed")
-    SAssert(env, "MockEnvironment System returns an environment variable when it is set")
-    SAssert(property, "MockEnvironment System returns a property when it is set ")
-    SAssert(lineSeparator, "MockEnvironment System returns the line separator when it is set ")
-  }
+  val run: List[Async[(Boolean, String)]] = List(
+    label(currentTime, "Clock returns time when it is set"),
+    label(putStrLn, "Console writes line to output"),
+    label(getStrLn, "Console reads line from input"),
+    label(nextInt, "Random returns next pseudorandom integer"),
+    label(env, "System returns an environment variable when it is set"),
+    label(property, "System returns a property when it is set "),
+    label(lineSeparator, "System returns the line separator when it is set ")
+  )
 
-  def withEnvironment[E, A](zio: ZIO[MockEnvironment, E, A]): A =
-    unsafeRun(mockEnvironmentManaged.use[Any, E, A](r => zio.provide(r)))
+  def withEnvironment[E <: Throwable, A](zio: ZIO[MockEnvironment, E, A]): Future[A] =
+    unsafeRunToFuture(mockEnvironmentManaged.use[Any, E, A](r => zio.provide(r)))
 
   def currentTime =
     withEnvironment {
@@ -49,11 +51,11 @@ object EnvironmentSpec extends DefaultRuntime {
     }
 
   def nextInt =
-    withEnvironment {
+    unsafeRunToFuture {
       for {
-        _ <- MockRandom.feedInts(6)
-        n <- random.nextInt
-      } yield n == 6
+        i <- random.nextInt.provideManaged(MockEnvironment.Value)
+        j <- random.nextInt.provideManaged(MockEnvironment.Value)
+      } yield i != j
     }
 
   def env =
