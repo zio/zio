@@ -39,11 +39,11 @@ object BuildHelper {
       )
     else Nil
 
-  def buildInfoSettings(objectName: String) =
+  def buildInfoSettings(packageName: String) =
     Seq(
       buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-      buildInfoPackage := "zio",
-      buildInfoObject := objectName
+      buildInfoPackage := packageName,
+      buildInfoObject := "BuildInfo"
     )
 
   val dottySettings = Seq(
