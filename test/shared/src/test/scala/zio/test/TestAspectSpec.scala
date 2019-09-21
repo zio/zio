@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ DefaultRuntime, Managed, Ref }
+import zio.{ DefaultRuntime, Ref }
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils.{ execute, ignored, label, succeeded }
@@ -23,7 +23,7 @@ object TestAspectSpec extends DefaultRuntime {
         ref <- Ref.make(0)
         spec = testM("test") {
           assertM(ref.get, equalTo(1))
-        } @@ around(Managed.make(ref.set(1))(_ => ref.set(-1)))
+        } @@ around(ref.set(1), ref.set(-1))
         _      <- execute(spec)
         result <- succeeded(spec)
         after  <- ref.get
