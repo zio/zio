@@ -254,21 +254,7 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
-  release_211:
-    <<: *release
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_211
-      - <<: *jdk_8
-
-  release_212:
-    <<: *release
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_212
-      - <<: *jdk_8
-
-  release_213:
+  release:
     <<: *release
     <<: *machine_ubuntu
     environment:
@@ -349,7 +335,7 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - release_211:
+      - release:
           context: Sonatype
           requires:
             - test_211_jdk8_jvm
@@ -364,31 +350,10 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - release_212:
-          context: Sonatype
-          requires:
-            - release_211
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - release_213:
-          context: Sonatype
-          requires:
-            - release_212
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-
       - microsite:
           context: Website
           requires:
-            - release_211
-            - release_212
-            - release_213
+            - release
           filters:
             branches:
               ignore: /.*/
