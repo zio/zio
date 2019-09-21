@@ -13,10 +13,19 @@ object URIO {
     ZIO.absolve(v)
 
   /**
+   * @see [[zio.ZIO.access]]
+   */
+  final def access[R]: ZIO.AccessPartiallyApplied[R] = ZIO.access[R]
+
+  /**
+   * @see [[zio.ZIO.accessM]]
+   */
+  final def accessM[R]: ZIO.AccessMPartiallyApplied[R] = ZIO.accessM[R]
+
+  /**
    * @see [[zio.ZIO.allowInterrupt]]
    */
-  final def allowInterrupt: UIO[Unit] =
-    ZIO.allowInterrupt
+  final def allowInterrupt: UIO[Unit] = ZIO.allowInterrupt
 
   /**
    * @see [[zio.ZIO.apply]]
