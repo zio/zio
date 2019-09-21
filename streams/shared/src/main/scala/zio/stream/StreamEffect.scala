@@ -311,6 +311,15 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def fromIterator[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): StreamEffect[R, E, A] =
+    StreamEffect[R, E, A] {
+      iterator.flatMap { iterator =>
+        Managed.effectTotal { () =>
+          if (iterator.hasNext) iterator.next() else end
+        }
+      }
+    }
+
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect[Any, Nothing, A] {
       Managed.effectTotal {
