@@ -757,23 +757,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R]): ZIO[R0, E1, A] = r0.use(self.provide)
 
   final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
-    for {
-      r1 <- ZIO.environment[R]
-      r  <- self provide r1
-      a  <- that provide r
-    } yield a
+    self.flatMap(that.provide)
 
   final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
-    for {
-      either <- ZIO.environment[Either[R, R1]]
-      a1     <- either.fold(self.provide, that.provide)
-    } yield a1
+    ZIO.accessM(_.fold(self.provide, that.provide))
 
   final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
-    for {
-      e <- ZIO.environment[Either[R, R1]]
-      r <- e.fold(self.map(Left(_)) provide _, that.map(Right(_)) provide _)
-    } yield r
+    ZIO.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
   /**
    * Returns a successful effect if the value is `Left`, or fails with the error `None`.
@@ -1498,11 +1488,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     orElse(that)
 
   final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
-    for {
-      r1 <- ZIO.environment[R1]
-      r  <- that provide r1
-      a  <- self provide r
-    } yield a
+    that >>> self
 
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
