@@ -1630,7 +1630,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       Stream("A", "B", "C")
         .scheduleElements(Schedule.recurs(1) >>> Schedule.fromFunction((_) => "!"))
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
+        .map(_ must_=== List("A", "A", "B", "B", "C", "C"))
     )
 
   private def spacedShortCircuitsAfterScheduleFinished =
@@ -1639,7 +1639,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
         .take(3)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!"))
+        .map(_ must_=== List("A", "A"))
     )
 
   private def spacedShortCircuitsWhileInSchedule =
@@ -1648,7 +1648,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
         .take(4)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!", "B"))
+        .map(_ must_=== List("A", "A", "B"))
     )
 
   private def take =
