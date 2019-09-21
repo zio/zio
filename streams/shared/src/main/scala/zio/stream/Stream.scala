@@ -176,10 +176,10 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.fromIterator(iterator)
 
   /**
-   * See [[ZStream.fromIterator]]
+   * See [[ZStream.fromIteratorManaged]]
    */
-  final def fromIterator[A](iterator: ZManaged[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
-    ZStream.fromIterator(iterator)
+  final def fromIteratorManaged[A](iterator: ZManaged[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
+    ZStream.fromIteratorManaged(iterator)
 
   /**
    * See [[ZStream.fromQueue]]
