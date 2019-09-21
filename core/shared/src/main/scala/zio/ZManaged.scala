@@ -670,15 +670,15 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * uninterruptibly with an exit value indicating that the effect was
    * interrupted, and if completed will cause the regular finalizer to not run.
    */
-  final def withEarlyRelease: ZManaged[R, E, (URIO[R, _], A)] =
+  final def withEarlyRelease: ZManaged[R, E, (URIO[R, Any], A)] =
     withEarlyReleaseExit(Exit.interrupt)
 
   /**
    * A more powerful version of `withEarlyRelease` that allows specifying an
    * exit value in the event of early release.
    */
-  final def withEarlyReleaseExit(exit: Exit[_, _]): ZManaged[R, E, (URIO[R, _], A)] =
-    ZManaged[R, E, (URIO[R, _], A)] {
+  final def withEarlyReleaseExit(exit: Exit[Any, Any]): ZManaged[R, E, (URIO[R, Any], A)] =
+    ZManaged[R, E, (URIO[R, Any], A)] {
       reserve.flatMap {
         case Reservation(acquire, release) =>
           Ref.make(true).map { finalize =>
