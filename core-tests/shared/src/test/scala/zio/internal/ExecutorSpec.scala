@@ -42,7 +42,6 @@ object TestExecutor {
   }
 }
 
-
 object ExecutorSpec
     extends ZIOBaseSpec(
       suite("ExecutorSpec")(
