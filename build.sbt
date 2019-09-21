@@ -151,7 +151,7 @@ lazy val testJS = test.js.settings(
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
-  .settings(buildInfoSettings("zio"))
+  .settings(buildInfoSettings("zio.internal.stacktracer"))
   .settings(
     libraryDependencies ++= Seq(
       "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
