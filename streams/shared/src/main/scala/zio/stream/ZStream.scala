@@ -847,8 +847,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
   /**
    * Returns a stream whose failures and successes have been lifted into an
-   * `Either`.The resulting stream cannot fail, because the failures have
+   * `Either`. The resulting stream cannot fail, because the failures have
    * been exposed as part of the `Either` success case.
+   * 
+   * @note the stream will end as soon as the first error occurs.
    */
   final def either: ZStream[R, Nothing, Either[E, A]] =
     self.map(Right(_)).catchAll(e => ZStream(Left(e)))
