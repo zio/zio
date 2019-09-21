@@ -76,7 +76,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def filter(pred: A => Boolean): StreamEffectChunk[R, E, A] =
     StreamEffectChunk(chunks.map(_.filter(pred)))
 
-  private[this] final def foldLazyPure[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] =
+  final def foldLazyPure[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] =
     chunks.foldLazyPure(s)(cont) { (s, as) =>
       as.foldLeftLazy(s)(cont)(f)
     }
