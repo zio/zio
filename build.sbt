@@ -21,12 +21,15 @@ inThisBuild(
     ),
     pgpPublicRing := file("/tmp/public.asc"),
     pgpSecretRing := file("/tmp/secret.asc"),
-    releaseEarlyWith := SonatypePublisher,
     scmInfo := Some(
       ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
     )
   )
 )
+
+publishTo in ThisBuild := {
+  if (!isSnapshot.value) sonatypePublishToBundle.value else Some(Opts.resolver.sonatypeSnapshots)
+}
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
