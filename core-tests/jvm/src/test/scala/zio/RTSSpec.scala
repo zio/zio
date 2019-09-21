@@ -273,15 +273,6 @@ object RTSSpec extends ZIOBaseSpec(
       testM("race of value & never") {
         Helper.Stub
       },
-      testM("raceAll of values") {
-        Helper.Stub
-      },
-      testM("raceAll of failures") {
-        Helper.Stub
-      },
-      testM("raceAll of failures & one success") {
-        Helper.Stub
-      },
       testM("firstSuccessOf of values") {
         Helper.Stub
       },
