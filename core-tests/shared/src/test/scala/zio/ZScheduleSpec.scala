@@ -16,8 +16,10 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
       for 'recurs(a positive given number)' repeats that additional number of time $repeatN
       for 'doWhile(cond)' repeats while the cond still holds $repeatWhile
       for 'doWhileM(cond)' repeats while the effectul cond still holds $repeatWhileM
+      for 'doWhileEquals(cond)' repeats while the cond is equal $repeatWhileEquals
       for 'doUntil(cond)' repeats until the cond is satisfied $repeatUntil
       for 'doUntilM(cond)' repeats until the effectful cond is satisfied $repeatUntilM
+      for 'doUntilEquals(cond)' repeats until the cond is equal $repeatUntilEquals
    Collect all inputs into a list
       as long as the condition f holds $collectWhile
       as long as the effectful condition f holds $collectWhile
@@ -141,6 +143,12 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
     } yield i must_=== 11
   }
 
+  def repeatUntilEquals =
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.doUntilEquals(1))
+    } yield i must_=== 1
+
   def repeatWhile = {
     def cond: Int => Boolean = _ < 10
     for {
@@ -156,6 +164,12 @@ class ZScheduleSpec extends BaseCrossPlatformSpec {
       i   <- ref.update(_ + 1).repeat(Schedule.doWhileM(cond))
     } yield i must_=== 1
   }
+
+  def repeatWhileEquals =
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.doWhileEquals(1))
+    } yield i must_=== 2
 
   def collectWhile = {
     def cond: Int => Boolean = _ < 10

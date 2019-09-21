@@ -44,13 +44,13 @@ import zio.{ InterruptStatus => InterruptS }
  *
  * `ZIO` values can efficiently describe the following classes of effects:
  *
- *  - '''Pure Values''' &mdash; `ZIO.succeed`
- *  - '''Error Effects''' &mdash; `ZIO.fail`
- *  - '''Synchronous Effects''' &mdash; `IO.effect`
- *  - '''Asynchronous Effects''' &mdash; `IO.effectAsync`
- *  - '''Concurrent Effects''' &mdash; `IO#fork`
- *  - '''Resource Effects''' &mdash; `IO#bracket`
- *  - '''Contextual Effects''' &mdash; `ZIO.access`
+ *  - '''Pure Values''' — `ZIO.succeed`
+ *  - '''Error Effects''' — `ZIO.fail`
+ *  - '''Synchronous Effects''' — `IO.effect`
+ *  - '''Asynchronous Effects''' — `IO.effectAsync`
+ *  - '''Concurrent Effects''' — `IO#fork`
+ *  - '''Resource Effects''' — `IO#bracket`
+ *  - '''Contextual Effects''' — `ZIO.access`
  *
  * The concurrency model is based on ''fibers'', a user-land lightweight thread,
  * which permit cooperative multitasking, fine-grained interruption, and very
@@ -111,6 +111,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified pair of functions, `f` and `g`.
    */
   final def bimap[E2, B](f: E => E2, g: A => B): ZIO[R, E2, B] = mapError(f).map(g)
+
+  /**
+   * Shorthand for the uncurried version of `ZIO.bracket`.
+   */
+  final def bracket[R1 <: R, E1 >: E, B](
+    release: A => ZIO[R1, Nothing, _],
+    use: A => ZIO[R1, E1, B]
+  ): ZIO[R1, E1, B] = ZIO.bracket(self, release, use)
+
+  /**
+   * Shorthand for the curried version of `ZIO.bracket`.
+   */
+  final def bracket[R1 <: R, E1 >: E]: ZIO.BracketAcquire[R1, E1, A] = ZIO.bracket(self)
 
   /**
    * A less powerful variant of `bracket` where the resource acquired by this
@@ -880,22 +893,41 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   ): ZIO[R1, E2, C] = {
     def arbiter[E0, E1, A, B](
       f: (Exit[E0, A], Fiber[E1, B]) => ZIO[R1, E2, C],
+      winner: Fiber[E0, A],
       loser: Fiber[E1, B],
-      race: Ref[Int],
+      leftWins: Boolean,
+      raceDone: Ref[Boolean],
+      inherit: Ref[Option[Boolean]],
       done: Promise[E2, C]
-    )(res: Exit[E0, A]): ZIO[R1, Nothing, _] =
-      ZIO.flatten(race.modify((c: Int) => (if (c > 0) ZIO.unit else f(res, loser).to(done).unit) -> (c + 1)))
+    )(res: Exit[E0, A]): ZIO[R1, Nothing, _] = {
+
+      val handleRes =
+        winner.poll.flatMap {
+          case Some(Exit.Success(_)) => winner.inheritFiberRefs
+          case _                     => ZIO.unit
+        } *> (f(res, loser) <* inherit.set(Some(leftWins))).to(done)
+
+      ZIO.flatten(raceDone.modify(b => (if (b) ZIO.unit else handleRes) -> true))
+    }
 
     for {
-      done <- Promise.make[E2, C]
-      race <- Ref.make[Int](0)
+      done     <- Promise.make[E2, C]
+      raceDone <- Ref.make[Boolean](false)
+      inherit  <- Ref.make(None: Option[Boolean])
       c <- ZIO.uninterruptibleMask { restore =>
             for {
-              left  <- ZIO.interruptible(self).fork
-              right <- ZIO.interruptible(that).fork
-              _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
-              _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
-              c     <- restore(done.await).onInterrupt(left.interrupt *> right.interrupt)
+              left   <- ZIO.interruptible(self).fork
+              right  <- ZIO.interruptible(that).fork
+              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork
+              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done)).fork
+
+              inheritFiberRefs = inherit.get.flatMap {
+                case None        => ZIO.unit
+                case Some(true)  => left2.inheritFiberRefs
+                case Some(false) => right2.inheritFiberRefs
+              }
+
+              c <- restore(done.await <* inheritFiberRefs).onInterrupt(left.interrupt *> right.interrupt)
             } yield c
           }
     } yield c
@@ -2488,14 +2520,6 @@ object ZIO extends ZIOFunctions {
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  implicit final class ZIOInvariant[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
-    final def bracket: ZIO.BracketAcquire[R, E, A] =
-      new ZIO.BracketAcquire(self)
-
-    final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
-      new ZIO.BracketExitAcquire(self)
-  }
-
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
     /**
@@ -2503,7 +2527,8 @@ object ZIO extends ZIOFunctions {
      * This resource will get automatically closed, because it implements `AutoCloseable`.
      */
     def bracketAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      io.bracket(a => UIO(a.close()))(use)
+      // TODO: Dotty doesn't infer this properly: io.bracket[R1, E1](a => UIO(a.close()))(use)
+      bracket(io)(a => UIO(a.close()))(use)
 
     /**
      * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].

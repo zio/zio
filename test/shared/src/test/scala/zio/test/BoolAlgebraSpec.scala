@@ -23,6 +23,7 @@ object BoolAlgebraSpec extends DefaultRuntime {
     label(hashCodeIsConsistentWithEquals, "hashCode is consistent with equals"),
     label(failuresCollectsFailures, "failures collects failures"),
     label(foreachCombinesMultipleValues, "foreach combines multiple values"),
+    label(impliesReturnsImplicationOfTwoValues, "implies returns implication of two values"),
     label(isFailureReturnsWhetherResultIsFailure, "isFailure returns whether result is failure"),
     label(isSuccessReturnsWhetherResultIsSuccess, "isSuccess returns whether result is success"),
     label(mapTransformsValues, "map transforms values"),
@@ -140,6 +141,14 @@ object BoolAlgebraSpec extends DefaultRuntime {
         val (a, b) = randomEqualBoolAlgebra(4)
         a.hashCode == b.hashCode
       }
+    }
+
+  def impliesReturnsImplicationOfTwoValues: Future[Boolean] =
+    Future.successful {
+      (success1 ==> success2).isSuccess &&
+      (success1 ==> failure1).isFailure &&
+      (failure1 ==> success1).isSuccess &&
+      (failure1 ==> failure2).isSuccess
     }
 
   def isFailureReturnsWhetherResultIsFailure: Future[Boolean] =

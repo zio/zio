@@ -33,6 +33,20 @@ object ZManagedSpec
             ZManagedSpecUtil.doInterrupt(io => ZManaged.make(io)(_ => IO.unit), None)
           }
         ),
+        suite("makeEffect")(
+          testM("Invokes cleanups in reverse order of acquisition.") {
+            var effects               = List[Int]()
+            def acquire(x: Int): Int  = { effects = x :: effects; x }
+            def release(x: Int): Unit = effects = x :: effects
+
+            val res     = (x: Int) => ZManaged.makeEffect(acquire(x))(release)
+            val program = res(1) *> res(2) *> res(3)
+
+            for {
+              _ <- program.use_(ZIO.unit)
+            } yield assert(effects, equalTo(List(1, 2, 3, 3, 2, 1)))
+          }
+        ),
         suite("reserve")(
           testM("Interruption is possible when using this form") {
             ZManagedSpecUtil

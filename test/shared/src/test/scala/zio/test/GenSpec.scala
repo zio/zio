@@ -2,14 +2,14 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ DefaultRuntime, Managed, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
-import zio.test.mock.MockRandom
 import zio.test.Assertion._
+import zio.test.GenUtils._
 import zio.test.TestUtils.{ label, succeeded }
+import zio.ZIO
 
-object GenSpec extends DefaultRuntime {
+object GenSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(monadLeftIdentity, "monad left identity"),
@@ -34,6 +34,8 @@ object GenSpec extends DefaultRuntime {
     label(doubleGeneratesValuesInRange, "double generates values in range"),
     label(doubleShrinksToBottomOfRange, "double shrinks to bottom of range"),
     label(eitherShrinksToLeft, "either shrinks to left"),
+    label(exponentialGeneratesValuesInRange, "exponential generates values between 0 and positive infinity"),
+    label(exponentialShrinksToZero, "exponential shrinks to zero"),
     label(filterFiltersValuesAccordingToPredicate, "filter filters values according to predicate"),
     label(filterFiltersShrinksAccordingToPredicate, "filter filters shrinks according to predicate"),
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
@@ -54,6 +56,7 @@ object GenSpec extends DefaultRuntime {
     label(none, "none generates the constant empty value"),
     label(optionOfGeneratesOptionalValues, "optionOf generates optional values"),
     label(optionOfShrinksToNone, "optionOf shrinks to None"),
+    label(partialFunctionGeneratesPartialFunctions, "partialFunction generates partial functions"),
     label(printableCharGeneratesValuesInRange, "printableChar generates values in range"),
     label(printableCharShrinksToBottomOfRange, "printableChar shrinks to bottom of range"),
     label(reshrinkAppliesNewShrinkingLogic, "reShrink applies new shrinking logic"),
@@ -181,6 +184,12 @@ object GenSpec extends DefaultRuntime {
   def eitherShrinksToLeft: Future[Boolean] =
     checkShrink(Gen.either(smallInt, smallInt))(Left(-10))
 
+  def exponentialGeneratesValuesInRange: Future[Boolean] =
+    checkSample(Gen.exponential)(_.forall(_ >= 0))
+
+  def exponentialShrinksToZero: Future[Boolean] =
+    checkShrink(Gen.exponential)(0.0)
+
   def filterFiltersValuesAccordingToPredicate: Future[Boolean] =
     checkSample(smallInt.filter(_ % 2 == 0))(_.forall(_ % 2 == 0))
 
@@ -271,6 +280,16 @@ object GenSpec extends DefaultRuntime {
   def optionOfShrinksToNone: Future[Boolean] =
     checkShrink(Gen.option(smallInt))(None)
 
+  def partialFunctionGeneratesPartialFunctions: Future[Boolean] = {
+    val gen = for {
+      f <- Gen.partialFunction[Random, String, Int](Gen.int(-10, 10))
+      s <- Gen.string(Gen.anyChar)
+    } yield f.lift(s)
+    checkSample(gen) { results =>
+      results.exists(_.isEmpty) && results.exists(_.nonEmpty)
+    }
+  }
+
   def printableCharGeneratesValuesInRange: Future[Boolean] =
     checkSample(Gen.printableChar)(_.forall(c => 33 <= c && c <= 126))
 
@@ -302,7 +321,7 @@ object GenSpec extends DefaultRuntime {
 
   def smallGeneratesSizesInRange: Future[Boolean] = {
     val gen = Gen.small(Gen.listOfN(_)(Gen.int(-10, 10)))
-    checkSample(gen)(_.forall(_.length < 8))
+    checkSample(gen)(_.forall(_.length <= 100))
   }
 
   def someShrinksToSmallestValue: Future[Boolean] =
@@ -444,68 +463,4 @@ object GenSpec extends DefaultRuntime {
       succeeded(takeWhileProp)
     }
   }
-
-  def checkEqual[A](left: Gen[Random, A], right: Gen[Random, A]): Future[Boolean] =
-    unsafeRunToFuture(equal(left, right))
-
-  def checkSample[A](gen: Gen[Random with Sized, A], size: Int = 100)(f: List[A] => Boolean): Future[Boolean] =
-    unsafeRunToFuture(provideSize(sample(gen).map(f))(size))
-
-  def checkFinite[A](gen: Gen[Random, A])(f: List[A] => Boolean): Future[Boolean] =
-    unsafeRunToFuture(gen.sample.map(_.value).runCollect.map(f))
-
-  def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): Future[Boolean] =
-    unsafeRunToFuture(provideSize(alwaysShrinksTo(gen)(a: A))(100))
-
-  def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.map(_.value).forever.take(100).runCollect
-
-  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): ZIO[R, Nothing, Boolean] = {
-    val shrinks = if (TestPlatform.isJS) 1 else 100
-    ZIO.collectAll(List.fill(shrinks)(shrinksTo(gen))).map(_.forall(_ == a))
-  }
-
-  def shrinksTo[R, A](gen: Gen[R, A]): ZIO[R, Nothing, A] =
-    shrinks(gen).map(_.reverse.head)
-
-  def shrinks[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.forever.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runCollect
-
-  def equal[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
-    equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
-
-  def forAll[E <: Throwable, A](zio: ZIO[Random, E, Boolean]): Future[Boolean] =
-    unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)))
-
-  def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val mockRandom = Managed.fromEffect(MockRandom.make(MockRandom.DefaultData))
-    for {
-      leftSample  <- sample(left).provideManaged(mockRandom)
-      rightSample <- sample(right).provideManaged(mockRandom)
-    } yield leftSample == rightSample
-  }
-
-  def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val mockRandom = Managed.fromEffect(MockRandom.make(MockRandom.DefaultData))
-    for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(mockRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(mockRandom)
-    } yield leftShrinks == rightShrinks
-  }
-
-  def showTree[R, A](sample: Sample[R, A], offset: Int = 0): ZIO[R, Nothing, String] = {
-    val head = " " * offset + sample.value + "\n"
-    val tail = sample.shrink.mapM(showTree(_, offset + 2)).runCollect.map(_.mkString("\n"))
-    tail.map(head + _)
-  }
-
-  def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    Sized.makeService(n).flatMap { service =>
-      zio.provideSome[Random] { r =>
-        new Random with Sized {
-          val random = r.random
-          val sized  = service
-        }
-      }
-    }
 }

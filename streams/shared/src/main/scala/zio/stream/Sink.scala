@@ -21,7 +21,6 @@ import zio.clock.Clock
 import zio.duration.Duration
 
 object Sink {
-  import ZSink.Step
 
   /**
    * see [[ZSink.await]]
@@ -104,8 +103,10 @@ object Sink {
   /**
    * see [[ZSink.fold]]
    */
-  final def fold[A0, A, S](z: S)(f: (S, A) => Step[S, A0]): Sink[Nothing, A0, A, S] =
-    ZSink.fold(z)(f)
+  final def fold[A0, A, S](
+    z: S
+  )(contFn: S => Boolean)(f: (S, A) => (S, Chunk[A0])): Sink[Nothing, A0, A, S] =
+    ZSink.fold(z)(contFn)(f)
 
   /**
    * see [[ZSink.foldLeft]]
@@ -114,10 +115,18 @@ object Sink {
     ZSink.foldLeft(z)(f)
 
   /**
+   * see [[ZSink.foldLeftM]]
+   */
+  final def foldLeftM[E, A, S](z: S)(f: (S, A) => IO[E, S]): Sink[E, Nothing, A, S] =
+    ZSink.foldLeftM(z)(f)
+
+  /**
    * see [[ZSink.foldM]]
    */
-  final def foldM[E, A0, A, S](z: S)(f: (S, A) => IO[E, Step[S, A0]]): Sink[E, A0, A, S] =
-    ZSink.foldM(z)(f)
+  final def foldM[E, A0, A, S](
+    z: S
+  )(contFn: S => Boolean)(f: (S, A) => IO[E, (S, Chunk[A0])]): Sink[E, A0, A, S] =
+    ZSink.foldM(z)(contFn)(f)
 
   /**
    * see [[ZSink.foldUntilM]]
@@ -136,15 +145,39 @@ object Sink {
    */
   final def foldWeightedM[E, E1 >: E, A, S](
     z: S
-  )(costFn: A => IO[E, Long], max: Long)(f: (S, A) => IO[E1, S]): Sink[E1, A, A, S] =
-    ZSink.foldWeightedM[Any, Any, E, E1, A, S](z)(costFn, max)(f)
+  )(costFn: A => IO[E, Long], max: Long)(
+    f: (S, A) => IO[E1, S]
+  ): Sink[E1, A, A, S] = ZSink.foldWeightedM[Any, Any, E, E1, A, S](z)(costFn, max)(f)
+
+  /**
+   * see [[ZSink.foldWeightedDecomposeM]]
+   */
+  final def foldWeightedDecomposeM[E, E1 >: E, A, S](
+    z: S
+  )(costFn: A => IO[E, Long], max: Long, decompose: A => IO[E, Chunk[A]])(
+    f: (S, A) => IO[E1, S]
+  ): Sink[E1, A, A, S] =
+    ZSink.foldWeightedDecomposeM[Any, Any, E, E1, A, S](z)(costFn, max, decompose)(f)
 
   /**
    * see [[ZSink.foldWeighted]]
    */
   final def foldWeighted[A, S](
     z: S
-  )(costFn: A => Long, max: Long)(f: (S, A) => S): Sink[Nothing, A, A, S] = ZSink.foldWeighted(z)(costFn, max)(f)
+  )(costFn: A => Long, max: Long)(
+    f: (S, A) => S
+  ): Sink[Nothing, A, A, S] =
+    ZSink.foldWeighted(z)(costFn, max)(f)
+
+  /**
+   * see [[ZSink.foldWeighted]]
+   */
+  final def foldWeightedDecompose[A, S](
+    z: S
+  )(costFn: A => Long, max: Long, decompose: A => Chunk[A])(
+    f: (S, A) => S
+  ): Sink[Nothing, A, A, S] =
+    ZSink.foldWeightedDecompose(z)(costFn, max, decompose)(f)
 
   /**
    * see [[ZSink.fromEffect]]
@@ -209,12 +242,8 @@ object Sink {
   /**
    * see [[ZSink.succeed]]
    */
-  final def succeed[B](b: B): Sink[Nothing, Nothing, Any, B] =
+  final def succeed[A, B](b: B): Sink[Nothing, A, A, B] =
     ZSink.succeed(b)
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
-    succeed(b)
 
   /**
    * see [[ZSink.throttleEnforce]]

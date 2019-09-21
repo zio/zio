@@ -3,7 +3,7 @@ package zio.test
 import scala.concurrent.Future
 
 import zio.{ random, Chunk, DefaultRuntime, Ref, ZIO }
-import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isTrue }
+import zio.test.Assertion._
 import zio.test.TestUtils.{ execute, failed, forAllTests, label, succeeded }
 
 object CheckSpec extends DefaultRuntime {
@@ -55,6 +55,19 @@ object CheckSpec extends DefaultRuntime {
         }
       }
       failed(nextInt)
+    }
+
+  def implicationWorksCorrectly: Future[Boolean] =
+    unsafeRunToFuture {
+      val sortedProp = testM("sorted") {
+        check(Gen.listOf(Gen.int(-10, 10))) { ns =>
+          val nss      = ns.sorted
+          val nonEmpty = assert(nss, hasSize(isGreaterThan(0)))
+          val sorted   = assert(nss.zip(nss.tail).exists { case (a, b) => a > b }, isFalse)
+          nonEmpty ==> sorted
+        }
+      }
+      succeeded(sortedProp)
     }
 
   def maxShrinksIsRespected: Future[Boolean] = {

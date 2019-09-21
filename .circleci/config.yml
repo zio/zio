@@ -36,21 +36,30 @@ install_jdk: &install_jdk
         deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-security main restricted universe
         EOF
 
-        if [ $JDK_VERSION == 11 ]; then sudo add-apt-repository ppa:openjdk-r/ppa -y; fi
+        if [ $JDK_VERSION == 11 ]; then
+          wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
+          sudo add-apt-repository https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ -y
+        fi
         sudo apt update
-        sudo apt install openjdk-${JDK_VERSION}-jdk -y
+        if [ $JDK_VERSION == 11 ]; then
+          sudo apt install -y adoptopenjdk-11-hotspot
+        elif [ $JDK_VERSION == 8 ]; then
+          sudo apt install -y openjdk-8-jdk
+        fi
+        java -version
 
 load_cache: &load_cache
   - restore_cache:
-      key: sbt-cache
+      key: sbt-cache-v2
 
 save_cache: &save_cache
   - save_cache:
-      key: sbt-cache
+      key: sbt-cache-v2
       paths:
           - "~/.ivy2/cache"
           - "~/.sbt"
           - "~/.m2"
+          - "~/.cache"
           - "~/website/node_modules"
 
 install_yarn: &install_yarn

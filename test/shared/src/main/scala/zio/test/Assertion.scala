@@ -189,11 +189,29 @@ object Assertion {
   }
 
   /**
+   * Makes a new assertion that requires a given numeric value to match a value with some tolerance.
+   */
+  final def approximatelyEquals[A: Numeric](reference: A, tolerance: A): Assertion[A] =
+    Assertion.assertion("approximatelyEquals")(param(reference), param(tolerance)) { actual =>
+      val referenceType = implicitly[Numeric[A]]
+      val max           = referenceType.plus(reference, tolerance)
+      val min           = referenceType.minus(reference, tolerance)
+
+      referenceType.gteq(actual, min) && referenceType.lteq(actual, max)
+    }
+
+  /**
    * Makes a new assertion that requires an iterable contain the specified
    * element.
    */
   final def contains[A](element: A): Assertion[Iterable[A]] =
     Assertion.assertion("contains")(param(element))(_.exists(_ == element))
+
+  /**
+   * Makes a new assertion that requires a substring to be present.
+   */
+  final def containsString(element: String): Assertion[String] =
+    Assertion.assertion("containsString")(param(element))(_.contains(element))
 
   /**
    * Makes a new assertion that requires an exit value to die.
@@ -211,6 +229,13 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that requires a given string to end with the specified suffix.
+   */
+  final def endsWith(suffix: String): Assertion[String] = Assertion.assertion("endsWith")(param(suffix)) { actual =>
+    actual.endsWith(suffix)
+  }
+
+  /**
    * Makes a new assertion that requires a value equal the specified value.
    */
   final def equalTo[A](expected: A): Assertion[A] =
@@ -220,6 +245,14 @@ object Assertion {
         case (left, right)                     => left == right
       }
     }
+
+  /**
+   * Makes a new assertion that requires a given string to equal another ignoring case
+   */
+  final def equalsIgnoreCase(other: String): Assertion[String] = Assertion.assertion("equalsIgnoreCase")(param(other)) {
+    actual =>
+      actual.equalsIgnoreCase(other)
+  }
 
   /**
    * Makes a new assertion that requires an iterable contain one element
@@ -268,6 +301,18 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that requires an Iterable to have the same elements
+   * as the specified Iterable, though not necessarily in the same order
+   */
+  final def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    Assertion.assertion("hasSameElements")(param(other)) { actual =>
+      val actualSeq = actual.toSeq
+      val otherSeq  = other.toSeq
+
+      actualSeq.diff(otherSeq).isEmpty && otherSeq.diff(actualSeq).isEmpty
+    }
+
+  /**
    * Makes a new assertion that requires the size of an iterable be satisfied
    * by the specified assertion.
    */
@@ -294,6 +339,20 @@ object Assertion {
           BoolAlgebra.failure(AssertionValue(self, actual))
         )(assertion(_))
     }
+
+  /**
+   * Makes a new assertion that requires an Iterable to be empty.
+   */
+  final val isEmpty: Assertion[Iterable[Any]] = Assertion.assertion("isEmpty")() { actual =>
+    actual.isEmpty
+  }
+
+  /**
+   * Makes a new assertion that requires a given string to be empty.
+   */
+  final val isEmptyString: Assertion[String] = Assertion.assertion("isEmptyString")() { actual =>
+    actual.isEmpty
+  }
 
   /**
    * Makes a new assertion that requires a value be true.
@@ -359,6 +418,20 @@ object Assertion {
     Assertion.assertion("isLessThanEqualTo")(param(reference)) { actual =>
       implicitly[Numeric[A]].compare(actual, reference) <= 0
     }
+
+  /**
+   * Makes a new assertion that requires an Iterable to be non empty.
+   */
+  final val isNonEmpty: Assertion[Iterable[Any]] = Assertion.assertion("isNonEmpty")() { actual =>
+    actual.nonEmpty
+  }
+
+  /**
+   * Makes a new assertion that requires a given string to be non empty
+   */
+  final val isNonEmptyString: Assertion[String] = Assertion.assertion("isNonEmptyString")() { actual =>
+    actual.nonEmpty
+  }
 
   /**
    * Makes a new assertion that requires a None value.
@@ -428,6 +501,14 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that requires a given string to match the specified regular expression.
+   */
+  final def matchesRegex(regex: String): Assertion[String] = Assertion.assertion("matchesRegex")(param(regex)) {
+    actual =>
+      actual.matches(regex)
+  }
+
+  /**
    * Makes a new assertion that negates the specified assertion.
    */
   final def not[A](assertion: Assertion[A]): Assertion[A] =
@@ -441,6 +522,13 @@ object Assertion {
    */
   final val nothing: Assertion[Any] = Assertion.assertionRec[Any]("nothing")() { (self, actual) =>
     BoolAlgebra.failure(AssertionValue(self, actual))
+  }
+
+  /**
+   * Makes a new assertion that requires a given string to start with a specified prefix
+   */
+  final def startsWith(prefix: String): Assertion[String] = Assertion.assertion("startsWith")(param(prefix)) { actual =>
+    actual.startsWith(prefix)
   }
 
   /**
