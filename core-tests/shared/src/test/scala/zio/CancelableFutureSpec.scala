@@ -12,10 +12,10 @@ object CancelableFutureSpec
             p2   <- Promise.make[Nothing, Int]
             f    <- (p.succeed(()) *> IO.never).onInterrupt(p2.succeed(42)).toFuture
             _    <- p.await
-            _    <- f.cancel
+            _    <- UIO(f.cancel)
             test <- p2.await
           } yield assert(test, equalTo(42))
-        } @@ TestAspect.nonFlaky(10),
+        } @@ TestAspect.jvmOnly,
         testM("cancel returns the exit reason") {
           for {
             t  <- UIO(new Exception("test"))
@@ -25,10 +25,10 @@ object CancelableFutureSpec
             f2 <- ZIO.fail(t).onError(_ => p2.succeed(())).toFuture
             _  <- p1.await
             _  <- p2.await
-            e1 <- f1.cancel
-            e2 <- f2.cancel
+            e1 <- UIO(f1.cancel)
+            e2 <- UIO(f2.cancel)
           } yield assert(e1.succeeded, isTrue) && assert(e2.succeeded, isFalse)
-        } @@ TestAspect.nonFlaky(10),
+        } @@ TestAspect.jvmOnly,
         testM("is a scala.concurrent.Future") {
           for {
             f <- ZIO(42).toFuture

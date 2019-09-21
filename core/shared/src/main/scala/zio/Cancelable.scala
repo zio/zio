@@ -16,5 +16,6 @@
 
 package zio
 
-private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[Any, A] =>
+trait Cancelable[+E, +A] {
+  def cancel: Exit[E, A]
 }

@@ -103,11 +103,11 @@ trait Runtime[+R] {
     unsafeRunAsync(zio)(_ => ())
 
   /**
-   * Runs the IO, returning a CancelableFuture that will be completed when the effect has been executed.
+   * Runs the IO, returning a Future that will be completed when the effect has been executed.
    *
    * This method is effectful and should only be used at the edges of your program.
    */
-  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): CancelableFuture[E, A] =
+  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): scala.concurrent.Future[A] with Cancelable[E, A] =
     unsafeRun(io.toFuture)
 
   /**

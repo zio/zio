@@ -20,12 +20,10 @@ import scala.concurrent.{ CanAwait, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 import scala.util.Try
 
-trait CancelableFuture[+E, +A] extends Future[A] with FutureTransformCompat[A] {
-  private[zio] val future: Future[A]
-  private[zio] val interrupt: UIO[Exit[E, A]]
-
-  def cancel: UIO[Exit[E, A]] =
-    interrupt
+private[zio] abstract class CancelableFuture[+E, +A](val future: Future[A])
+    extends Future[A]
+    with FutureTransformCompat[A]
+    with Cancelable[E, A] {
 
   def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
     future.onComplete(f)(executor)
@@ -43,12 +41,4 @@ trait CancelableFuture[+E, +A] extends Future[A] with FutureTransformCompat[A] {
 
   def result(atMost: Duration)(implicit permit: CanAwait): A =
     future.result(atMost)
-}
-
-object CancelableFuture {
-  private[zio] def unsafeMake[E, A](f: Future[A], c: UIO[Exit[E, A]]): CancelableFuture[E, A] =
-    new CancelableFuture[E, A] {
-      val future    = f
-      val interrupt = c
-    }
 }
