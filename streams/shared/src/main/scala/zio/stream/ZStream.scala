@@ -2496,13 +2496,13 @@ object ZStream extends ZStreamPlatformSpecific {
   /**
    * Creates a stream from an iterator
    */
-  final def fromIterator[A](iterator: ZIO[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
+  final def fromIterator[R, E, A](iterator: ZIO[R, E, Iterator[A]]): ZStream[R, E, A] =
     fromIteratorManaged(iterator.toManaged_)
 
   /**
    * Creates a stream from an iterator
    */
-  final def fromIteratorManaged[A](iterator: ZManaged[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
+  final def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
     StreamEffect.fromIterator(iterator)
 
   /**

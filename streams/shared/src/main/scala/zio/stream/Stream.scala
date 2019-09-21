@@ -172,13 +172,13 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.fromIterator]]
    */
-  final def fromIterator[A](iterator: ZIO[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
+  final def fromIterator[E, A](iterator: IO[E, Iterator[A]]): Stream[E, A] =
     ZStream.fromIterator(iterator)
 
   /**
    * See [[ZStream.fromIteratorManaged]]
    */
-  final def fromIteratorManaged[A](iterator: ZManaged[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
+  final def fromIteratorManaged[E, A](iterator: Managed[E, Iterator[A]]): Stream[E, A] =
     ZStream.fromIteratorManaged(iterator)
 
   /**
