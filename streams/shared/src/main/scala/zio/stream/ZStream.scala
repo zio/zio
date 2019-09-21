@@ -1086,6 +1086,15 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
   /**
    * Executes an effectful fold over the stream of values.
+   * Stops the fold early after the accumulated value does not fulfill @param cont.
+   * Example:
+   * {{{
+   *   Stream(1)
+   *     .forever                                // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
+   * }}}
+   *
+   * @param cont function which defines the early termination condition
    */
   final def fold[R1 <: R, E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
     foldManaged[R1, E1, A1, S](s)(cont)(f).use(ZIO.succeed)
@@ -1093,6 +1102,16 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Executes an effectful fold over the stream of values. Returns a
    * Managed value that represents the scope of the stream.
+   * Stops the fold early after the accumulated value does not fulfill @param cont.
+   * Example:
+   * {{{
+   *   Stream(1)
+   *     .forever                                // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
+   *     .use(ZIO.succeed)                       // UIO[Int] == 5
+   * }}}
+   *
+   * @param cont function which defines the early termination condition
    */
   final def foldManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
