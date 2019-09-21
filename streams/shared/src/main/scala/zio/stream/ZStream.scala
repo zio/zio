@@ -2256,6 +2256,12 @@ object ZStream extends ZStreamPlatformSpecific {
     ZStream(ZManaged.succeed(UIO.never))
 
   /**
+   * The stream of units
+   */
+  final val unit: Stream[Nothing, Unit] =
+    ZStream(()).forever
+
+  /**
    * Creates a pure stream from a variable list of values
    */
   final def apply[A](as: A*): Stream[Nothing, A] = fromIterable(as)
