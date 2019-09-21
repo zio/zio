@@ -665,6 +665,31 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged.whenM(b)(self)
 
   /**
+   * Modifies this `ZManaged` to provide a canceler that can be used to eagerly
+   * execute the finalizer of this `ZManaged`. The canceler will run
+   * uninterruptibly with an exit value indicating that the effect was
+   * interrupted, and if completed will cause the regular finalizer to not run.
+   */
+  final def withEarlyRelease: ZManaged[R, E, (URIO[R, _], A)] =
+    withEarlyReleaseExit(Exit.interrupt)
+
+  /**
+   * A more powerful version of `withEarlyRelease` that allows specifying an
+   * exit value in the event of early release.
+   */
+  final def withEarlyReleaseExit(exit: Exit[_, _]): ZManaged[R, E, (URIO[R, _], A)] =
+    ZManaged[R, E, (URIO[R, _], A)] {
+      reserve.flatMap {
+        case Reservation(acquire, release) =>
+          Ref.make(true).map { finalize =>
+            val canceler  = (release(exit) *> finalize.set(false)).uninterruptible
+            val finalizer = (e: Exit[_, _]) => release(e).whenM(finalize.get)
+            Reservation(acquire.map((canceler, _)), finalizer)
+          }
+      }
+    }
+
+  /**
    * Named alias for `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
