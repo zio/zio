@@ -1,21 +1,10 @@
 package zio
 
-import zio.FunctionIO.{ fail => _, _ }
+import zio.FunctionIO._
 import zio.test._
 import zio.test.Assertion._
 import FunctionIOSpecUtils._
 
-object FunctionIOSpecUtils {
-  val add1: FunctionIO[Nothing, Int, Int] = FunctionIO.fromFunction(_ + 1)
-  val mul2: FunctionIO[Nothing, Int, Int] = FunctionIO.fromFunction(_ * 2)
-
-  val greaterThan0 = fromFunction[Int, Boolean](_ > 0)
-  val lessThan10   = fromFunction[Int, Boolean](_ < 10)
-
-  val thrower = effect[String, Int, Int] { case _: Throwable => "error" }(
-    _ => throw new Exception
-  )
-}
 object FunctionIOSpec
     extends ZIOBaseSpec(
       suite("FunctionIOSpec")(
@@ -42,8 +31,8 @@ object FunctionIOSpec
             for {
               l1 <- (add1 ||| mul2).run(Left(25))
               r1 <- (add1 ||| mul2).run(Right(25))
-            } yield (assert(l1, equalTo(26))
-              && assert(r1, equalTo(50)))
+            } yield assert(l1, equalTo(26)) &&
+              assert(r1, equalTo(50))
           },
           testM("`first` returns a tuple: the output on the first element and input on the second element") {
             assertM(mul2.first.run(100), equalTo(200 -> 100))
@@ -57,8 +46,7 @@ object FunctionIOSpec
             for {
               v1 <- mul2.left[Int].run(Left(6))
               v2 <- succeed(1).left[String].run(Right("hi"))
-            } yield (assert(v1, isLeft(equalTo(12)))
-              && assert(v2, isRight(equalTo("hi"))))
+            } yield assert(v1, isLeft(equalTo(12))) && assert(v2, isRight(equalTo("hi")))
           },
           testM(
             "`right`takes an Either as input and computes it if it is Right otherwise returns the same value of the input"
@@ -66,8 +54,7 @@ object FunctionIOSpec
             for {
               v1 <- mul2.right[String].run(Left("no value"))
               v2 <- mul2.right[Int].run(Right(7))
-            } yield (assert(v1, isLeft(equalTo("no value")))
-              && assert(v2, isRight(equalTo(14))))
+            } yield assert(v1, isLeft(equalTo("no value"))) && assert(v2, isRight(equalTo(14)))
           },
           testM("`asEffect` returns the input value")(
             assertM(mul2.asEffect.run(56), equalTo(56))
@@ -79,8 +66,7 @@ object FunctionIOSpec
             for {
               v1 <- tester.run(List(1, 2, 5))
               v2 <- tester.run(List(1, 2, 5, 6))
-            } yield (assert(v1, isRight(equalTo(List(1, 2, 5))))
-              && assert(v2, isLeft(equalTo(List(1, 2, 5, 6)))))
+            } yield assert(v1, isRight(equalTo(List(1, 2, 5)))) && assert(v2, isLeft(equalTo(List(1, 2, 5, 6))))
           },
           suite("`ifThenElse`")(
             testM(
@@ -91,8 +77,7 @@ object FunctionIOSpec
               for {
                 v1 <- checker.run(-1)
                 v2 <- checker.run(1)
-              } yield (assert(v1, equalTo("is negative"))
-                && assert(v2, equalTo("is positive")))
+              } yield assert(v1, equalTo("is negative")) && assert(v2, equalTo("is positive"))
             },
             testM(
               "check a pure condition if it is true then computes an effectful function `then0` else computes `else0`"
@@ -103,8 +88,7 @@ object FunctionIOSpec
               for {
                 v1 <- checker.run(-1)
                 v2 <- checker.run(1)
-              } yield (assert(v1, equalTo("is negative"))
-                && assert(v2, equalTo("is positive")))
+              } yield assert(v1, equalTo("is negative")) && assert(v2, equalTo("is positive"))
             }
           ),
           suite("`whileDo`")(
@@ -136,8 +120,20 @@ object FunctionIOSpec
             assertM(thrower.run(9).either, isLeft(equalTo("error")))
           },
           testM("`ignore` ignores a effect failure") {
-            assertM(thrower.run(9).ignore, equalTo(()))
+            assertM(thrower.run(9).ignore, isUnit)
           }
         )
       )
     )
+
+object FunctionIOSpecUtils {
+  val add1: FunctionIO[Nothing, Int, Int] = FunctionIO.fromFunction(_ + 1)
+  val mul2: FunctionIO[Nothing, Int, Int] = FunctionIO.fromFunction(_ * 2)
+
+  val greaterThan0 = fromFunction[Int, Boolean](_ > 0)
+  val lessThan10   = fromFunction[Int, Boolean](_ < 10)
+
+  val thrower = effect[String, Int, Int] { case _: Throwable => "error" }(
+    _ => throw new Exception
+  )
+}
