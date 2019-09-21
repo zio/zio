@@ -18,7 +18,7 @@ package object zio extends EitherCompat {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
   type Canceler[R] = URIO[R, _]
-  type FiberId  = Long
+  type FiberId     = Long
 
   type RIO[-R, +A]  = ZIO[R, Throwable, A]
   type URIO[-R, +A] = ZIO[R, Nothing, A]
