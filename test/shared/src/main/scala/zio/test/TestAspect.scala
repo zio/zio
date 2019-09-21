@@ -169,6 +169,37 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that makes a test succeed if it fails for any cause.
+   */
+  val failure: PerTest[Nothing, Any, Nothing, Any, Unit, Unit] = failure(Assertion.anything)
+
+  /**
+   * An aspect that makes a test succeed if it fails for a given cause.
+   */
+  def failure[E0](p: Assertion[Cause[E0]]): PerTest[Nothing, Any, Nothing, E0, Unit, Unit] =
+    new TestAspect.PerTest[Nothing, Any, Nothing, E0, Unit, Unit] {
+      def perTest[R >: Nothing <: Any, E >: Nothing <: E0, S >: Unit <: Unit](
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
+        lazy val failValue: ZIO[R, TestFailure[E], TestSuccess[S]] = ZIO.fail(
+          TestFailure.Runtime(zio.Cause.die(new RuntimeException("expected failure")))
+        )
+
+        test.foldCauseM(
+          _.untraced match {
+            case Cause.Fail(TestFailure.Runtime(e)) if p.run(e).isSuccess =>
+              ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+            case other => {
+              println(s"other = $other")
+              failValue
+            }
+          },
+          _ => failValue
+        )
+      }
+    }
+
+  /**
    * An aspect that retries a test until success, without limit, for use with
    * flaky tests.
    */

@@ -1,8 +1,7 @@
 package zio.test
 
 import scala.concurrent.Future
-
-import zio.{ DefaultRuntime, Ref }
+import zio.{ Cause, DefaultRuntime, Ref }
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils.{ execute, ignored, label, succeeded }
@@ -13,7 +12,9 @@ object TestAspectSpec extends DefaultRuntime {
     label(jsAppliesTestAspectOnlyOnJS, "js applies test aspect only on ScalaJS"),
     label(jsOnlyRunsTestsOnlyOnScalaJS, "jsOnly runs tests only on ScalaJS"),
     label(jvmAppliesTestAspectOnlyOnJVM, "jvm applies test aspect only on ScalaJS"),
-    label(jvmOnlyRunsTestsOnlyOnTheJVM, "jvmOnly runs tests only on the JVM")
+    label(jvmOnlyRunsTestsOnlyOnTheJVM, "jvmOnly runs tests only on the JVM"),
+    label(failureMakesTestsPassOnAnyFailure, "failure makes a test pass if the result was a failure"),
+    label(failureMakesTestsPassOnAGivenCause, "failure makes a test pass if it passed on a specified failure")
   )
 
   def jsAppliesTestAspectOnlyOnJS: Future[Boolean] =
@@ -46,5 +47,19 @@ object TestAspectSpec extends DefaultRuntime {
     unsafeRunToFuture {
       val spec = test("JVM-only")(assert(TestPlatform.isJVM, isTrue)) @@ jvmOnly
       if (TestPlatform.isJVM) succeeded(spec) else ignored(spec)
+    }
+
+  def failureMakesTestsPassOnAnyFailure: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = test("failure aspect")(assert(throw new java.lang.Exception("boom"), isFalse)) @@ failure
+      succeeded(spec)
+    }
+
+  def failureMakesTestsPassOnAGivenCause: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = test("failure aspect")(assert(throw new NullPointerException(), isFalse)) @@ failure(
+        Assertion.assertion[Cause[NullPointerException]]("")()(_ == Cause.Fail(new NullPointerException()))
+      )
+      succeeded(spec)
     }
 }
