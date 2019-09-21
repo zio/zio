@@ -14,28 +14,29 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   implicit val params: Parameters = Parameters(maxSize = 10)
 
   def is = "StreamChunkSpec".title ^ s2"""
-  StreamChunk.map           $map
-  StreamChunk.filter        $filter
-  StreamChunk.filterNot     $filterNot
-  StreamChunk.mapConcat     $mapConcat
-  StreamChunk.drop          $drop
-  StreamChunk.dropWhile     $dropWhile
-  StreamChunk.take          $take
-  StreamChunk.takeWhile     $takeWhile
-  StreamChunk.mapAccum      $mapAccum
-  StreamChunk.mapM          $mapM
-  StreamChunk.++            $concat
-  StreamChunk.zipWithIndex  $zipWithIndex
-  StreamChunk.foreach0      $foreach0
-  StreamChunk.foreach       $foreach
-  StreamChunk.monadLaw1     $monadLaw1
-  StreamChunk.monadLaw2     $monadLaw2
-  StreamChunk.monadLaw3     $monadLaw3
-  StreamChunk.tap           $tap
-  StreamChunk.foldLeft      $foldLeft
-  StreamChunk.fold          $fold    
-  StreamChunk.flattenChunks $flattenChunks
-  StreamChunk.collect       $collect
+  StreamChunk.map            $map
+  StreamChunk.filter         $filter
+  StreamChunk.filterNot      $filterNot
+  StreamChunk.mapConcatChunk $mapConcatChunk
+  StreamChunk.mapConcat      $mapConcat
+  StreamChunk.drop           $drop
+  StreamChunk.dropWhile      $dropWhile
+  StreamChunk.take           $take
+  StreamChunk.takeWhile      $takeWhile
+  StreamChunk.mapAccum       $mapAccum
+  StreamChunk.mapM           $mapM
+  StreamChunk.++             $concat
+  StreamChunk.zipWithIndex   $zipWithIndex
+  StreamChunk.foreach0       $foreach0
+  StreamChunk.foreach        $foreach
+  StreamChunk.monadLaw1      $monadLaw1
+  StreamChunk.monadLaw2      $monadLaw2
+  StreamChunk.monadLaw3      $monadLaw3
+  StreamChunk.tap            $tap
+  StreamChunk.foldLeft       $foldLeft
+  StreamChunk.fold           $fold
+  StreamChunk.flattenChunks  $flattenChunks
+  StreamChunk.collect        $collect
   """
 
   import ArbitraryStreamChunk._
@@ -62,9 +63,15 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       slurp(s.filterNot(p)) must_=== slurp(s).map(_.filterNot(p))
     }
 
-  private def mapConcat = {
+  private def mapConcatChunk = {
     import ArbitraryChunk._
     prop { (s: StreamChunk[String, String], f: String => Chunk[Int]) =>
+      slurp(s.mapConcatChunk(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
+    }
+  }
+
+  private def mapConcat = {
+    prop { (s: StreamChunk[String, String], f: String => Iterable[Int]) =>
       slurp(s.mapConcat(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
     }
   }
