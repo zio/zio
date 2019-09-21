@@ -146,7 +146,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   final def foldManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
+    chunks.foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
       as.foldMLazy(s)(cont)(f)
     }
 
@@ -159,12 +159,12 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   final def foldChunksManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont)(f)
+    chunks.foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont)(f)
 
   final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    chunks.fold[R1, E1, Chunk[A1], S](s)(cont)(f)
+    chunks.foldWhileM[R1, E1, Chunk[A1], S](s)(cont)(f)
 
   /**
    * Reduces the elements in the stream to a value of type `S`
