@@ -127,7 +127,7 @@ object STMSpec
               } yield assert(v, equalTo(9)) && assert(join, equalTo(42))
             },
             testM("resume after satisfying the condition") {
-              val barrier = new Barrier
+              val barrier = new UnpureBarrier
               for {
                 done  <- Promise.make[Nothing, Unit]
                 tvar1 <- TRef.makeCommit(0)
@@ -135,7 +135,7 @@ object STMSpec
                 fiber <- (STM.atomically {
                           for {
                             v1 <- tvar1.get
-                            _  <- STM.succeed(barrier.release())
+                            _  <- STM.succeed(barrier.open())
                             _  <- STM.check(v1 > 42)
                             _  <- tvar2.set("Succeeded!")
                             v2 <- tvar2.get
@@ -228,12 +228,12 @@ object STMSpec
           },
           suite("Perform atomically a transaction with a condition that couldn't be satisfied, it should be suspended")(
             testM("interrupt the fiber should terminate the transaction") {
-              val barrier = new Barrier
+              val barrier = new UnpureBarrier
               for {
                 tvar <- TRef.makeCommit(0)
                 fiber <- (for {
                           v <- tvar.get
-                          _ <- STM.succeed(barrier.release())
+                          _ <- STM.succeed(barrier.open())
                           _ <- STM.check(v > 0)
                           _ <- tvar.update(10 / _)
                         } yield ()).commit.fork
@@ -246,12 +246,12 @@ object STMSpec
             testM(
               "interrupt the fiber that has executed the transaction in 100 different fibers, should terminate all transactions"
             ) {
-              val barrier = new Barrier
+              val barrier = new UnpureBarrier
               for {
                 tvar <- TRef.makeCommit(0)
                 fiber <- IO.forkAll(List.fill(100)((for {
                           v <- tvar.get
-                          _ <- STM.succeed(barrier.release())
+                          _ <- STM.succeed(barrier.open())
                           _ <- STM.check(v < 0)
                           _ <- tvar.set(10)
                         } yield ()).commit))
@@ -390,7 +390,6 @@ object STMSpec
                 if (result.isSuccess && i > 0) repeat(test, i - 1)
                 else ZIO.succeed(result)
               }
-
             val race = for {
               r0       <- TRef.makeCommit(0)
               r1       <- TRef.makeCommit(0)
@@ -399,7 +398,7 @@ object STMSpec
               sum      <- sumFiber.join
             } yield assert(sum, equalTo(0) || equalTo(2))
 
-            repeat(race, 10000)
+            repeat(race, 100000)
           }
         }
       )
@@ -407,12 +406,18 @@ object STMSpec
 
 object STMSpecUtil {
 
-  class Barrier {
-    private var barrier = true
-    def release(): Unit = barrier = false
-    val await = ZIO
-      .effectSuspend(if (barrier) ZIO.succeed(()) else ZIO.fail(new Exception()))
-      .eventually
+  def unpureSuspend(ms: Long) = STM.succeed {
+    val t0 = System.currentTimeMillis()
+    while (System.currentTimeMillis() - t0 < ms) {}
+  }
+
+  class UnpureBarrier {
+    private var isOpen = false
+    def open(): Unit   = isOpen = true
+    def await =
+      ZIO
+        .effectSuspend(ZIO.effect(if (isOpen) () else throw new Exception()))
+        .eventually
   }
 
   def liveClockSleep(d: Duration) = ZIO.sleep(d).provide(zio.clock.Clock.Live)
