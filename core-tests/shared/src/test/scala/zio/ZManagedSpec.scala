@@ -685,6 +685,24 @@ object ZManagedSpec
               _       <- latch.await
               result  <- ref.get
             } yield assert(result, equalTo(1))
+          },
+          testM("The canceler will run with an exit value indicating the effect was interrupted") {
+            for {
+              ref     <- Ref.make(false)
+              managed = ZManaged.makeExit(ZIO.unit)((_, e) => ref.set(e.interrupted))
+              _       <- managed.withEarlyRelease.use(_._1)
+              result  <- ref.get
+            } yield assert(result, isTrue)
+          }
+        ),
+        suite("withEarlyReleaseExit")(
+          testM("Allows specifying an exit value") {
+            for {
+              ref     <- Ref.make(false)
+              managed = ZManaged.makeExit(ZIO.unit)((_, e) => ref.set(e.succeeded))
+              _       <- managed.withEarlyReleaseExit(Exit.unit).use(_._1)
+              result  <- ref.get
+            } yield assert(result, isTrue)
           }
         ),
         suite("zipPar")(
