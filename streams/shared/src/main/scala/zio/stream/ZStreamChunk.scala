@@ -29,7 +29,7 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   import ZStream.Pull
 
   /**
@@ -193,21 +193,28 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
    */
-  def map[@specialized B](f: A => B): ZStreamChunk[R, E, B] =
+  def map[B](f: A => B): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.map(f)))
 
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
-  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
+  final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
 
   /**
-   * Maps each element to a chunk, and flattens the chunks into the output of
+   * Maps each element to a chunk and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
+  def mapConcatChunk[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.flatMap(f)))
+
+  /**
+   * Maps each element to an iterable and flattens the iterable into the output of
+   * this stream.
+   */
+  def mapConcat[B](f: A => Iterable[B]): ZStreamChunk[R, E, B] =
+    mapConcatChunk(f andThen Chunk.fromIterable)
 
   /**
    * Maps over elements of the stream with the specified effectful function.

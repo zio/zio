@@ -1,56 +1,56 @@
 package zio.internal
 
-import org.specs2.Specification
+import zio.ZIOBaseSpec
+import zio.test.Assertion._
+import zio.test._
 
 /*
  * This spec is just a sanity check and tests RingBuffer correctness
  * in a single-threaded case.
  */
-class MutableConcurrentQueueSpec extends Specification {
-  def is =
-    "MutableConcurrentQueueSpec".title ^ s2"""
-    Make a bounded MutableConcurrentQueue
-     of capacity 1 returns a queue of capacity 1. $minSize
-     of capacity 2 returns a queue of capacity 2. $exactSize1
-     of capacity 3 returns a queue of capacity 3. $exactSize2
+object MutableConcurrentQueueSpec
+    extends ZIOBaseSpec(
+      suite("MutableConcurrentQueueSpec")(
+        suite("Make a bounded MutableConcurrentQueue")(
+          test("of capacity 1 returns a queue of capacity 1") {
+            val q = MutableConcurrentQueue.bounded(1)
 
-    With a RingBuffer of capacity 2
-     `offer` of 2 items succeeds, further offers fail. $offerCheck
-     `poll` of 2 items from full queue succeeds, further `poll`s return default value. $pollCheck
-    """
+            assert(q.capacity, equalTo(1))
+          },
+          test("of capacity 2 returns a queue of capacity 2") {
+            val q = MutableConcurrentQueue.bounded(2)
 
-  def minSize = {
-    val q = MutableConcurrentQueue.bounded(1)
-    q.capacity must_=== 1
-  }
+            assert(q.capacity, equalTo(2))
+          },
+          test("of capacity 3 returns a queue of capacity 3") {
+            val q = MutableConcurrentQueue.bounded(3)
 
-  def exactSize1 = {
-    val q = MutableConcurrentQueue.bounded(2)
-    q.capacity must_=== 2
-  }
+            assert(q.capacity, equalTo(3))
+          }
+        ),
+        suite("With a RingBuffer of capacity 2")(
+          test("`offer` of 2 items succeeds, further offers fail") {
+            val q = MutableConcurrentQueue.bounded[Int](2)
 
-  def exactSize2 = {
-    val q = MutableConcurrentQueue.bounded(3)
-    q.capacity must_=== 3
-  }
+            (assert(q.offer(1), isTrue)
+            && assert(q.size, equalTo(1))
+            && assert(q.offer(2), isTrue)
+            && assert(q.size, equalTo(2))
+            && assert(q.offer(3), isFalse)
+            && assert(q.isFull, isTrue))
+          },
+          test(
+            "`poll` of 2 items from full queue succeeds, further `poll`s return default value"
+          ) {
+            val q = MutableConcurrentQueue.bounded[Int](2)
+            q.offer(1)
+            q.offer(2)
 
-  def offerCheck = {
-    val q = MutableConcurrentQueue.bounded[Int](2)
-    (q.offer(1) must beTrue)
-      .and(q.size must_=== 1)
-      .and(q.offer(2) must beTrue)
-      .and(q.size must_=== 2)
-      .and(q.offer(3) must beFalse)
-      .and(q.isFull must beTrue)
-  }
-
-  def pollCheck = {
-    val q = MutableConcurrentQueue.bounded[Int](2)
-    q.offer(1)
-    q.offer(2)
-    (q.poll(-1) must_=== 1)
-      .and(q.poll(-1) must_=== 2)
-      .and(q.poll(-1) must_=== -1)
-      .and(q.isEmpty must beTrue)
-  }
-}
+            (assert(q.poll(-1), equalTo(1))
+            && assert(q.poll(-1), equalTo(2))
+            && assert(q.poll(-1), equalTo(-1))
+            && assert(q.isEmpty, isTrue))
+          }
+        )
+      )
+    )

@@ -301,6 +301,18 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that requires an Iterable to have the same elements
+   * as the specified Iterable, though not necessarily in the same order
+   */
+  final def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    Assertion.assertion("hasSameElements")(param(other)) { actual =>
+      val actualSeq = actual.toSeq
+      val otherSeq  = other.toSeq
+
+      actualSeq.diff(otherSeq).isEmpty && otherSeq.diff(actualSeq).isEmpty
+    }
+
+  /**
    * Makes a new assertion that requires the size of an iterable be satisfied
    * by the specified assertion.
    */
@@ -453,6 +465,11 @@ object Assertion {
 
   /**
    * Makes an assertion that requires a value have the specified type.
+   *
+   * Example:
+   * {{{
+   *   assert(Duration.fromNanos(1), isSubtype[Duration.Finite](Assertion.anything))
+   * }}}
    */
   final def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
     Assertion.assertionRec[Any]("isSubtype")(param(C.runtimeClass.getSimpleName)) { (self, actual) =>
@@ -543,4 +560,9 @@ object Assertion {
         case t: Throwable => assertion(t)
       }
     }
+
+  /**
+   * Returns a new assertion that requires the expression to throw an instance of given type (or its subtype)
+   */
+  final def throwsA[E: ClassTag]: Assertion[Any] = throws(isSubtype[E](anything))
 }

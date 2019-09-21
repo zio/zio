@@ -128,7 +128,7 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.fromChunk]]
    */
-  final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
+  final def fromChunk[A](c: Chunk[A]): Stream[Nothing, A] =
     ZStream.fromChunk(c)
 
   /**
@@ -142,6 +142,12 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def fromPull[E, A](pull: Pull[Any, E, A]): Stream[E, A] =
     ZStream.fromPull(pull)
+
+  /**
+   * See [[ZStream.paginate]]
+   */
+  final def paginate[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
+    ZStream.paginate(s)(f)
 
   /**
    * See [[ZStream.repeatEffect]]
@@ -162,6 +168,18 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
     ZStream.fromIterable(as)
+
+  /**
+   * See [[ZStream.fromIterator]]
+   */
+  final def fromIterator[E, A](iterator: IO[E, Iterator[A]]): Stream[E, A] =
+    ZStream.fromIterator(iterator)
+
+  /**
+   * See [[ZStream.fromIteratorManaged]]
+   */
+  final def fromIteratorManaged[E, A](iterator: Managed[E, Iterator[A]]): Stream[E, A] =
+    ZStream.fromIteratorManaged(iterator)
 
   /**
    * See [[ZStream.fromQueue]]

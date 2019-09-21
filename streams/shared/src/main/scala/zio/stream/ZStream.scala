@@ -545,6 +545,17 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   }
 
   /**
+   * Maps the success values of this stream to the specified constant value.
+   */
+  final def as[B](b: B): ZStream[R, E, B] = map(_ => b)
+
+  /**
+   * Returns a stream whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  final def bimap[E2, B](f: E => E2, g: A => B): ZStream[R, E2, B] = mapError(f).map(g)
+
+  /**
    * Fan out the stream, producing a list of streams that have the same elements as this stream.
    * The driver streamer will only ever advance of the maximumLag values before the
    * slowest downstream stream.
@@ -838,6 +849,16 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         }
       } yield pull
     }
+
+  /**
+   * Returns a stream whose failures and successes have been lifted into an
+   * `Either`. The resulting stream cannot fail, because the failures have
+   * been exposed as part of the `Either` success case.
+   *
+   * @note the stream will end as soon as the first error occurs.
+   */
+  final def either: ZStream[R, Nothing, Either[E, A]] =
+    self.map(Right(_)).catchAll(e => ZStream(Left(e)))
 
   /**
    * Executes the provided finalizer after this stream's finalizers run.
@@ -1139,7 +1160,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * More powerful version of `ZStream#groupByKey`
    */
-  def groupBy[R1 <: R, E1 >: E, K, V, A1](
+  final def groupBy[R1 <: R, E1 >: E, K, V, A1](
     f: A => ZIO[R1, E1, (K, V)],
     buffer: Int = 16
   ): GroupBy[R1, E1, K, V] = {
@@ -1183,7 +1204,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Group a stream using a function.
    */
-  def groupByKey[R1 <: R, E1 >: E, K](
+  final def groupByKey[R1 <: R, E1 >: E, K](
     f: A => K,
     buffer: Int = 16
   ): GroupBy[R1, E1, K, A] =
@@ -1289,7 +1310,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
-  final def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
+  def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
       for {
         state <- Ref.make(s1).toManaged_
@@ -1452,7 +1473,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Split a stream by a predicate. The faster stream may advance by up to buffer elements further than the slower one.
    */
-  def partitionEither[B, C, R1 <: R, E1 >: E](
+  final def partitionEither[B, C, R1 <: R, E1 >: E](
     p: A => ZIO[R1, E1, Either[B, C]],
     buffer: Int = 16
   ): ZManaged[R1, E1, (ZStream[Any, E1, B], ZStream[Any, E1, C])] =
@@ -1964,6 +1985,25 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
 
   /**
+   * Filters any 'None'.
+   */
+  final def unNone[A1](implicit ev: A <:< Option[A1]): ZStream[R, E, A1] = {
+    val _ = ev
+    self.asInstanceOf[ZStream[R, E, Option[A1]]].collect { case Some(a) => a }
+  }
+
+  /**
+   * Filters any 'Take'.
+   */
+  final def unTake[E1 >: E, A1](implicit ev: A <:< Take[E1, A1]): ZStream[R, E1, A1] = {
+    val _ = ev
+    self
+      .asInstanceOf[ZStream[R, E, Take[E1, A1]]]
+      .mapM(t => Take.option(UIO.succeed(t)))
+      .collectWhile { case Some(a) => a }
+  }
+
+  /**
    * Zips this stream together with the specified stream.
    */
   final def zip[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
@@ -2167,11 +2207,6 @@ object ZStream extends ZStreamPlatformSpecific {
       }
   }
 
-  implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
-    def unTake: ZStream[R, E, A] =
-      s.mapM(t => Take.option(UIO.succeed(t))).collectWhile { case Some(v) => v }
-  }
-
   /**
    * Representation of a grouped stream.
    * This allows to filter which groups will be processed.
@@ -2235,6 +2270,12 @@ object ZStream extends ZStreamPlatformSpecific {
     ZStream(ZManaged.succeed(UIO.never))
 
   /**
+   * The stream of units
+   */
+  final val unit: Stream[Nothing, Unit] =
+    ZStream(()).forever
+
+  /**
    * Creates a pure stream from a variable list of values
    */
   final def apply[A](as: A*): Stream[Nothing, A] = fromIterable(as)
@@ -2251,6 +2292,15 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZStream[R, E, A] =
     managed(ZManaged.make(acquire)(release))
+
+  /**
+   * Creates a stream from a single value that will get cleaned up after the
+   * stream is consumed
+   */
+  final def bracketExit[R, E, A](
+    acquire: ZIO[R, E, A]
+  )(release: (A, Exit[_, _]) => ZIO[R, Nothing, _]): ZStream[R, E, A] =
+    managed(ZManaged.makeExit(acquire)(release))
 
   /**
    * The stream that always dies with `ex`.
@@ -2422,7 +2472,7 @@ object ZStream extends ZStreamPlatformSpecific {
   /**
    * Creates a stream from a [[zio.Chunk]] of values
    */
-  final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
+  final def fromChunk[A](c: Chunk[A]): Stream[Nothing, A] =
     StreamEffect.fromChunk(c)
 
   /**
@@ -2442,6 +2492,18 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
     StreamEffect.fromIterable(as)
+
+  /**
+   * Creates a stream from an iterator
+   */
+  final def fromIterator[R, E, A](iterator: ZIO[R, E, Iterator[A]]): ZStream[R, E, A] =
+    fromIteratorManaged(iterator.toManaged_)
+
+  /**
+   * Creates a stream from an iterator
+   */
+  final def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
+    StreamEffect.fromIterator(iterator)
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
@@ -2515,6 +2577,21 @@ object ZStream extends ZStreamPlatformSpecific {
   final def mergeAllUnbounded[R, E, A](outputBuffer: Int = 16)(
     streams: ZStream[R, E, A]*
   ): ZStream[R, E, A] = mergeAll(Int.MaxValue, outputBuffer)(streams: _*)
+
+  /**
+   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
+  final def paginate[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
+    ZStream[R, E, A] {
+      for {
+        ref <- Ref.make[Option[S]](Some(s)).toManaged_
+      } yield ref.get.flatMap({
+        case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s) *> Pull.emit(a) })
+        case None    => Pull.end
+      })
+    }
 
   /**
    * Constructs a stream from a range of integers (inclusive).

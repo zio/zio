@@ -147,6 +147,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.fromChunk          $fromChunk
   Stream.fromInputStream    $fromInputStream
   Stream.fromIterable       $fromIterable
+  Stream.fromIterator       $fromIterator
   Stream.fromQueue          $fromQueue
 
   Stream.groupBy
@@ -180,6 +181,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     mergeWith                     $mergeWith
     mergeWith short circuit       $mergeWithShortCircuit
     mergeWith prioritizes failure $mergeWithPrioritizesFailure
+
+  Stream.paginate            $paginate
 
   Stream.partitionEither
     values        $partitionEitherValues
@@ -242,6 +245,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
+
+  Stream.unNone             $unNone
 
   Stream.unTake
     unTake happy path       $unTake
@@ -1224,6 +1229,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRunSync(Stream.fromIterable(l).runCollect) must_=== Success(l)
   }
 
+  private def fromIterator = prop { l: List[Int] =>
+    unsafeRunSync(Stream.fromIterator(UIO.effectTotal(l.iterator)).runCollect) must_=== Success(l)
+  }
+
   private def fromQueue = prop { c: Chunk[Int] =>
     val result = unsafeRunSync {
       for {
@@ -1439,6 +1448,18 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .runCollect
       .either
       .map(_ must_=== Left("Ouch"))
+  }
+
+  private def paginate = unsafeRun {
+    val s = (0, List(1, 2, 3))
+
+    ZStream
+      .paginate(s) {
+        case (x, Nil)      => ZIO.succeed(x -> None)
+        case (x, x0 :: xs) => ZIO.succeed(x -> Some(x0 -> xs))
+      }
+      .runCollect
+      .map(_ must_=== List(0, 1, 2, 3))
   }
 
   private def partitionEitherValues =
@@ -1873,6 +1894,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     ) must_== Failure(Cause.fail(e))
   }
 
+  private def unNone =
+    prop(
+      (s: Stream[String, Option[Int]]) =>
+        unsafeRunSync(s.unNone.runCollect) must_=== unsafeRunSync(s.runCollect.map(_.flatten))
+    )
+
   private def zipWith = unsafeRun {
     val s1 = Stream(1, 2, 3)
     val s2 = Stream(1, 2)
@@ -1900,7 +1927,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .map(_ must_=== Left("Ouch"))
   }
 
-  private def zipWithLatest = unsafeRun {
+  private def zipWithLatest = flaky {
     val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
     val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
 

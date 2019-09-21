@@ -305,6 +305,26 @@ object AssertionSpec {
     testFailure(
       assert(Seq(), isNonEmpty),
       message = "isNonEmpty must fail when the traversable is empty"
+    ),
+    testSuccess(
+      assert(Seq(1, 2, 3), hasSameElements(Seq(1, 2, 3))),
+      message = "containsTheSameElements must succeed when both iterables contain the same elements"
+    ),
+    testFailure(
+      assert(Seq(1, 2, 3, 4), hasSameElements(Seq(1, 2, 3))),
+      message = "containsTheSameElements must fail when the iterables do not contain the same elements"
+    ),
+    testSuccess(
+      assert(Seq(4, 3, 1, 2), hasSameElements(Seq(1, 2, 3, 4))),
+      message = "containsTheSameElements must succeed when both iterables contain the same elements in different order"
+    ),
+    testFailure(
+      assert(
+        Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"),
+        hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
+      ),
+      message =
+        "hasSameElements must fail when both iterables have the same size, have the same values but they appear a different number of times."
     )
   )
 }
