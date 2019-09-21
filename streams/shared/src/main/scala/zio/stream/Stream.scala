@@ -170,6 +170,18 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.fromIterable(as)
 
   /**
+   * See [[ZStream.fromIterator]]
+   */
+  final def fromIterator[A](iterator: ZIO[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
+    ZStream.fromIterator(iterator)
+
+  /**
+   * See [[ZStream.fromIterator]]
+   */
+  final def fromIterator[A](iterator: ZManaged[Any, Nothing, Iterator[A]]): Stream[Nothing, A] =
+    ZStream.fromIterator(iterator)
+
+  /**
    * See [[ZStream.fromQueue]]
    */
   final def fromQueue[E, A](queue: ZQueue[_, _, Any, E, _, A]): Stream[E, A] =

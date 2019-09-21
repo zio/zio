@@ -311,6 +311,13 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def fromIteratorUnsafe[A](iterator: Iterator[A]): StreamEffect[Nothing, A] =
+    StreamEffect[Nothing, A] {
+      Managed.effectTotal { () =>
+        if (iterator.hasNext) iterator.next() else end
+      }
+    }
+
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect[Any, Nothing, A] {
       Managed.effectTotal {
