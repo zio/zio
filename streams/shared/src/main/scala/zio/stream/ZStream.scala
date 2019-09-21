@@ -2494,6 +2494,18 @@ object ZStream extends ZStreamPlatformSpecific {
     StreamEffect.fromIterable(as)
 
   /**
+   * Creates a stream from an iterator
+   */
+  final def fromIterator[R, E, A](iterator: ZIO[R, E, Iterator[A]]): ZStream[R, E, A] =
+    fromIteratorManaged(iterator.toManaged_)
+
+  /**
+   * Creates a stream from an iterator
+   */
+  final def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
+    StreamEffect.fromIterator(iterator)
+
+  /**
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   final def fromQueue[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
