@@ -27,6 +27,7 @@ class FiberRefSpec extends BaseCrossPlatformSpec {
     """
 
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
+  val looseTimeAndCpu                     = ZIO.yieldNow.repeat(Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100))
 
   def e1 =
     for {
@@ -150,7 +151,7 @@ class FiberRefSpec extends BaseCrossPlatformSpec {
     for {
       fiberRef   <- FiberRef.make(initial)
       badWinner  = fiberRef.set(update1) *> ZIO.fail("ups")
-      goodLooser = fiberRef.set(update2) *> clock.sleep(Duration.fromNanos(100))
+      goodLooser = fiberRef.set(update2) *> looseTimeAndCpu
       _          <- badWinner.race(goodLooser)
       value      <- fiberRef.get
     } yield value must_=== update2
@@ -169,7 +170,7 @@ class FiberRefSpec extends BaseCrossPlatformSpec {
       fiberRef <- FiberRef.make(initial)
       latch    <- Promise.make[Nothing, Unit]
       winner   = fiberRef.set(update1) *> latch.succeed(()).unit
-      looser   = latch.await *> fiberRef.set(update2) *> ZIO.yieldNow
+      looser   = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
       _        <- winner.zipPar(looser)
       value    <- fiberRef.get
     } yield value must_=== update2
