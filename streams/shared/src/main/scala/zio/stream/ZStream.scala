@@ -2280,6 +2280,15 @@ object ZStream extends ZStreamPlatformSpecific {
     managed(ZManaged.make(acquire)(release))
 
   /**
+   * Creates a stream from a single value that will get cleaned up after the
+   * stream is consumed
+   */
+  final def bracketExit[R, E, A](
+    acquire: ZIO[R, E, A]
+  )(release: (A, Exit[_, _]) => ZIO[R, Nothing, _]): ZStream[R, E, A] =
+    managed(ZManaged.makeExit(acquire)(release))
+
+  /**
    * The stream that always dies with `ex`.
    */
   final def die(ex: Throwable): Stream[Nothing, Nothing] =
