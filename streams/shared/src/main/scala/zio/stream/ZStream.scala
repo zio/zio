@@ -823,7 +823,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Drops all elements of the stream until the specified predicate evaluates
    * to `true`.
    */
-  final def dropUntil(pred: A => Boolean): ZStream[R, E, A] =
+  def dropUntil(pred: A => Boolean): ZStream[R, E, A] =
     dropWhile(!pred(_)).drop(1)
 
   /**
@@ -1467,7 +1467,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * and the second one will contain all element evaluated to false.
    * The faster stream may advance by up to buffer elements further than the slower one.
    */
-  final def partition(p: A => Boolean, buffer: Int = 16): ZManaged[R, E, (ZStream[R, E, A], ZStream[Any, E, A])] =
+  def partition(p: A => Boolean, buffer: Int = 16): ZManaged[R, E, (ZStream[R, E, A], ZStream[Any, E, A])] =
     self.partitionEither(a => if (p(a)) ZIO.succeed(Left(a)) else ZIO.succeed(Right(a)), buffer)
 
   /**
@@ -1808,7 +1808,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Takes all elements of the stream until the specified predicate evaluates
    * to `true`.
    */
-  final def takeUntil(pred: A => Boolean): ZStream[R, E, A] =
+  def takeUntil(pred: A => Boolean): ZStream[R, E, A] =
     ZStream[R, E, A] {
       for {
         as            <- self.process
