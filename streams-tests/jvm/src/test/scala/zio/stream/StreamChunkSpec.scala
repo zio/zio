@@ -35,8 +35,17 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
-        testM("StreamChunk.mapConcat") {
+        testM("StreamChunk.mapConcatChunk") {
           val fn = Gen.function[Random with Sized, String, Chunk[Int]](smallChunks(intGen))
+          checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
+            for {
+              res1 <- slurp(s.mapConcatChunk(f))
+              res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
+        testM("StreamChunk.mapConcat") {
+          val fn = Gen.function[Random with Sized, String, Iterable[Int]](Gen.small(Gen.listOfN(_)(intGen)))
           checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
             for {
               res1 <- slurp(s.mapConcat(f))

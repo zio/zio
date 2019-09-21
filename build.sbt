@@ -21,12 +21,15 @@ inThisBuild(
     ),
     pgpPublicRing := file("/tmp/public.asc"),
     pgpSecretRing := file("/tmp/secret.asc"),
-    releaseEarlyWith := SonatypePublisher,
     scmInfo := Some(
       ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
     )
   )
 )
+
+publishTo in ThisBuild := {
+  if (!isSnapshot.value) sonatypePublishToBundle.value else Some(Opts.resolver.sonatypeSnapshots)
+}
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
@@ -73,7 +76,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio"))
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -89,7 +92,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio"))
   .settings(publishArtifact in (Test, packageBin) := true)
   .settings(
     libraryDependencies ++= Seq(
@@ -113,7 +116,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
   .dependsOn(core)
   .settings(stdSettings("zio-streams"))
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
@@ -127,7 +130,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio.stream"))
   .settings(publishArtifact in (Test, packageBin) := true)
   .enablePlugins(BuildInfoPlugin)
 
@@ -145,7 +148,7 @@ lazy val streamsTestsSpecs2 = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(streams)
   .dependsOn(coreTests % "test->test;compile->compile")
   .settings(stdSettings("zio-streams-tests"))
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
@@ -171,7 +174,7 @@ lazy val testJS = test.js.settings(
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio.internal.stacktracer"))
   .settings(
     libraryDependencies ++= Seq(
       "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
@@ -275,7 +278,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC3",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC4",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
-      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC3",
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC4",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.1-RC1",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC1"
     )

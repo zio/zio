@@ -39,11 +39,12 @@ object BuildHelper {
       )
     else Nil
 
-  val buildInfoSettings = Seq(
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-    buildInfoPackage := "zio",
-    buildInfoObject := "BuildInfo"
-  )
+  def buildInfoSettings(packageName: String) =
+    Seq(
+      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
+      buildInfoPackage := packageName,
+      buildInfoObject := "BuildInfo"
+    )
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
