@@ -1693,8 +1693,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Schedules the output of the stream using the provided `schedule` and emits its output at
    * the end (if `schedule` is finite).
    */
-  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
-    scheduleEither(schedule).map(_.merge)
+  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
+    scheduleEither(schedule).collect { case Right(a) => a }
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits its output at
@@ -1711,8 +1711,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
    * and if not short circuited, repeat element once".
    */
-  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
-    scheduleElementsEither(schedule).map(_.merge)
+  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
+    scheduleElementsEither(schedule).collect { case Right(a) => a }
 
   /**
    * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
