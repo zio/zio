@@ -1628,7 +1628,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def repeatedAndSpaced =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) >>> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "B", "B", "C", "C"))
     )
@@ -1636,19 +1636,19 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def spacedShortCircuitsAfterScheduleFinished =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .take(3)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A"))
+        .map(_ must_=== List("A", "A", "B"))
     )
 
   private def spacedShortCircuitsWhileInSchedule =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .take(4)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "B"))
+        .map(_ must_=== List("A", "A", "B", "B"))
     )
 
   private def take =
