@@ -545,6 +545,12 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   }
 
   /**
+   * Returns a stream whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  final def bimap[E2, B](f: E => E2, g: A => B): ZStream[R, E2, B] = mapError(f).map(g)
+
+  /**
    * Fan out the stream, producing a list of streams that have the same elements as this stream.
    * The driver streamer will only ever advance of the maximumLag values before the
    * slowest downstream stream.
@@ -838,6 +844,14 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         }
       } yield pull
     }
+
+  /**
+   * Returns a stream whose failures and successes have been lifted into an
+   * `Either`.The resulting stream cannot fail, because the failures have
+   * been exposed as part of the `Either` success case.
+   */
+  final def either: ZStream[R, Nothing, Either[E, A]] =
+    self.map(Right(_)).catchAll(e => ZStream(Left(e)))
 
   /**
    * Executes the provided finalizer after this stream's finalizers run.
