@@ -82,9 +82,11 @@ object DurationSpec
             assert(Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite"), equalTo("Finite"))
           }
         ),
-        suite("Make a Duration from negative nanos and check that:")(test("The Duration is Zero ") {
-          assert(Duration.fromNanos(-1), equalTo(Duration.Zero: Duration))
-        }),
+        suite("Make a Duration from negative nanos and check that:")(
+          test("The Duration is Zero ") {
+            assert(Duration.fromNanos(-1), equalTo(Duration.Zero: Duration))
+          }
+        ),
         suite("Take Infinity and check that: ")(
           test("toMillis returns Long.MaxValue nanoseconds in milliseconds") {
             assert(Duration.Infinity.toMillis, equalTo(Long.MaxValue / 1000000))
