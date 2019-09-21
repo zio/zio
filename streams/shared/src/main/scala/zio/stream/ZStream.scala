@@ -665,7 +665,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Performs a filter and map in a single step.
    */
-  final def collect[B](pf: PartialFunction[A, B]): ZStream[R, E, B] =
+  def collect[B](pf: PartialFunction[A, B]): ZStream[R, E, B] =
     ZStream[R, E, B] {
       self.process.map { as =>
         val pfIO: PartialFunction[A, Pull[R, E, B]] = pf.andThen(Pull.emit(_))
@@ -681,7 +681,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Transforms all elements of the stream for as long as the specified partial function is defined.
    */
-  final def collectWhile[B](pred: PartialFunction[A, B]): ZStream[R, E, B] =
+  def collectWhile[B](pred: PartialFunction[A, B]): ZStream[R, E, B] =
     ZStream[R, E, B] {
       for {
         as   <- self.process
@@ -830,7 +830,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  final def dropWhile(pred: A => Boolean): ZStream[R, E, A] =
+  def dropWhile(pred: A => Boolean): ZStream[R, E, A] =
     ZStream[R, E, A] {
       for {
         as              <- self.process
@@ -876,7 +876,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
-  final def filter(pred: A => Boolean): ZStream[R, E, A] =
+  def filter(pred: A => Boolean): ZStream[R, E, A] =
     ZStream[R, E, A] {
       self.process.map { as =>
         def pull: Pull[R, E, A] = as.flatMap { a =>
@@ -1297,20 +1297,20 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
    */
-  final def map[B](f0: A => B): ZStream[R, E, B] =
+  def map[B](f0: A => B): ZStream[R, E, B] =
     ZStream[R, E, B](self.process.map(_.map(f0)))
 
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
-  final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStream[R, E, B] =
+  def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStream[R, E, B] =
     mapAccumM(s1)((s, a) => UIO.succeed(f1(s, a)))
 
   /**
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
-  final def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
+  def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
       for {
         state <- Ref.make(s1).toManaged_
@@ -1328,7 +1328,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Maps each element to a chunk, and flattens the chunks into the output of
    * this stream.
    */
-  final def mapConcat[B](f: A => Chunk[B]): ZStream[R, E, B] =
+  def mapConcat[B](f: A => Chunk[B]): ZStream[R, E, B] =
     flatMap(a => ZStream.fromChunk(f(a)))
 
   /**
@@ -1636,7 +1636,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  final def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
+  def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
     sink.initial.flatMap { initial =>
       self.process.use { as =>
         def pull(state: sink.State): ZIO[R1, E1, B] =
@@ -1792,7 +1792,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Takes the specified number of elements from this stream.
    */
-  final def take(n: Int): ZStream[R, E, A] =
+  def take(n: Int): ZStream[R, E, A] =
     ZStream[R, E, A] {
       for {
         as      <- self.process
@@ -1828,7 +1828,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  final def takeWhile(pred: A => Boolean): ZStream[R, E, A] =
+  def takeWhile(pred: A => Boolean): ZStream[R, E, A] =
     ZStream[R, E, A] {
       self.process.map { as =>
         for {
@@ -1981,7 +1981,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Applies a transducer to the stream, which converts one or more elements
    * of type `A` into elements of type `C`.
    */
-  final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+  def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
     transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
 
   /**
