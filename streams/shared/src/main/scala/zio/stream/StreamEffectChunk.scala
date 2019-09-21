@@ -84,7 +84,7 @@ private[stream] class StreamEffectChunk[+E, +A](override val chunks: StreamEffec
   override def foldLeft[S](s: S)(f: (S, A) => S): IO[E, S] =
     foldLazyPure(s)(_ => true)(f).use(UIO.succeed)
 
-  override def map[@specialized B](f: A => B): StreamEffectChunk[E, B] =
+  override def map[B](f: A => B): StreamEffectChunk[E, B] =
     StreamEffectChunk(chunks.map(_.map(f)))
 
   override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffectChunk[E, B] =

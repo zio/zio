@@ -128,7 +128,7 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.fromChunk]]
    */
-  final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
+  final def fromChunk[A](c: Chunk[A]): Stream[Nothing, A] =
     ZStream.fromChunk(c)
 
   /**

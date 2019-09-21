@@ -285,7 +285,7 @@ private[stream] object StreamEffect extends Serializable {
   final def apply[E, A](pull: Managed[E, () => A]): StreamEffect[E, A] =
     new StreamEffect[E, A](pull)
 
-  final def fromChunk[@specialized A](c: Chunk[A]): StreamEffect[Nothing, A] =
+  final def fromChunk[A](c: Chunk[A]): StreamEffect[Nothing, A] =
     StreamEffect[Nothing, A] {
       Managed.effectTotal {
         var index = 0
