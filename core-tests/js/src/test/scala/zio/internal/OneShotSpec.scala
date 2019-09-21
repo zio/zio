@@ -1,11 +1,8 @@
 package zio.internal
 
 import zio.ZIOBaseSpec
-import zio.internal.OneShotSpecUtils._
 import zio.test.Assertion._
 import zio.test._
-
-import scala.reflect.ClassTag
 
 object OneShotSpec
     extends ZIOBaseSpec(
@@ -47,6 +44,3 @@ object OneShotSpec
         )
       )
     )
-object OneShotSpecUtils {
-  def throwsA[E: ClassTag]: Assertion[Any] = throws(isSubtype[E](anything))
-}
