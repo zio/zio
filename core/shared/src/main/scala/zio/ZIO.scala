@@ -44,13 +44,13 @@ import zio.{ InterruptStatus => InterruptS }
  *
  * `ZIO` values can efficiently describe the following classes of effects:
  *
- *  - '''Pure Values''' &mdash; `ZIO.succeed`
- *  - '''Error Effects''' &mdash; `ZIO.fail`
- *  - '''Synchronous Effects''' &mdash; `IO.effect`
- *  - '''Asynchronous Effects''' &mdash; `IO.effectAsync`
- *  - '''Concurrent Effects''' &mdash; `IO#fork`
- *  - '''Resource Effects''' &mdash; `IO#bracket`
- *  - '''Contextual Effects''' &mdash; `ZIO.access`
+ *  - '''Pure Values''' — `ZIO.succeed`
+ *  - '''Error Effects''' — `ZIO.fail`
+ *  - '''Synchronous Effects''' — `IO.effect`
+ *  - '''Asynchronous Effects''' — `IO.effectAsync`
+ *  - '''Concurrent Effects''' — `IO#fork`
+ *  - '''Resource Effects''' — `IO#bracket`
+ *  - '''Contextual Effects''' — `ZIO.access`
  *
  * The concurrency model is based on ''fibers'', a user-land lightweight thread,
  * which permit cooperative multitasking, fine-grained interruption, and very
