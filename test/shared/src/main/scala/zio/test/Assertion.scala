@@ -561,7 +561,7 @@ object Assertion {
       }
     }
 
-   /**
+  /**
    * Returns a new assertion that requires the expression to throw an instance of given type (or its subtype)
    */
   final def throwsA[E: ClassTag]: Assertion[Any] = throws(isSubtype[E](anything))
