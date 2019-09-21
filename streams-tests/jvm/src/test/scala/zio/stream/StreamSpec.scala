@@ -1,9 +1,9 @@
 package zio.stream
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.{ Arbitrary, Gen }
 import org.specs2.ScalaCheck
 
-import scala.{Stream => _}
+import scala.{ Stream => _ }
 import zio._
 import zio.duration._
 import zio.ZQueueSpecUtil.waitForSize
@@ -1601,12 +1601,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     var i = -1
     def errorOnce(): ZIO[Any, String, Int] = {
       i = i + 1
-      if(i == 0) ZIO.fail("error")
+      if (i == 0) ZIO.fail("error")
       else ZIO.succeed(i)
     }
 
     unsafeRun {
-      ZStream.repeatEffect(errorOnce())
+      ZStream
+        .repeatEffect(errorOnce())
         .retry(Schedule.once)
         .take(3)
         .run(Sink.collectAll[Int])
@@ -1618,13 +1619,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val value: ZStream[Any, String, Int] = Stream(1) ++ Stream.fail("error") ++ Stream(2, 3)
 
     val result: Exit[String, List[Int]] = unsafeRunSync {
-      value.toQueue(10)
-        .use { q =>
-          Stream.fromQueue(q)
-            .retry(Schedule.once)
-            .unTake
-            .run(Sink.collectAll[Int])
-        }
+      value.toQueue(10).use { q =>
+        Stream
+          .fromQueue(q)
+          .retry(Schedule.once)
+          .unTake
+          .run(Sink.collectAll[Int])
+      }
     }
 
     result must_=== Exit.succeed((List(1, 2, 3)))
