@@ -70,11 +70,10 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     }
   }
 
-  private def mapConcat = {
+  private def mapConcat =
     prop { (s: StreamChunk[String, String], f: String => Iterable[Int]) =>
       slurp(s.mapConcat(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
     }
-  }
 
   private def drop =
     prop { (s: StreamChunk[String, String], n: Int) =>
