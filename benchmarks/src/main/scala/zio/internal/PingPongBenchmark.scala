@@ -13,7 +13,7 @@ import BenchUtils._
 @Measurement(iterations = 10, time = 1)
 @Fork(5)
 @State(Scope.Group)
-class PingPongBenchmark {
+private[this] class PingPongBenchmark {
   def mkEl(): AnyRef = new Object()
   val emptyEl        = null.asInstanceOf[AnyRef]
 
