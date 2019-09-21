@@ -545,6 +545,11 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   }
 
   /**
+   * Maps the success values of this stream to the specified constant value.
+   */
+  final def as[B](b: B): ZStream[R, E, B] = map(_ => b)
+
+  /**
    * Returns a stream whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
