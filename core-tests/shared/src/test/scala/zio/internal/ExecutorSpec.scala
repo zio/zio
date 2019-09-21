@@ -38,44 +38,50 @@ object TestExecutor {
 }
 
 object ExecutorSpec
-  extends ZIOBaseSpec(
-    suite("Create the default unyielding executor and check that:")(
-      test("When converted to an EC, it reports Throwables to stdout") {
-        val t = new CheckPrintThrowable
-        TestExecutor.failing.asEC.reportFailure(t)
-        assert(t.printed, isTrue)
-      })
-
-    ("Create an executor that cannot have tasks submitted to and check that:")(
-      test("It throws an exception upon submission") {
-        assert(TestExecutor.failing.submitOrThrow(() => ()), throwsA[RejectedExecutionException])
-      },
-      test("When converted to an ExecutionContext, it throws an exception") {
-        assert(TestExecutor.failing.asEC.execute(() => ()), throwsA[RejectedExecutionException])
-      },
-      test("When created from an EC, throw when fed an effect") {
-        assert(Executor
-          .fromExecutionContext(1)(TestExecutor.badEC)
-          .submitOrThrow(() => ()), throwsA[RejectedExecutionException])
-      })
-
-    ("Create a yielding executor and check that:")(
-      test("Runnables can be submitted ") {
-        assert(TestExecutor.y.submitOrThrow(() => ()), not(throwsA[RejectedExecutionException]))
-      },
-      test("When converted to an ExecutionContext, it accepts Runnables") {
-        assert(TestExecutor.y.asEC.execute(() => ()), not(throwsA[RejectedExecutionException]))
-      },
-      test("When created from an EC, must not throw when fed an effect ") {
-        assert(Executor.fromExecutionContext(1)(TestExecutor.ec).submit(() => ()), not(throwsA[RejectedExecutionException]))
-      })
-
-     ("Create an unyielding executor and check that:")(
-       test("Runnables can be submitted") {
-         assert(TestExecutor.u.submitOrThrow(() => ()), not(throwsA[RejectedExecutionException]))
-       },
-       test("When converted to an ExecutionContext, it accepts Runnables"){
-         assert(TestExecutor.u.asEC.execute(() => ()), not(throwsA[RejectedExecutionException]))
-       }
-     )
-  )
+    extends ZIOBaseSpec(
+      suite("Create the default unyielding executor and check that:")(
+        test("When converted to an EC, it reports Throwables to stdout") {
+          val t = new CheckPrintThrowable
+          TestExecutor.failing.asEC.reportFailure(t)
+          assert(t.printed, isTrue)
+        },
+        suite("Create an executor that cannot have tasks submitted to and check that:")(
+          test("It throws an exception upon submission") {
+            assert(TestExecutor.failing.submitOrThrow(() => ()), throwsA[RejectedExecutionException])
+          },
+          test("When converted to an ExecutionContext, it throws an exception") {
+            assert(TestExecutor.failing.asEC.execute(() => ()), throwsA[RejectedExecutionException])
+          },
+          test("When created from an EC, throw when fed an effect") {
+            assert(
+              Executor
+                .fromExecutionContext(1)(TestExecutor.badEC)
+                .submitOrThrow(() => ()),
+              throwsA[RejectedExecutionException]
+            )
+          }
+        ),
+        suite("Create a yielding executor and check that:")(
+          test("Runnables can be submitted ") {
+            assert(TestExecutor.y.submitOrThrow(() => ()), not(throwsA[RejectedExecutionException]))
+          },
+          test("When converted to an ExecutionContext, it accepts Runnables") {
+            assert(TestExecutor.y.asEC.execute(() => ()), not(throwsA[RejectedExecutionException]))
+          },
+          test("When created from an EC, must not throw when fed an effect ") {
+            assert(
+              Executor.fromExecutionContext(1)(TestExecutor.ec).submit(() => ()),
+              not(throwsA[RejectedExecutionException])
+            )
+          }
+        ),
+        suite("Create an unyielding executor and check that:")(
+          test("Runnables can be submitted") {
+            assert(TestExecutor.u.submitOrThrow(() => ()), not(throwsA[RejectedExecutionException]))
+          },
+          test("When converted to an ExecutionContext, it accepts Runnables") {
+            assert(TestExecutor.u.asEC.execute(() => ()), not(throwsA[RejectedExecutionException]))
+          }
+        )
+      )
+    )
