@@ -245,6 +245,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
 
+  Stream.unNone             $unNone
+
   Stream.unTake
     unTake happy path       $unTake
     unTake with error       $unTakeError
@@ -1886,6 +1888,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         }
     ) must_== Failure(Cause.fail(e))
   }
+
+  private def unNone =
+    prop(
+      (s: Stream[String, Option[Int]]) =>
+        unsafeRunSync(s.unNone.runCollect) must_=== unsafeRunSync(s.runCollect.map(_.flatten))
+    )
 
   private def zipWith = unsafeRun {
     val s1 = Stream(1, 2, 3)
