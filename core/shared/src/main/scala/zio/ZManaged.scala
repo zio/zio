@@ -674,7 +674,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     withEarlyReleaseExit(Exit.interrupt)
 
   /**
-   * A more powerful version of `withEarlyRelease` that allows specifying an 
+   * A more powerful version of `withEarlyRelease` that allows specifying an
    * exit value in the event of early release.
    */
   final def withEarlyReleaseExit(exit: Exit[_, _]): ZManaged[R, E, (URIO[R, _], A)] =
