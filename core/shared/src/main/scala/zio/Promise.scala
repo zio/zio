@@ -43,7 +43,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def await: IO[E, A] =
     IO.effectAsyncInterrupt[E, A](k => {
-      var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
+      var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
       var retry  = true
 
       while (retry) {
@@ -156,7 +156,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def succeed(a: A): UIO[Boolean] = complete(IO.succeed(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
+  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
     var retry = true
 
     while (retry) {

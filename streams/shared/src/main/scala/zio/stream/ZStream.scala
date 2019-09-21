@@ -2454,7 +2454,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * setting it to `None`.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler, ZStream[R, E, A]],
+    register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream[R, E, A] {

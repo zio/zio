@@ -1804,12 +1804,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    * function must be called at most once.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
-    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
+    effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
       case (started, cancel) =>
         flatten {
           effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
