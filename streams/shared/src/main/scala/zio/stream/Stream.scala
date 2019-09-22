@@ -133,7 +133,7 @@ object Stream {
   final def fromInputStream(
     is: InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
-  ): Stream[IOException, Chunk[Byte]] =
+  ): StreamEffectChunk[Any, IOException, Byte] =
     ZStream.fromInputStream(is, chunkSize)
 
   /**
