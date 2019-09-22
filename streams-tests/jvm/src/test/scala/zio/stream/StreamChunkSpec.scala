@@ -221,15 +221,14 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     import zio.stream.Stream._
     val stream                                    = StreamChunk.fromChunks(Chunk(1, 2, 3)).map(_.toByte)
     val streamResult: Exit[Throwable, List[Byte]] = unsafeRunSync(stream.flattenChunks.runCollect)
-    val inputStreamResult = unsafeRunSync(new ZStreamChunkByteOps[Any, Throwable](stream).toInputStream.use {
-      inputStream =>
-        ZIO.succeed(
-          Iterator
-            .continually(inputStream.read)
-            .takeWhile(_ != -1)
-            .map(_.toByte)
-            .toList
-        )
+    val inputStreamResult = unsafeRunSync(stream.toInputStream.use { inputStream =>
+      ZIO.succeed(
+        Iterator
+          .continually(inputStream.read)
+          .takeWhile(_ != -1)
+          .map(_.toByte)
+          .toList
+      )
     })
     streamResult must_=== inputStreamResult
   }

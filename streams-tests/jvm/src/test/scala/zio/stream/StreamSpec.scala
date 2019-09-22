@@ -1983,7 +1983,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     import zio.stream.Stream._
     val stream                                    = Stream(1, 2, 3).map(_.toByte)
     val streamResult: Exit[Throwable, List[Byte]] = unsafeRunSync(stream.runCollect)
-    val inputStreamResult = unsafeRunSync(new ZStreamByteOps[Any, Throwable](stream).toInputStream.use { inputStream =>
+    val inputStreamResult = unsafeRunSync(stream.toInputStream.use { inputStream =>
       ZIO.succeed(
         Iterator
           .continually(inputStream.read)
