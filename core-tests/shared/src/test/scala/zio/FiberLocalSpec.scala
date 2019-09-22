@@ -7,15 +7,15 @@ import zio.test.Assertion._
 object FiberLocalSpec
     extends ZIOBaseSpec(
       suite("FiberLocalSpec")(
-        suite("create")(
-          testM("Retrieve fiber-local data that has been set") {
+        suite("Create a new FiberLocal and")(
+          testM("retrieve fiber-local data that has been set") {
             for {
               local <- FiberLocal.make[Int]
               _     <- local.set(10)
               v     <- local.get
             } yield assert(v, isSome(equalTo(10)))
           },
-          testM("Empty fiber-local data") {
+          testM("empty fiber-local data") {
             for {
               local <- FiberLocal.make[Int]
               _     <- local.set(10)
@@ -23,14 +23,14 @@ object FiberLocalSpec
               v     <- local.get
             } yield assert(v, isNone)
           },
-          testM("Automatically sets and frees data") {
+          testM("automatically sets and frees data") {
             for {
               local <- FiberLocal.make[Int]
               v1    <- local.locally(10)(local.get)
               v2    <- local.get
             } yield assert(v1, isSome(equalTo(10))) && assert(v2, isNone)
           },
-          testM("Fiber-local data cannot be accessed by other fibers") {
+          testM("fiber-local data cannot be accessed by other fibers") {
             for {
               local <- FiberLocal.make[Int]
               p     <- Promise.make[Nothing, Unit]
@@ -39,7 +39,7 @@ object FiberLocalSpec
               v     <- local.get
             } yield assert(v, isNone)
           },
-          testM("Setting does not overwrite existing fiber-local data") {
+          testM("setting does not overwrite existing fiber-local data") {
             for {
               local <- FiberLocal.make[Int]
               p     <- Promise.make[Nothing, Unit]
