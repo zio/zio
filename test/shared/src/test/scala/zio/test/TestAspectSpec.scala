@@ -4,7 +4,7 @@ import scala.concurrent.Future
 import zio.{ Cause, DefaultRuntime, Ref }
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.TestUtils.{ execute, ignored, label, succeeded }
+import zio.test.TestUtils.{ execute, failed, ignored, label, succeeded }
 
 object TestAspectSpec extends DefaultRuntime {
 
@@ -14,7 +14,11 @@ object TestAspectSpec extends DefaultRuntime {
     label(jvmAppliesTestAspectOnlyOnJVM, "jvm applies test aspect only on ScalaJS"),
     label(jvmOnlyRunsTestsOnlyOnTheJVM, "jvmOnly runs tests only on the JVM"),
     label(failureMakesTestsPassOnAnyFailure, "failure makes a test pass if the result was a failure"),
-    label(failureMakesTestsPassOnAGivenCause, "failure makes a test pass if it passed on a specified failure")
+    label(failureMakesTestsPassOnAGivenCause, "failure makes a test pass if it passed on a specified failure"),
+    label(
+      failureMakesTestsFailWhenGivenCauseDoesNotMatch,
+      "failure does not make a test pass if the specified failure does not match"
+    )
   )
 
   def jsAppliesTestAspectOnlyOnJS: Future[Boolean] =
@@ -58,8 +62,16 @@ object TestAspectSpec extends DefaultRuntime {
   def failureMakesTestsPassOnAGivenCause: Future[Boolean] =
     unsafeRunToFuture {
       val spec = test("failure aspect")(assert(throw new NullPointerException(), isFalse)) @@ failure(
-        Assertion.assertion[Cause[NullPointerException]]("")()(_.isInstanceOf[Cause[NullPointerException]])
+        Assertion.testFails(TestFailure.Runtime(Cause.die(new NullPointerException())))
       )
       succeeded(spec)
+    }
+
+  def failureMakesTestsFailWhenGivenCauseDoesNotMatch: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = test("failure aspect")(assert(throw new RuntimeException(), isFalse)) @@ failure(
+        Assertion.testFails(TestFailure.Runtime(Cause.fail("boom")))
+      )
+      failed(spec)
     }
 }

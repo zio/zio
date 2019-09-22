@@ -16,7 +16,6 @@
 
 package zio.test
 
-import zio.Cause.Traced
 import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration.Duration
 import zio.clock.Clock
@@ -177,30 +176,19 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that makes a test succeed if it fails for a given cause.
    */
-  def failure[E0](p: Assertion[Cause[E0]]): PerTest[Nothing, Any, Nothing, E0, Unit, Unit] =
+  def failure[E0](p: Assertion[TestFailure[E0]]): PerTest[Nothing, Any, Nothing, E0, Unit, Unit] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0, Unit, Unit] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: E0, S >: Unit <: Unit](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
-        lazy val failValue: ZIO[R, TestFailure[E], TestSuccess[S]] = ZIO.fail(
-          TestFailure.Runtime(zio.Cause.die(new RuntimeException("expected failure")))
+        lazy val fail = ZIO.fail(
+          TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected")))
         )
-
-        test.foldCauseM(
-          _.untraced match {
-            case Cause.Fail(TestFailure.Runtime(Traced(e, _))) if p.run(e).isSuccess =>
-              ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
-
-            case Cause.Fail(TestFailure.Runtime(e)) if p.run(e).isSuccess =>
-              ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
-
-            case other => {
-              println(s"other = $other")
-              failValue
-            }
-          },
-          _ => failValue
-        )
+        lazy val succeed = ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+        test.foldM({
+          case testFailure if p.run(testFailure).isSuccess => succeed
+          case _                                           => fail
+        }, _ => fail)
       }
     }
 

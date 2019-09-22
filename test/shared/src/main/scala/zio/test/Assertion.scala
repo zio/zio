@@ -544,6 +544,26 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that verifies a TestFailure matches a given failure
+   */
+  final def testFails[E](failure: E): Assertion[TestFailure[E]] = {
+    def untracedFailure = failure match {
+      case TestFailure.Runtime(Cause.Traced(cause, _)) => cause
+      case TestFailure.Runtime(cause)                  => cause
+    }
+
+    Assertion.assertion("testFails")(param(failure)) {
+      case TestFailure.Assertion(result) => result == failure
+      case TestFailure.Runtime(cause) =>
+        (cause.untraced, untracedFailure) match {
+          case (Cause.Die(actualT: Throwable), Cause.Die(f)) => f.getClass.isInstance(actualT)
+          case (Cause.Fail(actualE), Cause.Fail(e))          => actualE == e
+          case _                                             => false
+        }
+    }
+  }
+
+  /**
    * Returns a new assertion that requires the expression to throw.
    */
   final def throws[A](assertion: Assertion[Throwable]): Assertion[A] =
