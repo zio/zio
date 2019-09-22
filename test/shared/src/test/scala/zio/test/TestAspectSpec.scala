@@ -1,12 +1,14 @@
 package zio.test
 
-import zio.Cause.{ Die, Traced }
+import zio.Cause.{Die, Traced}
 
 import scala.concurrent.Future
-import zio.{ Cause, DefaultRuntime, Ref }
+import zio.{Cause, DefaultRuntime, Ref}
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.TestUtils.{ execute, failed, ignored, label, succeeded }
+import zio.test.TestUtils.{execute, failed, ignored, label, succeeded}
+
+import scala.reflect.ClassTag
 
 object TestAspectSpec extends DefaultRuntime {
 
@@ -82,7 +84,7 @@ object TestAspectSpec extends DefaultRuntime {
       val spec = test("failureMakesTestsPassOnSpecifiedException")(assert(throw new NullPointerException(), isFalse)) @@ failure[
         Nothing
       ](
-        failsWithException(new NullPointerException())
+        failsWithException[NullPointerException]
       )
       succeeded(spec)
     }
@@ -93,7 +95,7 @@ object TestAspectSpec extends DefaultRuntime {
         assert(throw new NullPointerException(), isFalse)
       ) @@ failure[
         Nothing
-      ](failsWithException(new IllegalArgumentException()))
+      ](failsWithException[IllegalArgumentException])
       failed(spec)
     }
 
@@ -136,13 +138,13 @@ object TestAspectSpec extends DefaultRuntime {
       failed(spec)
     }
 
-  private def failsWithException(t: Throwable): Assertion[Any] =
+  private def failsWithException[T <: Throwable](implicit ct: ClassTag[T]): Assertion[Any] =
     isCase(
       "Runtime", {
         case TestFailure.Runtime(Die(e))            => Some(e)
         case TestFailure.Runtime(Traced(Die(e), _)) => Some(e)
         case _                                      => None
       },
-      isInstance(t)
+      isSubtype[T](anything)
     )
 }

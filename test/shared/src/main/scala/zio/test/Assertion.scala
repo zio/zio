@@ -472,11 +472,6 @@ object Assertion {
       else BoolAlgebra.failure(AssertionValue(self, actual))
     }
 
-  final def isInstance[A](reference: A): Assertion[Any] =
-    Assertion.assertion("isInstance")(param(reference)) { actual =>
-      actual.getClass.isAssignableFrom(reference.getClass)
-    }
-
   /**
    * Makes a new assertion that requires a value be true.
    */
