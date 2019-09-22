@@ -2279,7 +2279,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     zio: ZIO[R, E, A],
     ios: Iterable[ZIO[R1, E, A]]
   ): ZIO[R1, E, A] =
-    zio.raceAll(ios)
+    ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _).refailWithTrace
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.

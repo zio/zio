@@ -1319,7 +1319,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testOneMaxYield = {
     val rts = new DefaultRuntime {
-      override val Platform = PlatformLive.Default.withExecutor(PlatformLive.ExecutorUtil.makeDefault(1))
+      override val Platform = PlatformLive.makeDefault(1)
     }
 
     rts.unsafeRun(

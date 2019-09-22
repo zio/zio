@@ -64,7 +64,7 @@ object ZIOSpec
               p <- Promise.make[Nothing, Unit]
               _ <- UIO.foreachPar(List(UIO.never, p.succeed(())))(a => a).fork
               _ <- p.await
-            } yield true, equalTo(true))
+            } yield true, isTrue)
           },
           testM("propagates error") {
             val ints = List(1, 2, 3, 4, 5, 6)
@@ -74,13 +74,18 @@ object ZIOSpec
             assertM(odds.flip, equalTo("not odd"))
           },
           testM("interrupts effects on first failure") {
-            val actions = List(
-              ZIO.never,
-              ZIO.succeed(1),
-              ZIO.fail("C")
-            )
-            val io = ZIO.foreachPar(actions)(a => a)
-            assertM(io.flip, equalTo("C"))
+            for {
+              ref     <- Ref.make(false)
+              promise <- Promise.make[Nothing, Unit]
+              actions = List(
+                ZIO.never,
+                ZIO.succeed(1),
+                ZIO.fail("C"),
+                promise.await *> ref.set(true)
+              )
+              e <- ZIO.foreachPar(actions)(a => a).flip
+              v <- ref.get
+            } yield assert(e, equalTo("C")) && assert(v, isFalse)
           }
         )
       )
