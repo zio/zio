@@ -180,5 +180,7 @@ object FiberRefSpec
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
-  val looseTimeAndCpu                     = MockClock.adjust(101.nanoseconds) *> ZIO.yieldNow.repeat(Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100))
+  val looseTimeAndCpu = MockClock.adjust(101.nanoseconds) *> ZIO.yieldNow.repeat(
+    Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100)
+  )
 }
