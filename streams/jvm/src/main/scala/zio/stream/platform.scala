@@ -7,7 +7,7 @@ import zio.blocking._
 
 trait ZStreamPlatformSpecific {
 
-  private def exitToInputStreamRead[E <: Throwable](exit: Exit[Option[E], Byte]): Int = exit match {
+  private final def exitToInputStreamRead[E <: Throwable](exit: Exit[Option[E], Byte]): Int = exit match {
     case Exit.Success(value) => value.toInt
     case Exit.Failure(cause) =>
       cause.failureOrCause match {

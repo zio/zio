@@ -2231,7 +2231,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     self zipRight that
 }
 
-object ZStream {
+object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
