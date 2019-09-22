@@ -844,8 +844,7 @@ object Chunk {
 
     protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
 
-    override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] =
-      Array.empty
+    override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] = Array.empty
   }
 
   private case class Singleton[A](a: A) extends Chunk[A] {
