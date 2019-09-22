@@ -95,6 +95,7 @@ object ZIOSpec
             assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* live(ZIO.sleep(100.millis)))), equalTo(24))
           }
         ),
+<<<<<<< HEAD
         suite("option")(
           testM("return success in Some") {
             assertM(ZIO.succeed(11).option, equalTo[Option[Int]](Some(11)))
@@ -1206,31 +1207,6 @@ object ZIOSpec
               } yield assert(result, equalTo(c)) &&
                 assert(result.prettyPrint, equalTo(c.prettyPrint))
             }
-          }
-        ),
-        suite("foreachPar")(
-          testM("runs effects in parallel") {
-            assertM(for {
-              p <- Promise.make[Nothing, Unit]
-              _ <- UIO.foreachPar(List(UIO.never, p.succeed(())))(a => a).fork
-              _ <- p.await
-            } yield true, equalTo(true))
-          },
-          testM("propagates error") {
-            val ints = List(1, 2, 3, 4, 5, 6)
-            val odds = ZIO.foreachPar(ints) { n =>
-              if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail("not odd")
-            }
-            assertM(odds.flip, equalTo("not odd"))
-          },
-          testM("interrupts effects on first failure") {
-            val actions = List(
-              ZIO.never,
-              ZIO.succeed(1),
-              ZIO.fail("C")
-            )
-            val io = ZIO.foreachPar(actions)(a => a)
-            assertM(io.flip, equalTo("C"))
           }
         )
       )
