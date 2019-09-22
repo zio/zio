@@ -212,7 +212,7 @@ object StreamChunkSpec
         testM("StreamChunk.flattenChunks") {
           checkM(chunksOfStrings) { s =>
             for {
-              res1 <- s.flattenChunks.foldLeft[String, List[String]](Nil)((acc, a) => a :: acc).map(_.reverse)
+              res1 <- s.flattenChunks.fold[String, List[String]](Nil)((acc, a) => a :: acc).map(_.reverse)
               res2 <- slurp(s)
             } yield assert(res1, equalTo(res2))
           }

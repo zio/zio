@@ -1,6 +1,6 @@
 package zio.internal
 
-import zio.SerializableSpec._
+import zio.SerializableSpecHelpers._
 import zio.ZIOBaseSpec
 import zio.test._
 import zio.test.Assertion._

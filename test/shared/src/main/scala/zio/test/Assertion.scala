@@ -216,8 +216,8 @@ object Assertion {
   /**
    * Makes a new assertion that requires an exit value to die.
    */
-  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
-    Assertion.assertionRec[Exit[Nothing, Any]]("dies")(param(assertion)) { (self, actual) =>
+  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Any, Any]] =
+    Assertion.assertionRec[Exit[Any, Any]]("dies")(param(assertion)) { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.died =>
           cause.untraced match {
@@ -465,6 +465,11 @@ object Assertion {
 
   /**
    * Makes an assertion that requires a value have the specified type.
+   *
+   * Example:
+   * {{{
+   *   assert(Duration.fromNanos(1), isSubtype[Duration.Finite](Assertion.anything))
+   * }}}
    */
   final def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
     Assertion.assertionRec[Any]("isSubtype")(param(C.runtimeClass.getSimpleName)) { (self, actual) =>

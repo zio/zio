@@ -18,6 +18,9 @@ jdk_8: &jdk_8
 jdk_11: &jdk_11
   JDK_VERSION: 11
 
+machine_resource: &machine_resource
+  resource_class: large
+
 machine_ubuntu: &machine_ubuntu
   machine:
     image: ubuntu-1604:201903-01
@@ -139,6 +142,9 @@ release: &release
           name: Fetch git tags
           command: git fetch --tags
       - <<: *load_cache
+      - run: 
+          name: Write sonatype credentials
+          command: echo "credentials += Credentials(\"Sonatype Nexus Repository Manager\", \"oss.sonatype.org\", \"${SONATYPE_USER}\", \"${SONATYPE_PASSWORD}\")" > ~/.sbt/1.0/sonatype.sbt
       - run:
           name: Write PGP public key
           command: echo -n "${PGP_PUBLIC}" | base64 -d > /tmp/public.asc
@@ -147,7 +153,7 @@ release: &release
           command: echo -n "${PGP_SECRET}" | base64 -d > /tmp/secret.asc
       - run:
           name: Release artifacts
-          command: ./sbt ++${SCALA_VERSION}! +clean +sonatypeBundleClean +publishSigned +sonatypeBundleRelease
+          command: ./sbt ++${SCALA_VERSION}! clean sonatypeBundleClean +publishSigned sonatypeBundleRelease
 
 microsite: &microsite
   steps:
@@ -201,6 +207,7 @@ jobs:
   test_211_jdk8_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_211
       - <<: *jdk_8
@@ -208,6 +215,7 @@ jobs:
   test_212_jdk8_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_212
       - <<: *jdk_8
@@ -215,6 +223,7 @@ jobs:
   test_213_jdk8_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_213
       - <<: *jdk_8
@@ -222,6 +231,7 @@ jobs:
   test_dotty_jdk8_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_dotty
       - <<: *jdk_8
@@ -229,6 +239,7 @@ jobs:
   test_212_jdk11_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_212
       - <<: *jdk_11
@@ -254,21 +265,7 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
-  release_211:
-    <<: *release
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_211
-      - <<: *jdk_8
-
-  release_212:
-    <<: *release
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_212
-      - <<: *jdk_8
-
-  release_213:
+  release:
     <<: *release
     <<: *machine_ubuntu
     environment:
@@ -349,7 +346,7 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - release_211:
+      - release:
           context: Sonatype
           requires:
             - test_211_jdk8_jvm
@@ -364,31 +361,10 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - release_212:
-          context: Sonatype
-          requires:
-            - release_211
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - release_213:
-          context: Sonatype
-          requires:
-            - release_212
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-
       - microsite:
           context: Website
           requires:
-            - release_211
-            - release_212
-            - release_213
+            - release
           filters:
             branches:
               ignore: /.*/
