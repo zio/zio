@@ -2047,9 +2047,9 @@ private[zio] trait ZIOFunctions extends Serializable {
       c <- ZIO.uninterruptibleMask { restore =>
             for {
               as <- ZIO.traverse(as)(a => ZIO.interruptible(fn(a)).fork)
-              _ <- as.view.zipWithIndex.foldLeft[ZIO[R, E, _]](ZIO.unit) {
-                    case (io, (f, idx)) =>
-                      io *> f.await.flatMap(arbiter(as, promise, buffer, todo, idx)).fork
+              _ <- ZIO.traverse_(as.zipWithIndex) {
+                    case (f, idx) =>
+                      f.await.flatMap(arbiter(as, promise, buffer, todo, idx)).fork
                   }
               _ <- promise.succeed(Nil).when(as.isEmpty)
               c <- restore(promise.await).onInterrupt(promise.interrupt *> Fiber.interruptAll(as))
@@ -2085,9 +2085,8 @@ private[zio] trait ZIOFunctions extends Serializable {
       c <- ZIO.uninterruptibleMask { restore =>
             for {
               as <- ZIO.traverse(as)(a => ZIO.interruptible(f(a)).fork)
-              _ <- as.foldLeft[ZIO[R, E, _]](ZIO.unit) {
-                    case (io, f) =>
-                      io *> f.await.flatMap(arbiter(as, promise, todo)).fork
+              _ <- ZIO.traverse_(as) { f =>
+                    f.await.flatMap(arbiter(as, promise, todo)).fork
                   }
               _ <- promise.succeed(()).when(as.isEmpty)
               c <- restore(promise.await).onInterrupt(promise.interrupt *> Fiber.interruptAll(as))

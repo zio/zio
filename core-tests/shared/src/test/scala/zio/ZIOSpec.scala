@@ -95,7 +95,6 @@ object ZIOSpec
             assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* live(ZIO.sleep(100.millis)))), equalTo(24))
           }
         ),
-<<<<<<< HEAD
         suite("option")(
           testM("return success in Some") {
             assertM(ZIO.succeed(11).option, equalTo[Option[Int]](Some(11)))
