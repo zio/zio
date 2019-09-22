@@ -1,8 +1,7 @@
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
-import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import BuildHelper._
-import xerial.sbt.Sonatype._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
+import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 name := "zio"
 
@@ -91,6 +90,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner % "test->test;compile->compile")
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
+  .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .settings(
     libraryDependencies ++= Seq(
       "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
