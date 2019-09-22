@@ -1,12 +1,13 @@
 package zio.stream
 
+import com.github.ghik.silencer.silent
 import org.scalacheck.{ Arbitrary, Gen }
 import org.specs2.ScalaCheck
-
-import scala.{ Stream => _ }
+import zio.ZQueueSpecUtil.waitForSize
 import zio._
 import zio.duration._
-import zio.ZQueueSpecUtil.waitForSize
+
+import scala.{ Stream => _ }
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
@@ -260,7 +261,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     zipWithLatest               $zipWithLatest
   
   Stream.toInputStream      $toInputStream
-  Stream.toInputStreamProp  $toInputStreamProp
   """
 
   def aggregate = unsafeRun {
@@ -1978,29 +1978,19 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       (!interleavedLists.succeeded) || (interleavedStream must_=== interleavedLists)
     }
 
+  @silent("Any")
   def toInputStream = {
     import zio.stream.Stream._
-    val stream       = Stream(1, 2, 3).map(_.toByte)
-    val streamResult = unsafeRunSync(stream.runCollect)
+    val stream                                    = Stream(1, 2, 3).map(_.toByte)
+    val streamResult: Exit[Throwable, List[Byte]] = unsafeRunSync(stream.runCollect)
     val inputStreamResult = unsafeRunSync(new ZStreamByteOps[Any, Throwable](stream).toInputStream.use { inputStream =>
-      scala.Stream
-        .continually(inputStream.read())
-        .takeWhile(_ != -1)
-        .map(_.toByte)
-        .toList
-    })
-    streamResult must_=== inputStreamResult
-  }
-
-  def toInputStreamProp = prop { stream: Stream[Nothing, Byte] =>
-    import zio.stream.Stream._
-    val streamResult = unsafeRunSync(stream.runCollect)
-    val inputStreamResult = unsafeRunSync(new ZStreamByteOps[Any, Throwable](stream).toInputStream.use { inputStream =>
-      scala.Stream
-        .continually(inputStream.read())
-        .takeWhile(_ != -1)
-        .map(_.toByte)
-        .toList
+      ZIO.succeed(
+        scala.Stream
+          .continually(inputStream.read())
+          .takeWhile(_ != -1)
+          .map(_.toByte)
+          .toList
+      )
     })
     streamResult must_=== inputStreamResult
   }
