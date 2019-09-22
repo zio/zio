@@ -90,7 +90,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
   .settings(buildInfoSettings("zio"))
-  .settings(publishArtifact in (Test, packageBin) := true)
+  .settings(skip in publish := true)
   .settings(
     libraryDependencies ++= Seq(
       "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
@@ -127,6 +127,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner % "test->test;compile->compile")
   .settings(stdSettings("zio-streams-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(skip in publish := true)
   .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
