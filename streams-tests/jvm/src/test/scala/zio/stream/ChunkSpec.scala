@@ -89,12 +89,15 @@ object ChunkSpec
         test("toArray for an empty Chunk of type String") {
           assert(Chunk.empty.toArray[String], equalTo(Array.empty[String]))
         },
+        test("to Array for an empty Chunk using filter") {
+          assert(Chunk(1).filter(_ == 2).map(_.toString).toArray[String], equalTo(Array.empty[String]))
+        },
         testM("toArray with elements of type String") {
           check(chunkGen(stringGen)) { c =>
             assert(c.toArray.toSeq, equalTo(c.toSeq))
           }
         },
-        test("toArray for a Chunk of a given type") {
+        test("toArray for a Chunk of any type") {
           val v: Vector[Any] = Vector("String", 1, Value(2))
           assert(Chunk.fromIterable(v).toArray.toVector, equalTo(v))
         },
