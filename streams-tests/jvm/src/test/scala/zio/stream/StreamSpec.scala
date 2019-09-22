@@ -68,6 +68,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     concat                  $concat
     finalizer order         $concatFinalizerOrder
 
+  Stream.chunkN       $chunkN
+
   Stream.drain              $drain
 
   Stream.dropUntil
@@ -669,6 +671,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         execution <- log.get
       } yield execution must_=== List("First", "Second")
     }
+
+  private def chunkN =
+    unsafeRun(
+      Stream(1, 2, 3, 4).chunkN(2).run(ZSink.collectAll[List[Int]]).map { result =>
+        result must_=== List(List(1, 2), List(3, 4))
+      }
+    )
 
   private def drain =
     unsafeRun(

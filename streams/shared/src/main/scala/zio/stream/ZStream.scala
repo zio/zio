@@ -664,6 +664,12 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     }
   }
 
+  /*** Chunks the stream with specifed chunkSize
+   * @parm chunkSize size of the chunk
+   */
+  def chunkN(chunkSize: Long): ZStream[R, E, List[A]] =
+    transduce(ZSink.collectAllN[A](chunkSize))
+
   /**
    * Performs a filter and map in a single step.
    */
