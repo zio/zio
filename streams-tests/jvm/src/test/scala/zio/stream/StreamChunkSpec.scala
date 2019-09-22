@@ -224,8 +224,8 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     val inputStreamResult = unsafeRunSync(new ZStreamChunkByteOps[Any, Throwable](stream).toInputStream.use {
       inputStream =>
         ZIO.succeed(
-          scala.Stream
-            .continually(inputStream.read())
+          Iterator
+            .continually(inputStream.read)
             .takeWhile(_ != -1)
             .map(_.toByte)
             .toList
