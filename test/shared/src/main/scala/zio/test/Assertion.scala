@@ -216,8 +216,8 @@ object Assertion {
   /**
    * Makes a new assertion that requires an exit value to die.
    */
-  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
-    Assertion.assertionRec[Exit[Nothing, Any]]("dies")(param(assertion)) { (self, actual) =>
+  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Throwable, Any]] =
+    Assertion.assertionRec[Exit[Throwable, Any]]("dies")(param(assertion)) { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.died =>
           cause.untraced match {
