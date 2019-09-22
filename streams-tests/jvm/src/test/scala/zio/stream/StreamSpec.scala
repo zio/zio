@@ -147,6 +147,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.fromChunk          $fromChunk
   Stream.fromInputStream    $fromInputStream
   Stream.fromIterable       $fromIterable
+  Stream.fromIterator       $fromIterator
   Stream.fromQueue          $fromQueue
 
   Stream.groupBy
@@ -244,6 +245,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
+
+  Stream.unNone             $unNone
 
   Stream.unTake
     unTake happy path       $unTake
@@ -1226,6 +1229,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRunSync(Stream.fromIterable(l).runCollect) must_=== Success(l)
   }
 
+  private def fromIterator = prop { l: List[Int] =>
+    unsafeRunSync(Stream.fromIterator(UIO.effectTotal(l.iterator)).runCollect) must_=== Success(l)
+  }
+
   private def fromQueue = prop { c: Chunk[Int] =>
     val result = unsafeRunSync {
       for {
@@ -1233,7 +1240,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         _     <- queue.offerAll(c.toSeq)
         fiber <- Stream
                   .fromQueue(queue)
-                  .fold[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
+                  .foldWhileM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
                   .map(_.reverse)
                   .fork
         _     <- waitForSize(queue, -1)
@@ -1593,16 +1600,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   private def scheduleWith =
     unsafeRun(
-      Stream("A", "B", "C")
-        .scheduleWith(Schedule.recurs(3) *> Schedule.fromFunction((_) => "!"))(_.toLowerCase, identity)
+      Stream("A", "B", "C", "A", "B", "C")
+        .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(_.toLowerCase, identity)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("a", "b", "c", "!"))
+        .map(_ must_=== List("a", "b", "c", "Done", "a", "b", "c", "Done"))
     )
 
   private def scheduleEither =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleEither(Schedule.recurs(3) *> Schedule.fromFunction((_) => "!"))
+        .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
         .run(Sink.collectAll[Either[String, String]])
         .map(_ must_=== List(Right("A"), Right("B"), Right("C"), Left("!")))
     )
@@ -1626,27 +1633,27 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def repeatedAndSpaced =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) >>> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
+        .map(_ must_=== List("A", "A", "B", "B", "C", "C"))
     )
 
   private def spacedShortCircuitsAfterScheduleFinished =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .take(3)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!"))
+        .map(_ must_=== List("A", "A", "B"))
     )
 
   private def spacedShortCircuitsWhileInSchedule =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .take(4)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!", "B"))
+        .map(_ must_=== List("A", "A", "B", "B"))
     )
 
   private def take =
@@ -1886,6 +1893,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         }
     ) must_== Failure(Cause.fail(e))
   }
+
+  private def unNone =
+    prop(
+      (s: Stream[String, Option[Int]]) =>
+        unsafeRunSync(s.unNone.runCollect) must_=== unsafeRunSync(s.runCollect.map(_.flatten))
+    )
 
   private def zipWith = unsafeRun {
     val s1 = Stream(1, 2, 3)
