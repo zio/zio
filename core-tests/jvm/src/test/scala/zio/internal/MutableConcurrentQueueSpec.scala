@@ -2,8 +2,8 @@ package zio.internal
 
 import zio.SerializableSpecHelpers._
 import zio.ZIOBaseSpec
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 /*
  * This spec is just a sanity check and tests RingBuffer correctness

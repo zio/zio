@@ -35,7 +35,7 @@ import Promise.internal._
  * } yield value
  * }}}
  */
-class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal {
+class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal with Serializable {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
