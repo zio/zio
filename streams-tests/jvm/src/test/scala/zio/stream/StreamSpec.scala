@@ -1240,7 +1240,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         _     <- queue.offerAll(c.toSeq)
         fiber <- Stream
                   .fromQueue(queue)
-                  .fold[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
+                  .foldWhileM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
                   .map(_.reverse)
                   .fork
         _     <- waitForSize(queue, -1)
@@ -1633,27 +1633,27 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def repeatedAndSpaced =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) >>> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
+        .map(_ must_=== List("A", "A", "B", "B", "C", "C"))
     )
 
   private def spacedShortCircuitsAfterScheduleFinished =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .take(3)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!"))
+        .map(_ must_=== List("A", "A", "B"))
     )
 
   private def spacedShortCircuitsWhileInSchedule =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .take(4)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!", "B"))
+        .map(_ must_=== List("A", "A", "B", "B"))
     )
 
   private def take =

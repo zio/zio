@@ -107,9 +107,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     race of terminate with success                $testRaceChoosesWinnerInTerminate
     race of fail with fail                        $testRaceChoosesFailure
     race of value & never                         $testRaceOfValueNever
-    raceAll of values                             $testRaceAllOfValues
-    raceAll of failures                           $testRaceAllOfFailures
-    raceAll of failures & one success             $testRaceAllOfFailuresOneSuccess
     firstSuccessOf of values                      $testFirstSuccessOfValues
     firstSuccessOf of failures                    $testFirstSuccessOfFailures
     firstSuccessOF of failures & 1 success        $testFirstSuccessOfFailuresOneSuccess
@@ -1201,17 +1198,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testRaceOfFailNever =
     unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
-
-  def testRaceAllOfValues =
-    unsafeRun(IO.raceAll(IO.fail(42), List(IO.succeed(24))).either) must_=== Right(24)
-
-  def testRaceAllOfFailures =
-    unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).either) must_=== Left(24)
-
-  def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(ZIO.raceAll(IO.fail(42), List(IO.succeed(24).delay(1.millis))).either) must_=== Right(
-      24
-    )
 
   def testRaceBothInterruptsLoser =
     unsafeRun(for {
