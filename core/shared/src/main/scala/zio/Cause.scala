@@ -53,7 +53,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 
   final def failed: Boolean =
     self match {
-      case Fail(_)           => trueproj
+      case Fail(_)           => true
       case Then(left, right) => left.failed || right.failed
       case Both(left, right) => left.failed || right.failed
       case Traced(cause, _)  => cause.failed
