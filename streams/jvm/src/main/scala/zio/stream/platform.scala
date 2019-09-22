@@ -47,6 +47,22 @@ trait ZStreamPlatformSpecific {
         }
       } yield javaStream
   }
+
+  implicit class StreamEffectByteOps[-R, +E <: Throwable](val stream: StreamEffect[R, E, Byte]) {
+    final def toInputStream: ZManaged[R, E, java.io.InputStream] =
+      for {
+        pull <- stream.processEffect
+        javaStream = new java.io.InputStream {
+          override def read(): Int =
+            try {
+              pull().toInt
+            } catch {
+              case StreamEffect.End        => -1
+              case StreamEffect.Failure(e) => throw e.asInstanceOf[E]
+            }
+        }
+      } yield javaStream
+  }
 }
 
 trait ZSinkPlatformSpecific {
