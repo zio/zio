@@ -16,6 +16,8 @@
 
 package zio.stream
 
+import java.io.{ IOException, InputStream }
+
 import zio._
 
 private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E, () => A])
@@ -320,6 +322,33 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def fromInputStream(
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): StreamEffectChunk[Any, IOException, Byte] =
+    StreamEffectChunk[Any, IOException, Byte] {
+      StreamEffect[Any, IOException, Chunk[Byte]] {
+        Managed.effectTotal {
+          def pull(): Chunk[Byte] = {
+            val buf = Array.ofDim[Byte](chunkSize)
+            try {
+              val bytesRead = is.read(buf)
+              if (bytesRead < 0) end
+              else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
+              else Chunk.fromArray(buf)
+            } catch {
+              case e: IOException => fail(e)
+            }
+          }
+
+          () => pull()
+        }
+      }
+    }
+
+  /**
+   * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
+   */
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect[Any, Nothing, A] {
       Managed.effectTotal {
