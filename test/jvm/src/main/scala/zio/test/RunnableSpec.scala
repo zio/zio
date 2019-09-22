@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.URIO
+import zio.clock.Clock
 import zio.test.Spec.TestCase
 import zio.test.TestRunner.ExecutionResult
 
@@ -32,18 +34,22 @@ abstract class RunnableSpec[L, T, E, S](runner0: TestRunner[L, T, E, S])(spec0: 
   override def runner = runner0
   override def spec   = spec0
 
+  private val runSpec: URIO[TestLogger with Clock, Int] = for {
+    res                               <- runner.run(spec)
+    ExecutionResult(results, summary) = res
+    hasFailures                       = results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
+    _                                 <- TestLogger.logLine(summary)
+  } yield if (hasFailures) 1 else 0
+
   /**
    * A simple main function that can be used to run the spec.
    *
    * TODO: Parse command line options.
    */
   final def main(args: Array[String]): Unit = {
-    val ExecutionResult(results, summary) = runner.unsafeRun(spec)
-    val hasFailures                       = results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
+    val exitCode = runner.buildRuntime().unsafeRun(runSpec)
 
-    println(summary)
-
-    try if (hasFailures) sys.exit(1) else sys.exit(0)
+    try sys.exit(exitCode)
     catch { case _: SecurityException => }
   }
 }
