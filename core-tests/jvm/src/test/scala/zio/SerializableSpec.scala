@@ -1,127 +1,92 @@
 package zio
 
-import java.io._
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
 
-class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+import zio.test.Assertion._
+import SerializableSpecHelpers._
+import zio.test._
 
-  def serializeAndBack[T](a: T): IO[_, T] = {
-    import SerializableSpec._
+object SerializableSpec
+    extends ZIOBaseSpec(
+      suite("SerializableSpec")(
+        testM("Semaphore is serializable") {
+          val n = 20L
+          for {
+            semaphore   <- Semaphore.make(n)
+            count       <- semaphore.available
+            returnSem   <- serializeAndBack(semaphore)
+            returnCount <- returnSem.available
+          } yield assert(returnCount, equalTo(count))
+        },
+        testM("Clock is serializable") {
+          for {
+            time1 <- clock.nanoTime
+            time2 <- serializeAndBack(clock.nanoTime).flatten
+          } yield assert(time1, isLessThanEqualTo(time2))
+        },
+        testM("Queue is serializable") {
+          for {
+            queue       <- Queue.bounded[Int](100)
+            _           <- queue.offer(10)
+            returnQueue <- serializeAndBack(queue)
+            v1          <- returnQueue.take
+            _           <- returnQueue.offer(20)
+            v2          <- returnQueue.take
+          } yield assert(v1, equalTo(10)) &&
+            assert(v2, equalTo(20))
+        },
+        testM("Ref is serializable") {
+          val current = "This is some value"
+          for {
+            ref       <- Ref.make(current)
+            returnRef <- serializeAndBack(ref)
+            value     <- returnRef.get
+          } yield assert(value, equalTo(current))
+        },
+        testM("IO is serializable") {
+          val list = List("1", "2", "3")
+          val io   = IO.succeed(list)
+          for {
+            returnIO <- serializeAndBack(io)
+            result   <- returnIO
+          } yield assert(result, equalTo(list))
+        },
+        testM("FunctionIO is serializable") {
+          import FunctionIO._
+          val v = fromFunction[Int, Int](_ + 1)
+          for {
+            returnKleisli <- serializeAndBack(v)
+            computeV      <- returnKleisli.run(9)
+          } yield assert(computeV, equalTo(10))
+        },
+        testM("FiberStatus is serializable") {
+          val list = List("1", "2", "3")
+          val io   = IO.succeed(list)
+          for {
+            fiber          <- io.fork
+            status         <- fiber.await
+            returnedStatus <- serializeAndBack(status)
+          } yield {
+            assert(returnedStatus.getOrElse(_ => List.empty), equalTo(list))
+          }
+        },
+        testM("Duration is serializable") {
+          import zio.duration.Duration
+          val duration = Duration.fromNanos(1)
+          for {
+            returnDuration <- serializeAndBack(duration)
+          } yield assert(returnDuration, equalTo(duration))
+        }
+      )
+    )
 
+object SerializableSpecHelpers {
+  def serializeAndBack[T](a: T): IO[_, T] =
     for {
       obj       <- IO.effectTotal(serializeToBytes(a))
       returnObj <- IO.effectTotal(getObjFromBytes[T](obj))
     } yield returnObj
-  }
 
-  def is =
-    "SerializableSpec".title ^ s2"""
-    Test all classes are Serializable
-    verify that
-      Semaphore is serializable $e1
-      Clock is serializable $e2
-      Queue is serializable $e3
-      Ref is serializable $e4
-      IO is serializable $e5
-      FunctionIO is serializable $e6
-      FiberStatus is serializable $e7
-      Duration is serializable $e8
-    """
-
-  def e1 = {
-    val n = 20L
-    unsafeRun(
-      for {
-        semaphore   <- Semaphore.make(n)
-        count       <- semaphore.available
-        returnSem   <- serializeAndBack(semaphore)
-        returnCount <- returnSem.available
-      } yield returnCount must_=== count
-    )
-  }
-
-  def e2 =
-    unsafeRun(
-      for {
-        time1 <- clock.nanoTime
-        time2 <- serializeAndBack(clock.nanoTime).flatten
-      } yield (time1 <= time2) must beTrue
-    )
-
-  def e3 = unsafeRun(
-    for {
-      queue       <- Queue.bounded[Int](100)
-      _           <- queue.offer(10)
-      returnQueue <- serializeAndBack(queue)
-      v1          <- returnQueue.take
-      _           <- returnQueue.offer(20)
-      v2          <- returnQueue.take
-    } yield (v1 must_=== 10) and (v2 must_=== 20)
-  )
-
-  def e4 = {
-    val current = "This is some value"
-    unsafeRun(
-      for {
-        ref       <- Ref.make(current)
-        returnRef <- serializeAndBack(ref)
-        value     <- returnRef.get
-      } yield value must_=== current
-    )
-  }
-
-  def e5 = {
-    val list = List("1", "2", "3")
-    val io   = IO.succeed(list)
-    unsafeRun(
-      for {
-        returnIO <- serializeAndBack(io)
-        result   <- returnIO
-      } yield result must_=== list
-    )
-  }
-
-  def e6 = {
-    import FunctionIO._
-    val v = fromFunction[Int, Int](_ + 1)
-    unsafeRun(
-      for {
-        returnKleisli <- serializeAndBack(v)
-        computeV      <- returnKleisli.run(9)
-      } yield computeV must_=== 10
-    )
-  }
-
-  def e7 = {
-    val list = List("1", "2", "3")
-    val io   = IO.succeed(list)
-    val exit = unsafeRun(
-      for {
-        fiber          <- io.fork
-        status         <- fiber.await
-        returnedStatus <- serializeAndBack(status)
-      } yield returnedStatus
-    )
-    val result = exit match {
-      case Exit.Success(value) => value
-      case _                   => List.empty
-    }
-    result must_=== list
-  }
-
-  def e8 = {
-    import zio.duration.Duration
-    val duration = Duration.fromNanos(1)
-    val returnDuration = unsafeRun(
-      for {
-        returnDuration <- serializeAndBack(duration)
-      } yield returnDuration
-    )
-
-    returnDuration must_=== duration
-  }
-}
-
-object SerializableSpec {
   def serializeToBytes[T](a: T): Array[Byte] = {
     val bf  = new ByteArrayOutputStream()
     val oos = new ObjectOutputStream(bf)
