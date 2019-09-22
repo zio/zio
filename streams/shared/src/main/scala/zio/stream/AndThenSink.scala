@@ -3,19 +3,19 @@ package zio.stream
 import zio.stream.AndThenSink.AndThenState
 import zio.{Chunk, ZIO}
 
-class AndThenSink[R1 <: R, R, E1 >: E, E, A, B, A0, C, A00](val self: ZSink[R, E, A0, A, B], val that: ZSink[R1, E1, B, B, C])
-  extends ZSink[R1, E1, A0, A, C]{
+class AndThenSink[R1 <: R, R, E1 >: E, E, A, B, C](val self: ZSink[R, E, A, A, B], val that: ZSink[R1, E1, B, B, C])
+  extends ZSink[R1, E1, A, A, C]{
 
-  override type State = AndThenState[self.State, that.State, A0, B]
+  override type State = AndThenState[self.State, that.State, A, B]
 
-  def State(state1: self.State, leftovers1: Chunk[A0], state2: that.State, leftovers2: Chunk[B]): State =
+  def State(state1: self.State, leftovers1: Chunk[A], state2: that.State, leftovers2: Chunk[B]): State =
     AndThenState(state1, leftovers1, state2, leftovers2)
 
   /**
    * Runs the sink from an initial state and produces a final value
    * of type `B`
    */
-  override def extract(state: State): ZIO[R1, E1, (C, Chunk[A0])] = for {
+  override def extract(state: State): ZIO[R1, E1, (C, Chunk[A])] = for {
     s2 <- that.extract(state.state2)
   } yield s2._1 -> Chunk.empty // todo is this correct ???
 
@@ -32,19 +32,27 @@ class AndThenSink[R1 <: R, R, E1 >: E, E, A, B, A0, C, A00](val self: ZSink[R, E
   /**
    * Decides whether the Sink should continue from the current state.
    */
-  override def cont(state: AndThenState[self.State, that.State, A0, B]): Boolean = {
+  override def cont(state: AndThenState[self.State, that.State, A, B]): Boolean = {
     self.cont(state.state1) && that.cont(state.state2)
   }
 
   /**
    * Steps through one iteration of the sink.
    */
-  override def step(state: AndThenState[self.State, that.State, A0, B], a: A): ZIO[R1, E1, AndThenState[self.State, that.State, A0, B]] = for {
+  override def step(state: AndThenState[self.State, that.State, A, B], a: A): ZIO[R1, E1, AndThenState[self.State, that.State, A, B]] = for {
     s0 <- self.initial
     s1 <- self.step(s0, a)
-    b <- self.extract(s1)
-    s2 <- that.step(state.state2, b._1)
-  } yield AndThenState(s1, state.leftovers1 ++ b._2, s2, state.leftovers2)
+    res <- self.extract(s1)
+    (result, leftover) = res
+    s2 <- that.step(state.state2, result)
+  } yield AndThenState(s1, state.leftovers1 ++ leftover, s2, state.leftovers2)
+
+//  private def fillSelf(state: self.State, leftover: Chunk[A]): ZIO[R, E, self.State] = {
+//    val res = if(self.cont(state) && !leftover.isEmpty) for {
+//      s <- self.step(state, leftover.apply(0))
+//    } yield fillSelf(s, leftover.drop(1))
+//    else
+//  }
 
 }
 

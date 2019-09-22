@@ -281,7 +281,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     andThen
       utf8DecodeChunk andThen ZSink.splitLines               $utf8DecodeChunkAndThenSplitLines
-      !skipping! utf8DecodeChunk andThen ZSink.splitLines with leftover $$utf8DecodeChunkAndThenSplitLinesLeftover
+      utf8DecodeChunk andThen ZSink.splitLines with leftover $utf8DecodeChunkAndThenSplitLinesLeftover
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -1818,16 +1818,20 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     }
   }
 
-//  private def utf8DecodeChunkAndThenSplitLinesLeftover = unsafeRun {
-//    val sink = ZSink.utf8DecodeChunk andThen ZSink.splitLines
-//    for {
-//      initial      <- sink.initial.map(Step.state(_))
-//      middle       <- sink.step(initial, Chunk.fromArray("abc\nbc".getBytes("UTF8")))
-//      result       <- sink.extract(Step.state(middle))
-//    } yield (result.toArray[String].mkString("\n") must_=== "abc") and (new String(
-//      sinkLeftover.toSeq.flatMap(_.toSeq).toArray[Byte]
-//    ) must_=== "bc")
-//  }
+  private def utf8DecodeChunkAndThenSplitLinesLeftover = unsafeRun {
+    val sink = ZSink.utf8DecodeChunk andThen ZSink.splitLines
+    for {
+      initial            <- sink.initial
+      middle             <- sink.step(initial, Chunk.fromArray("abc\nbc".getBytes()))
+      res                <- sink.extract(middle)
+      (result, leftover) = res
+    } yield {
+      val lines = result.toArray[String].mkString("\n")
+      (lines must_=== "abc") and
+        (leftover.flatten.isEmpty must beFalse) and
+        (new String(leftover.flatten.toArray) must_=== "bc")
+    }
+  }
 
   private def utf8DecodeChunkIncomplete1 = unsafeRun {
     for {
