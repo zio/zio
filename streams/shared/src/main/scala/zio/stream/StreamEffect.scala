@@ -16,7 +16,7 @@
 
 package zio.stream
 
-import java.io.InputStream
+import java.io.{ IOException, InputStream }
 
 import zio._
 
@@ -56,10 +56,11 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
         Managed.effectTotal {
           var done = false
 
-          () => {
-            if (done) StreamEffect.end
-            else pred.applyOrElse(thunk(), (_: A) => { done = true; StreamEffect.end })
-          }
+          () =>
+            {
+              if (done) StreamEffect.end
+              else pred.applyOrElse(thunk(), (_: A) => { done = true; StreamEffect.end })
+            }
         }
       }
     }
@@ -80,7 +81,8 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
             } else pull()
           }
 
-          () => pull()
+          () =>
+            pull()
         }
       }
     }
@@ -95,7 +97,8 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
             if (pred(a)) a else pull()
           }
 
-          () => pull()
+          () =>
+            pull()
         }
       }
     }
@@ -138,11 +141,12 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
         Managed.effectTotal {
           var state = s1
 
-          () => {
-            val (s2, b) = f1(state, thunk())
-            state = s2
-            b
-          }
+          () =>
+            {
+              val (s2, b) = f1(state, thunk())
+              state = s2
+              b
+            }
         }
       }
     }
@@ -154,15 +158,16 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
           var chunk: Chunk[B] = Chunk.empty
           var index           = 0
 
-          () => {
-            while (index == chunk.length) {
-              chunk = f(thunk())
-              index = 0
+          () =>
+            {
+              while (index == chunk.length) {
+                chunk = f(thunk())
+                index = 0
+              }
+              val b = chunk(index)
+              index += 1
+              b
             }
-            val b = chunk(index)
-            index += 1
-            b
-          }
         }
       }
     }
@@ -183,13 +188,14 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
         Managed.effectTotal {
           var counter = 0
 
-          () => {
-            if (counter >= n) StreamEffect.end
-            else {
-              counter += 1
-              thunk()
+          () =>
+            {
+              if (counter >= n) StreamEffect.end
+              else {
+                counter += 1
+                thunk()
+              }
             }
-          }
         }
       }
     }
@@ -219,43 +225,44 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
               var done                 = false
               var leftovers: Chunk[A1] = Chunk.empty
 
-              () => {
-                def go(state: sink.State, dirty: Boolean): B =
-                  if (!dirty) {
-                    if (done) StreamEffect.end
-                    else if (leftovers.notEmpty) {
-                      val (newState, newLeftovers) = sink.stepChunkPure(state, leftovers)
-                      leftovers = newLeftovers
-                      go(newState, true)
-                    } else {
-                      val a = thunk()
-                      go(sink.stepPure(state, a), true)
-                    }
-                  } else {
-                    if (done || !sink.cont(state)) {
-                      sink.extractPure(state) match {
-                        case Left(e) => StreamEffect.fail(e)
-                        case Right((b, newLeftovers)) =>
-                          leftovers = leftovers ++ newLeftovers
-                          b
+              () =>
+                {
+                  def go(state: sink.State, dirty: Boolean): B =
+                    if (!dirty) {
+                      if (done) StreamEffect.end
+                      else if (leftovers.notEmpty) {
+                        val (newState, newLeftovers) = sink.stepChunkPure(state, leftovers)
+                        leftovers = newLeftovers
+                        go(newState, true)
+                      } else {
+                        val a = thunk()
+                        go(sink.stepPure(state, a), true)
                       }
                     } else {
-                      try go(sink.stepPure(state, thunk()), true)
-                      catch {
-                        case StreamEffect.End =>
-                          done = true
-                          sink.extractPure(state) match {
-                            case Left(e) => StreamEffect.fail(e)
-                            case Right((b, newLeftovers)) =>
-                              leftovers = leftovers ++ newLeftovers
-                              b
-                          }
+                      if (done || !sink.cont(state)) {
+                        sink.extractPure(state) match {
+                          case Left(e) => StreamEffect.fail(e)
+                          case Right((b, newLeftovers)) =>
+                            leftovers = leftovers ++ newLeftovers
+                            b
+                        }
+                      } else {
+                        try go(sink.stepPure(state, thunk()), true)
+                        catch {
+                          case StreamEffect.End =>
+                            done = true
+                            sink.extractPure(state) match {
+                              case Left(e) => StreamEffect.fail(e)
+                              case Right((b, newLeftovers)) =>
+                                leftovers = leftovers ++ newLeftovers
+                                b
+                            }
+                        }
                       }
                     }
-                  }
 
-                go(sink.initialPure, false)
-              }
+                  go(sink.initialPure, false)
+                }
             }
           }
         }
@@ -293,14 +300,15 @@ private[stream] object StreamEffect extends Serializable {
         var index = 0
         val len   = c.length
 
-        () => {
-          if (index >= len) end
-          else {
-            val i = index
-            index += 1
-            c(i)
+        () =>
+          {
+            if (index >= len) end
+            else {
+              val i = index
+              index += 1
+              c(i)
+            }
           }
-        }
       }
     }
 
@@ -309,7 +317,8 @@ private[stream] object StreamEffect extends Serializable {
       Managed.effectTotal {
         val thunk = as.iterator
 
-        () => if (thunk.hasNext) thunk.next() else end
+        () =>
+          if (thunk.hasNext) thunk.next() else end
       }
     }
 
@@ -322,19 +331,22 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromInputStream(is: InputStream): StreamEffect[Any, Nothing, Byte] =
-    StreamEffect[Any, Nothing, Byte] {
+  final def fromInputStream(
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): StreamEffect[Any, IOException, Chunk[Byte]] =
+    StreamEffect[Any, IOException, Chunk[Byte]] {
       Managed.effectTotal {
-        def pull(): Byte = {
-          val a = is.read()
-          if (a < 0) {
-            end
-          } else {
-            a.toByte
-          }
+        val buf = Array.ofDim[Byte](chunkSize)
+        def pull(): Chunk[Byte] = {
+          val bytesRead = is.read(buf)
+          if (bytesRead < 0) end
+          else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
+          else Chunk.fromArray(buf)
         }
 
-        () => pull()
+        () =>
+          pull()
       }
     }
 
@@ -346,14 +358,15 @@ private[stream] object StreamEffect extends Serializable {
       Managed.effectTotal {
         var state = s
 
-        () => {
-          val opt = f0(state)
-          if (opt.isDefined) {
-            val res = opt.get
-            state = res._2
-            res._1
-          } else end
-        }
+        () =>
+          {
+            val opt = f0(state)
+            if (opt.isDefined) {
+              val res = opt.get
+              state = res._2
+              res._1
+            } else end
+          }
       }
     }
 
@@ -362,12 +375,13 @@ private[stream] object StreamEffect extends Serializable {
       Managed.effectTotal {
         var done = false
 
-        () => {
-          if (!done) {
-            done = true
-            a
-          } else end
-        }
+        () =>
+          {
+            if (!done) {
+              done = true
+              a
+            } else end
+          }
       }
     }
 }

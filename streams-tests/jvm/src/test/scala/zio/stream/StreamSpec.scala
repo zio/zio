@@ -1220,8 +1220,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val chunkSize = ZStreamChunk.DefaultChunkSize
     val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
     val is        = new ByteArrayInputStream(data)
-    ZStream.fromInputStream(is).run(Sink.collectAll[Byte]) map { bytes =>
-      bytes.toArray must_=== data
+    ZStream.fromInputStream(is, chunkSize).run(Sink.collectAll[Chunk[Byte]]) map { chunks =>
+      chunks.flatMap(_.toArray[Byte]).toArray must_=== data
     }
   }
 

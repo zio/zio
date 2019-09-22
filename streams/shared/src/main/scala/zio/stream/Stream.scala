@@ -16,7 +16,7 @@
 
 package zio.stream
 
-import java.io.InputStream
+import java.io.{ IOException, InputStream }
 
 import zio._
 import zio.clock.Clock
@@ -130,8 +130,9 @@ object Stream {
   /**
    * See [[ZStream.fromInputStream]]
    */
-  final def fromInputStream(is: InputStream): Stream[Nothing, Byte] =
-    ZStream.fromInputStream(is)
+  final def fromInputStream(is: InputStream,
+                            chunkSize: Int = ZStreamChunk.DefaultChunkSize): Stream[IOException, Chunk[Byte]] =
+    ZStream.fromInputStream(is, chunkSize)
 
   /**
    * See [[ZStream.fromChunk]]
