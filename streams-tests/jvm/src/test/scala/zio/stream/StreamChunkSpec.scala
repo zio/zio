@@ -37,6 +37,8 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   StreamChunk.fold           $fold
   StreamChunk.flattenChunks  $flattenChunks
   StreamChunk.collect        $collect
+  Stream.toInputStream       $toInputStream
+  Stream.toInputStreamProp   $toInputStreamProp
   """
 
   import ArbitraryStreamChunk._
@@ -211,4 +213,29 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     prop { (s: StreamChunk[String, String], p: PartialFunction[String, String]) =>
       slurp(s.collect(p)) must_=== slurp(s).map(_.collect(p))
     }
+
+  def toInputStream = {
+    import zio.stream.Stream._
+    val stream                           = Stream(1, 2, 3).map(_.toByte)
+    val streamResult                     = unsafeRunSync(stream.runCollect)
+    val inputStream: java.io.InputStream = new ZStreamChunkByteOps(stream).toInputStream
+    val inputStreamResult = scala.Stream
+      .continually(inputStream.read())
+      .takeWhile(_ != -1)
+      .map(_.toByte)
+      .toList
+    streamResult must_=== Success(inputStreamResult)
+  }
+
+  def toInputStreamProp = prop { stream: Stream[Nothing, Byte] =>
+    import zio.stream.Stream._
+    val streamResult                     = unsafeRunSync(stream.runCollect)
+    val inputStream: java.io.InputStream = new ZStreamChunkByteOps(stream).toInputStream
+    val inputStreamResult = scala.Stream
+      .continually(inputStream.read())
+      .takeWhile(_ != -1)
+      .map(_.toByte)
+      .toList
+    streamResult must_=== Success(inputStreamResult)
+  }
 }

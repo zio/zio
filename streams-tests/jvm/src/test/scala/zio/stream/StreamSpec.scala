@@ -258,6 +258,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
     zipWithLatest               $zipWithLatest
+  
+  Stream.toInputStream      $toInputStream
+  Stream.toInputStreamProp  $toInputStreamProp
   """
 
   def aggregate = unsafeRun {
@@ -1974,4 +1977,29 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       } yield interleave(b, s1, s2)
       (!interleavedLists.succeeded) || (interleavedStream must_=== interleavedLists)
     }
+
+  def toInputStream = {
+    import zio.stream.Stream._
+    val stream                           = Stream(1, 2, 3).map(_.toByte)
+    val streamResult                     = unsafeRunSync(stream.runCollect)
+    val inputStream: java.io.InputStream = new ZStreamByteOps(stream).toInputStream
+    val inputStreamResult = scala.Stream
+      .continually(inputStream.read())
+      .takeWhile(_ != -1)
+      .map(_.toByte)
+      .toList
+    streamResult must_=== Success(inputStreamResult)
+  }
+
+  def toInputStreamProp = prop { stream: Stream[Nothing, Byte] =>
+    import zio.stream.Stream._
+    val streamResult                     = unsafeRunSync(stream.runCollect)
+    val inputStream: java.io.InputStream = new ZStreamByteOps(stream).toInputStream
+    val inputStreamResult = scala.Stream
+      .continually(inputStream.read())
+      .takeWhile(_ != -1)
+      .map(_.toByte)
+      .toList
+    streamResult must_=== Success(inputStreamResult)
+  }
 }

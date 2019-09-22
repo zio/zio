@@ -5,6 +5,50 @@ import java.io.{ IOException, OutputStream }
 import zio._
 import zio.blocking._
 
+trait ZStreamPlatformSpecific {
+
+  private def exitToInputStreamRead[E <: Throwable](exit: Exit[Option[E], Byte]): Int = exit match {
+    case Exit.Success(value) => value.toInt
+    case Exit.Failure(cause) =>
+      cause.failureOrCause match {
+        case Left(value) =>
+          value match {
+            case Some(value) => throw value
+            case None        => -1
+          }
+        case Right(value) => throw FiberFailure(value)
+      }
+  }
+
+  implicit class ZStreamByteOps[-R, +E <: Throwable](val stream: ZStream[R, E, Byte]) {
+    final def toInputStream: ZManaged[R, E, java.io.InputStream] =
+      for {
+        runtime <- ZIO.runtime[R].toManaged_
+        pull    <- stream.process
+        javaStream = new java.io.InputStream {
+          override def read(): Int = {
+            val exit = runtime.unsafeRunSync[Option[E], Byte](pull)
+            exitToInputStreamRead(exit)
+          }
+        }
+      } yield javaStream
+  }
+
+  implicit class ZStreamChunkByteOps[-R, +E <: Throwable](val stream: ZStreamChunk[R, E, Byte]) {
+    final def toInputStream: ZManaged[R, E, java.io.InputStream] =
+      for {
+        runtime <- ZIO.runtime[R].toManaged_
+        pull    <- stream.process
+        javaStream = new java.io.InputStream {
+          override def read(): Int = {
+            val exit = runtime.unsafeRunSync[Option[E], Byte](pull)
+            exitToInputStreamRead(exit)
+          }
+        }
+      } yield javaStream
+  }
+}
+
 trait ZSinkPlatformSpecific {
 
   /**
