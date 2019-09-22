@@ -31,11 +31,6 @@ object ChunkSpec
         test("inequality") {
           assert(Chunk(1, 2, 3, 4, 5), Assertion.not(equalTo(Chunk(1, 2, 3, 4, 5, 6))))
         },
-        testM("materialize") {
-          check(chunkGen(intGen)) { c =>
-            assert(c.materialize.toSeq, equalTo(c.toSeq))
-          }
-        },
         testM("foldLeft") {
           val fn = Gen.function[Random with Sized, (String, Int), String](stringGen)
           check(stringGen, fn, chunkGen(intGen)) { (s0, f, c) =>
