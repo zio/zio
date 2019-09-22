@@ -328,8 +328,9 @@ private[stream] object StreamEffect extends Serializable {
   ): StreamEffect[Any, IOException, Chunk[Byte]] =
     StreamEffect[Any, IOException, Chunk[Byte]] {
       Managed.effectTotal {
-        val buf = Array.ofDim[Byte](chunkSize)
+
         def pull(): Chunk[Byte] = {
+          val buf       = Array.ofDim[Byte](chunkSize)
           val bytesRead = is.read(buf)
           if (bytesRead < 0) end
           else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
