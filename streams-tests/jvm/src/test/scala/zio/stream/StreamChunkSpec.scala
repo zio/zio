@@ -202,7 +202,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   private def flattenChunks =
     prop { (s: StreamChunk[String, String]) =>
       val result = unsafeRunSync {
-        s.flattenChunks.foldLeft[String, List[String]](Nil)((acc, a) => a :: acc).map(_.reverse)
+        s.flattenChunks.fold[String, List[String]](Nil)((acc, a) => a :: acc).map(_.reverse)
       }
       result must_== slurp(s)
     }

@@ -16,6 +16,8 @@
 
 package zio.stream
 
+import java.io.{ IOException, InputStream }
+
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
@@ -1085,16 +1087,78 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     }
 
   /**
-   * Executes an effectful fold over the stream of values.
+   * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
    */
-  final def fold[R1 <: R, E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    foldManaged[R1, E1, A1, S](s)(cont)(f).use(ZIO.succeed)
+  final def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
+    foldWhileManagedM[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a))).use(ZIO.succeed)
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a
-   * Managed value that represents the scope of the stream.
+   * Executes an effectful fold over the stream of values.
    */
-  final def foldManaged[R1 <: R, E1 >: E, A1 >: A, S](
+  final def foldM[R1 <: R, E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    foldWhileManagedM[R1, E1, A1, S](s)(_ => true)(f).use(ZIO.succeed)
+
+  /**
+   * Executes an pure fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   */
+  final def foldManaged[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
+    foldWhileManagedM[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a)))
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   */
+  final def foldManagedM[R1 <: R, E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    foldWhileManagedM[R1, E1, A1, S](s)(_ => true)(f)
+
+  /**
+   * Reduces the elements in the stream to a value of type `S`.
+   * Stops the fold early when the condition is not fulfilled.
+   */
+  final def foldWhile[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZIO[R, E, S] =
+    foldWhileManagedM[R, E, A1, S](s)(cont)((s, a) => ZIO.succeed(f(s, a))).use(ZIO.succeed)
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Stops the fold early when the condition is not fulfilled.
+   * Example:
+   * {{{
+   *   Stream(1)
+   *     .forever                                // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
+   * }}}
+   *
+   * @param cont function which defines the early termination condition
+   */
+  final def foldWhileM[R1 <: R, E1 >: E, A1 >: A, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    foldWhileManagedM[R1, E1, A1, S](s)(cont)(f).use(ZIO.succeed)
+
+  /**
+   * Executes an pure fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   * Stops the fold early when the condition is not fulfilled.
+   */
+  final def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
+    foldWhileManagedM[R, E, A1, S](s)(cont)((s, a) => ZIO.succeed(f(s, a)))
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   * Stops the fold early when the condition is not fulfilled.
+   * Example:
+   * {{{
+   *   Stream(1)
+   *     .forever                                // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
+   *     .use(ZIO.succeed)                       // UIO[Int] == 5
+   * }}}
+   *
+   * @param cont function which defines the early termination condition
+   */
+  final def foldWhileManagedM[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
     process.flatMap { is =>
@@ -1108,12 +1172,6 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
       ZManaged.fromEffect(loop(s))
     }
-
-  /**
-   * Reduces the elements in the stream to a value of type `S`
-   */
-  final def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
-    fold[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a)))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -1674,8 +1732,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Schedules the output of the stream using the provided `schedule` and emits its output at
    * the end (if `schedule` is finite).
    */
-  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
-    scheduleEither(schedule).map(_.merge)
+  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
+    scheduleEither(schedule).collect { case Right(a) => a }
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits its output at
@@ -1692,8 +1750,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
    * and if not short circuited, repeat element once".
    */
-  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
-    scheduleElementsEither(schedule).map(_.merge)
+  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
+    scheduleElementsEither(schedule).collect { case Right(a) => a }
 
   /**
    * Repeats each element of the stream using the provided `schedule`, additionally emitting the schedule's output
@@ -1754,26 +1812,35 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       for {
         as    <- self.process
         init  <- schedule.initial.toManaged_
-        state <- Ref.make[(Boolean, schedule.State, Option[() => B])]((false, init, None)).toManaged_
+        state <- Ref.make[(schedule.State, Option[() => B])]((init, None)).toManaged_
         pull = state.get.flatMap {
-          case (done, sched, decision0) =>
-            if (done) Pull.end
-            else
-              for {
-                a <- as.optional.mapError(Some(_))
-                c <- a match {
-                      case Some(a) =>
-                        for {
-                          decision <- schedule.update(a, sched)
-                          _        <- clock.sleep(decision.delay)
-                          _        <- state.set((!decision.cont, decision.state, Some(decision.finish)))
-                        } yield if (decision.cont) f(a) else g(decision.finish())
+          case (sched0, finish0) =>
+            // Before pulling from the stream, we need to check whether the previous
+            // action ended the schedule, in which case we must emit its final output
+            finish0 match {
+              case None =>
+                for {
+                  a <- as.optional.mapError(Some(_))
+                  c <- a match {
+                        // There's a value emitted by the underlying stream, we emit it
+                        // and check whether the schedule ends; in that case, we record
+                        // its final state, to be emitted during the next pull
+                        case Some(a) =>
+                          for {
+                            decision <- schedule.update(a, sched0)
+                            _        <- clock.sleep(decision.delay)
+                            sched    <- if (decision.cont) UIO.succeed(decision.state) else schedule.initial
+                            finish   = if (decision.cont) None else Some(decision.finish)
+                            _        <- state.set((sched, finish))
+                          } yield f(a)
 
-                      case None =>
-                        state.set((false, sched, None)) *> decision0
-                          .fold[Pull[R1 with Clock, E1, C]](Pull.end)(b => Pull.emit(g(b())))
-                    }
-              } yield c
+                        // The stream ends when both the underlying stream ends and the final
+                        // schedule value has been emitted
+                        case None => Pull.end
+                      }
+                } yield c
+              case Some(b) => state.set((sched0, None)) *> Pull.emit(g(b()))
+            }
         }
       } yield pull
     }
@@ -2164,7 +2231,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     self zipRight that
 }
 
-object ZStream extends ZStreamPlatformSpecific {
+object ZStream {
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
@@ -2468,6 +2535,15 @@ object ZStream extends ZStreamPlatformSpecific {
     fa: ZStream[R, E, ZStream[R, E, A]]
   ): ZStream[R, E, A] =
     flattenPar(Int.MaxValue, outputBuffer)(fa)
+
+  /**
+   * Creates a stream from a [[java.io.InputStream]]
+   */
+  final def fromInputStream(
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): StreamEffectChunk[Any, IOException, Byte] =
+    StreamEffect.fromInputStream(is, chunkSize)
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values

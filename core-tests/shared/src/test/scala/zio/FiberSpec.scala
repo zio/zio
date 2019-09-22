@@ -4,11 +4,12 @@ class FiberSpec extends BaseCrossPlatformSpec {
   def is =
     "FiberSpec".title ^ s2"""
     Create a new Fiber and
-      lift it into Managed                          $e1
+      lift it into Managed                                  $e1
     `inheritLocals` works for Fiber created using:
-      `map`                                         $e2
-      `orElse`                                      $e3
-      `zip`                                         $e4
+      `map`                                                 $e2
+      `orElse`                                              $e3
+      `zip`                                                 $e4
+    `Fiber.join` on interrupted Fiber is inner interruption $e5
     """
 
   val (initial, update) = ("initial", "update")
@@ -57,4 +58,9 @@ class FiberSpec extends BaseCrossPlatformSpec {
       _         <- child1.zip(child2).inheritFiberRefs
       value     <- fiberRef.get
     } yield value must beTheSameAs("child1")
+
+  def e5 =
+    for {
+      exit <- Fiber.interrupt.join.run
+    } yield exit must_=== Exit.Failure(Cause.interrupt)
 }

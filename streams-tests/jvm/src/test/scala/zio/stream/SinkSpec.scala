@@ -1341,7 +1341,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     prop { (s: Stream[String, Int], f: (String, Int) => IO[String, String], z: IO[String, String]) =>
       val sinkResult = unsafeRunSync(z.flatMap(z => s.run(ZSink.foldLeftM(z)(f))))
       val foldResult = unsafeRunSync {
-        s.foldLeft(List[Int]())((acc, el) => el :: acc)
+        s.fold(List[Int]())((acc, el) => el :: acc)
           .map(_.reverse)
           .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
       }
