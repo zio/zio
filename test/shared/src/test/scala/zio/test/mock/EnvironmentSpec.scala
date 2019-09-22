@@ -8,8 +8,9 @@ import zio._
 import zio.duration._
 import zio.test.Async
 import zio.test.TestUtils.label
+import zio.test.BaseSpec
 
-object EnvironmentSpec extends DefaultRuntime {
+object EnvironmentSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(currentTime, "Clock returns time when it is set"),
