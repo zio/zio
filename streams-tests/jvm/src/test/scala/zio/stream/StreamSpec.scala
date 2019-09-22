@@ -1980,26 +1980,28 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def toInputStream = {
     import zio.stream.Stream._
-    val stream                           = Stream(1, 2, 3).map(_.toByte)
-    val streamResult                     = unsafeRunSync(stream.runCollect)
-    val inputStream: java.io.InputStream = new ZStreamByteOps(stream).toInputStream
-    val inputStreamResult = scala.Stream
-      .continually(inputStream.read())
-      .takeWhile(_ != -1)
-      .map(_.toByte)
-      .toList
-    streamResult must_=== Success(inputStreamResult)
+    val stream       = Stream(1, 2, 3).map(_.toByte)
+    val streamResult = unsafeRunSync(stream.runCollect)
+    val inputStreamResult = unsafeRunSync(new ZStreamByteOps[Any, Throwable](stream).toInputStream.use { inputStream =>
+      scala.Stream
+        .continually(inputStream.read())
+        .takeWhile(_ != -1)
+        .map(_.toByte)
+        .toList
+    })
+    streamResult must_=== inputStreamResult
   }
 
   def toInputStreamProp = prop { stream: Stream[Nothing, Byte] =>
     import zio.stream.Stream._
-    val streamResult                     = unsafeRunSync(stream.runCollect)
-    val inputStream: java.io.InputStream = new ZStreamByteOps(stream).toInputStream
-    val inputStreamResult = scala.Stream
-      .continually(inputStream.read())
-      .takeWhile(_ != -1)
-      .map(_.toByte)
-      .toList
-    streamResult must_=== Success(inputStreamResult)
+    val streamResult = unsafeRunSync(stream.runCollect)
+    val inputStreamResult = unsafeRunSync(new ZStreamByteOps[Any, Throwable](stream).toInputStream.use { inputStream =>
+      scala.Stream
+        .continually(inputStream.read())
+        .takeWhile(_ != -1)
+        .map(_.toByte)
+        .toList
+    })
+    streamResult must_=== inputStreamResult
   }
 }

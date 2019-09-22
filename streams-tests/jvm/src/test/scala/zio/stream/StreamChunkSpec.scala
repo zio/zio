@@ -216,26 +216,30 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   def toInputStream = {
     import zio.stream.Stream._
-    val stream                           = Stream(1, 2, 3).map(_.toByte)
-    val streamResult                     = unsafeRunSync(stream.runCollect)
-    val inputStream: java.io.InputStream = new ZStreamChunkByteOps(stream).toInputStream
-    val inputStreamResult = scala.Stream
-      .continually(inputStream.read())
-      .takeWhile(_ != -1)
-      .map(_.toByte)
-      .toList
+    val stream       = StreamChunk.fromChunks(Chunk(1, 2, 3)).map(_.toByte)
+    val streamResult = unsafeRunSync(stream.flattenChunks.runCollect)
+    val inputStreamResult = unsafeRunSync(new ZStreamChunkByteOps[Any, Throwable](stream).toInputStream.use {
+      inputStream =>
+        scala.Stream
+          .continually(inputStream.read())
+          .takeWhile(_ != -1)
+          .map(_.toByte)
+          .toList
+    })
     streamResult must_=== Success(inputStreamResult)
   }
 
-  def toInputStreamProp = prop { stream: Stream[Nothing, Byte] =>
+  def toInputStreamProp = prop { stream: StreamChunk[Nothing, Byte] =>
     import zio.stream.Stream._
-    val streamResult                     = unsafeRunSync(stream.runCollect)
-    val inputStream: java.io.InputStream = new ZStreamChunkByteOps(stream).toInputStream
-    val inputStreamResult = scala.Stream
-      .continually(inputStream.read())
-      .takeWhile(_ != -1)
-      .map(_.toByte)
-      .toList
+    val streamResult = unsafeRunSync(stream.flattenChunks.runCollect)
+    val inputStreamResult = unsafeRunSync(new ZStreamChunkByteOps[Any, Throwable](stream).toInputStream.use {
+      inputStream =>
+        scala.Stream
+          .continually(inputStream.read())
+          .takeWhile(_ != -1)
+          .map(_.toByte)
+          .toList
+    })
     streamResult must_=== Success(inputStreamResult)
   }
 }
