@@ -1756,24 +1756,28 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         init  <- schedule.initial.toManaged_
         state <- Ref.make[(Boolean, schedule.State, Option[() => B])]((false, init, None)).toManaged_
         pull = state.get.flatMap {
-          case (done, sched, decision0) =>
+          case (done, sched0, finish0) =>
             if (done) Pull.end
             else
-              for {
-                a <- as.optional.mapError(Some(_))
-                c <- a match {
-                      case Some(a) =>
-                        for {
-                          decision <- schedule.update(a, sched)
-                          _        <- clock.sleep(decision.delay)
-                          _        <- state.set((!decision.cont, decision.state, Some(decision.finish)))
-                        } yield if (decision.cont) f(a) else g(decision.finish())
+              finish0 match {
+                case None =>
+                  for {
+                    a <- as.optional.mapError(Some(_))
+                    c <- a match {
+                          case Some(a) =>
+                            for {
+                              decision <- schedule.update(a, sched0)
+                              _        <- clock.sleep(decision.delay)
+                              sched    <- if (decision.cont) UIO.succeed(decision.state) else schedule.initial
+                              finish   = if (decision.cont) None else Some(decision.finish)
+                              _        <- state.set((false, sched, finish))
+                            } yield f(a)
 
-                      case None =>
-                        state.set((false, sched, None)) *> decision0
-                          .fold[Pull[R1 with Clock, E1, C]](Pull.end)(b => Pull.emit(g(b())))
-                    }
-              } yield c
+                          case None => Pull.end
+                        }
+                  } yield c
+                case Some(b) => state.set((done, sched0, None)) *> Pull.emit(g(b()))
+              }
         }
       } yield pull
     }
