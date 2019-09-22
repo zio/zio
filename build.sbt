@@ -89,7 +89,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
   .settings(buildInfoSettings("zio"))
-  .settings(publishArtifact in (Test, packageBin) := true)
+  .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .settings(
     libraryDependencies ++= Seq(
@@ -127,6 +127,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner % "test->test;compile->compile")
   .settings(stdSettings("zio-streams-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(skip in publish := true)
   .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
@@ -210,7 +211,7 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                   %% "fs2-core"        % "2.0.0",
+        "co.fs2"                   %% "fs2-core"        % "2.0.1",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.25",
@@ -255,9 +256,9 @@ lazy val docs = project.module
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC3",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC3",
-      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC4",
+      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC6",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
-      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC4",
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.1-RC1",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC1"
     )
