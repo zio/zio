@@ -130,8 +130,10 @@ object Stream {
   /**
    * See [[ZStream.fromInputStream]]
    */
-  final def fromInputStream(is: InputStream,
-                            chunkSize: Int = ZStreamChunk.DefaultChunkSize): Stream[IOException, Chunk[Byte]] =
+  final def fromInputStream(
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): Stream[IOException, Chunk[Byte]] =
     ZStream.fromInputStream(is, chunkSize)
 
   /**
