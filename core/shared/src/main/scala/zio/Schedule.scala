@@ -25,17 +25,17 @@ object Schedule {
    */
   final val forever: Schedule[Any, Int] = ZSchedule.forever
 
-  /**
-   * See [[ZSchedule.decision]]
-   */
-  final val decision: Schedule[Any, Boolean] =
-    ZSchedule.decision
+  // /**
+  //  * See [[ZSchedule.decision]]
+  //  */
+  // final val decision: Schedule[Any, Boolean] =
+  //   ZSchedule.decision
 
-  /**
-   * See [[ZSchedule.delay]]
-   */
-  final val delay: Schedule[Any, Duration] =
-    ZSchedule.delay
+  // /**
+  //  * See [[ZSchedule.delay]]
+  //  */
+  // final val delay: Schedule[Any, Duration] =
+  //   ZSchedule.delay
 
   /**
    * See [[ZSchedule.never]]
@@ -50,9 +50,10 @@ object Schedule {
 
   final def apply[S, A, B](
     initial0: UIO[S],
-    update0: (A, S) => UIO[ZSchedule.Decision[S, B]]
+    update0: (A, S) => UIO[S],
+    extract0: S => B
   ): Schedule[A, B] =
-    ZSchedule(initial0, update0)
+    ZSchedule(initial0, update0, extract0)
 
   /**
    * See [[ZSchedule.collectAll]]
@@ -82,7 +83,7 @@ object Schedule {
   /**
    * See [[ZSchedule.delayed]]
    */
-  final def delayed[A](s: Schedule[A, Duration]): Schedule[A, Duration] =
+  final def delayed[A](s: Schedule[A, Duration]): ZSchedule[zio.clock.Clock, A, Duration] =
     ZSchedule.delayed(s)
 
   /**
@@ -170,7 +171,7 @@ object Schedule {
   /**
    * See [[ZSchedule.spaced]]
    */
-  final def spaced(interval: Duration): Schedule[Any, Int] =
+  final def spaced(interval: Duration): Schedule[Any, Duration] =
     ZSchedule.spaced(interval)
 
   /**
