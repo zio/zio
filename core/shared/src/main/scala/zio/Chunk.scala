@@ -174,7 +174,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Folds over the elements in this chunk from the left.
    */
-  def foldLeft[S](s0: S)(f: (S, A) => S): S = {
+  def fold[S](s0: S)(f: (S, A) => S): S = {
     val len = self.length
     var s   = s0
 
@@ -187,37 +187,13 @@ sealed trait Chunk[+A] { self =>
     s
   }
 
-  final def foldLeftLazy[S](z: S)(pred: S => Boolean)(f: (S, A) => S): S = {
-    val len = length
-    var s   = z
-    var i   = 0
-    while (i < len && pred(s)) {
-      s = f(s, self(i))
-      i += 1
-    }
-    s
-  }
-
   /**
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    foldLeft[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
+    fold[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
       s.flatMap(f(_, a))
     }
-
-  final def foldMLazy[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
-    val len = length
-
-    def loop(s: S, i: Int): ZIO[R, E, S] =
-      if (i >= len) IO.succeed(s)
-      else {
-        if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
-        else IO.succeed(s)
-      }
-
-    loop(z, 0)
-  }
 
   /**
    * Folds over the elements in this chunk from the right.
@@ -233,6 +209,36 @@ sealed trait Chunk[+A] { self =>
     }
 
     s
+  }
+
+  /**
+   * Folds over the elements in this chunk from the left.
+   * Stops the fold early when the condition is not fulfilled.
+   */
+  final def foldWhile[S](s0: S)(pred: S => Boolean)(f: (S, A) => S): S = {
+    val len = length
+    var s   = s0
+
+    var i = 0
+    while (i < len && pred(s)) {
+      s = f(s, self(i))
+      i += 1
+    }
+
+    s
+  }
+
+  final def foldWhileM[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
+    val len = length
+
+    def loop(s: S, i: Int): ZIO[R, E, S] =
+      if (i >= len) IO.succeed(s)
+      else {
+        if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
+        else IO.succeed(s)
+      }
+
+    loop(z, 0)
   }
 
   override final def hashCode: Int = toArrayOption match {
@@ -737,7 +743,7 @@ object Chunk {
       }
     }
 
-    override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
+    override def fold[S](s0: S)(f: (S, A) => S): S = {
       val self = array
       val len  = self.length
       var s    = s0

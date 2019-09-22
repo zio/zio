@@ -187,16 +187,16 @@ object StreamChunkSpec
             }
           }
         },
-        testM("StreamChunk.foldLeft") {
+        testM("StreamChunk.fold") {
           checkM(chunksOfStrings, intGen, Gen.function[Random, (Int, String), Int](intGen)) { (s, zero, f0) =>
             val f = Function.untupled(f0)
             for {
-              res1 <- s.foldLeft(zero)(f)
+              res1 <- s.fold(zero)(f)
               res2 <- slurp(s).map(_.foldLeft(zero)(f))
             } yield assert(res1, equalTo(res2))
           }
         },
-        testM("StreamChunk.fold") {
+        testM("StreamChunk.foldWhileM") {
           checkM(
             chunksOfStrings,
             intGen,
@@ -205,7 +205,7 @@ object StreamChunkSpec
           ) { (s, zero, cont, f0) =>
             val f = Function.untupled(f0)
             for {
-              res1 <- s.fold[Any, Nothing, String, Int](zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
+              res1 <- s.foldWhileM[Any, Nothing, String, Int](zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
               res2 <- slurp(s).map(l => foldLazyList(l.toList, zero)(cont)(f))
             } yield assert(res1, equalTo(res2))
           }
