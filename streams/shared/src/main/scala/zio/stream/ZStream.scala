@@ -1810,30 +1810,35 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       for {
         as    <- self.process
         init  <- schedule.initial.toManaged_
-        state <- Ref.make[(Boolean, schedule.State, Option[() => B])]((false, init, None)).toManaged_
+        state <- Ref.make[(schedule.State, Option[() => B])]((init, None)).toManaged_
         pull = state.get.flatMap {
-          case (done, sched0, finish0) =>
-            if (done) Pull.end
-            else
-              finish0 match {
-                case None =>
-                  for {
-                    a <- as.optional.mapError(Some(_))
-                    c <- a match {
-                          case Some(a) =>
-                            for {
-                              decision <- schedule.update(a, sched0)
-                              _        <- clock.sleep(decision.delay)
-                              sched    <- if (decision.cont) UIO.succeed(decision.state) else schedule.initial
-                              finish   = if (decision.cont) None else Some(decision.finish)
-                              _        <- state.set((false, sched, finish))
-                            } yield f(a)
+          case (sched0, finish0) =>
+            // Before pulling from the stream, we need to check whether the previous
+            // action ended the schedule, in which case we must emit its final output
+            finish0 match {
+              case None =>
+                for {
+                  a <- as.optional.mapError(Some(_))
+                  c <- a match {
+                        // There's a value emitted by the underlying stream, we emit it
+                        // and check whether the schedule ends; in that case, we record
+                        // its final state, to be emitted during the next pull
+                        case Some(a) =>
+                          for {
+                            decision <- schedule.update(a, sched0)
+                            _        <- clock.sleep(decision.delay)
+                            sched    <- if (decision.cont) UIO.succeed(decision.state) else schedule.initial
+                            finish   = if (decision.cont) None else Some(decision.finish)
+                            _        <- state.set((sched, finish))
+                          } yield f(a)
 
-                          case None => Pull.end
-                        }
-                  } yield c
-                case Some(b) => state.set((done, sched0, None)) *> Pull.emit(g(b()))
-              }
+                        // The stream ends when both the underlying stream ends and the final
+                        // schedule value has been emitted
+                        case None => Pull.end
+                      }
+                } yield c
+              case Some(b) => state.set((sched0, None)) *> Pull.emit(g(b()))
+            }
         }
       } yield pull
     }
