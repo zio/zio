@@ -7,6 +7,8 @@ import zio.test._
 import zio.test.Assertion.equalTo
 import ChunkUtils._
 
+case class Value(i: Int) extends AnyVal
+
 object ChunkSpec
     extends ZIOBaseSpec(
       suite("ChunkSpec")(
@@ -83,6 +85,18 @@ object ChunkSpec
           check(chunkGen(intGen)) { c =>
             assert(c.toArray.toSeq, equalTo(c.toSeq))
           }
+        },
+        test("toArray for an empty Chunk of type String") {
+          assert(Chunk.empty.toArray[String], equalTo(Array.empty[String]))
+        },
+        testM("toArray with elements of type String") {
+          check(chunkGen(stringGen)) { c =>
+            assert(c.toArray.toSeq, equalTo(c.toSeq))
+          }
+        },
+        test("toArray for a Chunk of a given type") {
+          val v: Vector[Any] = Vector("String", 1, Value(2))
+          assert(Chunk.fromIterable(v).toArray.toVector, equalTo(v))
         },
         testM("foreach") {
           check(chunkGen(intGen)) { c =>
