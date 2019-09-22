@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.test.Spec.TestCase
+import zio.test.TestRunner.ExecutionResult
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
@@ -37,8 +38,11 @@ abstract class RunnableSpec[L, T, E, S](runner0: TestRunner[L, T, E, S])(spec0: 
    * TODO: Parse command line options.
    */
   final def main(args: Array[String]): Unit = {
-    val results     = runner.unsafeRun(spec)
-    val hasFailures = results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
+    val ExecutionResult(results, summary) = runner.unsafeRun(spec)
+    val hasFailures                       = results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
+
+    println(summary)
+
     try if (hasFailures) sys.exit(1) else sys.exit(0)
     catch { case _: SecurityException => }
   }

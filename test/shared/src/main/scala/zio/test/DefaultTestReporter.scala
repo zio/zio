@@ -16,12 +16,13 @@
 
 package zio.test
 
+import zio.duration.Duration
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.{ Cause, ZIO }
+import zio.{ Cause, URIO, ZIO }
+
 import scala.{ Console => SConsole }
-import zio.duration.Duration
 
 object DefaultTestReporter {
 
@@ -61,33 +62,61 @@ object DefaultTestReporter {
   }
 
   def apply[L, E, S](): TestReporter[L, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[L, E, S]) =>
-    ZIO
-      .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
-        ZIO.foreach(res.rendered)(TestLogger.logLine)
-      } *> logStats(duration, executedSpec)
+    {
+      def renderSpec(spec: ExecutedSpec[L, E, S]): Seq[String] =
+        render(spec.mapLabel(_.toString)).flatMap(_.rendered)
+
+      def printSpec(spec: ExecutedSpec[L, E, S]): URIO[TestLogger, Unit] =
+        ZIO
+          .foreach(renderSpec(spec))(TestLogger.logLine)
+          .ignore
+
+      (printSpec(executedSpec) *> logStats(duration, executedSpec) as filterOutSuccess(executedSpec)
+        .flatMap(renderSpec)
+        .mkString("\n"))
+    }
   }
 
   private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]) = {
-    def loop(executedSpec: ExecutedSpec[String, E, S]): (Int, Int, Int) =
+    def loop(executedSpec: ExecutedSpec[String, E, S]): ExecutedSpecStats =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
-          executedSpecs.map(loop).foldLeft((0, 0, 0)) {
-            case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
-          }
+          executedSpecs.map(loop).foldLeft(ExecutedSpecStats.empty)(_ ++ _)
         case Spec.TestCase(_, result) =>
           result match {
-            case Left(_)                         => (0, 0, 1)
-            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
-            case Right(TestSuccess.Ignored)      => (0, 1, 0)
+            case Left(_)                         => ExecutedSpecStats.failed
+            case Right(TestSuccess.Succeeded(_)) => ExecutedSpecStats.succeeded
+            case Right(TestSuccess.Ignored)      => ExecutedSpecStats.ignored
           }
       }
-    val (success, ignore, failure) = loop(executedSpec.mapLabel(_.toString))
-    val total                      = success + ignore + failure
+    val stats = loop(executedSpec.mapLabel(_.toString))
+
     TestLogger.logLine(
       cyan(
-        s"Ran $total test${if (total == 1) "" else "s"} in ${duration.render}: $success succeeded, $ignore ignored, $failure failed"
+        s"Ran ${stats.total} test${if (stats.total == 1) "" else "s"} in ${duration.render}: ${stats.numberOfSuccess} succeeded, ${stats.numberOfIgnored} ignored, ${stats.numberOfFailed} failed"
       )
     )
+  }
+
+  private def filterOutSuccess[L, E, S](executedSpec: ExecutedSpec[L, E, S]): Seq[ExecutedSpec[L, E, S]] = {
+    def isFailure(testCase: Spec.TestCase[L, Either[TestFailure[E], TestSuccess[S]]]): Boolean =
+      testCase.test.isLeft
+
+    def hasFailures(suite: Spec.SuiteCase[L, ExecutedSpec[L, E, S]]): Boolean =
+      suite.specs.exists(_.caseValue match {
+        case s @ Spec.SuiteCase(_, _, _) => hasFailures(s)
+        case t @ Spec.TestCase(_, _)     => isFailure(t)
+      })
+
+    def loop(current: ExecutedSpec[L, E, S], acc: Seq[ExecutedSpec[L, E, S]]): Seq[ExecutedSpec[L, E, S]] =
+      current.caseValue match {
+        case suite @ Spec.SuiteCase(_, specs, _) if hasFailures(suite) =>
+          acc :+ Spec(suite.copy(specs = specs.flatMap(loop(_, Vector.empty))))
+        case t @ Spec.TestCase(_, _) if isFailure(t) => acc :+ current
+        case _                                       => acc
+      }
+
+    loop(executedSpec, Vector.empty)
   }
 
   private def renderSuccessLabel(label: String, offset: Int) =
@@ -222,4 +251,25 @@ case class RenderedResult(caseType: CaseType, label: String, status: Status, off
       case Failed  => self.copy(status = Passed)
       case Passed  => self.copy(status = Failed)
     }
+}
+
+case class ExecutedSpecStats(
+  numberOfSuccess: Int,
+  numberOfIgnored: Int,
+  numberOfFailed: Int
+) {
+  def total: Int = numberOfSuccess + numberOfIgnored + numberOfFailed
+
+  def ++(other: ExecutedSpecStats): ExecutedSpecStats = copy(
+    numberOfSuccess = numberOfSuccess + other.numberOfSuccess,
+    numberOfIgnored = numberOfIgnored + other.numberOfIgnored,
+    numberOfFailed = numberOfFailed + other.numberOfFailed
+  )
+}
+object ExecutedSpecStats {
+  val empty: ExecutedSpecStats = ExecutedSpecStats(0, 0, 0)
+
+  val succeeded = ExecutedSpecStats(1, 0, 0)
+  val ignored   = ExecutedSpecStats(0, 1, 0)
+  val failed    = ExecutedSpecStats(0, 0, 1)
 }

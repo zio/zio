@@ -20,6 +20,7 @@ import zio._
 import zio.clock.Clock
 import zio.console.Console
 import zio.internal.{ Platform, PlatformLive }
+import zio.test.TestRunner.ExecutionResult
 
 /**
  * A `TestRunner[R, E, L, S]` encapsulates all the logic necessary to run specs
@@ -38,9 +39,9 @@ case class TestRunner[L, -T, E, S](
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: Spec[L, T]): URIO[TestLogger with Clock, ExecutedSpec[L, E, S]] =
+  final def run(spec: Spec[L, T]): URIO[TestLogger with Clock, ExecutionResult[L, E, S]] =
     executor(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
-      case (duration, results) => reporter(duration, results).as(results)
+      case (duration, results) => reporter(duration, results).map(ExecutionResult(results, _))
     }
 
   /**
@@ -50,14 +51,14 @@ case class TestRunner[L, -T, E, S](
     spec: Spec[L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
-  ): ExecutedSpec[L, E, S] =
+  ): ExecutionResult[L, E, S] =
     Runtime((), platform).unsafeRun(run(spec).provide(buildEnv(testLogger, clock)))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
   final def unsafeRunAsync(spec: Spec[L, T], testLogger: TestLogger = defaultTestLogger, clock: Clock = Clock.Live)(
-    k: ExecutedSpec[L, E, S] => Unit
+    k: ExecutionResult[L, E, S] => Unit
   ): Unit =
     Runtime((), platform).unsafeRunAsync(run(spec).provide(buildEnv(testLogger, clock))) {
       case Exit.Success(v) => k(v)
@@ -71,7 +72,7 @@ case class TestRunner[L, -T, E, S](
     spec: Spec[L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
-  ): Exit[Nothing, ExecutedSpec[L, E, S]] =
+  ): Exit[Nothing, ExecutionResult[L, E, S]] =
     Runtime((), platform).unsafeRunSync(run(spec).provide(buildEnv(testLogger, clock)))
 
   /**
@@ -84,4 +85,7 @@ case class TestRunner[L, -T, E, S](
     override def testLogger: TestLogger.Service = loggerSvc.testLogger
     override val clock: Clock.Service[Any]      = clockSvc.clock
   }
+}
+object TestRunner {
+  case class ExecutionResult[L, E, S](spec: ExecutedSpec[L, E, S], summary: String)
 }

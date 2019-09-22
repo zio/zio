@@ -18,6 +18,7 @@ package zio.test
 
 import zio.URIO
 import zio.clock.Clock
+import zio.test.TestRunner.ExecutionResult
 import zio.test.reflect.Reflect.EnableReflectiveInstantiation
 
 @EnableReflectiveInstantiation
@@ -34,7 +35,7 @@ abstract class AbstractRunnableSpec {
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final def run: URIO[TestLogger with Clock, ExecutedSpec[Label, Failure, Success]] =
+  final def run: URIO[TestLogger with Clock, ExecutionResult[Label, Failure, Success]] =
     runner.run(spec)
 
   /**

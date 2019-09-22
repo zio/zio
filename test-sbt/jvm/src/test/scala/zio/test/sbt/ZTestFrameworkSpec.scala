@@ -30,7 +30,8 @@ object ZTestFrameworkSpec {
   def tests = Seq(
     test("should return correct fingerprints")(testFingerprints()),
     test("should report events")(testReportEvents()),
-    test("should log messages")(testLogMessages())
+    test("should log messages")(testLogMessages()),
+    test("should return summary when done")(testSummary())
   )
 
   def testFingerprints() = {
@@ -72,6 +73,16 @@ object ZTestFrameworkSpec {
           )
         )
       )
+  }
+
+  def testSummary() = {
+    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
+    val task    = runner.tasks(Array(taskDef)).head
+
+    task.execute(_ => (), Array.empty)
+
+    assertEquals("done contains summary", runner.done(), task.asInstanceOf[ZTestTask].summaryRef.get ++ "\nDone")
   }
 
   private def loadAndExecute(fqn: String, eventHandler: EventHandler = _ => (), loggers: Seq[Logger] = Nil) = {
