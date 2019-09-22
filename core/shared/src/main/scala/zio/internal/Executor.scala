@@ -65,7 +65,7 @@ trait Executor {
 
 }
 
-object Executor extends Serializable {
+object Executor extends DefaultExecutors with Serializable {
 
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
