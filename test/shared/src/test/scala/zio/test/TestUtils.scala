@@ -4,17 +4,17 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 import zio.{ Cause, Schedule, UIO, ZIO }
 import zio.clock.Clock
-import zio.test.mock.MockEnvironment
+import zio.test.environment.TestEnvironment
 
 object TestUtils {
 
-  final def execute[L, E, S](spec: ZSpec[MockEnvironment, E, L, S]): UIO[ExecutedSpec[L, E, S]] =
-    TestExecutor.managed(mock.mockEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
+  final def execute[L, E, S](spec: ZSpec[TestEnvironment, E, L, S]): UIO[ExecutedSpec[L, E, S]] =
+    TestExecutor.managed(environment.testEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
 
-  final def failed[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] =
+  final def failed[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] =
     succeeded(spec).map(!_)
 
-  final def failedWith(spec: ZSpec[MockEnvironment, Any, String, Any], pred: Throwable => Boolean) =
+  final def failedWith(spec: ZSpec[TestEnvironment, Any, String, Any], pred: Throwable => Boolean) =
     forAllTests(execute(spec)) {
       case Left(zio.test.TestFailure.Runtime(Cause.Die(cause))) => pred(cause)
       case _                                                    => false
@@ -27,7 +27,7 @@ object TestUtils {
       results.forall { case Spec.TestCase(_, test) => f(test); case _ => true }
     }
 
-  final def ignored[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+  final def ignored[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
     forAllTests(execSpec) {
       case Right(TestSuccess.Ignored) => true
@@ -65,7 +65,7 @@ object TestUtils {
       if (passed) (passed, succeed(label)) :: offset else (passed, fail(label)) :: offset
     }
 
-  final def succeeded[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+  final def succeeded[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
     forAllTests(execSpec)(_.isRight)
   }
