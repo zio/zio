@@ -3,6 +3,7 @@ package zio
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
 
 import zio.SerializableSpecHelpers._
+import zio.internal.stacktracer.ZTraceElement
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.{ test => testSync, _ }
@@ -200,16 +201,16 @@ object SerializableSpec
           val unsupervised = SuperviseStatus.unsupervised
           assert(serializeAndDeserialize(unsupervised), equalTo(unsupervised))
         },
-//        testSync("ZTrace is serializable") {
-//          val trace = ZTrace(
-//            0L,
-//            List(ZTraceElement.NoLocation("test")),
-//            List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
-//            None
-//          )
-//
-//          assert(serializeAndDeserialize(trace), equalTo(trace))
-//        },
+        testSync("ZTrace is serializable") {
+          val trace = ZTrace(
+            0L,
+            List(ZTraceElement.NoLocation("test")),
+            List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
+            None
+          )
+
+          assert(serializeAndDeserialize(trace), equalTo(trace))
+        },
         testM("TracingStatus.Traced is serializable") {
           val traced = TracingStatus.Traced
           for {
