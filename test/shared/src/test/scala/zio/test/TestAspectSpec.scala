@@ -1,12 +1,12 @@
 package zio.test
 
-import zio.Cause.{Die, Traced}
+import zio.Cause.{ Die, Traced }
 
 import scala.concurrent.Future
-import zio.{Cause, DefaultRuntime, Ref}
+import zio.{ Cause, DefaultRuntime, Ref }
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.TestUtils.{execute, failed, ignored, label, succeeded}
+import zio.test.TestUtils.{ execute, failed, ignored, label, succeeded }
 
 import scala.reflect.ClassTag
 
