@@ -48,7 +48,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     fold(failCase = _ => None, dieCase = t => Some(t), interruptCase = None)(
       thenCase = _ orElse _,
       bothCase = _ orElse _,
-      tracedCause = (z, _) => z
+      tracedCase = (z, _) => z
     )
 
   final def failed: Boolean =
