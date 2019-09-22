@@ -2,6 +2,10 @@ package zio
 
 import java.io._
 
+import zio.SerializableSpec.TestException
+import zio.internal.stacktracer.ZTraceElement
+import zio.random.Random
+
 class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def serializeAndBack[T](a: T): IO[_, T] = {
@@ -25,6 +29,41 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
       FunctionIO is serializable $e6
       FiberStatus is serializable $e7
       Duration is serializable $e8
+      Cause is serializable 
+        $cause1 
+        $cause2 
+        $cause3
+        $cause4
+        $cause5
+        $cause6
+      Exit is serializable
+        $exit1
+        $exit2
+        $exit3
+      FiberFailure is serializable $fiberFailure
+      InterruptStatus is serializable
+        $interruptStatus1
+        $interruptStatus2
+      Promise is serializable $promise
+      ZSchedule is serializable $zschedule
+      Chunk is serializable
+       $chunkArr 
+       $chunkConcat
+       $chunkSingle
+       $chunkSlice
+       $chunkEmpty
+       $chunkVector
+      FiberRef is serializable $fiberRef
+      ZManaged is serializable $zmanaged
+      SuperviseStatus is serializable
+        $superviseStatus1
+        $superviseStatus2
+      ZTrace is serializable $ztrace
+      TracingStatus is serializable
+       $tracingStatusTraced
+       $tracingStatusUntraced
+      Random is serializable $random
+      System is serializable $system
     """
 
   def e1 = {
@@ -119,9 +158,220 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
 
     returnDuration must_=== duration
   }
+
+  def cause1 = {
+    val cause = Cause.die(TestException("test"))
+    cause must_=== SerializableSpec.serializeAndDeserialize(cause)
+  }
+
+  def cause2 = {
+    val cause = Cause.fail("test")
+    cause must_=== SerializableSpec.serializeAndDeserialize(cause)
+  }
+
+  def cause3 = {
+    val cause = Cause.traced(Cause.fail("test"), ZTrace(0L, List.empty, List.empty, None))
+    cause must_=== SerializableSpec.serializeAndDeserialize(cause)
+  }
+
+  def cause4 = {
+    val cause = Cause.interrupt
+    cause must_=== SerializableSpec.serializeAndDeserialize(cause)
+  }
+
+  def cause5 = {
+    val cause = Cause.fail("test") && Cause.interrupt
+    cause must_=== SerializableSpec.serializeAndDeserialize(cause)
+  }
+
+  def cause6 = {
+    val cause = Cause.fail("test") ++ Cause.interrupt
+    cause must_=== SerializableSpec.serializeAndDeserialize(cause)
+  }
+
+  def exit1 = {
+    val exit = Exit.succeed("test")
+    exit must_=== SerializableSpec.serializeAndDeserialize(exit)
+  }
+
+  def exit2 = {
+    val exit = Exit.fail("test")
+    exit must_=== SerializableSpec.serializeAndDeserialize(exit)
+  }
+
+  def exit3 = {
+    val exit = Exit.die(TestException("test"))
+    exit must_=== SerializableSpec.serializeAndDeserialize(exit)
+  }
+
+  def fiberFailure = {
+    val failure = FiberFailure(Cause.interrupt)
+    failure must_=== SerializableSpec.serializeAndDeserialize(failure)
+  }
+
+  def interruptStatus1 = {
+    val interruptStatus = InterruptStatus.interruptible
+    interruptStatus must_=== SerializableSpec.serializeAndDeserialize(interruptStatus)
+  }
+
+  def interruptStatus2 = {
+    val interruptStatus = InterruptStatus.uninterruptible
+    interruptStatus must_=== SerializableSpec.serializeAndDeserialize(interruptStatus)
+  }
+
+  def promise = {
+    val test = for {
+      promise           <- Promise.make[Nothing, String]
+      _                 <- promise.succeed("test")
+      value             <- promise.await
+      deserialized      <- serializeAndBack(promise)
+      deserializedValue <- deserialized.await
+    } yield value must_=== deserializedValue
+
+    unsafeRun(test)
+  }
+
+  def zschedule = {
+    val schedule = Schedule.recurs(5)
+    val test = for {
+      out1 <- schedule.run(List(1, 2, 3, 4, 5))
+      out2 <- SerializableSpec.serializeAndDeserialize(schedule).run(List(1, 2, 3, 4, 5))
+    } yield out1 must_=== out2
+
+    unsafeRun(test)
+  }
+
+  def chunkSingle = {
+    val chunk = Chunk.single(1)
+    val res = for {
+      chunk <- serializeAndBack(chunk)
+    } yield chunk
+
+    unsafeRun(res) must_=== chunk
+  }
+
+  def chunkArr = {
+    val chunk = Chunk.fromArray(Array(1, 2, 3))
+    val res = for {
+      chunk <- serializeAndBack(chunk)
+    } yield chunk
+
+    unsafeRun(res) must_=== chunk
+  }
+
+  def chunkConcat = {
+    val chunk = Chunk.single(1) ++ Chunk.single(2)
+    val res = for {
+      chunk <- serializeAndBack(chunk)
+    } yield chunk
+
+    unsafeRun(res) must_=== chunk
+  }
+
+  def chunkSlice = {
+    val chunk = Chunk.fromArray((1 to 100).toArray).take(10)
+    val res = for {
+      chunk <- serializeAndBack(chunk)
+    } yield chunk
+
+    unsafeRun(res) must_=== chunk
+  }
+
+  def chunkEmpty = {
+    val chunk = Chunk.empty
+    val res = for {
+      chunk <- serializeAndBack(chunk)
+    } yield chunk
+
+    unsafeRun(res) must_=== chunk
+  }
+
+  def chunkVector = {
+    val chunk = Chunk.fromIterable(Vector(1, 2, 3))
+    val res = for {
+      chunk <- serializeAndBack(chunk)
+    } yield chunk
+
+    unsafeRun(res) must_=== chunk
+  }
+
+  def fiberRef = {
+    val value = 10
+    val res = for {
+      init   <- FiberRef.make(value)
+      ref    <- serializeAndBack(init)
+      result <- ref.get
+    } yield result
+
+    unsafeRun(res) must_=== value
+  }
+
+  def zmanaged = {
+    val res = for {
+      managed <- serializeAndBack(ZManaged.make(UIO.unit)(_ => UIO.unit))
+      result  <- managed.use(_ => UIO.unit)
+    } yield result
+
+    unsafeRun(res) must_=== (())
+  }
+
+  def superviseStatus1 = {
+    val supervised = SuperviseStatus.supervised
+    supervised must_=== SerializableSpec.serializeAndDeserialize(supervised)
+  }
+
+  def superviseStatus2 = {
+    val unsupervised = SuperviseStatus.unsupervised
+    unsupervised must_=== SerializableSpec.serializeAndDeserialize(unsupervised)
+  }
+
+  def ztrace = {
+    val trace = ZTrace(
+      0L,
+      List(ZTraceElement.NoLocation("test")),
+      List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
+      None
+    )
+
+    trace must_=== SerializableSpec.serializeAndDeserialize(trace)
+  }
+
+  def tracingStatusTraced = {
+    val traced = TracingStatus.Traced
+    val res = for {
+      result <- serializeAndBack(traced)
+    } yield result
+
+    unsafeRun(res) must_=== traced
+  }
+
+  def tracingStatusUntraced = {
+    val untraced = TracingStatus.Untraced
+    val res = for {
+      result <- serializeAndBack(untraced)
+    } yield result
+
+    unsafeRun(res) must_=== untraced
+  }
+
+  def random = {
+    val rnd = Random.Live
+    rnd must_=== SerializableSpec.serializeAndDeserialize(rnd)
+  }
+
+  def system = {
+    val res = for {
+      system <- serializeAndBack(zio.system.System.Live)
+      result <- system.system.property("notpresent")
+    } yield result
+
+    unsafeRun(res) must_=== Option.empty
+  }
+
 }
 
 object SerializableSpec {
+
   def serializeToBytes[T](a: T): Array[Byte] = {
     val bf  = new ByteArrayOutputStream()
     val oos = new ObjectOutputStream(bf)
@@ -136,4 +386,7 @@ object SerializableSpec {
   }
 
   def serializeAndDeserialize[T](a: T): T = getObjFromBytes(serializeToBytes(a))
+
+  private case class TestException(msg: String) extends RuntimeException(msg)
+
 }
