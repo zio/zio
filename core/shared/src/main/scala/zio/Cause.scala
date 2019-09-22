@@ -45,11 +45,15 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * one exists.
    */
   final def dieOption: Option[Throwable] =
-    fold(_ => None, t => Some(t), None)(_ orElse _, _ orElse _, (z, _) => z)
+    fold(failCase = _ => None, dieCase = t => Some(t), interruptCase = None)(
+      thenCase = _ orElse _,
+      bothCase = _ orElse _,
+      tracedCause = (z, _) => z
+    )
 
   final def failed: Boolean =
     self match {
-      case Fail(_)           => true
+      case Fail(_)           => trueproj
       case Then(left, right) => left.failed || right.failed
       case Both(left, right) => left.failed || right.failed
       case Traced(cause, _)  => cause.failed
@@ -388,7 +392,7 @@ object Cause extends Serializable {
         }
     }
 
-  private case class Fail[E](value: E) extends Cause[E] {
+  private final case class Fail[E](value: E) extends Cause[E] {
     override final def equals(that: Any): Boolean = that match {
       case fail: Fail[_]     => value == fail.value
       case traced: Traced[_] => this == traced.cause
@@ -402,7 +406,7 @@ object Cause extends Serializable {
       new Fail(value)
   }
 
-  private case class Die(value: Throwable) extends Cause[Nothing] {
+  private final case class Die(value: Throwable) extends Cause[Nothing] {
     override final def equals(that: Any): Boolean = that match {
       case die: Die          => value == die.value
       case traced: Traced[_] => this == traced.cause
@@ -426,7 +430,7 @@ object Cause extends Serializable {
   }
 
   // Traced is excluded completely from equals & hashCode
-  private case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
+  private final case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
     override final def hashCode: Int = cause.hashCode()
     override final def equals(obj: Any): Boolean = obj match {
       case traced: Traced[_] => cause == traced.cause
@@ -441,16 +445,16 @@ object Cause extends Serializable {
   }
 
   // Meta is excluded completely from equals & hashCode
-  private case class Meta[E](cause: Cause[E], data: Data) extends Cause[E] {
+  private final case class Meta[E](cause: Cause[E], data: Data) extends Cause[E] {
     override final def hashCode: Int = cause.hashCode
     override final def equals(obj: Any): Boolean = obj match {
-      case traced: Traced[_] => cause == traced
+      case traced: Traced[_] => cause == traced.cause
       case meta: Meta[_]     => cause == meta.cause
       case _                 => cause == obj
     }
   }
 
-  private case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+  private final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
     override final def equals(that: Any): Boolean = that match {
       case traced: Traced[_] => self.equals(traced.cause)
       case meta: Meta[_]     => self.equals(meta.cause)
@@ -485,7 +489,7 @@ object Cause extends Serializable {
       new Then(left, right)
   }
 
-  private case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+  private final case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
     override final def equals(that: Any): Boolean = that match {
       case traced: Traced[_] => self.equals(traced.cause)
       case meta: Meta[_]     => self.equals(meta.cause)
@@ -525,7 +529,7 @@ object Cause extends Serializable {
       new Both(left, right)
   }
 
-  private case class Data(stackless: Boolean)
+  private final case class Data(stackless: Boolean)
 
   private[Cause] def sym(f: (Cause[_], Cause[_]) => Boolean): (Cause[_], Cause[_]) => Boolean =
     (l, r) => f(l, r) || f(r, l)
