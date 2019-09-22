@@ -670,8 +670,8 @@ object ZManagedSpec
                            for {
                              fiber        <- canceler.fork
                              _            <- latch.await
+                             interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds)).either
                              _            <- ref.set(false)
-                             interruption <- fiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live).either
                            } yield interruption
                        }
             } yield assert(result, isRight(isNone))
