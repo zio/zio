@@ -1,5 +1,7 @@
 package zio.test
 
+import zio.Cause.{ Die, Traced }
+
 import scala.concurrent.Future
 import zio.{ Cause, DefaultRuntime, Ref }
 import zio.test.Assertion._
@@ -14,10 +16,26 @@ object TestAspectSpec extends DefaultRuntime {
     label(jvmAppliesTestAspectOnlyOnJVM, "jvm applies test aspect only on ScalaJS"),
     label(jvmOnlyRunsTestsOnlyOnTheJVM, "jvmOnly runs tests only on the JVM"),
     label(failureMakesTestsPassOnAnyFailure, "failure makes a test pass if the result was a failure"),
-    label(failureMakesTestsPassOnAGivenCause, "failure makes a test pass if it passed on a specified failure"),
+    label(failureMakesTestsPassOnSpecifiedException, "failure makes a test pass if it died with an specified failure"),
     label(
-      failureMakesTestsFailWhenGivenCauseDoesNotMatch,
+      failureDoesNotMakeTestsPassOnUnexpectedException,
+      "failure does not make a test pass if it failed with an unexpected exception"
+    ),
+    label(
+      failureDoesNotMakeTestsPassOnUnexpectedCause,
       "failure does not make a test pass if the specified failure does not match"
+    ),
+    label(
+      failureMakesTestsPassOnAnyAssertionFailure,
+      "failure makes tests pass on any assertion failure"
+    ),
+    label(
+      failureMakesTestsPassOnExpectedAssertionFailure,
+      "failure makes tests pass on an expected assertion failure"
+    ),
+    label(
+      failureDoesNotMakesTestsPassOnUnexpectedAssertionFailure,
+      "failure does not make tests pass on unexpected assertion failure"
     )
   )
 
@@ -55,23 +73,76 @@ object TestAspectSpec extends DefaultRuntime {
 
   def failureMakesTestsPassOnAnyFailure: Future[Boolean] =
     unsafeRunToFuture {
-      val spec = test("failure aspect")(assert(throw new java.lang.Exception("boom"), isFalse)) @@ failure
+      val spec = test("failureMakesTestsPassOnAnyFailure")(assert(throw new java.lang.Exception("boom"), isFalse)) @@ failure
       succeeded(spec)
     }
 
-  def failureMakesTestsPassOnAGivenCause: Future[Boolean] =
+  def failureMakesTestsPassOnSpecifiedException: Future[Boolean] =
     unsafeRunToFuture {
-      val spec = test("failure aspect")(assert(throw new NullPointerException(), isFalse)) @@ failure(
-        Assertion.testFails(TestFailure.Runtime(Cause.die(new NullPointerException())))
+      val spec = test("failureMakesTestsPassOnSpecifiedException")(assert(throw new NullPointerException(), isFalse)) @@ failure[
+        Nothing
+      ](
+        failsWithException(new NullPointerException())
       )
       succeeded(spec)
     }
 
-  def failureMakesTestsFailWhenGivenCauseDoesNotMatch: Future[Boolean] =
+  def failureDoesNotMakeTestsPassOnUnexpectedException: Future[Boolean] =
     unsafeRunToFuture {
-      val spec = test("failure aspect")(assert(throw new RuntimeException(), isFalse)) @@ failure(
-        Assertion.testFails(TestFailure.Runtime(Cause.fail("boom")))
+      val spec = test("failureDoesNotMakeTestsPassOnUnexpectedException")(
+        assert(throw new NullPointerException(), isFalse)
+      ) @@ failure[
+        Nothing
+      ](failsWithException(new IllegalArgumentException()))
+      failed(spec)
+    }
+
+  def failureDoesNotMakeTestsPassOnUnexpectedCause: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = test("failureDoesNotMakeTestsPassOnUnexpectedCause")(assert(throw new RuntimeException(), isFalse)) @@ failure[
+        String
+      ](
+        isCase("Runtime", { case TestFailure.Runtime(e) => Some(e); case _ => None }, equalTo(Cause.fail("boom")))
       )
       failed(spec)
     }
+
+  def failureMakesTestsPassOnAnyAssertionFailure: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = test("failureMakesTestsPassOnAnyAssertionFailure")(assert(true, equalTo(false))) @@ failure
+      succeeded(spec)
+    }
+
+  def failureMakesTestsPassOnExpectedAssertionFailure: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = test("failureMakesTestsPassOnExpectedAssertionFailure")(assert(true, equalTo(false))) @@ failure[
+        Nothing
+      ] {
+        isCase("Assertion", { case TestFailure.Assertion(result) => Some(result); case _ => None }, anything)
+      }
+      succeeded(spec)
+    }
+
+  def failureDoesNotMakesTestsPassOnUnexpectedAssertionFailure: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = test("failureDoesNotMakesTestsPassOnUnexpectedAssertionFailure")(assert(true, equalTo(false))) @@ failure[
+        Nothing
+      ] {
+        isCase(
+          "Assertion", { case TestFailure.Assertion(result) => Some(result); case _ => None },
+          equalTo(assert(42, equalTo(42)))
+        )
+      }
+      failed(spec)
+    }
+
+  private def failsWithException(t: Throwable): Assertion[Any] =
+    isCase(
+      "Runtime", {
+        case TestFailure.Runtime(Die(e))            => Some(e)
+        case TestFailure.Runtime(Traced(Die(e), _)) => Some(e)
+        case _                                      => None
+      },
+      isInstance(t)
+    )
 }

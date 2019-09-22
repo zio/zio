@@ -181,14 +181,19 @@ object TestAspect extends TimeoutVariants {
       def perTest[R >: Nothing <: Any, E >: Nothing <: E0, S >: Unit <: Unit](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
-        lazy val fail = ZIO.fail(
+        def fail(value: TestFailure[E]) = ZIO.fail(
+          TestFailure.Assertion(assert(value, p))
+        )
+
+        lazy val failOnSuccess = ZIO.fail(
           TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected")))
         )
+
         lazy val succeed = ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
         test.foldM({
           case testFailure if p.run(testFailure).isSuccess => succeed
-          case _                                           => fail
-        }, _ => fail)
+          case other                                       => fail(other)
+        }, _ => failOnSuccess)
       }
     }
 
