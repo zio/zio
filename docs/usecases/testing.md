@@ -106,7 +106,7 @@ testM("One can controll time as he see fit") {
 }
 ```
 
-The above code cretes a shared mutable cell that will be incremented by 1 after 10 seconds. With call to `MockClock.adjust(Duration(11, TimeUnit.SECONDS))` we simulate passing of 11 seconds of time. Unfortunately *there is no gurantee* that the ref is already increamented. `ZIO.sleep` only guarantees that at least 10 seconds will pass. There is no upper bound. This depends on when the runtime decides to run fiber that control process of updating this cell.
+The above code creates a shared mutable cell that will be incremented by 1 after 10 seconds. With call to `MockClock.adjust(Duration(11, TimeUnit.SECONDS))` we simulate passing of 11 seconds of time. Unfortunately *there is no guarantee* that the ref is already incremented. `ZIO.sleep` only guarantees that at least 10 seconds will pass. There is no upper bound. This depends on when the runtime decides to run fiber that control process of updating this cell.
 
 
 
