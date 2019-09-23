@@ -328,10 +328,10 @@ object RTSSpec
         ),
         suite("RTS option tests")(
           testM("lifting a value to an option") {
-            Helper.Stub
+            assertM(ZIO.some(42), isSome(equalTo(42)))
           },
           testM("using the none value") {
-            Helper.Stub
+            assertM(ZIO.none, isNone)
           }
         ),
         suite("RTS either helper tests")(
