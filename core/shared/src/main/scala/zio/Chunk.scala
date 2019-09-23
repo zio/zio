@@ -43,7 +43,7 @@ sealed trait Chunk[+A] { self =>
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   def collect[B](p: PartialFunction[A, B]): Chunk[B] =
-    toArrayOption.fold[Chunk[B]](Chunk.empty)(Chunk.Arr(_).collect(p))
+    self.materialize.collect(p)
 
   /**
    * Drops the first `n` elements of the chunk.
@@ -236,7 +236,10 @@ sealed trait Chunk[+A] { self =>
     s
   }
 
-  override final def hashCode: Int = toArrayOption.fold(Seq.empty[A].hashCode)(_.toSeq.hashCode)
+  override final def hashCode: Int = toArrayOption match {
+    case None        => Seq.empty[A].hashCode
+    case Some(array) => array.toSeq.hashCode
+  }
 
   /**
    * Determines if the chunk is empty.
@@ -299,6 +302,15 @@ sealed trait Chunk[+A] { self =>
     s ->
       (if (dest == null) Chunk.empty
        else Chunk.Arr(dest))
+  }
+
+  /**
+   * Materializes a chunk into a chunk backed by an array. This method can
+   * improve the performance of bulk operations.
+   */
+  def materialize[A1 >: A]: Chunk[A1] = toArrayOption match {
+    case None        => Chunk.Empty
+    case Some(array) => Chunk.Arr(array)
   }
 
   /**
@@ -776,6 +788,8 @@ object Chunk {
       if (dest != null) Chunk.Arr(dest)
       else Chunk.Empty
     }
+
+    override def materialize[A1 >: A]: Chunk[A1] = this
 
     /**
      * Takes all elements so long as the predicate returns true.
