@@ -46,10 +46,13 @@ abstract class RunnableSpec[L, T, E, S](runner0: TestRunner[L, T, E, S])(spec0: 
    *
    * TODO: Parse command line options.
    */
-  final def main(args: Array[String]): Unit = {
-    val exitCode = runner.buildRuntime().unsafeRun(runSpec)
+  final def main(args: Array[String]): Unit =
+    runner.buildRuntime().unsafeRunAsync[Nothing, Int](runSpec) { exit =>
+      val exitCode = exit.getOrElse(_ => 1)
+      doExit(exitCode)
+    }
 
+  private def doExit(exitCode: Int): Unit =
     try sys.exit(exitCode)
     catch { case _: SecurityException => }
-  }
 }
