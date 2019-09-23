@@ -766,6 +766,26 @@ object ZManagedSpec
               test.use[Any, Nothing, TestResult](result => ZIO.succeed(result))
             }
           }
+        ),
+        suite("switchable")(
+          testM("runs the right finalizer on interruption") {
+            for {
+              effects <- Ref.make(List[String]())
+              latch   <- Promise.make[Nothing, Unit]
+              fib <- ZManaged
+                      .switchable[Any, Nothing, Unit]
+                      .use { switch =>
+                        switch(ZManaged.finalizer(effects.update("First" :: _))) *>
+                          switch(ZManaged.finalizer(effects.update("Second" :: _))) *>
+                          latch.succeed(()) *>
+                          ZIO.never
+                      }
+                      .fork
+              _      <- latch.await
+              _      <- fib.interrupt
+              result <- effects.get
+            } yield assert(result, equalTo(List("Second", "First")))
+          }
         )
       )
     )
