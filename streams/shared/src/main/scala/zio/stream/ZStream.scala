@@ -18,11 +18,11 @@ package zio.stream
 
 import java.io.{ IOException, InputStream }
 
+import com.github.ghik.silencer.silent
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-import ZStream.Pull
-import com.github.ghik.silencer.silent
+import zio.stream.ZStream.Pull
 
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of
