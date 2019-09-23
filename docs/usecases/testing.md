@@ -79,7 +79,7 @@ Sometimes one need to be able to control the flow of time. In most cases you wan
 
 Example 1
 
-Below test will pass. If we woule remove the line `MockClock.adjust(Duration(10, TimeUnit.SECONDS))` it would fail. If we wouldn't have access to `MockClock` to make it pass we would need to put manual `ZIO.sleep` call and that test would take 10 seconds every time when run.
+Below test will pass. If we would remove the line `MockClock.adjust(Duration(10, TimeUnit.SECONDS))` it would fail. If we wouldn't have access to `MockClock` to make it pass we would need to put manual `ZIO.sleep` call and that test would take 10 seconds every time when run.
 ```scala
 import zio.test.mock.MockClock
 testM("One can move time very fast") {  
