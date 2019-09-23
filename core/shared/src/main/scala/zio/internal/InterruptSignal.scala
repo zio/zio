@@ -56,6 +56,9 @@ private[internal] class InterruptSignal private (
   final def isInterrupted: Boolean =
     ownerInterrupted || ((parent ne null) && parent.isInterrupted)
 
+  final def isInterruptedFlat: Boolean =
+    ownerInterrupted
+
   /**
    * Marks the fiber that owns this signal as done.
    */

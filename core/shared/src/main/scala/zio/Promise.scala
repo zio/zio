@@ -70,13 +70,25 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def die(e: Throwable): UIO[Boolean] = done(IO.die(e))
+  final def die(e: Throwable): UIO[Boolean] = complete(IO.die(e))
+
+  /**
+   * Exits the promise with the specified exit, which will be propagated to all
+   * fibers waiting on the value of the promise.
+   */
+  final def done(e: Exit[E, A]): UIO[Boolean] = complete(IO.done(e))
+
+  /**
+   * Alias for [[Promise.complete]]
+   */
+  @deprecated("use Promise.complete", "1.0.0")
+  final def done(io: IO[E, A]): UIO[Boolean] = complete(io)
 
   /**
    * Completes the promise with the specified result. If the specified promise
    * has already been completed, the method will produce false.
    */
-  final def done(io: IO[E, A]): UIO[Boolean] =
+  final def complete(io: IO[E, A]): UIO[Boolean] =
     IO.effectTotal {
       var action: () => Boolean = null.asInstanceOf[() => Boolean]
       var retry                 = true
@@ -106,19 +118,19 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def fail(e: E): UIO[Boolean] = done(IO.fail(e))
+  final def fail(e: E): UIO[Boolean] = complete(IO.fail(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def halt(e: Cause[E]): UIO[Boolean] = done(IO.halt(e))
+  final def halt(e: Cause[E]): UIO[Boolean] = complete(IO.halt(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise.
    */
-  final def interrupt: UIO[Boolean] = done(IO.interrupt)
+  final def interrupt: UIO[Boolean] = complete(IO.interrupt)
 
   /**
    * Checks for completion of this Promise. Produces true if this promise has
@@ -142,7 +154,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   /**
    * Completes the promise with the specified value.
    */
-  final def succeed(a: A): UIO[Boolean] = done(IO.succeed(a))
+  final def succeed(a: A): UIO[Boolean] = complete(IO.succeed(a))
 
   private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
     var retry = true
@@ -208,7 +220,7 @@ object Promise {
     for {
       pRef <- Ref.make[Option[(C, Promise[E, B])]](None)
       b <- (for {
-            p <- ref.modify { a: A =>
+            p <- ref.modify { (a: A) =>
                   val p = Promise.unsafeMake[E, B]
 
                   val (io, a2) = acquire(p, a)

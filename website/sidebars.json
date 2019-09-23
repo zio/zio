@@ -51,7 +51,8 @@
       "usecases/usecases_parallelism",
       "usecases/usecases_queuing",
       "usecases/usecases_scheduling",
-      "usecases/usecases_streaming"
+      "usecases/usecases_streaming",
+      "usecases/usecases_testing"
     ]
   },
   "advanced-sidebar": {
@@ -72,5 +73,12 @@
     "Ecosystem": [
       "ecosystem/ecosystem"
     ]
+  },
+  "about-sidebar": {
+      "About": [
+          "about/about_index",
+          "about/about_contributing",
+          "about/about_coc"
+      ]
   }
 }

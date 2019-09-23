@@ -93,6 +93,18 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     case Traced(cause, trace) => Traced(cause.map(f), trace)
   }
 
+  final def untraced: Cause[E] =
+    self match {
+      case Traced(cause, _) => cause.untraced
+
+      case c @ Fail(_) => c
+      case c @ Die(_)  => c
+      case Interrupt   => Interrupt
+
+      case Then(left, right) => Then(left.untraced, right.untraced)
+      case Both(left, right) => Both(left.untraced, right.untraced)
+    }
+
   final def prettyPrint: String = {
     sealed trait Segment
     sealed trait Step extends Segment
@@ -154,7 +166,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 
     def renderInterrupt(maybeTrace: Option[ZTrace]): Sequential =
       Sequential(
-        List(Failure("An unchecked error was produced." :: renderTrace(maybeTrace)))
+        List(Failure("An interrupt was produced." :: renderTrace(maybeTrace)))
       )
 
     def causeToSequential(cause: Cause[Any]): Sequential =

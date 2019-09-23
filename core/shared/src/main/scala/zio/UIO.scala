@@ -19,7 +19,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
+  final def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
    * @see See bracket [[zio.ZIO]]
@@ -77,8 +77,44 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  final def collectAllParN[A](n: Long)(as: Iterable[UIO[A]]): UIO[List[A]] =
+  final def collectAllParN[A](n: Int)(as: Iterable[UIO[A]]): UIO[List[A]] =
     ZIO.collectAllParN(n)(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccesses]]
+   */
+  final def collectAllSuccesses[A](in: Iterable[UIO[A]]): UIO[List[A]] =
+    ZIO.collectAllSuccesses(in)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesPar]]
+   */
+  final def collectAllSuccessesPar[A](as: Iterable[UIO[A]]): UIO[List[A]] =
+    ZIO.collectAllSuccessesPar(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllSuccessesParN]]
+   */
+  final def collectAllSuccessesParN[A](n: Int)(as: Iterable[UIO[A]]): UIO[List[A]] =
+    ZIO.collectAllSuccessesParN(n)(as)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWith]]
+   */
+  final def collectAllWith[A, B](in: Iterable[UIO[A]])(f: PartialFunction[A, B]): UIO[List[B]] =
+    ZIO.collectAllWith(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithPar]]
+   */
+  final def collectAllWithPar[A, B](as: Iterable[UIO[A]])(f: PartialFunction[A, B]): UIO[List[B]] =
+    ZIO.collectAllWithPar(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.collectAllWithParN]]
+   */
+  final def collectAllWithParN[A, B](n: Int)(as: Iterable[UIO[A]])(f: PartialFunction[A, B]): UIO[List[B]] =
+    ZIO.collectAllWithParN(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -136,6 +172,16 @@ object UIO {
     ZIO.effectAsyncInterrupt(register)
 
   /**
+   * @see See [[zio.ZIO.effectSuspendTotal]]
+   */
+  final def effectSuspendTotal[A](uio: => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(_ => uio)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotalWith]]
+   */
+  final def effectSuspendTotalWith[A](p: Platform => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(p)
+
+  /**
    * @see See [[zio.ZIO.flatten]]
    */
   final def flatten[A](uio: UIO[UIO[A]]): UIO[A] =
@@ -186,13 +232,13 @@ object UIO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  final def foreachParN[A, B](n: Long)(as: Iterable[A])(fn: A => UIO[B]): UIO[List[B]] =
+  final def foreachParN[A, B](n: Int)(as: Iterable[A])(fn: A => UIO[B]): UIO[List[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[A](n: Long)(as: Iterable[A])(f: A => UIO[_]): UIO[Unit] =
+  final def foreachParN_[A](n: Int)(as: Iterable[A])(f: A => UIO[_]): UIO[Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -287,6 +333,12 @@ object UIO {
     ZIO.reduceAllPar(a, as)(f)
 
   /**
+   * @see See [[zio.ZIO.replicate]]
+   */
+  def replicate[A](n: Int)(effect: UIO[A]): Iterable[UIO[A]] =
+    ZIO.replicate(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.reserve]]
    */
   final def reserve[A, B](reservation: UIO[Reservation[Any, Nothing, A]])(use: A => UIO[B]): UIO[B] =
@@ -317,7 +369,7 @@ object UIO {
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
-  final def sequenceParN[A](n: Long)(as: Iterable[UIO[A]]): UIO[List[A]] =
+  final def sequenceParN[A](n: Int)(as: Iterable[UIO[A]]): UIO[List[A]] =
     ZIO.sequenceParN(n)(as)
 
   /**
@@ -330,22 +382,15 @@ object UIO {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  /**
-   * @see See [[zio.ZIO.succeedLazy]]
-   */
-  final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
+  @deprecated("use effectTotal", "1.0.0")
+  final def succeedLazy[A](a: => A): UIO[A] =
+    effectTotal(a)
 
-  /**
-   * @see See [[zio.ZIO.suspend]]
-   */
-  final def suspend[A](uio: => UIO[A]): UIO[A] =
-    ZIO.suspend(uio)
+  @deprecated("use effectSuspendTotal", "1.0.0")
+  final def suspend[A](uio: => UIO[A]): UIO[A] = effectSuspendTotalWith(_ => uio)
 
-  /**
-   * [[zio.ZIO.suspendWith]]
-   */
-  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(io)
+  @deprecated("use effectSuspendTotalWith", "1.0.0")
+  final def suspendWith[A](p: Platform => UIO[A]): UIO[A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -385,7 +430,7 @@ object UIO {
    * @see See [[zio.ZIO.traverseParN]]
    */
   final def traverseParN[A, B](
-    n: Long
+    n: Int
   )(as: Iterable[A])(fn: A => UIO[B]): UIO[List[B]] =
     ZIO.traverseParN(n)(as)(fn)
 
@@ -393,7 +438,7 @@ object UIO {
    * @see See [[zio.ZIO.traverseParN_]]
    */
   final def traverseParN_[A](
-    n: Long
+    n: Int
   )(as: Iterable[A])(f: A => UIO[_]): UIO[Unit] =
     ZIO.traverseParN_(n)(as)(f)
 
@@ -424,6 +469,18 @@ object UIO {
    */
   final def when(b: Boolean)(uio: UIO[_]): UIO[Unit] =
     ZIO.when(b)(uio)
+
+  /**
+   * @see See [[zio.ZIO.whenCase]]
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.ZIO.whenCaseM]]
+   */
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenM]]
