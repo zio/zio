@@ -48,6 +48,68 @@ In **ZIO Test**, all tests are immutable values and tests are tightly integrated
 
 The library also includes built-in mock versions of all the standard ZIO environmental effects (`Clock`, `Console`, `System`, and `Random`), so when we tested our program above the `helloWorld` method didn't actually print a String to the console but instead wrote the String to a buffer that could access for testing purposes. If you ever do need to access the "live" environment just use the `live` method in the `mock` package or specify the live environment in your type signature like `Live[Console]`.
 
+_Mocking Random_
+
+When working with randomness it is easier to controll what the radnom producer supplies. This can be controlled by a number of methods that allow for filling up buffers with values.
+
+```scala
+import zio.test.mock.MockRandom
+testM("One can provide its own list of ints") {
+  for {
+    _  <- MockRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
+    r1 <- random.nextInt
+    r2 <- random.nextInt
+    r3 <- random.nextInt
+    r4 <- random.nextInt
+    r5 <- random.nextInt
+    r6 <- random.nextInt
+    r7 <- random.nextInt
+    r8 <- random.nextInt
+    r9 <- random.nextInt
+  } yield assert(
+    List(1, 9, 2, 8, 3, 7, 4, 6, 5),
+    equalTo(List(r1, r2, r3, r4, r5, r6, r7, r8, r9))
+  )
+}
+```
+
+_Mocking Clock_
+
+Sometimes one need to be able to control the flow of time. In most cases you want your unit test to be as fast as possible. Waiting for readl time to pass by is a real killer for this. ZIO exposes a MockClock in testing Environment that can controll time.
+
+Example 1
+
+Below test will pass. If we woule remove the line `MockClock.adjust(Duration(10, TimeUnit.SECONDS))` it would fail. If we wouldn't have access to `MockClock` to make it pass we would need to put manual `ZIO.sleep` call and that test would take 10 seconds every time when run.
+```scala
+import zio.test.mock.MockClock
+testM("One can move time very fast") {  
+  for {
+    startTime <- currentTime(TimeUnit.SECONDS)
+    _         <- MockClock.adjust(Duration(10, TimeUnit.SECONDS))
+    endTime   <- currentTime(TimeUnit.SECONDS)
+  } yield assert(endTime - startTime, isGreaterThanEqualTo(10L))
+}
+```
+
+Example 2
+
+`MockClock` affects also all code running asynchronously that is scheduled to run after certain time but with caveats to how runtime works.
+
+```scala
+testM("One can controll time as he see fit") {
+  for {
+    ref     <- Ref.make(0)
+    _       <- (ZIO.sleep(Duration(10, TimeUnit.SECONDS)) *> ref.update(_+1)).fork
+    _       <- MockClock.adjust(Duration(11, TimeUnit.SECONDS)) 
+    readRef <- ref.get
+  } yield assert(1, equalTo(readRef))
+}
+```
+
+The above code cretes a shared mutable cell that will be incremented by 1 after 10 seconds. With call to `MockClock.adjust(Duration(11, TimeUnit.SECONDS))` we simulate passing of 11 seconds of time. Unfortunately *there is no gurantee* that the ref is already increamented. `ZIO.sleep` only guarantees that at least 10 seconds will pass. There is no upper bound. This depends on when the runtime decides to run fiber that control process of updating this cell.
+
+
+
 **Property Based Testing**
 
 Support for property based testing is included out of the box through the `check` method and its variants and the `Gen` and `Sample` classes. For example, here is how we could write a property to test that integer addition is associative.
