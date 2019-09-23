@@ -427,13 +427,31 @@ object RTSSpec
         ),
         suite("RTS environment")(
           testM("provide is modular") {
-            Helper.Stub
+            val zio =
+              for {
+                v1 <- ZIO.environment[Int]
+                v2 <- ZIO.environment[Int].provide(2)
+                v3 <- ZIO.environment[Int]
+              } yield (v1, v2, v3)
+
+            assertM(zio.provide(4), equalTo((4, 2, 4)))
           },
           testM("provideManaged is modular") {
-            Helper.Stub
+            def managed(v: Int): ZManaged[Any, Nothing, Int] =
+              ZManaged.make(IO.succeed(v))(_ => IO.effectTotal(()))
+
+            val zio =
+              for {
+                v1 <- ZIO.environment[Int]
+                v2 <- ZIO.environment[Int].provideManaged(managed(2))
+                v3 <- ZIO.environment[Int]
+              } yield (v1, v2, v3)
+
+            assertM(zio.provideManaged(managed(4)), equalTo((4, 2, 4)))
           },
           testM("effectAsync can use environment") {
-            Helper.Stub
+            val zio = ZIO.effectAsync[Int, Nothing, Int](cb => cb(ZIO.environment[Int]))
+            assertM(zio.provide(10), equalTo(10))
           }
         ),
         suite("RTS forking inheritability")(
