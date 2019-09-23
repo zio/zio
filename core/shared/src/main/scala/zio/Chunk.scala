@@ -308,7 +308,7 @@ sealed trait Chunk[+A] { self =>
    * Materializes a chunk into a chunk backed by an array. This method can
    * improve the performance of bulk operations.
    */
-  def materialize[A1 >: A]: Chunk[A1] = toArrayOption match {
+  def materialize[A1 >: A]: Chunk[A1] = self.toArrayOption match {
     case None        => Chunk.Empty
     case Some(array) => Chunk.Arr(array)
   }
