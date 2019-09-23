@@ -3,12 +3,11 @@ package zio.stream
 import com.github.ghik.silencer.silent
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
-
-import scala.{ Stream => _ }
-import scala.concurrent.duration._
-import zio.{ Chunk, Exit, GenIO, IO, TestRuntime, ZIO }
+import zio._
 
 import scala.annotation.tailrec
+import scala.concurrent.duration._
+import scala.{ Stream => _ }
 
 class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
@@ -218,7 +217,6 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   @silent("Any")
   def toInputStream = {
-    import zio.stream.Stream._
     val stream                                    = StreamChunk.fromChunks(Chunk(1, 2, 3)).map(_.toByte)
     val streamResult: Exit[Throwable, List[Byte]] = unsafeRunSync(stream.flattenChunks.runCollect)
     val inputStreamResult = unsafeRunSync(stream.toInputStream.use { inputStream =>
