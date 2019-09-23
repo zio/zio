@@ -774,13 +774,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       idx: Int
     )(res: Exit[E1, A1]): ZIO[R1, Nothing, _] =
       res.foldM[R1, Nothing, Unit](
-        e =>
-          ZIO.flatten(fails.modify((c: Int) => (if (c == 0) done.halt(e).unit else ZIO.unit) -> (c - 1))),
+        e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) done.halt(e).unit else ZIO.unit) -> (c - 1))),
         a =>
           done
             .complete(ZIO.succeed(a))
             .flatMap(
-              set => if (set) Fiber.interruptAll(fibers.filter(_._2 != idx).map(_._1)) else ZIO.unit
+              set =>
+                if (set) fibers.foldLeft(IO.unit)((io, f) => if (f._2 == idx) io else io <* f._1.interrupt)
+                else ZIO.unit
             )
       )
 
@@ -791,13 +792,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
             for {
               head <- ZIO.interruptible(self).fork
               tail <- ZIO.foreach(ios)(io => ZIO.interruptible(io).fork)
-              fibers = (head :: tail)
-              as   = fibers.zipWithIndex
+              as   = (head :: tail).zipWithIndex
               _ <- as.foldLeft[ZIO[R1, E1, _]](ZIO.unit) {
                     case (io, (f, idx)) =>
                       io *> f.await.flatMap(arbiter(as, done, fails, idx)).fork
                   }
-              c <- restore(done.await).onInterrupt(Fiber.interruptAll(fibers))
+              c <- restore(done.await).onInterrupt(as.foldLeft(IO.unit)((io, f) => io <* f._1.interrupt))
             } yield c
           }
     } yield c).refailWithTrace
