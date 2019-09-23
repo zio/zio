@@ -145,15 +145,39 @@ object Sink {
    */
   final def foldWeightedM[E, E1 >: E, A, S](
     z: S
-  )(costFn: A => IO[E, Long], max: Long)(f: (S, A) => IO[E1, S]): Sink[E1, A, A, S] =
-    ZSink.foldWeightedM[Any, Any, E, E1, A, S](z)(costFn, max)(f)
+  )(costFn: A => IO[E, Long], max: Long)(
+    f: (S, A) => IO[E1, S]
+  ): Sink[E1, A, A, S] = ZSink.foldWeightedM[Any, Any, E, E1, A, S](z)(costFn, max)(f)
+
+  /**
+   * see [[ZSink.foldWeightedDecomposeM]]
+   */
+  final def foldWeightedDecomposeM[E, E1 >: E, A, S](
+    z: S
+  )(costFn: A => IO[E, Long], max: Long, decompose: A => IO[E, Chunk[A]])(
+    f: (S, A) => IO[E1, S]
+  ): Sink[E1, A, A, S] =
+    ZSink.foldWeightedDecomposeM[Any, Any, E, E1, A, S](z)(costFn, max, decompose)(f)
 
   /**
    * see [[ZSink.foldWeighted]]
    */
   final def foldWeighted[A, S](
     z: S
-  )(costFn: A => Long, max: Long)(f: (S, A) => S): Sink[Nothing, A, A, S] = ZSink.foldWeighted(z)(costFn, max)(f)
+  )(costFn: A => Long, max: Long)(
+    f: (S, A) => S
+  ): Sink[Nothing, A, A, S] =
+    ZSink.foldWeighted(z)(costFn, max)(f)
+
+  /**
+   * see [[ZSink.foldWeighted]]
+   */
+  final def foldWeightedDecompose[A, S](
+    z: S
+  )(costFn: A => Long, max: Long, decompose: A => Chunk[A])(
+    f: (S, A) => S
+  ): Sink[Nothing, A, A, S] =
+    ZSink.foldWeightedDecompose(z)(costFn, max, decompose)(f)
 
   /**
    * see [[ZSink.fromEffect]]
@@ -218,12 +242,8 @@ object Sink {
   /**
    * see [[ZSink.succeed]]
    */
-  final def succeed[B](b: B): Sink[Nothing, Nothing, Any, B] =
+  final def succeed[A, B](b: B): Sink[Nothing, A, A, B] =
     ZSink.succeed(b)
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
-    succeed(b)
 
   /**
    * see [[ZSink.throttleEnforce]]

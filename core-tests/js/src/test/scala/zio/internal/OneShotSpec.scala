@@ -1,45 +1,46 @@
 package zio.internal
 
-import org.specs2.Specification
+import zio.ZIOBaseSpec
+import zio.test.Assertion._
+import zio.test._
 
-class OneShotSpec extends Specification {
-  def is =
-    "OneShotSpec".title ^ s2"""
-      Make a new OneShot
-         set must accept a non-null value.              $setNonNull
-         set must not accept a null value.              $setNull
-         isSet must report if a value is set.           $isSet
-         get must fail if no value is set.              $getWithNoValue
-         cannot set value twice                         $setTwice
-    """
+object OneShotSpec
+    extends ZIOBaseSpec(
+      suite("OneShotSpec")(
+        suite("Make a new OneShot")(
+          test("set must accept a non-null value") {
+            val oneShot = OneShot.make[Int]
+            oneShot.set(1)
 
-  def setNonNull = {
-    val oneShot = OneShot.make[Int]
-    oneShot.set(1)
+            assert(oneShot.get(), equalTo(1))
+          },
+          test("set must not accept a null value") {
+            val oneShot = OneShot.make[Object]
 
-    oneShot.get() must_=== 1
-  }
+            assert(oneShot.set(null), throwsA[Error])
+          },
+          test("isSet must report if a value is set") {
+            val oneShot = OneShot.make[Int]
 
-  def setNull = {
-    val oneShot = OneShot.make[Object]
-    oneShot.set(null) must throwA[Error]
-  }
+            val resultBeforeSet = oneShot.isSet
 
-  def isSet = {
-    val oneShot = OneShot.make[Int]
-    oneShot.isSet must beFalse
-    oneShot.set(1)
-    oneShot.isSet must beTrue
-  }
+            oneShot.set(1)
 
-  def getWithNoValue = {
-    val oneShot = OneShot.make[Object]
-    oneShot.get() must throwA[Error]
-  }
+            val resultAfterSet = oneShot.isSet
 
-  def setTwice = {
-    val oneShot = OneShot.make[Int]
-    oneShot.set(1)
-    oneShot.set(2) must throwA[Error]
-  }
-}
+            assert(resultBeforeSet, isFalse) && assert(resultAfterSet, isTrue)
+          },
+          test("get must fail if no value is set") {
+            val oneShot = OneShot.make[Object]
+
+            assert(oneShot.get(), throwsA[Error])
+          },
+          test("cannot set value twice") {
+            val oneShot = OneShot.make[Int]
+            oneShot.set(1)
+
+            assert(oneShot.set(2), throwsA[Error])
+          }
+        )
+      )
+    )

@@ -14,7 +14,8 @@ object ArbitraryStreamChunk {
       Gen.oneOf(
         genFailingStream[Chunk[T]].map(StreamChunk(_)),
         genPureStream[Chunk[T]].map(StreamChunk(_)),
-        genSucceededStream[Chunk[T]].map(StreamChunk(_))
+        genFailingStreamEffect[Chunk[T]].map(StreamEffectChunk(_)),
+        genPureStreamEffect[Chunk[T]].map(StreamEffectChunk(_))
       )
     }
 
@@ -22,7 +23,7 @@ object ArbitraryStreamChunk {
     Arbitrary {
       Gen.oneOf(
         genPureStream[Chunk[T]].map(StreamChunk(_)),
-        genSucceededStream[Chunk[T]].map(StreamChunk(_))
+        genPureStreamEffect[Chunk[T]].map(StreamEffectChunk(_))
       )
     }
 }

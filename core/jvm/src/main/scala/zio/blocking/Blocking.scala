@@ -19,12 +19,12 @@ package zio.blocking
 import java.util.concurrent._
 
 import zio.internal.tracing.ZIOFn
-import zio.internal.{ Executor, NamedThreadFactory, PlatformLive }
+import zio.internal.{ Executor, NamedThreadFactory }
 import zio.{ IO, UIO, ZIO }
 
 private[blocking] object internal {
   private[blocking] val blockingExecutor0 =
-    PlatformLive.ExecutorUtil.fromThreadPoolExecutor(_ => Int.MaxValue) {
+    Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
       val corePoolSize  = 0
       val maxPoolSize   = Int.MaxValue
       val keepAliveTime = 1000L

@@ -29,7 +29,7 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   import ZStream.Pull
 
   /**
@@ -56,7 +56,7 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   /**
    * Drops the specified number of elements from this stream.
    */
-  final def drop(n: Int): ZStreamChunk[R, E, A] =
+  def drop(n: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream[R, E, Chunk[A]] {
         for {
@@ -86,7 +86,7 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream[R, E, Chunk[A]] {
         for {
@@ -146,7 +146,7 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   final def foldManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
+    chunks.foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
       as.foldMLazy(s)(cont)(f)
     }
 
@@ -159,18 +159,18 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   final def foldChunksManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont)(f)
+    chunks.foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont)(f)
 
   final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    chunks.fold[R1, E1, Chunk[A1], S](s)(cont)(f)
+    chunks.foldWhileM[R1, E1, Chunk[A1], S](s)(cont)(f)
 
   /**
    * Reduces the elements in the stream to a value of type `S`
    */
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
-    fold[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a)))
+  def foldLeft[S](s: S)(f: (S, A) => S): ZIO[R, E, S] =
+    fold[R, E, A, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a)))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -193,21 +193,28 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
    */
-  def map[@specialized B](f: A => B): ZStreamChunk[R, E, B] =
+  def map[B](f: A => B): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.map(f)))
 
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
-  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
+  final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
 
   /**
-   * Maps each element to a chunk, and flattens the chunks into the output of
+   * Maps each element to a chunk and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
+  def mapConcatChunk[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.flatMap(f)))
+
+  /**
+   * Maps each element to an iterable and flattens the iterable into the output of
+   * this stream.
+   */
+  def mapConcat[B](f: A => Iterable[B]): ZStreamChunk[R, E, B] =
+    mapConcatChunk(f andThen Chunk.fromIterable)
 
   /**
    * Maps over elements of the stream with the specified effectful function.
@@ -245,7 +252,7 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   /**
    * Takes the specified number of elements from this stream.
    */
-  final def take(n: Int): ZStreamChunk[R, E, A] =
+  def take(n: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream[R, E, Chunk[A]] {
         for {
@@ -268,7 +275,7 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  final def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream[R, E, Chunk[A]] {
         for {
@@ -330,7 +337,7 @@ object ZStreamChunk {
    * The empty stream of chunks
    */
   final val empty: StreamChunk[Nothing, Nothing] =
-    new StreamChunk[Nothing, Nothing](Stream.empty)
+    new StreamEffectChunk(StreamEffect.empty)
 
   /**
    * Creates a `ZStreamChunk` from a stream of chunks
@@ -342,11 +349,11 @@ object ZStreamChunk {
    * Creates a `ZStreamChunk` from a variable list of chunks
    */
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A](Stream.fromIterable(as))
+    new StreamEffectChunk(StreamEffect.fromIterable(as))
 
   /**
    * Creates a `ZStreamChunk` from a chunk
    */
   final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A](Stream.succeed(as))
+    new StreamEffectChunk(StreamEffect.succeed(as))
 }

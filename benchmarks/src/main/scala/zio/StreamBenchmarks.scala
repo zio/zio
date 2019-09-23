@@ -190,7 +190,7 @@ class CSVStreamBenchmarks {
                 Chunk(CSV.NewCol))
           } else (acc :+ char) -> Chunk.empty
       }
-      .mapConcat(identity(_))
+      .mapConcatChunk(identity(_))
 
     unsafeRun(stream.run(ZSink.drain))
   }

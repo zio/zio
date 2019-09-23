@@ -1,8 +1,7 @@
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
-import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import BuildHelper._
-import xerial.sbt.Sonatype._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
+import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 name := "zio"
 
@@ -19,14 +18,16 @@ inThisBuild(
         url("http://degoes.net")
       )
     ),
+    pgpPassphrase := sys.env.get("PGP_PASSWORD").map(_.toArray),
     pgpPublicRing := file("/tmp/public.asc"),
     pgpSecretRing := file("/tmp/secret.asc"),
-    releaseEarlyWith := SonatypePublisher,
     scmInfo := Some(
       ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
     )
   )
 )
+
+ThisBuild / publishTo := sonatypePublishToBundle.value
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
@@ -71,7 +72,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio"))
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -87,13 +88,14 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner % "test->test;compile->compile")
-  .settings(buildInfoSettings)
-  .settings(publishArtifact in (Test, packageBin) := true)
+  .settings(buildInfoSettings("zio"))
+  .settings(skip in publish := true)
+  .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -111,7 +113,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
   .dependsOn(core)
   .settings(stdSettings("zio-streams"))
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
@@ -125,7 +127,8 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner % "test->test;compile->compile")
   .settings(stdSettings("zio-streams-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .settings(buildInfoSettings)
+  .settings(skip in publish := true)
+  .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
@@ -151,12 +154,12 @@ lazy val testJS = test.js.settings(
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
-  .settings(buildInfoSettings)
+  .settings(buildInfoSettings("zio.internal.stacktracer"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
     )
   )
 
@@ -175,7 +178,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.28"))
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.29"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core % "test->test;compile->compile")
   .dependsOn(test % "test->test;compile->compile")
@@ -208,7 +211,7 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                   %% "fs2-core"        % "2.0.0",
+        "co.fs2"                   %% "fs2-core"        % "2.0.1",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.25",
@@ -253,9 +256,9 @@ lazy val docs = project.module
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC3",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC3",
-      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC4",
+      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC6",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
-      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC3",
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.1-RC1",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC1"
     )

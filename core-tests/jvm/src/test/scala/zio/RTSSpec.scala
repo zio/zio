@@ -107,9 +107,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     race of terminate with success                $testRaceChoosesWinnerInTerminate
     race of fail with fail                        $testRaceChoosesFailure
     race of value & never                         $testRaceOfValueNever
-    raceAll of values                             $testRaceAllOfValues
-    raceAll of failures                           $testRaceAllOfFailures
-    raceAll of failures & one success             $testRaceAllOfFailuresOneSuccess
     firstSuccessOf of values                      $testFirstSuccessOfValues
     firstSuccessOf of failures                    $testFirstSuccessOfFailures
     firstSuccessOF of failures & 1 success        $testFirstSuccessOfFailuresOneSuccess
@@ -604,7 +601,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
       acquire <- Promise.make[Nothing, Unit]
       fiber <- IO
                 .effectAsyncM[Nothing, Unit] { _ =>
-                  IO.bracket(acquire.succeed(()))(_ => release.succeed(()))(_ => IO.never)
+                  acquire.succeed(()).bracket(_ => release.succeed(()))(_ => IO.never)
                 }
                 .fork
       _ <- acquire.await
@@ -676,7 +673,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket(promise.succeed(()) <* IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        fiber   <- (promise.succeed(()) <* IO.never).bracket(_ => IO.unit)(_ => IO.unit).fork
         res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
@@ -1084,7 +1081,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
   def testBracketUseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.never).fork
+        fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt
       } yield res
     unsafeRun(io) must_=== Exit.interrupt
@@ -1201,17 +1198,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testRaceOfFailNever =
     unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
-
-  def testRaceAllOfValues =
-    unsafeRun(IO.raceAll(IO.fail(42), List(IO.succeed(24))).either) must_=== Right(24)
-
-  def testRaceAllOfFailures =
-    unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).either) must_=== Left(24)
-
-  def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(ZIO.raceAll(IO.fail(42), List(IO.succeed(24).delay(1.millis))).either) must_=== Right(
-      24
-    )
 
   def testRaceBothInterruptsLoser =
     unsafeRun(for {
@@ -1333,7 +1319,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testOneMaxYield = {
     val rts = new DefaultRuntime {
-      override val Platform = PlatformLive.Default.withExecutor(PlatformLive.ExecutorUtil.makeDefault(1))
+      override val Platform = PlatformLive.makeDefault(1)
     }
 
     rts.unsafeRun(
