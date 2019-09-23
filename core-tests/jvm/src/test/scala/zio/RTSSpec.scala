@@ -8,8 +8,10 @@ package zio
 // import zio.duration._
 // import zio.internal.PlatformLive
 // import zio.clock.Clock
+import zio.LatchOps._
 import zio.test._
 import zio.test.Assertion._
+import zio.test.TestUtils.nonFlaky
 
 // import scala.annotation.tailrec
 // import scala.util.{ Failure, Success }
@@ -456,16 +458,49 @@ object RTSSpec
         ),
         suite("RTS forking inheritability")(
           testM("interruption status is heritable") {
-            Helper.Stub
+            for {
+              latch <- Promise.make[Nothing, Unit]
+              ref   <- Ref.make(InterruptStatus.interruptible)
+              _     <- ZIO.uninterruptible((ZIO.checkInterruptible(ref.set) *> latch.succeed(())).fork *> latch.await)
+              v     <- ref.get
+            } yield assert(v, equalTo(InterruptStatus.uninterruptible))
           },
           testM("executor is heritable") {
-            Helper.Stub
+            nonFlaky {
+              for {
+                ref  <- Ref.make(Option.empty[internal.Executor])
+                exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
+                _ <- withLatch(
+                      release => IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec)
+                    )
+                v <- ref.get
+              } yield v.contains(exec)
+            }.map(assert(_, isTrue))
           },
           testM("supervision is heritable") {
-            Helper.Stub
+            nonFlaky {
+              for {
+                latch <- Promise.make[Nothing, Unit]
+                ref   <- Ref.make(SuperviseStatus.unsupervised)
+                _     <- ((ZIO.checkSupervised(ref.set) *> latch.succeed(())).fork *> latch.await).supervised
+                v     <- ref.get
+              } yield v == SuperviseStatus.Supervised
+            }.map(assert(_, isTrue))
           },
           testM("supervision inheritance") {
-            Helper.Stub
+            def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
+              withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
+
+            nonFlaky {
+              val zio =
+                for {
+                  ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
+                  _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
+                  fibs <- ZIO.children
+                } yield fibs.size == 1
+
+              zio.supervised
+            }.map(assert(_, isTrue))
           }
         )
       )
