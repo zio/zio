@@ -50,7 +50,7 @@ The library also includes built-in mock versions of all the standard ZIO environ
 
 _Mocking Random_
 
-When working with randomness it is easier to controll what the radnom producer supplies. This can be controlled by a number of methods that allow for filling up buffers with values.
+When working with randomness it is easier to control what the random producer supplies. This can be controlled by a number of methods that allow for filling up buffers with values.
 
 ```scala
 import zio.test.mock.MockRandom
