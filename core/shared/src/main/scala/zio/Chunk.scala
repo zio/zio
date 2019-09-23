@@ -42,11 +42,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
-  def collect[B](p: PartialFunction[A, B]): Chunk[B] =
-    self.toArrayOption match {
-      case None        => Chunk.Empty
-      case Some(array) => Chunk.Arr(array).collect(p)
-    }
+  def collect[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(p)
 
   /**
    * Drops the first `n` elements of the chunk.
@@ -311,7 +307,7 @@ sealed trait Chunk[+A] { self =>
    * Materializes a chunk into a chunk backed by an array. This method can
    * improve the performance of bulk operations.
    */
-  def materialize[A1 >: A]: Chunk[A1] = self.toArrayOption match {
+  def materialize[A1 >: A]: Chunk[A1] = self.toArrayOption[A1] match {
     case None        => Chunk.Empty
     case Some(array) => Chunk.Arr(array)
   }
