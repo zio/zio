@@ -2396,19 +2396,26 @@ object ZStream extends ZStreamPlatformSpecific {
   ): ZStream[R, E, A] =
     ZStream[R, E, A] {
       for {
-        output <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
-        maybeStream <- UIO(register(k => runtime.unsafeRunAsync_(
-          k.foldCauseM(
-            Pull.sequenceCauseOption(_) match {
-              case None => output.offer(Pull.end)
-              case Some(c) => output.offer(Pull.halt(c))
-            },
-            a => output.offer(Pull.emit(a)))))).toManaged_
+        maybeStream <- UIO(
+                        register(
+                          k =>
+                            runtime.unsafeRunAsync_(
+                              k.foldCauseM(
+                                Pull.sequenceCauseOption(_) match {
+                                  case None    => output.offer(Pull.end)
+                                  case Some(c) => output.offer(Pull.halt(c))
+                                },
+                                a => output.offer(Pull.emit(a))
+                              )
+                            )
+                        )
+                      ).toManaged_
         pull <- maybeStream match {
-          case Some(stream) => output.shutdown.toManaged_ *> stream.process
-          case None => ZManaged.succeed(output.take.flatten)
-        }
+                 case Some(stream) => output.shutdown.toManaged_ *> stream.process
+                 case None         => ZManaged.succeed(output.take.flatten)
+               }
       } yield pull
     }
 
@@ -2423,16 +2430,20 @@ object ZStream extends ZStreamPlatformSpecific {
   ): ZStream[R, E, A] =
     ZStream[R, E, A] {
       for {
-        output <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
-        _ <- register(k => runtime.unsafeRunAsync_(
-          k.foldCauseM(
-            Pull.sequenceCauseOption(_) match {
-              case None => output.offer(Pull.end)
-              case Some(c) => output.offer(Pull.halt(c))
-            },
-            a => output.offer(Pull.emit(a))
-          ))).toManaged_
+        _ <- register(
+              k =>
+                runtime.unsafeRunAsync_(
+                  k.foldCauseM(
+                    Pull.sequenceCauseOption(_) match {
+                      case None    => output.offer(Pull.end)
+                      case Some(c) => output.offer(Pull.halt(c))
+                    },
+                    a => output.offer(Pull.emit(a))
+                  )
+                )
+            ).toManaged_
       } yield output.take.flatten
     }
 
@@ -2443,24 +2454,31 @@ object ZStream extends ZStreamPlatformSpecific {
    * setting it to `None`.
    */
   final def effectAsyncInterrupt[R, E, A](
-     register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
-     outputBuffer: Int = 16
-   ): ZStream[R, E, A] =
+    register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
     ZStream[R, E, A] {
       for {
-        output <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
-        eitherStream <- UIO(register(k => runtime.unsafeRunAsync_(
-          k.foldCauseM(
-            Pull.sequenceCauseOption(_) match {
-              case None => output.offer(Pull.end)
-              case Some(c) => output.offer(Pull.halt(c))
-            },
-            a => output.offer(Pull.emit(a)))))).toManaged_
+        eitherStream <- UIO(
+                         register(
+                           k =>
+                             runtime.unsafeRunAsync_(
+                               k.foldCauseM(
+                                 Pull.sequenceCauseOption(_) match {
+                                   case None    => output.offer(Pull.end)
+                                   case Some(c) => output.offer(Pull.halt(c))
+                                 },
+                                 a => output.offer(Pull.emit(a))
+                               )
+                             )
+                         )
+                       ).toManaged_
         pull <- eitherStream match {
-          case Left(canceler) => ZManaged.succeed(output.take.flatten).ensuring(canceler)
-          case Right(stream) => output.shutdown.toManaged_ *> stream.process
-        }
+                 case Left(canceler) => ZManaged.succeed(output.take.flatten).ensuring(canceler)
+                 case Right(stream)  => output.shutdown.toManaged_ *> stream.process
+               }
       } yield pull
     }
 
