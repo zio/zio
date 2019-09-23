@@ -101,6 +101,9 @@ object ChunkSpec
           val v: Vector[Any] = Vector("String", 1, Value(2))
           assert(Chunk.fromIterable(v).toArray.toVector, equalTo(v))
         },
+        test("collect for empty Chunk") {
+          assert(Chunk.empty.collect { case _ => 1 } == Chunk.empty, Assertion.isTrue)
+        },
         testM("foreach") {
           check(chunkGen(intGen)) { c =>
             var sum = 0

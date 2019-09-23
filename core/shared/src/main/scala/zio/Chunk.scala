@@ -419,7 +419,7 @@ sealed trait Chunk[+A] { self =>
   }
 
   override def toString: String =
-    toArrayOption.fold("Array()")(_.mkString(s"${self.getClass.getSimpleName}(", ",", ")"))
+    toArrayOption.fold(s"${self.getClass.getSimpleName}()")(_.mkString(s"${self.getClass.getSimpleName}(", ",", ")"))
 
   /**
    * Effectfully maps the elements of this chunk.
@@ -844,6 +844,8 @@ object Chunk {
     override def length: Int = 0
 
     protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
+
+    override def collect[B](p: PartialFunction[Nothing, B]): Chunk[B] = Empty
 
     protected[zio] def foreach(f: Nothing => Unit): Unit = ()
 
