@@ -336,10 +336,10 @@ object RTSSpec
         ),
         suite("RTS either helper tests")(
           testM("lifting a value into right") {
-            Helper.Stub
+            assertM(ZIO.right(42), isRight(equalTo(42)))
           },
           testM("lifting a value into left") {
-            Helper.Stub
+            assertM(ZIO.left(42), isLeft(equalTo(42)))
           }
         ),
         suite("RTS interruption")(
