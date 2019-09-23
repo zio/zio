@@ -16,7 +16,7 @@
 
 package zio
 
-import scala.reflect._
+import scala.reflect.{ classTag, ClassTag }
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -42,8 +42,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
-  def collect[B](p: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collect(p)
+  def collect[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(p)
 
   /**
    * Drops the first `n` elements of the chunk.
@@ -236,7 +235,10 @@ sealed trait Chunk[+A] { self =>
     s
   }
 
-  override final def hashCode: Int = toArray.toSeq.hashCode
+  override final def hashCode: Int = toArrayOption match {
+    case None        => Seq.empty[A].hashCode
+    case Some(array) => array.toSeq.hashCode
+  }
 
   /**
    * Determines if the chunk is empty.
@@ -305,7 +307,10 @@ sealed trait Chunk[+A] { self =>
    * Materializes a chunk into a chunk backed by an array. This method can
    * improve the performance of bulk operations.
    */
-  def materialize[A1 >: A]: Chunk[A1] = Chunk.Arr(toArray)
+  def materialize[A1 >: A]: Chunk[A1] = self.toArrayOption[A1] match {
+    case None        => Chunk.Empty
+    case Some(array) => Chunk.Arr(array)
+  }
 
   /**
    * Generates a readable string representation of this chunk using the
@@ -383,11 +388,17 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
+   * A helper function that converts the chunk into an array if it is not empty.
+   */
+  private def toArrayOption[A1 >: A]: Option[Array[A1]] = self match {
+    case Chunk.Empty => None
+    case chunk       => Some(chunk.toArray(Chunk.classTagOf(self)))
+  }
+
+  /**
    * Converts the chunk into an array.
    */
-  def toArray[A1 >: A]: Array[A1] = {
-    implicit val A1: ClassTag[A1] = Chunk.classTagOf(self)
-
+  def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = {
     val dest = Array.ofDim[A1](self.length)
 
     self.toArray(0, dest)
@@ -408,7 +419,7 @@ sealed trait Chunk[+A] { self =>
   }
 
   override def toString: String =
-    toArray.mkString(s"${self.getClass.getSimpleName}(", ",", ")")
+    toArrayOption.fold(s"${self.getClass.getSimpleName}()")(_.mkString(s"${self.getClass.getSimpleName}(", ",", ")"))
 
   /**
    * Effectfully maps the elements of this chunk.
@@ -794,7 +805,7 @@ object Chunk {
       take(i)
     }
 
-    override def toArray[A1 >: A]: Array[A1] = array.asInstanceOf[Array[A1]]
+    override def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = array.asInstanceOf[Array[A1]]
 
     override def length: Int = array.length
 
@@ -834,14 +845,13 @@ object Chunk {
 
     protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
+    override def collect[B](p: PartialFunction[Nothing, B]): Chunk[B] = Empty
+
     protected[zio] def foreach(f: Nothing => Unit): Unit = ()
 
     protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
 
-    override def toArray[A1]: Array[A1] = {
-      implicit val A1: ClassTag[A1] = Chunk.classTagOf(self)
-      Array.empty
-    }
+    override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] = Array.empty
   }
 
   private case class Singleton[A](a: A) extends Chunk[A] {
