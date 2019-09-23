@@ -28,10 +28,10 @@ trait StreamUtils extends ChunkUtils {
       1
     )
 
-  def pureStreamEffectGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, StreamEffect[Nothing, A]] =
+  def pureStreamEffectGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, StreamEffect[Any, Nothing, A]] =
     Gen.small(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable)
 
-  def failingStreamEffectGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, StreamEffect[String, A]] =
+  def failingStreamEffectGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, StreamEffect[Any, String, A]] =
     for {
       n  <- Gen.int(1, 20)
       it <- Gen.listOfN(n)(a)
