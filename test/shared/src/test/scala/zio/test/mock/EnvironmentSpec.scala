@@ -52,10 +52,10 @@ object EnvironmentSpec extends DefaultRuntime {
 
   def nextInt =
     unsafeRunToFuture {
-      for {
-        i <- random.nextInt.provideManaged(MockEnvironment.Value)
-        j <- random.nextInt.provideManaged(MockEnvironment.Value)
-      } yield i != j
+      (for {
+        i <- random.nextInt
+        j <- random.nextInt
+      } yield i != j).provideManaged(MockEnvironment.Value)
     }
 
   def env =
