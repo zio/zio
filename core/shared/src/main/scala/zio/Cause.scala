@@ -158,30 +158,32 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
           (p1 + head) :: tail.map(p2 + _)
       }
 
-    def parallelSegments(cause: Cause[Any]): List[Sequential] =
+    def parallelSegments(cause: Cause[Any], maybeData: Option[Data]): List[Sequential] =
       cause match {
-        case Cause.Both(left, right) => parallelSegments(left) ++ parallelSegments(right)
-        case _                       => List(causeToSequential(cause))
+        case Cause.Both(left, right) => parallelSegments(left, maybeData) ++ parallelSegments(right, maybeData)
+        case _                       => List(causeToSequential(cause, maybeData))
       }
 
-    def linearSegments(cause: Cause[Any]): List[Step] =
+    def linearSegments(cause: Cause[Any], maybeData: Option[Data]): List[Step] =
       cause match {
-        case Cause.Then(first, second) => linearSegments(first) ++ linearSegments(second)
-        case _                         => causeToSequential(cause).all
+        case Cause.Then(first, second) => linearSegments(first, maybeData) ++ linearSegments(second, maybeData)
+        case _                         => causeToSequential(cause, maybeData).all
       }
 
     // Inline definition of `StringOps.lines` to avoid calling either of `.linesIterator` or `.lines`
     // since both are deprecated in either 2.11 or 2.13 respectively.
     def lines(str: String): List[String] = augmentString(str).linesWithSeparators.map(_.stripLineEnd).toList
 
-    def renderThrowable(e: Throwable): List[String] = {
-      import java.io.{ PrintWriter, StringWriter }
-
-      val sw = new StringWriter()
-      val pw = new PrintWriter(sw)
-
-      e.printStackTrace(pw)
-      lines(sw.toString)
+    def renderThrowable(e: Throwable, maybeData: Option[Data]): List[String] = {
+      val stackless = maybeData.fold(false)(_.stackless)
+      if (stackless) List(e.toString)
+      else {
+        import java.io.{ PrintWriter, StringWriter }
+        val sw = new StringWriter()
+        val pw = new PrintWriter(sw)
+        e.printStackTrace(pw)
+        lines(sw.toString)
+      }
     }
 
     def renderTrace(maybeTrace: Option[ZTrace]): List[String] =
@@ -194,12 +196,12 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         List(Failure("A checked error was not handled." :: error ++ renderTrace(maybeTrace)))
       )
 
-    def renderFailThrowable(t: Throwable, maybeTrace: Option[ZTrace]): Sequential =
-      renderFail(renderThrowable(t), maybeTrace)
+    def renderFailThrowable(t: Throwable, maybeTrace: Option[ZTrace], maybeData: Option[Data]): Sequential =
+      renderFail(renderThrowable(t, maybeData), maybeTrace)
 
-    def renderDie(t: Throwable, maybeTrace: Option[ZTrace]): Sequential =
+    def renderDie(t: Throwable, maybeTrace: Option[ZTrace], maybeData: Option[Data]): Sequential =
       Sequential(
-        List(Failure("An unchecked error was produced." :: renderThrowable(t) ++ renderTrace(maybeTrace)))
+        List(Failure("An unchecked error was produced." :: renderThrowable(t, maybeData) ++ renderTrace(maybeTrace)))
       )
 
     def renderInterrupt(maybeTrace: Option[ZTrace]): Sequential =
@@ -207,53 +209,37 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         List(Failure("An unchecked error was produced." :: renderTrace(maybeTrace)))
       )
 
-    def causeToSequential(cause: Cause[Any]): Sequential =
+    def causeToSequential(cause: Cause[Any], maybeData: Option[Data]): Sequential =
       cause match {
         case Cause.Fail(t: Throwable) =>
-          renderFailThrowable(t, None)
+          renderFailThrowable(t, None, maybeData)
         case Cause.Fail(error) =>
           renderFail(lines(error.toString), None)
         case Cause.Die(t) =>
-          renderDie(t, None)
+          renderDie(t, None, maybeData)
         case Cause.Interrupt =>
           renderInterrupt(None)
 
-        case t: Cause.Then[Any] => Sequential(linearSegments(t))
-        case b: Cause.Both[Any] => Sequential(List(Parallel(parallelSegments(b))))
+        case t: Cause.Then[Any] => Sequential(linearSegments(t, maybeData))
+        case b: Cause.Both[Any] => Sequential(List(Parallel(parallelSegments(b, maybeData))))
         case Traced(c, trace) =>
           c match {
             case Cause.Fail(t: Throwable) =>
-              renderFailThrowable(t, Some(trace))
+              renderFailThrowable(t, Some(trace), maybeData)
             case Cause.Fail(error) =>
               renderFail(lines(error.toString), Some(trace))
             case Cause.Die(t) =>
-              renderDie(t, Some(trace))
+              renderDie(t, Some(trace), maybeData)
             case Cause.Interrupt =>
               renderInterrupt(Some(trace))
             case _ =>
               Sequential(
-                Failure("An error was rethrown with a new trace." :: renderTrace(Some(trace))) :: causeToSequential(c).all
+                Failure("An error was rethrown with a new trace." :: renderTrace(Some(trace))) ::
+                  causeToSequential(c, maybeData).all
               )
           }
         case Meta(cause, data) =>
-          if (data.stackless) cause match {
-            case Cause.Fail(error) =>
-              renderFail(List(error.toString), None)
-            case Cause.Die(t) =>
-              Sequential(
-                List(Failure("An unchecked error was produced" :: t.toString :: renderTrace(None)))
-              )
-            case Cause.Interrupt =>
-              renderInterrupt(None)
-            case Cause.Then(first, _) =>
-              causeToSequential(Meta(first, data))
-            case Cause.Both(left, _) =>
-              causeToSequential(Meta(left, data))
-            case Traced(c, _) =>
-              causeToSequential(Meta(c, data))
-            case m @ Meta(_, _) =>
-              causeToSequential(m)
-          } else causeToSequential(cause)
+          causeToSequential(cause, Some(data))
 
       }
 
@@ -275,7 +261,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
           } ++ List("▼")
       }
 
-    val sequence = causeToSequential(this)
+    val sequence = causeToSequential(this, None)
 
     ("Fiber failed." :: {
       sequence match {
