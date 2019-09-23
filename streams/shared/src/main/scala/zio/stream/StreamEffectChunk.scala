@@ -90,6 +90,20 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.flatMap(f)))
 
+  final def processChunk: ZManaged[R, E, () => A] =
+    chunks.processEffect.map { thunk =>
+      var counter         = 0
+      var chunk: Chunk[A] = Chunk.empty
+      def pull(): A = {
+        while (counter >= chunk.length) {
+          chunk = thunk()
+          counter = 0
+        }
+        chunk(counter)
+      }
+      () => pull()
+    }
+
   override def take(n: Int): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
       StreamEffect {
@@ -141,20 +155,12 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
     ev1: A <:< Byte
   ): ZManaged[R, E, java.io.InputStream] =
     for {
-      thunk <- chunks.processEffect
+      thunk <- processChunk
       javaStream = {
         new java.io.InputStream {
-          var counter            = 0
-          var chunk: Chunk[Byte] = Chunk.empty
           override def read(): Int =
             try {
-              while (counter >= chunk.length) {
-                chunk = thunk().asInstanceOf[Chunk[Byte]]
-                counter = 0
-              }
-              val item = chunk(counter).toInt
-              counter += 1
-              item
+              thunk().toInt
             } catch {
               case StreamEffect.End        => -1
               case StreamEffect.Failure(e) => throw e.asInstanceOf[E]
