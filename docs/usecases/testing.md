@@ -75,7 +75,7 @@ testM("One can provide its own list of ints") {
 
 _Mocking Clock_
 
-Sometimes one need to be able to control the flow of time. In most cases you want your unit test to be as fast as possible. Waiting for readl time to pass by is a real killer for this. ZIO exposes a MockClock in testing Environment that can controll time.
+Sometimes one need to be able to control the flow of time. In most cases you want your unit test to be as fast as possible. Waiting for real time to pass by is a real killer for this. ZIO exposes a MockClock in testing Environment that can control time.
 
 Example 1
 
