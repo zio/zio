@@ -261,6 +261,23 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
         }
       case sink: ZSink[R1, E1, A1, A1, B] => super.transduce(sink)
     }
+
+  override final def toInputStream(
+    implicit ev0: E <:< Throwable,
+    ev1: A <:< Byte
+  ): ZManaged[R, E, java.io.InputStream] =
+    for {
+      pull <- processEffect
+      javaStream = new java.io.InputStream {
+        override def read(): Int =
+          try {
+            pull().toInt
+          } catch {
+            case StreamEffect.End        => -1
+            case StreamEffect.Failure(e) => throw e.asInstanceOf[E]
+          }
+      }
+    } yield javaStream
 }
 
 private[stream] object StreamEffect extends Serializable {
