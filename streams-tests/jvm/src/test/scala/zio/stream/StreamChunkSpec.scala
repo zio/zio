@@ -230,8 +230,9 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.toInputStream") {
-          val orig   = List(1, 2, 3).map(_.toByte)
-          val stream = StreamChunk.fromChunks(Chunk.fromIterable(orig))
+          val orig1  = List(1, 2, 3).map(_.toByte)
+          val orig2  = List(4).map(_.toByte)
+          val stream = StreamChunk.fromChunks(Chunk.fromIterable(orig1), Chunk[Byte](), Chunk.fromIterable(orig2))
           @silent("Any")
           val inputStreamResult = stream.toInputStream.use { inputStream =>
             ZIO.succeed(
@@ -242,7 +243,7 @@ object StreamChunkSpec
                 .toList
             )
           }
-          assertM(inputStreamResult.run, succeeds(equalTo(orig)))
+          assertM(inputStreamResult.run, succeeds(equalTo(orig1 ++ orig2)))
         }
       )
     )
