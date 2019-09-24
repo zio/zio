@@ -82,7 +82,7 @@ object TestAspectSpec extends DefaultRuntime {
   def failureMakesTestsPassOnSpecifiedException: Future[Boolean] =
     unsafeRunToFuture {
       val spec = test("test")(assert(throw new NullPointerException(), isFalse)) @@ failure(
-        exceptionAssertion[NullPointerException]
+        failsWithException[NullPointerException]
       )
       succeeded(spec)
     }
@@ -91,7 +91,7 @@ object TestAspectSpec extends DefaultRuntime {
     unsafeRunToFuture {
       val spec = test("test")(
         assert(throw new NullPointerException(), isFalse)
-      ) @@ failure(exceptionAssertion[IllegalArgumentException])
+      ) @@ failure(failsWithException[IllegalArgumentException])
       failed(spec)
     }
 
@@ -114,7 +114,7 @@ object TestAspectSpec extends DefaultRuntime {
   def failureMakesTestsPassOnExpectedAssertionFailure: Future[Boolean] =
     unsafeRunToFuture {
       val spec = test("test")(assert(true, equalTo(false))) @@ failure(
-        isCase[TestFailure[Any], TestResult]("Assertion", {
+        isCase[TestFailure[Any], Any]("Assertion", {
           case TestFailure.Assertion(result) => Some(result); case _ => None
         }, anything)
       )
@@ -124,7 +124,7 @@ object TestAspectSpec extends DefaultRuntime {
   def failureDoesNotMakesTestsPassOnUnexpectedAssertionFailure: Future[Boolean] =
     unsafeRunToFuture {
       val spec = test("test")(assert(true, equalTo(false))) @@ failure(
-        isCase[TestFailure[Boolean], TestResult](
+        isCase[TestFailure[Boolean], Any](
           "Assertion", { case TestFailure.Assertion(result) => Some(result); case _ => None },
           equalTo(assert(42, equalTo(42)))
         )
@@ -132,7 +132,7 @@ object TestAspectSpec extends DefaultRuntime {
       failed(spec)
     }
 
-  private def exceptionAssertion[T <: Throwable](implicit ct: ClassTag[T]): Assertion[TestFailure[Any]] =
+  private def failsWithException[T <: Throwable](implicit ct: ClassTag[T]): Assertion[TestFailure[Any]] =
     isCase(
       "Runtime", {
         case TestFailure.Runtime(Die(e))            => Some(e)
