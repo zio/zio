@@ -57,6 +57,19 @@ object ZIOSpec
           testM("returns success when it happens after failure") {
             assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* live(ZIO.sleep(100.millis)))), equalTo(24))
           }
+        ),
+        suite("unsandbox")(
+          testM("no information is lost during composition") {
+            val causes = Gen.causes(Gen.anyString, Gen.throwable)
+            def cause[R, E](zio: ZIO[R, E, Nothing]): ZIO[R, Nothing, Cause[E]] =
+              zio.foldCauseM(ZIO.succeed, ZIO.fail)
+            checkM(causes) { c =>
+              for {
+                result <- cause(ZIO.halt(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)
+              } yield assert(result, equalTo(c)) &&
+                assert(result.prettyPrint, equalTo(c.prettyPrint))
+            }
+          }
         )
       )
     )
