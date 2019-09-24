@@ -1,11 +1,8 @@
 package zio
 
 import zio.FiberRefSpecUtil._
-import zio.duration.Duration
 import zio.test.Assertion._
 import zio.test._
-import zio.test.mock.MockClock
-import zio.duration._
 
 object FiberRefSpec
     extends ZIOBaseSpec(
@@ -142,7 +139,7 @@ object FiberRefSpec
             for {
               fiberRef   <- FiberRef.make(initial)
               badWinner  = fiberRef.set(update1) *> ZIO.fail("ups")
-              goodLooser = fiberRef.set(update2) *> looseTimeAndCpu
+              goodLooser = fiberRef.set(update2)
               _          <- badWinner.race(goodLooser)
               value      <- fiberRef.get
             } yield assert(value, equalTo(update2))
@@ -161,7 +158,7 @@ object FiberRefSpec
               fiberRef <- FiberRef.make(initial)
               latch    <- Promise.make[Nothing, Unit]
               winner   = fiberRef.set(update1) *> latch.succeed(()).unit
-              looser   = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
+              looser   = latch.await *> fiberRef.set(update2)
               _        <- winner.zipPar(looser)
               value    <- fiberRef.get
             } yield assert(value, equalTo(update2))
@@ -182,7 +179,4 @@ object FiberRefSpec
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
-  val looseTimeAndCpu = MockClock.adjust(101.nanoseconds) *> ZIO.yieldNow.repeat(
-    Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100)
-  )
 }
