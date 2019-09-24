@@ -174,7 +174,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[A](register: (UIO[A] => Unit) => Either[Canceler, UIO[A]]): UIO[A] =
+  final def effectAsyncInterrupt[A](register: (UIO[A] => Unit) => Either[Canceler[Any], UIO[A]]): UIO[A] =
     ZIO.effectAsyncInterrupt(register)
 
   /**

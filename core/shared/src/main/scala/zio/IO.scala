@@ -164,7 +164,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler, IO[E, A]]): IO[E, A] =
+  final def effectAsyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]]): IO[E, A] =
     ZIO.effectAsyncInterrupt(register)
 
   /**
