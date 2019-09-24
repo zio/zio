@@ -91,7 +91,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
     StreamEffectChunk(chunks.map(_.flatMap(f)))
 
   final def processChunk: ZManaged[R, E, () => A] =
-    chunks.processEffect.map { thunk =>
+    chunks.processEffect.flatMap { thunk =>
       var counter         = 0
       var chunk: Chunk[A] = Chunk.empty
       def pull(): A = {
@@ -101,7 +101,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
         }
         chunk(counter)
       }
-      () => pull()
+      ZManaged.fromEffect(ZIO.succeed(() => pull()))
     }
 
   override def take(n: Int): StreamEffectChunk[R, E, A] =
@@ -155,12 +155,20 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
     ev1: A <:< Byte
   ): ZManaged[R, E, java.io.InputStream] =
     for {
-      thunk <- processChunk
+      thunk <- chunks.processEffect
       javaStream = {
         new java.io.InputStream {
+          var counter            = 0
+          var chunk: Chunk[Byte] = Chunk.empty
           override def read(): Int =
             try {
-              thunk().toInt
+              while (counter >= chunk.length) {
+                chunk = thunk().asInstanceOf[Chunk[Byte]]
+                counter = 0
+              }
+              val item = chunk(counter).toInt
+              counter += 1
+              item
             } catch {
               case StreamEffect.End        => -1
               case StreamEffect.Failure(e) => throw e.asInstanceOf[E]
