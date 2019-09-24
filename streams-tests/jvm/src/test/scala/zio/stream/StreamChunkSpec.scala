@@ -1,12 +1,12 @@
 package zio.stream
 
-import scala.{ Stream => _ }
-import zio.{ Chunk, Exit, IO, Ref }
 import zio.random.Random
+import zio.stream.StreamChunkUtils._
+import zio.test.Assertion.{ equalTo, isFalse, succeeds }
 import zio.test._
-import zio.test.Assertion.{ equalTo, isFalse }
-import zio.ZIOBaseSpec
-import StreamChunkUtils._
+import zio._
+
+import scala.{ Stream => _ }
 
 object StreamChunkSpec
     extends ZIOBaseSpec(
@@ -227,6 +227,20 @@ object StreamChunkSpec
               res2 <- slurp(s).map(_.collect(p))
             } yield assert(res1, equalTo(res2))
           }
+        },
+        testM("toInputStream") {
+          val orig   = List(1, 2, 3).map(_.toByte)
+          val stream = StreamChunk.fromChunks(Chunk.fromIterable(orig))
+          val inputStreamResult = stream.toInputStream.use { inputStream =>
+            ZIO.succeed(
+              Iterator
+                .continually(inputStream.read)
+                .takeWhile(_ != -1)
+                .map(_.toByte)
+                .toList
+            )
+          }
+          assertM(inputStreamResult.run, succeeds(equalTo(orig)))
         }
       )
     )
