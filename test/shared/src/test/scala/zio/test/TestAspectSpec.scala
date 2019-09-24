@@ -124,7 +124,7 @@ object TestAspectSpec extends DefaultRuntime {
   def failureDoesNotMakesTestsPassOnUnexpectedAssertionFailure: Future[Boolean] =
     unsafeRunToFuture {
       val spec = test("test")(assert(true, equalTo(false))) @@ failure(
-        isCase[TestFailure[Boolean], Any](
+        isCase[TestFailure[Boolean], TestResult](
           "Assertion", { case TestFailure.Assertion(result) => Some(result); case _ => None },
           equalTo(assert(42, equalTo(42)))
         )
