@@ -1252,6 +1252,54 @@ object ZManaged {
   final def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZManaged[R, E, (B, A)] = fromFunction(_.swap)
 
   /**
+   * Returns a ZManaged value that represents a managed resource that can be safely
+   * swapped within the scope of the ZManaged. The function provided inside the
+   * ZManaged can be used to switch the resource currently in use.
+   *
+   * When the resource is switched, the finalizer for the previous finalizer will
+   * be executed uninterruptibly. If the effect executing inside the [[ZManaged#use]]
+   * is interrupted, the finalizer for the resource currently in use is guaranteed
+   * to execute.
+   *
+   * This constructor can be used to create an expressive control flow that uses
+   * several instances of a managed resource. For example:
+   * {{{
+   * def makeWriter: Task[FileWriter]
+   * trait FileWriter {
+   *   def write(data: Int): Task[Unit]
+   *   def close: UIO[Unit]
+   * }
+   *
+   * val elements = List(1, 2, 3, 4)
+   * val writingProgram =
+   *   ZManaged.switchable[Any, Throwable, FileWriter].use { switchWriter =>
+   *     ZIO.foreach_(elements) { element =>
+   *       for {
+   *         writer <- switchWriter(makeWriter.toManaged(_.close))
+   *         _      <- writer.write(element)
+   *       } yield ()
+   *     }
+   *   }
+   * }}}
+   */
+  final def switchable[R, E, A]: ZManaged[R, Nothing, ZManaged[R, E, A] => ZIO[R, E, A]] =
+    for {
+      finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
+      switch = { (newResource: ZManaged[R, E, A]) =>
+        ZIO.uninterruptibleMask { restore =>
+          for {
+            _ <- finalizerRef
+                  .modify(f => (f, _ => UIO.unit))
+                  .flatMap(f => f(Exit.interrupt))
+            reservation <- newResource.reserve
+            _           <- finalizerRef.set(reservation.release)
+            a           <- restore(reservation.acquire)
+          } yield a
+        }
+      }
+    } yield switch
+
+  /**
    * Alias for [[ZManaged.foreach]]
    */
   final def traverse[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
