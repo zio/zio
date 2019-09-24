@@ -88,6 +88,9 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     case Meta(cause, data)    => Meta(cause.flatMap(f), data)
   }
 
+  final def flatten[E1](implicit ev: E <:< Cause[E1]): Cause[E1] =
+    flatMap(e => e)
+
   final def fold[Z](
     failCase: E => Z,
     dieCase: Throwable => Z,
@@ -449,7 +452,7 @@ object Cause extends Serializable {
       case other: Cause[_]   => eq(other) || sym(assoc)(other, self) || sym(dist)(self, other)
       case _                 => false
     }
-    override final def hashCode: Int = flatten(self).hashCode
+    override final def hashCode: Int = Cause.flatten(self).hashCode
 
     private def eq(that: Cause[_]): Boolean = (self, that) match {
       case (tl: Then[_], tr: Then[_]) => tl.left == tr.left && tl.right == tr.right
@@ -484,7 +487,7 @@ object Cause extends Serializable {
       case other: Cause[_]   => eq(other) || sym(assoc)(self, other) || sym(dist)(self, other) || comm(other)
       case _                 => false
     }
-    override final def hashCode: Int = flatten(self).hashCode
+    override final def hashCode: Int = Cause.flatten(self).hashCode
 
     private def eq(that: Cause[_]) = (self, that) match {
       case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right
