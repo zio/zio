@@ -1,6 +1,7 @@
 package zio
 
 import zio.Cause.{ Both, Then }
+import zio.random.Random
 import zio.test._
 import zio.test.Assertion._
 
@@ -77,15 +78,33 @@ object CauseSpec
               assert(Cause.stackless(c).hashCode, equalTo(c.hashCode))
             }
           }
+        ),
+        suite("Monad Laws:")(
+          testM("Left identity") {
+            check(causes) { c =>
+              assert(c.flatMap(Cause.fail), equalTo(c))
+            }
+          },
+          testM("Right identity") {
+            check(errors, errorCauseFunctions) { (e, f) =>
+              assert(Cause.fail(e).flatMap(f), equalTo(f(e)))
+            }
+          },
+          testM("Associativity") {
+            check(causes, errorCauseFunctions, errorCauseFunctions) { (c, f, g) =>
+              assert(c.flatMap(f).flatMap(g), equalTo(c.flatMap(e => f(e).flatMap(g))))
+            }
+          }
         )
       )
     )
 
 object CauseSpecUtil {
 
-  val causes = Gen.causes(Gen.anyString, Gen.anyString.map(s => new RuntimeException(s)))
+  val causes: Gen[Random with Sized, Cause[String]] =
+    Gen.causes(Gen.anyString, Gen.anyString.map(s => new RuntimeException(s)))
 
-  val equalCauses =
+  val equalCauses: Gen[Random with Sized, (Cause[String], Cause[String])] =
     (causes <*> causes <*> causes).flatMap {
       case ((a, b), c) =>
         Gen.elements(
@@ -99,4 +118,10 @@ object CauseSpecUtil {
           (a, Cause.stackless(a))
         )
     }
+
+  val errorCauseFunctions: Gen[Random with Sized, String => Cause[String]] =
+    Gen.function(causes)
+
+  val errors: Gen[Random with Sized, String] =
+    Gen.anyString
 }

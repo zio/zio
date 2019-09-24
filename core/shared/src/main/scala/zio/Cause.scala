@@ -78,6 +78,16 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
+  final def flatMap[E1](f: E => Cause[E1]): Cause[E1] = self match {
+    case Fail(value)          => f(value)
+    case c @ Die(_)           => c
+    case Interrupt            => Interrupt
+    case Then(left, right)    => Then(left.flatMap(f), right.flatMap(f))
+    case Both(left, right)    => Both(left.flatMap(f), right.flatMap(f))
+    case Traced(cause, trace) => Traced(cause.flatMap(f), trace)
+    case Meta(cause, data)    => Meta(cause.flatMap(f), data)
+  }
+
   final def fold[Z](
     failCase: E => Z,
     dieCase: Throwable => Z,
@@ -119,16 +129,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       case _                 => false
     }
 
-  final def map[E1](f: E => E1): Cause[E1] = self match {
-    case Fail(value) => Fail(f(value))
-    case c @ Die(_)  => c
-    case Interrupt   => Interrupt
-
-    case Then(left, right)    => Then(left.map(f), right.map(f))
-    case Both(left, right)    => Both(left.map(f), right.map(f))
-    case Traced(cause, trace) => Traced(cause.map(f), trace)
-    case Meta(cause, data)    => Meta(cause.map(f), data)
-  }
+  final def map[E1](f: E => E1): Cause[E1] =
+    flatMap(f andThen fail)
 
   final def untraced: Cause[E] =
     self match {
