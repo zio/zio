@@ -2415,10 +2415,10 @@ object ZStream {
                             runtime.unsafeRunAsync_(
                               k.foldCauseM(
                                 Pull.sequenceCauseOption(_) match {
-                                  case None    => output.offer(Pull.end).unit
-                                  case Some(c) => output.offer(Pull.halt(c)).unit
+                                  case None    => output.offer(Pull.end)
+                                  case Some(c) => output.offer(Pull.halt(c))
                                 },
-                                a => output.offer(Pull.emit(a)).unit
+                                a => output.offer(Pull.emit(a))
                               )
                             )
                         )
@@ -2448,10 +2448,10 @@ object ZStream {
                 runtime.unsafeRunAsync_(
                   k.foldCauseM(
                     Pull.sequenceCauseOption(_) match {
-                      case None    => output.offer(Pull.end).unit
-                      case Some(c) => output.offer(Pull.halt(c)).unit
+                      case None    => output.offer(Pull.end)
+                      case Some(c) => output.offer(Pull.halt(c))
                     },
-                    a => output.offer(Pull.emit(a)).unit
+                    a => output.offer(Pull.emit(a))
                   )
                 )
             ).toManaged_
@@ -2465,7 +2465,7 @@ object ZStream {
    * setting it to `None`.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler, ZStream[R, E, A]],
+    register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream[R, E, A] {
@@ -2478,18 +2478,17 @@ object ZStream {
                              runtime.unsafeRunAsync_(
                                k.foldCauseM(
                                  Pull.sequenceCauseOption(_) match {
-                                   case None    => output.offer(Pull.end).unit
-                                   case Some(c) => output.offer(Pull.halt(c)).unit
+                                   case None    => output.offer(Pull.end)
+                                   case Some(c) => output.offer(Pull.halt(c))
                                  },
-                                 a => output.offer(Pull.emit(a)).unit
+                                 a => output.offer(Pull.emit(a))
                                )
                              )
                          )
                        ).toManaged_
         pull <- eitherStream match {
-                 case Left(canceler) =>
-                   ZManaged.succeed(output.take.flatten).ensuring(canceler)
-                 case Right(stream) => output.shutdown.toManaged_ *> stream.process
+                 case Left(canceler) => ZManaged.succeed(output.take.flatten).ensuring(canceler)
+                 case Right(stream)  => output.shutdown.toManaged_ *> stream.process
                }
       } yield pull
     }
