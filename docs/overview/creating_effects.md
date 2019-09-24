@@ -141,6 +141,20 @@ val getStrLn: Task[Unit] =
 
 The error type of the resulting effect will always be `Throwable`, because side-effects may throw exceptions with any value of type `Throwable`.
 
+If you want to keep retrying until the effect is converted you can use `effectRetry`, the `onFailure` will be composed before the effect is retried:
+
+```scala mdoc:silent
+import zio.console.putStrLn
+import scala.io.StdIn.readLine
+
+for {
+  _     <- putStrLn("Please input a number")
+  input <- ZIO.effectRetry(readLine().toInt, putStrLn("Not a number.  Please input again. "))
+  _     <- putStrLn(s"You inputted $input")
+} yield ()
+
+```
+
 If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.effectTotal`:
 
 ```scala mdoc:silent

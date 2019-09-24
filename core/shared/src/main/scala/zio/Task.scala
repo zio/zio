@@ -204,6 +204,11 @@ object Task {
   final def effectSuspendWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(p)
 
   /**
+   * @see See [[zio.ZIO.effectRetry]]
+   */
+  final def effectRetry[R, A](effect: => A, onFailure: URIO[R, Unit]): URIO[R, A] = ZIO.effectRetry(effect, onFailure)
+
+  /**
    * @see See [[zio.ZIO.effectTotal]]
    */
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)

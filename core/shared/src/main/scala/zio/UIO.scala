@@ -149,6 +149,11 @@ object UIO {
   final def done[A](r: Exit[Nothing, A]): UIO[A] = ZIO.done(r)
 
   /**
+   * @see See [[zio.ZIO.effectRetry]]
+   */
+  final def effectRetry[A](effect: => A, onFailure: UIO[Unit]): UIO[A] = ZIO.effectRetry(effect, onFailure)
+
+  /**
    * @see See [[zio.ZIO.effectTotal]]
    */
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)

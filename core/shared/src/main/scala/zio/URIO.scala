@@ -200,6 +200,11 @@ object URIO {
   final def effectSuspendTotalWith[R, A](p: Platform => URIO[R, A]): URIO[R, A] = new ZIO.EffectSuspendTotalWith(p)
 
   /**
+   * @see See [[zio.ZIO.effectRetry]]
+   */
+  final def effectRetry[R, A](effect: => A, onFailure: URIO[R, Unit]): URIO[R, A] = ZIO.effectRetry(effect, onFailure)
+
+  /**
    * @see [[zio.ZIO.effectTotal]]
    */
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)

@@ -151,6 +151,11 @@ object IO {
   final def done[E, A](r: Exit[E, A]): IO[E, A] = ZIO.done(r)
 
   /**
+   * @see See [[zio.ZIO.effectRetry]]
+   */
+  final def effectRetry[R, A](effect: => A, onFailure: URIO[R, Unit]): URIO[R, A] = ZIO.effectRetry(effect, onFailure)
+
+  /**
    * @see See [[zio.ZIO.effect]]
    */
   final def effect[A](effect: => A): Task[A] = ZIO.effect(effect)

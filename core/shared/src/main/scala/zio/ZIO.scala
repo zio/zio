@@ -1889,6 +1889,17 @@ private[zio] trait ZIOFunctions extends Serializable {
     new ZIO.EffectAsync(register)
 
   /**
+   * Attempts to import a synchronous effect into a pure `ZIO` value.  If the
+   * import fails the onFailure effect is composed and the import is retried.
+   *
+   * {{{
+   * val result: URIO[Console, Int] = effectRetry(scala.io.StdIn.readLine().toInt, putStrLn("You didn't enter an integer!"))
+   * }}}
+   */
+  final def effectRetry[R, A](effect: => A, onFailure: URIO[R, Unit]): URIO[R, A] =
+    Task(effect) orElse (onFailure *> effectRetry(effect, onFailure))
+
+  /**
    * Returns a lazily constructed effect, whose construction may itself require effects.
    * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
    */
