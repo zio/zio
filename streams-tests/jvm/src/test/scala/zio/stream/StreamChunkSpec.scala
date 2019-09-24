@@ -229,7 +229,7 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
-        testM("StreamChunkSpec.toInputStream") {
+        testM("StreamChunk.toInputStream") {
           val orig   = List(1, 2, 3).map(_.toByte)
           val stream = StreamChunk.fromChunks(Chunk.fromIterable(orig))
           @silent("Any")
