@@ -216,8 +216,8 @@ object Assertion {
   /**
    * Makes a new assertion that requires an exit value to die.
    */
-  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
-    Assertion.assertionRec[Exit[Nothing, Any]]("dies")(param(assertion)) { (self, actual) =>
+  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Any, Any]] =
+    Assertion.assertionRec[Exit[Any, Any]]("dies")(param(assertion)) { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.died =>
           cause.dieOption match {
@@ -298,6 +298,18 @@ object Assertion {
   final def hasField[A, B](name: String, proj: A => B, assertion: Assertion[B]): Assertion[A] =
     Assertion.assertionDirect[A]("hasField")(param(quoted(name)), param(field(name)), param(assertion)) { actual =>
       assertion(proj(actual))
+    }
+
+  /**
+   * Makes a new assertion that requires an Iterable to have the same elements
+   * as the specified Iterable, though not necessarily in the same order
+   */
+  final def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
+    Assertion.assertion("hasSameElements")(param(other)) { actual =>
+      val actualSeq = actual.toSeq
+      val otherSeq  = other.toSeq
+
+      actualSeq.diff(otherSeq).isEmpty && otherSeq.diff(actualSeq).isEmpty
     }
 
   /**
@@ -453,6 +465,11 @@ object Assertion {
 
   /**
    * Makes an assertion that requires a value have the specified type.
+   *
+   * Example:
+   * {{{
+   *   assert(Duration.fromNanos(1), isSubtype[Duration.Finite](Assertion.anything))
+   * }}}
    */
   final def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
     Assertion.assertionRec[Any]("isSubtype")(param(C.runtimeClass.getSimpleName)) { (self, actual) =>
@@ -543,4 +560,9 @@ object Assertion {
         case t: Throwable => assertion(t)
       }
     }
+
+  /**
+   * Returns a new assertion that requires the expression to throw an instance of given type (or its subtype)
+   */
+  final def throwsA[E: ClassTag]: Assertion[Any] = throws(isSubtype[E](anything))
 }
