@@ -1055,8 +1055,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
-   * Repeats this effect until the result exists in the partial function
-   * codomain.
+   * Repeats this effect until the partial function succeeds on the result.
    */
   final def repeatUntil[B](f: PartialFunction[A, B]): ZIO[R, E, B] =
     self.flatMap { a =>
