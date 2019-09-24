@@ -839,7 +839,42 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * yielding the value of the first effect to succeed with a value.
    * Losers of the race will be interrupted immediately
    */
-  def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = ZIO.raceAll(self, ios)
+  def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = {
+    def arbiter[E1, A1](
+      fibers: Iterable[(Fiber[E1, A1], Int)],
+      done: Promise[E1, A1],
+      fails: Ref[Int],
+      idx: Int
+    )(res: Exit[E1, A1]): ZIO[R1, Nothing, _] =
+      res.foldM[R1, Nothing, Unit](
+        e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) done.halt(e).unit else ZIO.unit) -> (c - 1))),
+        a =>
+          done
+            .complete(ZIO.succeed(a))
+            .flatMap(
+              set =>
+                if (set) fibers.foldLeft(IO.unit)((io, f) => if (f._2 == idx) io else io <* f._1.interrupt)
+                else ZIO.unit
+            )
+      )
+
+    (for {
+      done  <- Promise.make[E1, A1]
+      fails <- Ref.make[Int](ios.size)
+      c <- ZIO.uninterruptibleMask { restore =>
+            for {
+              head <- ZIO.interruptible(self).fork
+              tail <- ZIO.foreach(ios)(io => ZIO.interruptible(io).fork)
+              as   = (head :: tail).zipWithIndex
+              _ <- as.foldLeft[ZIO[R1, E1, _]](ZIO.unit) {
+                    case (io, (f, idx)) =>
+                      io *> f.await.flatMap(arbiter(as, done, fails, idx)).fork
+                  }
+              c <- restore(done.await).onInterrupt(as.foldLeft(IO.unit)((io, f) => io <* f._1.interrupt))
+            } yield c
+          }
+    } yield c).refailWithTrace
+  }
 
   /**
    * Returns an effect that races this effect with the specified effect,
@@ -1804,12 +1839,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    * function must be called at most once.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
-    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
+    effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
       case (started, cancel) =>
         flatten {
           effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
@@ -2234,7 +2269,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     zio: ZIO[R, E, A],
     ios: Iterable[ZIO[R1, E, A]]
   ): ZIO[R1, E, A] =
-    ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _).refailWithTrace
+    zio.raceAll(ios)
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
