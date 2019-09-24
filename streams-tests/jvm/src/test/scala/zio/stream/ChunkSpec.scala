@@ -93,7 +93,7 @@ object ChunkSpec
           assert(Chunk(1).filter(_ == 2).map(_.toString).toArray[String], equalTo(Array.empty[String]))
         },
         testM("toArray with elements of type String") {
-          check(chunkGen(stringGen)) { c =>
+          check(mediumChunks(stringGen)) { c =>
             assert(c.toArray.toSeq, equalTo(c.toSeq))
           }
         },
