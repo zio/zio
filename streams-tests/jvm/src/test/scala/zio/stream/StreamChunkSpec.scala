@@ -1,5 +1,6 @@
 package zio.stream
 
+import com.github.ghik.silencer.silent
 import zio.random.Random
 import zio.stream.StreamChunkUtils._
 import zio.test.Assertion.{ equalTo, isFalse, succeeds }
@@ -231,6 +232,7 @@ object StreamChunkSpec
         testM("toInputStream") {
           val orig   = List(1, 2, 3).map(_.toByte)
           val stream = StreamChunk.fromChunks(Chunk.fromIterable(orig))
+          @silent("Any")
           val inputStreamResult = stream.toInputStream.use { inputStream =>
             ZIO.succeed(
               Iterator
