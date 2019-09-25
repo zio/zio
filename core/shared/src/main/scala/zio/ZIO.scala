@@ -674,14 +674,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def orElse[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
     self.foldCauseM(
-      ZIOFn(() => that)(cause => cause.stripFailures match {
-        case None    =>
-          that.catchSomeCause {
-            case c2 if c2.died => ZIO.halt(Cause.die(FiberFailure(Cause.Both(cause, c2))))
-          }
-        case Some(c) =>
-          ZIO.halt(c)
-      }),
+      ZIOFn(() => that) { cause =>
+        cause.stripFailures match {
+          case None =>
+            that.catchSomeCause {
+              case c2 if c2.died => ZIO.halt(Cause.die(FiberFailure(Cause.Both(cause, c2))))
+            }
+          case Some(c) =>
+            ZIO.halt(c)
+        }
+      },
       new ZIO.SucceedFn(() => that)
     )
 
