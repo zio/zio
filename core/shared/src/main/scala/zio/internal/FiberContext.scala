@@ -607,8 +607,8 @@ private[zio] final class FiberContext[E, A](
    * @param value The value produced by the asynchronous computation.
    */
   private[this] final def resumeAsync: IO[E, Any] => Unit = {
-    val a = new AtomicBoolean(true)
-    zio => if (a.getAndSet(false) && exitAsync()) evaluateLater(zio)
+    val neverRan = new AtomicBoolean(true)
+    zio => if (neverRan.getAndSet(false) && exitAsync()) evaluateLater(zio)
   }
 
   final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
@@ -676,7 +676,7 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(_: FiberStatus.Suspended, observers, interrupt) =>
+      case Executing(FiberStatus.Suspended(_), observers, interrupt) =>
         if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, interrupt))) exitAsync()
         else true
 
