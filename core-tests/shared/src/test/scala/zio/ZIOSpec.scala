@@ -10,10 +10,14 @@ object ZIOSpec
       suite("ZIO")(
         suite("orElse")(
           testM("left and right failed with kept cause") {
-            val z1 = Task.fail(new Throwable("1"))
+            val z1                = Task.fail(new Throwable("1"))
             val z2: Task[Nothing] = Task.die(new Throwable("2"))
             val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-              case Cause.Die(FiberFailure(Cause.Both(Cause.Traced(Cause.Fail(a: Throwable), _), Cause.Traced(Cause.Die(b: Throwable), _)))) =>
+              case Cause.Die(
+                  FiberFailure(
+                    Cause.Both(Cause.Traced(Cause.Fail(a: Throwable), _), Cause.Traced(Cause.Die(b: Throwable), _))
+                  )
+                  ) =>
                 Task(a.getMessage == "1" && b.getMessage == "2")
               case _ =>
                 Task(false)
