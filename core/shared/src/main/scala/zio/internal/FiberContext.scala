@@ -145,7 +145,7 @@ private[zio] final class FiberContext[E, A](
       case v    => k(v)
     }
 
-  private object InterruptExit extends Function[Any, IO[E, Any]] {
+  private[this] object InterruptExit extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
       val isInterruptible = interruptStatus.peekOrElse(true)
 
@@ -159,7 +159,7 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private object TracingRegionExit extends Function[Any, IO[E, Any]] {
+  private[this] object TracingRegionExit extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
       // don't use effectTotal to avoid TracingRegionExit appearing in execution trace twice with traceEffects=true
       tracingStatus.popDrop(())
@@ -172,7 +172,7 @@ private[zio] final class FiberContext[E, A](
    * Unwinds the stack, looking for the first error handler, and exiting
    * interruptible / uninterruptible regions.
    */
-  final def unwindStack(): Unit = {
+  private[this] final def unwindStack(): Unit = {
     var unwinding = true
 
     // Unwind the stack, looking for an error handler:
