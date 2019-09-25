@@ -92,16 +92,18 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
 
   final def processChunk: ZManaged[R, E, () => A] =
     chunks.processEffect.flatMap { thunk =>
-      var counter         = 0
-      var chunk: Chunk[A] = Chunk.empty
-      def pull(): A = {
-        while (counter >= chunk.length) {
-          chunk = thunk()
-          counter = 0
+      Managed.effectTotal {
+        var counter         = 0
+        var chunk: Chunk[A] = Chunk.empty
+        def pull(): A = {
+          while (counter >= chunk.length) {
+            chunk = thunk()
+            counter = 0
+          }
+          chunk(counter)
         }
-        chunk(counter)
+        () => pull()
       }
-      ZManaged.fromEffect(ZIO.succeed(() => pull()))
     }
 
   override def take(n: Int): StreamEffectChunk[R, E, A] =
