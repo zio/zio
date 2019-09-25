@@ -35,7 +35,7 @@ abstract class RunnableSpec[L, T, E, S](runner0: TestRunner[L, T, E, S])(spec0: 
   override def spec   = spec0
 
   private val runSpec: URIO[TestLogger with Clock, Int] = for {
-    res                               <- runner.run(spec)
+    res                               <- run
     ExecutionResult(results, summary) = res
     hasFailures                       = results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
     _                                 <- TestLogger.logLine(summary)
@@ -46,11 +46,18 @@ abstract class RunnableSpec[L, T, E, S](runner0: TestRunner[L, T, E, S])(spec0: 
    *
    * TODO: Parse command line options.
    */
-  final def main(args: Array[String]): Unit =
-    runner.buildRuntime().unsafeRunAsync[Nothing, Int](runSpec) { exit =>
-      val exitCode = exit.getOrElse(_ => 1)
+  final def main(args: Array[String]): Unit = {
+    val runtime = runner.buildRuntime()
+    if (TestPlatform.isJVM) {
+      val exitCode = runtime.unsafeRun(runSpec)
       doExit(exitCode)
+    } else if (TestPlatform.isJS) {
+      runtime.unsafeRunAsync[Nothing, Int](runSpec) { exit =>
+        val exitCode = exit.getOrElse(_ => 1)
+        doExit(exitCode)
+      }
     }
+  }
 
   private def doExit(exitCode: Int): Unit =
     try sys.exit(exitCode)
