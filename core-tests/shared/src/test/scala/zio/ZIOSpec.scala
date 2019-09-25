@@ -8,6 +8,19 @@ import zio.test.Assertion._
 object ZIOSpec
     extends ZIOBaseSpec(
       suite("ZIO")(
+        suite("orElse")(
+          testM("left and right failed with kept cause") {
+            val z1 = Task.fail(new Throwable("1"))
+            val z2: Task[Nothing] = Task.die(new Throwable("2"))
+            val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
+              case Cause.Die(FiberFailure(Cause.Both(Cause.Traced(Cause.Fail(a: Throwable), _), Cause.Traced(Cause.Die(b: Throwable), _)))) =>
+                Task(a.getMessage == "1" && b.getMessage == "2")
+              case _ =>
+                Task(false)
+            }
+            assertM(orElse, equalTo(true))
+          }
+        ),
         suite("forkAll")(
           testM("happy-path") {
             val list = (1 to 1000).toList
