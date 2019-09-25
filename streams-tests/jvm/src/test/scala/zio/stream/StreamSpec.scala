@@ -1930,17 +1930,25 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .map(_ must_=== Left("Ouch"))
   }
 
-  private def zipWithLatest = flaky {
-    val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
-    val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
+  private def zipWithLatest = nonFlaky {
+    import zio.test.mock.MockClock
 
-    withLatch { release =>
-      s1.zipWithLatest(s2)((_, _))
-        .take(8)
-        .runCollect
-        .tap(_ => release)
-        .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 2 -> 2, 2 -> 3, 2 -> 4, 3 -> 4))
-    }
+    for {
+      clock <- MockClock.make(MockClock.DefaultData)
+      s1    = Stream.iterate(0)(_ + 1).fixed(100.millis).provide(clock)
+      s2    = Stream.iterate(0)(_ + 1).fixed(70.millis).provide(clock)
+      s3    = s1.zipWithLatest(s2)((_, _))
+      q     <- Queue.unbounded[(Int, Int)]
+      _     <- s3.foreach(q.offer).fork
+      a     <- q.take
+      _     <- clock.clock.setTime(70.millis)
+      b     <- q.take
+      _     <- clock.clock.setTime(100.millis)
+      c     <- q.take
+      _     <- clock.clock.setTime(140.millis)
+      d     <- q.take
+      _     <- clock.clock.setTime(210.millis)
+    } yield List(a, b, c, d) must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)
   }
 
   private def interleave = unsafeRun {
