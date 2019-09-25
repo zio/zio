@@ -15,15 +15,9 @@ object TestUtils {
     succeeded(spec).map(!_)
 
   final def failedWith(spec: ZSpec[MockEnvironment, Any, String, Any], pred: Throwable => Boolean) =
-    execute(spec).map { results =>
-      results.forall {
-        case Spec.TestCase(_, test) =>
-          test match {
-            case Left(zio.test.TestFailure.Runtime(Cause.Die(cause))) => pred(cause)
-            case _                                                    => false
-          }
-        case _ => false
-      }
+    forAllTests(execute(spec)) {
+      case Left(zio.test.TestFailure.Runtime(Cause.Die(cause))) => pred(cause)
+      case _                                                    => false
     }
 
   final def forAllTests[L, E, S](
