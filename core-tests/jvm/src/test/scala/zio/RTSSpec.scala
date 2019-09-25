@@ -9,16 +9,13 @@ package zio
 // import zio.internal.PlatformLive
 // import zio.clock.Clock
 import zio.LatchOps._
+import zio.RTSSpecHelper._
 import zio.test._
 import zio.test.Assertion._
 import zio.test.TestUtils.nonFlaky
 
-// import scala.annotation.tailrec
+import scala.annotation.tailrec
 // import scala.util.{ Failure, Success }
-
-object Helper {
-  val Stub = ZIO.succeed(1).map(v => assert(v, equalTo(v)))
-}
 
 object RTSSpec
     extends ZIOBaseSpec(
@@ -34,298 +31,372 @@ object RTSSpec
             } yield assert(r1 + r2, equalTo("12"))
           },
           testM("blocking caches threads") {
-            Helper.Stub
+            Stub
           },
           testM("now must be eager") {
-            Helper.Stub
+            val io =
+              try {
+                IO.succeed(throw new Throwable("now"))
+                IO.succeed(false)
+              } catch {
+                case _: Throwable => IO.succeed(true)
+              }
+
+            assertM(io, isTrue)
           },
           testM("effectSuspend must be lazy") {
-            Helper.Stub
+            val io =
+              try {
+                IO.effectSuspend(throw new Throwable("lazy"))
+                IO.succeed(false)
+              } catch {
+                case _: Throwable => IO.succeed(true)
+              }
+
+            assertM(io, isFalse)
           },
           testM("effectSuspendTotal must not catch throwable") {
-            Helper.Stub
+            Stub
           },
           testM("effectSuspend must catch throwable") {
-            Helper.Stub
+            val error = new Throwable("suspend")
+            val zio   = ZIO.effectSuspend[Any, Nothing](throw error).either
+
+            assertM(zio, isLeft(equalTo(error)))
           },
           testM("effectSuspendWith must catch throwable") {
-            Helper.Stub
+            val error = new Throwable("suspend with")
+            val zio   = ZIO.effectSuspendWith[Any, Nothing](_ => throw error).either
+
+            assertM(zio, isLeft(equalTo(error)))
           },
           testM("suspend must be evaluatable") {
-            Helper.Stub
+            assertM(IO.effectSuspendTotal(IO.effectTotal(42)), equalTo(42))
           },
           testM("point, bind, map") {
-            Helper.Stub
+            def fibIo(n: Int): Task[BigInt] =
+              if (n <= 1) IO.succeed(n)
+              else
+                for {
+                  a <- fibIo(n - 1)
+                  b <- fibIo(n - 2)
+                } yield a + b
+
+            assertM(fibIo(10), equalTo(fib(10)))
           },
           testM("effect, bind, map") {
-            Helper.Stub
+            def fibIo(n: Int): Task[BigInt] =
+              if (n <= 1) IO.effect(n)
+              else
+                for {
+                  a <- fibIo(n - 1)
+                  b <- fibIo(n - 2)
+                } yield a + b
+
+            assertM(fibIo(10), equalTo(fib(10)))
           },
           testM("effect, bind, map, redeem") {
-            Helper.Stub
+            def fibIo(n: Int): Task[BigInt] =
+              if (n <= 1) Task.effect[BigInt](throw new Error).catchAll(_ => Task.effect(n))
+              else
+                for {
+                  a <- fibIo(n - 1)
+                  b <- fibIo(n - 2)
+                } yield a + b
+
+            assertM(fibIo(10), equalTo(fib(10)))
           },
           testM("sync effect") {
-            Helper.Stub
+            def sumIo(n: Int): Task[Int] =
+              if (n <= 0) IO.effectTotal(0)
+              else IO.effectTotal(n).flatMap(b => sumIo(n - 1).map(a => a + b))
+
+            assertM(sumIo(1000), equalTo(sum(1000)))
           },
           testM("deep effects") {
-            Helper.Stub
+            def incLeft(n: Int, ref: Ref[Int]): Task[Int] =
+              if (n <= 0) ref.get
+              else incLeft(n - 1, ref) <* ref.update(_ + 1)
+
+            def incRight(n: Int, ref: Ref[Int]): Task[Int] =
+              if (n <= 0) ref.get
+              else ref.update(_ + 1) *> incRight(n - 1, ref)
+
+            val l =
+              for {
+                ref <- Ref.make(0)
+                v   <- incLeft(100, ref)
+              } yield v == 0
+
+            val r =
+              for {
+                ref <- Ref.make(0)
+                v   <- incRight(1000, ref)
+              } yield v == 1000
+
+            assertM(l.zipWith(r)(_ && _), isTrue)
           },
           testM("flip must make error into value") {
-            Helper.Stub
+            val error = new Throwable("left")
+            val io    = IO.fail(error).flip
+            assertM(io, equalTo(error))
           },
           testM("flip must make value into error") {
-            Helper.Stub
+            val io = IO.succeed(42).flip
+            assertM(io.either, isLeft(equalTo(42)))
           },
           testM("flipping twice returns identical value") {
-            Helper.Stub
+            val io = IO.succeed(42)
+            assertM(io.flip.flip, equalTo(42))
           }
         ),
         suite("RTS failure")(
           testM("error in sync effect") {
-            Helper.Stub
+            Stub
           },
           testM("attempt . fail") {
-            Helper.Stub
+            Stub
           },
           testM("deep attempt sync effect error") {
-            Helper.Stub
+            Stub
           },
           testM("deep attempt fail error") {
-            Helper.Stub
+            Stub
           },
           testM("attempt . sandbox . terminate") {
-            Helper.Stub
+            Stub
           },
           testM("fold . sandbox . terminate") {
-            Helper.Stub
+            Stub
           },
           testM("catch sandbox terminate") {
-            Helper.Stub
+            Stub
           },
           testM("uncaught fail") {
-            Helper.Stub
+            Stub
           },
           testM("uncaught fail supervised") {
-            Helper.Stub
+            Stub
           },
           testM("uncaught sync effect error") {
-            Helper.Stub
+            Stub
           },
           testM("uncaught supervised sync effect error") {
-            Helper.Stub
+            Stub
           },
           testM("deep uncaught sync effect error") {
-            Helper.Stub
+            Stub
           },
           testM("deep uncaught fail") {
-            Helper.Stub
+            Stub
           },
           testM("catch failing finalizers with fail") {
-            Helper.Stub
+            Stub
           },
           testM("catch failing finalizers with terminate") {
-            Helper.Stub
+            Stub
           },
           testM("run preserves interruption status") {
-            Helper.Stub
+            Stub
           },
           testM("run swallows inner interruption") {
-            Helper.Stub
+            Stub
           },
           testM("timeout a long computation") {
-            Helper.Stub
+            Stub
           },
           testM("catchAllCause") {
-            Helper.Stub
+            Stub
           },
           testM("exception in fromFuture does not kill fiber") {
-            Helper.Stub
+            Stub
           }
         ),
         suite("RTS finalizers")(
           testM("fail ensuring") {
-            Helper.Stub
+            Stub
           },
           testM("fail on error") {
-            Helper.Stub
+            Stub
           },
           testM("finalizer errors not caught") {
-            Helper.Stub
+            Stub
           },
           testM("finalizer errors reported") {
-            Helper.Stub
+            Stub
           },
           testM("bracket exit is usage result") {
-            Helper.Stub
+            Stub
           },
           testM("error in just acquisition") {
-            Helper.Stub
+            Stub
           },
           testM("error in just release") {
-            Helper.Stub
+            Stub
           },
           testM("error in just usage") {
-            Helper.Stub
+            Stub
           },
           testM("rethrown caught error in acquisition") {
-            Helper.Stub
+            Stub
           },
           testM("rethrown caught error in release") {
-            Helper.Stub
+            Stub
           },
           testM("rethrown caught error in usage") {
-            Helper.Stub
+            Stub
           },
           testM("test eval of async fail") {
-            Helper.Stub
+            Stub
           },
           testM("bracket regression 1") {
-            Helper.Stub
+            Stub
           },
           testM("interrupt waits for finalizer") {
-            Helper.Stub
+            Stub
           }
         ),
         suite("RTS synchronous stack safety")(
           testM("deep map of now") {
-            Helper.Stub
+            Stub
           },
           testM("deep map of sync effect") {
-            Helper.Stub
+            Stub
           },
           testM("deep attempt") {
-            Helper.Stub
+            Stub
           },
           testM("deep flatMap") {
-            Helper.Stub
+            Stub
           },
           testM("deep absolve/attempt is identity") {
-            Helper.Stub
+            Stub
           },
           testM("deep async absolve/attempt is identity") {
-            Helper.Stub
+            Stub
           }
         ),
         suite("RTS asynchronous correctness")(
           testM("simple async must return") {
-            Helper.Stub
+            Stub
           },
           testM("simple asyncIO must return") {
-            Helper.Stub
+            Stub
           },
           testM("deep asyncIO doesn't block threads") {
-            Helper.Stub
+            Stub
           },
           testM("interrupt of asyncPure register") {
-            Helper.Stub
+            Stub
           },
           testM("sleep 0 must return") {
-            Helper.Stub
+            Stub
           },
           testM("shallow bind of async chain") {
-            Helper.Stub
+            Stub
           },
           testM("effectAsyncM can fail before registering") {
-            Helper.Stub
+            Stub
           },
           testM("effectAsyncM can defect before registering") {
-            Helper.Stub
+            Stub
           },
           testM("second callback call is ignored") {
-            Helper.Stub
+            Stub
           }
         ),
         suite("RTS concurrency correctness")(
           testM("shallow fork/join identity") {
-            Helper.Stub
+            Stub
           },
           testM("deep fork/join identity") {
-            Helper.Stub
+            Stub
           },
           testM("asyncPure creation is interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("asyncInterrupt runs cancel token on interrupt") {
-            Helper.Stub
+            Stub
           },
           testM("supervising returns fiber refs") {
-            Helper.Stub
+            Stub
           },
           testM("supervising in unsupervised returns Nil") {
-            Helper.Stub
+            Stub
           },
           testM("supervise fibers") {
-            Helper.Stub
+            Stub
           },
           testM("supervise fibers in supervised") {
-            Helper.Stub
+            Stub
           },
           testM("supervise fibers in race") {
-            Helper.Stub
+            Stub
           },
           testM("supervise fibers in fork") {
-            Helper.Stub
+            Stub
           },
           testM("race of fail with success") {
-            Helper.Stub
+            Stub
           },
           testM("race of terminate with success") {
-            Helper.Stub
+            Stub
           },
           testM("race of fail with fail") {
-            Helper.Stub
+            Stub
           },
           testM("race of value & never") {
-            Helper.Stub
+            Stub
           },
           testM("firstSuccessOf of values") {
-            Helper.Stub
+            Stub
           },
           testM("firstSuccessOf of failures") {
-            Helper.Stub
+            Stub
           },
           testM("firstSuccessOF of failures & 1 success") {
-            Helper.Stub
+            Stub
           },
           testM("raceAttempt interrupts loser on success") {
-            Helper.Stub
+            Stub
           },
           testM("raceAttempt interrupts loser on failure") {
-            Helper.Stub
+            Stub
           },
           testM("par regression") {
-            Helper.Stub
+            Stub
           },
           testM("par of now values") {
-            Helper.Stub
+            Stub
           },
           testM("mergeAll") {
-            Helper.Stub
+            Stub
           },
           testM("mergeAllEmpty") {
-            Helper.Stub
+            Stub
           },
           testM("reduceAll") {
-            Helper.Stub
+            Stub
           },
           testM("reduceAll Empty List") {
-            Helper.Stub
+            Stub
           },
           testM("timeout of failure") {
-            Helper.Stub
+            Stub
           },
           testM("timeout of terminate") {
-            Helper.Stub
+            Stub
           }
         ),
         suite("RTS regression tests")(
           testM("deadlock regression 1") {
-            Helper.Stub
+            Stub
           },
           testM("check interruption regression 1") {
-            Helper.Stub
+            Stub
           },
           testM("max yield Ops 1") {
-            Helper.Stub
+            Stub
           }
         ),
         suite("RTS option tests")(
@@ -346,85 +417,85 @@ object RTSSpec
         ),
         suite("RTS interruption")(
           testM("blocking IO is effect blocking") {
-            Helper.Stub
+            Stub
           },
           testM("sync forever is interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("interrupt of never") {
-            Helper.Stub
+            Stub
           },
           testM("asyncPure is interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("async is interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("bracket is uninterruptible") {
-            Helper.Stub
+            Stub
           },
           testM("bracket0 is uninterruptible") {
-            Helper.Stub
+            Stub
           },
           testM("bracket use is interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("bracket0 use is interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("bracket release called on interrupt") {
-            Helper.Stub
+            Stub
           },
           testM("bracket0 release called on interrupt") {
-            Helper.Stub
+            Stub
           },
           testM("redeem + ensuring + interrupt") {
-            Helper.Stub
+            Stub
           },
           testM("finalizer can detect interruption") {
-            Helper.Stub
+            Stub
           },
           testM("interruption of raced") {
-            Helper.Stub
+            Stub
           },
           testM("cancelation is guaranteed") {
-            Helper.Stub
+            Stub
           },
           testM("interruption of unending bracket") {
-            Helper.Stub
+            Stub
           },
           testM("recovery of error in finalizer") {
-            Helper.Stub
+            Stub
           },
           testM("recovery of interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("sandbox of interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("run of interruptible") {
-            Helper.Stub
+            Stub
           },
           testM("alternating interruptibility") {
-            Helper.Stub
+            Stub
           },
           testM("interruption after defect") {
-            Helper.Stub
+            Stub
           },
           testM("interruption after defect 2") {
-            Helper.Stub
+            Stub
           },
           testM("cause reflects interruption") {
-            Helper.Stub
+            Stub
           },
           testM("bracket use inherits interrupt status") {
-            Helper.Stub
+            Stub
           },
           testM("bracket use inherits interrupt status 2") {
-            Helper.Stub
+            Stub
           },
           testM("async can be uninterruptible") {
-            Helper.Stub
+            Stub
           }
         ),
         suite("RTS environment")(
@@ -505,3 +576,64 @@ object RTSSpec
         )
       )
     )
+
+object RTSSpecHelper {
+  val Stub = ZIO.succeed(1).map(v => assert(v, equalTo(v)))
+
+  // Utility stuff
+  val ExampleError    = new Exception("Oh noes!")
+  val InterruptCause1 = new Exception("Oh noes 1!")
+  val InterruptCause2 = new Exception("Oh noes 2!")
+  val InterruptCause3 = new Exception("Oh noes 3!")
+
+  val TaskExampleError: Task[Int] = IO.fail[Throwable](ExampleError)
+
+  def asyncExampleError[A]: Task[A] =
+    IO.effectAsync[Throwable, A](_(IO.fail(ExampleError)))
+
+  def sum(n: Int): Int =
+    if (n <= 0) 0
+    else n + sum(n - 1)
+
+  def deepMapNow(n: Int): UIO[Int] = {
+    @tailrec
+    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
+      if (n <= 0) acc
+      else loop(n - 1, acc.map(_ + 1))
+
+    loop(n, IO.succeed(0))
+  }
+
+  def deepMapEffect(n: Int): UIO[Int] = {
+    @tailrec
+    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
+      if (n <= 0) acc
+      else loop(n - 1, acc.map(_ + 1))
+
+    loop(n, IO.effectTotal(0))
+  }
+
+  def deepErrorEffect(n: Int): Task[Unit] =
+    if (n == 0) IO.effect(throw ExampleError)
+    else IO.unit *> deepErrorEffect(n - 1)
+
+  def deepErrorFail(n: Int): Task[Unit] =
+    if (n == 0) IO.fail(ExampleError)
+    else IO.unit *> deepErrorFail(n - 1)
+
+  def fib(n: Int): BigInt =
+    if (n <= 1) n
+    else fib(n - 1) + fib(n - 2)
+
+  def concurrentFib(n: Int): Task[BigInt] =
+    if (n <= 1) IO.succeed[BigInt](n)
+    else
+      for {
+        f1 <- concurrentFib(n - 1).fork
+        f2 <- concurrentFib(n - 2).fork
+        v1 <- f1.join
+        v2 <- f2.join
+      } yield v1 + v2
+
+  def AsyncUnit[E] = IO.effectAsync[E, Unit](_(IO.unit))
+}
