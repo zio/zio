@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.{ clock, Cause, Promise, ZIO, ZManaged, ZSchedule }
-import zio.duration.{ Duration, _ }
+import zio.duration._
 import zio.clock.Clock
 import zio.test.mock.Live
 
@@ -314,7 +314,7 @@ object TestAspect extends TimeoutVariants {
    */
   def timeout(
     duration: Duration,
-    interruptDuration: Duration = 10.seconds
+    interruptDuration: Duration = 1.second
   ): TestAspect[Nothing, Live[Clock], Nothing, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, Live[Clock], Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any, S >: Nothing <: Any](
@@ -330,10 +330,10 @@ object TestAspect extends TimeoutVariants {
         for {
           p <- Promise.make[TestFailure[E], TestSuccess[S]]
           _ <- test
-                .raceAttempt(Live.withLive(ZIO.fail(timeoutFailure))(_.delay(duration)))
+                .raceAttempt(Live.live(ZIO.fail(timeoutFailure).delay(duration)))
                 .foldM(p.fail, p.succeed)
                 .fork
-          _      <- (Live.withLive(ZIO.unit)(_.delay(duration + interruptDuration)) *> p.fail(interruptionTimeoutFailure)).fork
+          _      <- (Live.live(ZIO.unit.delay(duration + interruptDuration)) *> p.fail(interruptionTimeoutFailure)).fork
           result <- p.await
         } yield result
       }

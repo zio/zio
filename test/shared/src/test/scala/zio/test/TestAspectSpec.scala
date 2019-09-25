@@ -8,7 +8,7 @@ import zio.{ Cause, DefaultRuntime, Ref, ZIO }
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.TestUtils.{ execute, failed, ignored, label, succeeded }
+import zio.test.TestUtils._
 import zio.test.mock.Live
 
 import scala.reflect.ClassTag
@@ -147,25 +147,23 @@ object TestAspectSpec extends DefaultRuntime {
     unsafeRunToFuture {
       val spec = (testM("timeoutMakesTestsFailAfterGivenDuration") {
         assertM(ZIO.never *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(100.millis)
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(1.millis)
 
-      testExecutionFailedWith(
-        spec,
-        cause => cause.isInstanceOf[TestTimeoutException] && cause.getMessage() == "Timeout of 100 ms exceeded."
-      )
+      failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ms exceeded."))
     }
 
   def timeoutReportProblemWithInterruption =
     unsafeRunToFuture {
       val spec = (testM("timeoutReportProblemWithInterruption") {
         assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(100.millis, 200.millis)
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(2.millisecond, 1.millisecond)
 
-      testExecutionFailedWith(
+      failedWith(
         spec,
         cause =>
-          cause.isInstanceOf[TestTimeoutException] &&
-            cause.getMessage() == "Timeout of 100 ms exceeded. Couldn't interrupt test within 200 ms, possible resource leak!"
+          cause == TestTimeoutException(
+            "Timeout of 2 ms exceeded. Couldn't interrupt test within 1 ms, possible resource leak!"
+          )
       )
     }
 
@@ -178,16 +176,4 @@ object TestAspectSpec extends DefaultRuntime {
       },
       isSubtype[T](anything)
     )
-
-  private def testExecutionFailedWith(spec: ZSpec[Live[Clock], Any, String, Any], pred: Throwable => Boolean) =
-    execute(spec).map { results =>
-      results.forall {
-        case Spec.TestCase(_, test) =>
-          test match {
-            case Left(zio.test.TestFailure.Runtime(Die(cause))) => pred(cause)
-            case _                                              => false
-          }
-        case _ => false
-      }
-    }
 }
