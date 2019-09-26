@@ -2,12 +2,12 @@ package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Future
-
 import zio._
 import zio.duration._
 import zio.test.Async
 import zio.test.TestUtils.label
+
+import scala.concurrent.Future
 
 object EnvironmentSpec extends DefaultRuntime {
 
@@ -54,6 +54,7 @@ object EnvironmentSpec extends DefaultRuntime {
     unsafeRunToFuture {
       for {
         i <- random.nextInt.provideManaged(MockEnvironment.Value)
+        _ <- Live.live(clock.sleep(1.millisecond)).provideManaged(MockEnvironment.Value)
         j <- random.nextInt.provideManaged(MockEnvironment.Value)
       } yield i != j
     }
