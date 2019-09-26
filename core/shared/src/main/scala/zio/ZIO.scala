@@ -99,7 +99,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Maps the success value of this effect to the specified constant value.
    */
-  final def as[B](b: B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
+  final def as[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstZIOFn(() => b))
 
   /**
    * Maps the error value of this effect to the specified constant value.
@@ -2649,10 +2649,17 @@ object ZIO extends ZIOFunctions {
       new ZIO.Succeed(underlying(a))
   }
 
-  final class ConstFn[R, E, A, B](override val underlying: () => B) extends ZIOFn1[A, ZIO[R, E, B]] {
+  final class ConstZIOFn[R, E, A, B](override val underlying: () => B) extends ZIOFn1[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] = {
       val _ = a
       new ZIO.Succeed(underlying())
+    }
+  }
+
+  final class ConstFn[A, B](override val underlying: () => B) extends ZIOFn1[A, B] {
+    def apply(a: A): B = {
+      val _ = a
+      underlying()
     }
   }
 
