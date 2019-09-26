@@ -22,6 +22,6 @@ import zio.test.mock._
  * A `Runner` that provides a default testable environment.
  */
 object DefaultTestRunner
-    extends TestRunner[MockEnvironment, String, ZTest[MockEnvironment, Any, Any], Any, Any](
+    extends TestRunner[MockEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any](
       TestExecutor.managed(mockEnvironmentManaged)
     ) {}

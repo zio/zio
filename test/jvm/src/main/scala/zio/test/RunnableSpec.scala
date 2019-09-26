@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.Runtime
+import zio.{ Runtime, ZIO }
 import zio.test.Spec.TestCase
 
 /**
@@ -41,7 +41,10 @@ abstract class RunnableSpec[R, L, T, E, S](runner0: TestRunner[R, L, T, E, S])(s
   final def main(args: Array[String]): Unit = {
     val results = runner.unsafeRun(spec)
     val hasFailures = Runtime((), runner.platform).unsafeRun {
-      results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
+      results.exists {
+        case TestCase(_, test) => test.map(_.isLeft)
+        case _                 => ZIO.succeed(false)
+      }
     }
     try if (hasFailures) sys.exit(1) else sys.exit(0)
     catch { case _: SecurityException => }

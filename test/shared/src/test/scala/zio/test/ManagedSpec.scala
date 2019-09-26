@@ -33,9 +33,7 @@ object ManagedSpec extends DefaultRuntime {
             result <- ZIO.accessM[Ref[Int]](_.get)
           } yield assert(result, equalTo(4))
         }
-      )
-
-      val provided = Spec.provideManaged(Ref.make(1).toManaged(_.set(-10)))(spec)
-      succeeded(provided)
+      ).provideManagedSuite(Ref.make(1).toManaged(_.set(-10)))
+      succeeded(spec)
     }
 }

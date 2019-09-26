@@ -162,7 +162,7 @@ object TestAspect extends TimeoutVariants {
       def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] = spec.transform[R, E, L, ZIO[R, TestFailure[E], TestSuccess[S]]] {
+      ): ZSpec[R, E, L, S] = spec.transform[R, E, L, Either[TestFailure[Nothing], TestSuccess[S]]] {
         case Spec.SuiteCase(label, specs, None) if (predicate(label)) => Spec.SuiteCase(label, specs, Some(exec))
         case c                                                        => c
       }
@@ -303,9 +303,37 @@ object TestAspect extends TimeoutVariants {
       predicate: L => Boolean,
       spec: ZSpec[R, E, L, S]
     ): ZSpec[R, E, L, S] =
-      spec.transform[R, E, L, ZIO[R, TestFailure[E], TestSuccess[S]]] {
+      spec.transform[R, E, L, Either[TestFailure[Nothing], TestSuccess[S]]] {
         case c @ Spec.SuiteCase(_, _, _) => c
-        case Spec.TestCase(label, test)  => Spec.TestCase(label, if (predicate(label)) perTest(test) else test)
+        case Spec.TestCase(label, test) =>
+          Spec.TestCase(label, if (predicate(label)) from(perTest(to(test))) else test)
       }
+
+    /**
+     * These methods evidence an isomorphism between our previous encoding of
+     * `ZTest` and the new encoding. We can remove them once we refactor test
+     * aspects to use the new encoding
+     */
+    private def to[R, E, S](
+      from: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+    ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+      from.foldCauseM(
+        c => ZIO.fail(TestFailure.Runtime(c)), {
+          case Left(TestFailure.Runtime(c))        => ZIO.fail(TestFailure.Runtime(c))
+          case Left(TestFailure.Assertion(result)) => ZIO.fail(TestFailure.Assertion(result))
+          case Right(s)                            => ZIO.succeed(s)
+        }
+      )
+
+    private def from[R, E, S](
+      to: ZIO[R, TestFailure[E], TestSuccess[S]]
+    ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+      to.foldM(
+        {
+          case TestFailure.Runtime(c)        => ZIO.halt(c)
+          case TestFailure.Assertion(result) => ZIO.succeed(Left(TestFailure.Assertion(result)))
+        },
+        s => ZIO.succeed(Right(s))
+      )
   }
 }

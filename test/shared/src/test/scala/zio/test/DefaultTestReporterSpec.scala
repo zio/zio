@@ -21,7 +21,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
-    zio.test.test(label)(assertion).mapTest(_.map(_ => TestSuccess.Succeeded(BoolAlgebra.unit)))
+    zio.test.test(label)(assertion)
 
   val test1 = makeTest("Addition works fine") {
     assert(1 + 1, equalTo(2))
@@ -166,7 +166,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     unsafeRunToFuture(r.use[Any, E, A](f))
 
   def MockTestRunner(mockEnvironment: MockEnvironment) =
-    TestRunner[MockEnvironment, String, ZTest[MockEnvironment, String, Unit], String, Unit](
+    TestRunner[MockEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Unit]], String, Unit](
       executor = TestExecutor.managed[MockEnvironment, String, String, Unit](Managed.succeed(mockEnvironment)),
       reporter = DefaultTestReporter()
     )

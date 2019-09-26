@@ -18,7 +18,7 @@ object TestUtils {
     execSpec: UIO[ExecutedSpec[L, E, S]]
   )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
     execSpec.flatMap { results =>
-      results.forall { case Spec.TestCase(_, test) => f(test); case _ => true }
+      results.forall { case Spec.TestCase(_, test) => test.map(f); case _ => ZIO.succeed(true) }
     }
 
   final def ignored[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
