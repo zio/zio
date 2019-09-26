@@ -678,7 +678,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         cause.stripFailures match {
           case None =>
             that.catchSomeCause {
-              case c2 if c2.died => ZIO.halt(Cause.die(FiberFailure(Cause.Both(cause, c2))))
+              case c2 if c2.died   => ZIO.halt(Cause.die(FiberFailure(Cause.Both(cause, c2))))
+              case c2 if c2.failed => ZIO.halt(Cause.Both(Cause.die(FiberFailure(cause)), c2))
             }
           case Some(c) =>
             ZIO.halt(c)
