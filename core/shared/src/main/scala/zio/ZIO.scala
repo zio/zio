@@ -673,20 +673,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * otherwise executes the specified effect.
    */
   final def orElse[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
-    self.foldCauseM(
-      ZIOFn(() => that) { cause =>
-        cause.stripFailures match {
-          case None =>
-            that.catchSomeCause {
-              case c2 if c2.died   => ZIO.halt(Cause.die(FiberFailure(Cause.Both(cause, c2))))
-              case c2 if c2.failed => ZIO.halt(Cause.Both(Cause.die(FiberFailure(cause)), c2))
-            }
-          case Some(c) =>
-            ZIO.halt(c)
-        }
-      },
-      new ZIO.SucceedFn(() => that)
-    )
+    tryOrElse(that, new ZIO.SucceedFn(() => that))
 
   /**
    * Returns an effect that will produce the value of this effect, unless it
@@ -1370,10 +1357,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   ): ZIO[R1, E2, B] =
     new ZIO.Fold[R1, E, E2, A, B](
       self,
-      ZIOFn(() => that)(_.stripFailures match {
-        case None    => that
-        case Some(c) => ZIO.halt(c)
-      }),
+      ZIOFn(() => that) { cause =>
+        cause.stripFailures match {
+          case None =>
+            that.catchSomeCause {
+              case c2 if c2.died   => ZIO.halt(Cause.die(FiberFailure(Cause.Both(cause, c2))))
+              case c2 if c2.failed => ZIO.halt(Cause.Both(Cause.die(FiberFailure(cause)), c2))
+            }
+          case Some(c) => ZIO.halt(c)
+        }
+      },
       succ
     )
 
