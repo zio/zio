@@ -100,7 +100,7 @@ val clockSuite = suite("clock") {
 }
 ```
 
-As you can see the whole suit was assigned to `clockSuite` val. As it was said suites can contain other suites so we can aggregate them as much as needed. Example, we can have multiple suites that test external HTTP apis and one big suit that will aggregate them all.
+As you can see the whole suit was assigned to `clockSuite` val. As it was said suites can contain other suites so we can aggregate them as much as needed. Example, we can have multiple suites that test external HTTP apis and one big suite that will aggregate them all.
 
 ```scala
 val paymentProviderABCSuite  = suite("ABC payment provider tests") {/* tests */}
