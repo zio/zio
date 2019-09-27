@@ -120,7 +120,7 @@ is to resort to `assert` or its effectful counterpart `assertM`. Both of them ac
 To create `Assertion[A]` object one can use functions defined under `zio.test.Assertion`. There are already a number
 of useful assertions predefined like `equalTo`, `isFalse`, `isTrue`, `contains`, `throws` and more.
 What is really useful in assertions is that they behave like boolean values and can be composed with operators
-known from operating on boolean values like and (`&&`), or (`||`), negation (`negate`)
+known from operating on boolean values like and (`&&`), or (`||`), negation (`negate`).
 
 ```scala
 import zio.test.Assertion
