@@ -47,22 +47,22 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * The internal state type of the schedule.
    */
   type State
-  type RunningState <: State
 
   /**
    * The initial state of the schedule.
    */
   val initial: ZIO[R, Nothing, State]
+  // val initial1: ZIO[R, Nothing, Step[R, A, B]] = ???
 
   /**
    * Extract the B from the schedule
    */
-  val extract: RunningState => B
+  val extract: (A, State) => B
 
   /**
    * Updates the schedule based on a new input and the current state.
    */
-  val update: (A, State) => ZIO[R, RunningState, RunningState]
+  val update: (A, State) => ZIO[R, Unit, State]
 
   /**
    * Returns a new schedule that continues only as long as both schedules
@@ -71,21 +71,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def &&[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State        = (self.State, that.State)
-      type RunningState = (self.RunningState, that.RunningState)
       val initial = self.initial.zip(that.initial)
-      val extract = { case (s1, s2) => (self.extract(s1), that.extract(s2)) }
+      val extract = { case (a, (s1, s2)) => (self.extract(a, s1), that.extract(a, s2)) }
       val update = {
         case (a, (s1, s2)) =>
-          self
-            .update(a, s1)
-            .either
-            .zipWithPar(that.update(a, s2).either) {
-              case (Right(s1), Right(s2)) => ZIO.succeed((s1, s2))
-              case (Left(s1), Right(s2))  => ZIO.fail((s1, s2))
-              case (Right(s1), Left(s2))  => ZIO.fail((s1, s2))
-              case (Left(s1), Left(s2))   => ZIO.fail((s1, s2))
-            }
-            .flatten
+          self.update(a, s1).zipPar(that.update(a, s2))
       }
     }
 
@@ -94,21 +84,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def ***[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, (A, C), (B, D)] =
     new ZSchedule[R1, (A, C), (B, D)] {
-      type State        = (self.State, that.State)
-      type RunningState = (self.RunningState, that.RunningState)
+      type State  = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = { case (s1, s2) => (self.extract(s1), that.extract(s2)) }
-      val update = (a: (A, C), s: State) =>
-        self
-          .update(a._1, s._1)
-          .either
-          .zipWithPar(that.update(a._2, s._2).either) {
-            case (Right(s1), Right(s2)) => ZIO.succeed((s1, s2))
-            case (Left(s1), Right(s2))  => ZIO.fail((s1, s2))
-            case (Right(s1), Left(s2))  => ZIO.fail((s1, s2))
-            case (Left(s1), Left(s2))   => ZIO.fail((s1, s2))
-          }
-          .flatten
+      val extract = { case ((a1, a2), (s1, s2)) => (self.extract(a1, s1), that.extract(a2, s2)) }
+      val update = { case ((a1, a2), (s1, s2)) =>
+        self.update(a1, s1).zipPar(that.update(a2, s2))
+      }
     }
 
   /**
@@ -122,21 +103,15 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def +++[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, Either[A, C], Either[B, D]] =
     new ZSchedule[R1, Either[A, C], Either[B, D]] {
-      type State        = (self.State, that.State, Boolean)
-      type RunningState = (self.State, that.State, Boolean)
-      val initial = for {
-        s1 <- self.initial
-        s2 <- that.initial
-      } yield (s1, s2, true)
-      val extract = {
-        case (s1, s2, left) =>
-          if (left) Left(self.extract(s1.asInstanceOf[self.RunningState]))
-          else Right(that.extract(s2.asInstanceOf[that.RunningState]))
+      type State  = (self.State, that.State)
+      val initial = self.initial.zip(that.initial)
+      val extract = { case (a, (s1, s2)) =>
+        a.fold(a => Left(self.extract(a, s1)), c => Right(that.extract(c, s2)))
       }
       val update = (a: Either[A, C], s: State) =>
         a match {
-          case Left(a)  => self.update(a, s._1).fold((_, s._2, true), (_, s._2, true))
-          case Right(c) => that.update(c, s._2).fold((s._1, _, false), (s._1, _, false))
+          case Left(a)  => self.update(a, s._1).map((_, s._2))
+          case Right(c) => that.update(c, s._2).map((s._1, _))
         }
     }
 
@@ -164,14 +139,15 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def >>>[R1 <: R, C](that: ZSchedule[R1, B, C]): ZSchedule[R1, A, C] =
     new ZSchedule[R1, A, C] {
-      type State        = (self.State, that.State)
-      type RunningState = (self.RunningState, that.RunningState)
+      type State  = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = { case (_, s) => that.extract(s) }
+      val extract = { case (a, (s1, s2)) => that.extract(self.extract(a, s1), s2) }
       val update = {
         case (a, (s1, s2)) =>
-          val f = (a: self.RunningState) => that.update(self.extract(a), s2).bimap((a, _), (a, _))
-          self.update(a, s1).foldM(f, f)
+          for {
+            s1 <- self.update(a, s1)
+            s2 <- that.update(self.extract(a, s1), s2)
+          } yield (s1, s2)
       }
     }
 
@@ -179,45 +155,19 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule that continues as long as either schedule continues,
    * using the minimum of the delays of the two schedules.
    */
-  final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, Either[B, C]] = {
-    type LeftIsWinner = Boolean
-    val LeftWinner  = true
-    val RightWinner = false
-    new ZSchedule[R1, A1, Either[B, C]] {
-      type State        = (self.State, that.State, LeftIsWinner)
-      type RunningState = (self.State, that.State, LeftIsWinner)
-      val initial = for {
-        s1 <- self.initial
-        s2 <- that.initial
-      } yield (s1, s2, true)
-      val extract = {
-        case (s1, s2, leftIsWinner) =>
-          if (leftIsWinner) Left(self.extract(s1.asInstanceOf[self.RunningState]))
-          else Right(that.extract(s2.asInstanceOf[that.RunningState]))
+  final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = {
+    new ZSchedule[R1, A1, (B, C)] {
+      type State        = (self.State, that.State)
+      type RunningState = (self.State, that.State)
+      val initial = self.initial zip that.initial
+      val extract = { case (a, (s1, s2)) =>
+          (self.extract(a, s1), that.extract(a, s2))
       }
-      val update = {
-        case (a, (s1, s2, _)) =>
-          self
-            .update(a, s1)
-            .raceWith(that.update(a, s2))(
-              {
-                case (leftDone, rightFiber) =>
-                  ZIO
-                    .done(leftDone)
-                    .foldM(
-                      s1 => rightFiber.join.fold((s1, _, RightWinner), (s1, _, RightWinner)),
-                      s1 => rightFiber.interrupt.as((s1, s2, LeftWinner))
-                    )
-              }, {
-                case (rightDone, leftFiber) =>
-                  ZIO
-                    .done(rightDone)
-                    .foldM(
-                      s2 => leftFiber.join.fold((_, s2, LeftWinner), (_, s2, RightWinner)),
-                      s2 => leftFiber.interrupt.as((s1, s2, RightWinner))
-                    )
-              }
-            )
+      val update = { case (a, (s1, s2)) =>
+          self.update(a, s1).raceEither(that.update(a, s2)).map {
+            case Left(s1) => (s1, s2)
+            case Right(s2) => (s1, s2)
+          }
       }
     }
   }
