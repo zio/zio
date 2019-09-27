@@ -179,7 +179,7 @@ testM("Semaphore should expose available number of permits") {
 
 _Running tests_
 
-When all of our test are constructed we need to have a way to actually execute them. Your first stop is the `zio.test.DefaultRunnableSpec` which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suit can hold any number of other suites. You may structure your tests like this:
+When all of our tests are constructed, we need to have a way to actually execute them. Your first stop is the `zio.test.DefaultRunnableSpec` which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suites can hold any number of other suites. You may structure your tests like this:
 
 ```scala
 val suite1 = suite("suite1") {
