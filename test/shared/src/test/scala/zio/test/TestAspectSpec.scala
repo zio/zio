@@ -42,14 +42,8 @@ object TestAspectSpec extends DefaultRuntime {
       failureDoesNotMakesTestsPassOnUnexpectedAssertionFailure,
       "failure does not make tests pass on unexpected assertion failure"
     ),
-    label(
-      timeoutMakesTestsFailAfterGivenDuration,
-      "timeout makes tests fail after given duration"
-    ),
-    label(
-      timeoutReportProblemWithInterruption,
-      "timeout reports problem with interruption"
-    )
+    label(timeoutMakesTestsFailAfterGivenDuration, "timeout makes tests fail after given duration"),
+    label(timeoutReportProblemWithInterruption, "timeout reports problem with interruption")
   )
 
   def jsAppliesTestAspectOnlyOnJS: Future[Boolean] =
@@ -147,22 +141,22 @@ object TestAspectSpec extends DefaultRuntime {
     unsafeRunToFuture {
       val spec = (testM("timeoutMakesTestsFailAfterGivenDuration") {
         assertM(ZIO.never *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(1.millis)
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(1.nano)
 
-      failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ms exceeded."))
+      failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ns exceeded."))
     }
 
   def timeoutReportProblemWithInterruption =
     unsafeRunToFuture {
       val spec = (testM("timeoutReportProblemWithInterruption") {
         assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(2.millisecond, 1.millisecond)
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(2.nanos, 1.nano)
 
       failedWith(
         spec,
         cause =>
           cause == TestTimeoutException(
-            "Timeout of 2 ms exceeded. Couldn't interrupt test within 1 ms, possible resource leak!"
+            "Timeout of 2 ns exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
           )
       )
     }
