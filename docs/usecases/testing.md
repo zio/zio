@@ -212,7 +212,7 @@ _Using Mocks in tests_
 
 What we expect from tests (at least those that we consider unit tests) is to be stable i.e. consecutive runs should yield the same results and take
 more or less the same amount of time. Biggest source of complexity during testing comes from external services which we cannot control like external
-payment APIs, object storages, http APIs ect. It is normal to hide these kind of services behind an interface and provide mock implementation to regain
+payment APIs, object storages, http APIs etc. It is normal to hide these kind of services behind an interface and provide mock implementation to regain
 control and determinism. However there is another source of complexity that comes from the local infrastructure that is also hard to control without building prior abstractions. Things like stdin/stdout, clocks, random generators, schedulers can make writing tests hard or even impossible. Fortunately ZIO abstracted most of it in its runtime under `Environment` type. Thanks to this design `zio-test` could easily provide its own implementation named `MockEnvironment` which gives you mocks of mentioned infrastructure. In most of the cases when you'll be using `ZIO`s `testM` mocks are already created and should be controlled by exposed functions on companion object. If for some reason you would like to provide custom environment or are using other testing framework but still want to use mocks there are `make` functions on companion objects of mocks where you can construct your own. 
 
 It is easy to accidentally use different mock instances at the same time.
