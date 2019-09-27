@@ -1060,7 +1060,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def repeatUntil[R1 <: R, E1 >: E, B](f: PartialFunction[A, ZIO[R1, E1, B]]): ZIO[R1, Nothing, B] =
     self.flatMap { a =>
       f.lift(a) match {
-        case Some(value) => value.eventually
+        case Some(value) => value
         case None        => repeatUntil(f)
       }
     }.eventually
