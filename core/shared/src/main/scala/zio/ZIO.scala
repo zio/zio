@@ -1057,19 +1057,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Repeats this effect until the partial function succeeds on the result.
    */
-  final def repeatUntil[B](f: PartialFunction[A, B]): ZIO[R, E, B] =
+  final def repeatUntil[R1 <: R, E1 >: E, B](f: PartialFunction[A, ZIO[R1, E1, B]]): ZIO[R1, Nothing, B] =
     self.flatMap { a =>
       f.lift(a) match {
-        case Some(value) => ZIO.succeed(value)
+        case Some(value) => value.eventually
         case None        => repeatUntil(f)
       }
-    }
+    }.eventually
+
 
   /**
    * Effectful version of `repeatUntil`. Will repeat until `f` succeeds
    */
-  final def repeatUntilM[R1 <: R, E2, B](f: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    self.flatMap(f).catchAll(_ => repeatUntilM(f))
+    final def repeatUntilM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, Nothing, B] = {
+      (self >>= f).eventually
+    }
+
+
+
 
   /**
    * Retries with the specified retry policy.
