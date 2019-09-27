@@ -1047,15 +1047,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     schedule: ZSchedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   ): ZIO[R1, E2, Either[C, B]] = {
-    def loop(last: Option[schedule.RunningState], state: schedule.State): ZIO[R1, E2, Either[C, B]] =
+    def loop(last: Option[() => B], state: schedule.State): ZIO[R1, E2, Either[C, B]] =
       self.foldM(
-        e => orElse(e, last.map(schedule.extract)).map(Left(_)),
+        e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule
             .update(a, state)
             .foldM(
-              s => ZIO.succeedRight(schedule.extract(s)),
-              next => loop(Some(next), next)
+              _ => ZIO.succeedRight(schedule.extract(a, state)),
+              next => loop(Some(() => schedule.extract(a, state)), next)
             )
       )
     schedule.initial.flatMap(loop(None, _))
@@ -1096,7 +1096,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           policy
             .update(err, state)
             .foldM(
-              s => orElse(err, policy.extract(s)).map(Left(_)),
+              _ => orElse(err, policy.extract(err, state)).map(Left(_)),
               loop
             ),
         succ => ZIO.succeedRight(succ)

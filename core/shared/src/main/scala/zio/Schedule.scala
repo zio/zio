@@ -40,7 +40,7 @@ object Schedule {
   /**
    * See [[ZSchedule.never]]
    */
-  final val never: Schedule[Any, Nothing] =
+  final val never: Schedule[Any, Unit] =
     ZSchedule.never
 
   /**
@@ -51,7 +51,7 @@ object Schedule {
   final def apply[S, A, B](
     initial0: UIO[S],
     update0: (A, S) => UIO[S],
-    extract0: S => B
+    extract0: (A, S) => B
   ): Schedule[A, B] =
     ZSchedule(initial0, update0, extract0)
 
@@ -129,18 +129,6 @@ object Schedule {
     ZSchedule.doUntil(pf)
 
   /**
-   * See [[ZSchedule.exponential]]
-   */
-  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
-    ZSchedule.exponential(base, factor)
-
-  /**
-   * See [[ZSchedule.fibonacci]]
-   */
-  final def fibonacci(one: Duration): Schedule[Any, Duration] =
-    ZSchedule.fibonacci(one)
-
-  /**
    * See [[ZSchedule.fromFunction]]
    */
   final def fromFunction[A, B](f: A => B): Schedule[A, B] = ZSchedule.fromFunction(f)
@@ -150,12 +138,6 @@ object Schedule {
    */
   final def identity[A]: Schedule[A, A] =
     ZSchedule.identity
-
-  /**
-   * See [[ZSchedule.linear]]
-   */
-  final def linear(base: Duration): Schedule[Any, Duration] =
-    ZSchedule.linear(base)
 
   /**
    * See [[ZSchedule.logInput]]
