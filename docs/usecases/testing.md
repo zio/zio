@@ -105,7 +105,7 @@ As you can see the whole suit was assigned to `clockSuite` val. As it was said s
 ```scala
 val paymentProviderABCSuite  = suite("ABC payment provider tests") {/* tests */}
 val paymentProviderXYZSuite  = suit("XYZ payment provider tests") {/* tests */}
-val allPaymentProvidersTests = suit("All payment providers tests")(paymentProviderABCSuite, paymentProviderXYZSuite)
+val allPaymentProvidersTests = suite("All payment providers tests")(paymentProviderABCSuite, paymentProviderXYZSuite)
 ```
 
 Real tests that run some logic and return testing result are created mostly with `testM` function. It expects two arguments, first one that will be the label of test
