@@ -1065,16 +1065,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       }
     }.eventually
 
-
   /**
    * Effectful version of `repeatUntil`. Will repeat until `f` succeeds
    */
-    final def repeatUntilM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, Nothing, B] = {
-      (self >>= f).eventually
-    }
-
-
-
+  final def repeatUntilM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, Nothing, B] =
+    (self >>= f).eventually
 
   /**
    * Retries with the specified retry policy.

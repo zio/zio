@@ -78,7 +78,7 @@ object ZIOSpec
           val res = for {
             ref <- Ref.make(0)
             num <- ref.get
-            io = if (num < 5) ref.update(_ + 1) else UIO(num)
+            io  = if (num < 5) ref.update(_ + 1) else UIO(num)
             res <- io.repeatUntil {
                     case i if i == 5 => ZIO.succeed(i)
                   }
