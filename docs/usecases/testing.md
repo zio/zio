@@ -156,7 +156,7 @@ test("Rich checking") {
 }
 ```
 There is also an easy way to test object's data for certain assertions with `hasField` which accepts besides a name, a mapping function from object to its tested property and `Assertion` object which will validate this property. Here our test checks if a person has at least 18 years and is not from USA. What is nice about those tests is that, test reporters will tell you exactly which assertion was broken. Let's say we would change `isGreaterThanEqualTo(18)` to `isGreaterThanEqualTo(40)` which will fail. Printout
-on console will be a nice detailed text what exactly went wrong:
+on console will be a nice detailed text explaining what exactly went wrong:
 
 ```bash
 [info]       User(Jonny,26,Address(Denmark,Copenhagen)) did not satisfy (hasField("age", _.age, isGreaterThanEqualTo(45)) && hasField("country", _.country, not(equalTo(USA))))
