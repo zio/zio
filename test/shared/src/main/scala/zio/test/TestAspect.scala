@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ clock, Cause, Promise, ZIO, ZManaged, ZSchedule }
+import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration._
 import zio.clock.Clock
 import zio.test.mock.Live
@@ -327,15 +327,9 @@ object TestAspect extends TimeoutVariants {
             s"Timeout of ${duration.render} exceeded. Couldn't interrupt test within ${interruptDuration.render}, possible resource leak!"
           TestFailure.Runtime(Cause.die(TestTimeoutException(msg)))
         }
-        for {
-          p <- Promise.make[TestFailure[E], TestSuccess[S]]
-          _ <- test
-                .raceAttempt(Live.live(ZIO.fail(timeoutFailure).delay(duration)))
-                .foldM(p.fail, p.succeed)
-                .fork
-          _      <- (Live.live(ZIO.unit.delay(duration + interruptDuration)) *> p.fail(interruptionTimeoutFailure)).fork
-          result <- p.await
-        } yield result
+        test
+          .raceAttempt(Live.live(ZIO.fail(timeoutFailure).delay(duration)))
+          .raceAttempt(Live.live(ZIO.fail(interruptionTimeoutFailure).delay(duration + interruptDuration)))
       }
     }
 
