@@ -212,7 +212,7 @@ lazy val benchmarks = project.module
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
-    // skip 2.13 benchmarks until monix & twitter-util publish for 2.13
+    // skip 2.13 benchmarks until twitter-util publishes for 2.13
     crossScalaVersions -= "2.13.0",
     //
     skip in publish := true,

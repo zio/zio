@@ -1857,7 +1857,7 @@ private[zio] trait ZIOFunctions extends Serializable {
               case Right(io) => Some(ZIO.succeed(io))
             } finally if (!cancel.isSet) cancel.set(ZIO.unit)
           })
-        }.onInterrupt(flatten(effectTotal(if (started.get) cancel.get() else ZIO.unit)))
+        }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
     }
   }
 

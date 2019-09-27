@@ -125,6 +125,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     deadlock regression 1                         $testDeadlockRegression
     check interruption regression 1               $testInterruptionRegression1
     max yield Ops 1                               $testOneMaxYield
+    simultaneous async+interrupt deadlock #785    $testAsyncInterruptRaceDeadlockRegression
 
   RTS option tests
     lifting a value to an option                  $testLiftingOptionalValue
@@ -1328,6 +1329,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
         _ <- UIO.unit
       } yield true
     )
+  }
+
+  def testAsyncInterruptRaceDeadlockRegression = {
+    val io = IO.never.fork.flatMap(_.interrupt).repeat(ZSchedule.recurs(10000))
+
+    unsafeRun(io.as(true).untraced)
   }
 
   def testBlockingThreadCaching = {
