@@ -104,7 +104,7 @@ As you can see the whole suit was assigned to `clockSuite` val. As it was said s
 
 ```scala
 val paymentProviderABCSuite  = suite("ABC payment provider tests") {/* tests */}
-val paymentProviderXYZSuite  = suit("XYZ payment provider tests") {/* tests */}
+val paymentProviderXYZSuite  = suite("XYZ payment provider tests") {/* tests */}
 val allPaymentProvidersTests = suite("All payment providers tests")(paymentProviderABCSuite, paymentProviderXYZSuite)
 ```
 
