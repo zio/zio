@@ -76,7 +76,7 @@ As a library with zero third party dependencies, this project is available on th
 
 **How zio-test was designed**
 
-`zio-test` is designed around the idea of making test first-class objects. What it means is that tests (and other accompanying concepts like assertions) become ordinary values that can be passed around, transformed and composed together. This approach allows for greater flexibility comparing to some other testing frameworks where tests and additional logic around tests had to be put into callbacks so that framework could make use of them. This approach also fits better with other `ZIO` concepts like `ZManaged` which can only be used within a scoped block of code. This also created a mismatch between `BeforeAll`, `AfterAll` callback-like methods when there were resources that should be opened and closed during test suite execution.
+`zio-test` is designed around the idea of making tests first-class objects. What it means is that tests (and other accompanying concepts like assertions) become ordinary values that can be passed around, transformed and composed together. This approach allows for greater flexibility comparing to some other testing frameworks where tests and additional logic around tests had to be put into callbacks so that framework could make use of them. This approach also fits better with other `ZIO` concepts like `ZManaged` which can only be used within a scoped block of code. This also created a mismatch between `BeforeAll`, `AfterAll` callback-like methods when there were resources that should be opened and closed during test suite execution.
 Another thing worth pointing out is that tests being values, are also effects. Implications of this design are far reaching. First of all well known problem of testing asynchronous value is gone. Whereas in other frameworks you have to somehow "run" your effects
 and at best wrap them in `scala.util.Future` because blocking would eliminate running on ScalaJS, `zio-test` expects you to create `ZIO` objects. There is no need for indirect transformations from one wrapping object to another. Second, because our tests are ordinary `ZIO` values we don't need to turn to testing framework for things like retries, timeouts and resource management. We can solve all those problems with full richness of functions that `ZIO` exposes.
 
@@ -199,11 +199,11 @@ object AllSuites extends DefaultRunnableSpec(suite("All tests")(suite1, suite2, 
 ```
 
 `DefaultRunnableSpec` is very similar in its logic of operations to `zio.App`. Instead of providing one `ZIO` application
-at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `MockEnvironment` which helps us with controling our systems infrastructure. More info on using mocks can be found in sections bellow. 
+at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `MockEnvironment` which helps us with controling our systems infrastructure. More info on using mocks can be found in sections below. 
 Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is expected where `R` can be at maximum of type `Environment` in `DefaultRunnableSpec` `R` cannot be more than `MockEnvironment`. So just like in normal application if our
 `R` is composed of some other modules we need to provide them first before test can be executed. How can we provide our dependencies?
 Here again the design of `zio-test` shines. Since our tests are ordinary values we can just transform them with a call to `mapTest`.
-It accepts a lambda of type `ZIO[R with MockSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with MockSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `DefaultRunnableSpec` cannot provide itself as those are users modules.
+It accepts a lambda of type `ZIO[R with MockSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with MockSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `DefaultRunnableSpec` cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added `zio-test` to SBTs `testFrameworks` our tests should be automatically picked up by SBT on invocation of `test`. However if we're not using SBT or have some other special needs `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `test:run`.
 
 
 
@@ -244,33 +244,6 @@ Before running this `Clock` has to be provided and the framework provides the Cl
 
 If you need to provide real implementations instead of the mocks to some part of your tests there is a `live` method which will transform your `ZIO[R, E, A]` to `ZIO[Live[R], E, A]`. Going from `R` to `Live[R]` instructs the framework that we really want to be provided with live implementations and not mocks.
 
-
-If you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test
-snapshots of data in particular point in time a nice pattern is to join these streams with `zipWithLatest` and 
-save snapshots of data in a `Queue`.
-
-```scala
- testM("zipWithLatest") {
-          val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
-          val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
-          val s3 = s1.zipWithLatest(s2)((_, _))
-          for {
-            _ <- MockClock.setTime(0.millis)
-            q <- Queue.unbounded[(Int, Int)]
-            _ <- s3.foreach(q.offer).fork
-            a <- q.take
-            _ <- MockClock.setTime(70.millis)
-            b <- q.take
-            _ <- MockClock.setTime(100.millis)
-            c <- q.take
-            _ <- MockClock.setTime(140.millis)
-            d <- q.take
-          } yield assert(a, equalTo(0 -> 0)) &&
-            assert(b, equalTo(0       -> 1)) &&
-            assert(c, equalTo(1       -> 1)) &&
-            assert(d, equalTo(1       -> 2))
-        }
-```
 
 _Mocking Random_
 
@@ -379,6 +352,37 @@ testM("THIS TEST WILL FAIL - Sleep and adjust can introduce races") {
       value   <- ref.get
     } yield assert(1, equalTo(value))
 ```
+
+
+The pattern with `Promise` and `await` can be generalized when we need to wait for multiple values using a `Queue`. We simply need to put multiple values into
+the queue and progress the clock multiple times and there is no need to create multiple promises.
+Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test
+snapshots of data in particular point in time `Queue` can help with that.
+
+```scala
+ testM("zipWithLatest") {
+          val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
+          val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
+          val s3 = s1.zipWithLatest(s2)((_, _))
+          for {
+            _ <- MockClock.setTime(0.millis)
+            q <- Queue.unbounded[(Int, Int)]
+            _ <- s3.foreach(q.offer).fork
+            a <- q.take
+            _ <- MockClock.setTime(70.millis)
+            b <- q.take
+            _ <- MockClock.setTime(100.millis)
+            c <- q.take
+            _ <- MockClock.setTime(140.millis)
+            d <- q.take
+          } yield assert(a, equalTo(0 -> 0)) &&
+            assert(b, equalTo(0       -> 1)) &&
+            assert(c, equalTo(1       -> 1)) &&
+            assert(d, equalTo(1       -> 2))
+        }
+```
+
+
 
 _Mocking Console_
 
