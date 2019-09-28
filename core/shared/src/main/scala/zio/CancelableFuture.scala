@@ -23,7 +23,7 @@ import scala.util.Try
 abstract class CancelableFuture[+E, +A](val future: Future[A]) extends Future[A] with FutureTransformCompat[A] {
 
   /**
-   * Immediately cancels the operation and returns a [[Future]] containing the result
+   * Immediately cancels the operation and returns a [[scala.concurrent.Future]] containing the result
    */
   def cancel: Future[Exit[E, A]]
 
