@@ -186,7 +186,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[R, A](register: (URIO[R, A] => Unit) => Either[Canceler, URIO[R, A]]): URIO[R, A] =
+  final def effectAsyncInterrupt[R, A](register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]]): URIO[R, A] =
     ZIO.effectAsyncInterrupt(register)
 
   /**

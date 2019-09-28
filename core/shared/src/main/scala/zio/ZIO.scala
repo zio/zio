@@ -99,7 +99,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Maps the success value of this effect to the specified constant value.
    */
-  final def as[B](b: B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
+  final def as[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstZIOFn(() => b))
 
   /**
    * Maps the error value of this effect to the specified constant value.
@@ -1839,12 +1839,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    * function must be called at most once.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
-    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
+    effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
       case (started, cancel) =>
         flatten {
           effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
@@ -1857,7 +1857,7 @@ private[zio] trait ZIOFunctions extends Serializable {
               case Right(io) => Some(ZIO.succeed(io))
             } finally if (!cancel.isSet) cancel.set(ZIO.unit)
           })
-        }.onInterrupt(flatten(effectTotal(if (started.get) cancel.get() else ZIO.unit)))
+        }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
     }
   }
 
@@ -2649,10 +2649,17 @@ object ZIO extends ZIOFunctions {
       new ZIO.Succeed(underlying(a))
   }
 
-  final class ConstFn[R, E, A, B](override val underlying: () => B) extends ZIOFn1[A, ZIO[R, E, B]] {
+  final class ConstZIOFn[R, E, A, B](override val underlying: () => B) extends ZIOFn1[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] = {
       val _ = a
       new ZIO.Succeed(underlying())
+    }
+  }
+
+  final class ConstFn[A, B](override val underlying: () => B) extends ZIOFn1[A, B] {
+    def apply(a: A): B = {
+      val _ = a
+      underlying()
     }
   }
 
