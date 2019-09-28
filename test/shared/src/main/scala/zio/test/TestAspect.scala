@@ -341,7 +341,8 @@ object TestAspect extends TimeoutVariants {
           testFiber        <- (test.either.flatMap(a => p.complete(ZIO.succeed(a)))).fork
           timeoutFiber     <- Live.live(p.complete(ZIO.succeed(Left(timeoutFailure))).delay(duration)).fork
           result           <- p.await <* timeoutFiber.interrupt
-          testFiberStopped <- stopTestFiber(testFiber)
+          testFiberExitOpt <- testFiber.poll
+          testFiberStopped <- testFiberExitOpt.fold(stopTestFiber(testFiber))(_ => ZIO.succeed(true))
           r                <- if (testFiberStopped) result.fold(ZIO.fail, ZIO.succeed) else ZIO.fail(interruptionTimeoutFailure)
         } yield r
       }
