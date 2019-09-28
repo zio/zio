@@ -17,6 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.FunctionIO
 import zio.test.sbt.TestingSupport._
 import zio.test.{ Assertion, DefaultRunnableSpec, TestAspect }
 
@@ -78,11 +79,17 @@ object ZTestFrameworkSpec {
   def testSummary() = {
     val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
-    val task    = runner.tasks(Array(taskDef)).head
+    val task = runner
+      .tasks(Array(taskDef))
+      .map(task => {
+        val zTestTask = task.asInstanceOf[BaseTestTask]
+        new ZTestTask(zTestTask.taskDef, zTestTask.testClassLoader, FunctionIO.succeed("foo") >>> zTestTask.sendSummary)
+      })
+      .head
 
     task.execute(_ => (), Array.empty)
 
-    assertEquals("done contains summary", runner.done(), task.asInstanceOf[ZTestTask].summaryRef.get ++ "\nDone")
+    assertEquals("done contains summary", runner.done(), "foo\nDone")
   }
 
   private def loadAndExecute(fqn: String, eventHandler: EventHandler = _ => (), loggers: Seq[Logger] = Nil) = {

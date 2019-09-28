@@ -19,24 +19,29 @@ package zio.test.sbt
 import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
+import zio.ZIO
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
-  val createdTasks = new AtomicReference[Array[ZTestTask]](Array.empty)
+  val summaries: AtomicReference[Vector[String]] = new AtomicReference(Vector.empty)
+
+  val sendSummary: SendSummary = SendSummary.fromSendM(
+    summary =>
+      ZIO.effectTotal {
+        summaries.updateAndGet(_ :+ summary)
+        ()
+      }
+  )
 
   def done(): String =
-    createdTasks.get
-      .map(_.summaryRef.get)
+    summaries.get
       .filter(_.nonEmpty)
       .flatMap(summary => summary :: "\n" :: Nil)
       .mkString("", "", "Done")
 
-  def tasks(defs: Array[TaskDef]): Array[Task] = {
-    val theTasks = defs.map(new ZTestTask(_, testClassLoader))
-    createdTasks.updateAndGet(_ ++ theTasks)
-
-    theTasks.asInstanceOf[Array[Task]]
-  }
+  def tasks(defs: Array[TaskDef]): Array[Task] =
+    defs.map(new ZTestTask(_, testClassLoader, sendSummary))
 }
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader) extends BaseTestTask(taskDef, testClassLoader)
+class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary)
+    extends BaseTestTask(taskDef, testClassLoader, sendSummary)

@@ -1,15 +1,13 @@
 package zio.test.sbt
 
-import java.util.concurrent.atomic.AtomicReference
-
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.clock.Clock
 import zio.test.TestRunner.ExecutionResult
 import zio.test.{ AbstractRunnableSpec, TestLogger }
 import zio.{ Runtime, ZIO }
 
-abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
-  val summaryRef: AtomicReference[String] = new AtomicReference[String]("")
+abstract class BaseTestTask(val taskDef: TaskDef, val testClassLoader: ClassLoader, val sendSummary: SendSummary)
+    extends Task {
 
   protected lazy val spec: AbstractRunnableSpec = {
     import org.portablescala.reflect._
@@ -25,9 +23,9 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
     for {
       result                         <- spec.run.provide(new SbtTestLogger(loggers) with Clock.Live)
       ExecutionResult(spec, summary) = result
+      _                              <- sendSummary.run(summary)
       events                         = ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
       _                              <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
-      _                              <- ZIO.effectTotal(summaryRef.set(summary))
     } yield ()
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
