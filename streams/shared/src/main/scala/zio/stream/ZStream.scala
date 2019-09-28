@@ -2445,14 +2445,15 @@ object ZStream {
         maybeStream <- UIO(
                         register(
                           k =>
-                            runtime.unsafeRunAsync_(
+                            runtime.unsafeRun(
                               k.foldCauseM(
-                                Pull.sequenceCauseOption(_) match {
-                                  case None    => output.offer(Pull.end)
-                                  case Some(c) => output.offer(Pull.halt(c))
-                                },
-                                a => output.offer(Pull.emit(a))
-                              )
+                                  Pull.sequenceCauseOption(_) match {
+                                    case None    => output.offer(Pull.end)
+                                    case Some(c) => output.offer(Pull.halt(c))
+                                  },
+                                  a => output.offer(Pull.emit(a))
+                                )
+                                .unit
                             )
                         )
                       ).toManaged_
@@ -2478,14 +2479,15 @@ object ZStream {
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register(
               k =>
-                runtime.unsafeRunAsync_(
+                runtime.unsafeRun(
                   k.foldCauseM(
-                    Pull.sequenceCauseOption(_) match {
-                      case None    => output.offer(Pull.end)
-                      case Some(c) => output.offer(Pull.halt(c))
-                    },
-                    a => output.offer(Pull.emit(a))
-                  )
+                      Pull.sequenceCauseOption(_) match {
+                        case None    => output.offer(Pull.end)
+                        case Some(c) => output.offer(Pull.halt(c))
+                      },
+                      a => output.offer(Pull.emit(a))
+                    )
+                    .unit
                 )
             ).toManaged_
       } yield output.take.flatten
@@ -2508,14 +2510,15 @@ object ZStream {
         eitherStream <- UIO(
                          register(
                            k =>
-                             runtime.unsafeRunAsync_(
+                             runtime.unsafeRun(
                                k.foldCauseM(
-                                 Pull.sequenceCauseOption(_) match {
-                                   case None    => output.offer(Pull.end)
-                                   case Some(c) => output.offer(Pull.halt(c))
-                                 },
-                                 a => output.offer(Pull.emit(a))
-                               )
+                                   Pull.sequenceCauseOption(_) match {
+                                     case None    => output.offer(Pull.end)
+                                     case Some(c) => output.offer(Pull.halt(c))
+                                   },
+                                   a => output.offer(Pull.emit(a))
+                                 )
+                                 .unit
                              )
                          )
                        ).toManaged_
