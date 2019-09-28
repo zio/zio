@@ -5,12 +5,12 @@ package zio
 
 // import com.github.ghik.silencer.silent
 // import zio.Cause.{ die, fail, Fail, Then }
-// import zio.duration._
 // import zio.internal.PlatformLive
-// import zio.clock.Clock
 import zio.Cause.die
 import zio.LatchOps._
 import zio.RTSSpecHelper._
+// import zio.clock.Clock
+// import zio.duration._
 import zio.test._
 import zio.test.Assertion._
 import zio.test.TestUtils.nonFlaky
@@ -306,31 +306,67 @@ object RTSSpec
         ),
         suite("RTS asynchronous correctness")(
           testM("simple async must return") {
-            Stub
+            val io = IO.effectAsync[Throwable, Int](k => k(IO.succeed(42)))
+            assertM(io, equalTo(42))
           },
           testM("simple asyncIO must return") {
-            Stub
+            val io = IO.effectAsyncM[Throwable, Int](k => IO.effectTotal(k(IO.succeed(42))))
+            assertM(io, equalTo(42))
           },
           testM("deep asyncIO doesn't block threads") {
             Stub
           },
           testM("interrupt of asyncPure register") {
-            Stub
+            for {
+              release <- Promise.make[Nothing, Unit]
+              acquire <- Promise.make[Nothing, Unit]
+              fiber <- IO
+                        .effectAsyncM[Nothing, Unit] { _ =>
+                          acquire.succeed(()).bracket(_ => release.succeed(()))(_ => IO.never)
+                        }
+                        .fork
+              _ <- acquire.await
+              _ <- fiber.interrupt.fork
+              a <- release.await
+            } yield assert(a, isUnit)
           },
           testM("sleep 0 must return") {
             Stub
           },
           testM("shallow bind of async chain") {
-            Stub
+            val io = (0 until 10).foldLeft[Task[Int]](IO.succeed[Int](0)) { (acc, _) =>
+              acc.flatMap(n => IO.effectAsync[Throwable, Int](_(IO.succeed(n + 1))))
+            }
+
+            assertM(io, equalTo(10))
           },
           testM("effectAsyncM can fail before registering") {
-            Stub
+            val zio = ZIO
+              .effectAsyncM[Any, String, Nothing](_ => ZIO.fail("Ouch"))
+              .flip
+
+            assertM(zio, equalTo("Ouch"))
           },
           testM("effectAsyncM can defect before registering") {
-            Stub
+            val zio = ZIO
+              .effectAsyncM[Any, String, Unit](_ => ZIO.effectTotal(throw new Error("Ouch")))
+              .run
+              .map(_.fold(_.defects.headOption.map(_.getMessage), _ => None))
+
+            assertM(zio, isSome(equalTo("Ouch")))
           },
           testM("second callback call is ignored") {
-            Stub
+            for {
+              _ <- IO.effectAsync[Throwable, Int] { k =>
+                    k(IO.succeed(42))
+                    Thread.sleep(500)
+                    k(IO.succeed(42))
+                  }
+              res <- IO.effectAsync[Throwable, String] { k =>
+                      Thread.sleep(1000)
+                      k(IO.succeed("ok"))
+                    }
+            } yield assert(res, equalTo("ok"))
           }
         ),
         suite("RTS concurrency correctness")(
