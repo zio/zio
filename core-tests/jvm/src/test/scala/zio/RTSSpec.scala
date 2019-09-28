@@ -32,7 +32,24 @@ object RTSSpec
             } yield assert(r1 + r2, equalTo("12"))
           },
           testM("blocking caches threads") {
-            Stub
+            import zio.blocking.Blocking
+
+            def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Blocking with Clock, Nothing, Boolean] =
+              blocking.blocking {
+                UIO(Thread.currentThread())
+                  .flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO
+                  .sleep(1.millis)
+              }
+
+            val io =
+              for {
+                accum <- Ref.make(Set.empty[Thread])
+                b     <- runAndTrack(accum).repeat(Schedule.doUntil[Boolean](_ == true))
+              } yield b
+
+            val env = new Clock.Live with Blocking.Live
+
+            assertM(io.provide(env), isTrue)
           },
           testM("now must be eager") {
             val io =
