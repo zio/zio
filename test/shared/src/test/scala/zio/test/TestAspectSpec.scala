@@ -149,12 +149,12 @@ object TestAspectSpec extends DefaultRuntime {
     unsafeRunToFuture {
       val spec = (testM("timeoutReportProblemWithInterruption") {
         assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(2.nanos, 1.nano)
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(10.millis, 1.nano)
       failedWith(
         spec,
         cause =>
           cause == TestTimeoutException(
-            "Timeout of 2 ns exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
+            "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
           )
       )
     }
