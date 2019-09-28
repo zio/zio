@@ -193,7 +193,8 @@ object RTSSpec
             assertM(io, isSome(equalTo(die(ExampleError))))
           },
           testM("catch sandbox terminate") {
-            Stub
+            val io = IO.effectTotal(throw ExampleError).sandbox.fold(identity, identity)
+            assertM(io, equalTo(die(ExampleError)))
           },
           testM("uncaught fail") {
             Stub
