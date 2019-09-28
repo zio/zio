@@ -13,17 +13,9 @@ Please read the [Contributor License Agreement](#ZIO-Contributor-License-Agreeme
 
 # Contributing
 
-To begin contributing, please follow these steps:
-
-1. [Get the Project](#Get-the-Project)
-2. [Build the Project](#Build-the-Project)
-3. [Find an Issue](#Find-an-Issue)
-4. [Fix an Issue](#Fix-an-Issue)
-5. [Prepare Your Code](#Prepare-Your-Code)
-6. [Create a Pull Request](#Create-a-Pull-Request)
-7. [Get Your Pull Request Merged](#Get-Your-Pull-Request-Merged)
-
 ## Getting Started
+
+To begin contributing, please follow these steps:
 
 ### Get The Project
 

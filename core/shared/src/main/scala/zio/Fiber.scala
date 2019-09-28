@@ -60,7 +60,9 @@ trait Fiber[+E, +A] { self =>
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the
    * fiber has been determined. Attempting to join a fiber that has errored will
-   * result in a catchable error, _if_ that error does not result from interruption.
+   * result in a catchable error. Joining an interrupted fiber will result in an
+   * "inner interruption" of this fiber, unlike interruption triggered by another
+   * fiber, "inner interruption" can be catched and recovered.
    *
    * @return `IO[E, A]`
    */

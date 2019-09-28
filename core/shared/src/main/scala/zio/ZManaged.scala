@@ -665,6 +665,31 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged.whenM(b)(self)
 
   /**
+   * Modifies this `ZManaged` to provide a canceler that can be used to eagerly
+   * execute the finalizer of this `ZManaged`. The canceler will run
+   * uninterruptibly with an exit value indicating that the effect was
+   * interrupted, and if completed will cause the regular finalizer to not run.
+   */
+  final def withEarlyRelease: ZManaged[R, E, (URIO[R, Any], A)] =
+    withEarlyReleaseExit(Exit.interrupt)
+
+  /**
+   * A more powerful version of `withEarlyRelease` that allows specifying an
+   * exit value in the event of early release.
+   */
+  final def withEarlyReleaseExit(exit: Exit[Any, Any]): ZManaged[R, E, (URIO[R, Any], A)] =
+    ZManaged[R, E, (URIO[R, Any], A)] {
+      reserve.flatMap {
+        case Reservation(acquire, release) =>
+          Ref.make(true).map { finalize =>
+            val canceler  = (release(exit) *> finalize.set(false)).uninterruptible
+            val finalizer = (e: Exit[_, _]) => release(e).whenM(finalize.get)
+            Reservation(acquire.map((canceler, _)), finalizer)
+          }
+      }
+    }
+
+  /**
    * Named alias for `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
@@ -962,7 +987,7 @@ object ZManaged {
     ZManaged.make(fa)(a => UIO(a.close()))
 
   /**
-   * Lifts a ZIO[R, E, R] into ZManaged[R, E, R] with no release action. Use
+   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. Use
    * with care.
    */
   final def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
@@ -1225,6 +1250,54 @@ object ZManaged {
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
   final def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZManaged[R, E, (B, A)] = fromFunction(_.swap)
+
+  /**
+   * Returns a ZManaged value that represents a managed resource that can be safely
+   * swapped within the scope of the ZManaged. The function provided inside the
+   * ZManaged can be used to switch the resource currently in use.
+   *
+   * When the resource is switched, the finalizer for the previous finalizer will
+   * be executed uninterruptibly. If the effect executing inside the [[ZManaged#use]]
+   * is interrupted, the finalizer for the resource currently in use is guaranteed
+   * to execute.
+   *
+   * This constructor can be used to create an expressive control flow that uses
+   * several instances of a managed resource. For example:
+   * {{{
+   * def makeWriter: Task[FileWriter]
+   * trait FileWriter {
+   *   def write(data: Int): Task[Unit]
+   *   def close: UIO[Unit]
+   * }
+   *
+   * val elements = List(1, 2, 3, 4)
+   * val writingProgram =
+   *   ZManaged.switchable[Any, Throwable, FileWriter].use { switchWriter =>
+   *     ZIO.foreach_(elements) { element =>
+   *       for {
+   *         writer <- switchWriter(makeWriter.toManaged(_.close))
+   *         _      <- writer.write(element)
+   *       } yield ()
+   *     }
+   *   }
+   * }}}
+   */
+  final def switchable[R, E, A]: ZManaged[R, Nothing, ZManaged[R, E, A] => ZIO[R, E, A]] =
+    for {
+      finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
+      switch = { (newResource: ZManaged[R, E, A]) =>
+        ZIO.uninterruptibleMask { restore =>
+          for {
+            _ <- finalizerRef
+                  .modify(f => (f, _ => UIO.unit))
+                  .flatMap(f => f(Exit.interrupt))
+            reservation <- newResource.reserve
+            _           <- finalizerRef.set(reservation.release)
+            a           <- restore(reservation.acquire)
+          } yield a
+        }
+      }
+    } yield switch
 
   /**
    * Alias for [[ZManaged.foreach]]
