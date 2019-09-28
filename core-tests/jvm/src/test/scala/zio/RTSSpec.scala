@@ -1,16 +1,16 @@
 package zio
 
-// import java.util.concurrent.Callable
-// import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.Callable
+import java.util.concurrent.atomic.AtomicInteger
 
 // import com.github.ghik.silencer.silent
 // import zio.Cause.{ die, fail, Fail, Then }
-// import zio.internal.PlatformLive
 import zio.Cause.die
 import zio.LatchOps._
 import zio.RTSSpecHelper._
-// import zio.clock.Clock
-// import zio.duration._
+import zio.clock.Clock
+import zio.duration._
+import zio.internal.PlatformLive
 import zio.test._
 import zio.test.Assertion._
 import zio.test.TestUtils.nonFlaky
@@ -454,13 +454,53 @@ object RTSSpec
         ),
         suite("RTS regression tests")(
           testM("deadlock regression 1") {
-            Stub
+            import java.util.concurrent.Executors
+
+            val rts = new DefaultRuntime {}
+            val e   = Executors.newSingleThreadExecutor()
+
+            (0 until 10000).foreach { _ =>
+              rts.unsafeRun {
+                IO.effectAsync[Nothing, Int] { k =>
+                  val c: Callable[Unit] = () => k(IO.succeed(1))
+                  val _                 = e.submit(c)
+                }
+              }
+            }
+
+            assertM(ZIO.effect(e.shutdown()), isUnit)
           },
           testM("check interruption regression 1") {
-            Stub
+            val c = new AtomicInteger(0)
+
+            def test =
+              IO.effect(if (c.incrementAndGet() <= 1) throw new RuntimeException("x"))
+                .forever
+                .ensuring(IO.unit)
+                .either
+                .forever
+
+            val zio =
+              for {
+                f <- test.fork
+                c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
+                      .repeat(ZSchedule.doUntil[Int](_ >= 1)) <* f.interrupt
+              } yield c
+
+            assertM(zio.provide(Clock.Live), isGreaterThanEqualTo(1))
           },
           testM("max yield Ops 1") {
-            Stub
+            val rts = new DefaultRuntime {
+              override val Platform = PlatformLive.makeDefault(1)
+            }
+
+            val io =
+              for {
+                _ <- UIO.unit
+                _ <- UIO.unit
+              } yield true
+
+            assertM(ZIO.effect(rts.unsafeRun(io)), isTrue)
           }
         ),
         suite("RTS option tests")(
