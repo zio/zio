@@ -331,7 +331,20 @@ object RTSSpec
             assertM(io, equalTo(42))
           },
           testM("deep asyncIO doesn't block threads") {
-            Stub
+            def stackIOs(clock: Clock.Service[Any], count: Int): UIO[Int] =
+              if (count <= 0) IO.succeed(42)
+              else asyncIO(clock, stackIOs(clock, count - 1))
+
+            def asyncIO(clock: Clock.Service[Any], cont: UIO[Int]): UIO[Int] =
+              IO.effectAsyncM[Nothing, Int] { k =>
+                clock.sleep(5.millis) *> cont *> IO.effectTotal(k(IO.succeed(42)))
+              }
+
+            val procNum = java.lang.Runtime.getRuntime.availableProcessors()
+
+            val io = clock.clockService.flatMap(stackIOs(_, procNum + 1))
+
+            assertM(io.provide(Clock.Live), equalTo(42))
           },
           testM("interrupt of asyncPure register") {
             for {
