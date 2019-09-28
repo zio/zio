@@ -20,7 +20,7 @@ import scala.concurrent.{ CanAwait, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 import scala.util.Try
 
-private[zio] abstract class CancelableFuture[+E, +A](val future: Future[A])
+abstract class CancelableFuture[+E, +A](val future: Future[A])
     extends Future[A]
     with FutureTransformCompat[A] {
 
