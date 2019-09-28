@@ -363,7 +363,7 @@ object RTSSpec
             } yield assert(a, isUnit)
           },
           testM("sleep 0 must return") {
-            Stub
+            assertM(clock.sleep(1.nanos).provide(Clock.Live), isUnit)
           },
           testM("shallow bind of async chain") {
             val io = (0 until 10).foldLeft[Task[Int]](IO.succeed[Int](0)) { (acc, _) =>
