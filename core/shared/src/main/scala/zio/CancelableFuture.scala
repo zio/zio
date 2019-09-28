@@ -20,9 +20,7 @@ import scala.concurrent.{ CanAwait, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 import scala.util.Try
 
-abstract class CancelableFuture[+E, +A](val future: Future[A])
-    extends Future[A]
-    with FutureTransformCompat[A] {
+abstract class CancelableFuture[+E, +A](val future: Future[A]) extends Future[A] with FutureTransformCompat[A] {
 
   /**
    * Immediately cancels the operation and returns a [[Future]] containing the result
