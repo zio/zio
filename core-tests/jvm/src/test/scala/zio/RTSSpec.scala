@@ -8,6 +8,7 @@ package zio
 // import zio.duration._
 // import zio.internal.PlatformLive
 // import zio.clock.Clock
+import zio.Cause.die
 import zio.LatchOps._
 import zio.RTSSpecHelper._
 import zio.test._
@@ -36,7 +37,7 @@ object RTSSpec
           testM("now must be eager") {
             val io =
               try {
-                IO.succeed(throw new Throwable("now"))
+                IO.succeed(throw ExampleError)
                 IO.succeed(false)
               } catch {
                 case _: Throwable => IO.succeed(true)
@@ -47,7 +48,7 @@ object RTSSpec
           testM("effectSuspend must be lazy") {
             val io =
               try {
-                IO.effectSuspend(throw new Throwable("lazy"))
+                IO.effectSuspend(throw ExampleError)
                 IO.succeed(false)
               } catch {
                 case _: Throwable => IO.succeed(true)
@@ -59,16 +60,12 @@ object RTSSpec
             Stub
           },
           testM("effectSuspend must catch throwable") {
-            val error = new Throwable("suspend")
-            val zio   = ZIO.effectSuspend[Any, Nothing](throw error).either
-
-            assertM(zio, isLeft(equalTo(error)))
+            val zio = ZIO.effectSuspend[Any, Nothing](throw ExampleError).either
+            assertM(zio, isLeft(equalTo(ExampleError)))
           },
           testM("effectSuspendWith must catch throwable") {
-            val error = new Throwable("suspend with")
-            val zio   = ZIO.effectSuspendWith[Any, Nothing](_ => throw error).either
-
-            assertM(zio, isLeft(equalTo(error)))
+            val zio = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either
+            assertM(zio, isLeft(equalTo(ExampleError)))
           },
           testM("suspend must be evaluatable") {
             assertM(IO.effectSuspendTotal(IO.effectTotal(42)), equalTo(42))
@@ -97,7 +94,7 @@ object RTSSpec
           },
           testM("effect, bind, map, redeem") {
             def fibIo(n: Int): Task[BigInt] =
-              if (n <= 1) Task.effect[BigInt](throw new Error).catchAll(_ => Task.effect(n))
+              if (n <= 1) Task.effect[BigInt](throw ExampleError).catchAll(_ => Task.effect(n))
               else
                 for {
                   a <- fibIo(n - 1)
@@ -137,9 +134,8 @@ object RTSSpec
             assertM(l.zipWith(r)(_ && _), isTrue)
           },
           testM("flip must make error into value") {
-            val error = new Throwable("left")
-            val io    = IO.fail(error).flip
-            assertM(io, equalTo(error))
+            val io = IO.fail(ExampleError).flip
+            assertM(io, equalTo(ExampleError))
           },
           testM("flip must make value into error") {
             val io = IO.succeed(42).flip
@@ -152,22 +148,31 @@ object RTSSpec
         ),
         suite("RTS failure")(
           testM("error in sync effect") {
-            Stub
+            val io = IO.effect[Unit](throw ExampleError).fold[Option[Throwable]](Some(_), _ => None)
+            assertM(io, isSome(equalTo(ExampleError)))
           },
           testM("attempt . fail") {
-            Stub
+            val io1 = TaskExampleError.either
+            val io2 = IO.effectSuspendTotal(IO.effectSuspendTotal(TaskExampleError).either)
+
+            (io1 <*> io2).map {
+              case (r1, r2) =>
+                assert(r1, isLeft(equalTo(ExampleError))) && assert(r2, isLeft(equalTo(ExampleError)))
+            }
           },
           testM("deep attempt sync effect error") {
-            Stub
+            assertM(deepErrorEffect(100).either, isLeft(equalTo(ExampleError)))
           },
           testM("deep attempt fail error") {
-            Stub
+            assertM(deepErrorFail(100).either, isLeft(equalTo(ExampleError)))
           },
           testM("attempt . sandbox . terminate") {
-            Stub
+            val io = IO.effectTotal[Int](throw ExampleError).sandbox.either
+            assertM(io, isLeft(equalTo(die(ExampleError))))
           },
           testM("fold . sandbox . terminate") {
-            Stub
+            val io = IO.effectTotal[Int](throw ExampleError).sandbox.fold(Some(_), Function.const(None))
+            assertM(io, isSome(equalTo(die(ExampleError))))
           },
           testM("catch sandbox terminate") {
             Stub
@@ -258,22 +263,45 @@ object RTSSpec
         ),
         suite("RTS synchronous stack safety")(
           testM("deep map of now") {
-            Stub
+            assertM(deepMapNow(10000), equalTo(10000))
           },
           testM("deep map of sync effect") {
-            Stub
+            assertM(deepMapEffect(10000), equalTo(10000))
           },
           testM("deep attempt") {
-            Stub
+            val io = (0 until 10000).foldLeft(IO.effect(())) { (acc, _) =>
+              acc.either.unit
+            }
+            assertM(io, equalTo(()))
           },
           testM("deep flatMap") {
-            Stub
+            def fib(n: Int, a: BigInt = 0, b: BigInt = 1): IO[Error, BigInt] =
+              IO.succeed(a + b).flatMap { b2 =>
+                if (n > 0)
+                  fib(n - 1, b, b2)
+                else
+                  IO.succeed(b2)
+              }
+
+            val expected = BigInt(
+              "113796925398360272257523782552224175572745930353730513145086634176691092536145985470146129334641866902783673042322088625863396052888690096969577173696370562180400527049497109023054114771394568040040412172632376"
+            )
+
+            assertM(fib(1000), equalTo(expected))
           },
           testM("deep absolve/attempt is identity") {
-            Stub
+            val io = (0 until 1000).foldLeft(IO.succeed(42)) { (acc, _) =>
+              IO.absolve(acc.either)
+            }
+
+            assertM(io, equalTo(42))
           },
           testM("deep async absolve/attempt is identity") {
-            Stub
+            val io = (0 until 1000).foldLeft(IO.effectAsync[Int, Int](k => k(IO.succeed(42)))) { (acc, _) =>
+              IO.absolve(acc.either)
+            }
+
+            assertM(io, equalTo(42))
           }
         ),
         suite("RTS asynchronous correctness")(
@@ -581,10 +609,10 @@ object RTSSpecHelper {
   val Stub = ZIO.succeed(1).map(v => assert(v, equalTo(v)))
 
   // Utility stuff
-  val ExampleError    = new Exception("Oh noes!")
-  val InterruptCause1 = new Exception("Oh noes 1!")
-  val InterruptCause2 = new Exception("Oh noes 2!")
-  val InterruptCause3 = new Exception("Oh noes 3!")
+  val ExampleError    = new Throwable("Oh noes!")
+  val InterruptCause1 = new Throwable("Oh noes 1!")
+  val InterruptCause2 = new Throwable("Oh noes 2!")
+  val InterruptCause3 = new Throwable("Oh noes 3!")
 
   val TaskExampleError: Task[Int] = IO.fail[Throwable](ExampleError)
 
