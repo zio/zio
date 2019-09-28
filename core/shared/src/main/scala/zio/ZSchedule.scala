@@ -20,8 +20,6 @@ import zio.clock.Clock
 import zio.duration.Duration
 import zio.random.Random
 import java.util.concurrent.TimeUnit
-// import zio.random.{ nextDouble, Random }
-// import zio.random.Random
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -70,7 +68,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def &&[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
-      type State        = (self.State, that.State)
+      type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
       val extract = { case (a, (s1, s2)) => (self.extract(a, s1), that.extract(a, s2)) }
       val update = {
@@ -84,11 +82,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def ***[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, (A, C), (B, D)] =
     new ZSchedule[R1, (A, C), (B, D)] {
-      type State  = (self.State, that.State)
+      type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
       val extract = { case ((a1, a2), (s1, s2)) => (self.extract(a1, s1), that.extract(a2, s2)) }
-      val update = { case ((a1, a2), (s1, s2)) =>
-        self.update(a1, s1).zipPar(that.update(a2, s2))
+      val update = {
+        case ((a1, a2), (s1, s2)) =>
+          self.update(a1, s1).zipPar(that.update(a2, s2))
       }
     }
 
@@ -103,10 +102,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def +++[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, Either[A, C], Either[B, D]] =
     new ZSchedule[R1, Either[A, C], Either[B, D]] {
-      type State  = (self.State, that.State)
+      type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = { case (a, (s1, s2)) =>
-        a.fold(a => Left(self.extract(a, s1)), c => Right(that.extract(c, s2)))
+      val extract = {
+        case (a, (s1, s2)) =>
+          a.fold(a => Left(self.extract(a, s1)), c => Right(that.extract(c, s2)))
       }
       val update = (a: Either[A, C], s: State) =>
         a match {
@@ -139,7 +139,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def >>>[R1 <: R, C](that: ZSchedule[R1, B, C]): ZSchedule[R1, A, C] =
     new ZSchedule[R1, A, C] {
-      type State  = (self.State, that.State)
+      type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
       val extract = { case (a, (s1, s2)) => that.extract(self.extract(a, s1), s2) }
       val update = {
@@ -155,22 +155,23 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule that continues as long as either schedule continues,
    * using the minimum of the delays of the two schedules.
    */
-  final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = {
+  final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State        = (self.State, that.State)
       type RunningState = (self.State, that.State)
       val initial = self.initial zip that.initial
-      val extract = { case (a, (s1, s2)) =>
+      val extract = {
+        case (a, (s1, s2)) =>
           (self.extract(a, s1), that.extract(a, s2))
       }
-      val update = { case (a, (s1, s2)) =>
+      val update = {
+        case (a, (s1, s2)) =>
           self.update(a, s1).raceEither(that.update(a, s2)).map {
-            case Left(s1) => (s1, s2)
+            case Left(s1)  => (s1, s2)
             case Right(s2) => (s1, s2)
           }
       }
     }
-  }
 
   /**
    * Chooses between two schedules with a common output.
@@ -210,10 +211,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def andThenEither[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, Either[B, C]] =
     new ZSchedule[R1, A1, Either[B, C]] {
-      type State        = Either[self.State, that.State]
-      val initial       = self.initial.map(Left(_))
-      val extract = { case (a, s) =>
-        s.fold(b => Left(self.extract(a, b)), c => Right(that.extract(a, c)))
+      type State = Either[self.State, that.State]
+      val initial = self.initial.map(Left(_))
+      val extract = {
+        case (a, s) =>
+          s.fold(b => Left(self.extract(a, b)), c => Right(that.extract(a, c)))
       }
 
       val update = (a: A1, state: State) =>
@@ -251,7 +253,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         (a, s) =>
           test(a, self.extract(a, s)).flatMap {
             case false => ZIO.fail(())
-            case true => update(a, s)
+            case true  => update(a, s)
           }
     )
 
@@ -275,7 +277,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def contramap[A1](f: A1 => A): ZSchedule[R, A1, B] =
     new ZSchedule[R, A1, B] {
-      type State  = self.State
+      type State = self.State
       val initial = self.initial
       val extract = (a, s) => self.extract(f(a), s)
       val update  = (a, s) => self.update(f(a), s)
@@ -335,20 +337,15 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule that folds over the outputs of this one.
    */
   final def fold[Z](z: Z)(f: (Z, B) => Z): ZSchedule[R, A, Z] =
-    foldM[Z](IO.succeed(z))((z, b) => IO.succeed(f(z, b)))
-
-  /**
-   * Returns a new schedule that effectfully folds over the outputs of this one.
-   */
-  final def foldM[Z](z: UIO[Z])(f: (Z, B) => UIO[Z]): ZSchedule[R, A, Z] =
     new ZSchedule[R, A, Z] {
-      type State        = (self.State, Z)
-      val initial = self.initial.zip(z)
-      val extract =  (_, s) => s._2
-      val update = { case (a, (s, z)) =>
-        self
-          .update(a, s)
-          .flatMap(s => f(z, self.extract(a, s)).map((s, _)))
+      type State = (self.State, Z)
+      val initial = self.initial.map((_, z))
+      val extract = { case (a, (s, z)) => f(z, self.extract(a, s)) }
+      val update = {
+        case (a, (s, z)) =>
+          self
+            .update(a, s)
+            .map(s1 => (s1, f(z, self.extract(a, s))))
       }
     }
 
@@ -358,11 +355,10 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def forever: ZSchedule[R, A, B] =
     new ZSchedule[R, A, B] {
-      type State  = self.State
+      type State = self.State
       val initial = self.initial
       val extract = self.extract
-      val update  = (a, s) =>
-        self.update(a, s) orElse self.initial.flatMap(self.update(a, _))
+      val update  = (a, s) => self.update(a, s) orElse self.initial.flatMap(self.update(a, _))
     }
 
   /**
@@ -371,7 +367,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def initialized[R1 <: R, A1 <: A](f: ZIO[R1, Nothing, State] => ZIO[R1, Nothing, State]): ZSchedule[R1, A1, B] =
     new ZSchedule[R1, A1, B] {
-      type State  = self.State
+      type State = self.State
       val initial = f(self.initial)
       val extract = self.extract
       val update  = self.update
@@ -380,14 +376,16 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Applies random jitter to all sleeps executed by the schedule.
    */
-  final def jittered_[R1 <: R with Clock with Random](min: Double, max: Double)(f: (R1, Clock) => R1): ZSchedule[R1, A, B] = {
+  final def jittered_[R1 <: R with Clock with Random](min: Double, max: Double)(
+    f: (R1, Clock) => R1
+  ): ZSchedule[R1, A, B] = {
     final class Proxy(clock0: Clock.Service[Any], random0: Random.Service[Any]) extends Clock {
       val clock = new Clock.Service[Any] {
         def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
-        def currentDateTime = clock0.currentDateTime
-        val nanoTime = clock0.nanoTime
+        def currentDateTime             = clock0.currentDateTime
+        val nanoTime                    = clock0.nanoTime
         def sleep(duration: Duration) = random0.nextDouble.flatMap { random =>
-          val d = duration.toNanos
+          val d        = duration.toNanos
           val jittered = d * min * (1 - random) + d * max * random
           clock0.sleep(Duration.fromNanos(jittered.toLong))
         }
@@ -396,11 +394,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, A, B] {
       type State = (self.State, R1)
       val initial = for {
-        init <- self.initial
-        env  <- ZIO.environment[R1]
-      } yield (init, f(env, new Proxy(env.clock, env.random)))
-      val extract = (a, s) => self.extract(a, s._1)
-      val update = { case (a, (s, env)) => self.update(a, s).provide(env).map((_, env)) }
+        env  <- ZIO.environment[R1].map(env => f(env, new Proxy(env.clock, env.random)))
+        init <- self.initial.provide(env)
+      } yield (init, env)
+      val extract = { case (a, (s, _))   => self.extract(a, s) }
+      val update  = { case (a, (s, env)) => self.update(a, s).provide(env).map((_, env)) }
     }
   }
 
@@ -427,7 +425,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def map[A1 <: A, C](f: B => C): ZSchedule[R, A1, C] =
     new ZSchedule[R, A1, C] {
-      type State  = self.State
+      type State = self.State
       val initial = self.initial
       val extract = (a, s) => f(self.extract(a, s))
       val update  = self.update
@@ -446,7 +444,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def provide(r: R): ZSchedule[Any, A, B] =
     new ZSchedule[Any, A, B] {
-      type State        = self.State
+      type State = self.State
       val initial = self.initial.provide(r)
       val extract = self.extract
       val update  = self.update(_, _).provide(r)
@@ -493,10 +491,10 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * specified update transformer.
    */
   final def updated[R1 <: R, A1 <: A, C](
-    f: ((A, State) => ZIO[R, Unit, State]) => (A1, State) => ZIO[R1, Unit, State],
+    f: ((A, State) => ZIO[R, Unit, State]) => (A1, State) => ZIO[R1, Unit, State]
   ): ZSchedule[R1, A1, B] =
     new ZSchedule[R1, A1, B] {
-      type State  = self.State
+      type State = self.State
       val initial = self.initial
       val extract = self.extract
       val update  = f(self.update)
@@ -522,7 +520,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       update =>
         (a, s) =>
           f(a).flatMap {
-            case true => ZIO.fail(())
+            case true  => ZIO.fail(())
             case false => update(a, s)
           }
     )
@@ -542,7 +540,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       update =>
         (a, s) =>
           f(self.extract(a, s)).flatMap {
-            case true => ZIO.fail(())
+            case true  => ZIO.fail(())
             case false => update(a, s)
           }
     )
@@ -572,7 +570,14 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * is satisfied on the output value of the schedule.
    */
   final def whileOutput(f: B => Boolean): ZSchedule[R, A, B] =
-    check((_, b) => IO.succeed(f(b)))
+    whileOutputM(b => IO.succeed(f(b)))
+
+  /**
+   * Returns a new schedule that continues this schedule so long as the effectful predicate
+   * is satisfied on the output value of the schedule.
+   */
+  final def whileOutputM(f: B => UIO[Boolean]): ZSchedule[R, A, B] =
+    check((_, b) => f(b))
 
   /**
    * Named alias for `<*>`.
@@ -594,8 +599,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 
 object ZSchedule {
 
-  implicit class ZScheduleDefaultEnvironmentOps[A, B](sched: ZSchedule[DefaultRuntime#Environment, A, B]) {
-    type Env = DefaultRuntime#Environment
+  // todo: Encode this for jvm and js seperately
+  implicit class ZScheduleDefaultEnvironmentOps[A, B](
+    sched: ZSchedule[Clock with zio.console.Console with zio.system.System with zio.random.Random, A, B]
+  ) {
+    // Blocking is excluded here because of js
+    type Env = Clock with zio.console.Console with zio.system.System with zio.random.Random
 
     /**
      * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0.
@@ -607,18 +616,14 @@ object ZSchedule {
      * Applies random jitter to all sleeps executed by the schedule.
      */
     final def jittered(min: Double, max: Double): ZSchedule[Env, A, B] =
-      sched.jittered_[Env](min, max)((old, clock0) =>
-        new zio.clock.Clock
-          with zio.console.Console
-          with zio.system.System
-          with zio.random.Random
-          with zio.blocking.Blocking {
-            val clock = clock0.clock
-            val console = old.console
-            val system = old.system
-            val random = old.random
-            val blocking = old.blocking
-      })
+      sched.jittered_[Env](min, max) { (old, clock0) =>
+        new zio.clock.Clock with zio.console.Console with zio.system.System with zio.random.Random {
+          val clock   = clock0.clock
+          val console = old.console
+          val system  = old.system
+          val random  = old.random
+        }
+      }
   }
 
   final def apply[R, S, A, B](
@@ -627,8 +632,7 @@ object ZSchedule {
     extract0: (A, S) => B
   ): ZSchedule[R, A, B] =
     new ZSchedule[R, A, B] {
-      type State        = S
-      type RunningState = S
+      type State = S
       val initial = initial0
       val extract = extract0
       val update  = update0
@@ -707,10 +711,10 @@ object ZSchedule {
    * */
   final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] =
     new ZSchedule[Any, A, Option[B]] {
-      type State  = Unit
+      type State = Unit
       val initial = ZIO.unit
       val extract = (a, _) => pf.lift(a)
-      val update = (a, _) => pf.lift(a).fold[IO[Unit, Unit]](ZIO.succeed(()))(_ => ZIO.fail(()))
+      val update  = (a, _) => pf.lift(a).fold[IO[Unit, Unit]](ZIO.succeed(()))(_ => ZIO.fail(()))
     }
 
   /**
@@ -727,7 +731,7 @@ object ZSchedule {
   final val elapsed: ZSchedule[Clock, Any, Duration] = {
     ZSchedule[Clock, (Long, Long), Any, Duration](
       clock.nanoTime.map((_, 0L)),
-      { case (_, (start, _)) => clock.nanoTime.map(currentTime => (start, currentTime - start)) },
+      { case (_, (start, _))   => clock.nanoTime.map(currentTime => (start, currentTime - start)) },
       { case (_, (_, elapsed)) => Duration.fromNanos(elapsed) }
     )
   }
@@ -738,7 +742,7 @@ object ZSchedule {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, Duration] =
-    delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
+    delayed(forever.map(i => base * math.pow(factor, (i + 1).doubleValue)))
 
   /**
    * A schedule that always recurs, increasing delays by summing the
@@ -747,7 +751,7 @@ object ZSchedule {
    */
   final def fibonacci(one: Duration): ZSchedule[Clock, Any, Duration] =
     delayed {
-      unfold[(Duration, Duration)]((Duration.Zero, one)) {
+      unfold[(Duration, Duration)]((one, one)) {
         case (a1, a2) => (a2, a1 + a2)
       }.map(_._1)
     }
@@ -808,7 +812,7 @@ object ZSchedule {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def linear(base: Duration): ZSchedule[Clock, Any, Duration] =
-    delayed(forever.map(i => base * i.doubleValue()))
+    delayed(forever.map(i => base * (i + 1).doubleValue()))
 
   /**
    * A schedule that recurs forever, dumping input values to the specified
@@ -835,7 +839,7 @@ object ZSchedule {
    * If 0 or negative numbers are given, the operation is not done at all so
    * that in `(op: IO[E, A]).repeat(Schedule.recurs(0)) `, op is not done at all.
    */
-  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ <= n)
+  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ < n)
 
   /**
    * A schedule that waits for the specified amount of time between each
@@ -845,8 +849,8 @@ object ZSchedule {
    * |action|-----interval-----|action|-----interval-----|action|
    * </pre>
    */
-  final def spaced(interval: Duration): ZSchedule[Any, Any, Duration] =
-    forever.map(_ => interval)
+  final def spaced(interval: Duration): ZSchedule[Clock, Any, Duration] =
+    delayed(forever.map(_ => interval))
 
   /**
    * A schedule that recurs forever, returning the constant for every output.

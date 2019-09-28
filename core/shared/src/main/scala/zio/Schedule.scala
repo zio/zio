@@ -25,18 +25,6 @@ object Schedule {
    */
   final val forever: Schedule[Any, Int] = ZSchedule.forever
 
-  // /**
-  //  * See [[ZSchedule.decision]]
-  //  */
-  // final val decision: Schedule[Any, Boolean] =
-  //   ZSchedule.decision
-
-  // /**
-  //  * See [[ZSchedule.delay]]
-  //  */
-  // final val delay: Schedule[Any, Duration] =
-  //   ZSchedule.delay
-
   /**
    * See [[ZSchedule.never]]
    */
@@ -149,12 +137,6 @@ object Schedule {
    * See [[ZSchedule.recurs]]
    */
   final def recurs(n: Int): Schedule[Any, Int] = ZSchedule.recurs(n)
-
-  /**
-   * See [[ZSchedule.spaced]]
-   */
-  final def spaced(interval: Duration): Schedule[Any, Duration] =
-    ZSchedule.spaced(interval)
 
   /**
    * See [[ZSchedule.succeed]]

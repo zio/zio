@@ -271,9 +271,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
      *
      * One fiber reads from the `self` stream, and is responsible for aggregating the elements
      * using the sink. Another fiber reads the aggregated elements when the sink has signalled
-     * completion or the delay from the schedule has expired. The delay for each iteartion of
+     * completion or the delay from the schedule has expired. The delay for each iteration of
      * the consumer is derived from the the last aggregate pulled. When the schedule signals
-     * completion, its result is also emitted into the stream.
+     * completion, its result is also emitted into the stream. Note that the schedule will only
+     * advance if the collection was triggered by the schedule and not by the sink.
      *
      * The two fibers share the sink's state in a Ref protected by a semaphore. The state machine
      * is defined by the `State` type. See the comments on `producer` and `consumer` for more details
@@ -369,7 +370,6 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     case class UnfoldState(
       lastBatch: Option[B],
       scheduleState: schedule.State,
-      lastExtraction: Option[() => C],
       nextBatchCompleted: Promise[Nothing, Unit]
     )
 
@@ -377,23 +377,22 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       unfoldState: UnfoldState,
       stateVar: Ref[State],
       permits: Semaphore
-    ): ZIO[R1, E1, Option[(Chunk[Either[C, B]], UnfoldState)]] = {
+    ): ZIO[R1 with Clock, E1, Option[(Chunk[Either[C, B]], UnfoldState)]] = {
       def extract(
-        nextState: schedule.State,
-        nextLastExtraction: Option[() => C]
+        nextState: schedule.State
       ): ZIO[R1, E1, Option[(Chunk[Either[C, B]], UnfoldState)]] =
         withStateVar(stateVar, permits) {
           case s @ State.Empty(_, notifyDone) =>
             // Empty state means the producer hasn't done anything yet, so nothing to do other
             // than restart with the provided promise
             UIO.succeed(
-              UIO.succeed(Some(Chunk.empty -> UnfoldState(None, nextState, nextLastExtraction, notifyDone))) -> s
+              UIO.succeed(Some(Chunk.empty -> UnfoldState(None, nextState, notifyDone))) -> s
             )
 
           // Leftovers state has the same meaning as the empty state for us
           case s @ State.Leftovers(_, _, notifyDone) =>
             UIO.succeed(
-              UIO.succeed(Some(Chunk.empty -> UnfoldState(None, nextState, nextLastExtraction, notifyDone))) -> s
+              UIO.succeed(Some(Chunk.empty -> UnfoldState(None, nextState, notifyDone))) -> s
             )
 
           case State.BatchMiddle(sinkState, notifyProducer, _) =>
@@ -414,7 +413,6 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                       .single(Right(batch)) -> UnfoldState(
                       Some(batch),
                       nextState,
-                      nextLastExtraction,
                       notifyConsumer
                     )
                   )
@@ -438,7 +436,6 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                       .single(Right(batch)) -> UnfoldState(
                       Some(batch),
                       nextState,
-                      nextLastExtraction,
                       notifyConsumer
                     )
                   )
@@ -452,36 +449,22 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
             UIO.succeed(UIO.succeed(None) -> State.End)
         }.flatten
 
-      unfoldState.nextBatchCompleted.await
-        .raceWith(schedule.update(unfoldState.lastBatch, unfoldState.scheduleState).option)(
-          {
-            case (_, rightFiber) =>
-              rightFiber.interrupt *> extract(unfoldState.scheduleState, unfoldState.lastExtraction)
-          }, {
-            case (rightDone, leftFiber) =>
-              ZIO.done(rightDone).flatMap {
-                // schedule wants to stop. either emit last extraction or await sink.
-                case None =>
-                  unfoldState.lastExtraction.fold(
-                    leftFiber.join *> extract(unfoldState.scheduleState, unfoldState.lastExtraction).flatMap(
-                      c =>
-                        schedule.initial.map(
-                          init =>
-                            c.map {
-                              case (chunk, state) => (chunk, state.copy(scheduleState = init, lastExtraction = None))
-                            }
-                        )
-                    )
-                  )(
-                    c =>
-                      schedule.initial
-                        .map(init => Some(Chunk.single(Left(c())) -> unfoldState.copy(scheduleState = init)))
-                  )
-                case Some(nextScheduleState) =>
-                  leftFiber.interrupt *> extract(nextScheduleState, Some(() => schedule.extract(nextScheduleState)))
-              }
-          }
-        )
+      schedule
+        .update(unfoldState.lastBatch, unfoldState.scheduleState)
+        .option
+        .raceEither(unfoldState.nextBatchCompleted.await)
+        .flatMap {
+          case Left(None) =>
+            schedule.initial.map(
+              init =>
+                Some(
+                  Chunk.single(Left(schedule.extract(unfoldState.lastBatch, unfoldState.scheduleState))) -> unfoldState
+                    .copy(scheduleState = init)
+                )
+            )
+          case Left(Some(nextState)) => extract(nextState)
+          case Right(_)              => extract(unfoldState.scheduleState)
+        }
     }
 
     def consumerStream[E2 >: E1](out: Ref[State], permits: Semaphore) =
@@ -499,7 +482,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                      case State.Error(c) => ZIO.halt(c)
                    }
           stream = ZStream
-            .unfoldM(UnfoldState(None, scheduleInit, None, notify))(consume(_, out, permits))
+            .unfoldM(UnfoldState(None, scheduleInit, notify))(consume(_, out, permits))
             .mapConcat(identity)
         } yield stream
       }
@@ -1856,7 +1839,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                        state =>
                          ZStream
                            .fromEffect(schedStateRef.set(state))
-                           .drain ++ self.map(f) ++ Stream.succeed(g(schedule.extract(state))) ++ repeated
+                           .drain ++ self.map(f) ++ Stream.succeed(g(schedule.extract((), state))) ++ repeated
                      )
             } yield s2
           }
@@ -1962,11 +1945,11 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                 _    <- state.set(Some(a -> init))
               } yield f(a)
 
-            case Some((a, sched)) =>
+            case Some((a, scheduleState)) =>
               schedule
-                .update(a, sched)
+                .update(a, scheduleState)
                 .foldM(
-                  s => state.set(None).as(g(schedule.extract(s))),
+                  _ => state.set(None).as(g(schedule.extract(a, scheduleState))),
                   s => state.set(Some(a -> s)).as(f(a))
                 )
           }
@@ -2005,7 +1988,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                           schedule
                             .update(a, sched0)
                             .foldM(
-                              s => schedule.initial.flatMap(s1 => state.set((s1, Some(() => schedule.extract(s))))),
+                              _ =>
+                                schedule.initial
+                                  .flatMap(s1 => state.set((s1, Some(() => schedule.extract(a, sched0))))),
                               s => state.set((s, None))
                             )
                             .as(f(a))

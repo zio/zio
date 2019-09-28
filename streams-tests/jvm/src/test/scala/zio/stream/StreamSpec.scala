@@ -343,7 +343,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun {
       val e = new RuntimeException("Boom")
       Stream(1, 1, 1, 1)
-        .aggregateWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
+        .aggregateWithinEither(ZSink.die(e), ZSchedule.spaced(30.minutes))
         .runCollect
         .run
         .map(_ must_=== Exit.Failure(Cause.Die(e)))
@@ -356,7 +356,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     }
 
     Stream(1, 1)
-      .aggregateWithinEither(sink, Schedule.spaced(30.minutes))
+      .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
       .runCollect
       .run
       .map(_ must_=== Exit.Failure(Cause.Die(e)))
@@ -372,7 +372,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
           (latch.succeed(()) *> UIO.never)
             .onInterrupt(cancelled.set(true))
       }
-      fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
+      fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, ZSchedule.spaced(30.minutes)).runCollect.untraced.fork
       _      <- latch.await
       _      <- fiber.interrupt
       result <- cancelled.get
@@ -387,7 +387,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         (latch.succeed(()) *> UIO.never)
           .onInterrupt(cancelled.set(true))
       }
-      fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
+      fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, ZSchedule.spaced(30.minutes)).runCollect.untraced.fork
       _      <- latch.await
       _      <- fiber.interrupt
       result <- cancelled.get
@@ -403,7 +403,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
             el :: acc
           }
           .map(_.reverse),
-        Schedule.spaced(100.millis)
+        ZSchedule.spaced(100.millis)
       )
       .collect {
         case Right(v) => v
@@ -1411,7 +1411,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def repeat =
     unsafeRun(
       Stream(1)
-        .repeat(Schedule.recurs(4))
+        .repeat(ZSchedule.recurs(4))
         .run(Sink.collectAll[Int])
         .map(_ must_=== List(1, 1, 1, 1, 1))
     )
@@ -1422,7 +1422,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         ref <- Ref.make[List[Int]](Nil)
         _ <- Stream
               .fromEffect(ref.update(1 :: _))
-              .repeat(Schedule.spaced(10.millis))
+              .repeat(ZSchedule.spaced(10.millis))
               .take(2)
               .run(Sink.drain)
         result <- ref.get
@@ -1432,7 +1432,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def repeatEither =
     unsafeRun(
       Stream(1)
-        .repeatEither(Schedule.recurs(4))
+        .repeatEither(ZSchedule.recurs(4))
         .run(Sink.collectAll[Either[Int, Int]])
         .map(_ must_=== List(Right(1), Right(1), Left(1), Right(1), Left(2), Right(1), Left(3), Right(1), Left(4)))
     )
@@ -1443,7 +1443,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         ref <- Ref.make[List[Int]](Nil)
         _ <- Stream
               .fromEffect(ref.update(1 :: _))
-              .repeatEither(Schedule.spaced(10.millis))
+              .repeatEither(ZSchedule.spaced(10.millis))
               .take(3) // take one schedule output
               .run(Sink.drain)
         result <- ref.get
@@ -1463,8 +1463,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(
       for {
         ref <- Ref.make[List[Int]](Nil)
-        _ <- Stream
-              .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+        _ <- ZStream
+              .repeatEffectWith(ref.update(1 :: _), ZSchedule.spaced(10.millis))
               .take(2)
               .run(Sink.drain)
         result <- ref.get
@@ -1474,7 +1474,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def scheduleWith =
     unsafeRun(
       Stream("A", "B", "C", "A", "B", "C")
-        .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(_.toLowerCase, identity)
+        .scheduleWith(ZSchedule.recurs(2) *> ZSchedule.fromFunction((_) => "Done"))(_.toLowerCase, identity)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("a", "b", "c", "Done", "a", "b", "c", "Done"))
     )
@@ -1482,7 +1482,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def scheduleEither =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
+        .scheduleEither(ZSchedule.recurs(2) *> ZSchedule.fromFunction((_) => "!"))
         .run(Sink.collectAll[Either[String, String]])
         .map(_ must_=== List(Right("A"), Right("B"), Right("C"), Left("!")))
     )
@@ -1490,7 +1490,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def scheduleElementsWith =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElementsWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(identity, _.toString)
+        .scheduleElementsWith(ZSchedule.recurs(0) *> ZSchedule.fromFunction((_) => 123))(identity, _.toString)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "123", "B", "123", "C", "123"))
     )
@@ -1498,7 +1498,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def scheduleElementsEither =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+        .scheduleElementsEither(ZSchedule.recurs(0) *> ZSchedule.fromFunction((_) => 123))
         .run(Sink.collectAll[Either[Int, String]])
         .map(_ must_=== List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123)))
     )
@@ -1506,7 +1506,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def repeatedAndSpaced =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.once)
+        .scheduleElements(ZSchedule.once)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "B", "B", "C", "C"))
     )
@@ -1514,7 +1514,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def spacedShortCircuitsAfterScheduleFinished =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.once)
+        .scheduleElements(ZSchedule.once)
         .take(3)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "B"))
@@ -1523,7 +1523,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def spacedShortCircuitsWhileInSchedule =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.once)
+        .scheduleElements(ZSchedule.once)
         .take(4)
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "B", "B"))
