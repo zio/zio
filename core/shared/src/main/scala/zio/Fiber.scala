@@ -274,7 +274,7 @@ trait Fiber[+E, +A] { self =>
 
       ZIO.runtime[Any].map { runtime =>
         new CancelableFuture[E, A](p.future) {
-          def cancel: Exit[E, A] = runtime.unsafeRun(interrupt)
+          def cancel: Future[Exit[E, A]] = runtime.unsafeRunToFuture(interrupt)
         }
       } <* self.await
         .flatMap[Any, Nothing, p.type](_.foldM[Any, Nothing, p.type](failure, success))

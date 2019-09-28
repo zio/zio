@@ -24,7 +24,10 @@ abstract class CancelableFuture[+E, +A](val future: Future[A])
     extends Future[A]
     with FutureTransformCompat[A] {
 
-  def cancel: Exit[E, A]
+  /**
+   * Immediately cancels the operation and returns a [[Future]] containing the result
+   */
+  def cancel: Future[Exit[E, A]]
 
   def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
     future.onComplete(f)(executor)
