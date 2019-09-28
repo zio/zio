@@ -142,7 +142,6 @@ object TestAspectSpec extends DefaultRuntime {
       val spec = (testM("timeoutMakesTestsFailAfterGivenDuration") {
         assertM(ZIO.never *> ZIO.unit, equalTo(()))
       }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(1.nano)
-
       failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ns exceeded."))
     }
 
@@ -151,7 +150,6 @@ object TestAspectSpec extends DefaultRuntime {
       val spec = (testM("timeoutReportProblemWithInterruption") {
         assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
       }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(2.nanos, 1.nano)
-
       failedWith(
         spec,
         cause =>
