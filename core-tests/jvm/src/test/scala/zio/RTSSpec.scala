@@ -74,7 +74,8 @@ object RTSSpec
             assertM(io, isFalse)
           },
           testM("effectSuspendTotal must not catch throwable") {
-            Stub
+            val zio = ZIO.effectSuspendTotal[Any, Nothing, Any](throw ExampleError).sandbox.either
+            assertM(zio, isLeft(equalTo(die(ExampleError))))
           },
           testM("effectSuspend must catch throwable") {
             val zio = ZIO.effectSuspend[Any, Nothing](throw ExampleError).either
