@@ -164,7 +164,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler, IO[E, A]]): IO[E, A] =
+  final def effectAsyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]]): IO[E, A] =
     ZIO.effectAsyncInterrupt(register)
 
   /**
@@ -178,6 +178,16 @@ object IO {
    */
   final def effectAsyncMaybe[E, A](register: (IO[E, A] => Unit) => Option[IO[E, A]]): IO[E, A] =
     ZIO.effectAsyncMaybe(register)
+
+  /**
+   * @see [[zio.ZIO.effectSuspend]]
+   */
+  final def effectSuspend[A](io: => IO[Throwable, A]): IO[Throwable, A] = ZIO.effectSuspend(io)
+
+  /**
+   * @see [[zio.ZIO.effectSuspendWith]]
+   */
+  final def effectSuspendWith[A](p: Platform => IO[Throwable, A]): IO[Throwable, A] = ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
@@ -286,6 +296,16 @@ object IO {
     ZIO.fromFiberM(fiber)
 
   /**
+   * @see [[zio.ZIO.fromFunction]]
+   */
+  final def fromFunction[A](f: Any => A): IO[Nothing, A] = ZIO.fromFunction(f)
+
+  /**
+   * @see [[zio.ZIO.fromFunctionM]]
+   */
+  final def fromFunctionM[E, A](f: Any => IO[E, A]): IO[E, A] = ZIO.fromFunctionM(f)
+
+  /**
    * @see See [[zio.ZIO.fromFuture]]
    */
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
@@ -312,6 +332,11 @@ object IO {
    */
   final def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
     ZIO.haltWith(function)
+
+  /**
+   * @see [[zio.ZIO.identity]]
+   */
+  final def identity: IO[Nothing, Any] = ZIO.identity
 
   /**
    * @see See See [[zio.ZIO.interrupt]]

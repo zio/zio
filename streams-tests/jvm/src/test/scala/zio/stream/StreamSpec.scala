@@ -1,12 +1,13 @@
 package zio.stream
 
+import com.github.ghik.silencer.silent
 import org.scalacheck.{ Arbitrary, Gen }
 import org.specs2.ScalaCheck
-
-import scala.{ Stream => _ }
+import zio.ZQueueSpecUtil.waitForSize
 import zio._
 import zio.duration._
-import zio.ZQueueSpecUtil.waitForSize
+
+import scala.{ Stream => _ }
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
@@ -147,6 +148,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.fromChunk          $fromChunk
   Stream.fromInputStream    $fromInputStream
   Stream.fromIterable       $fromIterable
+  Stream.fromIterator       $fromIterator
   Stream.fromQueue          $fromQueue
 
   Stream.groupBy
@@ -257,6 +259,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
     zipWithLatest               $zipWithLatest
+  
+  Stream.toInputStream      $toInputStream
   """
 
   def aggregate = unsafeRun {
@@ -1228,6 +1232,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRunSync(Stream.fromIterable(l).runCollect) must_=== Success(l)
   }
 
+  private def fromIterator = prop { l: List[Int] =>
+    unsafeRunSync(Stream.fromIterator(UIO.effectTotal(l.iterator)).runCollect) must_=== Success(l)
+  }
+
   private def fromQueue = prop { c: Chunk[Int] =>
     val result = unsafeRunSync {
       for {
@@ -1235,7 +1243,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         _     <- queue.offerAll(c.toSeq)
         fiber <- Stream
                   .fromQueue(queue)
-                  .fold[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
+                  .foldWhileM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc))
                   .map(_.reverse)
                   .fork
         _     <- waitForSize(queue, -1)
@@ -1595,16 +1603,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   private def scheduleWith =
     unsafeRun(
-      Stream("A", "B", "C")
-        .scheduleWith(Schedule.recurs(3) *> Schedule.fromFunction((_) => "!"))(_.toLowerCase, identity)
+      Stream("A", "B", "C", "A", "B", "C")
+        .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(_.toLowerCase, identity)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("a", "b", "c", "!"))
+        .map(_ must_=== List("a", "b", "c", "Done", "a", "b", "c", "Done"))
     )
 
   private def scheduleEither =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleEither(Schedule.recurs(3) *> Schedule.fromFunction((_) => "!"))
+        .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
         .run(Sink.collectAll[Either[String, String]])
         .map(_ must_=== List(Right("A"), Right("B"), Right("C"), Left("!")))
     )
@@ -1628,27 +1636,27 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private def repeatedAndSpaced =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) >>> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
+        .map(_ must_=== List("A", "A", "B", "B", "C", "C"))
     )
 
   private def spacedShortCircuitsAfterScheduleFinished =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .take(3)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!"))
+        .map(_ must_=== List("A", "A", "B"))
     )
 
   private def spacedShortCircuitsWhileInSchedule =
     unsafeRun(
       Stream("A", "B", "C")
-        .scheduleElements(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .scheduleElements(Schedule.once)
         .take(4)
         .run(Sink.collectAll[String])
-        .map(_ must_=== List("A", "A", "!", "B"))
+        .map(_ must_=== List("A", "A", "B", "B"))
     )
 
   private def take =
@@ -1922,17 +1930,25 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .map(_ must_=== Left("Ouch"))
   }
 
-  private def zipWithLatest = flaky {
-    val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
-    val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
+  private def zipWithLatest = nonFlaky {
+    import zio.test.mock.MockClock
 
-    withLatch { release =>
-      s1.zipWithLatest(s2)((_, _))
-        .take(8)
-        .runCollect
-        .tap(_ => release)
-        .map(_ must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2, 2 -> 2, 2 -> 3, 2 -> 4, 3 -> 4))
-    }
+    for {
+      clock <- MockClock.make(MockClock.DefaultData)
+      s1    = Stream.iterate(0)(_ + 1).fixed(100.millis).provide(clock)
+      s2    = Stream.iterate(0)(_ + 1).fixed(70.millis).provide(clock)
+      s3    = s1.zipWithLatest(s2)((_, _))
+      q     <- Queue.unbounded[(Int, Int)]
+      _     <- s3.foreach(q.offer).fork
+      a     <- q.take
+      _     <- clock.clock.setTime(70.millis)
+      b     <- q.take
+      _     <- clock.clock.setTime(100.millis)
+      c     <- q.take
+      _     <- clock.clock.setTime(140.millis)
+      d     <- q.take
+      _     <- clock.clock.setTime(210.millis)
+    } yield List(a, b, c, d) must_=== List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)
   }
 
   private def interleave = unsafeRun {
@@ -1969,4 +1985,20 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       } yield interleave(b, s1, s2)
       (!interleavedLists.succeeded) || (interleavedStream must_=== interleavedLists)
     }
+
+  @silent("Any")
+  def toInputStream = {
+    val stream                                    = Stream(1, 2, 3).map(_.toByte)
+    val streamResult: Exit[Throwable, List[Byte]] = unsafeRunSync(stream.runCollect)
+    val inputStreamResult = unsafeRunSync(stream.toInputStream.use { inputStream =>
+      ZIO.succeed(
+        Iterator
+          .continually(inputStream.read)
+          .takeWhile(_ != -1)
+          .map(_.toByte)
+          .toList
+      )
+    })
+    streamResult must_=== inputStreamResult
+  }
 }

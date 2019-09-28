@@ -174,7 +174,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[A](register: (UIO[A] => Unit) => Either[Canceler, UIO[A]]): UIO[A] =
+  final def effectAsyncInterrupt[A](register: (UIO[A] => Unit) => Either[Canceler[Any], UIO[A]]): UIO[A] =
     ZIO.effectAsyncInterrupt(register)
 
   /**
@@ -186,6 +186,11 @@ object UIO {
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
   final def effectSuspendTotalWith[A](p: Platform => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(p)
+
+  /**
+   * @see [[zio.ZIO.firstSuccessOf]]
+   */
+  final def firstSuccessOf[A](uio: UIO[A], rest: Iterable[UIO[A]]): UIO[A] = ZIO.firstSuccessOf(uio, rest)
 
   /**
    * @see See [[zio.ZIO.flatten]]
@@ -266,9 +271,29 @@ object UIO {
     ZIO.fromFiberM(fiber)
 
   /**
+   * @see [[zio.ZIO.fromFunction]]
+   */
+  final def fromFunction[A](f: Any => A): UIO[A] = ZIO.fromFunction(f)
+
+  /**
+   * @see [[zio.ZIO.fromFunctionM]]
+   */
+  final def fromFunctionM[A](f: Any => UIO[A]): UIO[A] = ZIO.fromFunctionM(f)
+
+  /**
    * @see See [[zio.ZIO.halt]]
    */
   final def halt(cause: Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
+
+  /**
+   * @see [[zio.ZIO.haltWith]]
+   */
+  final def haltWith(function: (() => ZTrace) => Cause[Nothing]): UIO[Nothing] = ZIO.haltWith(function)
+
+  /**
+   * @see [[zio.ZIO.identity]]
+   */
+  final def identity: UIO[Any] = ZIO.identity
 
   /**
    * @see See [[zio.ZIO.interrupt]]
@@ -494,6 +519,11 @@ object UIO {
    */
   final def uninterruptibleMask[A](k: ZIO.InterruptStatusRestore => UIO[A]): UIO[A] =
     ZIO.uninterruptibleMask(k)
+
+  /**
+   * @see [[zio.ZIO.unsandbox]]
+   */
+  final def unsandbox[A](v: IO[Cause[Nothing], A]): UIO[A] = ZIO.unsandbox(v)
 
   /**
    * @see See [[zio.ZIO.untraced]]

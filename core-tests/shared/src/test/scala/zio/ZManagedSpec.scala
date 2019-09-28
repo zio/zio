@@ -670,8 +670,8 @@ object ZManagedSpec
                            for {
                              fiber        <- canceler.fork
                              _            <- latch.await
+                             interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds)).either
                              _            <- ref.set(false)
-                             interruption <- fiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live).either
                            } yield interruption
                        }
             } yield assert(result, isRight(isNone))
@@ -765,6 +765,26 @@ object ZManagedSpec
               } yield assert(abs1, equalTo(abs2))
               test.use[Any, Nothing, TestResult](result => ZIO.succeed(result))
             }
+          }
+        ),
+        suite("switchable")(
+          testM("runs the right finalizer on interruption") {
+            for {
+              effects <- Ref.make(List[String]())
+              latch   <- Promise.make[Nothing, Unit]
+              fib <- ZManaged
+                      .switchable[Any, Nothing, Unit]
+                      .use { switch =>
+                        switch(ZManaged.finalizer(effects.update("First" :: _))) *>
+                          switch(ZManaged.finalizer(effects.update("Second" :: _))) *>
+                          latch.succeed(()) *>
+                          ZIO.never
+                      }
+                      .fork
+              _      <- latch.await
+              _      <- fib.interrupt
+              result <- effects.get
+            } yield assert(result, equalTo(List("Second", "First")))
           }
         )
       )
