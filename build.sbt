@@ -225,7 +225,7 @@ lazy val benchmarks = project.module
         "io.monix"                 %% "monix"           % "3.0.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.12",
-        "org.ow2.asm"              % "asm"              % "7.1",
+        "org.ow2.asm"              % "asm"              % "7.2",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
         "org.typelevel"            %% "cats-effect"     % "2.0.0"
