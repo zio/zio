@@ -70,11 +70,9 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = { case (a, (s1, s2)) => (self.extract(a, s1), that.extract(a, s2)) }
-      val update = {
-        case (a, (s1, s2)) =>
-          self.update(a, s1).zipPar(that.update(a, s2))
-      }
+      val extract = (a: A1, s: (self.State, that.State)) => (self.extract(a, s._1), that.extract(a, s._2))
+      val update = (a: A1, s: (self.State, that.State)) =>
+        self.update(a, s._1).zipPar(that.update(a, s._2))
     }
 
   /**
@@ -84,11 +82,10 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, (A, C), (B, D)] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = { case ((a1, a2), (s1, s2)) => (self.extract(a1, s1), that.extract(a2, s2)) }
-      val update = {
-        case ((a1, a2), (s1, s2)) =>
-          self.update(a1, s1).zipPar(that.update(a2, s2))
-      }
+      val extract = (a: (A, C), s: (self.State, that.State)) =>
+        (self.extract(a._1, s._1), that.extract(a._2, s._2))
+      val update = (a: (A, C), s: (self.State, that.State)) =>
+        self.update(a._1, s._1).zipPar(that.update(a._2, s._2))
     }
 
   /**
@@ -104,10 +101,9 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, Either[A, C], Either[B, D]] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = {
-        case (a, (s1, s2)) =>
-          a.fold(a => Left(self.extract(a, s1)), c => Right(that.extract(c, s2)))
-      }
+      val extract = (a: Either[A, C], s: (self.State, that.State)) =>
+        a.fold(a => Left(self.extract(a, s._1)), c => Right(that.extract(c, s._2)))
+
       val update = (a: Either[A, C], s: State) =>
         a match {
           case Left(a)  => self.update(a, s._1).map((_, s._2))
@@ -141,14 +137,14 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, A, C] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = { case (a, (s1, s2)) => that.extract(self.extract(a, s1), s2) }
-      val update = {
-        case (a, (s1, s2)) =>
-          for {
-            s1 <- self.update(a, s1)
-            s2 <- that.update(self.extract(a, s1), s2)
-          } yield (s1, s2)
-      }
+      val extract = (a: A, s: (self.State, that.State)) =>
+        that.extract(self.extract(a, s._1), s._2)
+
+      val update = (a: A, s: (self.State, that.State)) =>
+        for {
+          s1 <- self.update(a, s._1)
+          s2 <- that.update(self.extract(a, s._1), s._2)
+        } yield (s1, s2)
     }
 
   /**
@@ -160,17 +156,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       type State        = (self.State, that.State)
       type RunningState = (self.State, that.State)
       val initial = self.initial zip that.initial
-      val extract = {
-        case (a, (s1, s2)) =>
-          (self.extract(a, s1), that.extract(a, s2))
-      }
-      val update = {
-        case (a, (s1, s2)) =>
-          self.update(a, s1).raceEither(that.update(a, s2)).map {
-            case Left(s1)  => (s1, s2)
-            case Right(s2) => (s1, s2)
-          }
-      }
+      val extract = (a: A1, s: (self.State, that.State)) =>
+        (self.extract(a, s._1), that.extract(a, s._2))
+      val update = (a: A1, s: (self.State, that.State)) =>
+        self.update(a, s._1).raceEither(that.update(a, s._2)).map {
+          case Left(s1)  => (s1, s._2)
+          case Right(s2) => (s._1, s2)
+        }
     }
 
   /**
@@ -178,26 +170,6 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def |||[R1 <: R, B1 >: B, C](that: ZSchedule[R1, C, B1]): ZSchedule[R1, Either[A, C], B1] =
     (self +++ that).map(_.merge)
-
-  /**
-   * Returns a new schedule with the given delay added to every update.
-   */
-  final def addDelay(f: B => Duration): ZSchedule[R with Clock, A, B] =
-    addDelayM(b => ZIO.succeed(f(b)))
-
-  /**
-   * Returns a new schedule with the effectfully calculated delay added to every update.
-   */
-  final def addDelayM[R1 <: R](f: B => ZIO[R1, Nothing, Duration]): ZSchedule[R1 with Clock, A, B] =
-    updated(
-      update =>
-        (a, s) =>
-          for {
-            delay <- f(extract(a, s))
-            s1    <- update(a, s)
-            _     <- ZIO.sleep(delay)
-          } yield s1
-    )
 
   /**
    * The same as `andThenEither`, but merges the output.
@@ -213,10 +185,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, A1, Either[B, C]] {
       type State = Either[self.State, that.State]
       val initial = self.initial.map(Left(_))
-      val extract = {
-        case (a, s) =>
-          s.fold(b => Left(self.extract(a, b)), c => Right(that.extract(a, c)))
-      }
+      val extract = (a: A1, s: Either[self.State, that.State]) =>
+        s.fold(b => Left(self.extract(a, b)), c => Right(that.extract(a, c)))
 
       val update = (a: A1, state: State) =>
         state match {
@@ -279,16 +249,29 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R, A1, B] {
       type State = self.State
       val initial = self.initial
-      val extract = (a, s) => self.extract(f(a), s)
-      val update  = (a, s) => self.update(f(a), s)
+      val extract = (a: A1, s: self.State) => self.extract(f(a), s)
+      val update  = (a: A1, s: self.State) => self.update(f(a), s)
     }
 
   /**
-   * Returns a new schedule with all durations produced by the schedule
-   * transformed into effectful sleeps.
+   * Returns a new schedule with the given delay added to every update.
    */
-  final def delayed(implicit ev: B <:< Duration): ZSchedule[R with Clock, A, B] =
-    addDelay(identity)
+  final def delayed(f: B => Duration): ZSchedule[R with Clock, A, B] =
+    delayedM(b => ZIO.succeed(f(b)))
+
+  /**
+   * Returns a new schedule with the effectfully calculated delay added to every update.
+   */
+  final def delayedM[R1 <: R](f: B => ZIO[R1, Nothing, Duration]): ZSchedule[R1 with Clock, A, B] =
+    updated(
+      update =>
+        (a, s) =>
+          for {
+            delay <- f(extract(a, s))
+            s1    <- update(a, s)
+            _     <- ZIO.sleep(delay)
+          } yield s1
+    )
 
   /**
    * Returns a new schedule that contramaps the input and maps the output.
@@ -340,13 +323,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R, A, Z] {
       type State = (self.State, Z)
       val initial = self.initial.map((_, z))
-      val extract = { case (a, (s, z)) => f(z, self.extract(a, s)) }
-      val update = {
-        case (a, (s, z)) =>
-          self
-            .update(a, s)
-            .map(s1 => (s1, f(z, self.extract(a, s))))
-      }
+      val extract = (a: A, s: (self.State, Z)) =>
+        f(s._2, self.extract(a, s._1))
+
+      val update = (a: A, s: (self.State, Z)) =>
+        self
+          .update(a, s._1)
+          .map(s1 => (s1, f(s._2, self.extract(a, s._1))))
     }
 
   /**
@@ -358,7 +341,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       type State = self.State
       val initial = self.initial
       val extract = self.extract
-      val update  = (a, s) => self.update(a, s) orElse self.initial.flatMap(self.update(a, _))
+      val update  = (a: A, s: self.State) => self.update(a, s) orElse self.initial.flatMap(self.update(a, _))
     }
 
   /**
@@ -397,8 +380,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         env  <- ZIO.environment[R1].map(env => f(env, new Proxy(env.clock, env.random)))
         init <- self.initial.provide(env)
       } yield (init, env)
-      val extract = { case (a, (s, _))   => self.extract(a, s) }
-      val update  = { case (a, (s, env)) => self.update(a, s).provide(env).map((_, env)) }
+      val extract = (a: A, s: (self.State, R1)) => self.extract(a, s._1)
+      val update = (a: A, s: (self.State, R1)) => self.update(a, s._1).provide(s._2).map((_, s._2))
     }
   }
 
@@ -427,7 +410,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R, A1, C] {
       type State = self.State
       val initial = self.initial
-      val extract = (a, s) => f(self.extract(a, s))
+      val extract = (a: A1, s: self.State) => f(self.extract(a, s))
       val update  = self.update
     }
 
@@ -447,7 +430,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       type State = self.State
       val initial = self.initial.provide(r)
       val extract = self.extract
-      val update  = self.update(_, _).provide(r)
+      val update  = (a: A, s: self.State) => self.update(a, s).provide(r)
     }
 
   /**
@@ -667,7 +650,7 @@ object ZSchedule {
    * A new schedule derived from the specified schedule which transforms the delays into effectful sleeps.
    */
   final def delayed[R, A](s: ZSchedule[R, A, Duration]): ZSchedule[R with Clock, A, Duration] =
-    s.addDelay(x => x)
+    s.delayed(x => x)
 
   /**
    * A schedule that recurs for as long as the predicate evaluates to true.
@@ -713,8 +696,8 @@ object ZSchedule {
     new ZSchedule[Any, A, Option[B]] {
       type State = Unit
       val initial = ZIO.unit
-      val extract = (a, _) => pf.lift(a)
-      val update  = (a, _) => pf.lift(a).fold[IO[Unit, Unit]](ZIO.succeed(()))(_ => ZIO.fail(()))
+      val extract = (a: A, _: Unit) => pf.lift(a)
+      val update  = (a: A, _: Unit) => pf.lift(a).fold[IO[Unit, Unit]](ZIO.succeed(()))(_ => ZIO.fail(()))
     }
 
   /**
