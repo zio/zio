@@ -157,13 +157,17 @@ object ZScheduleSpec
             assertM(retried, equalTo("Error: 2"))
           },
           testM("for a given number of times with random jitter in (0, 1)") {
-            val schedule  = ZSchedule.spaced(500.millis).jittered
+            val schedule = ZSchedule.spaced(500.millis).jittered_[Clock with Random](0, 1) {
+              case (r, c) => new Clock with Random { val clock = c.clock; val random = r.random }
+            }
             val scheduled = run(schedule >>> ZSchedule.elapsed)(List.fill(5)(()))
             val expected  = List(0.millis, 250.millis, 500.millis, 750.millis, 1000.millis)
             assertM(MockRandom.feedDoubles(0.5, 0.5, 0.5, 0.5, 0.5) *> scheduled, equalTo(expected))
           },
           testM("for a given number of times with random jitter in custom interval") {
-            val schedule  = ZSchedule.spaced(500.millis).jittered(2, 4)
+            val schedule = ZSchedule.spaced(500.millis).jittered_[Clock with Random](2, 4) {
+              case (r, c) => new Clock with Random { val clock = c.clock; val random = r.random }
+            }
             val scheduled = run(schedule >>> ZSchedule.elapsed)((List.fill(5)(())))
             val expected  = List(0, 1500, 3000, 5000, 7000).map(_.millis)
             assertM(MockRandom.feedDoubles(0.5, 0.5, 1, 1, 0.5) *> scheduled, equalTo(expected))
@@ -298,7 +302,6 @@ object ZScheduleSpec
     )
 
 object ZScheduleSpecUtil {
-  type Env = Clock with Random with zio.console.Console with zio.system.System
   val ioSucceed: (String, Unit) => UIO[String]      = (_: String, _: Unit) => IO.succeed("OrElse")
   val ioFail: (String, Unit) => IO[String, Nothing] = (_: String, _: Unit) => IO.fail("OrElseFailed")
 
@@ -311,15 +314,11 @@ object ZScheduleSpecUtil {
   /**
    * Run a schedule using the provided input and collect all outputs
    */
-  def run[A, B](sched: ZSchedule[Env, A, B])(xs: Iterable[A]): ZIO[MockClock with Env, Nothing, List[B]] = {
-    final class Proxy(clock0: MockClock.Service[Any], env: Env)
-        extends Clock
-        with Random
-        with zio.console.Console
-        with zio.system.System {
-      val random  = env.random
-      val console = env.console
-      val system  = env.system
+  def run[A, B](
+    sched: ZSchedule[Clock with Random, A, B]
+  )(xs: Iterable[A]): ZIO[MockClock with Random, Nothing, List[B]] = {
+    final class Proxy(clock0: MockClock.Service[Any], random0: Random.Service[Any]) extends Clock with Random {
+      val random = random0
       val clock = new Clock.Service[Any] {
         def currentDateTime                                  = clock0.currentDateTime
         def currentTime(unit: java.util.concurrent.TimeUnit) = clock0.currentTime(unit)
@@ -328,7 +327,7 @@ object ZScheduleSpecUtil {
       }
     }
 
-    def loop(xs: List[A], state: sched.State, acc: List[B]): ZIO[Env, Nothing, List[B]] = xs match {
+    def loop(xs: List[A], state: sched.State, acc: List[B]): ZIO[Clock with Random, Nothing, List[B]] = xs match {
       case Nil => ZIO.succeed(acc)
       case x :: xs =>
         sched
@@ -338,7 +337,7 @@ object ZScheduleSpecUtil {
             s => loop(xs, s, sched.extract(x, state) :: acc)
           )
     }
-    ZIO.environment[MockClock with Env].map(e => new Proxy(e.clock, e)) >>>
+    ZIO.environment[MockClock with Random].map(e => new Proxy(e.clock, e.random)) >>>
       sched.initial.flatMap(loop(xs.toList, _, Nil)).map(_.reverse)
   }
 

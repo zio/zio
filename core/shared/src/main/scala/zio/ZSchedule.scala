@@ -353,9 +353,9 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Applies random jitter to all sleeps executed by the schedule.
    */
-  final def jittered_[R1 <: R with Clock with Random](min: Double, max: Double)(
-    f: (R1, Clock) => R1
-  ): ZSchedule[R1, A, B] = {
+  final def jittered_[R1 <: R](min: Double, max: Double)(
+    splice: (R1, Clock) => R
+  ): ZSchedule[R1 with Clock with Random, A, B] = {
     final class Proxy(clock0: Clock.Service[Any], random0: Random.Service[Any]) extends Clock {
       val clock = new Clock.Service[Any] {
         def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
@@ -368,14 +368,14 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         }
       }
     }
-    new ZSchedule[R1, A, B] {
-      type State = (self.State, R1)
+    new ZSchedule[R1 with Clock with Random, A, B] {
+      type State = (self.State, R)
       val initial = for {
-        env  <- ZIO.environment[R1].map(env => f(env, new Proxy(env.clock, env.random)))
+        env  <- ZIO.environment[R1 with Clock with Random].map(env => splice(env, new Proxy(env.clock, env.random)))
         init <- self.initial.provide(env)
       } yield (init, env)
-      val extract = (a: A, s: (self.State, R1)) => self.extract(a, s._1)
-      val update  = (a: A, s: (self.State, R1)) => self.update(a, s._1).provide(s._2).map((_, s._2))
+      val extract = (a: A, s: (self.State, R)) => self.extract(a, s._1)
+      val update  = (a: A, s: (self.State, R)) => self.update(a, s._1).provide(s._2).map((_, s._2))
     }
   }
 
@@ -575,33 +575,10 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 }
 
 object ZSchedule {
+  import scala.language.implicitConversions
 
-  // todo: Encode this for jvm and js seperately
-  implicit class ZScheduleDefaultEnvironmentOps[A, B](
-    sched: ZSchedule[Clock with zio.console.Console with zio.system.System with zio.random.Random, A, B]
-  ) {
-    // Blocking is excluded here because of js
-    type Env = Clock with zio.console.Console with zio.system.System with zio.random.Random
-
-    /**
-     * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0.
-     */
-    final def jittered: ZSchedule[Env, A, B] =
-      jittered(0.0, 1.0)
-
-    /**
-     * Applies random jitter to all sleeps executed by the schedule.
-     */
-    final def jittered(min: Double, max: Double): ZSchedule[Env, A, B] =
-      sched.jittered_[Env](min, max) { (old, clock0) =>
-        new zio.clock.Clock with zio.console.Console with zio.system.System with zio.random.Random {
-          val clock   = clock0.clock
-          val console = old.console
-          val system  = old.system
-          val random  = old.random
-        }
-      }
-  }
+  implicit def zscheduleSyntax[A, B](sched: ZSchedule[DefaultRuntime#Environment, A, B]): ZScheduleSyntax[A, B] =
+    new ZScheduleSyntax(sched)
 
   final def apply[R, S, A, B](
     initial0: ZIO[R, Nothing, S],
