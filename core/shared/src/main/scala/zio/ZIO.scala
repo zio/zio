@@ -1324,13 +1324,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.fork >>= (_.toFutureWith(f))
 
   /**
-   * Converts this ZIO to [[zio.Managed]].
+   * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release action
+   * will be performed uninterruptibly.
    */
   final def toManaged[R1 <: R](release: A => ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
     ZManaged.make[R1, E, A](this)(release)
 
   /**
-   * Converts this ZIO to [[zio.ZManaged]] with no release action.
+   * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be performed
+   * interruptibly.
    */
   final def toManaged_ : ZManaged[R, E, A] =
     ZManaged.fromEffect[R, E, A](this)

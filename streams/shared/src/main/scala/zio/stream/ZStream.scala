@@ -932,29 +932,19 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
       for {
-        currPull  <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
-        as        <- self.process
-        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
-        pullOuter = ZIO.uninterruptibleMask { restore =>
-          restore(as).flatMap { a =>
-            (for {
-              reservation <- f0(a).process.reserve
-              bs          <- restore(reservation.acquire)
-              _           <- finalizer.set(reservation.release)
-              _           <- currPull.set(bs)
-            } yield ()).mapError(Some(_))
-          }
-        }
+        as         <- self.process
+        switchPull <- ZManaged.switchable[R1, E1, Pull[R1, E1, B]]
+        currPull   <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
         bs = {
           def go: Pull[R1, E1, B] =
             currPull.get.flatten.catchAll {
-              case e @ Some(e1) =>
-                (finalizer.get.flatMap(_(Exit.fail(e1))) *> finalizer.set(_ => UIO.unit)).uninterruptible *> ZIO.fail(
-                  e
-                )
+              case e @ Some(_) => ZIO.fail(e)
               case None =>
-                (finalizer.get.flatMap(_(Exit.succeed(()))) *> finalizer
-                  .set(_ => UIO.unit)).uninterruptible *> pullOuter *> go
+                as.flatMap { a =>
+                  switchPull {
+                    f0(a).process.tap(n => ZManaged.fromEffectUninterruptible(currPull.set(n)))
+                  }.mapError(Some(_))
+                } *> go
             }
 
           go

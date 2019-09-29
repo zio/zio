@@ -559,6 +559,19 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   final def second[R1 <: R, A1 >: A]: ZManaged[R1, E, (R1, A1)] = ZManaged.identity[R1] &&& self
 
   /**
+   * Returns an effect that effectfully peeks at the acquired resource.
+   */
+  final def tap[R1 <: R, E1 >: E](f: A => ZManaged[R1, E1, _]): ZManaged[R1, E1, A] =
+    flatMap(a => f(a).as(a))
+
+  /**
+   * Like [[ZManaged#tap]], but uses a function that returns a ZIO value rather than a
+   * ZManaged value.
+   */
+  final def tapM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZManaged[R1, E1, A] =
+    mapM(a => f(a).as(a))
+
+  /**
    * Returns a new effect that executes this one and times the acquisition of the resource.
    */
   final def timed: ZManaged[R with Clock, E, (Duration, A)] =
@@ -987,11 +1000,19 @@ object ZManaged {
     ZManaged.make(fa)(a => UIO(a.close()))
 
   /**
-   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. Use
-   * with care.
+   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
+   * effect will be performed interruptibly.
    */
   final def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
     ZManaged(IO.succeed(Reservation(fa, _ => IO.unit)))
+
+  /**
+   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
+   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromEffect]]
+   * variant.
+   */
+  final def fromEffectUninterruptible[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
+    ZManaged(fa.map(a => Reservation(UIO.succeed(a), _ => UIO.unit)))
 
   /**
    * Lifts an `Either` into a `ZManaged` value.
@@ -1028,18 +1049,21 @@ object ZManaged {
 
   /**
    * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action.
+   * The acquire and release actions will be performed uninterruptibly.
    */
   final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZManaged[R, E, A] =
     ZManaged(acquire.map(r => Reservation(IO.succeed(r), _ => release(r))))
 
   /**
    * Lifts a synchronous effect into `ZManaged[R, Throwable, R]` with a release action.
+   * The acquire and release actions will be performed uninterruptibly.
    */
   final def makeEffect[R, A](acquire: => A)(release: A => _): ZManaged[R, Throwable, A] =
     make(Task(acquire))(a => Task(release(a)).orDie)
 
   /**
    * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action that handles `Exit`.
+   * The acquire and release actions will be performed uninterruptibly.
    */
   final def makeExit[R, E, A](
     acquire: ZIO[R, E, A]
