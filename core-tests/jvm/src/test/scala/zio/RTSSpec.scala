@@ -197,7 +197,7 @@ object RTSSpec
             assertM(io, equalTo(die(ExampleError)))
           },
           testM("uncaught fail") {
-            Stub
+            assertM(TaskExampleError.run, fails(equalTo(ExampleError)))
           },
           testM("uncaught fail supervised") {
             val io = Task.fail(ExampleError).interruptChildren
@@ -640,7 +640,7 @@ object RTSSpec
           },
           testM("timeout of terminate") {
             val io: ZIO[Clock, Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
-            assertM(io.sandbox.flip, equalTo(die(ExampleError)))
+            assertM(io.provide(Clock.Live).run, dies(equalTo(ExampleError)))
           }
         ),
         suite("RTS regression tests")(
