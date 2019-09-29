@@ -71,8 +71,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
       val extract = (a: A1, s: (self.State, that.State)) => (self.extract(a, s._1), that.extract(a, s._2))
-      val update = (a: A1, s: (self.State, that.State)) =>
-        self.update(a, s._1).zipPar(that.update(a, s._2))
+      val update  = (a: A1, s: (self.State, that.State)) => self.update(a, s._1).zipPar(that.update(a, s._2))
     }
 
   /**
@@ -82,10 +81,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, (A, C), (B, D)] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = (a: (A, C), s: (self.State, that.State)) =>
-        (self.extract(a._1, s._1), that.extract(a._2, s._2))
-      val update = (a: (A, C), s: (self.State, that.State)) =>
-        self.update(a._1, s._1).zipPar(that.update(a._2, s._2))
+      val extract = (a: (A, C), s: (self.State, that.State)) => (self.extract(a._1, s._1), that.extract(a._2, s._2))
+      val update  = (a: (A, C), s: (self.State, that.State)) => self.update(a._1, s._1).zipPar(that.update(a._2, s._2))
     }
 
   /**
@@ -137,8 +134,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, A, C] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val extract = (a: A, s: (self.State, that.State)) =>
-        that.extract(self.extract(a, s._1), s._2)
+      val extract = (a: A, s: (self.State, that.State)) => that.extract(self.extract(a, s._1), s._2)
 
       val update = (a: A, s: (self.State, that.State)) =>
         for {
@@ -156,8 +152,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       type State        = (self.State, that.State)
       type RunningState = (self.State, that.State)
       val initial = self.initial zip that.initial
-      val extract = (a: A1, s: (self.State, that.State)) =>
-        (self.extract(a, s._1), that.extract(a, s._2))
+      val extract = (a: A1, s: (self.State, that.State)) => (self.extract(a, s._1), that.extract(a, s._2))
       val update = (a: A1, s: (self.State, that.State)) =>
         self.update(a, s._1).raceEither(that.update(a, s._2)).map {
           case Left(s1)  => (s1, s._2)
@@ -323,8 +318,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R, A, Z] {
       type State = (self.State, Z)
       val initial = self.initial.map((_, z))
-      val extract = (a: A, s: (self.State, Z)) =>
-        f(s._2, self.extract(a, s._1))
+      val extract = (a: A, s: (self.State, Z)) => f(s._2, self.extract(a, s._1))
 
       val update = (a: A, s: (self.State, Z)) =>
         self
@@ -381,7 +375,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         init <- self.initial.provide(env)
       } yield (init, env)
       val extract = (a: A, s: (self.State, R1)) => self.extract(a, s._1)
-      val update = (a: A, s: (self.State, R1)) => self.update(a, s._1).provide(s._2).map((_, s._2))
+      val update  = (a: A, s: (self.State, R1)) => self.update(a, s._1).provide(s._2).map((_, s._2))
     }
   }
 
