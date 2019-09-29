@@ -237,7 +237,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
     zipWithLatest               $zipWithLatest
-  
+
   Stream.toInputStream      $toInputStream
   """
 

@@ -139,6 +139,12 @@ object Schedule {
   final def recurs(n: Int): Schedule[Any, Int] = ZSchedule.recurs(n)
 
   /**
+   * See [[ZSchedule.stop]]
+   */
+  final val stop: Schedule[Any, Unit] =
+    ZSchedule.stop
+
+  /**
    * See [[ZSchedule.succeed]]
    */
   final def succeed[A](a: A): Schedule[Any, A] = ZSchedule.succeed(a)

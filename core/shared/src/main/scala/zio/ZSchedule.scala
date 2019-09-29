@@ -127,8 +127,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 
   /**
    * Returns the composition of this schedule and the specified schedule,
-   * by piping the output of this one into the input of the other, and summing
-   * delays produced by both.
+   * by piping the output of this one into the input of the other. Delays produced by this
+   * schedule will always run before the second schedule is evaluated.
    */
   final def >>>[R1 <: R, C](that: ZSchedule[R1, B, C]): ZSchedule[R1, A, C] =
     new ZSchedule[R1, A, C] {
@@ -805,6 +805,12 @@ object ZSchedule {
    */
   final def spaced(interval: Duration): ZSchedule[Clock, Any, Duration] =
     delayed(forever.map(_ => interval))
+
+  /**
+   * A schedule that always fails.
+   */
+  final val stop: Schedule[Any, Unit] =
+    recurs(0).unit
 
   /**
    * A schedule that recurs forever, returning the constant for every output.
