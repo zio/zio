@@ -933,18 +933,22 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream[R1, E1, B] {
       for {
         as         <- self.process
-        switchPull <- ZManaged.switchable[R1, E1, Pull[R1, E1, B]]
-        currPull   <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
+        switchPull <- ZManaged.switchable[R1, E1, (URIO[R1, Any], Pull[R1, E1, B])]
+        currPull   <- Ref.make[(URIO[R1, Any], Pull[R1, E1, B])]((UIO.unit, Pull.end)).toManaged_
         bs = {
           def go: Pull[R1, E1, B] =
-            currPull.get.flatten.catchAll {
-              case e @ Some(_) => ZIO.fail(e)
-              case None =>
-                as.flatMap { a =>
-                  switchPull {
-                    f0(a).process.tap(n => ZManaged.fromEffectUninterruptible(currPull.set(n)))
-                  }.mapError(Some(_))
-                } *> go
+            currPull.get.flatMap {
+              case (release, bs) =>
+                bs.catchAll {
+                  case e @ Some(_) => release *> ZIO.fail(e)
+                  case None =>
+                    release *>
+                      as.flatMap { a =>
+                        switchPull {
+                          f0(a).process.withEarlyRelease.tap(n => ZManaged.fromEffectUninterruptible(currPull.set(n)))
+                        }.mapError(Some(_))
+                      } *> go
+                }
             }
 
           go
