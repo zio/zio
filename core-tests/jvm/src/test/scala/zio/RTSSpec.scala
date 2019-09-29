@@ -74,16 +74,16 @@ object RTSSpec
             assertM(io, isFalse)
           },
           testM("effectSuspendTotal must not catch throwable") {
-            val zio = ZIO.effectSuspendTotal[Any, Nothing, Any](throw ExampleError).sandbox.either
-            assertM(zio, isLeft(equalTo(die(ExampleError))))
+            val io = ZIO.effectSuspendTotal[Any, Nothing, Any](throw ExampleError).sandbox.either
+            assertM(io, isLeft(equalTo(die(ExampleError))))
           },
           testM("effectSuspend must catch throwable") {
-            val zio = ZIO.effectSuspend[Any, Nothing](throw ExampleError).either
-            assertM(zio, isLeft(equalTo(ExampleError)))
+            val io = ZIO.effectSuspend[Any, Nothing](throw ExampleError).either
+            assertM(io, isLeft(equalTo(ExampleError)))
           },
           testM("effectSuspendWith must catch throwable") {
-            val zio = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either
-            assertM(zio, isLeft(equalTo(ExampleError)))
+            val io = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either
+            assertM(io, isLeft(equalTo(ExampleError)))
           },
           testM("suspend must be evaluatable") {
             assertM(IO.effectSuspendTotal(IO.effectTotal(42)), equalTo(42))
@@ -197,34 +197,53 @@ object RTSSpec
             assertM(io, equalTo(die(ExampleError)))
           },
           testM("uncaught fail") {
-            Stub
+            assertM(Task.fail(ExampleError).run, fails(equalTo(ExampleError)))
           },
           testM("uncaught fail supervised") {
-            Stub
+            val io = Task.fail(ExampleError).interruptChildren
+            assertM(io.run, fails(equalTo(ExampleError)))
           },
           testM("uncaught sync effect error") {
-            Stub
+            val io = IO.effectTotal[Int](throw ExampleError)
+            assertM(io.run, dies(equalTo(ExampleError)))
           },
           testM("uncaught supervised sync effect error") {
-            Stub
+            val io = IO.effectTotal[Int](throw ExampleError).interruptChildren
+            assertM(io.run, dies(equalTo(ExampleError)))
           },
           testM("deep uncaught sync effect error") {
-            Stub
-          },
-          testM("deep uncaught fail") {
-            Stub
+            assertM(deepErrorEffect(100).run, fails(equalTo(ExampleError)))
           },
           testM("catch failing finalizers with fail") {
+            // val io = TaskExampleError
+            //   .ensuring(IO.effectTotal(throw InterruptCause1))
+            //   .ensuring(IO.effectTotal(throw InterruptCause2))
+            //   .ensuring(IO.effectTotal(throw InterruptCause3))
+
+            // val expected = fail(ExampleError) ++
+            //   die(InterruptCause1) ++
+            //   die(InterruptCause2) ++
+            //   die(InterruptCause3)
             Stub
           },
           testM("catch failing finalizers with terminate") {
             Stub
           },
           testM("run preserves interruption status") {
-            Stub
+            for {
+              p    <- Promise.make[Nothing, Unit]
+              f    <- (p.succeed(()) *> IO.never).run.fork
+              _    <- p.await
+              _    <- f.interrupt
+              test <- f.await.map(_.interrupted)
+            } yield assert(test, isTrue)
           },
           testM("run swallows inner interruption") {
-            Stub
+            for {
+              p   <- Promise.make[Nothing, Int]
+              _   <- IO.interrupt.run *> p.succeed(42)
+              res <- p.await
+            } yield assert(res, equalTo(42))
           },
           testM("timeout a long computation") {
             Stub
@@ -233,7 +252,8 @@ object RTSSpec
             Stub
           },
           testM("exception in fromFuture does not kill fiber") {
-            Stub
+            val io = ZIO.fromFuture(_ => throw ExampleError).either
+            assertM(io, isLeft(equalTo(ExampleError)))
           }
         ),
         suite("RTS finalizers")(
