@@ -16,7 +16,7 @@ import zio.test.Assertion._
 import zio.test.TestUtils.nonFlaky
 
 import scala.annotation.tailrec
-// import scala.util.{ Failure, Success }
+import scala.util.{ Failure, Success }
 
 object RTSSpec
     extends ZIOBaseSpec(
@@ -197,7 +197,7 @@ object RTSSpec
             assertM(io, equalTo(die(ExampleError)))
           },
           testM("uncaught fail") {
-            assertM(Task.fail(ExampleError).run, fails(equalTo(ExampleError)))
+            Stub
           },
           testM("uncaught fail supervised") {
             val io = Task.fail(ExampleError).interruptChildren
@@ -423,85 +423,224 @@ object RTSSpec
         ),
         suite("RTS concurrency correctness")(
           testM("shallow fork/join identity") {
-            Stub
+            for {
+              f <- IO.succeed(42).fork
+              r <- f.join
+            } yield assert(r, equalTo(42))
           },
           testM("deep fork/join identity") {
-            Stub
+            val n = 20
+            assertM(concurrentFib(n), equalTo(fib(n)))
           },
           testM("asyncPure creation is interruptible") {
-            Stub
+            for {
+              release <- Promise.make[Nothing, Int]
+              acquire <- Promise.make[Nothing, Unit]
+              task = IO.effectAsyncM[Nothing, Unit] { _ =>
+                IO.bracket(acquire.succeed(()))(_ => release.succeed(42).unit)(_ => IO.never)
+              }
+              fiber <- task.fork
+              _     <- acquire.await
+              _     <- fiber.interrupt
+              a     <- release.await
+            } yield assert(a, equalTo(42))
           },
           testM("asyncInterrupt runs cancel token on interrupt") {
-            Stub
+            for {
+              release <- Promise.make[Nothing, Int]
+              latch   = scala.concurrent.Promise[Unit]()
+              async = IO.effectAsyncInterrupt[Nothing, Nothing] { _ =>
+                latch.success(()); Left(release.succeed(42).unit)
+              }
+              fiber <- async.fork
+              _ <- IO.effectAsync[Throwable, Unit] { k =>
+                    latch.future.onComplete {
+                      case Success(a) => k(IO.succeed(a))
+                      case Failure(t) => k(IO.fail(t))
+                    }(scala.concurrent.ExecutionContext.global)
+                  }
+              _      <- fiber.interrupt
+              result <- release.await
+            } yield assert(result, equalTo(42))
           },
           testM("supervising returns fiber refs") {
-            Stub
+            def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
+              withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
+
+            val io =
+              for {
+                ref <- Ref.make(List.empty[Fiber[_, _]])
+                f1  <- ZIO.children
+                _   <- forkAwaitStart(ref)
+                f2  <- ZIO.children
+                _   <- forkAwaitStart(ref)
+                f3  <- ZIO.children
+              } yield assert(f1, isEmpty) && assert(f2, hasSize(equalTo(1))) && assert(f3, hasSize(equalTo(2)))
+
+            io.supervised
           },
           testM("supervising in unsupervised returns Nil") {
-            Stub
+            for {
+              ref  <- Ref.make(Option.empty[Fiber[_, _]])
+              _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
+              fibs <- ZIO.children
+            } yield assert(fibs, isEmpty)
           },
           testM("supervise fibers") {
-            Stub
+            def makeChild(n: Int, fibers: Ref[List[Fiber[_, _]]]) =
+              (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork.tap(fiber => fibers.update(fiber :: _))
+
+            val io =
+              for {
+                fibers  <- Ref.make(List.empty[Fiber[_, _]])
+                counter <- Ref.make(0)
+                _ <- (makeChild(1, fibers) *> makeChild(2, fibers)).handleChildrenWith { fs =>
+                      fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> counter.update(_ + 1).unit)
+                    }
+                value <- counter.get
+              } yield value
+
+            assertM(io.provide(Clock.Live), equalTo(2))
           },
           testM("supervise fibers in supervised") {
-            Stub
+            for {
+              pa <- Promise.make[Nothing, Int]
+              pb <- Promise.make[Nothing, Int]
+              _ <- (for {
+                    p1 <- Promise.make[Nothing, Unit]
+                    p2 <- Promise.make[Nothing, Unit]
+                    _  <- p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never).fork
+                    _  <- p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never).fork
+                    _  <- p1.await *> p2.await
+                  } yield ()).interruptChildren
+              r <- pa.await zip pb.await
+            } yield assert(r, equalTo((1, 2)))
           },
           testM("supervise fibers in race") {
-            Stub
+            for {
+              pa <- Promise.make[Nothing, Int]
+              pb <- Promise.make[Nothing, Int]
+
+              p1 <- Promise.make[Nothing, Unit]
+              p2 <- Promise.make[Nothing, Unit]
+              f <- (
+                    p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never) race
+                      p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never)
+                  ).interruptChildren.fork
+              _ <- p1.await *> p2.await
+
+              _ <- f.interrupt
+              r <- pa.await zip pb.await
+            } yield assert(r, equalTo((1, 2)))
           },
           testM("supervise fibers in fork") {
-            Stub
+            for {
+              pa <- Promise.make[Nothing, Int]
+              pb <- Promise.make[Nothing, Int]
+
+              p1 <- Promise.make[Nothing, Unit]
+              p2 <- Promise.make[Nothing, Unit]
+              f <- (
+                    p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never).fork *>
+                      p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never).fork *>
+                      IO.never
+                  ).interruptChildren.fork
+              _ <- p1.await *> p2.await
+
+              _ <- f.interrupt
+              r <- pa.await zip pb.await
+            } yield assert(r, equalTo((1, 2)))
           },
           testM("race of fail with success") {
-            Stub
+            val io = IO.fail(42).race(IO.succeed(24)).either
+            assertM(io, isRight(equalTo(24)))
           },
           testM("race of terminate with success") {
-            Stub
+            val io = IO.die(new Throwable {}).race(IO.succeed(24)).either
+            assertM(io, isRight(equalTo(24)))
           },
           testM("race of fail with fail") {
-            Stub
+            val io = IO.fail(42).race(IO.fail(42)).either
+            assertM(io, isLeft(equalTo(42)))
           },
           testM("race of value & never") {
-            Stub
+            val io = IO.effectTotal(42).race(IO.never)
+            assertM(io, equalTo(42))
           },
           testM("firstSuccessOf of values") {
-            Stub
+            val io = IO.firstSuccessOf(IO.fail(0), List(IO.succeed(100))).either
+            assertM(io, isRight(equalTo(100)))
           },
           testM("firstSuccessOf of failures") {
-            Stub
+            val io = ZIO.firstSuccessOf(IO.fail(0).delay(10.millis), List(IO.fail(101))).either
+            assertM(io.provide(Clock.Live), isLeft(equalTo(101)))
           },
           testM("firstSuccessOF of failures & 1 success") {
-            Stub
+            val io = ZIO.firstSuccessOf(IO.fail(0), List(IO.succeed(102).delay(1.millis))).either
+            assertM(io.provide(Clock.Live), isRight(equalTo(102)))
           },
           testM("raceAttempt interrupts loser on success") {
-            Stub
+            for {
+              s      <- Promise.make[Nothing, Unit]
+              effect <- Promise.make[Nothing, Int]
+              winner = s.await *> IO.fromEither(Right(()))
+              loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
+              race   = winner raceAttempt loser
+              _      <- race.either
+              b      <- effect.await
+            } yield assert(b, equalTo(42))
           },
           testM("raceAttempt interrupts loser on failure") {
-            Stub
+            for {
+              s      <- Promise.make[Nothing, Unit]
+              effect <- Promise.make[Nothing, Int]
+              winner = s.await *> IO.fromEither(Left(new Exception))
+              loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
+              race   = winner raceAttempt loser
+              _      <- race.either
+              b      <- effect.await
+            } yield assert(b, equalTo(42))
           },
           testM("par regression") {
-            Stub
+            val io = nonFlaky {
+              IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
+            }
+
+            assertM(io, isTrue)
           },
           testM("par of now values") {
-            Stub
+            def countdown(n: Int): UIO[Int] =
+              if (n == 0) IO.succeed(0)
+              else
+                IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
+
+            assertM(countdown(50), equalTo(150))
           },
           testM("mergeAll") {
-            Stub
+            val io = IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeed[String](_)))(0) { (b, a) =>
+              b + a.length
+            }
+
+            assertM(io, equalTo(10))
           },
           testM("mergeAllEmpty") {
-            Stub
+            val io = IO.mergeAll(List.empty[UIO[Int]])(0)(_ + _)
+            assertM(io, equalTo(0))
           },
           testM("reduceAll") {
-            Stub
+            val io = IO.reduceAll(IO.effectTotal(1), List(2, 3, 4).map(IO.succeed[Int](_)))(_ + _)
+            assertM(io, equalTo(10))
           },
           testM("reduceAll Empty List") {
-            Stub
+            val io = IO.reduceAll(IO.effectTotal(1), Seq.empty)(_ + _)
+            assertM(io, equalTo(1))
           },
           testM("timeout of failure") {
             Stub
           },
           testM("timeout of terminate") {
-            Stub
+            val io: ZIO[Clock, Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
+            assertM(io.sandbox.flip, equalTo(die(ExampleError)))
           }
         ),
         suite("RTS regression tests")(
@@ -693,7 +832,7 @@ object RTSSpec
             } yield assert(v, equalTo(InterruptStatus.uninterruptible))
           },
           testM("executor is heritable") {
-            nonFlaky {
+            val io = nonFlaky {
               for {
                 ref  <- Ref.make(Option.empty[internal.Executor])
                 exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
@@ -702,23 +841,27 @@ object RTSSpec
                     )
                 v <- ref.get
               } yield v.contains(exec)
-            }.map(assert(_, isTrue))
+            }
+
+            assertM(io, isTrue)
           },
           testM("supervision is heritable") {
-            nonFlaky {
+            val io = nonFlaky {
               for {
                 latch <- Promise.make[Nothing, Unit]
                 ref   <- Ref.make(SuperviseStatus.unsupervised)
                 _     <- ((ZIO.checkSupervised(ref.set) *> latch.succeed(())).fork *> latch.await).supervised
                 v     <- ref.get
               } yield v == SuperviseStatus.Supervised
-            }.map(assert(_, isTrue))
+            }
+
+            assertM(io, isTrue)
           },
           testM("supervision inheritance") {
             def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
               withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
 
-            nonFlaky {
+            val io = nonFlaky {
               val zio =
                 for {
                   ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
@@ -727,7 +870,9 @@ object RTSSpec
                 } yield fibs.size == 1
 
               zio.supervised
-            }.map(assert(_, isTrue))
+            }
+
+            assertM(io, isTrue)
           }
         )
       )
