@@ -116,6 +116,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     left identity             $flatMapLeftIdentity
     right identity            $flatMapRightIdentity
     associativity             $flatMapAssociativity
+    inner finalizers          $flatMapInnerFinalizers
 
   Stream.flatMapPar/flattenPar/mergeAll
     guarantee ordering                 $flatMapParGuaranteeOrdering
@@ -228,11 +229,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.throttleEnforce
     free elements                   $throttleEnforceFreeElements
     no bandwidth                    $throttleEnforceNoBandwidth
-    throttle enforce short circuits $throttleEnforceShortCircuits
 
   Stream.throttleShape
     free elements                 $throttleShapeFreeElements
-    throttle shape short circuits $throttleShapeShortCircuits
 
   Stream.toQueue            $toQueue
 
@@ -929,6 +928,26 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       val rightStream = m.flatMap(x => f(x).flatMap(g))
       unsafeRunSync(leftStream.runCollect) must_=== unsafeRunSync(rightStream.runCollect)
     }
+
+  private def flatMapInnerFinalizers = {
+    val test =
+      for {
+        effects <- Ref.make(List[Int]())
+        latch   <- Promise.make[Nothing, Unit]
+        fiber <- Stream(
+                  Stream.bracket(UIO.unit)(_ => effects.update(1 :: _)),
+                  Stream.fromEffect(effects.update(2 :: _)),
+                  Stream.bracket(UIO.unit)(_ => effects.update(3 :: _)) *> Stream.fromEffect(
+                    latch.succeed(()) *> ZIO.never
+                  )
+                ).flatMap(identity).runDrain.fork
+        _      <- latch.await
+        _      <- fiber.interrupt
+        result <- effects.get
+      } yield result must_=== List(3, 2, 1)
+
+    unsafeRun(test)
+  }
 
   private def flatMapParGuaranteeOrdering = prop { m: List[Int] =>
     val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect
@@ -1736,29 +1755,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .runCollect must_=== List()
   }
 
-  private def throttleEnforceShortCircuits = {
-    def delay(n: Int) = ZIO.sleep(5.milliseconds) *> UIO.succeed(n)
-
-    unsafeRun {
-      Stream(1, 2, 3, 4, 5)
-        .mapM(delay)
-        .throttleEnforce(2, Duration.Infinity)(_ => 1)
-        .take(2)
-        .runCollect must_=== List(1, 2)
-    }
-  }
-
   private def throttleShapeFreeElements = unsafeRun {
     Stream(1, 2, 3, 4)
       .throttleShape(1, Duration.Infinity)(_ => 0)
       .runCollect must_=== List(1, 2, 3, 4)
-  }
-
-  private def throttleShapeShortCircuits = unsafeRun {
-    Stream(1, 2, 3, 4, 5)
-      .throttleShape(2, Duration.Infinity)(_ => 1)
-      .take(2)
-      .runCollect must_=== List(1, 2)
   }
 
   private def timeoutSucceed =
