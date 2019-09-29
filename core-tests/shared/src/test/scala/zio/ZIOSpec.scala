@@ -14,7 +14,7 @@ object ZIOSpec
             val z1                = Task.fail(new Throwable("1"))
             val z2: Task[Nothing] = Task.die(new Throwable("2"))
             val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-              case Die(FiberFailure(Both(Traced(Fail(a: Throwable), _), Traced(Die(b: Throwable), _)))) =>
+              case Then(Die(FiberFailure(Traced(Fail(a: Throwable), _))), Traced(Die(b: Throwable), _)) =>
                 Task(a.getMessage == "1" && b.getMessage == "2")
               case _ =>
                 Task(false)
@@ -25,7 +25,7 @@ object ZIOSpec
             val z1                = Task.fail(new Throwable("1"))
             val z2: Task[Nothing] = Task.fail(new Throwable("2"))
             val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-              case Both(Die(FiberFailure(Traced(Fail(a: Throwable), _))), Traced(Fail(b: Throwable), _)) =>
+              case Then(Die(FiberFailure(Traced(Fail(a: Throwable), _))), Traced(Fail(b: Throwable), _)) =>
                 Task(a.getMessage == "1" && b.getMessage == "2")
               case _ =>
                 Task(false)
