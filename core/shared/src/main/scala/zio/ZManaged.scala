@@ -147,7 +147,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  final def bimap[A1](f: E => Nothing, g: A => A1): ZManaged[R, Nothing, A1] =
+  final def bimap[E1, A1](f: E => E1, g: A => A1): ZManaged[R, E1, A1] =
     mapError(f).map(g)
 
   /**
@@ -393,7 +393,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * Returns an effect whose failure is mapped by the specified `f` function.
    */
-  final def mapError(f: E => Nothing): ZManaged[R, Nothing, A] =
+  final def mapError[E1](f: E => E1): ZManaged[R, E1, A] =
     ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
 
   /**
@@ -454,14 +454,14 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Translates effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
-  final def orDie(implicit ev: E => Nothing): ZManaged[R, Nothing, A] =
+  final def orDie(implicit ev: E <:< Throwable): ZManaged[R, Nothing, A] =
     orDieWith(ev)
 
   /**
    * Keeps none of the errors, and terminates the fiber with them, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  final def orDieWith(f: E => Nothing): ZManaged[R, Nothing, A] =
+  final def orDieWith(f: E => Throwable): ZManaged[R, Nothing, A] =
     mapError(f).catchAll(ZManaged.die _)
 
   /**
@@ -643,7 +643,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * The inverse operation `ZManaged.sandboxed`
    */
-  final def unsandbox(implicit ev: E => Nothing): ZManaged[R, Nothing, A] =
+  final def unsandbox[E1](implicit ev: E <:< Cause[E1]): ZManaged[R, E1, A] =
     ZManaged.unsandbox(mapError(ev))
 
   /**
