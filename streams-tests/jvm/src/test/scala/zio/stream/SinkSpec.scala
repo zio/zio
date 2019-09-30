@@ -47,6 +47,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     collectAllN
       happy path          $collectAllNHappyPath
       empty list          $collectAllNEmptyList
+      leftovers append    $collectAllNLeftoversAppend
       init error          $collectAllNInitError
       step error          $collectAllNStepError
       extract error       $collectAllNExtractError
@@ -54,6 +55,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     collectAllWhile
       happy path             $collectAllWhileHappyPath
       false predicate        $collectAllWhileFalsePredicate
+      leftovers append       $collectAllWhileLeftoversAppend
       init error             $collectAllWhileInitError
       step error             $collectAllWhileStepError
       extract error          $collectAllWhileExtractError
@@ -182,6 +184,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     untilOutput
       happy path      $untilOutputHappyPath
       false predicate $untilOutputFalsePredicate
+      leftover append $untilLeftoverAppend
       init error      $untilOutputInitError
       step error      $untilOutputStepError
       extract error   $untilOutputExtractError
@@ -239,11 +242,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     collectAllWhile $collectAllWhile
 
-    foldWeighted           $foldWeighted
-    foldWeightedDecompose  $foldWeightedDecompose
+    foldWeighted                    $foldWeighted
+    foldWeightedDecompose           $foldWeightedDecompose
+    foldWeightedDecomposeLeftovers  $foldWeightedDecomposeLeftovers
 
-    foldWeightedM          $foldWeightedM
-    foldWeightedDecomposeM $foldWeightedDecomposeM
+    foldWeightedM                   $foldWeightedM
+    foldWeightedDecomposeM          $foldWeightedDecomposeM
+    foldWeightedDecomposeMLeftovers $foldWeightedDecomposeMLeftovers
 
     foldUntil $foldUntil
 
@@ -334,12 +339,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     def cont(state: State) = state._2.isEmpty
   }
 
-  private def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], a: A) =
-    for {
-      init   <- sink.initial
-      step   <- sink.step(init, a)
-      result <- sink.extract(step)
-    } yield result
+  private def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], as: A*) =
+    as.foldLeft(sink.initial) {
+        case (s, a) => s.flatMap(sink.step(_, a))
+      }
+      .flatMap(sink.extract)
 
   private def asHappyPath = {
     val sink = ZSink.identity[Int].as("const")
@@ -497,6 +501,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(test)
   }
 
+  private def collectAllNLeftoversAppend = {
+    val sink = ZSink.identity[Int].collectAllN(3)
+    val test = sinkIteration(sink, (1 to 5): _*)
+      .map(_ must_=== ((List(1, 2, 3), Chunk(4, 5))))
+    unsafeRun(test)
+  }
+
   private def collectAllNInitError = {
     val sink = initErrorSink.collectAllN(1)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
@@ -528,6 +539,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   private def collectAllWhileFalsePredicate = {
     val sink = ZSink.identity[Int].collectAllWhile(_ < 0)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== (List() -> Chunk.single(1))))
+  }
+
+  private def collectAllWhileLeftoversAppend = {
+    val sink = ZSink.collectAll[Int].collectAllWhile(_ < 0)
+    val test = sinkIteration(sink, -1, -2, 3, -4, 5)
+      .map(_ must_=== ((List(List(-1, -2, -4)), Chunk(3, 5))))
+    unsafeRun(test)
   }
 
   private def collectAllWhileInitError = {
@@ -1109,6 +1127,15 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== ((None, Chunk.empty))))
   }
 
+  private def untilLeftoverAppend = {
+    val sink = ZSink.collectAllN[Int](3).untilOutput(_.sum > 0)
+    val test = Stream((-4 to 4): _*)
+      .transduce(sink)
+      .runCollect
+      .map(_ must_=== List(Option(List(2, 3, 4))))
+    unsafeRun(test)
+  }
+
   private def untilOutputInitError = {
     val sink = initErrorSink.untilOutput(_ == 0)
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
@@ -1432,6 +1459,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       .map(_ must_=== List(List(1), List(4), List(1, 1)))
   }
 
+  private def foldWeightedDecomposeLeftovers = unsafeRun {
+    val sink =
+      Sink.foldWeightedDecompose(Vector.empty[Int])((a: Int) => if (a == 1 || a == 4) 1 else 0, 1, Chunk.single[Int])(
+        _ :+ _
+      )
+    Stream((0 to 6): _*)
+      .transduce(sink)
+      .runCollect
+      .map(_ must_=== (List(Vector(0, 1), Vector(2, 3, 4), Vector(5, 6))))
+  }
+
   private def foldWeightedM = unsafeRun {
     Stream[Long](1, 5, 2, 3)
       .transduce(
@@ -1458,6 +1496,23 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       )
       .runCollect
       .map(_ must_=== List(List(1), List(4), List(1, 1)))
+  }
+
+  private def foldWeightedDecomposeMLeftovers = unsafeRun {
+    Stream((0 to 6): _*)
+      .transduce(
+        Sink.foldWeightedDecomposeM(Vector.empty[Int])(
+          (a: Int) => UIO.succeed(if (a == 1 || a == 4) 1 else 0),
+          1,
+          (a: Int) => UIO.succeed(Chunk.single(a))
+        ) { (acc, el) =>
+          UIO.succeed(acc :+ el)
+        }
+      )
+      .runCollect
+      .map(
+        _ must_=== (List(Vector(0, 1), Vector(2, 3, 4), Vector(5, 6)))
+      )
   }
 
   private def foldUntil = unsafeRun {
