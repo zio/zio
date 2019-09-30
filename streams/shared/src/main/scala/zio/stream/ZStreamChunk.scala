@@ -16,6 +16,7 @@
 
 package zio.stream
 
+import com.github.ghik.silencer.silent
 import zio._
 
 /**
@@ -29,7 +30,7 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   import ZStream.Pull
 
   /**
@@ -146,7 +147,7 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   final def foldManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
+    chunks.foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
       as.foldMLazy(s)(cont)(f)
     }
 
@@ -159,12 +160,12 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   final def foldChunksManaged[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont)(f)
+    chunks.foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont)(f)
 
   final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    chunks.fold[R1, E1, Chunk[A1], S](s)(cont)(f)
+    chunks.foldWhileM[R1, E1, Chunk[A1], S](s)(cont)(f)
 
   /**
    * Reduces the elements in the stream to a value of type `S`
@@ -193,21 +194,28 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
    */
-  def map[@specialized B](f: A => B): ZStreamChunk[R, E, B] =
+  def map[B](f: A => B): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.map(f)))
 
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
-  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
+  final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
 
   /**
-   * Maps each element to a chunk, and flattens the chunks into the output of
+   * Maps each element to a chunk and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
+  def mapConcatChunk[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.flatMap(f)))
+
+  /**
+   * Maps each element to an iterable and flattens the iterable into the output of
+   * this stream.
+   */
+  def mapConcat[B](f: A => Iterable[B]): ZStreamChunk[R, E, B] =
+    mapConcatChunk(f andThen Chunk.fromIterable)
 
   /**
    * Maps over elements of the stream with the specified effectful function.
@@ -294,6 +302,19 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
     ZStreamChunk(chunks.tap[R1, E1] { as =>
       as.mapM_(f0)
     })
+
+  @silent("never used")
+  def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- process
+      javaStream = new java.io.InputStream {
+        override def read(): Int = {
+          val exit = runtime.unsafeRunSync[Option[Throwable], Byte](pull.asInstanceOf[Pull[R, Throwable, Byte]])
+          ZStream.exitToInputStreamRead(exit)
+        }
+      }
+    } yield javaStream
 
   /**
    * Converts the stream to a managed queue. After managed queue is used, the

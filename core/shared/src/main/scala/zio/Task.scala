@@ -174,7 +174,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[A](register: (Task[A] => Unit) => Either[Canceler, Task[A]]): Task[A] =
+  final def effectAsyncInterrupt[A](register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]]): Task[A] =
     ZIO.effectAsyncInterrupt(register)
 
   /**
@@ -295,6 +295,16 @@ object Task {
     ZIO.fromFiberM(fiber)
 
   /**
+   * @see [[zio.ZIO.fromFunction]]
+   */
+  final def fromFunction[A](f: Any => A): Task[A] = ZIO.fromFunction(f)
+
+  /**
+   * @see [[zio.ZIO.fromFunctionM]]
+   */
+  final def fromFunctionM[A](f: Any => Task[A]): Task[A] = ZIO.fromFunctionM(f)
+
+  /**
    * @see See [[zio.ZIO.fromFuture]]
    */
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
@@ -316,6 +326,11 @@ object Task {
    */
   final def haltWith[E <: Throwable](function: (() => ZTrace) => Cause[E]): Task[Nothing] =
     ZIO.haltWith(function)
+
+  /**
+   * @see [[zio.ZIO.identity]]
+   */
+  final def identity: Task[Any] = ZIO.identity
 
   /**
    * @see See [[zio.ZIO.interrupt]]
@@ -517,6 +532,16 @@ object Task {
    */
   final def uninterruptibleMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
     ZIO.uninterruptibleMask(k)
+
+  /**
+   * @see [[zio.ZIO.unsandbox]]
+   */
+  final def unsandbox[A](v: IO[Cause[Throwable], A]): Task[A] = ZIO.unsandbox(v)
+
+  /**
+   * @see [[zio.ZIO.unsupervised]]
+   */
+  final def unsupervised[A](task: Task[A]): Task[A] = ZIO.unsupervised(task)
 
   /**
    * @see See [[zio.ZIO.untraced]]

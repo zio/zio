@@ -44,13 +44,13 @@ import zio.{ InterruptStatus => InterruptS }
  *
  * `ZIO` values can efficiently describe the following classes of effects:
  *
- *  - '''Pure Values''' &mdash; `ZIO.succeed`
- *  - '''Error Effects''' &mdash; `ZIO.fail`
- *  - '''Synchronous Effects''' &mdash; `IO.effect`
- *  - '''Asynchronous Effects''' &mdash; `IO.effectAsync`
- *  - '''Concurrent Effects''' &mdash; `IO#fork`
- *  - '''Resource Effects''' &mdash; `IO#bracket`
- *  - '''Contextual Effects''' &mdash; `ZIO.access`
+ *  - '''Pure Values''' — `ZIO.succeed`
+ *  - '''Error Effects''' — `ZIO.fail`
+ *  - '''Synchronous Effects''' — `IO.effect`
+ *  - '''Asynchronous Effects''' — `IO.effectAsync`
+ *  - '''Concurrent Effects''' — `IO#fork`
+ *  - '''Resource Effects''' — `IO#bracket`
+ *  - '''Contextual Effects''' — `ZIO.access`
  *
  * The concurrency model is based on ''fibers'', a user-land lightweight thread,
  * which permit cooperative multitasking, fine-grained interruption, and very
@@ -99,7 +99,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Maps the success value of this effect to the specified constant value.
    */
-  final def as[B](b: B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
+  final def as[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstZIOFn(() => b))
 
   /**
    * Maps the error value of this effect to the specified constant value.
@@ -111,6 +111,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified pair of functions, `f` and `g`.
    */
   final def bimap[E2, B](f: E => E2, g: A => B): ZIO[R, E2, B] = mapError(f).map(g)
+
+  /**
+   * Shorthand for the uncurried version of `ZIO.bracket`.
+   */
+  final def bracket[R1 <: R, E1 >: E, B](
+    release: A => ZIO[R1, Nothing, _],
+    use: A => ZIO[R1, E1, B]
+  ): ZIO[R1, E1, B] = ZIO.bracket(self, release, use)
+
+  /**
+   * Shorthand for the curried version of `ZIO.bracket`.
+   */
+  final def bracket[R1 <: R, E1 >: E]: ZIO.BracketAcquire[R1, E1, A] = ZIO.bracket(self)
 
   /**
    * A less powerful variant of `bracket` where the resource acquired by this
@@ -731,23 +744,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R]): ZIO[R0, E1, A] = r0.use(self.provide)
 
   final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
-    for {
-      r1 <- ZIO.environment[R]
-      r  <- self provide r1
-      a  <- that provide r
-    } yield a
+    self.flatMap(that.provide)
 
   final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
-    for {
-      either <- ZIO.environment[Either[R, R1]]
-      a1     <- either.fold(self.provide, that.provide)
-    } yield a1
+    ZIO.accessM(_.fold(self.provide, that.provide))
 
   final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
-    for {
-      e <- ZIO.environment[Either[R, R1]]
-      r <- e.fold(self.map(Left(_)) provide _, that.map(Right(_)) provide _)
-    } yield r
+    ZIO.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
   /**
    * Returns a successful effect if the value is `Left`, or fails with the error `None`.
@@ -823,7 +826,42 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * yielding the value of the first effect to succeed with a value.
    * Losers of the race will be interrupted immediately
    */
-  def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = ZIO.raceAll(self, ios)
+  def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = {
+    def arbiter[E1, A1](
+      fibers: Iterable[(Fiber[E1, A1], Int)],
+      done: Promise[E1, A1],
+      fails: Ref[Int],
+      idx: Int
+    )(res: Exit[E1, A1]): ZIO[R1, Nothing, _] =
+      res.foldM[R1, Nothing, Unit](
+        e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) done.halt(e).unit else ZIO.unit) -> (c - 1))),
+        a =>
+          done
+            .complete(ZIO.succeed(a))
+            .flatMap(
+              set =>
+                if (set) fibers.foldLeft(IO.unit)((io, f) => if (f._2 == idx) io else io <* f._1.interrupt)
+                else ZIO.unit
+            )
+      )
+
+    (for {
+      done  <- Promise.make[E1, A1]
+      fails <- Ref.make[Int](ios.size)
+      c <- ZIO.uninterruptibleMask { restore =>
+            for {
+              head <- ZIO.interruptible(self).fork
+              tail <- ZIO.foreach(ios)(io => ZIO.interruptible(io).fork)
+              as   = (head :: tail).zipWithIndex
+              _ <- as.foldLeft[ZIO[R1, E1, _]](ZIO.unit) {
+                    case (io, (f, idx)) =>
+                      io *> f.await.flatMap(arbiter(as, done, fails, idx)).fork
+                  }
+              c <- restore(done.await).onInterrupt(as.foldLeft(IO.unit)((io, f) => io <* f._1.interrupt))
+            } yield c
+          }
+    } yield c).refailWithTrace
+  }
 
   /**
    * Returns an effect that races this effect with the specified effect,
@@ -1267,13 +1305,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.fork >>= (_.toFutureWith(f))
 
   /**
-   * Converts this ZIO to [[zio.Managed]].
+   * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release action
+   * will be performed uninterruptibly.
    */
   final def toManaged[R1 <: R](release: A => ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
     ZManaged.make[R1, E, A](this)(release)
 
   /**
-   * Converts this ZIO to [[zio.ZManaged]] with no release action.
+   * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be performed
+   * interruptibly.
    */
   final def toManaged_ : ZManaged[R, E, A] =
     ZManaged.fromEffect[R, E, A](this)
@@ -1460,11 +1500,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     orElse(that)
 
   final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
-    for {
-      r1 <- ZIO.environment[R1]
-      r  <- that provide r1
-      a  <- self provide r
-    } yield a
+    that >>> self
 
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
@@ -1774,12 +1810,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    * function must be called at most once.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
-    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
+    effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
       case (started, cancel) =>
         flatten {
           effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
@@ -1792,7 +1828,7 @@ private[zio] trait ZIOFunctions extends Serializable {
               case Right(io) => Some(ZIO.succeed(io))
             } finally if (!cancel.isSet) cancel.set(ZIO.unit)
           })
-        }.onInterrupt(flatten(effectTotal(if (started.get) cancel.get() else ZIO.unit)))
+        }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
     }
   }
 
@@ -2186,7 +2222,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     zio: ZIO[R, E, A],
     ios: Iterable[ZIO[R1, E, A]]
   ): ZIO[R1, E, A] =
-    ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _).refailWithTrace
+    zio.raceAll(ios)
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
@@ -2437,14 +2473,6 @@ object ZIO extends ZIOFunctions {
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  implicit final class ZIOInvariant[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
-    final def bracket: ZIO.BracketAcquire[R, E, A] =
-      new ZIO.BracketAcquire(self)
-
-    final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
-      new ZIO.BracketExitAcquire(self)
-  }
-
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
     /**
@@ -2452,7 +2480,8 @@ object ZIO extends ZIOFunctions {
      * This resource will get automatically closed, because it implements `AutoCloseable`.
      */
     def bracketAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      io.bracket(a => UIO(a.close()))(use)
+      // TODO: Dotty doesn't infer this properly: io.bracket[R1, E1](a => UIO(a.close()))(use)
+      bracket(io)(a => UIO(a.close()))(use)
 
     /**
      * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].
@@ -2552,10 +2581,17 @@ object ZIO extends ZIOFunctions {
       new ZIO.Succeed(underlying(a))
   }
 
-  final class ConstFn[R, E, A, B](override val underlying: () => B) extends ZIOFn1[A, ZIO[R, E, B]] {
+  final class ConstZIOFn[R, E, A, B](override val underlying: () => B) extends ZIOFn1[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] = {
       val _ = a
       new ZIO.Succeed(underlying())
+    }
+  }
+
+  final class ConstFn[A, B](override val underlying: () => B) extends ZIOFn1[A, B] {
+    def apply(a: A): B = {
+      val _ = a
+      underlying()
     }
   }
 

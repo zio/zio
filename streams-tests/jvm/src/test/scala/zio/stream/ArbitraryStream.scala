@@ -13,9 +13,9 @@ object ArbitraryStream {
 
       val succeedingStream: Gen[Stream[String, T]] = genPureStream
 
-      val failingStreamEffect: Gen[StreamEffect[String, T]] = genFailingStreamEffect
+      val failingStreamEffect: Gen[StreamEffect[Any, String, T]] = genFailingStreamEffect
 
-      val succeedingStreamEffect: Gen[StreamEffect[String, T]] = genPureStreamEffect
+      val succeedingStreamEffect: Gen[StreamEffect[Any, String, T]] = genPureStreamEffect
 
       Gen.oneOf(failingStream, succeedingStream, failingStreamEffect, succeedingStreamEffect)
     }
@@ -33,10 +33,10 @@ object ArbitraryStream {
       case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
     }
 
-  def genPureStreamEffect[T: ClassTag: Arbitrary]: Gen[StreamEffect[Nothing, T]] =
+  def genPureStreamEffect[T: ClassTag: Arbitrary]: Gen[StreamEffect[Any, Nothing, T]] =
     Arbitrary.arbitrary[Iterable[T]].map(StreamEffect.fromIterable)
 
-  def genFailingStreamEffect[T: ClassTag: Arbitrary]: Gen[StreamEffect[String, T]] =
+  def genFailingStreamEffect[T: ClassTag: Arbitrary]: Gen[StreamEffect[Any, String, T]] =
     for {
       it <- Arbitrary.arbitrary[List[T]]
       n  <- Gen.choose(0, it.size)

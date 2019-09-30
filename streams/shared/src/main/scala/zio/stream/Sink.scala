@@ -242,12 +242,8 @@ object Sink {
   /**
    * see [[ZSink.succeed]]
    */
-  final def succeed[B](b: B): Sink[Nothing, Nothing, Any, B] =
+  final def succeed[A, B](b: B): Sink[Nothing, A, A, B] =
     ZSink.succeed(b)
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
-    succeed(b)
 
   /**
    * see [[ZSink.throttleEnforce]]

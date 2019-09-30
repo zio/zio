@@ -86,6 +86,22 @@ object ZManagedSpec
             } yield assert(result, equalTo(List[Exit[_, _]](Exit.Failure(Cause.Die(acquireEx)))))
           }
         ),
+        suite("fromEffect")(
+          testM("Performed interruptibly") {
+            assertM(
+              ZManaged.fromEffect(ZIO.checkInterruptible(ZIO.succeed)).use(ZIO.succeed),
+              equalTo(InterruptStatus.interruptible)
+            )
+          }
+        ),
+        suite("fromEffectUninterruptible")(
+          testM("Performed uninterruptibly") {
+            assertM(
+              ZManaged.fromEffectUninterruptible(ZIO.checkInterruptible(ZIO.succeed)).use(ZIO.succeed),
+              equalTo(InterruptStatus.uninterruptible)
+            )
+          }
+        ),
         suite("ensuring")(
           testM("Runs on successes") {
             for {
@@ -650,6 +666,61 @@ object ZManagedSpec
             } yield assert(res, isNone)
           }
         ),
+        suite("withEarlyRelease")(
+          testM("Provides a canceler that can be used to eagerly evaluate the finalizer") {
+            for {
+              ref     <- Ref.make(false)
+              managed = ZManaged.make(ZIO.unit)(_ => ref.set(true)).withEarlyRelease
+              result <- managed.use {
+                         case (canceler, _) => canceler *> ref.get
+                       }
+            } yield assert(result, isTrue)
+          },
+          testM("The canceler should run uninterruptibly") {
+            for {
+              ref     <- Ref.make(true)
+              latch   <- Promise.make[Nothing, Unit]
+              managed = Managed.make(ZIO.unit)(_ => latch.succeed(()) *> ZIO.never.whenM(ref.get)).withEarlyRelease
+              result <- managed.use {
+                         case (canceler, _) =>
+                           for {
+                             fiber        <- canceler.fork
+                             _            <- latch.await
+                             interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds)).either
+                             _            <- ref.set(false)
+                           } yield interruption
+                       }
+            } yield assert(result, isRight(isNone))
+          },
+          testM("If completed, the canceler should cause the regular finalizer to not run") {
+            for {
+              latch   <- Promise.make[Nothing, Unit]
+              ref     <- Ref.make(0)
+              managed = ZManaged.make(ZIO.unit)(_ => ref.update(_ + 1)).withEarlyRelease
+              _       <- managed.use(_._1).ensuring(latch.succeed(()))
+              _       <- latch.await
+              result  <- ref.get
+            } yield assert(result, equalTo(1))
+          },
+          testM("The canceler will run with an exit value indicating the effect was interrupted") {
+            for {
+              ref     <- Ref.make(false)
+              managed = ZManaged.makeExit(ZIO.unit)((_, e) => ref.set(e.interrupted))
+              _       <- managed.withEarlyRelease.use(_._1)
+              result  <- ref.get
+            } yield assert(result, isTrue)
+          }
+        ),
+        suite("withEarlyReleaseExit")(
+          testM("Allows specifying an exit value") {
+            for {
+              ref     <- Ref.make(false)
+              managed = ZManaged.makeExit(ZIO.unit)((_, e) => ref.set(e.succeeded))
+              _       <- managed.withEarlyReleaseExit(Exit.unit).use(_._1)
+              result  <- ref.get
+            } yield assert(result, isTrue)
+          }
+        ),
         suite("zipPar")(
           testM("Does not swallow exit cause if one reservation fails") {
             (for {
@@ -710,6 +781,26 @@ object ZManagedSpec
               } yield assert(abs1, equalTo(abs2))
               test.use[Any, Nothing, TestResult](result => ZIO.succeed(result))
             }
+          }
+        ),
+        suite("switchable")(
+          testM("runs the right finalizer on interruption") {
+            for {
+              effects <- Ref.make(List[String]())
+              latch   <- Promise.make[Nothing, Unit]
+              fib <- ZManaged
+                      .switchable[Any, Nothing, Unit]
+                      .use { switch =>
+                        switch(ZManaged.finalizer(effects.update("First" :: _))) *>
+                          switch(ZManaged.finalizer(effects.update("Second" :: _))) *>
+                          latch.succeed(()) *>
+                          ZIO.never
+                      }
+                      .fork
+              _      <- latch.await
+              _      <- fib.interrupt
+              result <- effects.get
+            } yield assert(result, equalTo(List("Second", "First")))
           }
         )
       )

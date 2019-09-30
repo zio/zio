@@ -191,7 +191,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[R, A](register: (RIO[R, A] => Unit) => Either[Canceler, RIO[R, A]]): RIO[R, A] =
+  final def effectAsyncInterrupt[R, A](register: (RIO[R, A] => Unit) => Either[Canceler[R], RIO[R, A]]): RIO[R, A] =
     ZIO.effectAsyncInterrupt(register)
 
   /**
@@ -320,7 +320,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.fromFunction]]
    */
-  final def fromFunction[R, A](f: R => A): ZIO[R, Nothing, A] =
+  final def fromFunction[R, A](f: R => A): URIO[R, A] =
     ZIO.fromFunction(f)
 
   /**
@@ -334,6 +334,8 @@ object RIO {
    */
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     ZIO.fromFuture(make)
+
+  final def fromOption[A](v: => Option[A]): IO[Unit, A] = ZIO.fromOption(v)
 
   /**
    * @see See [[zio.ZIO.fromTry]]
@@ -355,7 +357,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.identity]]
    */
-  final def identity[R]: ZIO[R, Nothing, R] = ZIO.identity
+  final def identity[R]: RIO[Nothing, R] = ZIO.identity
 
   /**
    * @see See [[zio.ZIO.interrupt]]

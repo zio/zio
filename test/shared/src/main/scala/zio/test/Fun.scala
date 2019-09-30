@@ -16,7 +16,8 @@
 
 package zio.test
 
-import zio.ZIO
+import zio.{ Runtime, ZIO }
+import zio.internal.Executor
 
 /**
  * A `Fun[A, B]` is a referentially transparent version of a potentially
@@ -53,11 +54,27 @@ private[test] object Fun {
    * `hashCode` in a way that is consistent with equality.
    */
   final def makeHash[R, A, B](f: A => ZIO[R, Nothing, B])(hash: A => Int): ZIO[R, Nothing, Fun[A, B]] =
-    ZIO.runtime[R].map(runtime => Fun(a => runtime.unsafeRun(f(a)), hash))
+    ZIO.runtime[R].map { runtime =>
+      val funRuntime = withFunExecutor(runtime)
+      Fun(a => funRuntime.unsafeRun(f(a)), hash)
+    }
 
   /**
    * Constructs a new `Fun` from a pure function.
    */
   final def fromFunction[A, B](f: A => B): Fun[A, B] =
     Fun(f, _.hashCode)
+
+  /**
+   * Constructs a new runtime on Scala.js with an unyielding executor so that
+   * synchronous effects with a large number of operations can be safely
+   * executed.
+   */
+  private def withFunExecutor[R](runtime: Runtime[R]): Runtime[R] =
+    if (TestPlatform.isJS) {
+      runtime.withExecutor {
+        val ec = runtime.Platform.executor.asEC
+        Executor.fromExecutionContext(Int.MaxValue)(ec)
+      }
+    } else runtime
 }
