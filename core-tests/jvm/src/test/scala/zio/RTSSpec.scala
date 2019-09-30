@@ -3,8 +3,6 @@ package zio
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
 
-// import com.github.ghik.silencer.silent
-// import zio.Cause.{ die, fail, Fail, Then }
 import zio.LatchOps._
 import zio.RTSSpecHelper._
 import zio.clock.Clock
