@@ -207,7 +207,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.throttleShape
     free elements                 $throttleShapeFreeElements
 
-  Stream.toQueue            $toQueue
+  Stream.toQueue          $toQueue
+  Stream.toUnboundedQueue $toUnboundedQueue
 
   Stream.transduce
     transduce                            $transduce
@@ -1638,6 +1639,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       }
     }
     result must_=== Success(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
+  }
+
+  private def toUnboundedQueue = prop { c: Chunk[Int] =>
+    val s = Stream.fromChunk(c)
+    val result = unsafeRunSync {
+      s.toUnboundedQueue.use { queue: Queue[Take[Nothing, Int]] =>
+        waitForSize(queue, c.length + 1) *> queue.takeAll
+      }
+    }
+    result must_== Success(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
   }
 
   private def transduce = unsafeRun {
