@@ -332,8 +332,8 @@ object RTSSpec
             assertM(io.run, dies(equalTo(ExampleError)))
           },
           testM("error in just usage") {
-            // unsafeRunSync(Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])) must_=== Exit.Failure(fail(ExampleError))
-            Stub
+            val io = IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail(ExampleError))
+            assertM(io.run, fails(equalTo(ExampleError)))
           },
           testM("rethrown caught error in acquisition") {
             val io = IO.absolve(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit).either)
@@ -1228,9 +1228,6 @@ object RTSSpec
     )
 
 object RTSSpecHelper {
-  val Stub = ZIO.succeed(1).map(v => assert(v, equalTo(v)))
-
-  // Utility stuff
   val ExampleError    = new Throwable("Oh noes!")
   val InterruptCause1 = new Throwable("Oh noes 1!")
   val InterruptCause2 = new Throwable("Oh noes 2!")
