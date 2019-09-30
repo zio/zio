@@ -198,7 +198,7 @@ microsite: &microsite
             ./sbt docs/docusaurusCreateSite
             ./sbt docs/docusaurusPublishGhpages
       - <<: *clean_cache
-    - <<: *save_cache
+      - <<: *save_cache
 
 jobs:
   lint:
