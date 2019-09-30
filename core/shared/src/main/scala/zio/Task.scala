@@ -539,11 +539,6 @@ object Task {
   final def unsandbox[A](v: IO[Cause[Throwable], A]): Task[A] = ZIO.unsandbox(v)
 
   /**
-   * @see [[zio.ZIO.unsupervised]]
-   */
-  final def unsupervised[A](task: Task[A]): Task[A] = ZIO.unsupervised(task)
-
-  /**
    * @see See [[zio.ZIO.untraced]]
    */
   final def untraced[A](task: Task[A]): Task[A] = ZIO.untraced(task)

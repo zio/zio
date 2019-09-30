@@ -69,12 +69,6 @@ object URIO {
     ZIO.checkInterruptible(f)
 
   /**
-   * @see [[zio.ZIO.checkSupervised]]
-   */
-  final def checkSupervised[R, A](f: SuperviseStatus => URIO[R, A]): URIO[R, A] =
-    ZIO.checkSupervised(f)
-
-  /**
    * @see [[zio.ZIO.checkTraced]]
    */
   final def checkTraced[R, A](f: TracingStatus => URIO[R, A]): URIO[R, A] =
@@ -435,17 +429,6 @@ object URIO {
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
   /**
-   * @see [[zio.ZIO.interruptChildren]]
-   */
-  final def interruptChildren[R, A](taskr: URIO[R, A]): URIO[R, A] = ZIO.interruptChildren(taskr)
-
-  /**
-   * @see [[zio.ZIO.handleChildrenWith]]
-   */
-  final def handleChildrenWith[R, A](taskr: URIO[R, A])(supervisor: IndexedSeq[Fiber[_, _]] => URIO[R, _]): URIO[R, A] =
-    ZIO.handleChildrenWith(taskr)(supervisor)
-
-  /**
    *  [[zio.ZIO.sequence]]
    */
   final def sequence[R, A](in: Iterable[URIO[R, A]]): URIO[R, List[A]] = ZIO.sequence(in)
@@ -459,17 +442,6 @@ object URIO {
    *  [[zio.ZIO.sequenceParN]]
    */
   final def sequenceParN[R, A](n: Int)(as: Iterable[URIO[R, A]]): URIO[R, List[A]] = ZIO.sequenceParN(n)(as)
-
-  /**
-   * @see [[zio.ZIO.supervised]]
-   */
-  final def supervised[R, A](taskr: URIO[R, A]): URIO[R, A] = ZIO.supervised(taskr)
-
-  /**
-   * @see [[zio.ZIO.superviseStatus]]
-   */
-  final def superviseStatus[R, A](status: SuperviseStatus)(taskr: URIO[R, A]): URIO[R, A] =
-    ZIO.superviseStatus(status)(taskr)
 
   /**
    * @see [[zio.ZIO.swap]]
@@ -538,11 +510,6 @@ object URIO {
    * @see [[zio.ZIO.unsandbox]]
    */
   final def unsandbox[R, A](v: IO[Cause[Nothing], A]): URIO[R, A] = ZIO.unsandbox(v)
-
-  /**
-   * @see [[zio.ZIO.unsupervised]]
-   */
-  final def unsupervised[R, A](rio: URIO[R, A]): URIO[R, A] = ZIO.unsupervised(rio)
 
   /**
    * @see [[zio.ZIO.untraced]]
