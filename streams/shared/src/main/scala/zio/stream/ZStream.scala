@@ -1277,6 +1277,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def interleave[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     self.interleaveWith(that)(Stream(true, false).forever)
 
+  final def interleave[R1 <: R, E1 >: E, A1 >: A](thatChunk: ZStreamChunk[R1, E1, A1]): ZStream[R1, E1, A1] =
+    self.interleave(thatChunk.flattenChunks)
+
   /**
    * Combines this stream and the specified stream deterministically using the
    * stream of boolean values `b` to control which stream to pull from next.
@@ -1463,12 +1466,18 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def merge[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     self.mergeWith[R1, E1, A1, A1](that)(identity, identity) // TODO: Dotty doesn't infer this properly
 
+  final def merge[R1 <: R, E1 >: E, A1 >: A](thatChunk: ZStreamChunk[R1, E1, A1]): ZStream[R1, E1, A1] =
+    self.merge(thatChunk.flattenChunks)
+
   /**
    * Merges this stream and the specified stream together to produce a stream of
    * eithers.
    */
   final def mergeEither[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, Either[A, B]] =
     self.mergeWith(that)(Left(_), Right(_))
+
+  final def mergeEither[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, Either[A, B]] =
+    self.mergeEither(thatChunk.flattenChunks)
 
   /**
    * Merges this stream and the specified stream together to a common element
@@ -2076,6 +2085,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def zip[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
     self.zipWith(that)((left, right) => left.flatMap(a => right.map(a -> _)))
 
+  final def zip[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, (A, B)] =
+    self.zip(thatChunk.flattenChunks)
+
   /**
    * Zips two streams together with a specified function.
    */
@@ -2171,6 +2183,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def cross[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
     (self crossWith that)((_, _))
 
+  final def cross[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, (A, B)] =
+    self cross thatChunk.flattenChunks
+
   /**
    * Composes this stream with the specified stream to create a cartesian product of elements.
    * The `that` stream would be run multiple times, for every element in the `this` stream.
@@ -2179,6 +2194,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def <*>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
     (self crossWith that)((_, _))
+
+  final def <*>[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, (A, B)] =
+    self <*> thatChunk.flattenChunks
 
   /**
    * Composes this stream with the specified stream to create a cartesian product of elements
@@ -2190,6 +2208,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def <*[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, A] =
     (self <*> that).map(_._1)
 
+  final def <*[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, A] =
+    self <* thatChunk.flattenChunks
+
   /**
    * Composes this stream with the specified stream to create a cartesian product of elements
    * and keeps only the elements from the `that` stream. The `that` stream would be run multiple
@@ -2200,11 +2221,17 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def *>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     (self <*> that).map(_._2)
 
+  final def *>[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, B] =
+    self *> thatChunk.flattenChunks
+
   /**
    * Operator alias for `zip`
    */
   final def <&>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
     self zip that
+
+  final def <&>[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, (A, B)] =
+    self zip thatChunk
 
   /**
    * Runs this stream with the specified stream parallelly and keeps only values of this stream.
@@ -2212,11 +2239,17 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def zipLeft[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, A] =
     (self <&> that).map(_._1)
 
+  final def zipLeft[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, A] =
+    self.zipLeft(thatChunk.flattenChunks)
+
   /**
    * Runs this stream with the specified stream parallelly and keeps only values of specified stream.
    */
   final def zipRight[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     (self <&> that).map(_._2)
+
+  final def zipRight[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, B] =
+    self.zipRight(thatChunk.flattenChunks)
 
   /**
    * Operator alias for `zipLeft`
@@ -2224,11 +2257,17 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def <&[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, A] =
     self zipLeft that
 
+  final def <&[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, A] =
+    self zipLeft thatChunk
+
   /**
    * Operator alias for `zipRight`
    */
   final def &>[R1 <: R, E1 >: E, B](that: ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     self zipRight that
+
+  final def &>[R1 <: R, E1 >: E, B](thatChunk: ZStreamChunk[R1, E1, B]): ZStream[R1, E1, B] =
+    self zipRight thatChunk
 }
 
 object ZStream {
