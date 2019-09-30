@@ -79,7 +79,7 @@ object RTSSpec
             val io = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either
             assertM(io, isLeft(equalTo(ExampleError)))
           },
-          testM("suspend must be evaluatable") {
+          testM("effectSuspendTotal must be evaluatable") {
             assertM(IO.effectSuspendTotal(IO.effectTotal(42)), equalTo(42))
           },
           testM("point, bind, map") {
@@ -167,7 +167,7 @@ object RTSSpec
             val io1 = TaskExampleError.either
             val io2 = IO.effectSuspendTotal(IO.effectSuspendTotal(TaskExampleError).either)
 
-            (io1 <*> io2).map {
+            io1.zipWith(io2) {
               case (r1, r2) =>
                 assert(r1, isLeft(equalTo(ExampleError))) && assert(r2, isLeft(equalTo(ExampleError)))
             }
@@ -889,22 +889,16 @@ object RTSSpec
             assertM(io.provide(Clock.Live), equalTo(42))
           },
           testM("bracket use is interruptible") {
-            val io =
-              for {
-                fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
-                res   <- fiber.interrupt
-              } yield res
-
-            assertM(io, isInterrupted)
+            for {
+              fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
+              res   <- fiber.interrupt
+            } yield assert(res, isInterrupted)
           },
           testM("bracketExit use is interruptible") {
-            val io =
-              for {
-                fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
-                res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
-              } yield res
-
-            assertM(io, equalTo(0))
+            for {
+              fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
+              res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+            } yield assert(res, equalTo(0))
           },
           testM("bracket release called on interrupt") {
             val io =
@@ -920,62 +914,50 @@ object RTSSpec
             assertM(io.timeoutTo(42)(_ => 0)(1.second), equalTo(0))
           },
           testM("bracketExit release called on interrupt") {
-            val io =
-              for {
-                done <- Promise.make[Nothing, Unit]
-                fiber <- withLatch { release =>
-                          IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => done.succeed(()))(
-                              _ => release *> IO.never
-                            )
-                            .fork
-                        }
+            for {
+              done <- Promise.make[Nothing, Unit]
+              fiber <- withLatch { release =>
+                        IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => done.succeed(()))(
+                            _ => release *> IO.never
+                          )
+                          .fork
+                      }
 
-                _ <- fiber.interrupt
-                r <- done.await.timeoutTo(42)(_ => 0)(60.second)
-              } yield r
-
-            assertM(io, equalTo(0))
+              _ <- fiber.interrupt
+              r <- done.await.timeoutTo(42)(_ => 0)(60.second)
+            } yield assert(r, equalTo(0))
           },
           testM("redeem + ensuring + interrupt") {
-            val io =
-              for {
-                cont <- Promise.make[Nothing, Unit]
-                p1   <- Promise.make[Nothing, Boolean]
-                f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
-                _    <- cont.await
-                _    <- f1.interrupt
-                res  <- p1.await
-              } yield res
-
-            assertM(io, isTrue)
+            for {
+              cont <- Promise.make[Nothing, Unit]
+              p1   <- Promise.make[Nothing, Boolean]
+              f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
+              _    <- cont.await
+              _    <- f1.interrupt
+              res  <- p1.await
+            } yield assert(res, isTrue)
           },
           testM("finalizer can detect interruption") {
-            val io =
-              for {
-                p1  <- Promise.make[Nothing, Boolean]
-                c   <- Promise.make[Nothing, Unit]
-                f1  <- (c.succeed(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupted))).fork
-                _   <- c.await
-                _   <- f1.interrupt
-                res <- p1.await
-              } yield res
-
-            assertM(io, isTrue)
+            for {
+              p1  <- Promise.make[Nothing, Boolean]
+              c   <- Promise.make[Nothing, Unit]
+              f1  <- (c.succeed(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupted))).fork
+              _   <- c.await
+              _   <- f1.interrupt
+              res <- p1.await
+            } yield assert(res, isTrue)
           },
           testM("interruption of raced") {
-            val io =
-              for {
-                ref   <- Ref.make(0)
-                cont1 <- Promise.make[Nothing, Unit]
-                cont2 <- Promise.make[Nothing, Unit]
-                make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never).onInterrupt(ref.update(_ + 1))
-                raced <- (make(cont1) race (make(cont2))).fork
-                _     <- cont1.await *> cont2.await
-                _     <- raced.interrupt
-                count <- ref.get
-              } yield count
-
-            assertM(io, equalTo(2))
+            for {
+              ref   <- Ref.make(0)
+              cont1 <- Promise.make[Nothing, Unit]
+              cont2 <- Promise.make[Nothing, Unit]
+              make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never).onInterrupt(ref.update(_ + 1))
+              raced <- (make(cont1) race (make(cont2))).fork
+              _     <- cont1.await *> cont2.await
+              _     <- raced.interrupt
+              count <- ref.get
+            } yield assert(count, equalTo(2))
           },
           testM("cancelation is guaranteed") {
             val io =
@@ -1014,117 +996,96 @@ object RTSSpec
             assertM(nonFlaky(io), isTrue)
           },
           testM("recovery of error in finalizer") {
-            val io =
-              for {
-                recovered <- Ref.make(false)
-                fiber <- withLatch { release =>
-                          (release *> ZIO.never)
-                            .ensuring(
-                              (ZIO.unit *> ZIO.fail("Uh oh")).catchAll(_ => recovered.set(true))
-                            )
-                            .fork
-                        }
-                _     <- fiber.interrupt
-                value <- recovered.get
-              } yield value
-
-            assertM(io, isTrue)
+            for {
+              recovered <- Ref.make(false)
+              fiber <- withLatch { release =>
+                        (release *> ZIO.never)
+                          .ensuring(
+                            (ZIO.unit *> ZIO.fail("Uh oh")).catchAll(_ => recovered.set(true))
+                          )
+                          .fork
+                      }
+              _     <- fiber.interrupt
+              value <- recovered.get
+            } yield assert(value, isTrue)
           },
           testM("recovery of interruptible") {
-            val io =
-              for {
-                recovered <- Ref.make(false)
-                fiber <- withLatch { release =>
-                          (release *> ZIO.never.interruptible)
-                            .foldCauseM(
-                              cause => recovered.set(cause.interrupted),
-                              _ => recovered.set(false)
-                            )
-                            .uninterruptible
-                            .fork
-                        }
-                _     <- fiber.interrupt
-                value <- recovered.get
-              } yield value
-
-            assertM(io, isTrue)
+            for {
+              recovered <- Ref.make(false)
+              fiber <- withLatch { release =>
+                        (release *> ZIO.never.interruptible)
+                          .foldCauseM(
+                            cause => recovered.set(cause.interrupted),
+                            _ => recovered.set(false)
+                          )
+                          .uninterruptible
+                          .fork
+                      }
+              _     <- fiber.interrupt
+              value <- recovered.get
+            } yield assert(value, isTrue)
           },
           testM("sandbox of interruptible") {
-            val io =
-              for {
-                recovered <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
-                fiber <- withLatch { release =>
-                          (release *> ZIO.never.interruptible).sandbox.either
-                            .flatMap(exit => recovered.set(Some(exit)))
-                            .uninterruptible
-                            .fork
-                        }
-                _     <- fiber.interrupt
-                value <- recovered.get
-              } yield value
-
-            assertM(io, isSome(isLeft(equalTo(Cause.interrupt))))
+            for {
+              recovered <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
+              fiber <- withLatch { release =>
+                        (release *> ZIO.never.interruptible).sandbox.either
+                          .flatMap(exit => recovered.set(Some(exit)))
+                          .uninterruptible
+                          .fork
+                      }
+              _     <- fiber.interrupt
+              value <- recovered.get
+            } yield assert(value, isSome(isLeft(equalTo(Cause.interrupt))))
           },
           testM("run of interruptible") {
-            val io =
-              for {
-                recovered <- Ref.make[Option[Exit[Nothing, Any]]](None)
-                fiber <- withLatch { release =>
-                          (release *> ZIO.never.interruptible).run
-                            .flatMap(exit => recovered.set(Some(exit)))
-                            .uninterruptible
-                            .fork
-                        }
-                _     <- fiber.interrupt
-                value <- recovered.get
-              } yield value
-
-            assertM(io, isSome(isInterrupted))
+            for {
+              recovered <- Ref.make[Option[Exit[Nothing, Any]]](None)
+              fiber <- withLatch { release =>
+                        (release *> ZIO.never.interruptible).run
+                          .flatMap(exit => recovered.set(Some(exit)))
+                          .uninterruptible
+                          .fork
+                      }
+              _     <- fiber.interrupt
+              value <- recovered.get
+            } yield assert(value, isSome(isInterrupted))
           },
           testM("alternating interruptibility") {
-            val io =
-              for {
-                counter <- Ref.make(0)
-                fiber <- withLatch { release =>
-                          ((((release *> ZIO.never.interruptible.run *> counter
-                            .update(_ + 1)).uninterruptible).interruptible).run
-                            *> counter.update(_ + 1)).uninterruptible.fork
-                        }
-                _     <- fiber.interrupt
-                value <- counter.get
-              } yield value
-
-            assertM(io, equalTo(2))
+            for {
+              counter <- Ref.make(0)
+              fiber <- withLatch { release =>
+                        ((((release *> ZIO.never.interruptible.run *> counter
+                          .update(_ + 1)).uninterruptible).interruptible).run
+                          *> counter.update(_ + 1)).uninterruptible.fork
+                      }
+              _     <- fiber.interrupt
+              value <- counter.get
+            } yield assert(value, equalTo(2))
           },
           testM("interruption after defect") {
-            val io =
-              for {
-                ref <- Ref.make(false)
-                fiber <- withLatch { release =>
-                          (ZIO.effect(throw new Error).run *> release *> ZIO.never)
-                            .ensuring(ref.set(true))
-                            .fork
-                        }
-                _     <- fiber.interrupt
-                value <- ref.get
-              } yield value
-
-            assertM(io, isTrue)
+            for {
+              ref <- Ref.make(false)
+              fiber <- withLatch { release =>
+                        (ZIO.effect(throw new Error).run *> release *> ZIO.never)
+                          .ensuring(ref.set(true))
+                          .fork
+                      }
+              _     <- fiber.interrupt
+              value <- ref.get
+            } yield assert(value, isTrue)
           },
           testM("interruption after defect 2") {
-            val io =
-              for {
-                ref <- Ref.make(false)
-                fiber <- withLatch { release =>
-                          (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
-                            .ensuring(ref.set(true))
-                            .fork
-                        }
-                _     <- fiber.interrupt
-                value <- ref.get
-              } yield value
-
-            assertM(io, isTrue)
+            for {
+              ref <- Ref.make(false)
+              fiber <- withLatch { release =>
+                        (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
+                          .ensuring(ref.set(true))
+                          .fork
+                      }
+              _     <- fiber.interrupt
+              value <- ref.get
+            } yield assert(value, isTrue)
           },
           testM("cause reflects interruption") {
             val io =
