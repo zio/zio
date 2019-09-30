@@ -227,6 +227,18 @@ object RTSSpec
             Stub
           },
           testM("catch failing finalizers with terminate") {
+            // unsafeRun(
+            //       IO.die(ExampleError)
+            //         .ensuring(IO.effectTotal(throw InterruptCause1))
+            //         .ensuring(IO.effectTotal(throw InterruptCause2))
+            //         .ensuring(IO.effectTotal(throw InterruptCause3))
+            //         .run
+            //     ) must_=== Exit.halt(
+            //       die(ExampleError) ++
+            //         die(InterruptCause1) ++
+            //         die(InterruptCause2) ++
+            //         die(InterruptCause3)
+            //     )
             Stub
           },
           testM("run preserves interruption status") {
@@ -246,9 +258,20 @@ object RTSSpec
             } yield assert(res, equalTo(42))
           },
           testM("timeout a long computation") {
+            // aroundTimeout(10.milliseconds.asScala)(ee)
+            //   .around(
+            //     unsafeRun(
+            //       clock.sleep(60.seconds) *> UIO(true)
+            //     )
+            //   )
+            //   .message must_== "TIMEOUT: 10000000 nanoseconds"
             Stub
           },
           testM("catchAllCause") {
+            // unsafeRun((for {
+            //   _ <- ZIO succeed 42
+            //   f <- ZIO fail "Uh oh!"
+            // } yield f) catchAllCause ZIO.succeed) must_=== Fail("Uh oh!")
             Stub
           },
           testM("exception in fromFuture does not kill fiber") {
@@ -258,45 +281,128 @@ object RTSSpec
         ),
         suite("RTS finalizers")(
           testM("fail ensuring") {
+            // var finalized = false
+
+            // unsafeRunSync((Task.fail(ExampleError): Task[Unit]).ensuring(IO.effectTotal[Unit] { finalized = true; () })) must_===
+            //   Exit.Failure(fail(ExampleError))
+            // finalized must_=== true
             Stub
           },
           testM("fail on error") {
+            // @volatile var finalized = false
+            // val cleanup: Cause[Throwable] => UIO[Unit] =
+            //   _ => IO.effectTotal[Unit] { finalized = true; () }
+
+            // unsafeRunSync(
+            //   Task.fail(ExampleError).onError(cleanup): Task[Unit]
+            // ) must_=== Exit.Failure(fail(ExampleError))
+
+            // // FIXME: Is this an issue with thread synchronization?
+            // while (!finalized) Thread.`yield`()
+
+            // finalized must_=== true
             Stub
           },
           testM("finalizer errors not caught") {
+            // val e2 = new Error("e2")
+            // val e3 = new Error("e3")
+
+            // val nested: Task[Int] =
+            //   TaskExampleError
+            //     .ensuring(IO.die(e2))
+            //     .ensuring(IO.die(e3))
+
+            // unsafeRunSync(nested) must_=== Exit.Failure(Then(fail(ExampleError), Then(die(e2), die(e3))))
             Stub
           },
           testM("finalizer errors reported") {
+            // @volatile var reported: Exit[Nothing, Int] = null
+
+            // unsafeRun {
+            //   IO.succeed[Int](42)
+            //     .ensuring(IO.die(ExampleError))
+            //     .fork
+            //     .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
+            // }
+
+            // reported must_=== Exit.Failure(die(ExampleError))
             Stub
           },
           testM("bracket exit is usage result") {
+            // unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeed[Int](42))) must_=== 42
             Stub
           },
           testM("error in just acquisition") {
+            // unsafeRunSync(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit)) must_=== Exit.Failure(fail(ExampleError))
             Stub
           },
           testM("error in just release") {
+            // unsafeRunSync(IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)) must_=== Exit.Failure(die(ExampleError))
             Stub
           },
           testM("error in just usage") {
+            // unsafeRunSync(Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])) must_=== Exit
+            //   .Failure(fail(ExampleError))
             Stub
           },
           testM("rethrown caught error in acquisition") {
+            // val io = IO.absolve(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit).either)
+
+            // unsafeRunSync(io) must_=== Exit.Failure(fail(ExampleError))
             Stub
           },
           testM("rethrown caught error in release") {
+            // val io = IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)
+
+            // unsafeRunSync(io) must_=== Exit.Failure(die(ExampleError))
             Stub
           },
           testM("rethrown caught error in usage") {
+            // val io = IO.absolve(IO.unit.bracket_(IO.unit)(TaskExampleError).either)
+
+            // unsafeRunSync(io) must_=== Exit.Failure(fail(ExampleError))
             Stub
           },
           testM("test eval of async fail") {
+            // val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
+            // val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
+
+            // unsafeRunSync(io1) must_=== Exit.Failure(fail(ExampleError))
+            // unsafeRunSync(io2) must_=== Exit.Failure(fail(ExampleError))
+            // unsafeRunSync(IO.absolve(io1.either)) must_=== Exit.Failure(fail(ExampleError))
+            // unsafeRunSync(IO.absolve(io2.either)) must_=== Exit.Failure(fail(ExampleError))
             Stub
           },
           testM("bracket regression 1") {
+            // unsafeRun(for {
+            //   ref <- Ref.make[List[String]](Nil)
+            //   log = makeLogger(ref)
+            //   f <- ZIO
+            //         .bracket(
+            //           ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(
+            //             _ => ZIO.unit
+            //           )
+            //         )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
+            //         .fork
+            //   _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("start 1")))
+            //   _ <- f.interrupt
+            //   _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("release 2")))
+            //   l <- ref.get
+            // } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
             Stub
           },
           testM("interrupt waits for finalizer") {
+            // unsafeRun(for {
+            //   r  <- Ref.make(false)
+            //   p1 <- Promise.make[Nothing, Unit]
+            //   p2 <- Promise.make[Nothing, Int]
+            //   s <- (p1.succeed(()) *> p2.await)
+            //         .ensuring(r.set(true) *> clock.sleep(10.millis))
+            //         .fork
+            //   _    <- p1.await
+            //   _    <- s.interrupt
+            //   test <- r.get
+            // } yield test must_=== true)
             Stub
           }
         ),
@@ -712,84 +818,366 @@ object RTSSpec
         ),
         suite("RTS interruption")(
           testM("blocking IO is effect blocking") {
+            // unsafeRun(
+            //     for {
+            //       done  <- Ref.make(false)
+            //       start <- IO.succeed(internal.OneShot.make[Unit])
+            //       fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }.ensuring(done.set(true)).fork
+            //       _     <- IO.succeed(start.get())
+            //       res   <- fiber.interrupt
+            //       value <- done.get
+            //     } yield (res, value) must_=== ((Exit.interrupt, true))
+            //   )
             Stub
           },
           testM("sync forever is interruptible") {
+            // unsafeRun(
+            //     for {
+            //       f <- IO.effectTotal[Int](1).forever.fork
+            //       _ <- f.interrupt
+            //     } yield true
+            //   )
             Stub
           },
           testM("interrupt of never") {
+            // val io =
+            //   for {
+            //     fiber <- IO.never.fork
+            //     _     <- fiber.interrupt
+            //   } yield 42
+
+            // unsafeRun(io) must_=== 42
             Stub
           },
           testM("asyncPure is interruptible") {
+            // val io =
+            //   for {
+            //     fiber <- IO.effectAsyncM[Nothing, Nothing](_ => IO.never).fork
+            //     _     <- fiber.interrupt
+            //   } yield 42
+
+            // unsafeRun(io) must_=== 42
             Stub
           },
           testM("async is interruptible") {
+            // val io =
+            //   for {
+            //     fiber <- IO.effectAsync[Nothing, Nothing](_ => ()).fork
+            //     _     <- fiber.interrupt
+            //   } yield 42
+
+            // unsafeRun(io) must_=== 42
             Stub
           },
           testM("bracket is uninterruptible") {
+            // val io =
+            //   for {
+            //     promise <- Promise.make[Nothing, Unit]
+            //     fiber   <- (promise.succeed(()) <* IO.never).bracket(_ => IO.unit)(_ => IO.unit).fork
+            //     res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+            //   } yield res
+            // unsafeRun(io) must_=== 42
             Stub
           },
           testM("bracket0 is uninterruptible") {
+            // val io =
+            //   for {
+            //     promise <- Promise.make[Nothing, Unit]
+            //     fiber <- IO
+            //               .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[_, _]) => IO.unit)(
+            //                 _ => IO.unit: IO[Nothing, Unit]
+            //               )
+            //               .fork
+            //     res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+            //   } yield res
+            // unsafeRun(io) must_=== 42
             Stub
           },
           testM("bracket use is interruptible") {
+            // val io =
+            //   for {
+            //     fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
+            //     res   <- fiber.interrupt
+            //   } yield res
+            // unsafeRun(io) must_=== Exit.interrupt
             Stub
           },
           testM("bracket0 use is interruptible") {
+            // val io =
+            //   for {
+            //     fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
+            //     res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+            //   } yield res
+            // unsafeRun(io) must_=== 0
             Stub
           },
           testM("bracket release called on interrupt") {
+            // val io =
+            //   for {
+            //     p1    <- Promise.make[Nothing, Unit]
+            //     p2    <- Promise.make[Nothing, Unit]
+            //     fiber <- IO.bracket(IO.unit)(_ => p2.succeed(()) *> IO.unit)(_ => p1.succeed(()) *> IO.never).fork
+            //     _     <- p1.await
+            //     _     <- fiber.interrupt
+            //     _     <- p2.await
+            //   } yield ()
+
+            // unsafeRun(io.timeoutTo(42)(_ => 0)(1.second)) must_=== 0
             Stub
           },
           testM("bracket0 release called on interrupt") {
+            // unsafeRun(for {
+            //   done <- Promise.make[Nothing, Unit]
+            //   fiber <- withLatch { release =>
+            //             IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => done.succeed(()))(
+            //                 _ => release *> IO.never
+            //               )
+            //               .fork
+            //           }
+
+            //   _ <- fiber.interrupt
+            //   r <- done.await.timeoutTo(42)(_ => 0)(60.second)
+            // } yield r must_=== 0)
             Stub
           },
           testM("redeem + ensuring + interrupt") {
+            // val io = for {
+            //   cont <- Promise.make[Nothing, Unit]
+            //   p1   <- Promise.make[Nothing, Boolean]
+            //   f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
+            //   _    <- cont.await
+            //   _    <- f1.interrupt
+            //   res  <- p1.await
+            // } yield res
+
+            // unsafeRun(io) must_=== true
             Stub
           },
           testM("finalizer can detect interruption") {
+            // val io = for {
+            //   p1  <- Promise.make[Nothing, Boolean]
+            //   c   <- Promise.make[Nothing, Unit]
+            //   f1  <- (c.succeed(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupted))).fork
+            //   _   <- c.await
+            //   _   <- f1.interrupt
+            //   res <- p1.await
+            // } yield res
+
+            // unsafeRun(io) must_=== true
             Stub
           },
           testM("interruption of raced") {
+            // val io = for {
+            //   ref   <- Ref.make(0)
+            //   cont1 <- Promise.make[Nothing, Unit]
+            //   cont2 <- Promise.make[Nothing, Unit]
+            //   make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never).onInterrupt(ref.update(_ + 1))
+            //   raced <- (make(cont1) race (make(cont2))).fork
+            //   _     <- cont1.await *> cont2.await
+            //   _     <- raced.interrupt
+            //   count <- ref.get
+            // } yield count
+
+            // unsafeRun(io) must_=== 2
             Stub
           },
           testM("cancelation is guaranteed") {
+            // val io = for {
+            //   release <- zio.Promise.make[Nothing, Int]
+            //   latch   = internal.OneShot.make[Unit]
+            //   async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
+            //     latch.set(()); Left(release.succeed(42).unit)
+            //   }
+            //   fiber  <- async.fork
+            //   _      <- IO.effectTotal(latch.get(1000))
+            //   _      <- fiber.interrupt.fork
+            //   result <- release.await
+            // } yield result
+
+            // nonFlaky(io.map(_ must_=== 42))
             Stub
           },
           testM("interruption of unending bracket") {
+            // val io = for {
+            //   startLatch <- Promise.make[Nothing, Int]
+            //   exitLatch  <- Promise.make[Nothing, Int]
+            //   bracketed = IO
+            //     .succeed(21)
+            //     .bracketExit(
+            //       (r: Int, exit: Exit[_, _]) =>
+            //         if (exit.interrupted) exitLatch.succeed(r)
+            //         else IO.die(new Error("Unexpected case"))
+            //     )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+            //   fiber      <- bracketed.fork
+            //   startValue <- startLatch.await
+            //   _          <- fiber.interrupt.fork
+            //   exitValue  <- exitLatch.await
+            // } yield startValue + exitValue
+
+            // nonFlaky(io.map(_ must_=== 42))
             Stub
           },
           testM("recovery of error in finalizer") {
+            // unsafeRun(for {
+            //   recovered <- Ref.make(false)
+            //   fiber <- withLatch { release =>
+            //             (release *> ZIO.never)
+            //               .ensuring(
+            //                 (ZIO.unit *> ZIO.fail("Uh oh")).catchAll(_ => recovered.set(true))
+            //               )
+            //               .fork
+            //           }
+            //   _     <- fiber.interrupt
+            //   value <- recovered.get
+            // } yield value must_=== true)
             Stub
           },
           testM("recovery of interruptible") {
+            // unsafeRun(for {
+            //   recovered <- Ref.make(false)
+            //   fiber <- withLatch { release =>
+            //             (release *> ZIO.never.interruptible)
+            //               .foldCauseM(
+            //                 cause => recovered.set(cause.interrupted),
+            //                 _ => recovered.set(false)
+            //               )
+            //               .uninterruptible
+            //               .fork
+            //           }
+            //   _     <- fiber.interrupt
+            //   value <- recovered.get
+            // } yield value must_=== true)
             Stub
           },
           testM("sandbox of interruptible") {
+            // unsafeRun(for {
+            //   recovered <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
+            //   fiber <- withLatch { release =>
+            //             (release *> ZIO.never.interruptible).sandbox.either
+            //               .flatMap(exit => recovered.set(Some(exit)))
+            //               .uninterruptible
+            //               .fork
+            //           }
+            //   _     <- fiber.interrupt
+            //   value <- recovered.get
+            // } yield value must_=== Some(Left(Cause.interrupt)))
             Stub
           },
           testM("run of interruptible") {
+            // unsafeRun(for {
+            //   recovered <- Ref.make[Option[Exit[Nothing, Any]]](None)
+            //   fiber <- withLatch { release =>
+            //             (release *> ZIO.never.interruptible).run
+            //               .flatMap(exit => recovered.set(Some(exit)))
+            //               .uninterruptible
+            //               .fork
+            //           }
+            //   _     <- fiber.interrupt
+            //   value <- recovered.get
+            // } yield value must_=== Some(Exit.Failure(Cause.interrupt)))
             Stub
           },
           testM("alternating interruptibility") {
+            // unsafeRun(for {
+            //   counter <- Ref.make(0)
+            //   fiber <- withLatch { release =>
+            //             ((((release *> ZIO.never.interruptible.run *> counter
+            //               .update(_ + 1)).uninterruptible).interruptible).run
+            //               *> counter.update(_ + 1)).uninterruptible.fork
+            //           }
+            //   _     <- fiber.interrupt
+            //   value <- counter.get
+            // } yield value must_=== 2)
             Stub
           },
           testM("interruption after defect") {
+            // unsafeRun(for {
+            //   ref <- Ref.make(false)
+            //   fiber <- withLatch { release =>
+            //             (ZIO.effect(throw new Error).run *> release *> ZIO.never)
+            //               .ensuring(ref.set(true))
+            //               .fork
+            //           }
+            //   _     <- fiber.interrupt
+            //   value <- ref.get
+            // } yield value must_=== true)
             Stub
           },
           testM("interruption after defect 2") {
+            // unsafeRun(for {
+            //   ref <- Ref.make(false)
+            //   fiber <- withLatch { release =>
+            //             (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
+            //               .ensuring(ref.set(true))
+            //               .fork
+            //           }
+            //   _     <- fiber.interrupt
+            //   value <- ref.get
+            // } yield value must_=== true)
             Stub
           },
           testM("cause reflects interruption") {
+            // nonFlaky {
+            //   for {
+            //     finished <- Ref.make(false)
+            //     fiber <- withLatch { release =>
+            //               (release *> ZIO.fail("foo")).catchAll(_ => finished.set(true)).fork
+            //             }
+            //     exit     <- fiber.interrupt
+            //     finished <- finished.get
+            //   } yield (exit.interrupted must_=== true) or (finished must_=== true)
+            // }
             Stub
           },
           testM("bracket use inherits interrupt status") {
+            // unsafeRun(
+            //   for {
+            //     ref <- Ref.make(false)
+            //     fiber1 <- withLatch { (release2, await2) =>
+            //                withLatch { release1 =>
+            //                  release1
+            //                    .bracket_(ZIO.unit, await2 *> clock.sleep(10.millis) *> ref.set(true))
+            //                    .uninterruptible
+            //                    .fork
+            //                } <* release2
+            //              }
+            //     _     <- fiber1.interrupt
+            //     value <- ref.get
+            //   } yield value must_=== true
+            // )
             Stub
           },
           testM("bracket use inherits interrupt status 2") {
+            // unsafeRun(
+            //   for {
+            //     latch1 <- Promise.make[Nothing, Unit]
+            //     latch2 <- Promise.make[Nothing, Unit]
+            //     ref    <- Ref.make(false)
+            //     fiber1 <- latch1
+            //                .succeed(())
+            //                .bracketExit[Clock, Nothing, Unit](
+            //                  (_: Boolean, _: Exit[_, _]) => ZIO.unit,
+            //                  (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
+            //                )
+            //                .uninterruptible
+            //                .fork
+            //     _     <- latch1.await
+            //     _     <- latch2.succeed(())
+            //     _     <- fiber1.interrupt
+            //     value <- ref.get
+            //   } yield value must_=== true
+            // )
             Stub
           },
           testM("async can be uninterruptible") {
+            // unsafeRun(for {
+            //   ref <- Ref.make(false)
+            //   fiber <- withLatch { release =>
+            //             (release *> clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
+            //           }
+            //   _     <- fiber.interrupt
+            //   value <- ref.get
+            // } yield value must_=== true)
             Stub
           }
         ),
