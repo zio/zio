@@ -736,7 +736,7 @@ object ZQueueSpec
 
 object ZQueueSpecUtil {
   def waitForValue[T](ref: UIO[T], value: T): UIO[T] =
-    ref <* clock.sleep(10.millis).repeat(ZSchedule.doWhile(_ != value)).provide(Clock.Live)
+    (ref <* clock.sleep(10.millis)).repeat(ZSchedule.doWhile(_ != value)).provide(Clock.Live)
 
   def waitForSize[A](queue: Queue[A], size: Int): UIO[Int] =
     waitForValue(queue.size, size)
