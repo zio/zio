@@ -3,9 +3,12 @@ package zio.stream
 import org.specs2.ScalaCheck
 import zio._
 
-import scala.{Stream => _}
+import scala.{ Stream => _ }
 
-class SteamWithChunksCombinationsSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
+class SteamWithChunksCombinationsSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends TestRuntime
+    with GenIO
+    with ScalaCheck {
 
   def is = "SteamWithChunksCombinationsSpec".title ^ s2"""
   Streams with StreamChunks combinations
