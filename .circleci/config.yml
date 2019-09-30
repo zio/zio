@@ -56,6 +56,12 @@ load_cache: &load_cache
       key: sbt-cache-v2
 
 save_cache: &save_cache
+  - run:
+      name: Clean unwanted files from cache
+      command: |
+        rm -fv $HOME/.ivy2/.sbt.ivy.lock
+        find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+        find $HOME/.sbt        -name "*.lock"               -print -delete
   - save_cache:
       key: sbt-cache-v2
       paths:
@@ -123,6 +129,8 @@ testJVM: &testJVM
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJVM
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
 
 testJS: &testJS
   steps:
@@ -134,6 +142,8 @@ testJS: &testJS
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJS
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/js/target/test-reports
 
 release: &release
   steps:
