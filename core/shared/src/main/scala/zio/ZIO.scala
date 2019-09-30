@@ -1296,7 +1296,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber[E, A], A]] =
     raceWith(ZIO.sleep(d))(
-      (exit, fiber) => ZIO.done(exit).map(Right(_)) <* fiber.interrupt,
+      (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
       (_, fiber) => fiber.interrupt.flatMap(ZIO.done).fork.map(Left(_))
     )
 
