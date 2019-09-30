@@ -1,8 +1,10 @@
 package zio
 
 import zio.FiberRefSpecUtil._
+import zio.duration._
 import zio.test.Assertion._
 import zio.test._
+import zio.test.mock.MockClock
 
 object FiberRefSpec
     extends ZIOBaseSpec(
@@ -113,10 +115,8 @@ object FiberRefSpec
           testM("`modify` changes value") {
             for {
               fiberRef <- FiberRef.make(initial)
-              value1 <- fiberRef.modify {
-                         case _ => (1, update)
-                       }
-              value2 <- fiberRef.get
+              value1   <- fiberRef.modify(_ => (1, update))
+              value2   <- fiberRef.get
             } yield assert(value1, equalTo(1)) && assert(value2, equalTo(update))
           },
           testM("`modifySome` not changes value") {
@@ -139,7 +139,7 @@ object FiberRefSpec
             for {
               fiberRef   <- FiberRef.make(initial)
               badWinner  = fiberRef.set(update1) *> ZIO.fail("ups")
-              goodLooser = fiberRef.set(update2)
+              goodLooser = fiberRef.set(update2) *> looseTimeAndCpu
               _          <- badWinner.race(goodLooser)
               value      <- fiberRef.get
             } yield assert(value, equalTo(update2))
@@ -158,7 +158,7 @@ object FiberRefSpec
               fiberRef <- FiberRef.make(initial)
               latch    <- Promise.make[Nothing, Unit]
               winner   = fiberRef.set(update1) *> latch.succeed(()).unit
-              looser   = latch.await *> fiberRef.set(update2)
+              looser   = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
               _        <- winner.zipPar(looser)
               value    <- fiberRef.get
             } yield assert(value, equalTo(update2))
@@ -179,4 +179,7 @@ object FiberRefSpec
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
+  val looseTimeAndCpu: ZIO[MockClock, Nothing, (Int, Int)] = MockClock.adjust(101.nanoseconds) *> ZIO.yieldNow.repeat(
+    Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100)
+  )
 }
