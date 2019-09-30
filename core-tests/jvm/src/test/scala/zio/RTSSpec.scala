@@ -26,10 +26,7 @@ object RTSSpec
             val op1 = IO.effectTotal[String]("1")
             val op2 = IO.effectTotal[String]("2")
 
-            for {
-              r1 <- op1
-              r2 <- op2
-            } yield assert(r1 + r2, equalTo("12"))
+            assertM(op1.zipWith(op2)(_ + _), equalTo("12"))
           },
           testM("blocking caches threads") {
             import zio.blocking.Blocking
