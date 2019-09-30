@@ -1314,23 +1314,25 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
    */
-  final def toFuture(implicit ev2: E <:< Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
+  final def toFuture(implicit ev2: E <:< Throwable): ZIO[R, Nothing, CancelableFuture[E, A]] =
     self toFutureWith ev2
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
    */
-  final def toFutureWith(f: E => Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
+  final def toFutureWith(f: E => Throwable): ZIO[R, Nothing, CancelableFuture[E, A]] =
     self.fork >>= (_.toFutureWith(f))
 
   /**
-   * Converts this ZIO to [[zio.Managed]].
+   * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release action
+   * will be performed uninterruptibly.
    */
   final def toManaged[R1 <: R](release: A => ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
     ZManaged.make[R1, E, A](this)(release)
 
   /**
-   * Converts this ZIO to [[zio.ZManaged]] with no release action.
+   * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be performed
+   * interruptibly.
    */
   final def toManaged_ : ZManaged[R, E, A] =
     ZManaged.fromEffect[R, E, A](this)
