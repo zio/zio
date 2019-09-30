@@ -282,19 +282,17 @@ object RTSSpec
             } yield a1 && a2
           },
           testM("fail on error") {
-            // @volatile var finalized = false
-            // val cleanup: Cause[Throwable] => UIO[Unit] =
-            //   _ => IO.effectTotal[Unit] { finalized = true; () }
+            @volatile var finalized = false
 
-            // unsafeRunSync(
-            //   Task.fail(ExampleError).onError(cleanup): Task[Unit]
-            // ) must_=== Exit.Failure(fail(ExampleError))
+            val cleanup: Cause[Throwable] => UIO[Unit] =
+              _ => IO.effectTotal[Unit] { finalized = true; () }
 
-            // // FIXME: Is this an issue with thread synchronization?
-            // while (!finalized) Thread.`yield`()
+            val io = Task.fail(ExampleError).onError(cleanup)
 
-            // finalized must_=== true
-            Stub
+            for {
+              a1 <- assertM(io.run, fails(equalTo(ExampleError)))
+              a2 = assert(finalized, isTrue)
+            } yield a1 && a2
           },
           testM("finalizer errors not caught") {
             val e2 = new Error("e2")
@@ -308,18 +306,18 @@ object RTSSpec
             assertM(io.sandbox.flip, equalTo(expectedCause))
           },
           testM("finalizer errors reported") {
-            // @volatile var reported: Exit[Nothing, Int] = null
+            @volatile var reported: Exit[Nothing, Int] = null
 
-            // val io = IO.succeed[Int](42)
-            //   .ensuring(IO.die(ExampleError))
-            //   .fork
-            //   .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
+            val io = IO
+              .succeed[Int](42)
+              .ensuring(IO.die(ExampleError))
+              .fork
+              .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
 
-            // for {
-            //   a1 <- assertM(io.run, dies(equalTo(ExampleError)))
-            //   a2 = assert(reported, equalTo(Exit.die(ExampleError)))
-            // } yield a1 && a2
-            Stub
+            for {
+              a1 <- assertM(io, isUnit)
+              a2 = assert(reported.succeeded, isFalse)
+            } yield a1 && a2
           },
           testM("bracket exit is usage result") {
             val io = IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeed[Int](42))
@@ -334,8 +332,7 @@ object RTSSpec
             assertM(io.run, dies(equalTo(ExampleError)))
           },
           testM("error in just usage") {
-            // val io = Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])
-            // assertM(io.run, fails(equalTo(ExampleError)))
+            // unsafeRunSync(Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])) must_=== Exit.Failure(fail(ExampleError))
             Stub
           },
           testM("rethrown caught error in acquisition") {
