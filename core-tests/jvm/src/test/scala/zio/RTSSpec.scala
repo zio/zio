@@ -209,31 +209,32 @@ object RTSSpec
             assertM(deepErrorEffect(100).run, fails(equalTo(ExampleError)))
           },
           testM("catch failing finalizers with fail") {
-            // val io = TaskExampleError
-            //   .ensuring(IO.effectTotal(throw InterruptCause1))
-            //   .ensuring(IO.effectTotal(throw InterruptCause2))
-            //   .ensuring(IO.effectTotal(throw InterruptCause3))
+            val io = IO
+              .fail(ExampleError)
+              .ensuring(IO.effectTotal(throw InterruptCause1))
+              .ensuring(IO.effectTotal(throw InterruptCause2))
+              .ensuring(IO.effectTotal(throw InterruptCause3))
 
-            // val expected = fail(ExampleError) ++
-            //   die(InterruptCause1) ++
-            //   die(InterruptCause2) ++
-            //   die(InterruptCause3)
-            Stub
+            val expectedCause = Cause.fail(ExampleError) ++
+              Cause.die(InterruptCause1) ++
+              Cause.die(InterruptCause2) ++
+              Cause.die(InterruptCause3)
+
+            assertM(io.run, equalTo(Exit.halt(expectedCause)))
           },
           testM("catch failing finalizers with terminate") {
-            // unsafeRun(
-            //       IO.die(ExampleError)
-            //         .ensuring(IO.effectTotal(throw InterruptCause1))
-            //         .ensuring(IO.effectTotal(throw InterruptCause2))
-            //         .ensuring(IO.effectTotal(throw InterruptCause3))
-            //         .run
-            //     ) must_=== Exit.halt(
-            //       die(ExampleError) ++
-            //         die(InterruptCause1) ++
-            //         die(InterruptCause2) ++
-            //         die(InterruptCause3)
-            //     )
-            Stub
+            val io = IO
+              .die(ExampleError)
+              .ensuring(IO.effectTotal(throw InterruptCause1))
+              .ensuring(IO.effectTotal(throw InterruptCause2))
+              .ensuring(IO.effectTotal(throw InterruptCause3))
+
+            val expectedCause = Cause.die(ExampleError) ++
+              Cause.die(InterruptCause1) ++
+              Cause.die(InterruptCause2) ++
+              Cause.die(InterruptCause3)
+
+            assertM(io.run, equalTo(Exit.halt(expectedCause)))
           },
           testM("run preserves interruption status") {
             for {
@@ -252,21 +253,17 @@ object RTSSpec
             } yield assert(res, equalTo(42))
           },
           testM("timeout a long computation") {
-            // aroundTimeout(10.milliseconds.asScala)(ee)
-            //   .around(
-            //     unsafeRun(
-            //       clock.sleep(60.seconds) *> UIO(true)
-            //     )
-            //   )
-            //   .message must_== "TIMEOUT: 10000000 nanoseconds"
-            Stub
+            val io = (clock.sleep(5.seconds) *> IO.succeed(true)).timeout(10.millis)
+            assertM(io.provide(Clock.Live), isNone)
           },
           testM("catchAllCause") {
-            // unsafeRun((for {
-            //   _ <- ZIO succeed 42
-            //   f <- ZIO fail "Uh oh!"
-            // } yield f) catchAllCause ZIO.succeed) must_=== Fail("Uh oh!")
-            Stub
+            val io =
+              for {
+                _ <- ZIO.succeed(42)
+                f <- ZIO.fail("Uh oh!")
+              } yield f
+
+            assertM(io.catchAllCause(ZIO.succeed), equalTo(Cause.fail("Uh oh!")))
           },
           testM("exception in fromFuture does not kill fiber") {
             val io = ZIO.fromFuture(_ => throw ExampleError).either
@@ -275,12 +272,14 @@ object RTSSpec
         ),
         suite("RTS finalizers")(
           testM("fail ensuring") {
-            // var finalized = false
+            var finalized = false
 
-            // unsafeRunSync((Task.fail(ExampleError): Task[Unit]).ensuring(IO.effectTotal[Unit] { finalized = true; () })) must_===
-            //   Exit.Failure(fail(ExampleError))
-            // finalized must_=== true
-            Stub
+            val io = Task.fail(ExampleError).ensuring(IO.effectTotal { finalized = true; () })
+
+            for {
+              a1 <- assertM(io.run, fails(equalTo(ExampleError)))
+              a2 = assert(finalized, isTrue)
+            } yield a1 && a2
           },
           testM("fail on error") {
             // @volatile var finalized = false
@@ -298,28 +297,28 @@ object RTSSpec
             Stub
           },
           testM("finalizer errors not caught") {
-            // val e2 = new Error("e2")
-            // val e3 = new Error("e3")
+            val e2 = new Error("e2")
+            val e3 = new Error("e3")
 
-            // val nested: Task[Int] =
-            //   TaskExampleError
-            //     .ensuring(IO.die(e2))
-            //     .ensuring(IO.die(e3))
+            val io = TaskExampleError.ensuring(IO.die(e2)).ensuring(IO.die(e3))
 
-            // unsafeRunSync(nested) must_=== Exit.Failure(Then(fail(ExampleError), Then(die(e2), die(e3))))
-            Stub
+            val expectedCause: Cause[Throwable] =
+              Cause.Then(Cause.fail(ExampleError), Cause.Then(Cause.die(e2), Cause.die(e3)))
+
+            assertM(io.sandbox.flip, equalTo(expectedCause))
           },
           testM("finalizer errors reported") {
             // @volatile var reported: Exit[Nothing, Int] = null
 
-            // unsafeRun {
-            //   IO.succeed[Int](42)
-            //     .ensuring(IO.die(ExampleError))
-            //     .fork
-            //     .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
-            // }
+            // val io = IO.succeed[Int](42)
+            //   .ensuring(IO.die(ExampleError))
+            //   .fork
+            //   .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
 
-            // reported must_=== Exit.Failure(die(ExampleError))
+            // for {
+            //   a1 <- assertM(io.run, dies(equalTo(ExampleError)))
+            //   a2 = assert(reported, equalTo(Exit.die(ExampleError)))
+            // } yield a1 && a2
             Stub
           },
           testM("bracket exit is usage result") {
@@ -738,10 +737,8 @@ object RTSSpec
             assertM(io, equalTo(1))
           },
           testM("timeout of failure") {
-            // unsafeRun(
-            //   IO.fail("Uh oh").timeout(1.hour)
-            // ) must throwA[FiberFailure]
-            Stub
+            val io = IO.fail("Uh oh").timeout(1.hour)
+            assertM(io.provide(Clock.Live).run, fails(equalTo("Uh oh")))
           },
           testM("timeout of terminate") {
             val io: ZIO[Clock, Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
