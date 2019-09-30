@@ -100,13 +100,15 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
             chunk = thunk()
             counter = 0
           }
-          chunk(counter)
+          val elem = chunk(counter)
+          counter += 1
+          elem
         }
         () => pull()
       }
     }
 
-  final def flatten: StreamEffect[R, E, A] =
+  override final def flattenChunks: StreamEffect[R, E, A] =
     StreamEffect[R, E, A] {
       processChunk
     }
