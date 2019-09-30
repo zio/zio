@@ -46,6 +46,12 @@ object UIO {
     ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see See [[zio.ZIO.checkDaemon]]
+   */
+  final def checkDaemon[A](f: DaemonStatus => UIO[A]): UIO[A] =
+    ZIO.checkDaemon(f)
+
+  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   final def checkInterruptible[A](f: InterruptStatus => UIO[A]): UIO[A] =

@@ -52,6 +52,12 @@ object Task {
     ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see See [[zio.ZIO.checkDaemon]]
+   */
+  final def checkDaemon[A](f: DaemonStatus => Task[A]): Task[A] =
+    ZIO.checkDaemon(f)
+
+  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   final def checkInterruptible[A](f: InterruptStatus => Task[A]): Task[A] =

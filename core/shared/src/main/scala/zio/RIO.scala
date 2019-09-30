@@ -69,6 +69,12 @@ object RIO {
     ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see See [[zio.ZIO.checkDaemon]]
+   */
+  final def checkDaemon[R, A](f: DaemonStatus => RIO[R, A]): RIO[R, A] =
+    ZIO.checkDaemon(f)
+
+  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   final def checkInterruptible[R, A](f: InterruptStatus => RIO[R, A]): RIO[R, A] =

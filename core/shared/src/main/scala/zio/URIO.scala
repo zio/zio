@@ -63,6 +63,12 @@ object URIO {
   ): URIO[R, B] = ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see [[zio.ZIO.checkDaemon]]
+   */
+  final def checkDaemon[R, A](f: DaemonStatus => URIO[R, A]): URIO[R, A] =
+    ZIO.checkDaemon(f)
+
+  /**
    * @see [[zio.ZIO.checkInterruptible]]
    */
   final def checkInterruptible[R, A](f: InterruptStatus => URIO[R, A]): URIO[R, A] =

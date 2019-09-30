@@ -19,7 +19,6 @@ package zio
 import zio.internal.Tracing
 import zio.internal.tracing.{ TracingConfig, ZIOFn }
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
-import zio.internal.InterruptSignal
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -84,11 +83,12 @@ trait Runtime[+R] {
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
+      null,
       Platform,
       Environment.asInstanceOf[AnyRef],
       Platform.executor,
       InitialInterruptStatus,
-      InterruptSignal.root(),
+      false,
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()

@@ -303,6 +303,7 @@ object Fiber {
     id: FiberId,
     interrupted: Boolean,
     interruptStatus: InterruptStatus,
+    children: Set[Fiber[Any, Any]],
     executor: Executor
   )
 
@@ -408,6 +409,15 @@ object Fiber {
    */
   final def joinAll[E](fs: Iterable[Fiber[E, _]]): IO[E, Unit] =
     fs.foldLeft[IO[E, Unit]](IO.unit)((io, f) => io *> f.join.unit).refailWithTrace
+
+  /**
+   * Collects all fibers into a single fiber producing an in-order list of the
+   * results.
+   */
+  final def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber[E, List[A]] =
+    fibers.foldRight(Fiber.succeed[E, List[A]](Nil)) {
+      case (fiber, acc) => fiber.zipWith(acc)(_ :: _)
+    }
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.

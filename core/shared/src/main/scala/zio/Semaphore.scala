@@ -111,7 +111,9 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * Acquires `n` permits, executes the action and releases the permits right after.
    */
   final def withPermits[R, E, A](n: Long)(task: ZIO[R, E, A]): ZIO[R, E, A] =
-    (UIO(println(s"Acquiring ${n} permit")) *> prepare(n)).bracket(e => UIO(println(s"Releasing ${n} permits")) *> e.release)(r => ZIO.checkInterruptible(status => UIO(println(s"${status}"))) *> r.awaitAcquire *> task)
+    (UIO(println(s"Acquiring ${n} permit")) *> prepare(n)).bracket(
+      e => UIO(println(s"Releasing ${n} permits")) *> e.release
+    )(r => ZIO.checkInterruptible(status => UIO(println(s"${status}"))) *> r.awaitAcquire *> task)
 
   /**
    * Acquires `n` permits in a [[zio.ZManaged]] and releases the permits in the finalizer.

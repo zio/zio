@@ -48,6 +48,12 @@ object IO {
     ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see See [[zio.ZIO.checkDaemon]]
+   */
+  final def checkDaemon[E, A](f: DaemonStatus => IO[E, A]): IO[E, A] =
+    ZIO.checkDaemon(f)
+
+  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   final def checkInterruptible[E, A](f: InterruptStatus => IO[E, A]): IO[E, A] =

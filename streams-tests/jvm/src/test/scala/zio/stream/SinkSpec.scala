@@ -344,7 +344,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   private def asHappyPath = {
     val sink = ZSink.identity[Int].as("const")
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== (("const", Chunk.empty))))
-    
+
   }
 
   private def asInitError = {

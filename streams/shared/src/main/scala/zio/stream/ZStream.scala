@@ -113,49 +113,49 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       withStateVar(stateVar, permits) { s =>
         (s match {
           case State.Empty(state, notifyConsumer) =>
-          for {
-            notifyProducer <- Promise.make[Nothing, Unit]
-            step           <- sink.step(state, a)
-            result <- if (sink.cont(step))
-                       UIO.succeed(
-                         // Notify the consumer so they won't busy wait
-                         (notifyConsumer.succeed(()).as(true), State.BatchMiddle(step, notifyProducer))
-                       )
-                     else
-                       UIO.succeed(
-                         (
-                           // Notify the consumer, wait for them to take the aggregate so we know
-                           // it's time to progress, and process the leftovers
-                           notifyConsumer.succeed(()) *> notifyProducer.await.as(true),
-                           State.BatchEnd(step, notifyProducer)
+            for {
+              notifyProducer <- Promise.make[Nothing, Unit]
+              step           <- sink.step(state, a)
+              result <- if (sink.cont(step))
+                         UIO.succeed(
+                           // Notify the consumer so they won't busy wait
+                           (notifyConsumer.succeed(()).as(true), State.BatchMiddle(step, notifyProducer))
                          )
-                       )
-          } yield result
+                       else
+                         UIO.succeed(
+                           (
+                             // Notify the consumer, wait for them to take the aggregate so we know
+                             // it's time to progress, and process the leftovers
+                             notifyConsumer.succeed(()) *> notifyProducer.await.as(true),
+                             State.BatchEnd(step, notifyProducer)
+                           )
+                         )
+            } yield result
 
-        case State.Leftovers(state, leftovers, notifyConsumer) =>
-          UIO.succeed(
-            (
-              (leftovers ++ Chunk.single(a)).foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)),
-              State.Empty(state, notifyConsumer)
+          case State.Leftovers(state, leftovers, notifyConsumer) =>
+            UIO.succeed(
+              (
+                (leftovers ++ Chunk.single(a)).foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)),
+                State.Empty(state, notifyConsumer)
+              )
             )
-          )
 
-        case State.BatchMiddle(state, notifyProducer) =>
-          // The logic here is the same as the Empty state, except we don't need
-          // to notify the consumer on the transition
-          for {
-            step <- sink.step(state, a)
-            result <- if (sink.cont(step))
-                       UIO.succeed((UIO.succeed(true), State.BatchMiddle(step, notifyProducer)))
-                     else
-                       UIO.succeed((notifyProducer.await.as(true), State.BatchEnd(step, notifyProducer)))
-          } yield result
+          case State.BatchMiddle(state, notifyProducer) =>
+            // The logic here is the same as the Empty state, except we don't need
+            // to notify the consumer on the transition
+            for {
+              step <- sink.step(state, a)
+              result <- if (sink.cont(step))
+                         UIO.succeed((UIO.succeed(true), State.BatchMiddle(step, notifyProducer)))
+                       else
+                         UIO.succeed((notifyProducer.await.as(true), State.BatchEnd(step, notifyProducer)))
+            } yield result
 
-        // The producer shouldn't actually see these states, but we still use sane
-        // transitions here anyway.
-        case s @ State.BatchEnd(_, batchTaken) => UIO.succeed((batchTaken.await.as(true), s))
-        case State.Error(e)                    => ZIO.halt(e)
-        case State.End                         => UIO.succeed((UIO.succeed(true), State.End))
+          // The producer shouldn't actually see these states, but we still use sane
+          // transitions here anyway.
+          case s @ State.BatchEnd(_, batchTaken) => UIO.succeed((batchTaken.await.as(true), s))
+          case State.Error(e)                    => ZIO.halt(e)
+          case State.End                         => UIO.succeed((UIO.succeed(true), State.End))
         })
       }.flatten
 
@@ -165,9 +165,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         s match {
           // If the state is empty, wait for a notification from the producer
           case s @ State.Empty(_, notify) => UIO.succeed((notify.await.as(Chunk.empty), s))
-  
+
           case s @ State.Leftovers(_, _, notify) => UIO.succeed((notify.await.as(Chunk.empty), s))
-  
+
           case State.BatchMiddle(state, notifyProducer) =>
             (for {
               initial        <- sink.initial
@@ -178,7 +178,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
               else State.Leftovers(initial, leftovers, notifyConsumer)
               // Inform the producer that we took the batch, extract the sink and emit the data
             } yield (notifyProducer.succeed(()).as(Chunk.single(b)), nextState)).mapError(Some(_))
-  
+
           case State.BatchEnd(state, notifyProducer) =>
             (for {
               initial        <- sink.initial
@@ -188,11 +188,11 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
               nextState = if (leftovers.isEmpty) State.Empty(initial, notifyConsumer)
               else State.Leftovers(initial, leftovers, notifyConsumer)
             } yield (notifyProducer.succeed(()).as(Chunk.single(b)), nextState)).mapError(Some(_))
-  
+
           case e @ State.Error(cause) => ZIO.succeed((ZIO.halt(cause.map(Some(_))), e))
           case State.End              => ZIO.succeed((ZIO.fail(None), State.End))
         }
-    }.flatten
+      }.flatten
 
     def drainAndSet(stateVar: Ref[State], permits: Semaphore, s: State): ZIO[R1, E1, Unit] =
       withStateVar(stateVar, permits) {
@@ -219,7 +219,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         // For all other states, we just overwrite.
         case _ => UIO.succeed((UIO.unit, s))
       }.flatten
-    
+
     ZStream[R1, E1, B] {
       for {
         initSink  <- sink.initial.toManaged_
@@ -235,12 +235,12 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                        c => drainAndSet(stateVar, permits, State.Error(c)).toManaged_,
                        _ => drainAndSet(stateVar, permits, State.End).toManaged_
                      )
-                     .fork          
+                     .fork
         bs <- ZStream
                .fromPull(consume(stateVar, permits))
                .mapConcat(identity)
                .process
-               .ensuringFirst(producer.interrupt.fork)       
+               .ensuringFirst(producer.interrupt.fork)
       } yield bs
     }
   }
@@ -609,7 +609,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
   /**
    * Switches over to the stream produced by the provided function in case this one
-   * fails. Allows recovery from all causes of failure, including interruption of the 
+   * fails. Allows recovery from all causes of failure, including interruption of the
    * stream is uninterruptible.
    */
   final def catchAllCause[R1 <: R, E2, A1 >: A](f: Cause[E] => ZStream[R1, E2, A1]): ZStream[R1, E2, A1] = {
@@ -1464,7 +1464,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                 _ => out.offer(Pull.end).unit.toManaged_
               )
               .mapM(a => UIO(println("12")).as(a))
-              .ensuringFirst(UIO(println("14")) *> interruptWorkers.succeed(()) *> UIO(println("15")) *> permits.withPermits(n.toLong)(ZIO.unit) <* UIO(println("16")))
+              .ensuringFirst(
+                UIO(println("14")) *> interruptWorkers.succeed(()) *> UIO(println("15")) *> permits
+                  .withPermits(n.toLong)(ZIO.unit) <* UIO(println("16"))
+              )
               .mapM(a => UIO(println("17")).as(a))
               .fork
       } yield out.take.flatten
