@@ -1,5 +1,5 @@
 ---
-id: advanced_error_model
+id: howto_error_model
 title:  "Error Model"
 ---
 

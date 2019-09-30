@@ -1,5 +1,5 @@
 ---
-id: advanced_rts
+id: howto_rts
 title:  "RTS"
 ---
 

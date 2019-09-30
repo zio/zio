@@ -1,5 +1,5 @@
 ---
-id: advanced_system
+id: howto_system
 title: "System"
 ---
 

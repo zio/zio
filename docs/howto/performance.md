@@ -1,5 +1,5 @@
 ---
-id: advanced_performance
+id: howto_performance
 title:  "Performance"
 ---
 

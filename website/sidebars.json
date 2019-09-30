@@ -55,13 +55,15 @@
       "usecases/usecases_testing"
     ]
   },
-  "advanced-sidebar": {
-    "Advanced": [
-      "advanced/advanced_index",
-      "advanced/advanced_error_model",
-      "advanced/advanced_performance",
-      "advanced/advanced_rts",
-      "advanced/advanced_system"
+  "howto-sidebar": {
+    "How to": [
+      "howto/howto_index",
+      "howto/howto_effectful_testing",
+      "howto/howto_error_model",
+      "howto/howto_performance",
+      "howto/howto_rts",
+      "howto/howto_system",
+      "howto/howto_effectful_testing"
     ]
   },
   "resources-sidebar": {
