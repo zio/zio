@@ -139,7 +139,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   /**
    * Returns a stream made of the concatenation of all the chunks in this stream
    */
-  final def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
+  def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
 
   /**
    * Executes an effectful fold over the stream of values.
