@@ -184,7 +184,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     untilOutput
       happy path      $untilOutputHappyPath
       false predicate $untilOutputFalsePredicate
-      leftover append $untilLeftoverAppend
+      leftover append $untilOutputLeftoverAppend
       init error      $untilOutputInitError
       step error      $untilOutputStepError
       extract error   $untilOutputExtractError
@@ -1127,7 +1127,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== ((None, Chunk.empty))))
   }
 
-  private def untilLeftoverAppend = {
+  private def untilOutputLeftoverAppend = {
     val sink = ZSink.collectAllN[Int](3).untilOutput(_.sum > 0)
     val test = Stream((-4 to 4): _*)
       .transduce(sink)
