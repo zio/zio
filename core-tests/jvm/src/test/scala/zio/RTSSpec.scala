@@ -363,36 +363,43 @@ object RTSSpec
             } yield a1 && a2 && a3 && a4
           },
           testM("bracket regression 1") {
-            // unsafeRun(for {
-            //   ref <- Ref.make[List[String]](Nil)
-            //   log = makeLogger(ref)
-            //   f <- ZIO
-            //         .bracket(
-            //           ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(
-            //             _ => ZIO.unit
-            //           )
-            //         )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
-            //         .fork
-            //   _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("start 1")))
-            //   _ <- f.interrupt
-            //   _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("release 2")))
-            //   l <- ref.get
-            // } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
-            Stub
+            def makeLogger: Ref[List[String]] => String => UIO[Unit] =
+              (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).unit
+
+            val io =
+              for {
+                ref <- Ref.make[List[String]](Nil)
+                log = makeLogger(ref)
+                f <- ZIO
+                      .bracket(
+                        ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(
+                          _ => ZIO.unit
+                        )
+                      )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
+                      .fork
+                _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("start 1")))
+                _ <- f.interrupt
+                _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("release 2")))
+                l <- ref.get
+              } yield l
+
+            assertM(io.provide(Clock.Live), hasSameElements(List("start 1", "release 1", "start 2", "release 2")))
           },
           testM("interrupt waits for finalizer") {
-            // unsafeRun(for {
-            //   r  <- Ref.make(false)
-            //   p1 <- Promise.make[Nothing, Unit]
-            //   p2 <- Promise.make[Nothing, Int]
-            //   s <- (p1.succeed(()) *> p2.await)
-            //         .ensuring(r.set(true) *> clock.sleep(10.millis))
-            //         .fork
-            //   _    <- p1.await
-            //   _    <- s.interrupt
-            //   test <- r.get
-            // } yield test must_=== true)
-            Stub
+            val io =
+              for {
+                r  <- Ref.make(false)
+                p1 <- Promise.make[Nothing, Unit]
+                p2 <- Promise.make[Nothing, Int]
+                s <- (p1.succeed(()) *> p2.await)
+                      .ensuring(r.set(true) *> clock.sleep(10.millis))
+                      .fork
+                _    <- p1.await
+                _    <- s.interrupt
+                test <- r.get
+              } yield test
+
+            assertM(io.provide(Clock.Live), isTrue)
           }
         ),
         suite("RTS synchronous stack safety")(
@@ -629,22 +636,25 @@ object RTSSpec
             } yield assert(r, equalTo((1, 2)))
           },
           testM("supervise fibers in fork") {
-            for {
-              pa <- Promise.make[Nothing, Int]
-              pb <- Promise.make[Nothing, Int]
+            val io =
+              for {
+                pa <- Promise.make[Nothing, Int]
+                pb <- Promise.make[Nothing, Int]
 
-              p1 <- Promise.make[Nothing, Unit]
-              p2 <- Promise.make[Nothing, Unit]
-              f <- (
-                    p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never).fork *>
-                      p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never).fork *>
-                      IO.never
-                  ).interruptChildren.fork
-              _ <- p1.await *> p2.await
+                p1 <- Promise.make[Nothing, Unit]
+                p2 <- Promise.make[Nothing, Unit]
+                f <- (
+                      p1.succeed(()).bracket_(pa.succeed(1).unit)(IO.never).fork *>
+                        p2.succeed(()).bracket_(pb.succeed(2).unit)(IO.never).fork *>
+                        IO.never
+                    ).interruptChildren.fork
+                _ <- p1.await *> p2.await
 
-              _ <- f.interrupt
-              r <- pa.await zip pb.await
-            } yield assert(r, equalTo((1, 2)))
+                _ <- f.interrupt
+                r <- pa.await zip pb.await
+              } yield r
+
+            assertM(io.eventually, equalTo((1, 2)))
           },
           testM("race of fail with success") {
             val io = IO.fail(42).race(IO.succeed(24)).either
@@ -698,7 +708,6 @@ object RTSSpec
           },
           testM("par regression") {
             val io = IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
-
             assertM(nonFlaky(io), isTrue)
           },
           testM("par of now values") {
@@ -729,6 +738,9 @@ object RTSSpec
             assertM(io, equalTo(1))
           },
           testM("timeout of failure") {
+            // unsafeRun(
+            //   IO.fail("Uh oh").timeout(1.hour)
+            // ) must throwA[FiberFailure]
             Stub
           },
           testM("timeout of terminate") {
@@ -805,17 +817,16 @@ object RTSSpec
         ),
         suite("RTS interruption")(
           testM("blocking IO is effect blocking") {
-            // unsafeRun(
-            //     for {
-            //       done  <- Ref.make(false)
-            //       start <- IO.succeed(internal.OneShot.make[Unit])
-            //       fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }.ensuring(done.set(true)).fork
-            //       _     <- IO.succeed(start.get())
-            //       res   <- fiber.interrupt
-            //       value <- done.get
-            //     } yield (res, value) must_=== ((Exit.interrupt, true))
-            //   )
-            Stub
+            for {
+              done  <- Ref.make(false)
+              start <- IO.succeed(internal.OneShot.make[Unit])
+              fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }
+                        .ensuring(done.set(true))
+                        .fork
+              _     <- IO.succeed(start.get())
+              res   <- fiber.interrupt
+              value <- done.get
+            } yield assert(res, isInterrupted) && assert(value, isTrue)
           },
           testM("sync forever is interruptible") {
             val io =
@@ -863,7 +874,7 @@ object RTSSpec
 
             assertM(io.provide(Clock.Live), equalTo(42))
           },
-          testM("bracket0 is uninterruptible") {
+          testM("bracketExit is uninterruptible") {
             val io =
               for {
                 promise <- Promise.make[Nothing, Unit]
@@ -886,7 +897,7 @@ object RTSSpec
 
             assertM(io, isInterrupted)
           },
-          testM("bracket0 use is interruptible") {
+          testM("bracketExit use is interruptible") {
             val io =
               for {
                 fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
@@ -908,7 +919,7 @@ object RTSSpec
 
             assertM(io.timeoutTo(42)(_ => 0)(1.second), equalTo(0))
           },
-          testM("bracket0 release called on interrupt") {
+          testM("bracketExit release called on interrupt") {
             val io =
               for {
                 done <- Promise.make[Nothing, Unit]
