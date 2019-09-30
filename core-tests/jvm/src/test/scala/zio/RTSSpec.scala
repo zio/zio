@@ -5,7 +5,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 // import com.github.ghik.silencer.silent
 // import zio.Cause.{ die, fail, Fail, Then }
-import zio.Cause.die
 import zio.LatchOps._
 import zio.RTSSpecHelper._
 import zio.clock.Clock
@@ -72,7 +71,7 @@ object RTSSpec
           },
           testM("effectSuspendTotal must not catch throwable") {
             val io = ZIO.effectSuspendTotal[Any, Nothing, Any](throw ExampleError).sandbox.either
-            assertM(io, isLeft(equalTo(die(ExampleError))))
+            assertM(io, isLeft(equalTo(Cause.die(ExampleError))))
           },
           testM("effectSuspend must catch throwable") {
             val io = ZIO.effectSuspend[Any, Nothing](throw ExampleError).either
@@ -183,15 +182,15 @@ object RTSSpec
           },
           testM("attempt . sandbox . terminate") {
             val io = IO.effectTotal[Int](throw ExampleError).sandbox.either
-            assertM(io, isLeft(equalTo(die(ExampleError))))
+            assertM(io, isLeft(equalTo(Cause.die(ExampleError))))
           },
           testM("fold . sandbox . terminate") {
             val io = IO.effectTotal[Int](throw ExampleError).sandbox.fold(Some(_), Function.const(None))
-            assertM(io, isSome(equalTo(die(ExampleError))))
+            assertM(io, isSome(equalTo(Cause.die(ExampleError))))
           },
           testM("catch sandbox terminate") {
             val io = IO.effectTotal(throw ExampleError).sandbox.fold(identity, identity)
-            assertM(io, equalTo(die(ExampleError)))
+            assertM(io, equalTo(Cause.die(ExampleError)))
           },
           testM("uncaught fail") {
             assertM(TaskExampleError.run, fails(equalTo(ExampleError)))
@@ -326,49 +325,44 @@ object RTSSpec
             Stub
           },
           testM("bracket exit is usage result") {
-            // unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeed[Int](42))) must_=== 42
-            Stub
+            val io = IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeed[Int](42))
+            assertM(io, equalTo(42))
           },
           testM("error in just acquisition") {
-            // unsafeRunSync(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit)) must_=== Exit.Failure(fail(ExampleError))
-            Stub
+            val io = IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit)
+            assertM(io.run, fails(equalTo(ExampleError)))
           },
           testM("error in just release") {
-            // unsafeRunSync(IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)) must_=== Exit.Failure(die(ExampleError))
-            Stub
+            val io = IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)
+            assertM(io.run, dies(equalTo(ExampleError)))
           },
           testM("error in just usage") {
-            // unsafeRunSync(Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])) must_=== Exit
-            //   .Failure(fail(ExampleError))
+            // val io = Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])
+            // assertM(io.run, fails(equalTo(ExampleError)))
             Stub
           },
           testM("rethrown caught error in acquisition") {
-            // val io = IO.absolve(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit).either)
-
-            // unsafeRunSync(io) must_=== Exit.Failure(fail(ExampleError))
-            Stub
+            val io = IO.absolve(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit).either)
+            assertM(io.flip, equalTo(ExampleError))
           },
           testM("rethrown caught error in release") {
-            // val io = IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)
-
-            // unsafeRunSync(io) must_=== Exit.Failure(die(ExampleError))
-            Stub
+            val io = IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)
+            assertM(io.run, dies(equalTo(ExampleError)))
           },
           testM("rethrown caught error in usage") {
-            // val io = IO.absolve(IO.unit.bracket_(IO.unit)(TaskExampleError).either)
-
-            // unsafeRunSync(io) must_=== Exit.Failure(fail(ExampleError))
-            Stub
+            val io = IO.absolve(IO.unit.bracket_(IO.unit)(TaskExampleError).either)
+            assertM(io.run, fails(equalTo(ExampleError)))
           },
           testM("test eval of async fail") {
-            // val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
-            // val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
+            val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
+            val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
 
-            // unsafeRunSync(io1) must_=== Exit.Failure(fail(ExampleError))
-            // unsafeRunSync(io2) must_=== Exit.Failure(fail(ExampleError))
-            // unsafeRunSync(IO.absolve(io1.either)) must_=== Exit.Failure(fail(ExampleError))
-            // unsafeRunSync(IO.absolve(io2.either)) must_=== Exit.Failure(fail(ExampleError))
-            Stub
+            for {
+              a1 <- assertM(io1.run, fails(equalTo(ExampleError)))
+              a2 <- assertM(io2.run, fails(equalTo(ExampleError)))
+              a3 <- assertM(IO.absolve(io1.either).run, fails(equalTo(ExampleError)))
+              a4 <- assertM(IO.absolve(io2.either).run, fails(equalTo(ExampleError)))
+            } yield a1 && a2 && a3 && a4
           },
           testM("bracket regression 1") {
             // unsafeRun(for {
@@ -705,11 +699,9 @@ object RTSSpec
             } yield assert(b, equalTo(42))
           },
           testM("par regression") {
-            val io = nonFlaky {
-              IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
-            }
+            val io = IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
 
-            assertM(io, isTrue)
+            assertM(nonFlaky(io), isTrue)
           },
           testM("par of now values") {
             def countdown(n: Int): UIO[Int] =
@@ -828,354 +820,368 @@ object RTSSpec
             Stub
           },
           testM("sync forever is interruptible") {
-            // unsafeRun(
-            //     for {
-            //       f <- IO.effectTotal[Int](1).forever.fork
-            //       _ <- f.interrupt
-            //     } yield true
-            //   )
-            Stub
+            val io =
+              for {
+                f <- IO.effectTotal[Int](1).forever.fork
+                _ <- f.interrupt
+              } yield true
+
+            assertM(io, isTrue)
           },
           testM("interrupt of never") {
-            // val io =
-            //   for {
-            //     fiber <- IO.never.fork
-            //     _     <- fiber.interrupt
-            //   } yield 42
+            val io =
+              for {
+                fiber <- IO.never.fork
+                _     <- fiber.interrupt
+              } yield 42
 
-            // unsafeRun(io) must_=== 42
-            Stub
+            assertM(io, equalTo(42))
           },
           testM("asyncPure is interruptible") {
-            // val io =
-            //   for {
-            //     fiber <- IO.effectAsyncM[Nothing, Nothing](_ => IO.never).fork
-            //     _     <- fiber.interrupt
-            //   } yield 42
+            val io =
+              for {
+                fiber <- IO.effectAsyncM[Nothing, Nothing](_ => IO.never).fork
+                _     <- fiber.interrupt
+              } yield 42
 
-            // unsafeRun(io) must_=== 42
-            Stub
+            assertM(io, equalTo(42))
           },
           testM("async is interruptible") {
-            // val io =
-            //   for {
-            //     fiber <- IO.effectAsync[Nothing, Nothing](_ => ()).fork
-            //     _     <- fiber.interrupt
-            //   } yield 42
+            val io =
+              for {
+                fiber <- IO.effectAsync[Nothing, Nothing](_ => ()).fork
+                _     <- fiber.interrupt
+              } yield 42
 
-            // unsafeRun(io) must_=== 42
-            Stub
+            assertM(io, equalTo(42))
           },
           testM("bracket is uninterruptible") {
-            // val io =
-            //   for {
-            //     promise <- Promise.make[Nothing, Unit]
-            //     fiber   <- (promise.succeed(()) <* IO.never).bracket(_ => IO.unit)(_ => IO.unit).fork
-            //     res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
-            //   } yield res
-            // unsafeRun(io) must_=== 42
-            Stub
+            val io =
+              for {
+                promise <- Promise.make[Nothing, Unit]
+                fiber   <- (promise.succeed(()) <* IO.never).bracket(_ => IO.unit)(_ => IO.unit).fork
+                res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+              } yield res
+
+            assertM(io.provide(Clock.Live), equalTo(42))
           },
           testM("bracket0 is uninterruptible") {
-            // val io =
-            //   for {
-            //     promise <- Promise.make[Nothing, Unit]
-            //     fiber <- IO
-            //               .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[_, _]) => IO.unit)(
-            //                 _ => IO.unit: IO[Nothing, Unit]
-            //               )
-            //               .fork
-            //     res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
-            //   } yield res
-            // unsafeRun(io) must_=== 42
-            Stub
+            val io =
+              for {
+                promise <- Promise.make[Nothing, Unit]
+                fiber <- IO
+                          .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[_, _]) => IO.unit)(
+                            _ => IO.unit: IO[Nothing, Unit]
+                          )
+                          .fork
+                res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+              } yield res
+
+            assertM(io.provide(Clock.Live), equalTo(42))
           },
           testM("bracket use is interruptible") {
-            // val io =
-            //   for {
-            //     fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
-            //     res   <- fiber.interrupt
-            //   } yield res
-            // unsafeRun(io) must_=== Exit.interrupt
-            Stub
+            val io =
+              for {
+                fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
+                res   <- fiber.interrupt
+              } yield res
+
+            assertM(io, isInterrupted)
           },
           testM("bracket0 use is interruptible") {
-            // val io =
-            //   for {
-            //     fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
-            //     res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
-            //   } yield res
-            // unsafeRun(io) must_=== 0
-            Stub
+            val io =
+              for {
+                fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
+                res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+              } yield res
+
+            assertM(io, equalTo(0))
           },
           testM("bracket release called on interrupt") {
-            // val io =
-            //   for {
-            //     p1    <- Promise.make[Nothing, Unit]
-            //     p2    <- Promise.make[Nothing, Unit]
-            //     fiber <- IO.bracket(IO.unit)(_ => p2.succeed(()) *> IO.unit)(_ => p1.succeed(()) *> IO.never).fork
-            //     _     <- p1.await
-            //     _     <- fiber.interrupt
-            //     _     <- p2.await
-            //   } yield ()
+            val io =
+              for {
+                p1    <- Promise.make[Nothing, Unit]
+                p2    <- Promise.make[Nothing, Unit]
+                fiber <- IO.bracket(IO.unit)(_ => p2.succeed(()) *> IO.unit)(_ => p1.succeed(()) *> IO.never).fork
+                _     <- p1.await
+                _     <- fiber.interrupt
+                _     <- p2.await
+              } yield ()
 
-            // unsafeRun(io.timeoutTo(42)(_ => 0)(1.second)) must_=== 0
-            Stub
+            assertM(io.timeoutTo(42)(_ => 0)(1.second), equalTo(0))
           },
           testM("bracket0 release called on interrupt") {
-            // unsafeRun(for {
-            //   done <- Promise.make[Nothing, Unit]
-            //   fiber <- withLatch { release =>
-            //             IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => done.succeed(()))(
-            //                 _ => release *> IO.never
-            //               )
-            //               .fork
-            //           }
+            val io =
+              for {
+                done <- Promise.make[Nothing, Unit]
+                fiber <- withLatch { release =>
+                          IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => done.succeed(()))(
+                              _ => release *> IO.never
+                            )
+                            .fork
+                        }
 
-            //   _ <- fiber.interrupt
-            //   r <- done.await.timeoutTo(42)(_ => 0)(60.second)
-            // } yield r must_=== 0)
-            Stub
+                _ <- fiber.interrupt
+                r <- done.await.timeoutTo(42)(_ => 0)(60.second)
+              } yield r
+
+            assertM(io, equalTo(0))
           },
           testM("redeem + ensuring + interrupt") {
-            // val io = for {
-            //   cont <- Promise.make[Nothing, Unit]
-            //   p1   <- Promise.make[Nothing, Boolean]
-            //   f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
-            //   _    <- cont.await
-            //   _    <- f1.interrupt
-            //   res  <- p1.await
-            // } yield res
+            val io =
+              for {
+                cont <- Promise.make[Nothing, Unit]
+                p1   <- Promise.make[Nothing, Boolean]
+                f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
+                _    <- cont.await
+                _    <- f1.interrupt
+                res  <- p1.await
+              } yield res
 
-            // unsafeRun(io) must_=== true
-            Stub
+            assertM(io, isTrue)
           },
           testM("finalizer can detect interruption") {
-            // val io = for {
-            //   p1  <- Promise.make[Nothing, Boolean]
-            //   c   <- Promise.make[Nothing, Unit]
-            //   f1  <- (c.succeed(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupted))).fork
-            //   _   <- c.await
-            //   _   <- f1.interrupt
-            //   res <- p1.await
-            // } yield res
+            val io =
+              for {
+                p1  <- Promise.make[Nothing, Boolean]
+                c   <- Promise.make[Nothing, Unit]
+                f1  <- (c.succeed(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupted))).fork
+                _   <- c.await
+                _   <- f1.interrupt
+                res <- p1.await
+              } yield res
 
-            // unsafeRun(io) must_=== true
-            Stub
+            assertM(io, isTrue)
           },
           testM("interruption of raced") {
-            // val io = for {
-            //   ref   <- Ref.make(0)
-            //   cont1 <- Promise.make[Nothing, Unit]
-            //   cont2 <- Promise.make[Nothing, Unit]
-            //   make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never).onInterrupt(ref.update(_ + 1))
-            //   raced <- (make(cont1) race (make(cont2))).fork
-            //   _     <- cont1.await *> cont2.await
-            //   _     <- raced.interrupt
-            //   count <- ref.get
-            // } yield count
+            val io =
+              for {
+                ref   <- Ref.make(0)
+                cont1 <- Promise.make[Nothing, Unit]
+                cont2 <- Promise.make[Nothing, Unit]
+                make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never).onInterrupt(ref.update(_ + 1))
+                raced <- (make(cont1) race (make(cont2))).fork
+                _     <- cont1.await *> cont2.await
+                _     <- raced.interrupt
+                count <- ref.get
+              } yield count
 
-            // unsafeRun(io) must_=== 2
-            Stub
+            assertM(io, equalTo(2))
           },
           testM("cancelation is guaranteed") {
-            // val io = for {
-            //   release <- zio.Promise.make[Nothing, Int]
-            //   latch   = internal.OneShot.make[Unit]
-            //   async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
-            //     latch.set(()); Left(release.succeed(42).unit)
-            //   }
-            //   fiber  <- async.fork
-            //   _      <- IO.effectTotal(latch.get(1000))
-            //   _      <- fiber.interrupt.fork
-            //   result <- release.await
-            // } yield result
+            val io =
+              for {
+                release <- zio.Promise.make[Nothing, Int]
+                latch   = internal.OneShot.make[Unit]
+                async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
+                  latch.set(()); Left(release.succeed(42).unit)
+                }
+                fiber  <- async.fork
+                _      <- IO.effectTotal(latch.get(1000))
+                _      <- fiber.interrupt.fork
+                result <- release.await
+              } yield result == 42
 
-            // nonFlaky(io.map(_ must_=== 42))
-            Stub
+            assertM(nonFlaky(io), isTrue)
           },
           testM("interruption of unending bracket") {
-            // val io = for {
-            //   startLatch <- Promise.make[Nothing, Int]
-            //   exitLatch  <- Promise.make[Nothing, Int]
-            //   bracketed = IO
-            //     .succeed(21)
-            //     .bracketExit(
-            //       (r: Int, exit: Exit[_, _]) =>
-            //         if (exit.interrupted) exitLatch.succeed(r)
-            //         else IO.die(new Error("Unexpected case"))
-            //     )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
-            //   fiber      <- bracketed.fork
-            //   startValue <- startLatch.await
-            //   _          <- fiber.interrupt.fork
-            //   exitValue  <- exitLatch.await
-            // } yield startValue + exitValue
+            val io =
+              for {
+                startLatch <- Promise.make[Nothing, Int]
+                exitLatch  <- Promise.make[Nothing, Int]
+                bracketed = IO
+                  .succeed(21)
+                  .bracketExit(
+                    (r: Int, exit: Exit[_, _]) =>
+                      if (exit.interrupted) exitLatch.succeed(r)
+                      else IO.die(new Error("Unexpected case"))
+                  )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+                fiber      <- bracketed.fork
+                startValue <- startLatch.await
+                _          <- fiber.interrupt.fork
+                exitValue  <- exitLatch.await
+              } yield (startValue + exitValue) == 42
 
-            // nonFlaky(io.map(_ must_=== 42))
-            Stub
+            assertM(nonFlaky(io), isTrue)
           },
           testM("recovery of error in finalizer") {
-            // unsafeRun(for {
-            //   recovered <- Ref.make(false)
-            //   fiber <- withLatch { release =>
-            //             (release *> ZIO.never)
-            //               .ensuring(
-            //                 (ZIO.unit *> ZIO.fail("Uh oh")).catchAll(_ => recovered.set(true))
-            //               )
-            //               .fork
-            //           }
-            //   _     <- fiber.interrupt
-            //   value <- recovered.get
-            // } yield value must_=== true)
-            Stub
+            val io =
+              for {
+                recovered <- Ref.make(false)
+                fiber <- withLatch { release =>
+                          (release *> ZIO.never)
+                            .ensuring(
+                              (ZIO.unit *> ZIO.fail("Uh oh")).catchAll(_ => recovered.set(true))
+                            )
+                            .fork
+                        }
+                _     <- fiber.interrupt
+                value <- recovered.get
+              } yield value
+
+            assertM(io, isTrue)
           },
           testM("recovery of interruptible") {
-            // unsafeRun(for {
-            //   recovered <- Ref.make(false)
-            //   fiber <- withLatch { release =>
-            //             (release *> ZIO.never.interruptible)
-            //               .foldCauseM(
-            //                 cause => recovered.set(cause.interrupted),
-            //                 _ => recovered.set(false)
-            //               )
-            //               .uninterruptible
-            //               .fork
-            //           }
-            //   _     <- fiber.interrupt
-            //   value <- recovered.get
-            // } yield value must_=== true)
-            Stub
+            val io =
+              for {
+                recovered <- Ref.make(false)
+                fiber <- withLatch { release =>
+                          (release *> ZIO.never.interruptible)
+                            .foldCauseM(
+                              cause => recovered.set(cause.interrupted),
+                              _ => recovered.set(false)
+                            )
+                            .uninterruptible
+                            .fork
+                        }
+                _     <- fiber.interrupt
+                value <- recovered.get
+              } yield value
+
+            assertM(io, isTrue)
           },
           testM("sandbox of interruptible") {
-            // unsafeRun(for {
-            //   recovered <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
-            //   fiber <- withLatch { release =>
-            //             (release *> ZIO.never.interruptible).sandbox.either
-            //               .flatMap(exit => recovered.set(Some(exit)))
-            //               .uninterruptible
-            //               .fork
-            //           }
-            //   _     <- fiber.interrupt
-            //   value <- recovered.get
-            // } yield value must_=== Some(Left(Cause.interrupt)))
-            Stub
+            val io =
+              for {
+                recovered <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
+                fiber <- withLatch { release =>
+                          (release *> ZIO.never.interruptible).sandbox.either
+                            .flatMap(exit => recovered.set(Some(exit)))
+                            .uninterruptible
+                            .fork
+                        }
+                _     <- fiber.interrupt
+                value <- recovered.get
+              } yield value
+
+            assertM(io, isSome(isLeft(equalTo(Cause.interrupt))))
           },
           testM("run of interruptible") {
-            // unsafeRun(for {
-            //   recovered <- Ref.make[Option[Exit[Nothing, Any]]](None)
-            //   fiber <- withLatch { release =>
-            //             (release *> ZIO.never.interruptible).run
-            //               .flatMap(exit => recovered.set(Some(exit)))
-            //               .uninterruptible
-            //               .fork
-            //           }
-            //   _     <- fiber.interrupt
-            //   value <- recovered.get
-            // } yield value must_=== Some(Exit.Failure(Cause.interrupt)))
-            Stub
+            val io =
+              for {
+                recovered <- Ref.make[Option[Exit[Nothing, Any]]](None)
+                fiber <- withLatch { release =>
+                          (release *> ZIO.never.interruptible).run
+                            .flatMap(exit => recovered.set(Some(exit)))
+                            .uninterruptible
+                            .fork
+                        }
+                _     <- fiber.interrupt
+                value <- recovered.get
+              } yield value
+
+            assertM(io, isSome(isInterrupted))
           },
           testM("alternating interruptibility") {
-            // unsafeRun(for {
-            //   counter <- Ref.make(0)
-            //   fiber <- withLatch { release =>
-            //             ((((release *> ZIO.never.interruptible.run *> counter
-            //               .update(_ + 1)).uninterruptible).interruptible).run
-            //               *> counter.update(_ + 1)).uninterruptible.fork
-            //           }
-            //   _     <- fiber.interrupt
-            //   value <- counter.get
-            // } yield value must_=== 2)
-            Stub
+            val io =
+              for {
+                counter <- Ref.make(0)
+                fiber <- withLatch { release =>
+                          ((((release *> ZIO.never.interruptible.run *> counter
+                            .update(_ + 1)).uninterruptible).interruptible).run
+                            *> counter.update(_ + 1)).uninterruptible.fork
+                        }
+                _     <- fiber.interrupt
+                value <- counter.get
+              } yield value
+
+            assertM(io, equalTo(2))
           },
           testM("interruption after defect") {
-            // unsafeRun(for {
-            //   ref <- Ref.make(false)
-            //   fiber <- withLatch { release =>
-            //             (ZIO.effect(throw new Error).run *> release *> ZIO.never)
-            //               .ensuring(ref.set(true))
-            //               .fork
-            //           }
-            //   _     <- fiber.interrupt
-            //   value <- ref.get
-            // } yield value must_=== true)
-            Stub
+            val io =
+              for {
+                ref <- Ref.make(false)
+                fiber <- withLatch { release =>
+                          (ZIO.effect(throw new Error).run *> release *> ZIO.never)
+                            .ensuring(ref.set(true))
+                            .fork
+                        }
+                _     <- fiber.interrupt
+                value <- ref.get
+              } yield value
+
+            assertM(io, isTrue)
           },
           testM("interruption after defect 2") {
-            // unsafeRun(for {
-            //   ref <- Ref.make(false)
-            //   fiber <- withLatch { release =>
-            //             (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
-            //               .ensuring(ref.set(true))
-            //               .fork
-            //           }
-            //   _     <- fiber.interrupt
-            //   value <- ref.get
-            // } yield value must_=== true)
-            Stub
+            val io =
+              for {
+                ref <- Ref.make(false)
+                fiber <- withLatch { release =>
+                          (ZIO.effect(throw new Error).run *> release *> ZIO.unit.forever)
+                            .ensuring(ref.set(true))
+                            .fork
+                        }
+                _     <- fiber.interrupt
+                value <- ref.get
+              } yield value
+
+            assertM(io, isTrue)
           },
           testM("cause reflects interruption") {
-            // nonFlaky {
-            //   for {
-            //     finished <- Ref.make(false)
-            //     fiber <- withLatch { release =>
-            //               (release *> ZIO.fail("foo")).catchAll(_ => finished.set(true)).fork
-            //             }
-            //     exit     <- fiber.interrupt
-            //     finished <- finished.get
-            //   } yield (exit.interrupted must_=== true) or (finished must_=== true)
-            // }
-            Stub
+            val io =
+              for {
+                finished <- Ref.make(false)
+                fiber <- withLatch { release =>
+                          (release *> ZIO.fail("foo")).catchAll(_ => finished.set(true)).fork
+                        }
+                exit     <- fiber.interrupt
+                finished <- finished.get
+              } yield exit.interrupted == true || finished == true
+
+            assertM(nonFlaky(io), isTrue)
           },
           testM("bracket use inherits interrupt status") {
-            // unsafeRun(
-            //   for {
-            //     ref <- Ref.make(false)
-            //     fiber1 <- withLatch { (release2, await2) =>
-            //                withLatch { release1 =>
-            //                  release1
-            //                    .bracket_(ZIO.unit, await2 *> clock.sleep(10.millis) *> ref.set(true))
-            //                    .uninterruptible
-            //                    .fork
-            //                } <* release2
-            //              }
-            //     _     <- fiber1.interrupt
-            //     value <- ref.get
-            //   } yield value must_=== true
-            // )
-            Stub
+            val io =
+              for {
+                ref <- Ref.make(false)
+                fiber1 <- withLatch { (release2, await2) =>
+                           withLatch { release1 =>
+                             release1
+                               .bracket_(ZIO.unit, await2 *> clock.sleep(10.millis) *> ref.set(true))
+                               .uninterruptible
+                               .fork
+                           } <* release2
+                         }
+                _     <- fiber1.interrupt
+                value <- ref.get
+              } yield value
+
+            assertM(io.provide(Clock.Live), isTrue)
           },
           testM("bracket use inherits interrupt status 2") {
-            // unsafeRun(
-            //   for {
-            //     latch1 <- Promise.make[Nothing, Unit]
-            //     latch2 <- Promise.make[Nothing, Unit]
-            //     ref    <- Ref.make(false)
-            //     fiber1 <- latch1
-            //                .succeed(())
-            //                .bracketExit[Clock, Nothing, Unit](
-            //                  (_: Boolean, _: Exit[_, _]) => ZIO.unit,
-            //                  (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
-            //                )
-            //                .uninterruptible
-            //                .fork
-            //     _     <- latch1.await
-            //     _     <- latch2.succeed(())
-            //     _     <- fiber1.interrupt
-            //     value <- ref.get
-            //   } yield value must_=== true
-            // )
-            Stub
+            val io =
+              for {
+                latch1 <- Promise.make[Nothing, Unit]
+                latch2 <- Promise.make[Nothing, Unit]
+                ref    <- Ref.make(false)
+                fiber1 <- latch1
+                           .succeed(())
+                           .bracketExit[Clock, Nothing, Unit](
+                             (_: Boolean, _: Exit[_, _]) => ZIO.unit,
+                             (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
+                           )
+                           .uninterruptible
+                           .fork
+                _     <- latch1.await
+                _     <- latch2.succeed(())
+                _     <- fiber1.interrupt
+                value <- ref.get
+              } yield value
+
+            assertM(io.provide(Clock.Live), isTrue)
           },
           testM("async can be uninterruptible") {
-            // unsafeRun(for {
-            //   ref <- Ref.make(false)
-            //   fiber <- withLatch { release =>
-            //             (release *> clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
-            //           }
-            //   _     <- fiber.interrupt
-            //   value <- ref.get
-            // } yield value must_=== true)
-            Stub
+            val io =
+              for {
+                ref <- Ref.make(false)
+                fiber <- withLatch { release =>
+                          (release *> clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
+                        }
+                _     <- fiber.interrupt
+                value <- ref.get
+              } yield value
+
+            assertM(io.provide(Clock.Live), isTrue)
           }
         ),
         suite("RTS environment")(
@@ -1217,7 +1223,7 @@ object RTSSpec
             } yield assert(v, equalTo(InterruptStatus.uninterruptible))
           },
           testM("executor is heritable") {
-            val io = nonFlaky {
+            val io =
               for {
                 ref  <- Ref.make(Option.empty[internal.Executor])
                 exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
@@ -1226,38 +1232,32 @@ object RTSSpec
                     )
                 v <- ref.get
               } yield v.contains(exec)
-            }
 
-            assertM(io, isTrue)
+            assertM(nonFlaky(io), isTrue)
           },
           testM("supervision is heritable") {
-            val io = nonFlaky {
+            val io =
               for {
                 latch <- Promise.make[Nothing, Unit]
                 ref   <- Ref.make(SuperviseStatus.unsupervised)
                 _     <- ((ZIO.checkSupervised(ref.set) *> latch.succeed(())).fork *> latch.await).supervised
                 v     <- ref.get
               } yield v == SuperviseStatus.Supervised
-            }
 
-            assertM(io, isTrue)
+            assertM(nonFlaky(io), isTrue)
           },
           testM("supervision inheritance") {
             def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
               withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
 
-            val io = nonFlaky {
-              val zio =
-                for {
-                  ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
-                  _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
-                  fibs <- ZIO.children
-                } yield fibs.size == 1
+            val io =
+              (for {
+                ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
+                _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
+                fibs <- ZIO.children
+              } yield fibs.size == 1).supervised
 
-              zio.supervised
-            }
-
-            assertM(io, isTrue)
+            assertM(nonFlaky(io), isTrue)
           }
         )
       )
