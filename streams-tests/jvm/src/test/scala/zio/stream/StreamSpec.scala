@@ -3,7 +3,7 @@ package zio.stream
 import com.github.ghik.silencer.silent
 import org.scalacheck.{ Arbitrary, Gen }
 import org.specs2.ScalaCheck
-import zio.ZQueueSpecUtil.waitForSize
+import zio.ZQueueSpecUtil.{ waitForSize, waitForValue }
 import zio._
 import zio.duration._
 
@@ -85,15 +85,18 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     effectAsyncMaybe signal end stream $effectAsyncMaybeSignalEndStream
     effectAsyncMaybe Some              $effectAsyncMaybeSome
     effectAsyncMaybe None              $effectAsyncMaybeNone
+    effectAsyncMaybe back pressure     $effectAsyncMaybeBackPressure
 
   Stream.effectAsyncM
     effectAsyncM                   $effectAsyncM
     effectAsyncM signal end stream $effectAsyncMSignalEndStream
+    effectAsyncM back pressure     $effectAsyncMBackPressure
 
   Stream.effectAsyncInterrupt
     effectAsyncInterrupt Left              $effectAsyncInterruptLeft
     effectAsyncInterrupt Right             $effectAsyncInterruptRight
     effectAsyncInterrupt signal end stream $effectAsyncInterruptSignalEndStream
+    effectAsyncInterrupt back pressure     $effectAsyncInterruptBackPressure
 
   Stream.ensuring $ensuring
 
@@ -746,6 +749,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     } yield result must_=== List()
   }
 
+  private def effectAsyncMBackPressure = unsafeRun {
+    for {
+      refCnt  <- Ref.make(0)
+      refDone <- Ref.make[Boolean](false)
+      stream = ZStream.effectAsyncM[Any, Throwable, Int](cb => {
+        (1 to 6).foreach(i => cb(refCnt.set(i) *> ZIO.succeed(1)))
+        cb(refDone.set(true) *> ZIO.fail(None))
+        UIO.unit
+      }, 5)
+      run    <- stream.run(ZSink.fromEffect(ZIO.never)).fork
+      _      <- waitForValue(refCnt.get, 6)
+      isDone <- refDone.get
+      _      <- run.interrupt
+    } yield isDone must_=== false
+  }
+
   private def effectAsyncMaybeSignalEndStream = unsafeRun {
     for {
       result <- Stream
@@ -775,6 +794,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
       unsafeRunSync(s.take(list.size).runCollect) must_=== Success(list)
     }
+
+  private def effectAsyncMaybeBackPressure = unsafeRun {
+    for {
+      refCnt  <- Ref.make(0)
+      refDone <- Ref.make[Boolean](false)
+      stream = ZStream.effectAsyncMaybe[Any, Throwable, Int](cb => {
+        (1 to 6).foreach(i => cb(refCnt.set(i) *> ZIO.succeed(1)))
+        cb(refDone.set(true) *> ZIO.fail(None))
+        None
+      }, 5)
+      run    <- stream.run(ZSink.fromEffect(ZIO.never)).fork
+      _      <- waitForValue(refCnt.get, 6)
+      isDone <- refDone.get
+      _      <- run.interrupt
+    } yield isDone must_=== false
+  }
 
   private def effectAsyncInterruptLeft = unsafeRun {
     for {
@@ -811,6 +846,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
                  }
                  .runCollect
     } yield result must_=== List()
+  }
+
+  private def effectAsyncInterruptBackPressure = unsafeRun {
+    for {
+      refCnt  <- Ref.make(0)
+      refDone <- Ref.make[Boolean](false)
+      stream = ZStream.effectAsyncInterrupt[Any, Throwable, Int](cb => {
+        (1 to 6).foreach(i => cb(refCnt.set(i) *> ZIO.succeed(1)))
+        cb(refDone.set(true) *> ZIO.fail(None))
+        Left(UIO.unit)
+      }, 5)
+      run    <- stream.run(ZSink.fromEffect(ZIO.never)).fork
+      _      <- waitForValue(refCnt.get, 6)
+      isDone <- refDone.get
+      _      <- run.interrupt
+    } yield isDone must_=== false
   }
 
   private def ensuring =
