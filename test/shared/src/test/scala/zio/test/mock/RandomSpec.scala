@@ -6,10 +6,10 @@ import scala.util.{ Random => SRandom }
 import zio.{ Chunk, UIO }
 import zio.test.mock.MockRandom.{ DefaultData, Mock }
 import zio.test.Async
-import zio.test.BaseSpec
 import zio.test.TestUtils.label
+import zio.test.ZIOBaseSpec
 
-object RandomSpec extends BaseSpec {
+object RandomSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(checkClear(_.nextBoolean)(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean), "clearBooleans"),

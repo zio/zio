@@ -5,7 +5,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestUtils.nonFlaky
+import zio.test.TestAspect.nonFlaky
 import zio.ZQueueSpecUtil.waitForSize
 
 object ZQueueSpec
@@ -710,27 +710,23 @@ object ZQueueSpec
             assert(r4, isTrue)
         },
         testM("shutdown race condition with offer") {
-          nonFlaky {
-            for {
-              q <- Queue.bounded[Int](2)
-              f <- q.offer(1).forever.fork
-              _ <- q.shutdown
-              _ <- f.await
-            } yield true
-          }.map(assert(_, isTrue))
-        },
+          for {
+            q <- Queue.bounded[Int](2)
+            f <- q.offer(1).forever.fork
+            _ <- q.shutdown
+            _ <- f.await
+          } yield assert(true, isTrue)
+        } @@ nonFlaky(100),
         testM("shutdown race condition with take") {
-          nonFlaky {
-            for {
-              q <- Queue.bounded[Int](2)
-              _ <- q.offer(1)
-              _ <- q.offer(1)
-              f <- q.take.forever.fork
-              _ <- q.shutdown
-              _ <- f.await
-            } yield true
-          }.map(assert(_, isTrue))
-        }
+          for {
+            q <- Queue.bounded[Int](2)
+            _ <- q.offer(1)
+            _ <- q.offer(1)
+            f <- q.take.forever.fork
+            _ <- q.shutdown
+            _ <- f.await
+          } yield assert(true, isTrue)
+        } @@ nonFlaky(100)
       )
     )
 
