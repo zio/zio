@@ -6,7 +6,7 @@ import scala.math.abs
 import zio.{ random, ZIO }
 import zio.test.TestUtils.{ label }
 
-object FunSpec extends BaseSpec {
+object FunSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(funConvertsEffectsIntoPureFunctions, "fun converts effects into pure functions"),
