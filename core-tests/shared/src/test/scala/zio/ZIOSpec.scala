@@ -7,7 +7,7 @@ import zio.duration._
 import zio.test._
 import zio.test.mock.live
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{ jvm, nonFlaky }
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
@@ -719,7 +719,7 @@ object ZIOSpec
           testM("par regression") {
             val io = IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
             assertM(io, isTrue)
-          } @@ nonFlaky(100),
+          } @@ jvm(nonFlaky(100)),
           testM("par of now values") {
             def countdown(n: Int): UIO[Int] =
               if (n == 0) IO.succeed(0)
@@ -1008,7 +1008,7 @@ object ZIOSpec
               } yield exit.interrupted == true || finished == true
 
             assertM(io, isTrue)
-          } @@ nonFlaky(100),
+          } @@ jvm(nonFlaky(100)),
           testM("bracket use inherits interrupt status") {
             val io =
               for {
@@ -1113,7 +1113,7 @@ object ZIOSpec
               } yield v.contains(exec)
 
             assertM(io, isTrue)
-          } @@ nonFlaky(100),
+          } @@ jvm(nonFlaky(100)),
           testM("supervision is heritable") {
             val io =
               for {
@@ -1124,7 +1124,7 @@ object ZIOSpec
               } yield v == SuperviseStatus.Supervised
 
             assertM(io, isTrue)
-          } @@ nonFlaky(100),
+          } @@ jvm(nonFlaky(100)),
           testM("supervision inheritance") {
             def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
               withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
@@ -1137,7 +1137,7 @@ object ZIOSpec
               } yield fibs.size == 1).supervised
 
             assertM(io, isTrue)
-          } @@ nonFlaky(100)
+          } @@ jvm(nonFlaky(100))
         ),
         suite("unsandbox")(
           testM("no information is lost during composition") {

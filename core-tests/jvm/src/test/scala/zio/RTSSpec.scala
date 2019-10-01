@@ -7,7 +7,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{ jvm, nonFlaky }
 
 object RTSSpec
     extends ZIOBaseSpec(
@@ -59,7 +59,7 @@ object RTSSpec
             } yield result == 42
 
           assertM(io, isTrue)
-        } @@ nonFlaky(100),
+        } @@ jvm(nonFlaky(100)),
         testM("interruption of unending bracket") {
           val io =
             for {
@@ -79,7 +79,7 @@ object RTSSpec
             } yield (startValue + exitValue) == 42
 
           assertM(io, isTrue)
-        } @@ nonFlaky(100),
+        } @@ jvm(nonFlaky(100)),
         testM("deadlock regression 1") {
           import java.util.concurrent.Executors
 
