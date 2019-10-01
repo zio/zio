@@ -1,6 +1,6 @@
 ---
-id: howto_effectful_testing
-title:  "Effectful testing"
+id: howto_test_effects
+title:  "How to: Test effects"
 ---
 
 ## How zio-test was designed

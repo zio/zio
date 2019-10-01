@@ -1,6 +1,6 @@
 ---
-id: howto_system
-title: "System"
+id: howto_access_system_information
+title: "How to: Access system information"
 ---
 
 Sometimes, environment variables are relevant information to an application. ZIO provides a `system` package to interface with this functionality.
