@@ -1385,7 +1385,7 @@ object ZManaged {
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R, E, A](v: ZManaged[R, Cause[E], A]): ZManaged[R, E, A] =
-    v.catchAll(halt)
+    v.mapErrorCause(_.flatten)
 
   /**
    * Unwraps a `ZManaged` that is inside a `ZIO`.

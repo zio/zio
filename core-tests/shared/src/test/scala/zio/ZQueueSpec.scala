@@ -5,7 +5,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{ jvm, nonFlaky }
 import zio.ZQueueSpecUtil.waitForSize
 
 object ZQueueSpec
@@ -716,7 +716,7 @@ object ZQueueSpec
             _ <- q.shutdown
             _ <- f.await
           } yield assert(true, isTrue)
-        } @@ nonFlaky(100),
+        } @@ jvm(nonFlaky(100)),
         testM("shutdown race condition with take") {
           for {
             q <- Queue.bounded[Int](2)
@@ -726,7 +726,7 @@ object ZQueueSpec
             _ <- q.shutdown
             _ <- f.await
           } yield assert(true, isTrue)
-        } @@ nonFlaky(100)
+        } @@ jvm(nonFlaky(100))
       )
     )
 

@@ -2490,7 +2490,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Terminates with exceptions on the `Left` side of the `Either` error, if it
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
-  final def unsandbox[R, E, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
+  final def unsandbox[R, E, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] =
+    v.mapErrorCause(_.flatten)
 
   /**
    * Disables supervision for this effect. This will cause fibers forked by

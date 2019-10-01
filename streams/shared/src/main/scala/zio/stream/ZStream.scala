@@ -635,7 +635,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
               } yield a
             }
 
-            Pull.sequenceCauseOption(e) match {
+            Cause.sequenceCauseOption(e) match {
               case None    => Pull.end
               case Some(c) => next(c)
             }
@@ -932,23 +932,29 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
       for {
-        as         <- self.process
-        switchPull <- ZManaged.switchable[R1, E1, (URIO[R1, Any], Pull[R1, E1, B])]
-        currPull   <- Ref.make[(URIO[R1, Any], Pull[R1, E1, B])]((UIO.unit, Pull.end)).toManaged_
+        currPull  <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
+        as        <- self.process
+        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
+        pullOuter = ZIO.uninterruptibleMask { restore =>
+          restore(as).flatMap { a =>
+            (for {
+              reservation <- f0(a).process.reserve
+              bs          <- restore(reservation.acquire)
+              _           <- finalizer.set(reservation.release)
+              _           <- currPull.set(bs)
+            } yield ()).mapError(Some(_))
+          }
+        }
         bs = {
           def go: Pull[R1, E1, B] =
-            currPull.get.flatMap {
-              case (release, bs) =>
-                bs.catchAll {
-                  case e @ Some(_) => release *> ZIO.fail(e)
-                  case None =>
-                    release *>
-                      as.flatMap { a =>
-                        switchPull {
-                          f0(a).process.withEarlyRelease.tap(n => ZManaged.fromEffectUninterruptible(currPull.set(n)))
-                        }.mapError(Some(_))
-                      } *> go
-                }
+            currPull.get.flatten.catchAll {
+              case e @ Some(e1) =>
+                (finalizer.get.flatMap(_(Exit.fail(e1))) *> finalizer.set(_ => UIO.unit)).uninterruptible *> ZIO.fail(
+                  e
+                )
+              case None =>
+                (finalizer.get.flatMap(_(Exit.succeed(()))) *> finalizer
+                  .set(_ => UIO.unit)).uninterruptible *> pullOuter *> go
             }
 
           go
@@ -1423,7 +1429,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     ZStream {
       self.process
         .mapErrorCause(f)
-        .map(_.mapErrorCause(Pull.sequenceCauseOption(_) match {
+        .map(_.mapErrorCause(Cause.sequenceCauseOption(_) match {
           case None    => Cause.fail(None)
           case Some(c) => f(c).map(Some(_))
         }))
@@ -2289,30 +2295,6 @@ object ZStream {
         case Take.Fail(e)  => halt(e)
         case Take.End      => end
       }
-
-    def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
-      c match {
-        case Cause.Traced(cause, trace) => sequenceCauseOption(cause).map(Cause.Traced(_, trace))
-        case Cause.Interrupt            => Some(Cause.Interrupt)
-        case d @ Cause.Die(_)           => Some(d)
-        case Cause.Fail(Some(e))        => Some(Cause.Fail(e))
-        case Cause.Fail(None)           => None
-        case Cause.Then(left, right) =>
-          (sequenceCauseOption(left), sequenceCauseOption(right)) match {
-            case (Some(cl), Some(cr)) => Some(Cause.Then(cl, cr))
-            case (None, Some(cr))     => Some(cr)
-            case (Some(cl), None)     => Some(cl)
-            case (None, None)         => None
-          }
-
-        case Cause.Both(left, right) =>
-          (sequenceCauseOption(left), sequenceCauseOption(right)) match {
-            case (Some(cl), Some(cr)) => Some(Cause.Both(cl, cr))
-            case (None, Some(cr))     => Some(cr)
-            case (Some(cl), None)     => Some(cl)
-            case (None, None)         => None
-          }
-      }
   }
 
   /**
@@ -2455,7 +2437,7 @@ object ZStream {
                           k =>
                             runtime.unsafeRun(
                               k.foldCauseM(
-                                  Pull.sequenceCauseOption(_) match {
+                                  Cause.sequenceCauseOption(_) match {
                                     case None    => output.offer(Pull.end)
                                     case Some(c) => output.offer(Pull.halt(c))
                                   },
@@ -2489,7 +2471,7 @@ object ZStream {
               k =>
                 runtime.unsafeRun(
                   k.foldCauseM(
-                      Pull.sequenceCauseOption(_) match {
+                      Cause.sequenceCauseOption(_) match {
                         case None    => output.offer(Pull.end)
                         case Some(c) => output.offer(Pull.halt(c))
                       },
@@ -2520,7 +2502,7 @@ object ZStream {
                            k =>
                              runtime.unsafeRun(
                                k.foldCauseM(
-                                   Pull.sequenceCauseOption(_) match {
+                                   Cause.sequenceCauseOption(_) match {
                                      case None    => output.offer(Pull.end)
                                      case Some(c) => output.offer(Pull.halt(c))
                                    },

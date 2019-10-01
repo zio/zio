@@ -18,7 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
-import zio.{ Cause, Exit }
+import zio.Exit
 import zio.test.Assertion._
 import zio.test.Assertion.Render._
 
@@ -220,9 +220,9 @@ object Assertion {
     Assertion.assertionRec[Exit[Any, Any]]("dies")(param(assertion)) { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.died =>
-          cause.untraced match {
-            case Cause.Die(t) => assertion.run(t)
-            case _            => BoolAlgebra.failure(AssertionValue(self, actual))
+          cause.dieOption match {
+            case Some(t) => assertion.run(t)
+            case _       => BoolAlgebra.failure(AssertionValue(self, actual))
           }
         case _ => BoolAlgebra.failure(AssertionValue(self, actual))
       }
@@ -240,7 +240,7 @@ object Assertion {
    */
   final def equalTo[A](expected: A): Assertion[A] =
     Assertion.assertion("equalTo")(param(expected)) { actual =>
-      (expected, actual) match {
+      (actual, expected) match {
         case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
         case (left, right)                     => left == right
       }
