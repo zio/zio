@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ clock, Cause, Fiber, Promise, ZIO, ZManaged, ZSchedule }
+import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration._
 import zio.clock.Clock
 import zio.test.mock.Live
@@ -327,24 +327,16 @@ object TestAspect extends TimeoutVariants {
             s"Timeout of ${duration.render} exceeded. Couldn't interrupt test within ${interruptDuration.render}, possible resource leak!"
           TestFailure.Runtime(Cause.die(TestTimeoutException(msg)))
         }
-        // true if testFiber was done or interrupted successfully
-        def stopTestFiber(testFiber: Fiber[Nothing, Boolean]) =
-          for {
-            interruptedPromise <- Promise.make[Nothing, Boolean]
-            timeoutFiber       <- Live.live(interruptedPromise.complete(ZIO.succeed(false)).delay(interruptDuration)).fork
-            interruptingFiber  <- (testFiber.interrupt *> interruptedPromise.complete(ZIO.succeed(true))).fork
-            result             <- interruptedPromise.await <* timeoutFiber.interrupt <* interruptingFiber.interrupt
-          } yield result
-
-        for {
-          p                <- Promise.make[Nothing, Either[TestFailure[E], TestSuccess[S]]]
-          testFiber        <- (test.either.flatMap(a => p.complete(ZIO.succeed(a)))).fork
-          timeoutFiber     <- Live.live(p.complete(ZIO.succeed(Left(timeoutFailure))).delay(duration)).fork
-          result           <- p.await <* timeoutFiber.interrupt
-          testFiberExitOpt <- testFiber.poll
-          testFiberStopped <- testFiberExitOpt.fold(stopTestFiber(testFiber))(_ => ZIO.succeed(true))
-          r                <- if (testFiberStopped) result.fold(ZIO.fail, ZIO.succeed) else ZIO.fail(interruptionTimeoutFailure)
-        } yield r
+        Live
+          .withLive(test)(_.either.timeoutFork(duration).flatMap {
+            case Left(fiber) =>
+              fiber.join.raceWith(ZIO.sleep(interruptDuration))(
+                (_, fiber) => ZIO.succeed(Left(timeoutFailure)) <* fiber.interrupt,
+                (_, _) => ZIO.succeed(Left(interruptionTimeoutFailure))
+              )
+            case Right(result) => ZIO.succeed(result)
+          })
+          .absolve
       }
     }
 

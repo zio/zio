@@ -86,6 +86,22 @@ object ZManagedSpec
             } yield assert(result, equalTo(List[Exit[_, _]](Exit.Failure(Cause.Die(acquireEx)))))
           }
         ),
+        suite("fromEffect")(
+          testM("Performed interruptibly") {
+            assertM(
+              ZManaged.fromEffect(ZIO.checkInterruptible(ZIO.succeed)).use(ZIO.succeed),
+              equalTo(InterruptStatus.interruptible)
+            )
+          }
+        ),
+        suite("fromEffectUninterruptible")(
+          testM("Performed uninterruptibly") {
+            assertM(
+              ZManaged.fromEffectUninterruptible(ZIO.checkInterruptible(ZIO.succeed)).use(ZIO.succeed),
+              equalTo(InterruptStatus.uninterruptible)
+            )
+          }
+        ),
         suite("ensuring")(
           testM("Runs on successes") {
             for {

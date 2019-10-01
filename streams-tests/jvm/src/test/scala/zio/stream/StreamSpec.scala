@@ -78,44 +78,19 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     dropWhile         $dropWhile
     short circuits    $dropWhileShortCircuiting
 
-  Stream.effectAsync
-    effectAsync                 $effectAsync
-
-  Stream.effectAsyncMaybe
-    effectAsyncMaybe signal end stream $effectAsyncMaybeSignalEndStream
-    effectAsyncMaybe Some              $effectAsyncMaybeSome
-    effectAsyncMaybe None              $effectAsyncMaybeNone
-
-  Stream.effectAsyncM
-    effectAsyncM                   $effectAsyncM
-    effectAsyncM signal end stream $effectAsyncMSignalEndStream
-
-  Stream.effectAsyncInterrupt
-    effectAsyncInterrupt Left              $effectAsyncInterruptLeft
-    effectAsyncInterrupt Right             $effectAsyncInterruptRight
-    effectAsyncInterrupt signal end stream $effectAsyncInterruptSignalEndStream
-
   Stream.ensuring $ensuring
-
   Stream.ensuringFirst $ensuringFirst
-
-  Stream.finalizer $finalizer
-
-  Stream.filter
-    filter            $filter
-    short circuits #1 $filterShortCircuiting1
-    short circuits #2 $filterShortCircuiting2
-
-  Stream.filterM
-    filterM           $filterM
-    short circuits #1 $filterMShortCircuiting1
-    short circuits #2 $filterMShortCircuiting2
+  Stream.finalizer     $finalizer
+  Stream.filter        $filter
+  Stream.filterM       $filterM
 
   Stream.flatMap
     deep flatMap stack safety $flatMapStackSafety
     left identity             $flatMapLeftIdentity
     right identity            $flatMapRightIdentity
     associativity             $flatMapAssociativity
+    inner finalizers          $flatMapInnerFinalizers
+    finalizer ordering        $flatMapFinalizerOrdering
 
   Stream.flatMapPar/flattenPar/mergeAll
     guarantee ordering                 $flatMapParGuaranteeOrdering
@@ -228,13 +203,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.throttleEnforce
     free elements                   $throttleEnforceFreeElements
     no bandwidth                    $throttleEnforceNoBandwidth
-    throttle enforce short circuits $throttleEnforceShortCircuits
 
   Stream.throttleShape
     free elements                 $throttleShapeFreeElements
-    throttle shape short circuits $throttleShapeShortCircuits
 
-  Stream.toQueue            $toQueue
+  Stream.toQueue          $toQueue
+  Stream.toQueueUnbounded $toQueueUnbounded
 
   Stream.transduce
     transduce                            $transduce
@@ -705,114 +679,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         .map(_ must beRight(()))
     }
 
-  private def effectAsync =
-    prop { list: List[Int] =>
-      val s = Stream.effectAsync[Throwable, Int] { k =>
-        list.foreach(a => k(Task.succeed(a)))
-      }
-
-      unsafeRunSync(s.take(list.size).runCollect) must_=== Success(list)
-    }
-
-  private def effectAsyncM = {
-    val list = List(1, 2, 3)
-    unsafeRun {
-      for {
-        latch <- Promise.make[Nothing, Unit]
-        fiber <- ZStream
-                  .effectAsyncM[Any, Throwable, Int] { k =>
-                    latch.succeed(()) *>
-                      Task.succeed {
-                        list.foreach(a => k(Task.succeed(a)))
-                      }
-                  }
-                  .take(list.size)
-                  .run(Sink.collectAll[Int])
-                  .fork
-        _ <- latch.await
-        s <- fiber.join
-      } yield s must_=== list
-    }
-  }
-
-  private def effectAsyncMSignalEndStream = unsafeRun {
-    for {
-      result <- Stream
-                 .effectAsyncM[Nothing, Int] { k =>
-                   k(IO.fail(None))
-                   UIO.succeed(())
-                 }
-                 .runCollect
-    } yield result must_=== List()
-  }
-
-  private def effectAsyncMaybeSignalEndStream = unsafeRun {
-    for {
-      result <- Stream
-                 .effectAsyncMaybe[Nothing, Int] { k =>
-                   k(IO.fail(None))
-                   None
-                 }
-                 .runCollect
-    } yield result must_=== List()
-  }
-
-  private def effectAsyncMaybeSome =
-    prop { list: List[Int] =>
-      val s = Stream.effectAsyncMaybe[Throwable, Int] { _ =>
-        Some(Stream.fromIterable(list))
-      }
-
-      unsafeRunSync(s.runCollect.map(_.take(list.size))) must_=== Success(list)
-    }
-
-  private def effectAsyncMaybeNone =
-    prop { list: List[Int] =>
-      val s = Stream.effectAsyncMaybe[Throwable, Int] { k =>
-        list.foreach(a => k(Task.succeed(a)))
-        None
-      }
-
-      unsafeRunSync(s.take(list.size).runCollect) must_=== Success(list)
-    }
-
-  private def effectAsyncInterruptLeft = unsafeRun {
-    for {
-      cancelled <- Ref.make(false)
-      latch     <- Promise.make[Nothing, Unit]
-      fiber <- Stream
-                .effectAsyncInterrupt[Nothing, Unit] { offer =>
-                  offer(ZIO.succeed(())); Left(cancelled.set(true))
-                }
-                .tap(_ => latch.succeed(()))
-                .run(Sink.collectAll[Unit])
-                .fork
-      _      <- latch.await
-      _      <- fiber.interrupt
-      result <- cancelled.get
-    } yield result must_=== true
-  }
-
-  private def effectAsyncInterruptRight =
-    prop { list: List[Int] =>
-      val s = Stream.effectAsyncInterrupt[Throwable, Int] { _ =>
-        Right(Stream.fromIterable(list))
-      }
-
-      unsafeRunSync(s.take(list.size).runCollect) must_=== Success(list)
-    }
-
-  private def effectAsyncInterruptSignalEndStream = unsafeRun {
-    for {
-      result <- Stream
-                 .effectAsyncInterrupt[Nothing, Int] { k =>
-                   k(IO.fail(None))
-                   Left(UIO.succeed(()))
-                 }
-                 .runCollect
-    } yield result must_=== List()
-  }
-
   private def ensuring =
     unsafeRun {
       for {
@@ -854,46 +720,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       unsafeRunSync(s.filter(p).runCollect) must_=== unsafeRunSync(s.runCollect.map(_.filter(p)))
     }
 
-  private def filterShortCircuiting1 = unsafeRun {
-    (Stream(1) ++ Stream.fail("Ouch"))
-      .filter(_ => true)
-      .take(1)
-      .runDrain
-      .either
-      .map(_ must beRight(()))
-  }
-
-  private def filterShortCircuiting2 = unsafeRun {
-    (Stream(1) ++ Stream.fail("Ouch"))
-      .take(1)
-      .filter(_ => true)
-      .runDrain
-      .either
-      .map(_ must beRight(()))
-  }
-
   private def filterM =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       unsafeRunSync(s.filterM(s => IO.succeed(p(s))).runCollect) must_=== unsafeRunSync(s.runCollect.map(_.filter(p)))
     }
-
-  private def filterMShortCircuiting1 = unsafeRun {
-    (Stream(1) ++ Stream.fail("Ouch"))
-      .take(1)
-      .filterM(_ => UIO.succeed(true))
-      .runDrain
-      .either
-      .map(_ must beRight(()))
-  }
-
-  private def filterMShortCircuiting2 = unsafeRun {
-    (Stream(1) ++ Stream.fail("Ouch"))
-      .filterM(_ => UIO.succeed(true))
-      .take(1)
-      .runDrain
-      .either
-      .map(_ must beRight(()))
-  }
 
   private def flatMapStackSafety = {
     def fib(n: Int): Stream[Nothing, Int] =
@@ -929,6 +759,45 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       val rightStream = m.flatMap(x => f(x).flatMap(g))
       unsafeRunSync(leftStream.runCollect) must_=== unsafeRunSync(rightStream.runCollect)
     }
+
+  private def flatMapInnerFinalizers = {
+    val test =
+      for {
+        effects <- Ref.make(List[Int]())
+        push    = (i: Int) => effects.update(i :: _)
+        latch   <- Promise.make[Nothing, Unit]
+        fiber <- Stream(
+                  Stream.bracket(push(1))(_ => push(1)),
+                  Stream.fromEffect(push(2)),
+                  Stream.bracket(push(3))(_ => push(3)) *> Stream.fromEffect(
+                    latch.succeed(()) *> ZIO.never
+                  )
+                ).flatMap(identity).runDrain.fork
+        _      <- latch.await
+        _      <- fiber.interrupt
+        result <- effects.get
+      } yield result must_=== List(3, 3, 2, 1, 1)
+
+    unsafeRun(test)
+  }
+
+  private def flatMapFinalizerOrdering = {
+    val test =
+      for {
+        effects <- Ref.make(List[Int]())
+        push    = (i: Int) => effects.update(i :: _)
+        stream = for {
+          _ <- Stream.bracket(push(1))(_ => push(1))
+          _ <- Stream((), ()).tap(_ => push(2)).ensuring(push(2))
+          _ <- Stream.bracket(push(3))(_ => push(3))
+          _ <- Stream((), ()).tap(_ => push(4)).ensuring(push(4))
+        } yield ()
+        _      <- stream.runDrain
+        result <- effects.get
+      } yield result must_=== List(1, 2, 3, 4, 4, 4, 3, 2, 3, 4, 4, 4, 3, 2, 1).reverse
+
+    unsafeRun(test)
+  }
 
   private def flatMapParGuaranteeOrdering = prop { m: List[Int] =>
     val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect
@@ -1736,29 +1605,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       .runCollect must_=== List()
   }
 
-  private def throttleEnforceShortCircuits = {
-    def delay(n: Int) = ZIO.sleep(5.milliseconds) *> UIO.succeed(n)
-
-    unsafeRun {
-      Stream(1, 2, 3, 4, 5)
-        .mapM(delay)
-        .throttleEnforce(2, Duration.Infinity)(_ => 1)
-        .take(2)
-        .runCollect must_=== List(1, 2)
-    }
-  }
-
   private def throttleShapeFreeElements = unsafeRun {
     Stream(1, 2, 3, 4)
       .throttleShape(1, Duration.Infinity)(_ => 0)
       .runCollect must_=== List(1, 2, 3, 4)
-  }
-
-  private def throttleShapeShortCircuits = unsafeRun {
-    Stream(1, 2, 3, 4, 5)
-      .throttleShape(2, Duration.Infinity)(_ => 1)
-      .take(2)
-      .runCollect must_=== List(1, 2)
   }
 
   private def timeoutSucceed =
@@ -1789,6 +1639,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       }
     }
     result must_=== Success(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
+  }
+
+  private def toQueueUnbounded = prop { c: Chunk[Int] =>
+    val s = Stream.fromChunk(c)
+    val result = unsafeRunSync {
+      s.toQueueUnbounded.use { queue: Queue[Take[Nothing, Int]] =>
+        waitForSize(queue, c.length + 1) *> queue.takeAll
+      }
+    }
+    result must_== Success(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
   }
 
   private def transduce = unsafeRun {

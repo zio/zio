@@ -84,10 +84,10 @@ lazy val coreJS = core.js
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
   .dependsOn(core)
-  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(test)
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
@@ -126,7 +126,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(coreTests % "test->test;compile->compile")
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.stream"))
   .settings(skip in publish := true)
   .settings(
@@ -187,8 +187,8 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   )
   .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.29"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
-  .dependsOn(core % "test->test;compile->compile")
-  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(core)
+  .dependsOn(test)
 
 lazy val testRunnerJVM = testRunner.jvm
 lazy val testRunnerJS  = testRunner.js
@@ -202,7 +202,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
 
 lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm
@@ -212,7 +212,7 @@ lazy val benchmarks = project.module
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
-    // skip 2.13 benchmarks until monix & twitter-util publish for 2.13
+    // skip 2.13 benchmarks until twitter-util publishes for 2.13
     crossScalaVersions -= "2.13.0",
     //
     skip in publish := true,
@@ -225,7 +225,7 @@ lazy val benchmarks = project.module
         "io.monix"                 %% "monix"           % "3.0.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.12",
-        "org.ow2.asm"              % "asm"              % "7.1",
+        "org.ow2.asm"              % "asm"              % "7.2",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
         "org.typelevel"            %% "cats-effect"     % "2.0.0"
