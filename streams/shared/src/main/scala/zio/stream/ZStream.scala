@@ -1274,7 +1274,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   ): GroupBy[R1, E1, K, A] =
     self.groupBy(a => ZIO.succeed((f(a), a)), buffer)
 
-  /*** Partitions the stream with specifed chunkSize
+  /**
+   * Partitions the stream with specifed chunkSize
    * @parm chunkSize size of the chunk
    */
   def grouped(chunkSize: Long): ZStream[R, E, List[A]] =
