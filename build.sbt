@@ -84,10 +84,10 @@ lazy val coreJS = core.js
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
   .dependsOn(core)
-  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(test)
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
@@ -126,7 +126,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(coreTests % "test->test;compile->compile")
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.stream"))
   .settings(skip in publish := true)
   .settings(
@@ -187,8 +187,8 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   )
   .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.29"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
-  .dependsOn(core % "test->test;compile->compile")
-  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(core)
+  .dependsOn(test)
 
 lazy val testRunnerJVM = testRunner.jvm
 lazy val testRunnerJS  = testRunner.js
@@ -202,7 +202,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
 
 lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm

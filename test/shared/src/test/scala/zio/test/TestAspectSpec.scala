@@ -10,7 +10,7 @@ import zio.test.TestUtils.{ execute, failed, ignored, label, succeeded }
 
 import scala.reflect.ClassTag
 
-object TestAspectSpec extends BaseSpec {
+object TestAspectSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(jsAppliesTestAspectOnlyOnJS, "js applies test aspect only on ScalaJS"),

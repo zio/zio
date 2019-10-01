@@ -8,7 +8,7 @@ import zio.test.mock._
 import zio.test.TestUtils.label
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 
-object DefaultTestReporterSpec extends BaseSpec {
+object DefaultTestReporterSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(reportSuccess, "correctly reports a successful test"),

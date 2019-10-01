@@ -6,11 +6,11 @@ import java.time.ZoneId
 import zio._
 import zio.duration._
 import zio.test.Async
-import zio.test.BaseSpec
 import zio.test.mock.MockClock.DefaultData
 import zio.test.TestUtils.{ label, nonFlaky }
+import zio.test.ZIOBaseSpec
 
-object ClockSpec extends BaseSpec {
+object ClockSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(e1, "sleep does not require passage of clock time"),

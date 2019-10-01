@@ -3,11 +3,11 @@ package zio.test.mock
 import java.io.{ ByteArrayOutputStream, PrintStream }
 
 import zio.test.Async
-import zio.test.BaseSpec
 import zio.test.mock.MockConsole.Data
 import zio.test.TestUtils.label
+import zio.test.ZIOBaseSpec
 
-object ConsoleSpec extends BaseSpec {
+object ConsoleSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(emptyOutput, "outputs nothing"),
