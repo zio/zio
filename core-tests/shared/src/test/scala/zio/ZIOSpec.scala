@@ -1138,19 +1138,6 @@ object ZIOSpec
 
             assertM(io, isTrue)
           } @@ jvm(nonFlaky(100))
-        ),
-        suite("unsandbox")(
-          testM("no information is lost during composition") {
-            val causes = Gen.causes(Gen.anyString, Gen.throwable)
-            def cause[R, E](zio: ZIO[R, E, Nothing]): ZIO[R, Nothing, Cause[E]] =
-              zio.foldCauseM(ZIO.succeed, ZIO.fail)
-            checkM(causes) { c =>
-              for {
-                result <- cause(ZIO.halt(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)
-              } yield assert(result, equalTo(c)) &&
-                assert(result.prettyPrint, equalTo(c.prettyPrint))
-            }
-          }
         )
       )
     )
