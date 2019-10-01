@@ -7,10 +7,10 @@ import zio.duration._
 import zio.test._
 import zio.test.mock.live
 import zio.test.Assertion._
-import zio.test.TestUtils.nonFlaky
+import zio.test.TestAspect.nonFlaky
 
 import scala.annotation.tailrec
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 object ZIOSpec
     extends ZIOBaseSpec(
@@ -55,7 +55,7 @@ object ZIOSpec
           }
         ),
         suite("raceAll")(
-          testM("returns first sucess") {
+          testM("returns first success") {
             assertM(ZIO.fail("Fail").raceAll(List(IO.succeed(24))), equalTo(24))
           },
           testM("returns last failure") {
@@ -718,8 +718,8 @@ object ZIOSpec
           },
           testM("par regression") {
             val io = IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
-            assertM(nonFlaky(io), isTrue)
-          },
+            assertM(io, isTrue)
+          } @@ nonFlaky(100),
           testM("par of now values") {
             def countdown(n: Int): UIO[Int] =
               if (n == 0) IO.succeed(0)
@@ -1007,8 +1007,8 @@ object ZIOSpec
                 finished <- finished.get
               } yield exit.interrupted == true || finished == true
 
-            assertM(nonFlaky(io), isTrue)
-          },
+            assertM(io, isTrue)
+          } @@ nonFlaky(100),
           testM("bracket use inherits interrupt status") {
             val io =
               for {
@@ -1112,8 +1112,8 @@ object ZIOSpec
                 v <- ref.get
               } yield v.contains(exec)
 
-            assertM(nonFlaky(io), isTrue)
-          },
+            assertM(io, isTrue)
+          } @@ nonFlaky(100),
           testM("supervision is heritable") {
             val io =
               for {
@@ -1123,8 +1123,8 @@ object ZIOSpec
                 v     <- ref.get
               } yield v == SuperviseStatus.Supervised
 
-            assertM(nonFlaky(io), isTrue)
-          },
+            assertM(io, isTrue)
+          } @@ nonFlaky(100),
           testM("supervision inheritance") {
             def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
               withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
@@ -1136,8 +1136,8 @@ object ZIOSpec
                 fibs <- ZIO.children
               } yield fibs.size == 1).supervised
 
-            assertM(nonFlaky(io), isTrue)
-          }
+            assertM(io, isTrue)
+          } @@ nonFlaky(100)
         )
       )
     )
