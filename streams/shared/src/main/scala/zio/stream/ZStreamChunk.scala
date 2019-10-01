@@ -327,8 +327,8 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    * Converts the stream into an unbounded managed queue. After the managed queue
    * is used, the queue will never again produce values and should be discarded.
    */
-  final def toUnboundedQueue[E1 >: E, A1 >: A]: ZManaged[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
-    chunks.toUnboundedQueue
+  final def toQueueUnbounded[E1 >: E, A1 >: A]: ZManaged[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
+    chunks.toQueueUnbounded
 
   /**
    * Converts the stream to a managed queue and immediately consume its
