@@ -55,7 +55,7 @@ object ZIOSpec
           }
         ),
         suite("raceAll")(
-          testM("returns first sucess") {
+          testM("returns first success") {
             assertM(ZIO.fail("Fail").raceAll(List(IO.succeed(24))), equalTo(24))
           },
           testM("returns last failure") {
@@ -63,6 +63,20 @@ object ZIOSpec
           },
           testM("returns success when it happens after failure") {
             assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* live(ZIO.sleep(100.millis)))), equalTo(24))
+          }
+        ),
+        suite("option")(
+          testM("return success in Some") {
+            assertM(ZIO.succeed(11).option, equalTo[Option[Int]](Some(11)))
+          },
+          testM("return failure as None") {
+            assertM(ZIO.fail(123).option, equalTo[Option[Int]](None))
+          },
+          testM("not catch throwable") {
+            assertM(ZIO.die(ExampleError).option.run, dies(equalTo(ExampleError)))
+          },
+          testM("catch throwable after sandboxing") {
+            assertM(ZIO.die(ExampleError).sandbox.option, equalTo[Option[Int]](None))
           }
         ),
         suite("RTS synchronous correctness")(
