@@ -317,11 +317,18 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     } yield javaStream
 
   /**
-   * Converts the stream to a managed queue. After managed queue is used, the
-   * queue will never again produce chunks and should be discarded.
+   * Converts the stream to a managed queue. After managed the queue is used,
+   * the queue will never again produce chunks and should be discarded.
    */
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, E1, Queue[Take[E1, Chunk[A1]]]] =
     chunks.toQueue(capacity)
+
+  /**
+   * Converts the stream into an unbounded managed queue. After the managed queue
+   * is used, the queue will never again produce values and should be discarded.
+   */
+  final def toQueueUnbounded[E1 >: E, A1 >: A]: ZManaged[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
+    chunks.toQueueUnbounded
 
   /**
    * Converts the stream to a managed queue and immediately consume its
