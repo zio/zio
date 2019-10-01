@@ -9,7 +9,8 @@
       "overview/overview_basic_concurrency",
       "overview/overview_testing_effects",
       "overview/overview_running_effects",
-      "overview/overview_background"
+      "overview/overview_background",
+      "overview/overview_performance"
     ]
   },
   "datatypes-sidebar": {
@@ -55,13 +56,12 @@
       "usecases/usecases_testing"
     ]
   },
-  "advanced-sidebar": {
-    "Advanced": [
-      "advanced/advanced_index",
-      "advanced/advanced_error_model",
-      "advanced/advanced_performance",
-      "advanced/advanced_rts",
-      "advanced/advanced_system"
+  "howto-sidebar": {
+    "How to": [
+      "howto/howto_index",
+      "howto/howto_test_effects",
+      "howto/howto_handle_errors",
+      "howto/howto_access_system_information"
     ]
   },
   "resources-sidebar": {
