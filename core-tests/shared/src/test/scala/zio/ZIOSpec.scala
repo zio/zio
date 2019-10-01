@@ -7,7 +7,7 @@ import zio.duration._
 import zio.test._
 import zio.test.mock.live
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
+import zio.test.TestAspect.{ flaky, ignore, jvm, nonFlaky }
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
@@ -641,7 +641,7 @@ object ZIOSpec
                   } yield ()).interruptChildren
               r <- pa.await zip pb.await
             } yield assert(r, equalTo((1, 2)))
-          } @@ flaky,
+          } @@ ignore,
           testM("supervise fibers in race") {
             for {
               pa <- Promise.make[Nothing, Int]
