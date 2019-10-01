@@ -7,7 +7,7 @@ import zio.duration._
 import zio.test._
 import zio.test.mock.live
 import zio.test.Assertion._
-import zio.test.TestAspect.{ ignore, jvm, nonFlaky }
+import zio.test.TestAspect.{ jvm, nonFlaky }
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
