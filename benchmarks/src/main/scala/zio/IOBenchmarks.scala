@@ -15,6 +15,34 @@ object IOBenchmarks extends DefaultRuntime {
     override val Platform = PlatformLive.Benchmark.withTracing(Tracing.enabled)
   }
 
+  val SyncRuntime = new DefaultRuntime {
+    override val Platform = PlatformLive.Benchmark.withExecutor(new Executor {
+
+      /**
+       * The number of operations a fiber should run before yielding.
+       */
+      override def yieldOpCount: Int = Int.MaxValue
+
+      /**
+       * Current sampled execution metrics, if available.
+       */
+      override def metrics: Option[Nothing] = None
+
+      /**
+       * Submits an effect for execution.
+       */
+      override def submit(runnable: Runnable): Boolean = {
+        runnable.run()
+        true
+      }
+
+      /**
+       * Whether or not the caller is being run on this executor.
+       */
+      override def here: Boolean = true
+    })
+  }
+
   import monix.execution.Scheduler
   implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
