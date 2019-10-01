@@ -10,7 +10,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object ZIOSpec
     extends ZIOBaseSpec(
