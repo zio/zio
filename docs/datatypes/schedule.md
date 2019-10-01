@@ -97,7 +97,7 @@ recur, using the minimum of the two delays between recurrences:
 val expCapped = Schedule.exponential(100.milliseconds) || Schedule.spaced(1.second)
 ```
 
-Stops trying to retry after a specified amount of time has elapsed:
+Stops retrying after a specified amount of time has elapsed:
 
 ```scala mdoc:silent
 val expMaxElapsed = Schedule.exponential(10.milliseconds) && ZSchedule.elapsed.whileOutput(_ < 30.seconds)
