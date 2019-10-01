@@ -646,7 +646,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Executes this effect, skipping the error but returning optionally the success.
    */
   final def option: ZIO[R, Nothing, Option[A]] =
-    self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
+    self.foldM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
   final def optional[E1](implicit ev: E <:< Option[E1]): ZIO[R, E1, Option[A]] =
     self.foldM(
@@ -1910,7 +1910,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(_ => rio)
 
   /**
-   *  Returns a lazily constructed effect, whose construction may itself require
+   * Returns a lazily constructed effect, whose construction may itself require
    * effects. The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
    * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
    * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].

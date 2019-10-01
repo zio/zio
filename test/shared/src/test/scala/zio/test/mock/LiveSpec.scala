@@ -4,12 +4,13 @@ import java.util.concurrent.TimeUnit
 
 import scala.concurrent.Future
 
-import zio.{ clock, console, DefaultRuntime }
+import zio.{ clock, console }
 import zio.duration._
 import zio.test.Async
 import zio.test.TestUtils.label
+import zio.test.ZIOBaseSpec
 
-object LiveSpec extends DefaultRuntime {
+object LiveSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(liveCanAccessRealEnvironment, "live can access real environment"),
