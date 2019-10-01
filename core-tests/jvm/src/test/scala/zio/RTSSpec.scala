@@ -66,12 +66,12 @@ object RTSSpec
               startLatch <- Promise.make[Nothing, Int]
               exitLatch  <- Promise.make[Nothing, Int]
               bracketed = IO
-              .succeed(21)
-              .bracketExit(
-                (r: Int, exit: Exit[_, _]) =>
-                if (exit.interrupted) exitLatch.succeed(r)
-                else IO.die(new Error("Unexpected case"))
-              )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+                .succeed(21)
+                .bracketExit(
+                  (r: Int, exit: Exit[_, _]) =>
+                    if (exit.interrupted) exitLatch.succeed(r)
+                    else IO.die(new Error("Unexpected case"))
+                )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
               fiber      <- bracketed.fork
               startValue <- startLatch.await
               _          <- fiber.interrupt.fork
@@ -100,14 +100,14 @@ object RTSSpec
         testM("second callback call is ignored") {
           for {
             _ <- IO.effectAsync[Throwable, Int] { k =>
-              k(IO.succeed(42))
-              Thread.sleep(500)
-              k(IO.succeed(42))
-            }
+                  k(IO.succeed(42))
+                  Thread.sleep(500)
+                  k(IO.succeed(42))
+                }
             res <- IO.effectAsync[Throwable, String] { k =>
-              Thread.sleep(1000)
-              k(IO.succeed("ok"))
-            }
+                    Thread.sleep(1000)
+                    k(IO.succeed("ok"))
+                  }
           } yield assert(res, equalTo("ok"))
         },
         testM("check interruption regression 1") {
@@ -124,7 +124,7 @@ object RTSSpec
             for {
               f <- test.fork
               c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
-              .repeat(ZSchedule.doUntil[Int](_ >= 1)) <* f.interrupt
+                    .repeat(ZSchedule.doUntil[Int](_ >= 1)) <* f.interrupt
             } yield c
 
           assertM(zio.provide(Clock.Live), isGreaterThanEqualTo(1))
