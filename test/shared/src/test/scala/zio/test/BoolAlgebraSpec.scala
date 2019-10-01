@@ -3,10 +3,9 @@ package zio.test
 import scala.concurrent.Future
 import scala.util.Random
 
-import zio.DefaultRuntime
 import zio.test.TestUtils.label
 
-object BoolAlgebraSpec extends DefaultRuntime {
+object BoolAlgebraSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(allReturnsConjunctionOfValues, "all returns conjunction of values"),

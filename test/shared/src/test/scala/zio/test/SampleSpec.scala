@@ -2,11 +2,11 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ DefaultRuntime, UIO, ZIO }
+import zio.{ UIO, ZIO }
 import zio.stream.ZStream
 import zio.test.TestUtils.label
 
-object SampleSpec extends DefaultRuntime {
+object SampleSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(monadLeftIdentity, "monad left identity"),

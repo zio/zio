@@ -2,13 +2,13 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ DefaultRuntime, ZIO }
+import zio.ZIO
 import zio.test.Assertion.equalTo
 import zio.test.TestUtils.{ failed, label, succeeded }
 import zio.clock._
 import zio.test.Assertion._
 
-object TestSpec extends DefaultRuntime {
+object TestSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(assertMWorksCorrectly, "assertM works correctly"),
