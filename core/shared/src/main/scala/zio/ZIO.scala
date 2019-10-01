@@ -1288,6 +1288,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.flatten(timeoutTo(ZIO.fail(e))(ZIO.succeed)(d))
 
   /**
+   * Returns an effect that will attempt to timeout this effect, but will not
+   * wait for the running effect to terminate if the timeout elapses without
+   * producing a value. Returns `Right` with the produced value if the effect
+   * completes before the timeout or `Left` with the interrupting fiber
+   * otherwise.
+   */
+  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber[E, A], A]] =
+    raceWith(ZIO.sleep(d))(
+      (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
+      (_, fiber) => fiber.interrupt.flatMap(ZIO.done).fork.map(Left(_))
+    )
+
+  /**
    * Returns an effect that will timeout this effect, returning either the
    * default value if the timeout elapses before the effect has produced a
    * value; and or returning the result of applying the function `f` to the
