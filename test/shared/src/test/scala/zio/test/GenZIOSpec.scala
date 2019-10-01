@@ -6,7 +6,7 @@ import zio.test.Gen._
 import zio.test.GenUtils.{ checkSampleEffect, partitionEither }
 import zio.test.TestUtils.label
 
-object GenZIOSpec {
+object GenZIOSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(failuresGeneratesFailedEffects, "died generates died effects"),

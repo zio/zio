@@ -1,11 +1,11 @@
 package zio.test.mock
 
-import zio.DefaultRuntime
 import zio.test.Async
+import zio.test.BaseSpec
 import zio.test.mock.MockSystem.Data
 import zio.test.TestUtils.label
 
-object SystemSpec extends DefaultRuntime {
+object SystemSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(env1, "fetch an environment variable and check that if it exists, return a reasonable value"),

@@ -39,7 +39,7 @@ object TestUtils {
     if (TestPlatform.isJS) test
     else test.repeat(Schedule.recurs(100) *> Schedule.identity[Boolean])
 
-  final def report(suites: List[Async[List[(Boolean, String)]]])(implicit ec: ExecutionContext): Unit = {
+  final def report(suites: Iterable[Async[List[(Boolean, String)]]])(implicit ec: ExecutionContext): Unit = {
     val async = Async
       .sequence(suites)
       .map(_.flatten)

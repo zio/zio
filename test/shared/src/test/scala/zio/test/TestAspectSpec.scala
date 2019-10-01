@@ -3,14 +3,14 @@ package zio.test
 import zio.Cause.{ Die, Traced }
 
 import scala.concurrent.Future
-import zio.{ Cause, DefaultRuntime, Ref }
+import zio.{ Cause, Ref }
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils.{ execute, failed, ignored, label, succeeded }
 
 import scala.reflect.ClassTag
 
-object TestAspectSpec extends DefaultRuntime {
+object TestAspectSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(jsAppliesTestAspectOnlyOnJS, "js applies test aspect only on ScalaJS"),

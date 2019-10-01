@@ -2,11 +2,11 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ random, Chunk, DefaultRuntime, Ref, ZIO }
+import zio.{ random, Chunk, Ref, ZIO }
 import zio.test.Assertion._
 import zio.test.TestUtils.{ execute, failed, forAllTests, label, succeeded }
 
-object CheckSpec extends DefaultRuntime {
+object CheckSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(checkMIsPolymorphicInErrorType, "checkM is polymorphic in error type"),

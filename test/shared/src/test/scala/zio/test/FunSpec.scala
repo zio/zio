@@ -1,14 +1,12 @@
 package zio.test
 
-import zio.DefaultRuntime
-
 import scala.concurrent.Future
 import scala.math.abs
 
 import zio.{ random, ZIO }
 import zio.test.TestUtils.{ label }
 
-object FunSpec extends DefaultRuntime {
+object FunSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(funConvertsEffectsIntoPureFunctions, "fun converts effects into pure functions"),
