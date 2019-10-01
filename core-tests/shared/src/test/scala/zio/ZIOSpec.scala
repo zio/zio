@@ -7,7 +7,7 @@ import zio.duration._
 import zio.test._
 import zio.test.mock.live
 import zio.test.Assertion._
-import zio.test.TestAspect.{ jvm, nonFlaky }
+import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
@@ -590,14 +590,14 @@ object ZIOSpec
               } yield assert(f1, isEmpty) && assert(f2, hasSize(equalTo(1))) && assert(f3, hasSize(equalTo(2)))
 
             io.supervised
-          },
+          } @@ flaky,
           testM("supervising in unsupervised returns Nil") {
             for {
               ref  <- Ref.make(Option.empty[Fiber[_, _]])
               _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
               fibs <- ZIO.children
             } yield assert(fibs, isEmpty)
-          },
+          } @@ flaky,
           testM("supervise fibers") {
             def makeChild(n: Int, fibers: Ref[List[Fiber[_, _]]]) =
               (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork.tap(fiber => fibers.update(fiber :: _))
@@ -613,7 +613,7 @@ object ZIOSpec
               } yield value
 
             assertM(io.provide(Clock.Live), equalTo(2))
-          },
+          } @@ flaky,
           testM("supervise fibers in supervised") {
             for {
               pa <- Promise.make[Nothing, Int]
@@ -627,7 +627,7 @@ object ZIOSpec
                   } yield ()).interruptChildren
               r <- pa.await zip pb.await
             } yield assert(r, equalTo((1, 2)))
-          },
+          } @@ flaky,
           testM("supervise fibers in race") {
             for {
               pa <- Promise.make[Nothing, Int]
@@ -644,7 +644,7 @@ object ZIOSpec
               _ <- f.interrupt
               r <- pa.await zip pb.await
             } yield assert(r, equalTo((1, 2)))
-          },
+          } @@ flaky,
           testM("supervise fibers in fork") {
             val io =
               for {
@@ -665,7 +665,7 @@ object ZIOSpec
               } yield r
 
             assertM(io.eventually, equalTo((1, 2)))
-          },
+          } @@ flaky,
           testM("race of fail with success") {
             val io = IO.fail(42).race(IO.succeed(24)).either
             assertM(io, isRight(equalTo(24)))
@@ -1124,7 +1124,7 @@ object ZIOSpec
               } yield v == SuperviseStatus.Supervised
 
             assertM(io, isTrue)
-          } @@ jvm(nonFlaky(100)),
+          } @@ flaky,
           testM("supervision inheritance") {
             def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
               withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
@@ -1137,7 +1137,7 @@ object ZIOSpec
               } yield fibs.size == 1).supervised
 
             assertM(io, isTrue)
-          } @@ jvm(nonFlaky(100))
+          } @@ flaky
         )
       )
     )
