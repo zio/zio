@@ -27,7 +27,7 @@ object CauseSpec
               case (a, b) =>
                 assert(a.hashCode, equalTo(b.hashCode))
             }
-          },
+          } @@ ignore,
           testM("`Cause#untraced` removes all traces") {
             check(causes) { c =>
               assert(c.untraced.traces.headOption, isNone)
@@ -97,7 +97,7 @@ object CauseSpec
             }
           }
         )
-      ) @@ ignore
+      )
     )
 
 object CauseSpecUtil {
