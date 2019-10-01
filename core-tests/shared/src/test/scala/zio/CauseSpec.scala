@@ -4,6 +4,7 @@ import zio.Cause.{ Both, Then }
 import zio.random.Random
 import zio.test._
 import zio.test.Assertion._
+import zio.test.TestAspect.ignore
 
 import zio.CauseSpecUtil._
 
@@ -96,7 +97,7 @@ object CauseSpec
             }
           }
         )
-      )
+      ) @@ ignore
     )
 
 object CauseSpecUtil {
