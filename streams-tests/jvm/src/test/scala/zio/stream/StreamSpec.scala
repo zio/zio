@@ -68,7 +68,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     concat                  $concat
     finalizer order         $concatFinalizerOrder
 
-  Stream.chunkN       $chunkN
+  Stream.chunkN             $chunkN
 
   Stream.drain              $drain
 
@@ -157,6 +157,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     first                                                 $groupByFirst
     filter                                                $groupByFilter
     outer errors                                          $groupByErrorsOuter
+
+  Stream.grouped            $grouped
 
   Stream interleaving
     interleave              $interleave
@@ -674,8 +676,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   private def chunkN =
     unsafeRun(
-      Stream(1, 2, 3, 4).chunkN(2).run(ZSink.collectAll[List[Int]]).map { result =>
-        result must_=== List(List(1, 2), List(3, 4))
+      Stream(1, 2, 3, 4).chunkN(2).map(_.toSeq).run(ZSink.collectAll[Seq[Int]]).map { result =>
+        result must_=== List(Seq(1, 2), Seq(3, 4))
       }
     )
 
@@ -1316,6 +1318,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         .either
         .map(_ must_=== Left("Boom"))
     }
+
+  private def grouped =
+    unsafeRun(
+      Stream(1, 2, 3, 4).grouped(2).run(ZSink.collectAll[List[Int]]).map { result =>
+        result must_=== List(List(1, 2), List(3, 4))
+      }
+    )
 
   private def map =
     prop { (s: Stream[String, Byte], f: Byte => Int) =>

@@ -667,8 +667,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /*** Chunks the stream with specifed chunkSize
    * @parm chunkSize size of the chunk
    */
-  def chunkN(chunkSize: Long): ZStream[R, E, List[A]] =
-    transduce(ZSink.collectAllN[A](chunkSize))
+  def chunkN(chunkSize: Long): ZStream[R, E, Chunk[A]] =
+    transduce(ZSink.collectAllN[A](chunkSize).map(Chunk.fromIterable))
 
   /**
    * Performs a filter and map in a single step.
@@ -1273,6 +1273,12 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     buffer: Int = 16
   ): GroupBy[R1, E1, K, A] =
     self.groupBy(a => ZIO.succeed((f(a), a)), buffer)
+
+  /*** Partitions the stream with specifed chunkSize
+   * @parm chunkSize size of the chunk
+   */
+  def grouped(chunkSize: Long): ZStream[R, E, List[A]] =
+    transduce(ZSink.collectAllN[A](chunkSize))
 
   /**
    * Interleaves this stream and the specified stream deterministically by
