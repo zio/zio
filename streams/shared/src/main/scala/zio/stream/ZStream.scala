@@ -2091,10 +2091,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def unTake[E1 >: E, A1](implicit ev: A <:< Take[E1, A1]): ZStream[R, E1, A1] = {
     val _ = ev
-    self
-      .asInstanceOf[ZStream[R, E, Take[E1, A1]]]
-      .mapM(t => Take.option(UIO.succeed(t)))
-      .collectWhile { case Some(a) => a }
+    ZStream(self.process.map(_.flatMap(Pull.fromTake(_))))
   }
 
   /**
@@ -2275,6 +2272,13 @@ object ZStream {
     def dieMessage(m: String): Pull[Any, Nothing, Nothing]   = UIO.dieMessage(m)
     def done[E, A](e: Exit[E, A]): Pull[Any, E, A]           = IO.done(e).mapError(Some(_))
     def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A] = p.await.mapError(Some(_))
+
+    def fromTake[E, A](take: Take[E, A]): Pull[Any, E, A] =
+      take match {
+        case Take.Value(a) => emit(a)
+        case Take.Fail(e)  => halt(e)
+        case Take.End      => end
+      }
 
     def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
       c match {
