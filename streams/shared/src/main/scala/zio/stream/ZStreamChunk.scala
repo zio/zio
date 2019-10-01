@@ -16,6 +16,7 @@
 
 package zio.stream
 
+import com.github.ghik.silencer.silent
 import zio._
 
 /**
@@ -138,7 +139,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   /**
    * Returns a stream made of the concatenation of all the chunks in this stream
    */
-  final def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
+  def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -301,6 +302,19 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     ZStreamChunk(chunks.tap[R1, E1] { as =>
       as.mapM_(f0)
     })
+
+  @silent("never used")
+  def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- process
+      javaStream = new java.io.InputStream {
+        override def read(): Int = {
+          val exit = runtime.unsafeRunSync[Option[Throwable], Byte](pull.asInstanceOf[Pull[R, Throwable, Byte]])
+          ZStream.exitToInputStreamRead(exit)
+        }
+      }
+    } yield javaStream
 
   /**
    * Converts the stream to a managed queue. After managed queue is used, the

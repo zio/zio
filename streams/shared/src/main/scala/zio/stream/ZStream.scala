@@ -18,10 +18,11 @@ package zio.stream
 
 import java.io.{ IOException, InputStream }
 
+import com.github.ghik.silencer.silent
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-import ZStream.Pull
+import zio.stream.ZStream.Pull
 
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of
@@ -549,7 +550,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Maps the success values of this stream to the specified constant value.
    */
-  final def as[B](b: B): ZStream[R, E, B] = map(_ => b)
+  final def as[B](b: => B): ZStream[R, E, B] = map(new ZIO.ConstFn(() => b))
 
   /**
    * Returns a stream whose failure and success channels have been mapped by
@@ -931,29 +932,23 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
       for {
-        currPull  <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
-        as        <- self.process
-        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
-        pullOuter = ZIO.uninterruptibleMask { restore =>
-          restore(as).flatMap { a =>
-            (for {
-              reservation <- f0(a).process.reserve
-              bs          <- restore(reservation.acquire)
-              _           <- finalizer.set(reservation.release)
-              _           <- currPull.set(bs)
-            } yield ()).mapError(Some(_))
-          }
-        }
+        as         <- self.process
+        switchPull <- ZManaged.switchable[R1, E1, (URIO[R1, Any], Pull[R1, E1, B])]
+        currPull   <- Ref.make[(URIO[R1, Any], Pull[R1, E1, B])]((UIO.unit, Pull.end)).toManaged_
         bs = {
           def go: Pull[R1, E1, B] =
-            currPull.get.flatten.catchAll {
-              case e @ Some(e1) =>
-                (finalizer.get.flatMap(_(Exit.fail(e1))) *> finalizer.set(_ => UIO.unit)).uninterruptible *> ZIO.fail(
-                  e
-                )
-              case None =>
-                (finalizer.get.flatMap(_(Exit.succeed(()))) *> finalizer
-                  .set(_ => UIO.unit)).uninterruptible *> pullOuter *> go
+            currPull.get.flatMap {
+              case (release, bs) =>
+                bs.catchAll {
+                  case e @ Some(_) => release *> ZIO.fail(e)
+                  case None =>
+                    release *>
+                      as.flatMap { a =>
+                        switchPull {
+                          f0(a).process.withEarlyRelease.tap(n => ZManaged.fromEffectUninterruptible(currPull.set(n)))
+                        }.mapError(Some(_))
+                      } *> go
+                }
             }
 
           go
@@ -1216,9 +1211,9 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     self ++ forever
 
   /**
-   * More powerful version of `ZStream#groupByKey`
+   * More powerful version of [[ZStream.groupByKey]]
    */
-  final def groupBy[R1 <: R, E1 >: E, K, V, A1](
+  final def groupBy[R1 <: R, E1 >: E, K, V](
     f: A => ZIO[R1, E1, (K, V)],
     buffer: Int = 16
   ): GroupBy[R1, E1, K, V] = {
@@ -1260,12 +1255,31 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   }
 
   /**
-   * Group a stream using a function.
+   * Partition a stream using a function and process each stream individually.
+   * This returns a data structure that can be used
+   * to further filter down which groups shall be processed.
+   *
+   * After apply on the GroupBy object, the remaining groups will be processed
+   * in parallel and the resulting streams merged in a nondeterministic fashion.
+   *
+   * Up to `buffer` elements may be buffered in a group stream until the producer
+   * is backpressured. Take care to consume from all streams in order
+   * to prevent deadlocks.
+   *
+   * Example:
+   * Collect the first 2 words for every starting letter
+   * from a stream of words.
+   * {{{
+   * ZStream.fromIterable(List("hello", "world", "hi", "holla"))
+   *  .groupByKey(_.head) { case (k, s) => s.take(2).map((k, _)) }
+   *  .runCollect
+   *  .map(_ == List(('h', "hello"), ('h', "hi"), ('w', "world"))
+   * }}}
    */
-  final def groupByKey[R1 <: R, E1 >: E, K](
+  final def groupByKey[K](
     f: A => K,
     buffer: Int = 16
-  ): GroupBy[R1, E1, K, A] =
+  ): GroupBy[R, E, K, A] =
     self.groupBy(a => ZIO.succeed((f(a), a)), buffer)
 
   /**
@@ -1912,6 +1926,19 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZStream[R1, E1, A] =
     ZStream[R1, E1, A](self.process.map(_.tap(f(_).mapError(Some(_)))))
 
+  @silent("never used")
+  def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- process
+      javaStream = new java.io.InputStream {
+        override def read(): Int = {
+          val exit = runtime.unsafeRunSync[Option[Throwable], Byte](pull.asInstanceOf[Pull[R, Throwable, Byte]])
+          ZStream.exitToInputStreamRead(exit)
+        }
+      }
+    } yield javaStream
+
   /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
    * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
@@ -2064,10 +2091,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    */
   final def unTake[E1 >: E, A1](implicit ev: A <:< Take[E1, A1]): ZStream[R, E1, A1] = {
     val _ = ev
-    self
-      .asInstanceOf[ZStream[R, E, Take[E1, A1]]]
-      .mapM(t => Take.option(UIO.succeed(t)))
-      .collectWhile { case Some(a) => a }
+    ZStream(self.process.map(_.flatMap(Pull.fromTake(_))))
   }
 
   /**
@@ -2248,6 +2272,13 @@ object ZStream {
     def dieMessage(m: String): Pull[Any, Nothing, Nothing]   = UIO.dieMessage(m)
     def done[E, A](e: Exit[E, A]): Pull[Any, E, A]           = IO.done(e).mapError(Some(_))
     def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A] = p.await.mapError(Some(_))
+
+    def fromTake[E, A](take: Take[E, A]): Pull[Any, E, A] =
+      take match {
+        case Take.Value(a) => emit(a)
+        case Take.Fail(e)  => halt(e)
+        case Take.End      => end
+      }
   }
 
   /**
@@ -2388,14 +2419,15 @@ object ZStream {
         maybeStream <- UIO(
                         register(
                           k =>
-                            runtime.unsafeRunAsync_(
+                            runtime.unsafeRun(
                               k.foldCauseM(
-                                Cause.sequenceCauseOption(_) match {
-                                  case None    => output.offer(Pull.end)
-                                  case Some(c) => output.offer(Pull.halt(c))
-                                },
-                                a => output.offer(Pull.emit(a))
-                              )
+                                  Cause.sequenceCauseOption(_) match {
+                                    case None    => output.offer(Pull.end)
+                                    case Some(c) => output.offer(Pull.halt(c))
+                                  },
+                                  a => output.offer(Pull.emit(a))
+                                )
+                                .unit
                             )
                         )
                       ).toManaged_
@@ -2421,14 +2453,15 @@ object ZStream {
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register(
               k =>
-                runtime.unsafeRunAsync_(
+                runtime.unsafeRun(
                   k.foldCauseM(
-                    Cause.sequenceCauseOption(_) match {
-                      case None    => output.offer(Pull.end)
-                      case Some(c) => output.offer(Pull.halt(c))
-                    },
-                    a => output.offer(Pull.emit(a))
-                  )
+                      Cause.sequenceCauseOption(_) match {
+                        case None    => output.offer(Pull.end)
+                        case Some(c) => output.offer(Pull.halt(c))
+                      },
+                      a => output.offer(Pull.emit(a))
+                    )
+                    .unit
                 )
             ).toManaged_
       } yield output.take.flatten
@@ -2451,14 +2484,15 @@ object ZStream {
         eitherStream <- UIO(
                          register(
                            k =>
-                             runtime.unsafeRunAsync_(
+                             runtime.unsafeRun(
                                k.foldCauseM(
-                                 Cause.sequenceCauseOption(_) match {
-                                   case None    => output.offer(Pull.end)
-                                   case Some(c) => output.offer(Pull.halt(c))
-                                 },
-                                 a => output.offer(Pull.emit(a))
-                               )
+                                   Cause.sequenceCauseOption(_) match {
+                                     case None    => output.offer(Pull.end)
+                                     case Some(c) => output.offer(Pull.halt(c))
+                                   },
+                                   a => output.offer(Pull.emit(a))
+                                 )
+                                 .unit
                              )
                          )
                        ).toManaged_
@@ -2711,4 +2745,17 @@ object ZStream {
    */
   final def unwrapManaged[R, E, A](fa: ZManaged[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     ZStream[R, E, A](fa.flatMap(_.process))
+
+  private[stream] final def exitToInputStreamRead(exit: Exit[Option[Throwable], Byte]): Int = exit match {
+    case Exit.Success(value) => value.toInt
+    case Exit.Failure(cause) =>
+      cause.failureOrCause match {
+        case Left(value) =>
+          value match {
+            case Some(value) => throw value
+            case None        => -1
+          }
+        case Right(value) => throw FiberFailure(value)
+      }
+  }
 }

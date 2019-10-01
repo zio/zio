@@ -407,12 +407,13 @@ sealed trait Chunk[+A] { self =>
   }
 
   def toSeq: Seq[A] = {
+    val c          = materialize
     val seqBuilder = Seq.newBuilder[A]
     var i          = 0
-    val len        = length
+    val len        = c.length
     seqBuilder.sizeHint(len)
     while (i < len) {
-      seqBuilder += apply(i)
+      seqBuilder += c(i)
       i += 1
     }
     seqBuilder.result()
@@ -627,7 +628,7 @@ object Chunk {
   }
 
   private case class Arr[A](private val array: Array[A]) extends Chunk[A] {
-    implicit lazy val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
+    implicit val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
 
     override def collect[B](p: PartialFunction[A, B]): Chunk[B] = {
       val self = array
@@ -807,7 +808,7 @@ object Chunk {
 
     override def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = array.asInstanceOf[Array[A1]]
 
-    override def length: Int = array.length
+    override val length: Int = array.length
 
     override def apply(n: Int): A = array(n)
 
@@ -819,13 +820,13 @@ object Chunk {
 
   private case class Concat[A](l: Chunk[A], r: Chunk[A]) extends Chunk[A] {
     self =>
-    implicit lazy val classTag: ClassTag[A] =
+    implicit val classTag: ClassTag[A] =
       l match {
         case Empty => classTagOf(r)
         case _     => classTagOf(l)
       }
 
-    override def length: Int = l.length + r.length
+    override val length: Int = l.length + r.length
 
     override def apply(n: Int): A = if (n < l.length) l(n) else r(n - l.length)
 
@@ -841,7 +842,7 @@ object Chunk {
   }
 
   private case object Empty extends Chunk[Nothing] { self =>
-    override def length: Int = 0
+    override val length: Int = 0
 
     protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
@@ -855,9 +856,9 @@ object Chunk {
   }
 
   private case class Singleton[A](a: A) extends Chunk[A] {
-    implicit lazy val classTag: ClassTag[A] = Tags.fromValue(a)
+    implicit val classTag: ClassTag[A] = Tags.fromValue(a)
 
-    def length = 1
+    override val length = 1
 
     override def apply(n: Int): A =
       if (n == 0) a
@@ -870,11 +871,11 @@ object Chunk {
   }
 
   private case class Slice[A](private val chunk: Chunk[A], offset: Int, l: Int) extends Chunk[A] {
-    implicit lazy val classTag: ClassTag[A] = classTagOf(chunk)
+    implicit val classTag: ClassTag[A] = classTagOf(chunk)
 
     override def apply(n: Int): A = chunk.apply(offset + n)
 
-    override def length: Int = l
+    override val length: Int = l
 
     override def foreach(f: A => Unit): Unit = {
       var i = 0
@@ -898,9 +899,9 @@ object Chunk {
   }
 
   private case class VectorChunk[A](private val vector: Vector[A]) extends Chunk[A] {
-    implicit lazy val classTag: ClassTag[A] = Tags.fromValue(vector(0))
+    implicit val classTag: ClassTag[A] = Tags.fromValue(vector(0))
 
-    final def length: Int = vector.length
+    override val length: Int = vector.length
 
     override def apply(n: Int): A = vector(n)
 

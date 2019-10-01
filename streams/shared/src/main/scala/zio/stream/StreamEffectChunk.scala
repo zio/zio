@@ -90,6 +90,29 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.flatMap(f)))
 
+  private final def processChunk: ZManaged[R, E, () => A] =
+    chunks.processEffect.flatMap { thunk =>
+      Managed.effectTotal {
+        var counter         = 0
+        var chunk: Chunk[A] = Chunk.empty
+        def pull(): A = {
+          while (counter >= chunk.length) {
+            chunk = thunk()
+            counter = 0
+          }
+          val elem = chunk(counter)
+          counter += 1
+          elem
+        }
+        () => pull()
+      }
+    }
+
+  override final def flattenChunks: StreamEffect[R, E, A] =
+    StreamEffect[R, E, A] {
+      processChunk
+    }
+
   override def take(n: Int): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
       StreamEffect {
@@ -135,6 +158,25 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
         }
       }
     }
+
+  override final def toInputStream(
+    implicit ev0: E <:< Throwable,
+    ev1: A <:< Byte
+  ): ZManaged[R, E, java.io.InputStream] =
+    for {
+      pull <- processChunk
+      javaStream = {
+        new java.io.InputStream {
+          override def read(): Int =
+            try {
+              pull().toInt
+            } catch {
+              case StreamEffect.End        => -1
+              case StreamEffect.Failure(e) => throw e.asInstanceOf[E]
+            }
+        }
+      }
+    } yield javaStream
 }
 
 private[stream] object StreamEffectChunk extends Serializable {

@@ -6,8 +6,9 @@ import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
 import zio.test.Async
 import zio.test.TestUtils.label
+import zio.test.ZIOBaseSpec
 
-object SchedulerSpec extends DefaultRuntime {
+object SchedulerSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(e1, "scheduled tasks get executed"),

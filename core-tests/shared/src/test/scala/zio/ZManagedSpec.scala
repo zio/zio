@@ -86,6 +86,22 @@ object ZManagedSpec
             } yield assert(result, equalTo(List[Exit[_, _]](Exit.Failure(Cause.Die(acquireEx)))))
           }
         ),
+        suite("fromEffect")(
+          testM("Performed interruptibly") {
+            assertM(
+              ZManaged.fromEffect(ZIO.checkInterruptible(ZIO.succeed)).use(ZIO.succeed),
+              equalTo(InterruptStatus.interruptible)
+            )
+          }
+        ),
+        suite("fromEffectUninterruptible")(
+          testM("Performed uninterruptibly") {
+            assertM(
+              ZManaged.fromEffectUninterruptible(ZIO.checkInterruptible(ZIO.succeed)).use(ZIO.succeed),
+              equalTo(InterruptStatus.uninterruptible)
+            )
+          }
+        ),
         suite("ensuring")(
           testM("Runs on successes") {
             for {
@@ -765,6 +781,26 @@ object ZManagedSpec
               } yield assert(abs1, equalTo(abs2))
               test.use[Any, Nothing, TestResult](result => ZIO.succeed(result))
             }
+          }
+        ),
+        suite("switchable")(
+          testM("runs the right finalizer on interruption") {
+            for {
+              effects <- Ref.make(List[String]())
+              latch   <- Promise.make[Nothing, Unit]
+              fib <- ZManaged
+                      .switchable[Any, Nothing, Unit]
+                      .use { switch =>
+                        switch(ZManaged.finalizer(effects.update("First" :: _))) *>
+                          switch(ZManaged.finalizer(effects.update("Second" :: _))) *>
+                          latch.succeed(()) *>
+                          ZIO.never
+                      }
+                      .fork
+              _      <- latch.await
+              _      <- fib.interrupt
+              result <- effects.get
+            } yield assert(result, equalTo(List("Second", "First")))
           }
         )
       )
