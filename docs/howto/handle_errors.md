@@ -1,6 +1,6 @@
 ---
-id: advanced_error_model
-title:  "Error Model"
+id: howto_handle_errors
+title:  "Handle errors"
 ---
 
 ## Declared Errors vs Unforeseen Defects
