@@ -5,7 +5,7 @@ import zio.ZIOSpecHelper._
 import zio.clock.Clock
 import zio.duration._
 import zio.test._
-import zio.test.mock.live
+import zio.test.mock._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, ignore, jvm, nonFlaky }
 
@@ -1152,6 +1152,18 @@ object ZIOSpec
 
             assertM(io, isTrue)
           } @@ flaky
+        ),
+        suite("timeoutFork")(
+          testM("returns `Right` with the produced value if the effect completes before the timeout elapses") {
+            assertM(ZIO.unit.timeoutFork(100.millis), isRight(isUnit))
+          },
+          testM("returns `Left` with the interrupting fiber otherwise") {
+            for {
+              fiber  <- ZIO.never.uninterruptible.timeoutFork(100.millis).fork
+              _      <- MockClock.adjust(100.millis)
+              result <- fiber.join
+            } yield assert(result, isLeft(anything))
+          }
         )
       )
     )
