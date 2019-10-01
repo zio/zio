@@ -8,25 +8,41 @@ import zio.test.TestUtils.{ report, scope }
 object TestMain {
 
   def main(args: Array[String]): Unit = {
-    val testResults = List(
-      scope(AssertionSpec.run, "AssertionSpec"),
-      scope(BoolAlgebraSpec.run, "BoolAlgebraSpec"),
-      scope(CheckSpec.run, "CheckSpec"),
-      scope(ClockSpec.run, "ClockSpec"),
-      scope(ConsoleSpec.run, "ConsoleSpec"),
-      scope(DefaultTestReporterSpec.run, "DefaultTestReporterSpec"),
-      scope(EnvironmentSpec.run, "EnvironmentSpec"),
-      scope(FunSpec.run, "FunSpec"),
-      scope(GenSpec.run, "GenSpec"),
-      scope(GenZIOSpec.run, "GenZIOSpec"),
-      scope(LiveSpec.run, "LiveSpec"),
-      scope(RandomSpec.run, "RandomSpec"),
-      scope(SampleSpec.run, "SampleSpec"),
-      scope(SchedulerSpec.run, "SchedulerSpec"),
-      scope(SystemSpec.run, "SystemSpec"),
-      scope(TestAspectSpec.run, "TestAspectSpec"),
-      scope(TestSpec.run, "TestSpec")
+    val allTests: List[(String, BaseSpec)] = List(
+      ("AssertionSpec", AssertionSpec),
+      ("BoolAlgebraSpec", AssertionSpec),
+      ("CheckSpec", CheckSpec),
+      ("ClockSpec", ClockSpec),
+      ("ConsoleSpec", ConsoleSpec),
+      ("DefaultTestReporterSpec", DefaultTestReporterSpec),
+      ("EnvironmentSpec", EnvironmentSpec),
+      ("FunSpec", FunSpec),
+      ("GenSpec", GenSpec),
+      ("GenZIOSpec", GenZIOSpec),
+      ("LiveSpec", LiveSpec),
+      ("RandomSpec", RandomSpec),
+      ("SampleSpec", SampleSpec),
+      ("SchedulerSpec", SchedulerSpec),
+      ("SystemSpec", SystemSpec),
+      ("TestAspectSpec", TestAspectSpec),
+      ("TestSpec", TestSpec)
     )
+
+    val selectedTests = args match {
+      case Array() =>
+        allTests
+      case Array(spec) =>
+        val found = allTests.filter(_._1 == spec)
+        if (found.isEmpty)
+          sys.error("Unknown specfication: " ++ spec)
+
+        found
+      case _ =>
+        sys.error("Only one or no arguments are supported")
+    }
+
+    val testResults = selectedTests.map { case (label, spec) => scope(spec.run, label) }
+
     report(testResults)
   }
 }

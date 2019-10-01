@@ -9,7 +9,7 @@ import zio.test.GenUtils._
 import zio.test.TestUtils.{ label, succeeded }
 import zio.ZIO
 
-object GenSpec {
+object GenSpec extends BaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(monadLeftIdentity, "monad left identity"),
