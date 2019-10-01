@@ -1,13 +1,9 @@
 package zio
 
-import java.util.concurrent.Callable
-import java.util.concurrent.atomic.AtomicInteger
-
 import zio.LatchOps._
 import zio.ZIOSpecHelper._
 import zio.clock.Clock
 import zio.duration._
-import zio.internal.PlatformLive
 import zio.test._
 import zio.test.mock.live
 import zio.test.Assertion._
@@ -535,19 +531,6 @@ object ZIOSpec
               .map(_.fold(_.defects.headOption.map(_.getMessage), _ => None))
 
             assertM(zio, isSome(equalTo("Ouch")))
-          },
-          testM("second callback call is ignored") {
-            for {
-              _ <- IO.effectAsync[Throwable, Int] { k =>
-                    k(IO.succeed(42))
-                    Thread.sleep(500)
-                    k(IO.succeed(42))
-                  }
-              res <- IO.effectAsync[Throwable, String] { k =>
-                      Thread.sleep(1000)
-                      k(IO.succeed("ok"))
-                    }
-            } yield assert(res, equalTo("ok"))
           }
         ),
         suite("RTS concurrency correctness")(
@@ -773,57 +756,6 @@ object ZIOSpec
             assertM(io.provide(Clock.Live).run, dies(equalTo(ExampleError)))
           }
         ),
-        suite("RTS regression tests")(
-          testM("deadlock regression 1") {
-            import java.util.concurrent.Executors
-
-            val rts = new DefaultRuntime {}
-            val e   = Executors.newSingleThreadExecutor()
-
-            (0 until 10000).foreach { _ =>
-              rts.unsafeRun {
-                IO.effectAsync[Nothing, Int] { k =>
-                  val c: Callable[Unit] = () => k(IO.succeed(1))
-                  val _                 = e.submit(c)
-                }
-              }
-            }
-
-            assertM(ZIO.effect(e.shutdown()), isUnit)
-          },
-          testM("check interruption regression 1") {
-            val c = new AtomicInteger(0)
-
-            def test =
-              IO.effect(if (c.incrementAndGet() <= 1) throw new RuntimeException("x"))
-                .forever
-                .ensuring(IO.unit)
-                .either
-                .forever
-
-            val zio =
-              for {
-                f <- test.fork
-                c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
-                      .repeat(ZSchedule.doUntil[Int](_ >= 1)) <* f.interrupt
-              } yield c
-
-            assertM(zio.provide(Clock.Live), isGreaterThanEqualTo(1))
-          },
-          testM("max yield Ops 1") {
-            val rts = new DefaultRuntime {
-              override val Platform = PlatformLive.makeDefault(1)
-            }
-
-            val io =
-              for {
-                _ <- UIO.unit
-                _ <- UIO.unit
-              } yield true
-
-            assertM(ZIO.effect(rts.unsafeRun(io)), isTrue)
-          }
-        ),
         suite("RTS option tests")(
           testM("lifting a value to an option") {
             assertM(ZIO.some(42), isSome(equalTo(42)))
@@ -971,42 +903,6 @@ object ZIOSpec
               _     <- raced.interrupt
               count <- ref.get
             } yield assert(count, equalTo(2))
-          },
-          testM("cancelation is guaranteed") {
-            val io =
-              for {
-                release <- zio.Promise.make[Nothing, Int]
-                latch   = internal.OneShot.make[Unit]
-                async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
-                  latch.set(()); Left(release.succeed(42).unit)
-                }
-                fiber  <- async.fork
-                _      <- IO.effectTotal(latch.get(1000))
-                _      <- fiber.interrupt.fork
-                result <- release.await
-              } yield result == 42
-
-            assertM(nonFlaky(io), isTrue)
-          },
-          testM("interruption of unending bracket") {
-            val io =
-              for {
-                startLatch <- Promise.make[Nothing, Int]
-                exitLatch  <- Promise.make[Nothing, Int]
-                bracketed = IO
-                  .succeed(21)
-                  .bracketExit(
-                    (r: Int, exit: Exit[_, _]) =>
-                      if (exit.interrupted) exitLatch.succeed(r)
-                      else IO.die(new Error("Unexpected case"))
-                  )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
-                fiber      <- bracketed.fork
-                startValue <- startLatch.await
-                _          <- fiber.interrupt.fork
-                exitValue  <- exitLatch.await
-              } yield (startValue + exitValue) == 42
-
-            assertM(nonFlaky(io), isTrue)
           },
           testM("recovery of error in finalizer") {
             for {
