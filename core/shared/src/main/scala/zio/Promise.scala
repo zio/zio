@@ -22,7 +22,7 @@ import Promise.internal._
 /**
  * A promise represents an asynchronous variable that can be set exactly once,
  * with the ability for an arbitrary number of fibers to suspend (by calling
- * `get`) and automatically resume when the variable is set.
+ * `await`) and automatically resume when the variable is set.
  *
  * Promises can be used for building primitive actions whose completions
  * require the coordinated action of multiple fibers, and for building
@@ -30,8 +30,8 @@ import Promise.internal._
  * {{{
  * for {
  *   promise <- Promise.make[Nothing, Int]
- *   _       <- promise.complete(42).delay(1.second).fork
- *   value   <- promise.get // Resumes when forked fiber completes promise
+ *   _       <- promise.succeed(42).delay(1.second).fork
+ *   value   <- promise.await // Resumes when forked fiber completes promise
  * } yield value
  * }}}
  */
@@ -43,17 +43,18 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def await: IO[E, A] =
     IO.effectAsyncInterrupt[E, A](k => {
-      var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
-      var retry  = true
+      var result   = null.asInstanceOf[Either[Canceler[Any], Exit[E, A]]]
+      var retry    = true
+      val wrappedK = (e: Exit[E, A]) => k(IO.done(e))
 
       while (retry) {
         val oldState = state.get
 
         val newState = oldState match {
           case Pending(joiners) =>
-            result = Left(interruptJoiner(k))
+            result = Left(interruptJoiner(wrappedK))
 
-            Pending(k :: joiners)
+            Pending(wrappedK :: joiners)
           case s @ Done(value) =>
             result = Right(value)
 
@@ -63,7 +64,10 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
         retry = !state.compareAndSet(oldState, newState)
       }
 
-      result
+      result match {
+        case Right(value) => Right(IO.done(value))
+        case Left(value)  => Left(value)
+      }
     })
 
   /**
@@ -76,7 +80,30 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def done(e: Exit[E, A]): UIO[Boolean] = complete(IO.done(e))
+  final def done(e: Exit[E, A]): UIO[Boolean] = IO.effectTotal {
+    var action: () => Boolean = null.asInstanceOf[() => Boolean]
+    var retry                 = true
+
+    while (retry) {
+      val oldState = state.get
+
+      val newState = oldState match {
+        case Pending(joiners) =>
+          action = () => { joiners.foreach(_(e)); true }
+
+          Done(e)
+
+        case Done(_) =>
+          action = Promise.ConstFalse
+
+          oldState
+      }
+
+      retry = !state.compareAndSet(oldState, newState)
+    }
+
+    action()
+  }
 
   /**
    * Alias for [[Promise.complete]]
@@ -88,43 +115,20 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Completes the promise with the specified result. If the specified promise
    * has already been completed, the method will produce false.
    */
-  final def complete(io: IO[E, A]): UIO[Boolean] =
-    IO.effectTotal {
-      var action: () => Boolean = null.asInstanceOf[() => Boolean]
-      var retry                 = true
-
-      while (retry) {
-        val oldState = state.get
-
-        val newState = oldState match {
-          case Pending(joiners) =>
-            action = () => { joiners.foreach(_(io)); true }
-
-            Done(io)
-
-          case Done(_) =>
-            action = Promise.ConstFalse
-
-            oldState
-        }
-
-        retry = !state.compareAndSet(oldState, newState)
-      }
-
-      action()
-    }
+  final def complete[R](io: ZIO[R, E, A]): URIO[R, Boolean] =
+    io.run.flatMap(done)
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def fail(e: E): UIO[Boolean] = complete(IO.fail(e))
+  final def fail(e: E): UIO[Boolean] = done(Exit.fail(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def halt(e: Cause[E]): UIO[Boolean] = complete(IO.halt(e))
+  final def halt(e: Cause[E]): UIO[Boolean] = done(Exit.halt(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
@@ -143,12 +147,12 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   /**
-   * Completes immediately this promise and returns optionally it's result.
+   * Completes immediately and returns optionally the result of this promise.
    */
   final def poll: UIO[Option[IO[E, A]]] =
     IO.effectTotal(state.get).flatMap {
       case Pending(_) => IO.succeed(None)
-      case Done(io)   => IO.succeed(Some(io))
+      case Done(io)   => IO.succeed(Some(IO.done(io)))
     }
 
   /**
@@ -156,7 +160,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def succeed(a: A): UIO[Boolean] = complete(IO.succeed(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
+  private def interruptJoiner(joiner: Exit[E, A] => Unit): Canceler[Any] = IO.effectTotal {
     var retry = true
 
     while (retry) {
@@ -174,9 +178,9 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     }
   }
 
-  private[zio] final def unsafeDone(io: IO[E, A]): Unit = {
-    var retry: Boolean                  = true
-    var joiners: List[IO[E, A] => Unit] = null
+  private[zio] final def unsafeDone(e: Exit[E, A]): Unit = {
+    var retry: Boolean                    = true
+    var joiners: List[Exit[E, A] => Unit] = null
 
     while (retry) {
       val oldState = state.get
@@ -184,14 +188,14 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       val newState = oldState match {
         case Pending(js) =>
           joiners = js
-          Done(io)
+          Done(e)
         case _ => oldState
       }
 
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.reverse.foreach(_(io))
+    if (joiners ne null) joiners.reverse.foreach(_(e))
   }
 
 }
@@ -202,9 +206,9 @@ object Promise {
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
 
   private[zio] object internal {
-    sealed trait State[E, A]                                        extends Serializable with Product
-    final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
-    final case class Done[E, A](value: IO[E, A])                    extends State[E, A]
+    sealed trait State[E, A]                                          extends Serializable with Product
+    final case class Pending[E, A](joiners: List[Exit[E, A] => Unit]) extends State[E, A]
+    final case class Done[E, A](value: Exit[E, A])                    extends State[E, A]
   }
 
   /**

@@ -88,6 +88,18 @@ object PromiseSpec
             _ <- p.fail("failure")
             d <- p.isDone
           } yield assert(d, isTrue)
+        },
+        testM("complete evaluates the provided io immediately") {
+          for {
+            p <- Promise.make[Nothing, Int]
+            r <- zio.Ref.make(0)
+            _ <- p.complete(r.update(_ + 1))
+            u <- r.get
+            d <- p.await
+            e <- p.await
+          } yield assert(u, equalTo(1)) &&
+            assert(d, equalTo(1)) &&
+            assert(e, equalTo(1))
         }
       )
     )
