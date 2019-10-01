@@ -55,6 +55,14 @@ load_cache: &load_cache
   - restore_cache:
       key: sbt-cache-v2
 
+clean_cache: &clean_cache
+  - run:
+      name: Clean unwanted files from cache
+      command: |
+        rm -fv $HOME/.ivy2/.sbt.ivy.lock
+        find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+        find $HOME/.sbt        -name "*.lock"               -print -delete
+
 save_cache: &save_cache
   - save_cache:
       key: sbt-cache-v2
@@ -92,6 +100,7 @@ compile: &compile
     - run:
         name: Compile code
         command: ./sbt ++${SCALA_VERSION}! compileJVM
+    - <<: *clean_cache
     - <<: *save_cache
 
 lint: &lint
@@ -101,6 +110,7 @@ lint: &lint
     - run:
         name: Lint code
         command: ./sbt ++${SCALA_VERSION}! check
+    - <<: *clean_cache
     - <<: *save_cache
 
 mdoc: &mdoc
@@ -112,6 +122,7 @@ mdoc: &mdoc
         command: |
           ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
           ./sbt ++${SCALA_VERSION}! mdoc
+    - <<: *clean_cache
     - <<: *save_cache
 
 testJVM: &testJVM
@@ -122,7 +133,10 @@ testJVM: &testJVM
     - run:
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJVM
+    - <<: *clean_cache
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
 
 testJS: &testJS
   steps:
@@ -133,7 +147,10 @@ testJS: &testJS
     - run:
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJS
+    - <<: *clean_cache
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/js/target/test-reports
 
 release: &release
   steps:
@@ -180,6 +197,7 @@ microsite: &microsite
             node -v
             ./sbt docs/docusaurusCreateSite
             ./sbt docs/docusaurusPublishGhpages
+      - <<: *clean_cache
       - <<: *save_cache
 
 jobs:
