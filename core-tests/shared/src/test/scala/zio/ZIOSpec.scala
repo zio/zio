@@ -1151,7 +1151,7 @@ object ZIOSpec
                 assert(result.prettyPrint, equalTo(c.prettyPrint))
             }
           }
-        ) @@ ignore
+        )
       )
     )
 
