@@ -1,6 +1,6 @@
 ---
 id: howto_handle_errors
-title:  "How to: Handle errors"
+title:  "Handle errors"
 ---
 
 ## Declared Errors vs Unforeseen Defects

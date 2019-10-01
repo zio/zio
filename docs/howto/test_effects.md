@@ -1,6 +1,6 @@
 ---
 id: howto_test_effects
-title:  "How to: Test effects"
+title:  "Test effects"
 ---
 
 ## How zio-test was designed
