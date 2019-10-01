@@ -6,7 +6,7 @@ import zio.Exit
 import zio.test.Assertion._
 import zio.test.TestUtils.label
 
-object AssertionSpec extends BaseSpec {
+object AssertionSpec extends ZIOBaseSpec {
 
   private def test(assertion: Boolean, message: String): Async[(Boolean, String)] =
     label(Future.successful(assertion), s"AssertionTest: $message")

@@ -5,7 +5,7 @@ import scala.util.Random
 
 import zio.test.TestUtils.label
 
-object BoolAlgebraSpec extends BaseSpec {
+object BoolAlgebraSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(allReturnsConjunctionOfValues, "all returns conjunction of values"),

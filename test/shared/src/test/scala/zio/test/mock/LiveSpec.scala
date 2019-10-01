@@ -7,10 +7,10 @@ import scala.concurrent.Future
 import zio.{ clock, console }
 import zio.duration._
 import zio.test.Async
-import zio.test.BaseSpec
 import zio.test.TestUtils.label
+import zio.test.ZIOBaseSpec
 
-object LiveSpec extends BaseSpec {
+object LiveSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(liveCanAccessRealEnvironment, "live can access real environment"),

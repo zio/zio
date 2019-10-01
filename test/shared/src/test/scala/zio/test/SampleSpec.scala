@@ -6,7 +6,7 @@ import zio.{ UIO, ZIO }
 import zio.stream.ZStream
 import zio.test.TestUtils.label
 
-object SampleSpec extends BaseSpec {
+object SampleSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(monadLeftIdentity, "monad left identity"),
