@@ -29,10 +29,25 @@ package zio
  *
  * `result` will be equal to "Hi!" as changes done by child were merged on join.
  *
+ * FiberRef also forms a monoid using the combine function provided in FiberRef#make.
+ * This will be used to merge the values on join and by default will just use the value
+ * of the joined fiber.
+ * {{{
+ * for {
+ *   fiberRef <- FiberRef.make(0, math.max)
+ *   child    <- fiberRef.update(_ + 1).fork
+ *   _        <- fiberRef.update(_ + 2)
+ *   _        <- child.join
+ *   value    <- fiberRef.get
+ * } yield value
+ * }}}
+ *
+ * `value` will be 2 as the value in the joined fiber is lower and we specified `max` as our combine function.
+ *
  * @param initial
  * @tparam A
  */
-final class FiberRef[A](private[zio] val initial: A) extends Serializable {
+final class FiberRef[A](private[zio] val initial: A, private[zio] val combine: (A, A) => A) extends Serializable {
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
@@ -97,5 +112,6 @@ object FiberRef extends Serializable {
   /**
    * Creates a new `FiberRef` with given initial value.
    */
-  def make[A](initialValue: A): UIO[FiberRef[A]] = new ZIO.FiberRefNew(initialValue)
+  def make[A](initialValue: A, combine: (A, A) => A = (_: A, last: A) => last): UIO[FiberRef[A]] =
+    new ZIO.FiberRefNew(initialValue, combine)
 }
