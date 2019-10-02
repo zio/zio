@@ -666,7 +666,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
   /**
    * Chunks the stream with specifed chunkSize
-   * @parm chunkSize size of the chunk
+   * @param chunkSize size of the chunk
    */
   def chunkN(chunkSize: Long): ZStream[R, E, Chunk[A]] =
     transduce(ZSink.collectAllN[A](chunkSize).map(Chunk.fromIterable))
@@ -1277,7 +1277,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
   /**
    * Partitions the stream with specifed chunkSize
-   * @parm chunkSize size of the chunk
+   * @param chunkSize size of the chunk
    */
   def grouped(chunkSize: Long): ZStream[R, E, List[A]] =
     transduce(ZSink.collectAllN[A](chunkSize))
