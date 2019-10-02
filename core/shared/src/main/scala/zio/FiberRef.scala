@@ -29,9 +29,9 @@ package zio
  *
  * `result` will be equal to "Hi!" as changes done by child were merged on join.
  *
- * FiberRef also forms a monoid using the combine function provided in FiberRef#make.
- * This will be used to merge the values on join and by default will just use the value
- * of the joined fiber.
+ * FiberRef also forms a semigroup using the combine function provided in FiberRef#make.
+ * It determines how values of two fibers will combine when joining. By default
+ * the value of the joined fiber will be used.
  * {{{
  * for {
  *   fiberRef <- FiberRef.make(0, math.max)
