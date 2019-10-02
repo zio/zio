@@ -3,8 +3,7 @@ id: datatypes_promise
 title:  "Promise"
 ---
 
-A `Promise` is a variable that can be set exactly once. The type signature of Promise is `Promise[E, A]`, where `E` is
-used to indicate an error and `A` is used to indicate that a value has been successfully set.
+A `Promise[E, A]` is a variable of `IO[E, A]` type that can be set exactly once.
 
 Promises are used to build higher level concurrency primitives, and are often used in situations where multiple `Fiber`s
 need to coordinate passing values to each other.
@@ -15,22 +14,45 @@ Promises can be created using `Promise.make[E, A]`, which returns `UIO[Promise[E
 
 ## Operations
 
-You can complete a `Promise[Exception, String]` named `p` successfully with a value using `p.succeed(...)`.
-For example, `p.succeed("I'm done!")`. The act of completing a Promise results in an `UIO[Boolean]`, where
-the `Boolean` represents whether the promise value has been set (`true`) or whether it was already set (`false`).
-This is demonstrated below:
+### Completing
 
+You can complete a `Promise[E, A]` in few different ways:
+* successfully with a value of type `A` using `succeed`
+* with `Exit[E, A]` using `done` - each `await` will get this exit propagated
+* with effect `IO[E, A]` using `complete` - first fiber that calls `complete` wins and sets effect that **will be executed by each `await`ing fiber**, so be careful when using `p.complete(someEffect)` and rather use `someEffect.flatMap(p.succeed)` unless executing `someEffect` by each `await`ing fiber is intent
+* simply fail with `E` using `fail`
+* simply defect with `Throwable` using `die`
+* fail or defect with `Cause[E]` using `halt`
+* interrupt it with `interrupt`
+
+Following example shows usage of all of them:
 ```scala mdoc:silent
 import zio._
 import zio.syntax._
+
+val race: IO[String, Int] = for {
+    p     <- Promise.make[String, Int]
+    _     <- p.succeed(1).fork
+    _     <- p.complete(ZIO.succeed(2)).fork
+    _     <- p.done(Exit.succeed(3)).fork
+    _     <- p.fail("4")
+    _     <- p.halt(Cause.die(new Error("5")))
+    _     <- p.die(new Error("6"))
+    _     <- p.interrupt.fork
+    value <- p.await
+  } yield value
 ```
+
+The act of completing a Promise results in an `UIO[Boolean]`, where
+the `Boolean` represents whether the promise value has been set (`true`) or whether it was already set (`false`).
+This is demonstrated below:
 
 ```scala mdoc:silent
 val ioPromise1: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
 val ioBooleanSucceeded: UIO[Boolean] = ioPromise1.flatMap(promise => promise.succeed("I'm done"))
 ```
 
-You can also signal failure using `fail(...)`. For example,
+Another example with `fail(...)`:
 
 ```scala mdoc:silent
 val ioPromise2: UIO[Promise[Exception, Nothing]] = Promise.make[Exception, Nothing]
@@ -40,16 +62,15 @@ val ioBooleanFailed: UIO[Boolean] = ioPromise2.flatMap(promise => promise.fail(n
 To re-iterate, the `Boolean` tells us whether or not the operation took place successfully (`true`) i.e. the Promise
 was set with the value or the error.
 
-As an alternative to using `succeed(...)` or `fail(...)` you can also use `succeed(...)` with an `Exit[E, A]` where
-`E` signals an error and `A` signals a successful value.
-
-You can get a value from a Promise using `await`
+### Awaiting
+You can get a value from a Promise using `await`, calling fiber will suspend until Promise is completed.
 
 ```scala mdoc:silent
 val ioPromise3: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
 val ioGet: IO[Exception, String] = ioPromise3.flatMap(promise => promise.await)
 ```
 
+### Polling
 The computation will suspend (in a non-blocking fashion) until the Promise is completed with a value or an error.
 If you don't want to suspend and you only want to query the state of whether or not the Promise has been completed,
 you can use `poll`:
@@ -63,6 +84,8 @@ val ioIsItDone2: IO[Unit, IO[Exception, String]] = ioPromise4.flatMap(p => p.pol
 If the Promise was not completed when you called `poll` then the IO will fail with the `Unit` value otherwise,
 you obtain an `IO[E, A]`, where `E` represents if the Promise completed with an error and `A` indicates
 that the Promise successfully completed with an `A` value.
+
+`isDone` returns `UIO[Boolean]` that evaluates to `true` if promise is already completed.
 
 ## Example Usage
 Here is a scenario where we use a `Promise` to hand-off a value between two `Fiber`s
