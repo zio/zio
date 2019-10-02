@@ -48,12 +48,12 @@ object RingBuffer {
 }
 
 /**
- * A lock-free array based bounded queue. It is thread-safe and can be
+ * A lock-free array-based bounded queue. It is thread-safe and can be
  * used in multiple-producer/multiple-consumer (MPMC) setting.
  *
  * =Main concepts=
  *
- * A simple array based queue of size N uses an array `buf` of size N
+ * A simple array-based queue of size N uses an array `buf` of size N
  * as an underlying storage. There are 2 pointers `head` and
  * `tail`. The element is enqueued into `buf` at position `tail % N`
  * and dequeued from `head % N`. Each time an enqueue happens `tail`
@@ -97,7 +97,7 @@ object RingBuffer {
  * The benefit of using `seq` + `head`/`tail` counters is that there
  * are no allocations during enqueue/dequeue and very little
  * overhead. The downside is it doubles (on 64bit) or triples
- * (compressed OOPs) the amount of memory needed for queue.
+ * (compressed OOPs) the amount of memory needed for a queue.
  *
  * Concurrent enqueues and concurrent dequeues are possible. However
  * there is no ''helping'', so threads can delay other threads, and
@@ -116,7 +116,7 @@ object RingBuffer {
  * pronounced in tight loops (see. RoundtripBenchmark).
  *
  * To ensure good performance reads/writes to `head` and `tail`
- * fields need to be independant, e.g. they shouldn't fall on the
+ * fields need to be independent, e.g. they shouldn't fall on the
  * same (adjacent) cache-line.
  *
  * We can make those counters regular volatile long fields and space
