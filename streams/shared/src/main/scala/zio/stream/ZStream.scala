@@ -1935,7 +1935,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   /**
    * Groups elements into chunks of the specified size.
    */
-  final def chunked(chunkSize: Int): ZStream[R, E, Chunk[A]] =
+  final def chunkN(chunkSize: Int): ZStream[R, E, Chunk[A]] =
     ZStream {
       self.process.mapM { as =>
         Ref.make[Option[Option[E]]](None).flatMap { stateRef =>
@@ -1943,11 +1943,11 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
             as.foldM(
               success = { a =>
                 val chunk1 = chunk ++ Chunk.single(a)
-                if (chunk1.length >= chunkSize) Pull.emit(chunk1) else loop(chunk1)
+                if (chunk1.length >= chunkSize) Pull.emit(chunk1.materialize) else loop(chunk1)
               },
               failure = { e =>
                 stateRef.set(Some(e)).andThen {
-                  if (chunk.isEmpty) ZIO.fail(e) else Pull.emit(chunk)
+                  if (chunk.isEmpty) ZIO.fail(e) else Pull.emit(chunk.materialize)
                 }
               }
             )
