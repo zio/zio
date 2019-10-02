@@ -20,9 +20,10 @@ import java.util.concurrent.atomic.AtomicReference
 import Promise.internal._
 
 /**
- * A promise represents an asynchronous variable that can be set exactly once,
- * with the ability for an arbitrary number of fibers to suspend (by calling
- * `get`) and automatically resume when the variable is set.
+ * A promise represents an asynchronous variable, of [[zio.IO]] type, that can
+ * be set exactly once, with the ability for an arbitrary number of fibers to
+ * suspend (by calling `await`) and automatically resume when the variable is
+ * set.
  *
  * Promises can be used for building primitive actions whose completions
  * require the coordinated action of multiple fibers, and for building
@@ -30,8 +31,8 @@ import Promise.internal._
  * {{{
  * for {
  *   promise <- Promise.make[Nothing, Int]
- *   _       <- promise.complete(42).delay(1.second).fork
- *   value   <- promise.get // Resumes when forked fiber completes promise
+ *   _       <- promise.succeed(42).delay(1.second).fork
+ *   value   <- promise.await // Resumes when forked fiber completes promise
  * } yield value
  * }}}
  */
