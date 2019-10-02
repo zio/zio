@@ -1283,7 +1283,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Taps into the children of this fiber, guaranteeing the specified callback
    * will be invoked, whether or not this effect succeeds.
    */
-  final def tapChildren[R1 <: R](f: Set[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E1, A] =
+  final def tapChildren[R1 <: R](f: Set[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
     self.ensuring(ZIO.descriptorWith(d => f(d.children)))
 
   /**
