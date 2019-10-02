@@ -1932,6 +1932,35 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZStream[R1, E1, A] =
     ZStream[R1, E1, A](self.process.map(_.tap(f(_).mapError(Some(_)))))
 
+  /**
+   * Groups elements into chunks of the specified size.
+   */
+  final def chunked(chunkSize: Int): ZStream[R, E, Chunk[A]] =
+    ZStream {
+      self.process.mapM { as =>
+        Ref.make[Option[Option[E]]](None).flatMap { stateRef =>
+          def loop(chunk: Chunk[A]): Pull[R, E, Chunk[A]] =
+            as.foldM(
+              success = { a =>
+                val chunk1 = chunk ++ Chunk.single(a)
+                if (chunk1.length >= chunkSize) Pull.emit(chunk1) else loop(chunk1)
+              },
+              failure = { e =>
+                stateRef.set(Some(e)).andThen {
+                  if (chunk.isEmpty) ZIO.fail(e) else Pull.emit(chunk)
+                }
+              }
+            )
+          IO.succeed {
+            stateRef.get.flatMap {
+              case None    => loop(Chunk.empty)
+              case Some(e) => ZIO.fail(e)
+            }
+          }
+        }
+      }
+    }
+
   @silent("never used")
   def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
     for {

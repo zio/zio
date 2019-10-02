@@ -60,6 +60,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     executes finalizers                  $catchAllCauseFinalizers
     failures on the scope                $catchAllCauseScopeErrors
 
+  Stream.chunked
+    empty stream            $chunkedEmpty
+    non-positive chunk size $chunkedNonPositiveSize
+    full last chunk         $chunkedFullLastChunk
+    non-full last chunk     $chunkedNonFullLastChunk
+    error                   $chunkedError
+
   Stream.collect            $collect
   Stream.collectWhile
     collectWhile                $collectWhile
@@ -611,6 +618,30 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
       s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2, 3, 4))
     }
+
+  private def chunkedEmpty = unsafeRun {
+    Stream.empty.chunked(1).runCollect.map(_ must_=== Nil)
+  }
+
+  private def chunkedNonPositiveSize = unsafeRun {
+    Stream(1, 2, 3).chunked(0).runCollect.map(_ must_=== List(Chunk(1), Chunk(2), Chunk(3)))
+  }
+
+  private def chunkedFullLastChunk = unsafeRun {
+    Stream(1, 2, 3, 4, 5, 6).chunked(2).runCollect.map(_ must_=== List(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6)))
+  }
+
+  private def chunkedNonFullLastChunk = unsafeRun {
+    Stream(1, 2, 3, 4, 5).chunked(2).runCollect.map(_ must_=== List(Chunk(1, 2), Chunk(3, 4), Chunk(5)))
+  }
+
+  private def chunkedError = unsafeRun {
+    (Stream(1, 2, 3, 4, 5) ++ Stream.fail("broken"))
+      .chunked(3)
+      .catchAll(_ => Stream(Chunk(6)))
+      .runCollect
+      .map(_ must_=== List(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6)))
+  }
 
   private def collect = unsafeRun {
     Stream(Left(1), Right(2), Left(3)).collect {
