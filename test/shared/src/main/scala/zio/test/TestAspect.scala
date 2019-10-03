@@ -342,9 +342,9 @@ object TestAspect extends TimeoutVariants {
   def timeout(
     duration: Duration,
     interruptDuration: Duration = 1.second
-  ): TestAspect[Nothing, Live[Clock], TestTimeoutException, Any, Nothing, Any] =
-    new TestAspect.PerTest[Nothing, Live[Clock], TestTimeoutException, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Live[Clock], E >: TestTimeoutException <: Any, S >: Nothing <: Any](
+  ): TestAspect[Nothing, Live[Clock], Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[Clock], Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
         def timeoutFailure =
@@ -358,8 +358,8 @@ object TestAspect extends TimeoutVariants {
           .withLive(test)(_.either.timeoutFork(duration).flatMap {
             case Left(fiber) =>
               fiber.join.raceWith(ZIO.sleep(interruptDuration))(
-                (_, fiber) => fiber.interrupt *> ZIO.fail(timeoutFailure),
-                (_, _) => ZIO.fail(interruptionTimeoutFailure)
+                (_, fiber) => fiber.interrupt *> ZIO.die(timeoutFailure),
+                (_, _) => ZIO.die(interruptionTimeoutFailure)
               )
             case Right(result) => result.fold(ZIO.fail, ZIO.succeed)
           })

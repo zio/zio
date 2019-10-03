@@ -155,20 +155,22 @@ object TestAspectSpec extends ZIOBaseSpec {
     unsafeRunToFuture {
       val spec = (testM("timeoutMakesTestsFailAfterGivenDuration") {
         assertM(ZIO.never *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], TestTimeoutException, String, Any]) @@ timeout(1.nano)
-      failedWith(spec)(_ == TestTimeoutException("Timeout of 1 ns exceeded."))
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(1.nano)
+      failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ns exceeded."))
     }
 
   def timeoutReportProblemWithInterruption =
     unsafeRunToFuture {
       val spec = (testM("timeoutReportProblemWithInterruption") {
         assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], TestTimeoutException, String, Any]) @@ timeout(10.millis, 1.nano)
-      failedWith[TestTimeoutException](spec) { e =>
-        e == TestTimeoutException(
-          "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
-        )
-      }
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(10.millis, 1.nano)
+      failedWith(
+        spec,
+        cause =>
+          cause == TestTimeoutException(
+            "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
+          )
+      )
     }
 
   private def failsWithException[E](implicit ct: ClassTag[E]): Assertion[TestFailure[E]] =

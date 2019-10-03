@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Managed, ZIO }
+import zio.{ Cause, Managed, ZIO }
 
 import Spec._
 
@@ -108,12 +108,12 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    */
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
-  )(failure: E => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZIO[R1, Nothing, Spec[R1, E1, L, A]] =
+  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZIO[R1, Nothing, Spec[R1, E1, L, A]] =
     foldM[R1, Nothing, Spec[R1, E1, L, A]](defExec) {
       case SuiteCase(label, specs, exec) =>
-        specs.fold(e => Spec.test(label, failure(e)), t => Spec.suite(label, ZIO.succeed(t), exec))
+        specs.foldCause(e => Spec.test(label, failure(e)), t => Spec.suite(label, ZIO.succeed(t), exec))
       case TestCase(label, test) =>
-        test.fold(e => Spec.test(label, failure(e)), t => Spec.test(label, success(t)))
+        test.foldCause(e => Spec.test(label, failure(e)), t => Spec.test(label, success(t)))
     }
 
   /**
@@ -122,7 +122,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * reconstructing the spec with the same structure.
    */
   final def foreach[R1 <: R, E1, A](
-    failure: E => ZIO[R1, E1, A],
+    failure: Cause[E] => ZIO[R1, E1, A],
     success: T => ZIO[R1, E1, A]
   ): ZIO[R1, Nothing, Spec[R1, E1, L, A]] =
     foreachExec(ExecutionStrategy.Sequential)(failure, success)
@@ -133,7 +133,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * reconstructing the spec with the same structure.
    */
   final def foreachPar[R1 <: R, E1, A](
-    failure: E => ZIO[R1, E1, A],
+    failure: Cause[E] => ZIO[R1, E1, A],
     success: T => ZIO[R1, E1, A]
   ): ZIO[R1, Nothing, Spec[R1, E1, L, A]] =
     foreachExec(ExecutionStrategy.Parallel)(failure, success)
@@ -145,7 +145,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    */
   final def foreachParN[R1 <: R, E1, A](
     n: Int
-  )(failure: E => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZIO[R1, Nothing, Spec[R1, E1, L, A]] =
+  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZIO[R1, Nothing, Spec[R1, E1, L, A]] =
     foreachExec(ExecutionStrategy.ParallelN(n))(failure, success)
 
   /**

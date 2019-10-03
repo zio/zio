@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ Cause, Schedule, UIO, ZIO }
+import zio.{ Schedule, UIO, ZIO }
 import zio.clock.Clock
 import zio.test.mock.MockEnvironment
 
@@ -14,10 +14,10 @@ object TestUtils {
   final def failed[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] =
     succeeded(spec).map(!_)
 
-  final def failedWith[E](spec: ZSpec[MockEnvironment, E, String, Any])(pred: E => Boolean) =
+  final def failedWith(spec: ZSpec[MockEnvironment, Any, String, Any], pred: Throwable => Boolean) =
     forAllTests(execute(spec)) {
-      case Left(zio.test.TestFailure.Runtime(Cause.Fail(e))) => pred(e)
-      case _                                                 => false
+      case Left(TestFailure.Runtime(cause)) => cause.dieOption.fold(false)(pred)
+      case _                                => false
     }
 
   final def forAllTests[L, E, S](

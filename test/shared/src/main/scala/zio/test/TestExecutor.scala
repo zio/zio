@@ -26,7 +26,7 @@ object TestExecutor {
       spec
         .provideManaged(environment)
         .foreachExec(defExec)(
-          e => ZIO.succeed(Left(TestFailure.Runtime(zio.Cause.fail(e)))),
+          e => ZIO.succeed(Left(TestFailure.Runtime(e))),
           ZIO.succeed
         )
 
