@@ -1249,13 +1249,13 @@ object SinkSpec
             }
           ),
           suite("utf8DecodeChunk")(
-            testM("regular strings")(checkM(Gen.anyString) { (s: String) =>
+            testM("regular strings")(checkM(Gen.anyString) { s =>
               assertM(
                 Stream(Chunk.fromArray(s.getBytes("UTF-8")))
                   .transduce(ZSink.utf8DecodeChunk)
                   .runCollect
-                  .map(_.mkString),
-                equalTo(s)
+                  .map(_.mkString.getBytes("UTF-8")),
+                equalTo(s.getBytes("UTF-8"))
               )
             }),
             testM("incomplete chunk 1") {
