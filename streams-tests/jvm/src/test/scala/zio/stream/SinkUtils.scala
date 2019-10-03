@@ -56,11 +56,7 @@ trait SinkUtils {
   }
 
   def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], a: A) =
-    for {
-      init   <- sink.initial
-      step   <- sink.step(init, a)
-      result <- sink.extract(step)
-    } yield result
+    sink.initial >>= (sink.step(_, a)) >>= sink.extract
 
   object ZipParLaws {
     def coherence[A, B, C](
