@@ -49,6 +49,31 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     ZStreamChunk(chunks.buffer(capacity))
 
   /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * elements into a dropping queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferDropping(capacity: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk(chunks.bufferDropping(capacity))
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * elements into a sliding queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferSliding(capacity: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk(chunks.bufferSliding(capacity))
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * elements into an unbounded queue.
+   */
+  final def bufferUnbounded: ZStreamChunk[R, E, A] =
+    ZStreamChunk(chunks.bufferUnbounded)
+
+  /**
    * Collects a filtered, mapped subset of the stream.
    */
   final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
@@ -320,7 +345,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    * Converts the stream to a managed queue. After managed the queue is used,
    * the queue will never again produce chunks and should be discarded.
    */
-  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, E1, Queue[Take[E1, Chunk[A1]]]] =
+  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
     chunks.toQueue(capacity)
 
   /**
