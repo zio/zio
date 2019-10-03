@@ -597,6 +597,78 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
     }
 
   /**
+   * Creates a stream that passes its elements through a queue that drops elements
+   * (dropping or sliding). It implements a promise that signals abrupt completion
+   * of the stream due to an error or the end of the stream. After the promise has
+   * been completed, it continues to offer the current (at the time) contents of the
+   * queue, until it has been exhausted, at which point it finishes with the signal
+   * from the promise.
+   */
+  private final def bufferSignal[A1 >: A](queue: Queue[A1]): ZStream[R, E, A1] =
+    ZStream.managed {
+      for {
+        // Signal stream error or end through the result type of the promise
+        // for better composability with other effects.
+        signal <- Promise.make[Option[E], Nothing].toManaged_
+        _ <- self
+              .foreachManaged(a => queue.offer(a).unit)
+              .foldM(
+                e => signal.fail(Some(e)).unit.toManaged_,
+                _ => signal.fail(None).unit.toManaged_
+              )
+              .fork
+      } yield (queue, signal)
+    }.flatMap {
+      case (queue, signal) =>
+        def takeFirst(exit: Exit[Nothing, A1], fiber: Fiber[Option[E], Nothing]): Pull[Any, Nothing, A1] =
+          fiber.interrupt *> exit.fold(Pull.halt, Pull.emit)
+
+        def finishStream(exit: Exit[Option[E], Nothing], fiber: Fiber[Nothing, A1]): Pull[Any, E, Nothing] =
+          fiber.interrupt *> exit.fold(
+            c => Pull.sequenceCauseOption(c).fold[Pull[Any, E, Nothing]](Pull.end)(Pull.halt),
+            identity
+          )
+
+        def signalFirst(exit: Exit[Option[E], Nothing], fiber: Fiber[Nothing, A1]): Pull[Any, E, A1] =
+          queue.size.flatMap { size =>
+            if (size > 0) fiber.join
+            else fiber.poll.flatMap(_.fold[Pull[Any, E, A1]](finishStream(exit, fiber))(_.fold(Pull.halt, Pull.emit)))
+          }
+
+        val pull: Pull[Any, E, A1] =
+          queue.take.raceWith(signal.await)(takeFirst, signalFirst)
+
+        ZStream.fromPull(pull)
+    }
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` elements in a dropping queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferDropping(capacity: Int): ZStream[R, E, A] =
+    ZStream.managed(ZManaged.make(Queue.dropping[A](capacity))(_.shutdown)).flatMap(bufferSignal)
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` elements in a sliding queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferSliding(capacity: Int): ZStream[R, E, A] =
+    ZStream.managed(ZManaged.make(Queue.sliding[A](capacity))(_.shutdown)).flatMap(bufferSignal)
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * elements into an unbounded queue.
+   */
+  final def bufferUnbounded: ZStream[R, E, A] =
+    ZStream.managed(self.toQueueUnbounded).flatMap { queue =>
+      ZStream.fromQueue(queue).unTake
+    }
+
+  /**
    * Switches over to the stream produced by the provided function in case this one
    * fails with a typed error.
    */
