@@ -1248,16 +1248,6 @@ object SinkSpec
               } yield test
             }
           ),
-          suite("utf8Decode")(testM("utf8Decode")(checkM(Gen.anyString) { (s: String) =>
-            assertM(
-              Stream
-                .fromIterable(s.getBytes("UTF-8"))
-                .transduce(ZSink.utf8Decode())
-                .runCollect
-                .map(_.mkString),
-              equalTo(s)
-            )
-          })),
           suite("utf8DecodeChunk")(
             testM("regular strings")(checkM(Gen.anyString) { (s: String) =>
               assertM(
