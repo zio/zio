@@ -669,8 +669,45 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Chunks the stream with specifed chunkSize
    * @param chunkSize size of the chunk
    */
-  def chunkN(chunkSize: Long): ZStream[R, E, Chunk[A]] =
-    transduce(ZSink.collectAllN[A](chunkSize).map(Chunk.fromIterable))
+  def chunkN(chunkSize: Int): ZStream[R, E, Chunk[A]] =
+    ZStream {
+      self.process.mapM { as =>
+        Ref.make[Option[Option[E]]](None).flatMap { stateRef =>
+          def loop(acc: Array[A], i: Int): Pull[R, E, Chunk[A]] =
+            as.foldM(
+              success = { a =>
+                acc(i) = a
+                val i1 = i + 1
+                if (i1 >= chunkSize) Pull.emit(Chunk.fromArray(acc)) else loop(acc, i1)
+              },
+              failure = { e =>
+                stateRef.set(Some(e)) *> Pull.emit(Chunk.fromArray(acc).take(i))
+              }
+            )
+          def first: Pull[R, E, Chunk[A]] =
+            as.foldM(
+              success = { a =>
+                if (chunkSize <= 1) {
+                  Pull.emit(Chunk.single(a))
+                } else {
+                  val acc = Array.ofDim(chunkSize)(Chunk.Tags.fromValue(a))
+                  acc(0) = a
+                  loop(acc, 1)
+                }
+              },
+              failure = { e =>
+                stateRef.set(Some(e)) *> ZIO.fail(e)
+              }
+            )
+          IO.succeed {
+            stateRef.get.flatMap {
+              case None    => first
+              case Some(e) => ZIO.fail(e)
+            }
+          }
+        }
+      }
+    }
 
   /**
    * Performs a filter and map in a single step.
@@ -1407,13 +1444,14 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       for {
         state <- Ref.make(s1).toManaged_
         as    <- self.process
-      } yield as.flatMap { a =>
-        (for {
-          s <- state.get
-          t <- f1(s, a)
-          _ <- state.set(t._1)
-        } yield t._2).mapError(Some(_))
-      }
+      } yield
+        as.flatMap { a =>
+          (for {
+            s <- state.get
+            t <- f1(s, a)
+            _ <- state.set(t._1)
+          } yield t._2).mapError(Some(_))
+        }
     }
 
   /**
@@ -1946,35 +1984,6 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZStream[R1, E1, A] =
     ZStream[R1, E1, A](self.process.map(_.tap(f(_).mapError(Some(_)))))
 
-  /**
-   * Groups elements into chunks of the specified size.
-   */
-  final def chunkN(chunkSize: Int): ZStream[R, E, Chunk[A]] =
-    ZStream {
-      self.process.mapM { as =>
-        Ref.make[Option[Option[E]]](None).flatMap { stateRef =>
-          def loop(chunk: Chunk[A]): Pull[R, E, Chunk[A]] =
-            as.foldM(
-              success = { a =>
-                val chunk1 = chunk ++ Chunk.single(a)
-                if (chunk1.length >= chunkSize) Pull.emit(chunk1.materialize) else loop(chunk1)
-              },
-              failure = { e =>
-                stateRef.set(Some(e)).andThen {
-                  if (chunk.isEmpty) ZIO.fail(e) else Pull.emit(chunk.materialize)
-                }
-              }
-            )
-          IO.succeed {
-            stateRef.get.flatMap {
-              case None    => loop(Chunk.empty)
-              case Some(e) => ZIO.fail(e)
-            }
-          }
-        }
-      }
-    }
-
   @silent("never used")
   def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
     for {
@@ -2185,12 +2194,12 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
           leftResult.fold(
             e => rightFiber.interrupt *> ZIO.succeed(((leftDone, rightDone), Take.Fail(e))),
             l => rightFiber.join.flatMap(r => handleSuccess(l, r))
-          ),
+        ),
         (rightResult, leftFiber) =>
           rightResult.fold(
             e => leftFiber.interrupt *> ZIO.succeed(((leftDone, rightDone), Take.Fail(e))),
             r => leftFiber.join.flatMap(l => handleSuccess(l, r))
-          )
+        )
       )
     }
 
@@ -2487,7 +2496,7 @@ object ZStream {
                                   a => output.offer(Pull.emit(a))
                                 )
                                 .unit
-                            )
+                          )
                         )
                       ).toManaged_
         pull <- maybeStream match {
@@ -2521,7 +2530,7 @@ object ZStream {
                       a => output.offer(Pull.emit(a))
                     )
                     .unit
-                )
+              )
             ).toManaged_
       } yield output.take.flatten
     }
@@ -2552,7 +2561,7 @@ object ZStream {
                                    a => output.offer(Pull.emit(a))
                                  )
                                  .unit
-                             )
+                           )
                          )
                        ).toManaged_
         pull <- eitherStream match {
@@ -2731,10 +2740,11 @@ object ZStream {
     ZStream[R, E, A] {
       for {
         ref <- Ref.make[Option[S]](Some(s)).toManaged_
-      } yield ref.get.flatMap({
-        case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s) *> Pull.emit(a) })
-        case None    => Pull.end
-      })
+      } yield
+        ref.get.flatMap({
+          case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s) *> Pull.emit(a) })
+          case None    => Pull.end
+        })
     }
 
   /**
@@ -2781,16 +2791,17 @@ object ZStream {
     ZStream[R, E, A] {
       for {
         ref <- Ref.make(s).toManaged_
-      } yield ref.get
-        .flatMap(f0)
-        .foldM(
-          e => Pull.fail(e),
-          opt =>
-            opt match {
-              case Some((a, s)) => ref.set(s) *> Pull.emit(a)
-              case None         => Pull.end
+      } yield
+        ref.get
+          .flatMap(f0)
+          .foldM(
+            e => Pull.fail(e),
+            opt =>
+              opt match {
+                case Some((a, s)) => ref.set(s) *> Pull.emit(a)
+                case None         => Pull.end
             }
-        )
+          )
     }
 
   /**
