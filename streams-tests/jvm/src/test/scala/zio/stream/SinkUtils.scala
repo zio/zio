@@ -84,7 +84,10 @@ trait SinkUtils {
         res     <- s.run(sink1.zipPar(sink2).zip(ZSink.collectAll[A])).either
         swapped <- s.run(sink2.zipPar(sink1).zip(ZSink.collectAll[A])).either
       } yield {
-        assert(swapped, equalTo(res.map { case ((b, c), rem) => ((c, b), rem) }))
+        assert(
+          swapped,
+          equalTo(res.right.map { case ((b, c), rem) => ((c, b), rem) }: Either[String, ((C, B), List[A])])
+        )
       }
 
     def remainders[A, B, C](
