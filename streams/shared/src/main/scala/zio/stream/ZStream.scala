@@ -669,8 +669,45 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Chunks the stream with specifed chunkSize
    * @param chunkSize size of the chunk
    */
-  def chunkN(chunkSize: Long): ZStream[R, E, Chunk[A]] =
-    transduce(ZSink.collectAllN[A](chunkSize).map(Chunk.fromIterable))
+  def chunkN(chunkSize: Int): ZStream[R, E, Chunk[A]] =
+    ZStream {
+      self.process.mapM { as =>
+        Ref.make[Option[Option[E]]](None).flatMap { stateRef =>
+          def loop(acc: Array[A], i: Int): Pull[R, E, Chunk[A]] =
+            as.foldM(
+              success = { a =>
+                acc(i) = a
+                val i1 = i + 1
+                if (i1 >= chunkSize) Pull.emit(Chunk.fromArray(acc)) else loop(acc, i1)
+              },
+              failure = { e =>
+                stateRef.set(Some(e)) *> Pull.emit(Chunk.fromArray(acc).take(i))
+              }
+            )
+          def first: Pull[R, E, Chunk[A]] =
+            as.foldM(
+              success = { a =>
+                if (chunkSize <= 1) {
+                  Pull.emit(Chunk.single(a))
+                } else {
+                  val acc = Array.ofDim(chunkSize)(Chunk.Tags.fromValue(a))
+                  acc(0) = a
+                  loop(acc, 1)
+                }
+              },
+              failure = { e =>
+                stateRef.set(Some(e)) *> ZIO.fail(e)
+              }
+            )
+          IO.succeed {
+            stateRef.get.flatMap {
+              case None    => first
+              case Some(e) => ZIO.fail(e)
+            }
+          }
+        }
+      }
+    }
 
   /**
    * Performs a filter and map in a single step.
