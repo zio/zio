@@ -2831,7 +2831,7 @@ object ZIO extends ZIOFunctions {
     override def tag = Tags.EffectSuspendTotalWith
   }
 
-  private[zio] final class FiberRefNew[A](val initialValue: A) extends UIO[FiberRef[A]] {
+  private[zio] final class FiberRefNew[A](val initialValue: A, val combine: (A, A) => A) extends UIO[FiberRef[A]] {
     override def tag = Tags.FiberRefNew
   }
 

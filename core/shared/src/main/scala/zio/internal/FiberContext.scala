@@ -502,7 +502,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.FiberRefNew =>
                   val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
 
-                  val fiberRef = new FiberRef[Any](zio.initialValue)
+                  val fiberRef = new FiberRef[Any](zio.initialValue, zio.combine)
                   fiberRefLocals.put(fiberRef, zio.initialValue)
 
                   curZio = nextInstr(fiberRef)
@@ -627,7 +627,8 @@ private[zio] final class FiberContext[E, A](
     else
       UIO.foreach_(locals) {
         case (fiberRef, value) =>
-          fiberRef.asInstanceOf[FiberRef[Any]].set(value)
+          val ref = fiberRef.asInstanceOf[FiberRef[Any]]
+          ref.update(old => ref.combine(old, value))
       }
   }
 
