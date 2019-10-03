@@ -59,7 +59,9 @@
   "howto-sidebar": {
     "How to": [
       "howto/howto_index",
+      "howto/howto_use_module_pattern",
       "howto/howto_test_effects",
+      "howto/howto_mock_services",
       "howto/howto_handle_errors",
       "howto/howto_access_system_information"
     ]

@@ -19,7 +19,7 @@ package zio.test
 import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration._
 import zio.clock.Clock
-import zio.test.mock.Live
+import zio.test.environment.Live
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of

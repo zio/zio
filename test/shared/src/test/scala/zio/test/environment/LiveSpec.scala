@@ -1,4 +1,4 @@
-package zio.test.mock
+package zio.test.environment
 
 import java.util.concurrent.TimeUnit
 
@@ -20,18 +20,18 @@ object LiveSpec extends ZIOBaseSpec {
   def liveCanAccessRealEnvironment: Future[Boolean] =
     unsafeRunToFuture {
       val io = for {
-        mock <- clock.currentTime(TimeUnit.MILLISECONDS)
+        test <- clock.currentTime(TimeUnit.MILLISECONDS)
         live <- Live.live(clock.currentTime(TimeUnit.MILLISECONDS))
-      } yield mock == 0 && live != 0
-      io.provideManaged(MockEnvironment.Value)
+      } yield test == 0 && live != 0
+      io.provideManaged(TestEnvironment.Value)
     }
 
   def withLiveProvidesRealEnvironmentToSingleEffect: Future[Boolean] =
     unsafeRunToFuture {
       val io = for {
         _      <- Live.withLive(console.putStr("woot"))(_.delay(1.nanosecond))
-        result <- MockConsole.output
+        result <- TestConsole.output
       } yield result == Vector("woot")
-      io.provideManaged(MockEnvironment.Value)
+      io.provideManaged(TestEnvironment.Value)
     }
 }

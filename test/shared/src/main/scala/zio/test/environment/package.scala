@@ -21,60 +21,59 @@ import zio.{ IO, ZIO }
 import zio.Managed
 
 /**
- * The `mock` package contains testable versions of all the standard ZIO
- * environment types through the [[MockClock]], [[MockConsole]],
- * [[MockSystem]], and [[MockRandom]] modules. See the documentation on the
+ * The `environment` package contains testable versions of all the standard ZIO
+ * environment types through the [[TestClock]], [[TestConsole]],
+ * [[TestSystem]], and [[TestRandom]] modules. See the documentation on the
  * individual modules for more detail about using each of them.
  *
  * If you are using ZIO Test and extending `DefaultRunnableSpec` a
- * `MockEnvironment` containing all of them will be automatically provided to
- * each of your tests. Otherwise, the easiest way to use the mocking
- * functionality in ZIO Test is by providing the `MockEnvironment` to your
- * program.
+ * `TestEnvironment` containing all of them will be automatically provided to
+ * each of your tests. Otherwise, the easiest way to use the test implementations
+ * in ZIO Test is by providing the `TestEnvironment` to your program.
  *
  * {{{
- * import zio.test.mock._
+ * import zio.test.environment._
  *
- * myProgram.provideManaged(mockEnvironmentManaged)
+ * myProgram.provideManaged(testEnvironmentManaged)
  * }}}
  *
  * Then all environmental effects, such as printing to the console or
- * generating random numbers, will be implemented by the `MockEnvironment` and
+ * generating random numbers, will be implemented by the `TestEnvironment` and
  * will be fully testable. When you do need to access the "live" environment,
  * for example to print debugging information to the close, just use the `live`
  * combinator along with the effect as your normally would.
  *
- * If you are only interested in one of the mocking modules for your
+ * If you are only interested in one of the test implementations for your
  * application, you can also access them a la carte through the `make` method
- * on each module. Each mock module requires some data on initialization.
+ * on each module. Each test module requires some data on initialization.
  * Default data is included for each as `DefaultData`.
  *
  * {{{
- * import zio.test.mock._
+ * import zio.test.environment._
  *
- * myProgram.provideM(MockConsole.make(MockConsole.DefaultData))
+ * myProgram.provideM(TestConsole.make(TestConsole.DefaultData))
  * }}}
  *
- * Finally, you can create a `Mock` object that implements the mock interface
- * directly using the `makeMock` method. This can be useful when you want to
- * access some mocking functionality without using the environment type.
+ * Finally, you can create a `Test` object that implements the test interface
+ * directly using the `makeTest` method. This can be useful when you want to
+ * access some testing functionality without using the environment type.
  *
  * {{{
- * import zio.test.mock._
+ * import zio.test.environment._
  *
  * for {
- *   mockRandom <- MockRandom.makeMock(MockRandom.DefaultData)
- *   n          <- mockRandom.nextInt
+ *   testRandom <- TestRandom.makeTest(TestRandom.DefaultData)
+ *   n          <- testRandom.nextInt
  * } yield n
  * }}}
  *
  * This can also be useful when you are creating a more complex environment
- * to provide the implementation for mock services that you mix in.
+ * to provide the implementation for test services that you mix in.
  */
-package object mock {
+package object environment {
 
   /**
-   * Provides an effect with the "real" environment as opposed to the mock
+   * Provides an effect with the "real" environment as opposed to the test
    * environment. This is useful for performing effects such as timing out
    * tests, accessing the real time, or printing to the real console.
    */
@@ -82,11 +81,11 @@ package object mock {
     Live.live(zio)
 
   /**
-   * Transforms this effect with the specified function. The mock environment
+   * Transforms this effect with the specified function. The test environment
    * will be provided to this effect, but the live environment will be provided
    * to the transformation function. This can be useful for applying
    * transformations to an effect that require access to the "real" environment
-   * while ensuring that the effect itself uses the mock environment.
+   * while ensuring that the effect itself uses the test environment.
    *
    * {{{
    *  withLive(test)(_.timeout(duration))
@@ -96,8 +95,8 @@ package object mock {
     Live.withLive(zio)(f)
 
   /**
-   * A managed version of the `MockEnvironment` containing testable versions of
+   * A managed version of the `TestEnvironment` containing testable versions of
    * all the standard ZIO environmental effects.
    */
-  val mockEnvironmentManaged: Managed[Nothing, MockEnvironment] = MockEnvironment.Value
+  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = TestEnvironment.Value
 }

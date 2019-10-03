@@ -16,12 +16,15 @@
 
 package zio.test
 
+import zio.{ Cause, ZIO }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.{ Cause, ZIO }
-import scala.{ Console => SConsole }
+import zio.test.mock.{ Expectation, MockException }
+import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 import zio.duration.Duration
+
+import scala.{ Console => SConsole }
 
 object DefaultTestReporter {
 
@@ -144,8 +147,35 @@ object DefaultTestReporter {
   private def renderCause(cause: Cause[Any], offset: Int): String =
     cause.dieOption match {
       case Some(TestTimeoutException(message)) => message
-      case _                                   => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+      case Some(exception: MockException) =>
+        renderMockException(exception).split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+      case _ => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
     }
+
+  private def renderMockException(exception: MockException): String =
+    exception match {
+      case InvalidArgumentsException(method, args, assertion) =>
+        renderTestFailure(s"$method called with invalid arguments", assert(args, assertion))
+
+      case InvalidMethodException(method, expectation) =>
+        List(
+          red(s"- invalid call to $method"),
+          renderExpectation(expectation, tabSize)
+        ).mkString("\n")
+
+      case UnmetExpectationsException(expectations) =>
+        (red(s"- unmet expectations") :: expectations.map(renderExpectation(_, tabSize))).mkString("\n")
+    }
+
+  private def renderTestFailure(label: String, testResult: TestResult): String =
+    testResult.failures.fold("")(
+      _.fold(
+        details => rendered(Test, label, Failed, 0, renderFailure(label, 0, details): _*)
+      )(_ && _, _ || _, !_).rendered.mkString("\n")
+    )
+
+  private def renderExpectation[A, B](expectation: Expectation[A, B], offset: Int): String =
+    withOffset(offset)(s"expected ${expectation.method} with arguments ${cyan(expectation.assertion.toString)}")
 
   private def withOffset(n: Int)(s: String): String =
     " " * n + s

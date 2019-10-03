@@ -1,10 +1,10 @@
 package zio.test
 
 import scala.concurrent.Future
-import zio._
+import zio.{ Cause, IO, Managed }
 import scala.{ Console => SConsole }
 import zio.clock.Clock
-import zio.test.mock._
+import zio.test.environment._
 import zio.test.TestUtils.label
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 
@@ -145,19 +145,19 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
   def yellowThenCyan(s: String): String =
     SConsole.YELLOW + s + SConsole.CYAN
 
-  def check[E](spec: ZSpec[MockEnvironment, String, String, Unit], expected: Vector[String]): Future[Boolean] =
-    unsafeRunWith(mockEnvironmentManaged) { r =>
+  def check[E](spec: ZSpec[TestEnvironment, String, String, Unit], expected: Vector[String]): Future[Boolean] =
+    unsafeRunWith(testEnvironmentManaged) { r =>
       val zio = for {
-        _ <- MockTestRunner(r)
+        _ <- TestTestRunner(r)
               .run(spec)
               .provideSomeM(for {
                 logSvc   <- TestLogger.fromConsoleM
-                clockSvc <- MockClock.make(MockClock.DefaultData)
+                clockSvc <- TestClock.make(TestClock.DefaultData)
               } yield new TestLogger with Clock {
                 override def testLogger: TestLogger.Service = logSvc.testLogger
                 override val clock: Clock.Service[Any]      = clockSvc.clock
               })
-        output <- MockConsole.output
+        output <- TestConsole.output
       } yield output == expected
       zio.provide(r)
     }
@@ -165,9 +165,9 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
   def unsafeRunWith[R, E <: Throwable, A](r: Managed[Nothing, R])(f: R => IO[E, A]): Future[A] =
     unsafeRunToFuture(r.use[Any, E, A](f))
 
-  def MockTestRunner(mockEnvironment: MockEnvironment) =
-    TestRunner[String, ZTest[MockEnvironment, String, Unit], String, Unit](
-      executor = TestExecutor.managed[MockEnvironment, String, String, Unit](Managed.succeed(mockEnvironment)),
+  def TestTestRunner(testEnvironment: TestEnvironment) =
+    TestRunner[String, ZTest[TestEnvironment, String, Unit], String, Unit](
+      executor = TestExecutor.managed[TestEnvironment, String, String, Unit](Managed.succeed(testEnvironment)),
       reporter = DefaultTestReporter()
     )
 }

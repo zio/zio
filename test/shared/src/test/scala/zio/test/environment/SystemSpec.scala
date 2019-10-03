@@ -1,7 +1,7 @@
-package zio.test.mock
+package zio.test.environment
 
 import zio.test.Async
-import zio.test.mock.MockSystem.Data
+import zio.test.environment.TestSystem.Data
 import zio.test.TestUtils.label
 import zio.test.ZIOBaseSpec
 
@@ -23,85 +23,85 @@ object SystemSpec extends ZIOBaseSpec {
   def env1 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data(envs = Map("k1" -> "v1")))
-        env        <- mockSystem.env("k1")
+        testSystem <- TestSystem.makeTest(Data(envs = Map("k1" -> "v1")))
+        env        <- testSystem.env("k1")
       } yield env == Option("v1")
     )
 
   def env2 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data())
-        env        <- mockSystem.env("k1")
+        testSystem <- TestSystem.makeTest(Data())
+        env        <- testSystem.env("k1")
       } yield env == Option.empty
     )
 
   def env3 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data())
-        _          <- mockSystem.putEnv("k1", "v1")
-        env        <- mockSystem.env("k1")
+        testSystem <- TestSystem.makeTest(Data())
+        _          <- testSystem.putEnv("k1", "v1")
+        env        <- testSystem.env("k1")
       } yield env == Option("v1")
     )
 
   def env4 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data(envs = Map("k1" -> "v1")))
-        _          <- mockSystem.clearEnv("k1")
-        env        <- mockSystem.env("k1")
+        testSystem <- TestSystem.makeTest(Data(envs = Map("k1" -> "v1")))
+        _          <- testSystem.clearEnv("k1")
+        env        <- testSystem.env("k1")
       } yield env == None
     )
 
   def prop1 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data(properties = Map("k1" -> "v1")))
-        prop       <- mockSystem.property("k1")
+        testSystem <- TestSystem.makeTest(Data(properties = Map("k1" -> "v1")))
+        prop       <- testSystem.property("k1")
       } yield prop == Option("v1")
     )
 
   def prop2 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data())
-        prop       <- mockSystem.property("k1")
+        testSystem <- TestSystem.makeTest(Data())
+        prop       <- testSystem.property("k1")
       } yield prop == Option.empty
     )
 
   def prop3 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data())
-        _          <- mockSystem.putProperty("k1", "v1")
-        prop       <- mockSystem.property("k1")
+        testSystem <- TestSystem.makeTest(Data())
+        _          <- testSystem.putProperty("k1", "v1")
+        prop       <- testSystem.property("k1")
       } yield prop == Option("v1")
     )
 
   def prop4 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data(properties = Map("k1" -> "v1")))
-        _          <- mockSystem.clearProperty("k1")
-        prop       <- mockSystem.property(("k1"))
+        testSystem <- TestSystem.makeTest(Data(properties = Map("k1" -> "v1")))
+        _          <- testSystem.clearProperty("k1")
+        prop       <- testSystem.property(("k1"))
       } yield prop == None
     )
 
   def lineSep1 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data(lineSeparator = ","))
-        lineSep    <- mockSystem.lineSeparator
+        testSystem <- TestSystem.makeTest(Data(lineSeparator = ","))
+        lineSep    <- testSystem.lineSeparator
       } yield lineSep == ","
     )
 
   def lineSep2 =
     unsafeRunToFuture(
       for {
-        mockSystem <- MockSystem.makeMock(Data())
-        _          <- mockSystem.setLineSeparator(",")
-        lineSep    <- mockSystem.lineSeparator
+        testSystem <- TestSystem.makeTest(Data())
+        _          <- testSystem.setLineSeparator(",")
+        lineSep    <- testSystem.lineSeparator
       } yield lineSep == ","
     )
 }

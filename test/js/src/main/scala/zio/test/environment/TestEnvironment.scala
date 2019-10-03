@@ -14,41 +14,41 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.environment
 
 import zio.{ DefaultRuntime, Managed }
 import zio.scheduler.Scheduler
 import zio.test.Sized
 
-case class MockEnvironment(
-  clock: MockClock.Mock,
-  console: MockConsole.Mock,
+case class TestEnvironment(
+  clock: TestClock.Test,
+  console: TestConsole.Test,
   live: Live.Service[DefaultRuntime#Environment],
-  random: MockRandom.Mock,
-  scheduler: MockClock.Mock,
+  random: TestRandom.Test,
+  scheduler: TestClock.Test,
   sized: Sized.Service[Any],
-  system: MockSystem.Mock
+  system: TestSystem.Test
 ) extends Live[DefaultRuntime#Environment]
-    with MockClock
-    with MockConsole
-    with MockRandom
-    with MockSystem
+    with TestClock
+    with TestConsole
+    with TestRandom
+    with TestSystem
     with Scheduler
     with Sized
 
-object MockEnvironment {
+object TestEnvironment {
 
-  val Value: Managed[Nothing, MockEnvironment] =
+  val Value: Managed[Nothing, TestEnvironment] =
     Managed.fromEffect {
       for {
-        clock   <- MockClock.makeMock(MockClock.DefaultData)
-        console <- MockConsole.makeMock(MockConsole.DefaultData)
+        clock   <- TestClock.makeTest(TestClock.DefaultData)
+        console <- TestConsole.makeTest(TestConsole.DefaultData)
         live    <- Live.makeService(new DefaultRuntime {}.Environment)
-        random  <- MockRandom.makeMock(MockRandom.DefaultData)
+        random  <- TestRandom.makeTest(TestRandom.DefaultData)
         time    <- live.provide(zio.clock.nanoTime)
         _       <- random.setSeed(time)
         size    <- Sized.makeService(100)
-        system  <- MockSystem.makeMock(MockSystem.DefaultData)
-      } yield new MockEnvironment(clock, console, live, random, clock, size, system)
+        system  <- TestSystem.makeTest(TestSystem.DefaultData)
+      } yield new TestEnvironment(clock, console, live, random, clock, size, system)
     }
 }

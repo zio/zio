@@ -6,7 +6,7 @@ import zio.Exit.Failure
 import zio.test._
 import zio.test.Assertion._
 import zio.test.Gen
-import zio.test.mock._
+import zio.test.environment._
 
 object ZManagedSpec
     extends ZIOBaseSpec(
@@ -607,17 +607,17 @@ object ZManagedSpec
               case (duration, _) =>
                 ZIO.succeed(assert(duration.toNanos, isGreaterThanEqualTo(40.milliseconds.toNanos)))
             }
-            def awaitSleeps(n: Int): ZIO[MockClock, Nothing, Unit] =
-              MockClock.sleeps.flatMap {
+            def awaitSleeps(n: Int): ZIO[TestClock, Nothing, Unit] =
+              TestClock.sleeps.flatMap {
                 case x if x.length >= n => ZIO.unit
                 case _                  => ZIO.sleep(20.milliseconds).provide(zio.clock.Clock.Live) *> awaitSleeps(n)
               }
             for {
               f      <- test.fork
               _      <- awaitSleeps(1)
-              _      <- MockClock.adjust(20.milliseconds)
+              _      <- TestClock.adjust(20.milliseconds)
               _      <- awaitSleeps(1)
-              _      <- MockClock.adjust(20.milliseconds)
+              _      <- TestClock.adjust(20.milliseconds)
               result <- f.join
             } yield result
           }

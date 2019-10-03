@@ -3,10 +3,10 @@
 
 package zio
 
-import zio.test.mock.MockClock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test._
+import zio.test.environment.TestClock
 import SemaphoreSpecData._
 
 object SemaphoreSpecData {
@@ -73,9 +73,9 @@ object SemaphoreSpec
             for {
               s           <- Semaphore.make(n)
               acquireFork <- s.acquireN(2).timeout(1.milli).either.fork
-              _           <- MockClock.adjust(1.milli) *> acquireFork.join
+              _           <- TestClock.adjust(1.milli) *> acquireFork.join
               permitsFork <- (s.release *> clock.sleep(10.millis) *> s.available).fork
-              permits     <- MockClock.adjust(10.millis) *> permitsFork.join
+              permits     <- TestClock.adjust(10.millis) *> permitsFork.join
             } yield assert(permits, equalTo(2L))
           },
           /**
@@ -86,18 +86,18 @@ object SemaphoreSpec
             for {
               s           <- Semaphore.make(n)
               acquireFork <- s.withPermit(s.release).timeout(1.milli).either.fork
-              _           <- MockClock.adjust(1.milli) *> acquireFork.join
+              _           <- TestClock.adjust(1.milli) *> acquireFork.join
               permitsFork <- (s.release *> clock.sleep(10.millis) *> s.available).fork
-              permits     <- MockClock.adjust(10.millis) *> permitsFork.join
+              permits     <- TestClock.adjust(10.millis) *> permitsFork.join
             } yield assert(permits, equalTo(1L))
           },
           testM("`withPermitManaged` does not leak fibers or permits upon cancellation") {
             for {
               s           <- Semaphore.make(0)
               acquireFork <- s.withPermitManaged.use(_ => s.release).timeout(1.millisecond).either.fork
-              _           <- MockClock.adjust(1.milli) *> acquireFork.join
+              _           <- TestClock.adjust(1.milli) *> acquireFork.join
               permitsFork <- (s.release *> clock.sleep(10.milliseconds) *> s.available).fork
-              permits     <- MockClock.adjust(10.millis) *> permitsFork.join
+              permits     <- TestClock.adjust(10.millis) *> permitsFork.join
             } yield assert(permits, equalTo(1L))
           }
         )

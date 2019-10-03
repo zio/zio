@@ -1,4 +1,4 @@
-package zio.test.mock
+package zio.test.environment
 
 import zio._
 import zio.duration._
@@ -21,7 +21,7 @@ object SchedulerSpec extends ZIOBaseSpec {
   def e1 =
     unsafeRunToFuture(
       for {
-        clock     <- MockClock.makeMock(MockClock.DefaultData)
+        clock     <- TestClock.makeTest(TestClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
         _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
@@ -33,7 +33,7 @@ object SchedulerSpec extends ZIOBaseSpec {
   def e2 =
     unsafeRunToFuture(
       for {
-        clock     <- MockClock.makeMock(MockClock.DefaultData)
+        clock     <- TestClock.makeTest(TestClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
         _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds + 1.nanosecond))
@@ -45,7 +45,7 @@ object SchedulerSpec extends ZIOBaseSpec {
   def e3 =
     unsafeRunToFuture(
       for {
-        clock     <- MockClock.makeMock(MockClock.DefaultData)
+        clock     <- TestClock.makeTest(TestClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
         cancel    <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
@@ -58,7 +58,7 @@ object SchedulerSpec extends ZIOBaseSpec {
   def e4 =
     unsafeRunToFuture(
       for {
-        clock     <- MockClock.makeMock(MockClock.DefaultData)
+        clock     <- TestClock.makeTest(TestClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
         cancel    <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
@@ -71,7 +71,7 @@ object SchedulerSpec extends ZIOBaseSpec {
   def e5 =
     unsafeRunToFuture(
       for {
-        clock     <- MockClock.makeMock(MockClock.DefaultData)
+        clock     <- TestClock.makeTest(TestClock.DefaultData)
         scheduler <- clock.scheduler
         promise   <- Promise.make[Nothing, Unit]
         _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))

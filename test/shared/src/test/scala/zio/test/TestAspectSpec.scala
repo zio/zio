@@ -9,7 +9,7 @@ import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.test.mock.Live
+import zio.test.environment.Live
 
 import scala.reflect.ClassTag
 

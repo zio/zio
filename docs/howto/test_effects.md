@@ -43,7 +43,8 @@ which will be used for visual reporting back to the user and an assertion of typ
 will produce `TestResult`. There is another variant of function for creating test that are pure called simply `test`.
 It expects a thunk of code that will just return a `TestResult` without packing it into `ZIO`.
 
-### Assertions - creating TestResults 
+### Assertions - creating TestResults
+
 As it was already mentioned tests should return `TestResult`. The most common way to produce a `TestResult`
 is to resort to `assert` or its effectful counterpart `assertM`. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
 To create `Assertion[A]` object one can use functions defined under `zio.test.Assertion`. There are already a number
@@ -53,17 +54,20 @@ known from operating on boolean values like and (`&&`), or (`||`), negation (`ne
 
 ```scala
 import zio.test.Assertion
-val assertionForString: Assertion[String] = Assertion.containsString("Foo") && Assertion.endsWith("Bar") 
+
+val assertionForString: Assertion[String] = Assertion.containsString("Foo") && Assertion.endsWith("Bar")
 ```
 
 What's more, assertions also compose with each other allowing for doing rich diffs not only simple value to value comparison.
 
 ```scala
 import zio.test.Assertion.{isRight, isSome,equalTo, hasField}
+
 test("Check assertions") {
   assert(Right(Some(2)), isRight(isSome(equalTo(2))))
 }
 ```
+
 Here we're checking deeply nested values inside an `Either` and `Option`. Because `Assertion`s compose this is not a problem
 all layers are being peeled off tested for condition until final value is reached.
 Here the expression `Right(Some(2))` is of type `Either[Any, Option[Int]]`and our assertion `isRight(isSome(equalTo(2)))`
@@ -105,7 +109,6 @@ testM("Semaphore should expose available number of permits") {
 }
 ```
 
-
 ### Running tests
 
 When all of our tests are constructed, we need to have a way to actually execute them. Your first stop is the `zio.test.DefaultRunnableSpec` which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suites can hold any number of other suites. You may structure your tests like this:
@@ -128,82 +131,75 @@ object AllSuites extends DefaultRunnableSpec(suite("All tests")(suite1, suite2, 
 ```
 
 `DefaultRunnableSpec` is very similar in its logic of operations to `zio.App`. Instead of providing one `ZIO` application
-at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `MockEnvironment` which helps us with controling our systems infrastructure. More info on using mocks can be found in sections below. 
-Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is expected where `R` can be at maximum of type `Environment` in `DefaultRunnableSpec` `R` cannot be more than `MockEnvironment`. So just like in normal application if our
+at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `TestEnvironment` which helps us with controling our systems infrastructure. More info on using test environment can be found in sections below.
+Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is expected where `R` can be at maximum of type `Environment` in `DefaultRunnableSpec` `R` cannot be more than `TestEnvironment`. So just like in normal application if our
 `R` is composed of some other modules we need to provide them first before test can be executed. How can we provide our dependencies?
 Here again the design of `zio-test` shines. Since our tests are ordinary values we can just transform them with a call to `mapTest`.
-It accepts a lambda of type `ZIO[R with MockSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with MockSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `DefaultRunnableSpec` cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added `zio-test` to SBTs `testFrameworks` our tests should be automatically picked up by SBT on invocation of `test`. However if we're not using SBT or have some other special needs `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `test:run`.
+It accepts a lambda of type `ZIO[R with TestSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with TestSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `DefaultRunnableSpec` cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added `zio-test` to SBTs `testFrameworks` our tests should be automatically picked up by SBT on invocation of `test`. However if we're not using SBT or have some other special needs `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `test:run`.
 
-
-
-
-## Using Mocks in tests
+## Using Test Environment
 
 What we expect from tests (at least those that we consider unit tests) is to be stable i.e. consecutive runs should yield the same results and take
 more or less the same amount of time. Biggest source of complexity during testing comes from external services which we cannot control like external
-payment APIs, object storages, http APIs etc. It is normal to hide these kind of services behind an interface and provide mock implementation to regain
-control and determinism. However there is another source of complexity that comes from the local infrastructure that is also hard to control without building prior abstractions. Things like stdin/stdout, clocks, random generators, schedulers can make writing tests hard or even impossible. Fortunately ZIO abstracted most of it in its runtime under `Environment` type. Thanks to this design `zio-test` could easily provide its own implementation named `MockEnvironment` which gives you mocks of mentioned infrastructure. In most of the cases when you'll be using `ZIO`s `testM` mocks are already created and should be controlled by exposed functions on companion object. If for some reason you would like to provide custom environment or are using other testing framework but still want to use mocks there are `make` functions on companion objects of mocks where you can construct your own. 
+payment APIs, object storages, http APIs etc. It is normal to hide these kind of services behind an interface and provide test instances to regain
+control and determinism. However there is another source of complexity that comes from the local infrastructure that is also hard to control without building prior abstractions. Things like stdin/stdout, clocks, random generators, schedulers can make writing tests hard or even impossible. Fortunately ZIO abstracted most of it in its runtime under `Environment` type. Thanks to this design `zio-test` could easily provide its own implementation named `TestEnvironment` which gives you test implementations of mentioned infrastructure. In most of the cases when you'll be using `ZIO`s `testM` test implementations are already created and should be controlled by exposed functions on companion object. If for some reason you would like to provide custom environment or are using other testing framework but still want to use test environment there are `make` functions on companion objects of test modules where you can construct your own.
 
-It is easy to accidentally use different mock instances at the same time.
+It is easy to accidentally use different test instances at the same time.
 
 ```scala
 testM("`acquire` doesn't leak permits upon cancellation") {
-      for {
-        mockClock <- MockClock.makeMock(MockClock.DefaultData)
-        s         <- Semaphore.make(1L)
-        sf        <- s.acquireN(2).timeout(1.milli).either.fork
-        _         <- mockClock.adjust(1.second)
-        _         <- sf.join
-        _         <- s.release
-        permits   <- s.available
-      } yield assert(permits, equalTo(2L))
-    }
+  for {
+    testClock <- TestClock.makeTest(TestClock.DefaultData)
+    s         <- Semaphore.make(1L)
+    sf        <- s.acquireN(2).timeout(1.milli).either.fork
+    _         <- testClock.adjust(1.second)
+    _         <- sf.join
+    _         <- s.release
+    permits   <- s.available
+  } yield assert(permits, equalTo(2L))
+}
 ```
 
-Above code doesn't work. We created a new `MockClock` instance and are correctly adjusting its time. What might be surprising is that call to `timeout` will
-use the `MockClock` provided by the `MockEnvironment` not our `mockClock` instance. It easy to know why when you look at the signature of `timeout`:
+Above code doesn't work. We created a new `TestClock` instance and are correctly adjusting its time. What might be surprising is that call to `timeout` will use the `TestClock` provided by the `TestEnvironment` not our `testClock` instance. It easy to know why when you look at the signature of `timeout`:
 
 ```scala
-final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] 
+final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]]
 ```
 
 The returned type is `ZIO[R with Clock, E, Option[A]]` where our environment is "some R plus a Clock".
-Before running this `Clock` has to be provided and the framework provides the Clock from the `MockEnvironment` not our instance variable as it is not aware that we created it.
+Before running this `Clock` has to be provided and the framework provides the Clock from the `TestEnvironment` not our instance variable as it is not aware that we created it.
 
+If you need to provide real implementations instead of the test instances to some part of your tests there is a `live` method which will transform your `ZIO[R, E, A]` to `ZIO[Live[R], E, A]`. Going from `R` to `Live[R]` instructs the framework that we really want to be provided with live implementations.
 
-If you need to provide real implementations instead of the mocks to some part of your tests there is a `live` method which will transform your `ZIO[R, E, A]` to `ZIO[Live[R], E, A]`. Going from `R` to `Live[R]` instructs the framework that we really want to be provided with live implementations and not mocks.
+### Testing Random
 
-
-### Mocking Random
-
-When working with randomness testing might be hard because the inputs to the tested function change on every invocation so our code behave in a indeterministic way. Precisely because of this reason `ZIO` exposes `MockRandom` module which allows for fully deterministic testing of code
+When working with randomness testing might be hard because the inputs to the tested function change on every invocation so our code behave in a indeterministic way. Precisely because of this reason `ZIO` exposes `TestRandom` module which allows for fully deterministic testing of code
 that deals with Randomness.
-`MockRandom` can operate in two modes based on needed use case. In first mode it is a purely functional pseudo-random number generator. During generation on random values like when calling `nextInt` no internal state is being mutated. It is expected to chain such operations with combinators like `flatMap`. To preserve the same values generated between invocation of tests `setSeed` method can be used. It is guaranteed to return the same sequence of values for any given seed.
+`TestRandom` can operate in two modes based on needed use case. In first mode it is a purely functional pseudo-random number generator. During generation on random values like when calling `nextInt` no internal state is being mutated. It is expected to chain such operations with combinators like `flatMap`. To preserve the same values generated between invocation of tests `setSeed` method can be used. It is guaranteed to return the same sequence of values for any given seed.
 
 ```scala
 testM("Use setSeed to generate stable values") {
   for {
-    _  <- MockRandom.setSeed(27)
+    _  <- TestRandom.setSeed(27)
     r1 <- random.nextLong
     r2 <- random.nextLong
-    r3 <- random.nextLong 
-  } yield assert(
-    List(r1,r2,r3), 
-    equalTo(
-      List[Long](
+    r3 <- random.nextLong
+  } yield
+    assert(List(r1,r2,r3), equalTo(List[Long](
       -4947896108136290151L,
       -5264020926839611059L,
-      -9135922664019402287L)))
+      -9135922664019402287L
+    )))
 }
 ```
 
-In second mode `MockRandom` maintains an internal buffer of values that can be "fed" upfront with methods such as `feedInts`. When random values are being generated first values from that buffer are being used.
+In second mode `TestRandom` maintains an internal buffer of values that can be "fed" upfront with methods such as `feedInts`. When random values are being generated first values from that buffer are being used.
 
 ```scala
-import zio.test.mock.MockRandom
+import zio.test.environment.TestRandom
 testM("One can provide its own list of ints") {
   for {
-    _  <- MockRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
+    _  <- TestRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
     r1 <- random.nextInt
     r2 <- random.nextInt
     r3 <- random.nextInt
@@ -220,68 +216,66 @@ testM("One can provide its own list of ints") {
 }
 ```
 
-When we run out of values in buffer `MockRandom` it falls back to first mode. If we want to we can also clear internal buffers by calling method 
+When we run out of values in buffer `TestRandom` it falls back to first mode. If we want to we can also clear internal buffers by calling method 
 like `clearInts`.
 
+### Testing Clock
 
-### Mocking Clock
+Sometimes one need to be able to control the flow of time. In most cases you want your unit test to be as fast as possible. Waiting for real time to pass by is a real killer for this. ZIO exposes a `TestClock` in `TestEnvironment` that can control time so we can deterministically and efficiently test effects involving the passage of time.
 
-Sometimes one need to be able to control the flow of time. In most cases you want your unit test to be as fast as possible. Waiting for real time to pass by is a real killer for this. ZIO exposes a `MockClock` in `MockEnvironment` that can control time so we can deterministically and efficiently test effects involving the passage of time.
+**Example 1**
 
-Example 1
-
-Thanks to call to `MockClock.adjust(1.minute)` we moved the time instantly 1 minute.
+Thanks to call to `TestClock.adjust(1.minute)` we moved the time instantly 1 minute.
 
 ```scala
-import zio.test.mock.MockClock
+import zio.test.environment.TestClock
 import zio.duration._
-testM("One can move time very fast") {  
+
+testM("One can move time very fast") {
   for {
     startTime <- currentTime(TimeUnit.SECONDS)
-    _         <- MockClock.adjust(1.minute)
+    _         <- TestClock.adjust(1.minute)
     endTime   <- currentTime(TimeUnit.SECONDS)
   } yield assert(endTime - startTime, isGreaterThanEqualTo(60L))
 }
 ```
 
+**Example 2**
 
-
-Example 2
-
-`MockClock` affects also all code running asynchronously that is scheduled to run after certain time but with caveats to how runtime works.
+`TestClock` affects also all code running asynchronously that is scheduled to run after certain time but with caveats to how runtime works.
 
 ```scala
 testM("One can control time as he see fit") {
   for {
     promise <- Promise.make[Unit, Int]
     _       <- (ZIO.sleep(10.seconds) *> promise.succeed(1)).fork
-    _       <- MockClock.adjust(10.seconds)
+    _       <- TestClock.adjust(10.seconds)
     readRef <- promise.await
   } yield assert(1, equalTo(readRef))
 }
 ```
 
 The above code creates a write once cell that will be set to "1" after 10 seconds asynchronously from a different thread thanks to call to `fork`. 
-At the end we wait on the promise until it is set. With call to `MockClock.adjust(10.seconds)` we simulate passing of 10 seconds of time.
-Because of it we don't need to wait for the real 10 seconds to pass and thus our unit test can run faster. This is a pattern that will very often be used when `sleep` and `MockClock` are being used for testing of effects that are based on time. The fiber that needs to sleep will be forked and `MockClock` will used to adjust the time so that all expected effects are run in the forked fiber.
+At the end we wait on the promise until it is set. With call to `TestClock.adjust(10.seconds)` we simulate passing of 10 seconds of time.
+Because of it we don't need to wait for the real 10 seconds to pass and thus our unit test can run faster. This is a pattern that will very often be used when `sleep` and `TestClock` are being used for testing of effects that are based on time. The fiber that needs to sleep will be forked and `TestClock` will used to adjust the time so that all expected effects are run in the forked fiber.
 
-*WARNING* 
-Notice that if we don't call `adjust` at all we'll get stuck. `MockClock` doesn't make any progress on its own.
+*WARNING*
+Notice that if we don't call `adjust` at all we'll get stuck. `TestClock` doesn't make any progress on its own.
 
-Also it is worth mentioning that adjusting the time on `MockClock` doesn't make us immune to the timing overheads introduced by the runtime and races this introduces. Effects are guaranteed to be waken up not earlier than the argument passed to `sleep` but from there the order of execution since scheduled on different threads is indeterministic and its up to the user code to use tools like `Promise` to guarantee proper sequencing. 
+Also it is worth mentioning that adjusting the time on `TestClock` doesn't make us immune to the timing overheads introduced by the runtime and races this introduces. Effects are guaranteed to be waken up not earlier than the argument passed to `sleep` but from there the order of execution since scheduled on different threads is indeterministic and its up to the user code to use tools like `Promise` to guarantee proper sequencing. 
 Below code will be flaky because there is non-zero overhead when switching fibers thus reading of the value might happen before it is set and its change is 
 propagated.
 
 ```scala
 testM("THIS TEST WILL FAIL - Sleep and adjust can introduce races") {
-    for {
-      ref     <- Ref.make(0)
-      _       <- (ZIO.sleep(Duration(10, TimeUnit.SECONDS)) *> ref.update(_ + 1)).fork
-      _       <- MockClock.adjust(Duration(10, TimeUnit.SECONDS))
-      value   <- ref.get
-    } yield assert(1, equalTo(value))
+  for {
+    ref     <- Ref.make(0)
+    _       <- (ZIO.sleep(Duration(10, TimeUnit.SECONDS)) *> ref.update(_ + 1)).fork
+    _       <- TestClock.adjust(Duration(10, TimeUnit.SECONDS))
+    value   <- ref.get
+  } yield assert(1, equalTo(value))
+}
 ```
-
 
 The pattern with `Promise` and `await` can be generalized when we need to wait for multiple values using a `Queue`. We simply need to put multiple values into
 the queue and progress the clock multiple times and there is no need to create multiple promises.
@@ -289,47 +283,48 @@ Even if you have a non-trivial flow of data from multiple streams that can produ
 snapshots of data in particular point in time `Queue` can help with that.
 
 ```scala
- testM("zipWithLatest") {
-          val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
-          val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
-          val s3 = s1.zipWithLatest(s2)((_, _))
-          for {
-            _ <- MockClock.setTime(0.millis)
-            q <- Queue.unbounded[(Int, Int)]
-            _ <- s3.foreach(q.offer).fork
-            a <- q.take
-            _ <- MockClock.setTime(70.millis)
-            b <- q.take
-            _ <- MockClock.setTime(100.millis)
-            c <- q.take
-            _ <- MockClock.setTime(140.millis)
-            d <- q.take
-          } yield assert(a, equalTo(0 -> 0)) &&
-            assert(b, equalTo(0       -> 1)) &&
-            assert(c, equalTo(1       -> 1)) &&
-            assert(d, equalTo(1       -> 2))
-        }
+testM("zipWithLatest") {
+  val s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
+  val s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
+  val s3 = s1.zipWithLatest(s2)((_, _))
+
+  for {
+    _ <- TestClock.setTime(0.millis)
+    q <- Queue.unbounded[(Int, Int)]
+    _ <- s3.foreach(q.offer).fork
+    a <- q.take
+    _ <- TestClock.setTime(70.millis)
+    b <- q.take
+    _ <- TestClock.setTime(100.millis)
+    c <- q.take
+    _ <- TestClock.setTime(140.millis)
+    d <- q.take
+  } yield
+    assert(a, equalTo(0 -> 0)) &&
+    assert(b, equalTo(0       -> 1)) &&
+    assert(c, equalTo(1       -> 1)) &&
+    assert(d, equalTo(1       -> 2))
+}
 ```
 
+### Testing Console
 
-
-### Mocking Console
-
-`MockConsole` allows testing of applications that interact with console by modeling working with standard input and output
-as writing and reading to and from internal buffers. 
+`TestConsole` allows testing of applications that interact with console by modeling working with standard input and output
+as writing and reading to and from internal buffers.
 
 ```scala
-import zio.test.mock.MockConsole
+import zio.test.environment.TestConsole
 import zio.console
-val consoleSuite = suite("ConsoleMock")(
+
+val consoleSuite = suite("ConsoleTest")(
   testM("One can test output of console") {
     for {
-      _              <- MockConsole.feedLines("Jimmy", "37")
+      _              <- TestConsole.feedLines("Jimmy", "37")
       _              <- console.putStrLn("What is your name?")
       name           <- console.getStrLn
       _              <- console.putStrLn("What is your age?")
       age            <- console.getStrLn.map(_.toInt)
-      questionVector <- MockConsole.output
+      questionVector <- TestConsole.output
       q1             = questionVector(0)
       q2             = questionVector(1)
     } yield {
@@ -343,23 +338,23 @@ val consoleSuite = suite("ConsoleMock")(
 ```
 
 Above code simulates an application that will ask for name and age of the user. To test it we prefill buffers with answers
-with call to `MockConsole.feedLines` method. Calls to `console.getStrLn` will get the value from the buffers instead of 
+with call to `TestConsole.feedLines` method. Calls to `console.getStrLn` will get the value from the buffers instead of 
 interacting with the users keyboard. Also all output that our program produces by calling `console.putStrLn` (and other 
-printing methods) is being gathered and can be accessed with call to `MockConsole.output`.
+printing methods) is being gathered and can be accessed with call to `TestConsole.output`.
 
-
-### Mocking System
+### Testing System
 
 With increased usage of containers and runtimes like Kubernetes more and more applications are being configured by means
 of environment variables. It is important to test this logic just like other parts of application. For this purpose `zio-test`
-exposes `MockSystem` module. Additionally to setting the environment variables it also allows for setting JVM system properties 
+exposes `TestSystem` module. Additionally to setting the environment variables it also allows for setting JVM system properties 
 like in the code below:
 
 ```scala
 import zio.system
-import zio.test.mock._
+import zio.test.environment._
+
 for {
-  _      <- MockSystem.putProperty("java.vm.name", "VM")
+  _      <- TestSystem.putProperty("java.vm.name", "VM")
   result <- system.property("java.vm.name")
 } yield assert(result, equalTo(Some("VM")))
 ```
