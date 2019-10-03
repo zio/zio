@@ -79,15 +79,16 @@ trait SinkUtils {
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
-    ) =
+    ): UIO[TestResult] =
       for {
         res     <- s.run(sink1.zipPar(sink2).zip(ZSink.collectAll[A])).either
         swapped <- s.run(sink2.zipPar(sink1).zip(ZSink.collectAll[A])).either
       } yield {
-        assert(
-          swapped,
-          equalTo(res.right.map { case ((b, c), rem) => ((c, b), rem) }: Either[String, ((C, B), List[A])])
-        )
+        res match {
+          case Right(((b, c), rem)) =>
+            assert(swapped, isRight(equalTo(((c, b), rem))))
+          case _ => assert(true, isTrue)
+        }
       }
 
     def remainders[A, B, C](
