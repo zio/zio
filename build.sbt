@@ -253,8 +253,13 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq()
+      else
+        Seq(compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.4" cross CrossVersion.full))
+    },
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"                % "1.4.4" % "provided" cross CrossVersion.full,
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
