@@ -33,7 +33,7 @@ object ManagedSpec extends ZIOBaseSpec {
             result <- ZIO.accessM[Ref[Int]](_.get)
           } yield assert(result, equalTo(4))
         }
-      ).provideManagedSuite(Ref.make(1).toManaged(_.set(-10)))
+      ).provideManagedShared(Ref.make(1).toManaged(_.set(-10)))
       succeeded(spec)
     }
 }
