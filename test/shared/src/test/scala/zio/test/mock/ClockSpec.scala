@@ -227,14 +227,13 @@ object ClockSpec extends ZIOBaseSpec {
   def e18 =
     unsafeRunToFuture {
       nonFlaky {
-        val io = for {
+        for {
           mockClock <- MockClock.makeMock(DefaultData)
           fiber     <- mockClock.sleep(2.millis).zipPar(mockClock.sleep(1.millis)).fork
           _         <- mockClock.adjust(2.millis)
           _         <- fiber.join
           result    <- mockClock.fiberState.get
         } yield result.nanoTime == 2000000L
-        io.provideM(MockClock.make(MockClock.DefaultData))
       }
     }
 }
