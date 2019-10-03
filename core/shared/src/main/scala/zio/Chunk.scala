@@ -910,7 +910,7 @@ object Chunk {
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
   }
 
-  private object Tags {
+  private[zio] object Tags {
     final def fromValue[A](a: A): ClassTag[A] =
       unbox(ClassTag(a.getClass))
 
