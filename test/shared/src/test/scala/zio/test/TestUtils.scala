@@ -14,9 +14,9 @@ object TestUtils {
   final def failed[L, E, S](spec: ZSpec[mock.MockEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] =
     succeeded(spec).map(!_)
 
-  final def failedWith(spec: ZSpec[MockEnvironment, Any, String, Any], pred: Throwable => Boolean) =
+  final def failedWith[E](spec: ZSpec[MockEnvironment, E, String, Any])(pred: E => Boolean) =
     forAllTests(execute(spec)) {
-      case Left(zio.test.TestFailure.Runtime(Cause.Die(cause))) => pred(cause)
+      case Left(zio.test.TestFailure.Runtime(Cause.Fail(e))) => pred(e)
       case _                                                    => false
     }
 
