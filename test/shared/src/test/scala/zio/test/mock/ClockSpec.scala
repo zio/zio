@@ -232,8 +232,8 @@ object ClockSpec extends ZIOBaseSpec {
           fiber     <- mockClock.sleep(2.millis).zipPar(mockClock.sleep(1.millis)).fork
           _         <- mockClock.adjust(2.millis)
           _         <- fiber.join
-          result    <- mockClock.fiberState.get
-        } yield result.nanoTime == 2000000L
+          result    <- mockClock.fiberTime
+        } yield result.toNanos == 2000000L
       }
     }
 }
