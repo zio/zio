@@ -40,8 +40,8 @@ import zio.Managed
  * Then all environmental effects, such as printing to the console or
  * generating random numbers, will be implemented by the `TestEnvironment` and
  * will be fully testable. When you do need to access the "live" environment,
- * for example to print debugging information to the close, just use the `live`
- * combinator along with the effect as your normally would.
+ * for example to print debugging information to the console, just use the
+ * `live` combinator along with the effect as your normally would.
  *
  * If you are only interested in one of the test implementations for your
  * application, you can also access them a la carte through the `make` method
