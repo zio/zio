@@ -42,10 +42,12 @@ Inside the future there may be happening any side effects. It may open a file, p
 have a look how this problem would be solved using ZIO's effect system:
 
 ```scala mdoc:invisible:reset
+import zio._
+
 trait Event
 ```
 
-```scala mdoc
+```scala mdoc:fail
 import zio._
 import zio.test.environment.TestConsole
 
@@ -90,7 +92,7 @@ helpers (within `>` object) in the service companion object:
 trait AccountEvent
 ```
 
-```scala mdoc
+```scala mdoc:fail
 import zio.test.mock._
 
 trait AccountObserver {
@@ -121,7 +123,7 @@ We model input arguments according to following scheme:
 - for zero arguments the type is `Unit`
 - for one or more arguments, regardless in how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
 
-```scala mdoc
+```scala mdoc:fail
 trait ExampleService[R] {
   val static                                 : ZIO[R, Nothing, String]
   def zeroArgs                               : ZIO[R, Nothing, Int]
@@ -219,7 +221,7 @@ For each built-in ZIO service you will find their mockable counterparts in `zio.
 
 Finally we're all set and can create ad-hoc mock environments with our services.
 
-```scala mdoc
+```scala mdoc:fail
 import zio.test._
 import zio.test.Assertion._
 
@@ -234,7 +236,7 @@ val mockEnv: Managed[Nothing, MockConsole] = (
 
 ## Providing mocked environment
 
-```scala mdoc
+```scala mdoc:fail
 object AccountObserverSpec extends DefaultRunnableSpec(
   suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
@@ -254,7 +256,7 @@ object AccountObserverSpec extends DefaultRunnableSpec(
 In some cases we have more than one collaborating service being called. In such situations we need to build our expectations seperately for each
 service and then combine them into single environment:
 
-```scala mdoc
+```scala mdoc:fail
 import zio.console.Console
 import zio.random.Random
 
