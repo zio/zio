@@ -292,7 +292,7 @@ object TestClock {
     ZIO.accessM(_.clock.adjust(duration))
 
   /**
-   * Access a `TestClock` instance in the envirnoment and returns the current
+   * Accesses a `TestClock` instance in the environment and returns the current
    * fiber time for this fiber.
    */
   val fiberTime: ZIO[TestClock, Nothing, Duration] =
