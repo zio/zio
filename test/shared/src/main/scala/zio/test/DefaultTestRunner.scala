@@ -16,10 +16,12 @@
 
 package zio.test
 
+import zio.test.environment._
+
 /**
  * A `Runner` that provides a default testable environment.
  */
 object DefaultTestRunner
-    extends TestRunner[String, ZTest[environment.TestEnvironment, Any, Any], Any, Any](
-      TestExecutor.managed(zio.test.environment.testEnvironmentManaged)
+    extends TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any](
+      TestExecutor.managed(testEnvironmentManaged)
     ) {}
