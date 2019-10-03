@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
-import zio.duration.Duration
+import zio.duration._
 import zio.clock.Clock
 import zio.test.mock.Live
 
@@ -101,9 +101,23 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * Constructs an aspect that evaluates every test inside the context of a `Managed`.
+   */
+  def around[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]) =
+    new TestAspect.PerTest[Nothing, R0, E0, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: R0, E >: E0 <: Any, S >: Nothing <: Any](
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        ZManaged
+          .make(before)(_ => after)
+          .foldCauseM(c => ZManaged.fail(TestFailure.Runtime(c)), ZManaged.succeed)
+          .use(_ => test)
+    }
+
+  /**
    * Constructs an aspect that evaluates every test inside the context of the managed function.
    */
-  def around[R0, E0, S0](
+  def aroundTest[R0, E0, S0](
     managed: ZManaged[R0, TestFailure[E0], TestSuccess[S0] => ZIO[R0, TestFailure[E0], TestSuccess[S0]]]
   ) =
     new TestAspect.PerTest[Nothing, R0, E0, Any, S0, S0] {
@@ -309,17 +323,35 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that times out tests using the specified duration.
+   * @param duration maximum test duration
+   * @param interruptDuration after test timeout will wait given duration for successful interruption
    */
-  def timeout(duration: Duration): TestAspect[Nothing, Live[Clock], Nothing, Any, Nothing, Any] =
+  def timeout(
+    duration: Duration,
+    interruptDuration: Duration = 1.second
+  ): TestAspect[Nothing, Live[Clock], Nothing, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, Live[Clock], Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
-      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        Live.withLive(test)(_.timeout(duration)).flatMap {
-          case None =>
-            ZIO.fail(TestFailure.Runtime(Cause.die(TestTimeoutException(s"Timeout of ${duration.render} exceeded"))))
-          case Some(v) => ZIO.succeed(v)
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
+        def timeoutFailure =
+          TestFailure.Runtime(Cause.die(TestTimeoutException(s"Timeout of ${duration.render} exceeded.")))
+        def interruptionTimeoutFailure = {
+          val msg =
+            s"Timeout of ${duration.render} exceeded. Couldn't interrupt test within ${interruptDuration.render}, possible resource leak!"
+          TestFailure.Runtime(Cause.die(TestTimeoutException(msg)))
         }
+        Live
+          .withLive(test)(_.either.timeoutFork(duration).flatMap {
+            case Left(fiber) =>
+              fiber.join.raceWith(ZIO.sleep(interruptDuration))(
+                (_, fiber) => ZIO.succeed(Left(timeoutFailure)) <* fiber.interrupt,
+                (_, _) => ZIO.succeed(Left(interruptionTimeoutFailure))
+              )
+            case Right(result) => ZIO.succeed(result)
+          })
+          .absolve
+      }
     }
 
   trait PerTest[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS]

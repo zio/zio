@@ -142,9 +142,9 @@ object DefaultTestReporter {
     else " did not satisfy "
 
   private def renderCause(cause: Cause[Any], offset: Int): String =
-    cause match {
-      case Cause.Die(TestTimeoutException(message)) => message
-      case _                                        => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+    cause.dieOption match {
+      case Some(TestTimeoutException(message)) => message
+      case _                                   => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
     }
 
   private def withOffset(n: Int)(s: String): String =

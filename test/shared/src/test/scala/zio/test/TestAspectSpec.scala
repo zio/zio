@@ -3,16 +3,20 @@ package zio.test
 import zio.Cause.{ Die, Traced }
 
 import scala.concurrent.Future
-import zio.{ Cause, DefaultRuntime, Ref }
+import zio.clock.Clock
+import zio.{ Cause, Ref, ZIO }
+import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.TestUtils.{ execute, failed, ignored, label, succeeded }
+import zio.test.TestUtils._
+import zio.test.mock.Live
 
 import scala.reflect.ClassTag
 
-object TestAspectSpec extends DefaultRuntime {
+object TestAspectSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
+    label(aroundEvaluatesTestsInsideContextOfManaged, "around evaluates tests inside context of Managed"),
     label(jsAppliesTestAspectOnlyOnJS, "js applies test aspect only on ScalaJS"),
     label(jsOnlyRunsTestsOnlyOnScalaJS, "jsOnly runs tests only on ScalaJS"),
     label(jvmAppliesTestAspectOnlyOnJVM, "jvm applies test aspect only on ScalaJS"),
@@ -38,8 +42,23 @@ object TestAspectSpec extends DefaultRuntime {
     label(
       failureDoesNotMakesTestsPassOnUnexpectedAssertionFailure,
       "failure does not make tests pass on unexpected assertion failure"
-    )
+    ),
+    label(timeoutMakesTestsFailAfterGivenDuration, "timeout makes tests fail after given duration"),
+    label(timeoutReportProblemWithInterruption, "timeout reports problem with interruption")
   )
+
+  def aroundEvaluatesTestsInsideContextOfManaged: Future[Boolean] =
+    unsafeRunToFuture {
+      for {
+        ref <- Ref.make(0)
+        spec = testM("test") {
+          assertM(ref.get, equalTo(1))
+        } @@ around(ref.set(1), ref.set(-1))
+        _      <- execute(spec)
+        result <- succeeded(spec)
+        after  <- ref.get
+      } yield result && (after == -1)
+    }
 
   def jsAppliesTestAspectOnlyOnJS: Future[Boolean] =
     unsafeRunToFuture {
@@ -130,6 +149,28 @@ object TestAspectSpec extends DefaultRuntime {
         )
       )
       failed(spec)
+    }
+
+  def timeoutMakesTestsFailAfterGivenDuration: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = (testM("timeoutMakesTestsFailAfterGivenDuration") {
+        assertM(ZIO.never *> ZIO.unit, equalTo(()))
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(1.nano)
+      failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ns exceeded."))
+    }
+
+  def timeoutReportProblemWithInterruption =
+    unsafeRunToFuture {
+      val spec = (testM("timeoutReportProblemWithInterruption") {
+        assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
+      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(10.millis, 1.nano)
+      failedWith(
+        spec,
+        cause =>
+          cause == TestTimeoutException(
+            "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
+          )
+      )
     }
 
   private def failsWithException[T <: Throwable](implicit ct: ClassTag[T]): Assertion[TestFailure[Any]] =

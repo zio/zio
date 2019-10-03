@@ -13,7 +13,7 @@ import BenchUtils._
 @Fork(1)
 @Threads(1)
 @State(Scope.Thread)
-class PollBenchmark {
+private[this] class PollBenchmark {
   val Ops: Int = 1 << 16
 
   def mkEl: AnyRef    = new Object()

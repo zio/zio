@@ -646,7 +646,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Executes this effect, skipping the error but returning optionally the success.
    */
   final def option: ZIO[R, Nothing, Option[A]] =
-    self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
+    self.foldM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
   final def optional[E1](implicit ev: E <:< Option[E1]): ZIO[R, E1, Option[A]] =
     self.foldM(
@@ -1288,6 +1288,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.flatten(timeoutTo(ZIO.fail(e))(ZIO.succeed)(d))
 
   /**
+   * Returns an effect that will attempt to timeout this effect, but will not
+   * wait for the running effect to terminate if the timeout elapses without
+   * producing a value. Returns `Right` with the produced value if the effect
+   * completes before the timeout or `Left` with the interrupting fiber
+   * otherwise.
+   */
+  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber[E, A], A]] =
+    raceWith(ZIO.sleep(d))(
+      (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
+      (_, fiber) => fiber.interrupt.flatMap(ZIO.done).fork.map(Left(_))
+    )
+
+  /**
    * Returns an effect that will timeout this effect, returning either the
    * default value if the timeout elapses before the effect has produced a
    * value; and or returning the result of applying the function `f` to the
@@ -1897,7 +1910,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(_ => rio)
 
   /**
-   *  Returns a lazily constructed effect, whose construction may itself require
+   * Returns a lazily constructed effect, whose construction may itself require
    * effects. The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
    * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
    * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].
@@ -2477,7 +2490,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Terminates with exceptions on the `Left` side of the `Either` error, if it
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
-  final def unsandbox[R, E, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
+  final def unsandbox[R, E, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] =
+    v.mapErrorCause(_.flatten)
 
   /**
    * Disables supervision for this effect. This will cause fibers forked by
@@ -2817,7 +2831,7 @@ object ZIO extends ZIOFunctions {
     override def tag = Tags.EffectSuspendTotalWith
   }
 
-  private[zio] final class FiberRefNew[A](val initialValue: A) extends UIO[FiberRef[A]] {
+  private[zio] final class FiberRefNew[A](val initialValue: A, val combine: (A, A) => A) extends UIO[FiberRef[A]] {
     override def tag = Tags.FiberRefNew
   }
 
