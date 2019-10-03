@@ -39,7 +39,7 @@ object ChunkSpec
         testM("foldLeft") {
           val fn = Gen.function[Random with Sized, (String, Int), String](stringGen)
           check(stringGen, fn, smallChunks(intGen)) { (s0, f, c) =>
-            assert(c.foldLeft(s0)(Function.untupled(f)), equalTo(c.toArray.foldLeft(s0)(Function.untupled(f))))
+            assert(c.fold(s0)(Function.untupled(f)), equalTo(c.toArray.foldLeft(s0)(Function.untupled(f))))
           }
         },
         testM("map") {

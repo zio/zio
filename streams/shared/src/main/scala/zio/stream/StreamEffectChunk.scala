@@ -76,13 +76,13 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def filter(pred: A => Boolean): StreamEffectChunk[R, E, A] =
     StreamEffectChunk(chunks.map(_.filter(pred)))
 
-  final def foldLazyPure[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] =
-    chunks.foldLazyPure(s)(cont) { (s, as) =>
-      as.foldLeftLazy(s)(cont)(f)
+  final override def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
+    chunks.foldWhileManaged(s)(cont) { (s, as) =>
+      as.foldWhile(s)(cont)(f)
     }
 
-  override def foldLeft[S](s: S)(f: (S, A) => S): ZIO[R, E, S] =
-    foldLazyPure(s)(_ => true)(f).use(UIO.succeed)
+  override def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
+    foldWhileManaged(s)(_ => true)(f).use(UIO.succeed)
 
   override def map[B](f: A => B): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.map(f)))
