@@ -155,10 +155,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   )
 
 lazy val testJVM = test.jvm
-lazy val testJS = test.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test,
-  scalaJSUseMainModuleInitializer in Test := true
-)
+lazy val testJS = test.js
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
