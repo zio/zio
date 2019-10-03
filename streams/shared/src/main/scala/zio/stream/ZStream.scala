@@ -1444,14 +1444,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       for {
         state <- Ref.make(s1).toManaged_
         as    <- self.process
-      } yield
-        as.flatMap { a =>
-          (for {
-            s <- state.get
-            t <- f1(s, a)
-            _ <- state.set(t._1)
-          } yield t._2).mapError(Some(_))
-        }
+      } yield as.flatMap { a =>
+        (for {
+          s <- state.get
+          t <- f1(s, a)
+          _ <- state.set(t._1)
+        } yield t._2).mapError(Some(_))
+      }
     }
 
   /**
@@ -2194,12 +2193,12 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
           leftResult.fold(
             e => rightFiber.interrupt *> ZIO.succeed(((leftDone, rightDone), Take.Fail(e))),
             l => rightFiber.join.flatMap(r => handleSuccess(l, r))
-        ),
+          ),
         (rightResult, leftFiber) =>
           rightResult.fold(
             e => leftFiber.interrupt *> ZIO.succeed(((leftDone, rightDone), Take.Fail(e))),
             r => leftFiber.join.flatMap(l => handleSuccess(l, r))
-        )
+          )
       )
     }
 
@@ -2496,7 +2495,7 @@ object ZStream {
                                   a => output.offer(Pull.emit(a))
                                 )
                                 .unit
-                          )
+                            )
                         )
                       ).toManaged_
         pull <- maybeStream match {
@@ -2530,7 +2529,7 @@ object ZStream {
                       a => output.offer(Pull.emit(a))
                     )
                     .unit
-              )
+                )
             ).toManaged_
       } yield output.take.flatten
     }
@@ -2561,7 +2560,7 @@ object ZStream {
                                    a => output.offer(Pull.emit(a))
                                  )
                                  .unit
-                           )
+                             )
                          )
                        ).toManaged_
         pull <- eitherStream match {
@@ -2740,11 +2739,10 @@ object ZStream {
     ZStream[R, E, A] {
       for {
         ref <- Ref.make[Option[S]](Some(s)).toManaged_
-      } yield
-        ref.get.flatMap({
-          case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s) *> Pull.emit(a) })
-          case None    => Pull.end
-        })
+      } yield ref.get.flatMap({
+        case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s) *> Pull.emit(a) })
+        case None    => Pull.end
+      })
     }
 
   /**
@@ -2791,17 +2789,16 @@ object ZStream {
     ZStream[R, E, A] {
       for {
         ref <- Ref.make(s).toManaged_
-      } yield
-        ref.get
-          .flatMap(f0)
-          .foldM(
-            e => Pull.fail(e),
-            opt =>
-              opt match {
-                case Some((a, s)) => ref.set(s) *> Pull.emit(a)
-                case None         => Pull.end
+      } yield ref.get
+        .flatMap(f0)
+        .foldM(
+          e => Pull.fail(e),
+          opt =>
+            opt match {
+              case Some((a, s)) => ref.set(s) *> Pull.emit(a)
+              case None         => Pull.end
             }
-          )
+        )
     }
 
   /**
