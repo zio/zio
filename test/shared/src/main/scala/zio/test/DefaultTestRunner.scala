@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.test.mock._
+import zio.test.environment._
 
 /**
  * A `Runner` that provides a default testable environment.
