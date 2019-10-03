@@ -34,11 +34,11 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test:run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run;testTestsJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test:run;testTestsJS/test;examplesJS/test:compile"
 )
 
 lazy val root = project
@@ -170,9 +170,13 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(skip in publish := true)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testTestsJVM = testTests.jvm
+lazy val testTestsJVM = testTests.jvm.settings(
+  mainClass in Test := Some("zio.test.TestMain")
+)
 lazy val testTestsJS = testTests.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test,
+  scalaJSUseMainModuleInitializer in Test := true,
+  mainClass in Test := Some("zio.test.TestMain")
 )
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
