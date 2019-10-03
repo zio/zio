@@ -17,7 +17,7 @@ object TestUtils {
   final def failedWith[E](spec: ZSpec[MockEnvironment, E, String, Any])(pred: E => Boolean) =
     forAllTests(execute(spec)) {
       case Left(zio.test.TestFailure.Runtime(Cause.Fail(e))) => pred(e)
-      case _                                                    => false
+      case _                                                 => false
     }
 
   final def forAllTests[L, E, S](

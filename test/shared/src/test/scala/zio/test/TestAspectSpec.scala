@@ -176,7 +176,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       "Runtime", {
         case TestFailure.Runtime(Cause.Die(e))            => Some(e)
         case TestFailure.Runtime(Traced(Cause.Die(e), _)) => Some(e)
-        case x                                       =>
+        case x =>
           println(x)
           None
       },
