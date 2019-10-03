@@ -48,11 +48,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     BackPressure $broadcastBackPressure
     Unsubscribe  $broadcastUnsubscribe
 
-  Stream.buffer
-    buffer the Stream                      $bufferStream
-    buffer the Stream with Error           $bufferStreamError
-    fast producer progress independently   $bufferFastProducerSlowConsumer
-
   Stream.catchAllCause
     recovery from errors                 $catchAllCauseErrors
     recovery from defects                $catchAllCauseDefects
@@ -543,40 +538,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
           ZIO.fail("Wrong number of streams produced")
       }
     }
-
-  private def bufferStream = prop { list: List[Int] =>
-    unsafeRunSync(
-      Stream
-        .fromIterable(list)
-        .buffer(2)
-        .run(Sink.collectAll[Int])
-    ) must_== (Success(list))
-  }
-
-  private def bufferStreamError = {
-    val e = new RuntimeException("boom")
-    unsafeRunSync(
-      (Stream.range(0, 10) ++ Stream.fail(e))
-        .buffer(2)
-        .run(Sink.collectAll[Int])
-    ) must_== Failure(Cause.Fail(e))
-  }
-
-  private def bufferFastProducerSlowConsumer =
-    unsafeRun(
-      for {
-        ref   <- Ref.make(List[Int]())
-        latch <- Promise.make[Nothing, Unit]
-        s     = Stream.range(1, 5).tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4)).buffer(2)
-        l <- s.process.use { as =>
-              for {
-                _ <- as
-                _ <- latch.await
-                l <- ref.get
-              } yield l
-            }
-      } yield l.reverse must_=== (1 to 4).toList
-    )
 
   private def catchAllCauseErrors =
     unsafeRun {
