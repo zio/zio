@@ -291,7 +291,7 @@ object MockClock {
   def makeMock(data: Data): UIO[Mock] =
     for {
       ref      <- Ref.make(data)
-      fiberRef <- FiberRef.make(FiberData(data.nanoTime))
+      fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine)
     } yield Mock(ref, fiberRef)
 
   /**
@@ -342,6 +342,11 @@ object MockClock {
   )
 
   case class FiberData(nanoTime: Long)
+
+  object FiberData {
+    def combine(first: FiberData, last: FiberData): FiberData =
+      FiberData(first.nanoTime max last.nanoTime)
+  }
 
   private def offset(millis: Long, timeZone: ZoneId): OffsetDateTime =
     OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), timeZone)

@@ -29,7 +29,8 @@ object ClockSpec extends ZIOBaseSpec {
     label(e14, "setTimeZone correctly sets timeZone"),
     label(e15, "setTimeZone does not produce sleeps "),
     label(e16, "timeout example from documentation works correctly"),
-    label(e17, "recurrence example from documentation works correctly")
+    label(e17, "recurrence example from documentation works correctly"),
+    label(e18, "fiber time is not subject to race conditions")
   )
 
   def e1 =
@@ -220,6 +221,19 @@ object ClockSpec extends ZIOBaseSpec {
           e <- q.poll.map(_.isEmpty)
         } yield a && b && c && d && e
         io.provideM(MockClock.make(MockClock.DefaultData))
+      }
+    }
+
+  def e18 =
+    unsafeRunToFuture {
+      nonFlaky {
+        for {
+          mockClock <- MockClock.makeMock(DefaultData)
+          fiber     <- mockClock.sleep(2.millis).zipPar(mockClock.sleep(1.millis)).fork
+          _         <- mockClock.adjust(2.millis)
+          _         <- fiber.join
+          result    <- mockClock.fiberState.get
+        } yield result.nanoTime == 2000000L
       }
     }
 }
