@@ -2,7 +2,7 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ Cause, Schedule, UIO, ZIO }
+import zio.{ Schedule, UIO, ZIO }
 import zio.clock.Clock
 import zio.test.environment.TestEnvironment
 
@@ -16,15 +16,15 @@ object TestUtils {
 
   final def failedWith(spec: ZSpec[TestEnvironment, Any, String, Any], pred: Throwable => Boolean) =
     forAllTests(execute(spec)) {
-      case Left(zio.test.TestFailure.Runtime(Cause.Die(cause))) => pred(cause)
-      case _                                                    => false
+      case Left(TestFailure.Runtime(cause)) => cause.dieOption.fold(false)(pred)
+      case _                                => false
     }
 
   final def forAllTests[L, E, S](
     execSpec: UIO[ExecutedSpec[L, E, S]]
   )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
-    execSpec.map { results =>
-      results.forall { case Spec.TestCase(_, test) => f(test); case _ => true }
+    execSpec.flatMap { results =>
+      results.forall { case Spec.TestCase(_, test) => test.map(f); case _ => ZIO.succeed(true) }
     }
 
   final def ignored[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {

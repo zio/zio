@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.Cause.{ Die, Traced }
+import zio.Cause._
 
 import scala.concurrent.Future
 import zio.clock.Clock
@@ -173,13 +173,15 @@ object TestAspectSpec extends ZIOBaseSpec {
       )
     }
 
-  private def failsWithException[T <: Throwable](implicit ct: ClassTag[T]): Assertion[TestFailure[Any]] =
+  private def failsWithException[E](implicit ct: ClassTag[E]): Assertion[TestFailure[E]] =
     isCase(
       "Runtime", {
-        case TestFailure.Runtime(Die(e))            => Some(e)
-        case TestFailure.Runtime(Traced(Die(e), _)) => Some(e)
-        case _                                      => None
+        case TestFailure.Runtime(Cause.Die(e))            => Some(e)
+        case TestFailure.Runtime(Traced(Cause.Die(e), _)) => Some(e)
+        case x =>
+          println(x)
+          None
       },
-      isSubtype[T](anything)
+      isSubtype[E](anything)
     )
 }

@@ -679,7 +679,7 @@ object ZIOSpec
               } yield r
 
             assertM(io.eventually, equalTo((1, 2)))
-          } @@ flaky,
+          } @@ ignore,
           testM("race of fail with success") {
             val io = IO.fail(42).race(IO.succeed(24)).either
             assertM(io, isRight(equalTo(24)))

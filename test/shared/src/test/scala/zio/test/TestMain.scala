@@ -21,6 +21,7 @@ object TestMain {
       ("GenSpec", GenSpec),
       ("GenZIOSpec", GenZIOSpec),
       ("LiveSpec", LiveSpec),
+      ("ManagedSpec", ManagedSpec),
       ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec),

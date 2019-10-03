@@ -19,12 +19,13 @@ package zio.test
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-abstract class RunnableSpec[L, T, E, S](runner0: TestRunner[L, T, E, S])(spec0: => Spec[L, T])
+abstract class RunnableSpec[R, L, T, E, S](runner0: TestRunner[R, L, T, E, S])(spec0: => Spec[R, E, L, T])
     extends AbstractRunnableSpec {
-  override type Label   = L
-  override type Test    = T
-  override type Failure = E
-  override type Success = S
+  override type Environment = R
+  override type Label       = L
+  override type Test        = T
+  override type Failure     = E
+  override type Success     = S
 
   override def runner = runner0
   override def spec   = spec0
