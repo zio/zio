@@ -1,10 +1,10 @@
-package zio.test.mock
+package zio.test.environment
 
 import scala.concurrent.Future
 import scala.util.{ Random => SRandom }
 
 import zio.{ Chunk, UIO }
-import zio.test.mock.MockRandom.{ DefaultData, Mock }
+import zio.test.environment.TestRandom.{ DefaultData, Test }
 import zio.test.Async
 import zio.test.TestUtils.label
 import zio.test.ZIOBaseSpec
@@ -45,20 +45,20 @@ object RandomSpec extends ZIOBaseSpec {
   )
 
   def referentiallyTransparent: Future[Boolean] = {
-    val mock = MockRandom.makeMock(DefaultData)
-    val x    = unsafeRun(mock.flatMap[Any, Nothing, Int](_.nextInt))
-    val y    = unsafeRun(mock.flatMap[Any, Nothing, Int](_.nextInt))
+    val test = TestRandom.makeTest(DefaultData)
+    val x    = unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
+    val y    = unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
     Future.successful(x == y)
   }
 
-  def forAllEqual[A](f: Mock => UIO[A])(g: SRandom => A): Future[Boolean] = {
+  def forAllEqual[A](f: Test => UIO[A])(g: SRandom => A): Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     unsafeRunToFuture {
       for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
-        actual     <- UIO.foreach(List.fill(100)(()))(_ => f(mockRandom))
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- UIO.foreach(List.fill(100)(()))(_ => f(testRandom))
         expected   = List.fill(100)(g(sRandom))
       } yield actual == expected
     }
@@ -69,9 +69,9 @@ object RandomSpec extends ZIOBaseSpec {
     val sRandom = new SRandom(seed)
     unsafeRunToFuture {
       for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
-        actual     <- UIO.foreach(List.range(0, 100))(mockRandom.nextBytes(_))
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- UIO.foreach(List.range(0, 100))(testRandom.nextBytes(_))
         expected = List.range(0, 100).map(new Array[Byte](_)).map { arr =>
           sRandom.nextBytes(arr)
           Chunk.fromArray(arr)
@@ -85,87 +85,87 @@ object RandomSpec extends ZIOBaseSpec {
     val sRandom = new SRandom(seed)
     unsafeRunToFuture {
       for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
-        actual     <- UIO.foreach(List.fill(100)(()))(_ => mockRandom.nextGaussian)
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- UIO.foreach(List.fill(100)(()))(_ => testRandom.nextGaussian)
         expected   = List.fill(100)(sRandom.nextGaussian)
       } yield actual.zip(expected).forall { case (x, y) => math.abs(x - y) < 0.01 }
     }
   }
 
-  def forAllEqualN[A](f: (Mock, Int) => UIO[A])(g: (SRandom, Int) => A): Future[Boolean] = {
+  def forAllEqualN[A](f: (Test, Int) => UIO[A])(g: (SRandom, Int) => A): Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     unsafeRunToFuture {
       for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
-        actual     <- UIO.foreach(1 to 100)(f(mockRandom, _))
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- UIO.foreach(1 to 100)(f(testRandom, _))
         expected   = (1 to 100).map(g(sRandom, _))
       } yield actual == expected
     }
   }
 
   def forAllEqualShuffle(
-    f: (Mock, List[Int]) => UIO[List[Int]]
+    f: (Test, List[Int]) => UIO[List[Int]]
   )(g: (SRandom, List[Int]) => List[Int]): Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     unsafeRunToFuture {
       for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
-        actual     <- UIO.foreach(List.range(0, 100).map(List.range(0, _)))(f(mockRandom, _))
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- UIO.foreach(List.range(0, 100).map(List.range(0, _)))(f(testRandom, _))
         expected   = List.range(0, 100).map(List.range(0, _)).map(g(sRandom, _))
       } yield actual == expected
     }
   }
 
-  def forAllBounded[A: Numeric](bound: SRandom => A)(f: (Mock, A) => UIO[A]): Future[Boolean] = {
+  def forAllBounded[A: Numeric](bound: SRandom => A)(f: (Test, A) => UIO[A]): Future[Boolean] = {
     val num = implicitly[Numeric[A]]
     import num._
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     unsafeRunToFuture {
       for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
         bounds     = List.fill(100)(num.abs(bound(sRandom)) max one)
-        actual     <- UIO.foreach(bounds)(f(mockRandom, _))
+        actual     <- UIO.foreach(bounds)(f(testRandom, _))
       } yield actual.zip(bounds).forall { case (a, n) => zero <= a && a < n }
     }
   }
 
   def checkFeed[A](
     generate: SRandom => A
-  )(feed: (Mock, List[A]) => UIO[Unit])(extract: Mock => UIO[A]): Future[Boolean] = {
+  )(feed: (Test, List[A]) => UIO[Unit])(extract: Test => UIO[A]): Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     unsafeRunToFuture {
       for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
         values     = List.fill(100)(generate(sRandom))
-        _          <- feed(mockRandom, values)
-        results    <- UIO.foreach(List.range(0, 100))(_ => extract(mockRandom))
-        random     <- extract(mockRandom)
+        _          <- feed(testRandom, values)
+        results    <- UIO.foreach(List.range(0, 100))(_ => extract(testRandom))
+        random     <- extract(testRandom)
       } yield results == values && random == generate(new SRandom(seed))
     }
   }
 
   def checkClear[A](
     generate: SRandom => A
-  )(feed: (Mock, List[A]) => UIO[Unit])(clear: Mock => UIO[Unit])(extract: Mock => UIO[A]): Future[Boolean] = {
+  )(feed: (Test, List[A]) => UIO[Unit])(clear: Test => UIO[Unit])(extract: Test => UIO[A]): Future[Boolean] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     unsafeRunToFuture {
       for {
-        mockRandom <- MockRandom.makeMock(DefaultData)
-        _          <- mockRandom.setSeed(seed)
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
         value      = generate(sRandom)
-        _          <- feed(mockRandom, List(value))
-        _          <- clear(mockRandom)
-        random     <- extract(mockRandom)
+        _          <- feed(testRandom, List(value))
+        _          <- clear(testRandom)
+        random     <- extract(testRandom)
       } yield random == generate(new SRandom(seed))
     }
   }

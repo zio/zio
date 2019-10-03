@@ -14,7 +14,7 @@ import BenchUtils._
 @Measurement(iterations = 10, time = 1)
 @Fork(5)
 @State(Scope.Group)
-class ProducerConsumerBenchmark {
+private[this] class ProducerConsumerBenchmark {
   val DELAY_PRODUCER: Long = 100L
   val DELAY_CONSUMER: Long = 100L
 

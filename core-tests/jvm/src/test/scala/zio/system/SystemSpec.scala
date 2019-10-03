@@ -2,7 +2,7 @@ package zio
 package system
 
 import zio.test._
-import zio.test.mock._
+import zio.test.environment.live
 import zio.test.Assertion._
 
 import scala.reflect.io.File

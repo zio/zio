@@ -27,11 +27,11 @@ private[scheduler] object internal {
   private[scheduler] val GlobalScheduler = new IScheduler {
     import IScheduler.CancelToken
 
-    val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
+    private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
 
-    val ConstFalse = () => false
+    private[this] val ConstFalse = () => false
 
-    val _size = new AtomicInteger()
+    private[this] val _size = new AtomicInteger()
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse

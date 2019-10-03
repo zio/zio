@@ -76,6 +76,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     concat                  $concat
     finalizer order         $concatFinalizerOrder
 
+  Stream.chunkN             $chunkN
+
   Stream.drain              $drain
 
   Stream.dropUntil
@@ -138,6 +140,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     first                                                 $groupByFirst
     filter                                                $groupByFilter
     outer errors                                          $groupByErrorsOuter
+
+  Stream.grouped            $grouped
 
   Stream interleaving
     interleave              $interleave
@@ -678,6 +682,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       } yield execution must_=== List("First", "Second")
     }
 
+  private def chunkN =
+    unsafeRun(
+      Stream(1, 2, 3, 4).chunkN(2).map(_.toSeq).run(ZSink.collectAll[Seq[Int]]).map { result =>
+        result must_=== List(Seq(1, 2), Seq(3, 4))
+      }
+    )
+
   private def drain =
     unsafeRun(
       for {
@@ -1210,6 +1221,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         .either
         .map(_ must_=== Left("Boom"))
     }
+
+  private def grouped =
+    unsafeRun(
+      Stream(1, 2, 3, 4).grouped(2).run(ZSink.collectAll[List[Int]]).map { result =>
+        result must_=== List(List(1, 2), List(3, 4))
+      }
+    )
 
   private def map =
     prop { (s: Stream[String, Byte], f: Byte => Int) =>
@@ -1822,10 +1840,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   }
 
   private def zipWithLatest = nonFlaky {
-    import zio.test.mock.MockClock
+    import zio.test.environment.TestClock
 
     for {
-      clock <- MockClock.make(MockClock.DefaultData)
+      clock <- TestClock.make(TestClock.DefaultData)
       s1    = Stream.iterate(0)(_ + 1).fixed(100.millis).provide(clock)
       s2    = Stream.iterate(0)(_ + 1).fixed(70.millis).provide(clock)
       s3    = s1.zipWithLatest(s2)((_, _))

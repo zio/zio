@@ -1,9 +1,9 @@
-package zio.test.mock
+package zio.test.environment
 
 import java.io.{ ByteArrayOutputStream, PrintStream }
 
 import zio.test.Async
-import zio.test.mock.MockConsole.Data
+import zio.test.environment.TestConsole.Data
 import zio.test.TestUtils.label
 import zio.test.ZIOBaseSpec
 
@@ -25,45 +25,45 @@ object ConsoleSpec extends ZIOBaseSpec {
   def emptyOutput =
     unsafeRunToFuture(
       for {
-        mockConsole <- MockConsole.makeMock(Data())
-        output      <- mockConsole.output
+        testConsole <- TestConsole.makeTest(Data())
+        output      <- testConsole.output
       } yield output.isEmpty
     )
 
   def putStr =
     unsafeRunToFuture(
       for {
-        mockConsole <- MockConsole.makeMock(Data())
-        _           <- mockConsole.putStr("First line")
-        _           <- mockConsole.putStr("Second line")
-        output      <- mockConsole.output
+        testConsole <- TestConsole.makeTest(Data())
+        _           <- testConsole.putStr("First line")
+        _           <- testConsole.putStr("Second line")
+        output      <- testConsole.output
       } yield output == Vector("First line", "Second line")
     )
 
   def putStrLn =
     unsafeRunToFuture(
       for {
-        mockConsole <- MockConsole.makeMock(Data())
-        _           <- mockConsole.putStrLn("First line")
-        _           <- mockConsole.putStrLn("Second line")
-        output      <- mockConsole.output
+        testConsole <- TestConsole.makeTest(Data())
+        _           <- testConsole.putStrLn("First line")
+        _           <- testConsole.putStrLn("Second line")
+        output      <- testConsole.output
       } yield output == Vector("First line\n", "Second line\n")
     )
 
   def getStr1 =
     unsafeRunToFuture(
       for {
-        mockConsole <- MockConsole.makeMock(Data(List("Input 1", "Input 2"), Vector.empty))
-        input1      <- mockConsole.getStrLn
-        input2      <- mockConsole.getStrLn
+        testConsole <- TestConsole.makeTest(Data(List("Input 1", "Input 2"), Vector.empty))
+        input1      <- testConsole.getStrLn
+        input2      <- testConsole.getStrLn
       } yield (input1 == "Input 1") && (input2 == "Input 2")
     )
 
   def getStr2 =
     unsafeRunToFuture(
       for {
-        mockConsole <- MockConsole.makeMock(Data())
-        failed      <- mockConsole.getStrLn.either
+        testConsole <- TestConsole.makeTest(Data())
+        failed      <- testConsole.getStrLn.either
         message     = failed.fold(_.getMessage, identity)
       } yield (failed.isLeft) && (message == "There is no more input left to read")
     )
@@ -71,19 +71,19 @@ object ConsoleSpec extends ZIOBaseSpec {
   def feedLine =
     unsafeRunToFuture(
       for {
-        mockConsole <- MockConsole.makeMock(Data())
-        _           <- mockConsole.feedLines("Input 1", "Input 2")
-        input1      <- mockConsole.getStrLn
-        input2      <- mockConsole.getStrLn
+        testConsole <- TestConsole.makeTest(Data())
+        _           <- testConsole.feedLines("Input 1", "Input 2")
+        input1      <- testConsole.getStrLn
+        input2      <- testConsole.getStrLn
       } yield (input1 == "Input 1") && (input2 == "Input 2")
     )
 
   def clearInput =
     unsafeRunToFuture(
       for {
-        mockConsole <- MockConsole.makeMock(Data(List("Input 1", "Input 2"), Vector.empty))
-        _           <- mockConsole.clearInput
-        failed      <- mockConsole.getStrLn.either
+        testConsole <- TestConsole.makeTest(Data(List("Input 1", "Input 2"), Vector.empty))
+        _           <- testConsole.clearInput
+        failed      <- testConsole.getStrLn.either
         message     = failed.fold(_.getMessage, identity)
       } yield (failed.isLeft) && (message == "There is no more input left to read")
     )
@@ -91,9 +91,9 @@ object ConsoleSpec extends ZIOBaseSpec {
   def clearOutput =
     unsafeRunToFuture(
       for {
-        mockConsole <- MockConsole.makeMock(Data(List.empty, Vector("First line", "Second line")))
-        _           <- mockConsole.clearOutput
-        output      <- mockConsole.output
+        testConsole <- TestConsole.makeTest(Data(List.empty, Vector("First line", "Second line")))
+        _           <- testConsole.clearOutput
+        output      <- testConsole.output
       } yield output == Vector.empty
     )
 }
