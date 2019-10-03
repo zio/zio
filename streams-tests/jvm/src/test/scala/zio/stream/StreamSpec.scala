@@ -1809,10 +1809,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   }
 
   private def zipWithLatest = nonFlaky {
-    import zio.test.mock.MockClock
+    import zio.test.environment.TestClock
 
     for {
-      clock <- MockClock.make(MockClock.DefaultData)
+      clock <- TestClock.make(TestClock.DefaultData)
       s1    = Stream.iterate(0)(_ + 1).fixed(100.millis).provide(clock)
       s2    = Stream.iterate(0)(_ + 1).fixed(70.millis).provide(clock)
       s3    = s1.zipWithLatest(s2)((_, _))

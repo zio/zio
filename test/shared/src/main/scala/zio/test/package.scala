@@ -17,7 +17,7 @@
 package zio
 
 import zio.duration.Duration
-import zio.test.mock.MockEnvironment
+import zio.test.environment.TestEnvironment
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -167,6 +167,6 @@ package object test extends CheckVariants {
       aspect(spec)
   }
 
-  val defaultTestRunner: TestRunner[MockEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any] =
-    TestRunner(TestExecutor.managed(zio.test.mock.mockEnvironmentManaged))
+  val defaultTestRunner: TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any] =
+    TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
 }

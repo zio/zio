@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.test.mock
 
-import zio.test.environment._
+import zio.test.Assertion
 
-/**
- * A `Runner` that provides a default testable environment.
- */
-object DefaultTestRunner
-    extends TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any](
-      TestExecutor.managed(testEnvironmentManaged)
-    ) {}
+final case class Expectation[A, B](
+  method: Method[A, B],
+  assertion: Assertion[A]
+)

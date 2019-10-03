@@ -2,7 +2,8 @@ package zio.test
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import zio.test.mock._
+import zio.test.mock.MockSpecSpec
+import zio.test.environment._
 import zio.test.TestUtils.{ report, scope }
 
 object TestMain {
@@ -21,6 +22,7 @@ object TestMain {
       ("GenZIOSpec", GenZIOSpec),
       ("LiveSpec", LiveSpec),
       ("ManagedSpec", ManagedSpec),
+      ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec),
       ("SchedulerSpec", SchedulerSpec),
