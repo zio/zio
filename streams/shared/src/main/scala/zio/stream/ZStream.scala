@@ -625,7 +625,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
         def finishStream(exit: Exit[Option[E], Nothing], fiber: Fiber[Nothing, A1]): Pull[Any, E, Nothing] =
           fiber.interrupt *> exit.fold(
-            c => Pull.sequenceCauseOption(c).fold[Pull[Any, E, Nothing]](Pull.end)(Pull.halt),
+            c => Cause.sequenceCauseOption(c).fold[Pull[Any, E, Nothing]](Pull.end)(Pull.halt),
             identity
           )
 
