@@ -9,7 +9,8 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.2" % "test")
+  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.2" % "test")
+  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.4"  % "provided" cross CrossVersion.full)
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -154,7 +155,7 @@ object BuildHelper {
     crossScalaVersions := Seq("2.12.10", "2.13.1", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
-    libraryDependencies ++= testDeps,
+    libraryDependencies ++= compileOnlyDeps ++ testDeps,
     libraryDependencies ++= {
       if (isDotty.value)
         Seq()
