@@ -1,19 +1,18 @@
 package zio.test
 
-import zio.DefaultRuntime
-
 import scala.concurrent.Future
 import scala.math.abs
 
 import zio.{ random, ZIO }
 import zio.test.TestUtils.{ label }
 
-object FunSpec extends DefaultRuntime {
+object FunSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(funConvertsEffectsIntoPureFunctions, "fun converts effects into pure functions"),
     label(funDoesNotHaveRaceConditions, "fun does not have race conditions"),
-    label(funIsShowable, "fun is showable")
+    label(funIsShowable, "fun is showable"),
+    label(funIsSupportedOnScalaJS, "fun is supported on Scala.js")
   )
 
   def funConvertsEffectsIntoPureFunctions: Future[Boolean] =
@@ -40,5 +39,13 @@ object FunSpec extends DefaultRuntime {
         q = f("Haskell")
       } yield f.toString == s"Fun(Scala -> $p, Haskell -> $q)" ||
         f.toString == s"Fun(Haskell -> $q, Scala -> $p)"
+    }
+
+  def funIsSupportedOnScalaJS: Future[Boolean] =
+    unsafeRunToFuture {
+      for {
+        f <- Fun.make((_: Int) => ZIO.foreach(List.range(0, 100000))(ZIO.succeed))
+        _ = f(1)
+      } yield true
     }
 }

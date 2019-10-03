@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import zio._
 import zio.clock.Clock
-import zio.duration.Duration
+import zio.duration._
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
 import zio.scheduler.Scheduler
@@ -103,6 +103,7 @@ object MockClock {
 
   trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] {
     def adjust(duration: Duration): UIO[Unit]
+    def fiberTime: UIO[Duration]
     def setTime(duration: Duration): UIO[Unit]
     def setTimeZone(zone: ZoneId): UIO[Unit]
     def sleeps: UIO[List[Duration]]
@@ -141,6 +142,21 @@ object MockClock {
      */
     final def currentTime(unit: TimeUnit): UIO[Long] =
       clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
+
+    /**
+     * Returns how much time must have passed for the fiber to reach its current state.
+     * This basically accumulates all sleeps and handles sleeps of fork/joined fibers correctly.
+     *
+     * for {
+     *   mockClock <- MockClock.makeMock(DefaultData)
+     *   _         <- mockClock.set(Duration.Infinity)
+     *   fiber     <- mockClock.sleep(2.millis).zipPar(mockClock.sleep(1.millis)).fork
+     *   _         <- fiber.join
+     *   result    <- mockClock.fiberTime
+     * } yield result.toNanos == 2000000L
+     */
+    final def fiberTime: UIO[Duration] =
+      fiberState.get.map(_.nanoTime.nanos)
 
     /**
      * Returns the current clock time in nanoseconds.
@@ -291,7 +307,7 @@ object MockClock {
   def makeMock(data: Data): UIO[Mock] =
     for {
       ref      <- Ref.make(data)
-      fiberRef <- FiberRef.make(FiberData(data.nanoTime))
+      fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine)
     } yield Mock(ref, fiberRef)
 
   /**
@@ -342,6 +358,11 @@ object MockClock {
   )
 
   case class FiberData(nanoTime: Long)
+
+  object FiberData {
+    def combine(first: FiberData, last: FiberData): FiberData =
+      FiberData(first.nanoTime max last.nanoTime)
+  }
 
   private def offset(millis: Long, timeZone: ZoneId): OffsetDateTime =
     OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), timeZone)

@@ -6,7 +6,7 @@ import zio.Exit
 import zio.test.Assertion._
 import zio.test.TestUtils.label
 
-object AssertionSpec {
+object AssertionSpec extends ZIOBaseSpec {
 
   private def test(assertion: Boolean, message: String): Async[(Boolean, String)] =
     label(Future.successful(assertion), s"AssertionTest: $message")
@@ -225,6 +225,106 @@ object AssertionSpec {
     test(
       !nameStartsWithA.test(sampleUser),
       message = "test must return false when given element does not satisfy assertion"
+    ),
+    testSuccess(
+      assert("this is a value", containsString("is a")),
+      message = "containsString must succeed when string is found"
+    ),
+    testFailure(
+      assert("this is a value", containsString("_NOTHING_")),
+      message = "containsString must return false when the string is not contained"
+    ),
+    testSuccess(
+      assert("", isEmptyString),
+      message = "isEmptyString must succeed when the string is empty"
+    ),
+    testFailure(
+      assert("some string", isEmptyString),
+      message = "isEmptyString must fail when the string is not empty"
+    ),
+    testSuccess(
+      assert("some string", isNonEmptyString),
+      message = "isNonEmptyString must succeed when the string is not empty"
+    ),
+    testFailure(
+      assert("", isNonEmptyString),
+      message = "isNonEmptyString must fail when the string is empty"
+    ),
+    testSuccess(
+      assert("Some String", equalsIgnoreCase("some string")),
+      message = "equalsIgnoreCase must succeed when the supplied value matches"
+    ),
+    testFailure(
+      assert("Some Other String", equalsIgnoreCase("some string")),
+      message = "equalsIgnoreCase must fail when the supplied value does not match"
+    ),
+    testSuccess(
+      assert("zio", startsWith("z")),
+      message = "startsWith must succeed when the supplied value starts with the specified string"
+    ),
+    testFailure(
+      assert("zio", startsWith("o")),
+      message = "startsWith must fail when the supplied value does not start with the specified string"
+    ),
+    testSuccess(
+      assert("zio", endsWith("o")),
+      message = "endsWith must succeed when the supplied value ends with the specified string"
+    ),
+    testFailure(
+      assert("zio", endsWith("z")),
+      message = "endsWith must fail when the supplied value does not end with the specified string"
+    ),
+    testSuccess(
+      assert("(123) 456-7890", matchesRegex("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$")),
+      message = "matches must succeed when the string matches the regex"
+    ),
+    testFailure(
+      assert("456-7890", matchesRegex("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$")),
+      message = "matches must fail when the string does not match the regex"
+    ),
+    testSuccess(
+      assert(5.5, approximatelyEquals(5.0, 3.0)),
+      message = "approximatelyEquals must succeed when number is within range"
+    ),
+    testFailure(
+      assert(50.0, approximatelyEquals(5.0, 3.0)),
+      message = "approximatelyEquals must fail when number is not within range"
+    ),
+    testSuccess(
+      assert(Seq(), isEmpty),
+      message = "isEmpty must succeed when the traversable is empty"
+    ),
+    testFailure(
+      assert(Seq(1, 2, 3), isEmpty),
+      message = "isEmpty must fail when the traversable is not empty"
+    ),
+    testSuccess(
+      assert(Seq(1, 2, 3), isNonEmpty),
+      message = "isNonEmpty must succeed when the traversable is not empty"
+    ),
+    testFailure(
+      assert(Seq(), isNonEmpty),
+      message = "isNonEmpty must fail when the traversable is empty"
+    ),
+    testSuccess(
+      assert(Seq(1, 2, 3), hasSameElements(Seq(1, 2, 3))),
+      message = "containsTheSameElements must succeed when both iterables contain the same elements"
+    ),
+    testFailure(
+      assert(Seq(1, 2, 3, 4), hasSameElements(Seq(1, 2, 3))),
+      message = "containsTheSameElements must fail when the iterables do not contain the same elements"
+    ),
+    testSuccess(
+      assert(Seq(4, 3, 1, 2), hasSameElements(Seq(1, 2, 3, 4))),
+      message = "containsTheSameElements must succeed when both iterables contain the same elements in different order"
+    ),
+    testFailure(
+      assert(
+        Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"),
+        hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
+      ),
+      message =
+        "hasSameElements must fail when both iterables have the same size, have the same values but they appear a different number of times."
     )
   )
 }

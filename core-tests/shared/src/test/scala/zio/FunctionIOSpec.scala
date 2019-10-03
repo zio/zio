@@ -1,202 +1,139 @@
 package zio
 
 import zio.FunctionIO._
+import zio.test._
+import zio.test.Assertion._
+import FunctionIOSpecUtils._
 
-class FunctionIOSpec extends BaseCrossPlatformSpec {
-  def is = "FunctionIOSpec".title ^ s2"""
-   Check if the functions in `FunctionIO` work correctly
-     `fromFunction` lifts from A => B into effectful function $e1
-     `identity` returns the identity of the input without modification $e2
-     `>>>` is a symbolic operator of `andThen`which does a Backwards composition of effectful functions $e3
-     `<<<` is a symbolic operator of `compose` which compose two effectful functions $e4
-     `zipWith` zips the output of two effectful functions $e5
-     `&&&` zips the output of two effectful functions and returns a tuple of their result $e6
-     `|||` computes two effectful functions left and right from from an Either input $e7
-     `first` returns a tuple: the output on the first element and input on the second element $e8
-     `second` returns a tuple: the input on the first element and output on the second element $e9
-     `left` takes an Either as input and computes it if it is Left otherwise returns the same value of the input $e10
-     `right`takes an Either as input and computes it if it is Right otherwise returns the same value of the input   $e11
-     `asEffect` returns the input value $e12
-     `test` check a condition and returns an Either output: Left if the condition is true otherwise false $e13
-     `ifThenElse` check an impure condition if it is true then computes an effectful function `then0` else computes `else0` $e14a
-     `ifThenElse` check a pure condition if it is true then computes an effectful function `then0` else computes `else0` $e14b
-     `whileDo` take a condition and run the body until the condition will be  false with impure function $e15a
-     `whileDo` take a condition and run the body until the condition will be  false with pure function $e15b
-     `_1` extracts out the first element of a tuple $e16
-     `_2` extracts out the second element of a tuple $e17
-     `fail` returns a failure  $e18a
-     `effect` can translate an Exception to an error  $e18b
-     `ignore` ignores a effect failure $e19
-    """
+object FunctionIOSpec
+    extends ZIOBaseSpec(
+      suite("FunctionIOSpec")(
+        suite("Check if the functions in `FunctionIO` work correctly")(
+          testM("`fromFunction` lifts from A => B into effectful function") {
+            assertM(add1.run(4), equalTo(5))
+          },
+          testM("`identity` returns the identity of the input without modification") {
+            assertM(identity[Int].run(1), equalTo(1))
+          },
+          testM("`>>>` is a symbolic operator of `andThen`which does a Backwards composition of effectful functions") {
+            assertM((add1 >>> mul2).run(6), equalTo(14))
+          },
+          testM("`<<<` is a symbolic operator of `compose` which compose two effectful functions") {
+            assertM((add1 <<< mul2).run(6), equalTo(13))
+          },
+          testM("`zipWith` zips the output of two effectful functions") {
+            assertM(add1.zipWith(mul2)(_ -> _).run(6), equalTo(7 -> 12))
+          },
+          testM("`&&&` zips the output of two effectful functions and returns a tuple of their result") {
+            assertM((add1 &&& mul2).run(6), equalTo(7 -> 12))
+          },
+          testM("`|||` computes two effectful functions left and right from from an Either input") {
+            for {
+              l1 <- (add1 ||| mul2).run(Left(25))
+              r1 <- (add1 ||| mul2).run(Right(25))
+            } yield assert(l1, equalTo(26)) &&
+              assert(r1, equalTo(50))
+          },
+          testM("`first` returns a tuple: the output on the first element and input on the second element") {
+            assertM(mul2.first.run(100), equalTo(200 -> 100))
+          },
+          testM("`second` returns a tuple: the input on the first element and output on the second element") {
+            assertM(mul2.second.run(100), equalTo(100 -> 200))
+          },
+          testM(
+            "`left` takes an Either as input and computes it if it is Left otherwise returns the same value of the input"
+          ) {
+            for {
+              v1 <- mul2.left[Int].run(Left(6))
+              v2 <- succeed(1).left[String].run(Right("hi"))
+            } yield assert(v1, isLeft(equalTo(12))) && assert(v2, isRight(equalTo("hi")))
+          },
+          testM(
+            "`right`takes an Either as input and computes it if it is Right otherwise returns the same value of the input"
+          ) {
+            for {
+              v1 <- mul2.right[String].run(Left("no value"))
+              v2 <- mul2.right[Int].run(Right(7))
+            } yield assert(v1, isLeft(equalTo("no value"))) && assert(v2, isRight(equalTo(14)))
+          },
+          testM("`asEffect` returns the input value")(
+            assertM(mul2.asEffect.run(56), equalTo(56))
+          ),
+          testM("`test` check a condition and returns an Either output: Left if the condition is true otherwise false") {
+            val tester =
+              FunctionIO.test(fromFunction[List[Int], Boolean](_.sum > 10))
 
-  def e1 =
-    unsafeRun(
-      for {
-        v <- fromFunction[Int, Int](_ + 1).run(4)
-      } yield v must_=== 5
-    )
+            for {
+              v1 <- tester.run(List(1, 2, 5))
+              v2 <- tester.run(List(1, 2, 5, 6))
+            } yield assert(v1, isRight(equalTo(List(1, 2, 5)))) && assert(v2, isLeft(equalTo(List(1, 2, 5, 6))))
+          },
+          suite("`ifThenElse`")(
+            testM(
+              "check an impure condition if it is true then computes an effectful function `then0` else computes `else0`"
+            ) {
+              val checker = ifThenElse(greaterThan0)(succeed("is positive"))(succeed("is negative"))
 
-  def e2 =
-    unsafeRun(
-      for {
-        v <- identity[Int].run(1)
-      } yield v must_=== 1
-    )
+              for {
+                v1 <- checker.run(-1)
+                v2 <- checker.run(1)
+              } yield assert(v1, equalTo("is negative")) && assert(v2, equalTo("is positive"))
+            },
+            testM(
+              "check a pure condition if it is true then computes an effectful function `then0` else computes `else0`"
+            ) {
+              val greaterThan0M = fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0))
+              val checker       = ifThenElse(greaterThan0M)(succeed("is positive"))(succeed("is negative"))
 
-  def e3 =
-    unsafeRun(
-      for {
-        v <- (fromFunction[Int, Int](_ + 1) >>> fromFunction[Int, Int](_ * 2)).run(6)
-      } yield v must_=== 14
-    )
+              for {
+                v1 <- checker.run(-1)
+                v2 <- checker.run(1)
+              } yield assert(v1, equalTo("is negative")) && assert(v2, equalTo("is positive"))
+            }
+          ),
+          suite("`whileDo`")(
+            testM("take a condition and run the body until the condition will be  false with impure function") {
+              assertM(whileDo[Nothing, Int](lessThan10)(add1).run(1), equalTo(10))
+            },
+            testM(
+              "take a condition and run the body until the condition will be  false with pure function"
+            ) {
+              val lestThan10M = fromFunctionM[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10))
+              val add1M       = fromFunctionM[Nothing, Int, Int](a => IO.effectTotal[Int](a + 1))
 
-  def e4 =
-    unsafeRun(
-      for {
-        v <- (fromFunction[Int, Int](_ + 1) <<< fromFunction[Int, Int](_ * 2)).run(6)
-      } yield v must_=== 13
-    )
-
-  def e5 =
-    unsafeRun(
-      for {
-        v <- succeed(1)
-              .zipWith[Nothing, Int, Int, Int](succeed(2))((a, b) => a + b)
-              .run(1)
-      } yield v must_=== 3
-    )
-
-  def e6 =
-    unsafeRun(
-      for {
-        v <- (fromFunction[Int, Int](_ + 1) &&& fromFunction[Int, Int](_ * 2)).run(6)
-      } yield (v._1 must_=== 7) and (v._2 must_=== 12)
-    )
-
-  def e7 =
-    unsafeRun(
-      for {
-        l <- (fromFunction[Int, Int](_ + 1) ||| fromFunction[Int, Int](_ * 2)).run(Left(25))
-        r <- (fromFunction[List[Int], Int](_.sum) ||| fromFunction[List[Int], Int](_.size))
-              .run(Right(List(1, 3, 5, 2, 8)))
-      } yield (l must_=== 26) and (r must_=== 5)
-    )
-
-  def e8 =
-    unsafeRun(
-      for {
-        v <- fromFunction[Int, Int](_ * 2).first.run(100)
-      } yield (v._1 must_=== 200) and (v._2 must_=== 100)
-    )
-
-  def e9 =
-    unsafeRun(
-      for {
-        v <- fromFunction[Int, Int](_ * 2).second.run(100)
-      } yield (v._1 must_=== 100) and (v._2 must_=== 200)
-    )
-  def e10 =
-    unsafeRun(
-      for {
-        v1 <- fromFunction[Int, Int](_ * 2).left[Int].run(Left(6))
-        v2 <- succeed(1).left[String].run(Right("hi"))
-      } yield (v1 must beLeft(12)) and (v2 must beRight("hi"))
-    )
-
-  def e11 =
-    unsafeRun(
-      for {
-        v1 <- fromFunction[Int, Int](_ * 2).right[String].run(Left("no value"))
-        v2 <- fromFunction[Int, Int](_ * 2).right[Int].run(Right(7))
-      } yield (v1 must beLeft("no value")) and (v2 must beRight(14))
-    )
-
-  def e12 =
-    unsafeRun(
-      for {
-        v <- fromFunction[Int, Int](_ * 2).asEffect.run(56)
-      } yield v must_=== 56
-    )
-
-  def e13 =
-    unsafeRun(
-      for {
-        v1 <- FunctionIO.test(fromFunction[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
-        v2 <- FunctionIO.test(fromFunction[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
-      } yield (v1 must beRight(Array(1, 2, 5))) and (v2 must beLeft(Array(1, 2, 5, 6)))
-    )
-
-  def e14a =
-    unsafeRun(
-      for {
-        v1 <- ifThenElse(fromFunction[Int, Boolean](_ > 0))(succeed("is positive"))(
-               succeed("is negative")
-             ).run(-1)
-        v2 <- ifThenElse(fromFunction[Int, Boolean](_ > 0))(succeed("is positive"))(
-               succeed("is negative")
-             ).run(1)
-      } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
+              assertM(whileDo[Nothing, Int](lestThan10M)(add1M).run(1), equalTo(10))
+            }
+          ),
+          testM("`_1` extracts out the first element of a tuple") {
+            assertM(_1[Nothing, Int, String].run((1, "hi")), equalTo(1))
+          },
+          testM("`_2` extracts out the second element of a tuple") {
+            assertM(_2[Nothing, Int, String].run((1, "hi")), equalTo("hi"))
+          },
+          testM("`fail` returns a failure") {
+            assertM(
+              FunctionIO.fail[String]("error").run(1).either,
+              isLeft(equalTo("error"))
+            )
+          },
+          testM("`effect` can translate an Exception to an error") {
+            assertM(thrower.run(9).either, isLeft(equalTo("error")))
+          },
+          testM("`ignore` ignores a effect failure") {
+            assertM(thrower.run(9).ignore, isUnit)
+          }
+        )
+      )
     )
 
-  def e14b =
-    unsafeRun(
-      for {
-        v1 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeed("is positive"))(
-               succeed("is negative")
-             ).run(-1)
-        v2 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeed("is positive"))(
-               succeed("is negative")
-             ).run(1)
-      } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
-    )
+object FunctionIOSpecUtils {
+  val add1: FunctionIO[Nothing, Int, Int] = FunctionIO.fromFunction(_ + 1)
+  val mul2: FunctionIO[Nothing, Int, Int] = FunctionIO.fromFunction(_ * 2)
 
-  def e15a =
-    unsafeRun(
-      for {
-        v <- whileDo[Nothing, Int](fromFunction[Int, Boolean](_ < 10))(fromFunction[Int, Int](_ + 1)).run(1)
-      } yield v must_=== 10
-    )
+  val greaterThan0 = fromFunction[Int, Boolean](_ > 0)
+  val lessThan10   = fromFunction[Int, Boolean](_ < 10)
 
-  def e15b =
-    unsafeRun(
-      for {
-        v <- whileDo[Nothing, Int](fromFunctionM[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10)))(
-              fromFunctionM[Nothing, Int, Int](a => IO.effectTotal[Int](a + 1))
-            ).run(1)
-      } yield v must_=== 10
-    )
-
-  def e16 =
-    unsafeRun(
-      for {
-        v <- _1[Nothing, Int, String].run((1, "hi"))
-      } yield v must_=== 1
-    )
-
-  def e17 =
-    unsafeRun(
-      for {
-        v <- _2[Nothing, Int, String].run((2, "hola"))
-      } yield v must_=== "hola"
-    )
-
-  def e18a =
-    unsafeRun(
-      for {
-        a <- fail[String]("error").run(1).either
-      } yield a must_=== Left("error")
-    )
-  def e18b =
-    unsafeRun(
-      for {
-        a <- effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).either
-      } yield a must_=== Left("error")
-    )
-
-  def e19 =
-    unsafeRun(
-      for {
-        a <- effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).ignore
-      } yield a must be_==(())
-    )
+  val thrower = effect[String, Int, Int] { case _: Throwable => "error" }(
+    _ => throw new Exception
+  )
 }

@@ -8,7 +8,7 @@ import zio.test.mock._
 import zio.test.TestUtils.label
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 
-object DefaultTestReporterSpec extends DefaultRuntime {
+object DefaultTestReporterSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(reportSuccess, "correctly reports a successful test"),
@@ -89,7 +89,7 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def reportStats(success: Int, ignore: Int, failure: Int) = {
     val total = success + ignore + failure
     cyan(
-      s"Ran $total test${if (total == 1) "" else "s"} in 0 ms: $success succeeded, $ignore ignored, $failure failed"
+      s"Ran $total test${if (total == 1) "" else "s"} in 0 ns: $success succeeded, $ignore ignored, $failure failed"
     ) + "\n"
   }
 

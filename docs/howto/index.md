@@ -1,5 +1,5 @@
 ---
-id: advanced_index
+id: howto_index
 title:  "Summary"
 ---
 

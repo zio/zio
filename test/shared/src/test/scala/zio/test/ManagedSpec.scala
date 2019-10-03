@@ -6,7 +6,7 @@ import zio._
 import zio.test.Assertion.equalTo
 import zio.test.TestUtils.{ label, succeeded }
 
-object ManagedSpec extends DefaultRuntime {
+object ManagedSpec extends ZIOBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(managedResourcesCanBeUsedAcrossTests, "managed resources can be used across tests")

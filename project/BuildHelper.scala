@@ -9,7 +9,7 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
+  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.2" % "test")
   val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.2"  % "provided")
 
   private val stdOptions = Seq(
@@ -39,15 +39,22 @@ object BuildHelper {
       )
     else Nil
 
-  val buildInfoSettings = Seq(
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-    buildInfoPackage := "zio",
-    buildInfoObject := "BuildInfo"
-  )
+  def buildInfoSettings(packageName: String) =
+    Seq(
+      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
+      buildInfoPackage := packageName,
+      buildInfoObject := "BuildInfo"
+    )
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.19.1-bin-20190904-beba63a-NIGHTLY",
+    crossScalaVersions += "0.19.0-RC1",
+    scalacOptions ++= {
+      if (isDotty.value)
+        Seq("-noindent")
+      else
+        Seq()
+    },
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
       val old = (Compile / doc / sources).value
