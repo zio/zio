@@ -61,11 +61,11 @@ package object test extends CheckVariants {
   }
 
   /**
-   * A `TestExecutor[L, T, E, S]` is capable of executing specs containing
-   * tests of type `T`, annotated with labels of type `L`, that may fail with
-   * an `E` or succeed with a `S`.
+   * A `TestExecutor[R, L, T, E, S]` is capable of executing specs containing
+   * tests of type `T`, annotated with labels of type `L`, that require an
+   * environment `R` and may fail with an `E` or succeed with a `S`.
    */
-  type TestExecutor[L, -T, +E, +S] = (Spec[L, T], ExecutionStrategy) => UIO[ExecutedSpec[L, E, S]]
+  type TestExecutor[+R, L, -T, E, +S] = (Spec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[L, E, S]]
 
   /**
    * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
@@ -77,7 +77,7 @@ package object test extends CheckVariants {
    * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
    * and may fail with an `E` or succeed with a `S`.
    */
-  type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], TestSuccess[S]]
+  type ZTest[-R, +E, +S] = ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
 
   /**
    * A `ZSpec[R, E, L, S]` is the canonical spec for testing ZIO programs. The
@@ -85,12 +85,12 @@ package object test extends CheckVariants {
    * `E`, might succeed with an `S`, and whose nodes are annotated with labels
    * `L`.
    */
-  type ZSpec[-R, +E, +L, +S] = Spec[L, ZTest[R, E, S]]
+  type ZSpec[-R, +E, +L, +S] = Spec[R, E, L, Either[TestFailure[Nothing], TestSuccess[S]]]
 
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+L, +E, +S] = Spec[L, Either[TestFailure[E], TestSuccess[S]]]
+  type ExecutedSpec[+L, +E, +S] = Spec[Any, Nothing, L, Either[TestFailure[E], TestSuccess[S]]]
 
   /**
    * Checks the assertion holds for the given value.
@@ -110,13 +110,13 @@ package object test extends CheckVariants {
    * Creates a failed test result with the specified runtime cause.
    */
   final def fail[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
-    ZIO.fail(TestFailure.Runtime(cause))
+    ZIO.halt(cause)
 
   /**
    * Creates an ignored test result.
    */
   final val ignore: ZTest[Any, Nothing, Nothing] =
-    ZIO.succeed(TestSuccess.Ignored)
+    ZIO.succeed(Right(TestSuccess.Ignored))
 
   /**
    * Passes platform specific information to the specified function, which will
@@ -131,8 +131,8 @@ package object test extends CheckVariants {
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[L, T](label: L)(specs: Spec[L, T]*): Spec[L, T] =
-    Spec.suite(label, specs.toVector, None)
+  final def suite[R, E, L, T](label: L)(specs: Spec[R, E, L, T]*): Spec[R, E, L, T] =
+    Spec.suite(label, ZIO.succeed(specs.toVector), None)
 
   /**
    * Builds a spec with a single pure test.
@@ -146,14 +146,12 @@ package object test extends CheckVariants {
   final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
     Spec.test(
       label,
-      assertion.foldCauseM(
-        cause => ZIO.fail(TestFailure.Runtime(cause)),
-        result =>
-          result.failures match {
-            case None           => ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
-            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-          }
-      )
+      assertion.map { result =>
+        result.failures match {
+          case None           => Right(TestSuccess.Succeeded(BoolAlgebra.unit))
+          case Some(failures) => Left(TestFailure.Assertion(failures))
+        }
+      }
     )
 
   /**
@@ -169,6 +167,6 @@ package object test extends CheckVariants {
       aspect(spec)
   }
 
-  val defaultTestRunner: TestRunner[String, ZTest[TestEnvironment, Any, Any], Any, Any] =
+  val defaultTestRunner: TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any] =
     TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
 }

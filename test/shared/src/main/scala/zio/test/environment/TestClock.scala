@@ -144,18 +144,22 @@ object TestClock {
       clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
     /**
-     * Returns how much time must have passed for the fiber to reach its current state.
-     * This basically accumulates all sleeps and handles sleeps of fork/joined fibers correctly.
+     * Returns the current fiber time for this fiber. The fiber time is backed
+     * by a `FiberRef` and is incremented for the duration each fiber is
+     * sleeping. When a fiber is joined the fiber time will be set to the
+     * maximum of the fiber time of the parent and child fibers. Thus, the
+     * fiber time reflects the duration of sleeping that has occurred for this
+     * fiber to reach its current state, properly reflecting forks and joins.
      *
+     * {{{
      * for {
-     *   mockClock <- MockClock.makeMock(DefaultData)
-     *   _         <- mockClock.set(Duration.Infinity)
-     *   fiber     <- mockClock.sleep(2.millis).zipPar(mockClock.sleep(1.millis)).fork
-     *   _         <- fiber.join
-     *   result    <- mockClock.fiberTime
+     *   _      <- TestClock.set(Duration.Infinity)
+     *   _      <- ZIO.sleep(2.millis).zipPar(ZIO.sleep(1.millis))
+     *   result <- TestClock.fiberTime
      * } yield result.toNanos == 2000000L
+     * }}}
      */
-    final def fiberTime: UIO[Duration] =
+    final val fiberTime: UIO[Duration] =
       fiberState.get.map(_.nanoTime.nanos)
 
     /**
@@ -286,6 +290,13 @@ object TestClock {
    */
   def adjust(duration: Duration): ZIO[TestClock, Nothing, Unit] =
     ZIO.accessM(_.clock.adjust(duration))
+
+  /**
+   * Accesses a `TestClock` instance in the environment and returns the current
+   * fiber time for this fiber.
+   */
+  val fiberTime: ZIO[TestClock, Nothing, Duration] =
+    ZIO.accessM(_.clock.fiberTime)
 
   /**
    * Constructs a new `TestClock` with the specified initial state. This can

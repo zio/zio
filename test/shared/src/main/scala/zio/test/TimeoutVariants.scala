@@ -40,7 +40,7 @@ trait TimeoutVariants {
         def loop(labels: List[L], spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] =
           spec.caseValue match {
             case Spec.SuiteCase(label, specs, exec) =>
-              Spec.suite(label, specs.map(loop(label :: labels, _)), exec)
+              Spec.suite(label, specs.map(_.map(loop(label :: labels, _))), exec)
             case Spec.TestCase(label, test) =>
               Spec.test(label, warn(labels, label, test, duration))
           }
