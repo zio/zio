@@ -19,7 +19,6 @@ object TestMain {
       ("EnvironmentSpec", EnvironmentSpec),
       ("FunSpec", FunSpec),
       ("GenSpec", GenSpec),
-      ("GenZIOSpec", GenZIOSpec),
       ("LiveSpec", LiveSpec),
       ("ManagedSpec", ManagedSpec),
       ("MockSpecSpec", MockSpecSpec),
