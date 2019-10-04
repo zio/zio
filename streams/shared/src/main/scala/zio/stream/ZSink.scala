@@ -125,7 +125,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Replaces any error produced by this sink.
    */
-  final def asError[E1](e1: E1): ZSink[R, E1, A0, A, B] = self.mapError(_ => e1)
+  final def asError[E1](e1: => E1): ZSink[R, E1, A0, A, B] = self.mapError(_ => e1)
 
   /**
    * Creates a sink where every element of type `A` entering the sink is first

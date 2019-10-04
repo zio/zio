@@ -104,7 +104,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Maps the error value of this effect to the specified constant value.
    */
-  final def asError[E1](e1: E1): ZIO[R, E1, A] = mapError(_ => e1)
+  final def asError[E1](e1: => E1): ZIO[R, E1, A] = mapError(_ => e1)
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
