@@ -88,7 +88,8 @@ object GenSpec extends ZIOBaseSpec {
     label(testBogusReverseProperty, "integration test with bogus reverse property"),
     label(testShrinkingNonEmptyList, "integration test with shrinking nonempty list"),
     label(testBogusEvenProperty, "integration test with bogus even property"),
-    label(testTakeWhileProperty, "integration test with randomly generated functions")
+    label(testTakeWhileProperty, "integration test with randomly generated functions"),
+    label(testSwapProperty, "integration test with multiple parameter function generator")
   )
 
   val smallInt = Gen.int(-10, 10)
@@ -461,6 +462,22 @@ object GenSpec extends ZIOBaseSpec {
         }
       }
       succeeded(takeWhileProp)
+    }
+  }
+
+  def testSwapProperty: Future[Boolean] = {
+    val ints                                  = Gen.anyInt
+    val genFn: Gen[Random, (Int, Int) => Int] = Gen.function2(Gen.anyInt)
+    def swap[A, B, C](f: (A, B) => C): (B, A) => C =
+      (b, a) => f(a, b)
+    unsafeRunToFuture {
+      val swapProp = testM("swap") {
+        check(ints, ints, genFn) { (a, b, f) =>
+          val g = swap(swap(f))
+          assert(f(a, b), equalTo(g(a, b)))
+        }
+      }
+      succeeded(swapProp)
     }
   }
 }
