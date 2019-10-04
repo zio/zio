@@ -17,7 +17,6 @@ object TestMain {
       ("ConsoleSpec", ConsoleSpec),
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("EnvironmentSpec", EnvironmentSpec),
-      ("FunSpec", FunSpec),
       ("GenSpec", GenSpec),
       ("LiveSpec", LiveSpec),
       ("MockSpecSpec", MockSpecSpec),
