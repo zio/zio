@@ -148,8 +148,6 @@ object Gen extends GenZIO with FunctionVariants {
 
   /**
    * A generator of Unicode characters. Shrinks toward '0'.
-   * Heavily inspired from:
-   * https://github.com/typelevel/scalacheck/blob/ab15a9fe012ca7c9feb48ee188e4d167df76d6ba/src/main/scala/org/scalacheck/Arbitrary.scala#L122-L134
    */
   final val anyUnicodeChar: Gen[Random, Char] =
     Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
