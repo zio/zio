@@ -1,10 +1,11 @@
 package zio
 
 import zio.FiberRefSpecUtil._
+import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.TestClock
+import zio.test.environment.Live
 
 object FiberRefSpec
     extends ZIOBaseSpec(
@@ -246,7 +247,7 @@ object FiberRefSpec
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
-  val looseTimeAndCpu: ZIO[TestClock, Nothing, (Int, Int)] = TestClock.adjust(101.nanoseconds) *> ZIO.yieldNow.repeat(
-    Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100)
-  )
+  val looseTimeAndCpu: ZIO[Live[Clock], Nothing, (Int, Int)] = Live.live {
+    ZIO.yieldNow.repeat(Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100))
+  }
 }
