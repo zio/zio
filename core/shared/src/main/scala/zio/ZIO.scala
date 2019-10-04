@@ -871,7 +871,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
                       io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                   }
 
-              inheritFiberRefs = { res: (A1, Fiber[E1, A1]) =>
+              inheritFiberRefs = { (res: (A1, Fiber[E1, A1])) =>
                 res._2.inheritFiberRefs.as(res._1)
               }
 
