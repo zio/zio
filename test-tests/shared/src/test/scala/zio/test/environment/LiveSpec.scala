@@ -2,36 +2,24 @@ package zio.test.environment
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Future
-
-import zio.{ clock, console }
 import zio.duration._
-import zio.test.Async
-import zio.test.TestUtils.label
-import zio.test.ZIOBaseSpec
+import zio.test.Assertion._
+import zio.test.{DefaultRunnableSpec, _}
+import zio.{clock, console}
 
-object LiveSpec extends ZIOBaseSpec {
-
-  val run: List[Async[(Boolean, String)]] = List(
-    label(liveCanAccessRealEnvironment, "live can access real environment"),
-    label(withLiveProvidesRealEnvironmentToSingleEffect, "withLive provides real environment to single effect")
-  )
-
-  def liveCanAccessRealEnvironment: Future[Boolean] =
-    unsafeRunToFuture {
-      val io = for {
+object LiveSpec extends DefaultRunnableSpec(
+  suite("LiveSpec")(
+    testM("live can access real environment"){
+      for {
         test <- clock.currentTime(TimeUnit.MILLISECONDS)
         live <- Live.live(clock.currentTime(TimeUnit.MILLISECONDS))
-      } yield test == 0 && live != 0
-      io.provideManaged(TestEnvironment.Value)
-    }
-
-  def withLiveProvidesRealEnvironmentToSingleEffect: Future[Boolean] =
-    unsafeRunToFuture {
-      val io = for {
+      } yield assert(test, equalTo(0L)) && assert(live, not(equalTo(0L)))
+    },
+    testM("withLive provides real environment to single effect") {
+      for {
         _      <- Live.withLive(console.putStr("woot"))(_.delay(1.nanosecond))
         result <- TestConsole.output
-      } yield result == Vector("woot")
-      io.provideManaged(TestEnvironment.Value)
+      } yield assert(result, equalTo(Vector("woot")))
     }
-}
+  )
+)

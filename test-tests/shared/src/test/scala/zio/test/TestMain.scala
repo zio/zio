@@ -18,7 +18,6 @@ object TestMain {
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("EnvironmentSpec", EnvironmentSpec),
       ("GenSpec", GenSpec),
-      ("LiveSpec", LiveSpec),
       ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec),
