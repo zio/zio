@@ -219,7 +219,7 @@ val id = new TemplateId {}
 val recipients = List.empty[EmailAddress]
 ```
 
-```scala mdoc:fail
+```scala mdoc:fail:silent
 val result =
   Helper
     .send(id, recipients)
@@ -241,7 +241,7 @@ it has 2 unimplemented members.
 
 The compiler error clearly states what is missing and where. As a counterexample, let's see would happen had we used the cake pattern:
 
-```scala mdoc:fail
+```scala mdoc:fail:silent
 trait NewsletterLiveCake extends Newsletter { self: EmailRenderer with Postman =>
   /* ... */
 }
