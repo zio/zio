@@ -5,7 +5,7 @@ import zio.ZIOSpecHelper._
 import zio.clock.Clock
 import zio.duration._
 import zio.test._
-import zio.test.mock._
+import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, ignore, jvm, nonFlaky }
 
@@ -679,7 +679,7 @@ object ZIOSpec
               } yield r
 
             assertM(io.eventually, equalTo((1, 2)))
-          } @@ flaky,
+          } @@ ignore,
           testM("race of fail with success") {
             val io = IO.fail(42).race(IO.succeed(24)).either
             assertM(io, isRight(equalTo(24)))
@@ -1160,7 +1160,7 @@ object ZIOSpec
           testM("returns `Left` with the interrupting fiber otherwise") {
             for {
               fiber  <- ZIO.never.uninterruptible.timeoutFork(100.millis).fork
-              _      <- MockClock.adjust(100.millis)
+              _      <- TestClock.adjust(100.millis)
               result <- fiber.join
             } yield assert(result, isLeft(anything))
           }
