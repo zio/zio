@@ -5,7 +5,7 @@ import scala.{ Stream => _ }
 import zio._
 // import zio.clock.Clock
 // import zio.duration._
-// import zio.random.Random
+import zio.random.Random
 import zio.test._
 // import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isTrue, succeeds }
 import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, succeeds }
@@ -803,511 +803,511 @@ object SinkSpec
             assertM(sinkIteration(sink, 1), equalTo(("1Hello", Chunk.empty: Chunk[Int])))
           })
         ),
-        // suite("Constructors")(
-        //   testM("foldLeft")(
-        //     checkM(
-        //       pureStreamGen(Gen.anyInt),
-        //       Gen.function[Random with Sized, (String, Int), String](Gen.anyString),
-        //       Gen.anyString
-        //     ) { (s, f, z) =>
-        //       for {
-        //         xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-        //         ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
-        //       } yield assert(xs, equalTo(ys))
-        //     }
-        //   ),
-        //   suite("fold")(
-        //     testM("fold")(checkM(pureStreamGen(Gen.anyInt), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
-        //       for {
-        //         xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-        //         ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
-        //       } yield assert(xs, equalTo(ys))
-        //     }),
-        //     testM("short circuits") {
-        //       val empty: Stream[Nothing, Int]     = ZStream.empty
-        //       val single: Stream[Nothing, Int]    = ZStream.succeed(1)
-        //       val double: Stream[Nothing, Int]    = ZStream(1, 2)
-        //       val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
+        suite("Constructors")(
+          testM("foldLeft")(
+            checkM(
+              pureStreamGen(Gen.anyInt),
+              Gen.function[Random with Sized, (String, Int), String](Gen.anyString),
+              Gen.anyString
+            ) { (s, f, z) =>
+              for {
+                xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
+                ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
+              } yield assert(xs, equalTo(ys))
+            }
+          ),
+          suite("fold")(
+            testM("fold")(checkM(pureStreamGen(Gen.anyInt), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
+              for {
+                xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
+                ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
+              } yield assert(xs, equalTo(ys))
+            }),
+            testM("short circuits") {
+              val empty: Stream[Nothing, Int]     = ZStream.empty
+              val single: Stream[Nothing, Int]    = ZStream.succeed(1)
+              val double: Stream[Nothing, Int]    = ZStream(1, 2)
+              val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
 
-        //       def run[E](stream: Stream[E, Int]) =
-        //         for {
-        //           effects <- Ref.make[List[Int]](Nil)
-        //           sink = ZSink.foldM[Any, Nothing, Int, Int, Int](0)(_ => true) { (_, a) =>
-        //             effects.update(a :: _) *> UIO.succeed((30, Chunk.empty))
-        //           }
-        //           exit   <- stream.run(sink).run
-        //           result <- effects.get
-        //         } yield (exit, result)
+              def run[E](stream: Stream[E, Int]) =
+                for {
+                  effects <- Ref.make[List[Int]](Nil)
+                  sink = ZSink.foldM[Any, Nothing, Int, Int, Int](0)(_ => true) { (_, a) =>
+                    effects.update(a :: _) *> UIO.succeed((30, Chunk.empty))
+                  }
+                  exit   <- stream.run(sink).run
+                  result <- effects.get
+                } yield (exit, result)
 
-        //       for {
-        //         ms <- run(empty)
-        //         ns <- run(single)
-        //         os <- run(double)
-        //         ps <- run(failed)
-        //       } yield {
-        //         assert(ms, equalTo((Exit.succeed(0), List.empty[Int]))) &&
-        //         assert(ns, equalTo((Exit.succeed(30), List(1)))) &&
-        //         assert(os, equalTo((Exit.succeed(30), List(2, 1)))) &&
-        //         assert(ps, equalTo((Exit.fail("Ouch"): Exit[String, Int], List.empty[Int])))
-        //       }
-        //     }
-        //   ),
-        //   suite("foldM")(
-        //     testM("foldM") {
-        //       val ioGen = successes(Gen.anyString)
-        //       checkM(pureStreamGen(Gen.anyInt), Gen.function(ioGen), ioGen) { (s, f, z) =>
-        //         for {
-        //           sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(Function.untupled(f))))
-        //           foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
-        //                          .map(_.reverse)
-        //                          .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(x => f(x -> el))))
-        //                          .run
-        //         } yield assert(foldResult.succeeded, isTrue) implies assert(
-        //           foldResult,
-        //           succeeds(equalTo(sinkResult))
-        //         )
-        //       }
-        //     },
-        //     testM("short circuits") {
-        //       val empty: Stream[Nothing, Int]     = ZStream.empty
-        //       val single: Stream[Nothing, Int]    = ZStream.succeed(1)
-        //       val double: Stream[Nothing, Int]    = ZStream(1, 2)
-        //       val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
+              for {
+                ms <- run(empty)
+                ns <- run(single)
+                os <- run(double)
+                ps <- run(failed)
+              } yield {
+                assert(ms, equalTo((Exit.succeed(0), List.empty[Int]))) &&
+                assert(ns, equalTo((Exit.succeed(30), List(1)))) &&
+                assert(os, equalTo((Exit.succeed(30), List(2, 1)))) &&
+                assert(ps, equalTo((Exit.fail("Ouch"): Exit[String, Int], List.empty[Int])))
+              }
+            }
+          )
+          //   suite("foldM")(
+          //     testM("foldM") {
+          //       val ioGen = successes(Gen.anyString)
+          //       checkM(pureStreamGen(Gen.anyInt), Gen.function(ioGen), ioGen) { (s, f, z) =>
+          //         for {
+          //           sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(Function.untupled(f))))
+          //           foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
+          //                          .map(_.reverse)
+          //                          .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(x => f(x -> el))))
+          //                          .run
+          //         } yield assert(foldResult.succeeded, isTrue) implies assert(
+          //           foldResult,
+          //           succeeds(equalTo(sinkResult))
+          //         )
+          //       }
+          //     },
+          //     testM("short circuits") {
+          //       val empty: Stream[Nothing, Int]     = ZStream.empty
+          //       val single: Stream[Nothing, Int]    = ZStream.succeed(1)
+          //       val double: Stream[Nothing, Int]    = ZStream(1, 2)
+          //       val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
 
-        //       def run[E](stream: Stream[E, Int]) =
-        //         (for {
-        //           effects <- Ref.make[List[Int]](Nil)
-        //           sink = ZSink.foldM[Any, E, Int, Int, Int](0)(_ => true) { (_, a) =>
-        //             effects.update(a :: _) *> UIO.succeed((30, Chunk.empty))
-        //           }
-        //           exit   <- stream.run(sink)
-        //           result <- effects.get
-        //         } yield exit -> result).run
+          //       def run[E](stream: Stream[E, Int]) =
+          //         (for {
+          //           effects <- Ref.make[List[Int]](Nil)
+          //           sink = ZSink.foldM[Any, E, Int, Int, Int](0)(_ => true) { (_, a) =>
+          //             effects.update(a :: _) *> UIO.succeed((30, Chunk.empty))
+          //           }
+          //           exit   <- stream.run(sink)
+          //           result <- effects.get
+          //         } yield exit -> result).run
 
-        //       (assertM(run(empty), succeeds(equalTo((0, List.empty[Int])))) <*>
-        //         assertM(run(single), succeeds(equalTo((30, List(1))))) <*>
-        //         assertM(run(double), succeeds(equalTo((30, List(2, 1))))) <*>
-        //         assertM(run(failed), fails(equalTo("Ouch")))).map {
-        //         case (((r1, r2), r3), r4) => r1 && r2 && r3 && r4
-        //       }
-        //     }
-        //   ),
-        //   suite("collectAll")(
-        //     testM("collectAllN") {
-        //       assertM(
-        //         Stream[Int](1, 2, 3)
-        //           .run(Sink.collectAllN[Int](2)),
-        //         equalTo(List(1, 2))
-        //       )
-        //     },
-        //     testM("collectAllToSet") {
-        //       assertM(
-        //         Stream[Int](1, 2, 3, 3, 4)
-        //           .run(Sink.collectAllToSet[Int]),
-        //         equalTo(Set(1, 2, 3, 4))
-        //       )
-        //     },
-        //     testM("collectAllToSetN") {
-        //       assertM(
-        //         Stream[Int](1, 2, 1, 2, 3, 3, 4)
-        //           .run(Sink.collectAllToSetN[Int](3)),
-        //         equalTo(Set(1, 2, 3))
-        //       )
-        //     },
-        //     testM("collectAllToMap") {
-        //       assertM(
-        //         Stream[Int](1, 2, 3)
-        //           .run(Sink.collectAllToMap[Int, Int](value => value)),
-        //         equalTo(Map[Int, Int](1 -> 1, 2 -> 2, 3 -> 3))
-        //       )
-        //     },
-        //     testM("collectAllToMapN") {
-        //       assertM(
-        //         Stream[Int](1, 2, 3, 4, 5, 6)
-        //           .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 2)),
-        //         equalTo(Map[Int, Int](1 -> 1, 0 -> 2))
-        //       )
-        //     },
-        //     testM("collectAllWhile")(
-        //       checkM(pureStreamGen(Gen.anyString), Gen.function(Gen.boolean)) { (s, f) =>
-        //         for {
-        //           sinkResult <- s.run(ZSink.collectAllWhile(f))
-        //           listResult <- s.runCollect.map(_.takeWhile(f)).run
-        //         } yield assert(listResult.succeeded, isTrue) implies assert(listResult, succeeds(equalTo(sinkResult)))
-        //       }
-        //     )
-        //   ),
-        //   suite("foldWeighted/foldUntil")(
-        //     testM("foldWeighted") {
-        //       assertM(
-        //         Stream[Long](1, 5, 2, 3)
-        //           .transduce(
-        //             Sink.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
-        //           )
-        //           .runCollect,
-        //         equalTo(List(List(1L, 5L), List(2L, 3L)))
-        //       )
-        //     },
-        //     testM("foldWeightedDecompose") {
-        //       assertM(
-        //         Stream(1, 5, 1)
-        //           .transduce(
-        //             Sink
-        //               .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
-        //                 (acc, el) =>
-        //                   el :: acc
-        //               }
-        //               .map(_.reverse)
-        //           )
-        //           .runCollect,
-        //         equalTo(List(List(1), List(4), List(1, 1)))
-        //       )
-        //     },
-        //     testM("foldWeightedM") {
-        //       assertM(
-        //         Stream[Long](1, 5, 2, 3)
-        //           .transduce(
-        //             Sink
-        //               .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)(
-        //                 (acc, el) => UIO.succeed(el :: acc)
-        //               )
-        //               .map(_.reverse)
-        //           )
-        //           .runCollect,
-        //         equalTo(List(List(1L, 5L), List(2L, 3L)))
-        //       )
-        //     },
-        //     testM("foldWeightedDecomposeM") {
-        //       assertM(
-        //         Stream(1, 5, 1)
-        //           .transduce(
-        //             Sink
-        //               .foldWeightedDecomposeM(List[Int]())(
-        //                 (i: Int) => UIO.succeed(i.toLong),
-        //                 4,
-        //                 (i: Int) => UIO.succeed(Chunk(i - 1, 1))
-        //               ) { (acc, el) =>
-        //                 UIO.succeed(el :: acc)
-        //               }
-        //               .map(_.reverse)
-        //           )
-        //           .runCollect,
-        //         equalTo(List(List(1), List(4), List(1, 1)))
-        //       )
-        //     },
-        //     testM("foldUntil") {
-        //       assertM(
-        //         Stream[Long](1, 1, 1, 1, 1, 1)
-        //           .transduce(Sink.foldUntil(0L, 3)(_ + (_: Long)))
-        //           .runCollect,
-        //         equalTo(List(3L, 3L))
-        //       )
-        //     },
-        //     testM("foldUntilM") {
-        //       assertM(
-        //         Stream[Long](1, 1, 1, 1, 1, 1)
-        //           .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
-        //           .runCollect,
-        //         equalTo(List(3L, 3L))
-        //       )
-        //     },
-        //     testM("fromFunction") {
-        //       assertM(
-        //         Stream(1, 2, 3, 4, 5)
-        //           .transduce(Sink.fromFunction[Int, String](_.toString))
-        //           .runCollect,
-        //         equalTo(List("1", "2", "3", "4", "5"))
-        //       )
-        //     }
-        //   ),
-        //   testM("fromOutputStream") {
-        //     import java.io.ByteArrayOutputStream
+          //       (assertM(run(empty), succeeds(equalTo((0, List.empty[Int])))) <*>
+          //         assertM(run(single), succeeds(equalTo((30, List(1))))) <*>
+          //         assertM(run(double), succeeds(equalTo((30, List(2, 1))))) <*>
+          //         assertM(run(failed), fails(equalTo("Ouch")))).map {
+          //         case (((r1, r2), r3), r4) => r1 && r2 && r3 && r4
+          //       }
+          //     }
+          //   ),
+          //   suite("collectAll")(
+          //     testM("collectAllN") {
+          //       assertM(
+          //         Stream[Int](1, 2, 3)
+          //           .run(Sink.collectAllN[Int](2)),
+          //         equalTo(List(1, 2))
+          //       )
+          //     },
+          //     testM("collectAllToSet") {
+          //       assertM(
+          //         Stream[Int](1, 2, 3, 3, 4)
+          //           .run(Sink.collectAllToSet[Int]),
+          //         equalTo(Set(1, 2, 3, 4))
+          //       )
+          //     },
+          //     testM("collectAllToSetN") {
+          //       assertM(
+          //         Stream[Int](1, 2, 1, 2, 3, 3, 4)
+          //           .run(Sink.collectAllToSetN[Int](3)),
+          //         equalTo(Set(1, 2, 3))
+          //       )
+          //     },
+          //     testM("collectAllToMap") {
+          //       assertM(
+          //         Stream[Int](1, 2, 3)
+          //           .run(Sink.collectAllToMap[Int, Int](value => value)),
+          //         equalTo(Map[Int, Int](1 -> 1, 2 -> 2, 3 -> 3))
+          //       )
+          //     },
+          //     testM("collectAllToMapN") {
+          //       assertM(
+          //         Stream[Int](1, 2, 3, 4, 5, 6)
+          //           .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 2)),
+          //         equalTo(Map[Int, Int](1 -> 1, 0 -> 2))
+          //       )
+          //     },
+          //     testM("collectAllWhile")(
+          //       checkM(pureStreamGen(Gen.anyString), Gen.function(Gen.boolean)) { (s, f) =>
+          //         for {
+          //           sinkResult <- s.run(ZSink.collectAllWhile(f))
+          //           listResult <- s.runCollect.map(_.takeWhile(f)).run
+          //         } yield assert(listResult.succeeded, isTrue) implies assert(listResult, succeeds(equalTo(sinkResult)))
+          //       }
+          //     )
+          //   ),
+          //   suite("foldWeighted/foldUntil")(
+          //     testM("foldWeighted") {
+          //       assertM(
+          //         Stream[Long](1, 5, 2, 3)
+          //           .transduce(
+          //             Sink.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
+          //           )
+          //           .runCollect,
+          //         equalTo(List(List(1L, 5L), List(2L, 3L)))
+          //       )
+          //     },
+          //     testM("foldWeightedDecompose") {
+          //       assertM(
+          //         Stream(1, 5, 1)
+          //           .transduce(
+          //             Sink
+          //               .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
+          //                 (acc, el) =>
+          //                   el :: acc
+          //               }
+          //               .map(_.reverse)
+          //           )
+          //           .runCollect,
+          //         equalTo(List(List(1), List(4), List(1, 1)))
+          //       )
+          //     },
+          //     testM("foldWeightedM") {
+          //       assertM(
+          //         Stream[Long](1, 5, 2, 3)
+          //           .transduce(
+          //             Sink
+          //               .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)(
+          //                 (acc, el) => UIO.succeed(el :: acc)
+          //               )
+          //               .map(_.reverse)
+          //           )
+          //           .runCollect,
+          //         equalTo(List(List(1L, 5L), List(2L, 3L)))
+          //       )
+          //     },
+          //     testM("foldWeightedDecomposeM") {
+          //       assertM(
+          //         Stream(1, 5, 1)
+          //           .transduce(
+          //             Sink
+          //               .foldWeightedDecomposeM(List[Int]())(
+          //                 (i: Int) => UIO.succeed(i.toLong),
+          //                 4,
+          //                 (i: Int) => UIO.succeed(Chunk(i - 1, 1))
+          //               ) { (acc, el) =>
+          //                 UIO.succeed(el :: acc)
+          //               }
+          //               .map(_.reverse)
+          //           )
+          //           .runCollect,
+          //         equalTo(List(List(1), List(4), List(1, 1)))
+          //       )
+          //     },
+          //     testM("foldUntil") {
+          //       assertM(
+          //         Stream[Long](1, 1, 1, 1, 1, 1)
+          //           .transduce(Sink.foldUntil(0L, 3)(_ + (_: Long)))
+          //           .runCollect,
+          //         equalTo(List(3L, 3L))
+          //       )
+          //     },
+          //     testM("foldUntilM") {
+          //       assertM(
+          //         Stream[Long](1, 1, 1, 1, 1, 1)
+          //           .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
+          //           .runCollect,
+          //         equalTo(List(3L, 3L))
+          //       )
+          //     },
+          //     testM("fromFunction") {
+          //       assertM(
+          //         Stream(1, 2, 3, 4, 5)
+          //           .transduce(Sink.fromFunction[Int, String](_.toString))
+          //           .runCollect,
+          //         equalTo(List("1", "2", "3", "4", "5"))
+          //       )
+          //     }
+          //   ),
+          //   testM("fromOutputStream") {
+          //     import java.io.ByteArrayOutputStream
 
-        //     val output = new ByteArrayOutputStream()
-        //     val data   = "0123456789"
-        //     val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
+          //     val output = new ByteArrayOutputStream()
+          //     val data   = "0123456789"
+          //     val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
 
-        //     for {
-        //       bytesWritten <- stream.run(ZSink.fromOutputStream(output))
-        //     } yield assert(bytesWritten, equalTo(10)) && assert(
-        //       new String(output.toByteArray, "UTF-8"),
-        //       equalTo(data)
-        //     )
-        //   },
-        //   testM("pull1") {
-        //     val stream = Stream.fromIterable(List(1))
-        //     val sink   = Sink.pull1(IO.succeed(None: Option[Int]))((i: Int) => Sink.succeed[Int, Option[Int]](Some(i)))
+          //     for {
+          //       bytesWritten <- stream.run(ZSink.fromOutputStream(output))
+          //     } yield assert(bytesWritten, equalTo(10)) && assert(
+          //       new String(output.toByteArray, "UTF-8"),
+          //       equalTo(data)
+          //     )
+          //   },
+          //   testM("pull1") {
+          //     val stream = Stream.fromIterable(List(1))
+          //     val sink   = Sink.pull1(IO.succeed(None: Option[Int]))((i: Int) => Sink.succeed[Int, Option[Int]](Some(i)))
 
-        //     assertM(stream.run(sink), equalTo(Some(1): Option[Int]))
-        //   },
-        //   suite("splitLines")(
-        //     testM("preserves data")(
-        //       checkM(
-        //         Gen
-        //           .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
-        //           .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
-        //       ) { (lines: List[String]) =>
-        //         val data = lines.mkString("\n")
+          //     assertM(stream.run(sink), equalTo(Some(1): Option[Int]))
+          //   },
+          //   suite("splitLines")(
+          //     testM("preserves data")(
+          //       checkM(
+          //         Gen
+          //           .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
+          //           .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+          //       ) { (lines: List[String]) =>
+          //         val data = lines.mkString("\n")
 
-        //         for {
-        //           initial            <- ZSink.splitLines.initial
-        //           middle             <- ZSink.splitLines.step(initial, data)
-        //           res                <- ZSink.splitLines.extract(middle)
-        //           (result, leftover) = res
-        //         } yield assert((result ++ leftover).toArray[String].mkString("\n"), equalTo(lines.mkString("\n")))
-        //       }
-        //     ),
-        //     testM("handles leftovers") {
-        //       for {
-        //         initial            <- ZSink.splitLines.initial
-        //         middle             <- ZSink.splitLines.step(initial, "abc\nbc")
-        //         res                <- ZSink.splitLines.extract(middle)
-        //         (result, leftover) = res
-        //       } yield assert(result.toArray[String].mkString("\n"), equalTo("abc")) && assert(
-        //         leftover.toArray[String].mkString,
-        //         equalTo("bc")
-        //       )
-        //     },
-        //     testM("transduces") {
-        //       assertM(
-        //         Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
-        //           .transduce(ZSink.splitLines)
-        //           .runCollect,
-        //         equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
-        //       )
-        //     },
-        //     testM("single newline edgecase") {
-        //       assertM(
-        //         Stream("\n")
-        //           .transduce(ZSink.splitLines)
-        //           .mapConcat(identity)
-        //           .runCollect,
-        //         equalTo(List(""))
-        //       )
-        //     },
-        //     testM("no newlines in data") {
-        //       assertM(
-        //         Stream("abc", "abc", "abc")
-        //           .transduce(ZSink.splitLines)
-        //           .mapConcat(identity)
-        //           .runCollect,
-        //         equalTo(List("abcabcabc"))
-        //       )
-        //     },
-        //     testM("\r\n on the boundary") {
-        //       assertM(
-        //         Stream("abc\r", "\nabc")
-        //           .transduce(ZSink.splitLines)
-        //           .mapConcat(identity)
-        //           .runCollect,
-        //         equalTo(List("abc", "abc"))
-        //       )
-        //     }
-        //   ),
-        //   suite("throttleEnforce")(
-        //     testM("throttleEnforce") {
+          //         for {
+          //           initial            <- ZSink.splitLines.initial
+          //           middle             <- ZSink.splitLines.step(initial, data)
+          //           res                <- ZSink.splitLines.extract(middle)
+          //           (result, leftover) = res
+          //         } yield assert((result ++ leftover).toArray[String].mkString("\n"), equalTo(lines.mkString("\n")))
+          //       }
+          //     ),
+          //     testM("handles leftovers") {
+          //       for {
+          //         initial            <- ZSink.splitLines.initial
+          //         middle             <- ZSink.splitLines.step(initial, "abc\nbc")
+          //         res                <- ZSink.splitLines.extract(middle)
+          //         (result, leftover) = res
+          //       } yield assert(result.toArray[String].mkString("\n"), equalTo("abc")) && assert(
+          //         leftover.toArray[String].mkString,
+          //         equalTo("bc")
+          //       )
+          //     },
+          //     testM("transduces") {
+          //       assertM(
+          //         Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
+          //           .transduce(ZSink.splitLines)
+          //           .runCollect,
+          //         equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
+          //       )
+          //     },
+          //     testM("single newline edgecase") {
+          //       assertM(
+          //         Stream("\n")
+          //           .transduce(ZSink.splitLines)
+          //           .mapConcat(identity)
+          //           .runCollect,
+          //         equalTo(List(""))
+          //       )
+          //     },
+          //     testM("no newlines in data") {
+          //       assertM(
+          //         Stream("abc", "abc", "abc")
+          //           .transduce(ZSink.splitLines)
+          //           .mapConcat(identity)
+          //           .runCollect,
+          //         equalTo(List("abcabcabc"))
+          //       )
+          //     },
+          //     testM("\r\n on the boundary") {
+          //       assertM(
+          //         Stream("abc\r", "\nabc")
+          //           .transduce(ZSink.splitLines)
+          //           .mapConcat(identity)
+          //           .runCollect,
+          //         equalTo(List("abc", "abc"))
+          //       )
+          //     }
+          //   ),
+          //   suite("throttleEnforce")(
+          //     testM("throttleEnforce") {
 
-        //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
-        //         for {
-        //           init1 <- sink.initial
-        //           step1 <- sink.step(init1, 1)
-        //           res1  <- sink.extract(step1).map(_._1)
-        //           init2 <- sink.initial
-        //           _     <- TestClock.adjust(23.milliseconds)
-        //           step2 <- sink.step(init2, 2)
-        //           res2  <- sink.extract(step2).map(_._1)
-        //           init3 <- sink.initial
-        //           step3 <- sink.step(init3, 3)
-        //           res3  <- sink.extract(step3).map(_._1)
-        //           init4 <- sink.initial
-        //           step4 <- sink.step(init4, 4)
-        //           res4  <- sink.extract(step4).map(_._1)
-        //           _     <- TestClock.adjust(11.milliseconds)
-        //           init5 <- sink.initial
-        //           step5 <- sink.step(init5, 5)
-        //           res5  <- sink.extract(step5).map(_._1)
-        //         } yield assert(List(res1, res2, res3, res4, res5), equalTo(List(Some(1), Some(2), None, None, Some(5))))
+          //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
+          //         for {
+          //           init1 <- sink.initial
+          //           step1 <- sink.step(init1, 1)
+          //           res1  <- sink.extract(step1).map(_._1)
+          //           init2 <- sink.initial
+          //           _     <- TestClock.adjust(23.milliseconds)
+          //           step2 <- sink.step(init2, 2)
+          //           res2  <- sink.extract(step2).map(_._1)
+          //           init3 <- sink.initial
+          //           step3 <- sink.step(init3, 3)
+          //           res3  <- sink.extract(step3).map(_._1)
+          //           init4 <- sink.initial
+          //           step4 <- sink.step(init4, 4)
+          //           res4  <- sink.extract(step4).map(_._1)
+          //           _     <- TestClock.adjust(11.milliseconds)
+          //           init5 <- sink.initial
+          //           step5 <- sink.step(init5, 5)
+          //           res5  <- sink.extract(step5).map(_._1)
+          //         } yield assert(List(res1, res2, res3, res4, res5), equalTo(List(Some(1), Some(2), None, None, Some(5))))
 
-        //       for {
-        //         clock <- TestClock.make(TestClock.DefaultData)
-        //         test <- ZSink
-        //                  .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
-        //                  .use(sinkTest)
-        //                  .provide(clock)
-        //       } yield test
-        //     },
-        //     testM("with burst") {
+          //       for {
+          //         clock <- TestClock.make(TestClock.DefaultData)
+          //         test <- ZSink
+          //                  .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
+          //                  .use(sinkTest)
+          //                  .provide(clock)
+          //       } yield test
+          //     },
+          //     testM("with burst") {
 
-        //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
-        //         for {
-        //           init1 <- sink.initial
-        //           step1 <- sink.step(init1, 1)
-        //           res1  <- sink.extract(step1).map(_._1)
-        //           init2 <- sink.initial
-        //           _     <- TestClock.adjust(23.milliseconds)
-        //           step2 <- sink.step(init2, 2)
-        //           res2  <- sink.extract(step2).map(_._1)
-        //           init3 <- sink.initial
-        //           step3 <- sink.step(init3, 3)
-        //           res3  <- sink.extract(step3).map(_._1)
-        //           init4 <- sink.initial
-        //           step4 <- sink.step(init4, 4)
-        //           res4  <- sink.extract(step4).map(_._1)
-        //           _     <- TestClock.adjust(11.milliseconds)
-        //           init5 <- sink.initial
-        //           step5 <- sink.step(init5, 5)
-        //           res5  <- sink.extract(step5).map(_._1)
-        //         } yield assert(
-        //           List(res1, res2, res3, res4, res5),
-        //           equalTo(List(Some(1), Some(2), Some(3), None, Some(5)))
-        //         )
+          //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
+          //         for {
+          //           init1 <- sink.initial
+          //           step1 <- sink.step(init1, 1)
+          //           res1  <- sink.extract(step1).map(_._1)
+          //           init2 <- sink.initial
+          //           _     <- TestClock.adjust(23.milliseconds)
+          //           step2 <- sink.step(init2, 2)
+          //           res2  <- sink.extract(step2).map(_._1)
+          //           init3 <- sink.initial
+          //           step3 <- sink.step(init3, 3)
+          //           res3  <- sink.extract(step3).map(_._1)
+          //           init4 <- sink.initial
+          //           step4 <- sink.step(init4, 4)
+          //           res4  <- sink.extract(step4).map(_._1)
+          //           _     <- TestClock.adjust(11.milliseconds)
+          //           init5 <- sink.initial
+          //           step5 <- sink.step(init5, 5)
+          //           res5  <- sink.extract(step5).map(_._1)
+          //         } yield assert(
+          //           List(res1, res2, res3, res4, res5),
+          //           equalTo(List(Some(1), Some(2), Some(3), None, Some(5)))
+          //         )
 
-        //       for {
-        //         clock <- TestClock.make(TestClock.DefaultData)
-        //         test <- ZSink
-        //                  .throttleEnforce[Int](1, 10.milliseconds, 1)(_ => 1)
-        //                  .use(sinkTest)
-        //                  .provide(clock)
-        //       } yield test
-        //     }
-        //   ),
-        //   suite("throttleShape")(
-        //     testM("throttleShape") {
+          //       for {
+          //         clock <- TestClock.make(TestClock.DefaultData)
+          //         test <- ZSink
+          //                  .throttleEnforce[Int](1, 10.milliseconds, 1)(_ => 1)
+          //                  .use(sinkTest)
+          //                  .provide(clock)
+          //       } yield test
+          //     }
+          //   ),
+          //   suite("throttleShape")(
+          //     testM("throttleShape") {
 
-        //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
-        //         for {
-        //           init1 <- sink.initial
-        //           step1 <- sink.step(init1, 1)
-        //           res1  <- sink.extract(step1).map(_._1)
-        //           init2 <- sink.initial
-        //           step2 <- sink.step(init2, 2)
-        //           res2  <- sink.extract(step2).map(_._1)
-        //           init3 <- sink.initial
-        //           _     <- clock.sleep(4.seconds)
-        //           step3 <- sink.step(init3, 3)
-        //           res3  <- sink.extract(step3).map(_._1)
-        //         } yield assert(List(res1, res2, res3), equalTo(List(1, 2, 3)))
+          //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
+          //         for {
+          //           init1 <- sink.initial
+          //           step1 <- sink.step(init1, 1)
+          //           res1  <- sink.extract(step1).map(_._1)
+          //           init2 <- sink.initial
+          //           step2 <- sink.step(init2, 2)
+          //           res2  <- sink.extract(step2).map(_._1)
+          //           init3 <- sink.initial
+          //           _     <- clock.sleep(4.seconds)
+          //           step3 <- sink.step(init3, 3)
+          //           res3  <- sink.extract(step3).map(_._1)
+          //         } yield assert(List(res1, res2, res3), equalTo(List(1, 2, 3)))
 
-        //       for {
-        //         clock <- TestClock.make(TestClock.DefaultData)
-        //         fiber <- ZSink
-        //                   .throttleShape[Int](1, 1.second)(_.toLong)
-        //                   .use(sinkTest)
-        //                   .provide(clock)
-        //                   .fork
-        //         _    <- clock.clock.adjust(8.seconds)
-        //         test <- fiber.join
-        //       } yield test
-        //     },
-        //     testM("infinite bandwidth") {
+          //       for {
+          //         clock <- TestClock.make(TestClock.DefaultData)
+          //         fiber <- ZSink
+          //                   .throttleShape[Int](1, 1.second)(_.toLong)
+          //                   .use(sinkTest)
+          //                   .provide(clock)
+          //                   .fork
+          //         _    <- clock.clock.adjust(8.seconds)
+          //         test <- fiber.join
+          //       } yield test
+          //     },
+          //     testM("infinite bandwidth") {
 
-        //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
-        //         for {
-        //           init1   <- sink.initial
-        //           step1   <- sink.step(init1, 1)
-        //           res1    <- sink.extract(step1).map(_._1)
-        //           init2   <- sink.initial
-        //           step2   <- sink.step(init2, 2)
-        //           res2    <- sink.extract(step2).map(_._1)
-        //           elapsed <- clock.currentTime(TimeUnit.SECONDS)
-        //         } yield assert(elapsed, equalTo(0L)) && assert(List(res1, res2), equalTo(List(1, 2)))
+          //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
+          //         for {
+          //           init1   <- sink.initial
+          //           step1   <- sink.step(init1, 1)
+          //           res1    <- sink.extract(step1).map(_._1)
+          //           init2   <- sink.initial
+          //           step2   <- sink.step(init2, 2)
+          //           res2    <- sink.extract(step2).map(_._1)
+          //           elapsed <- clock.currentTime(TimeUnit.SECONDS)
+          //         } yield assert(elapsed, equalTo(0L)) && assert(List(res1, res2), equalTo(List(1, 2)))
 
-        //       for {
-        //         clock <- TestClock.make(TestClock.DefaultData)
-        //         test <- ZSink
-        //                  .throttleShape[Int](1, 0.seconds)(_ => 100000L)
-        //                  .use(sinkTest)
-        //                  .provide(clock)
-        //       } yield test
-        //     },
-        //     testM("with burst") {
+          //       for {
+          //         clock <- TestClock.make(TestClock.DefaultData)
+          //         test <- ZSink
+          //                  .throttleShape[Int](1, 0.seconds)(_ => 100000L)
+          //                  .use(sinkTest)
+          //                  .provide(clock)
+          //       } yield test
+          //     },
+          //     testM("with burst") {
 
-        //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
-        //         for {
-        //           init1 <- sink.initial
-        //           step1 <- sink.step(init1, 1)
-        //           res1  <- sink.extract(step1).map(_._1)
-        //           init2 <- sink.initial
-        //           _     <- TestClock.adjust(2.seconds)
-        //           step2 <- sink.step(init2, 2)
-        //           res2  <- sink.extract(step2).map(_._1)
-        //           init3 <- sink.initial
-        //           _     <- TestClock.adjust(4.seconds)
-        //           _     <- clock.sleep(4.seconds)
-        //           step3 <- sink.step(init3, 3)
-        //           res3  <- sink.extract(step3).map(_._1)
-        //         } yield assert(List(res1, res2, res3), equalTo(List(1, 2, 3)))
+          //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
+          //         for {
+          //           init1 <- sink.initial
+          //           step1 <- sink.step(init1, 1)
+          //           res1  <- sink.extract(step1).map(_._1)
+          //           init2 <- sink.initial
+          //           _     <- TestClock.adjust(2.seconds)
+          //           step2 <- sink.step(init2, 2)
+          //           res2  <- sink.extract(step2).map(_._1)
+          //           init3 <- sink.initial
+          //           _     <- TestClock.adjust(4.seconds)
+          //           _     <- clock.sleep(4.seconds)
+          //           step3 <- sink.step(init3, 3)
+          //           res3  <- sink.extract(step3).map(_._1)
+          //         } yield assert(List(res1, res2, res3), equalTo(List(1, 2, 3)))
 
-        //       for {
-        //         clock <- TestClock.make(TestClock.DefaultData)
-        //         fiber <- ZSink
-        //                   .throttleShape[Int](1, 1.second, 2)(_.toLong)
-        //                   .use(sinkTest)
-        //                   .provide(clock)
-        //                   .fork
-        //         test <- fiber.join
-        //       } yield test
-        //     }
-        //   ),
-        //   suite("utf8DecodeChunk")(
-        //     testM("regular strings")(checkM(Gen.anyString) { s =>
-        //       assertM(
-        //         Stream(Chunk.fromArray(s.getBytes("UTF-8")))
-        //           .transduce(ZSink.utf8DecodeChunk)
-        //           .runCollect
-        //           .map(_.mkString.getBytes("UTF-8")),
-        //         equalTo(s.getBytes("UTF-8"))
-        //       )
-        //     }),
-        //     testM("incomplete chunk 1") {
-        //       for {
-        //         init        <- ZSink.utf8DecodeChunk.initial
-        //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xC2.toByte))
-        //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0xA2.toByte))
-        //         result      <- ZSink.utf8DecodeChunk.extract(state2)
-        //         (string, _) = result
-        //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
-        //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
-        //         assert(string.getBytes("UTF-8"), equalTo(Array(0xC2.toByte, 0xA2.toByte)))
-        //     },
-        //     testM("incomplete chunk 2") {
-        //       for {
-        //         init        <- ZSink.utf8DecodeChunk.initial
-        //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xE0.toByte, 0xA4.toByte))
-        //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0xB9.toByte))
-        //         result      <- ZSink.utf8DecodeChunk.extract(state2)
-        //         (string, _) = result
-        //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
-        //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
-        //         assert(string.getBytes("UTF-8"), equalTo(Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte)))
-        //     },
-        //     testM("incomplete chunk 3") {
-        //       for {
-        //         init        <- ZSink.utf8DecodeChunk.initial
-        //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte))
-        //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0x88.toByte))
-        //         result      <- ZSink.utf8DecodeChunk.extract(state2)
-        //         (string, _) = result
-        //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
-        //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
-        //         assert(string.getBytes("UTF-8"), equalTo(Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte)))
-        //     },
-        //     testM("chunk with leftover") {
-        //       for {
-        //         init <- ZSink.utf8DecodeChunk.initial
-        //         state1 <- ZSink.utf8DecodeChunk
-        //                    .step(
-        //                      init,
-        //                      Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)
-        //                    )
-        //         result <- ZSink.utf8DecodeChunk.extract(state1).map(_._2.flatMap(identity).toArray[Byte])
-        //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isFalse) && assert(
-        //         result,
-        //         equalTo(Array(0xF0.toByte, 0x90.toByte))
-        //       )
-        //     }
-        //   )
-        // ),
+          //       for {
+          //         clock <- TestClock.make(TestClock.DefaultData)
+          //         fiber <- ZSink
+          //                   .throttleShape[Int](1, 1.second, 2)(_.toLong)
+          //                   .use(sinkTest)
+          //                   .provide(clock)
+          //                   .fork
+          //         test <- fiber.join
+          //       } yield test
+          //     }
+          //   ),
+          //   suite("utf8DecodeChunk")(
+          //     testM("regular strings")(checkM(Gen.anyString) { s =>
+          //       assertM(
+          //         Stream(Chunk.fromArray(s.getBytes("UTF-8")))
+          //           .transduce(ZSink.utf8DecodeChunk)
+          //           .runCollect
+          //           .map(_.mkString.getBytes("UTF-8")),
+          //         equalTo(s.getBytes("UTF-8"))
+          //       )
+          //     }),
+          //     testM("incomplete chunk 1") {
+          //       for {
+          //         init        <- ZSink.utf8DecodeChunk.initial
+          //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xC2.toByte))
+          //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0xA2.toByte))
+          //         result      <- ZSink.utf8DecodeChunk.extract(state2)
+          //         (string, _) = result
+          //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
+          //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
+          //         assert(string.getBytes("UTF-8"), equalTo(Array(0xC2.toByte, 0xA2.toByte)))
+          //     },
+          //     testM("incomplete chunk 2") {
+          //       for {
+          //         init        <- ZSink.utf8DecodeChunk.initial
+          //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xE0.toByte, 0xA4.toByte))
+          //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0xB9.toByte))
+          //         result      <- ZSink.utf8DecodeChunk.extract(state2)
+          //         (string, _) = result
+          //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
+          //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
+          //         assert(string.getBytes("UTF-8"), equalTo(Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte)))
+          //     },
+          //     testM("incomplete chunk 3") {
+          //       for {
+          //         init        <- ZSink.utf8DecodeChunk.initial
+          //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte))
+          //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0x88.toByte))
+          //         result      <- ZSink.utf8DecodeChunk.extract(state2)
+          //         (string, _) = result
+          //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
+          //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
+          //         assert(string.getBytes("UTF-8"), equalTo(Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte)))
+          //     },
+          //     testM("chunk with leftover") {
+          //       for {
+          //         init <- ZSink.utf8DecodeChunk.initial
+          //         state1 <- ZSink.utf8DecodeChunk
+          //                    .step(
+          //                      init,
+          //                      Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)
+          //                    )
+          //         result <- ZSink.utf8DecodeChunk.extract(state1).map(_._2.flatMap(identity).toArray[Byte])
+          //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isFalse) && assert(
+          //         result,
+          //         equalTo(Array(0xF0.toByte, 0x90.toByte))
+          //       )
+          //     }
+          //   )
+        ),
         suite("Usecases")(
           testM("Number array parsing with Sink.foldM") {
             sealed trait ParserState
