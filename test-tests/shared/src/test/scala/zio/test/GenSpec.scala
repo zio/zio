@@ -24,6 +24,7 @@ object GenSpec extends ZIOBaseSpec {
     label(anyLongShrinksToZero, "anyLong shrinks to zero"),
     label(anyShortShrinksToZero, "anyShort shrinks to zero"),
     label(anyStringShrinksToEmptyString, "anyString shrinks to empty string"),
+    label(anyUnicodeCharShrinksToZero, "anyUnicodeChar shrinks to zero"),
     label(booleanGeneratesTrueAndFalse, "boolean generates true and false"),
     label(booleanShrinksToFalse, "boolean shrinks to false"),
     label(byteGeneratesValuesInRange, "byte generates values in range"),
@@ -154,6 +155,9 @@ object GenSpec extends ZIOBaseSpec {
 
   def anyStringShrinksToEmptyString: Future[Boolean] =
     checkShrink(Gen.anyString)("")
+
+  def anyUnicodeCharShrinksToZero: Future[Boolean] =
+    checkShrink(Gen.anyUnicodeChar)(0)
 
   def booleanGeneratesTrueAndFalse: Future[Boolean] =
     checkSample(Gen.boolean)(ps => ps.exists(identity) && ps.exists(!_))
