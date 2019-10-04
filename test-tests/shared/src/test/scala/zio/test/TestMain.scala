@@ -20,7 +20,6 @@ object TestMain {
       ("FunSpec", FunSpec),
       ("GenSpec", GenSpec),
       ("LiveSpec", LiveSpec),
-      ("ManagedSpec", ManagedSpec),
       ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec),
