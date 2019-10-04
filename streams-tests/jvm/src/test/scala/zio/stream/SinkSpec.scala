@@ -936,173 +936,173 @@ object SinkSpec
               }
             )
           ),
-          suite("foldWeighted/foldUntil")(
-            testM("foldWeighted") {
-              assertM(
-                Stream[Long](1, 5, 2, 3)
-                  .transduce(
-                    Sink.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
-                  )
-                  .runCollect,
-                equalTo(List(List(1L, 5L), List(2L, 3L)))
-              )
-            },
-            testM("foldWeightedDecompose") {
-              assertM(
-                Stream(1, 5, 1)
-                  .transduce(
-                    Sink
-                      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
-                        (acc, el) =>
-                          el :: acc
-                      }
-                      .map(_.reverse)
-                  )
-                  .runCollect,
-                equalTo(List(List(1), List(4), List(1, 1)))
-              )
-            },
-            testM("foldWeightedM") {
-              assertM(
-                Stream[Long](1, 5, 2, 3)
-                  .transduce(
-                    Sink
-                      .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)(
-                        (acc, el) => UIO.succeed(el :: acc)
-                      )
-                      .map(_.reverse)
-                  )
-                  .runCollect,
-                equalTo(List(List(1L, 5L), List(2L, 3L)))
-              )
-            },
-            testM("foldWeightedDecomposeM") {
-              assertM(
-                Stream(1, 5, 1)
-                  .transduce(
-                    Sink
-                      .foldWeightedDecomposeM(List[Int]())(
-                        (i: Int) => UIO.succeed(i.toLong),
-                        4,
-                        (i: Int) => UIO.succeed(Chunk(i - 1, 1))
-                      ) { (acc, el) =>
-                        UIO.succeed(el :: acc)
-                      }
-                      .map(_.reverse)
-                  )
-                  .runCollect,
-                equalTo(List(List(1), List(4), List(1, 1)))
-              )
-            },
-            testM("foldUntil") {
-              assertM(
-                Stream[Long](1, 1, 1, 1, 1, 1)
-                  .transduce(Sink.foldUntil(0L, 3)(_ + (_: Long)))
-                  .runCollect,
-                equalTo(List(3L, 3L))
-              )
-            },
-            testM("foldUntilM") {
-              assertM(
-                Stream[Long](1, 1, 1, 1, 1, 1)
-                  .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
-                  .runCollect,
-                equalTo(List(3L, 3L))
-              )
-            },
-            testM("fromFunction") {
-              assertM(
-                Stream(1, 2, 3, 4, 5)
-                  .transduce(Sink.fromFunction[Int, String](_.toString))
-                  .runCollect,
-                equalTo(List("1", "2", "3", "4", "5"))
-              )
-            }
-          ),
-          //   testM("fromOutputStream") {
-          //     import java.io.ByteArrayOutputStream
-
-          //     val output = new ByteArrayOutputStream()
-          //     val data   = "0123456789"
-          //     val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
-
-          //     for {
-          //       bytesWritten <- stream.run(ZSink.fromOutputStream(output))
-          //     } yield assert(bytesWritten, equalTo(10)) && assert(
-          //       new String(output.toByteArray, "UTF-8"),
-          //       equalTo(data)
-          //     )
-          //   },
-          //   testM("pull1") {
-          //     val stream = Stream.fromIterable(List(1))
-          //     val sink   = Sink.pull1(IO.succeed(None: Option[Int]))((i: Int) => Sink.succeed[Int, Option[Int]](Some(i)))
-
-          //     assertM(stream.run(sink), equalTo(Some(1): Option[Int]))
-          //   },
-          //   suite("splitLines")(
-          //     testM("preserves data")(
-          //       checkM(
-          //         Gen
-          //           .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
-          //           .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
-          //       ) { (lines: List[String]) =>
-          //         val data = lines.mkString("\n")
-
-          //         for {
-          //           initial            <- ZSink.splitLines.initial
-          //           middle             <- ZSink.splitLines.step(initial, data)
-          //           res                <- ZSink.splitLines.extract(middle)
-          //           (result, leftover) = res
-          //         } yield assert((result ++ leftover).toArray[String].mkString("\n"), equalTo(lines.mkString("\n")))
-          //       }
-          //     ),
-          //     testM("handles leftovers") {
-          //       for {
-          //         initial            <- ZSink.splitLines.initial
-          //         middle             <- ZSink.splitLines.step(initial, "abc\nbc")
-          //         res                <- ZSink.splitLines.extract(middle)
-          //         (result, leftover) = res
-          //       } yield assert(result.toArray[String].mkString("\n"), equalTo("abc")) && assert(
-          //         leftover.toArray[String].mkString,
-          //         equalTo("bc")
+          //   suite("foldWeighted/foldUntil")(
+          //     testM("foldWeighted") {
+          //       assertM(
+          //         Stream[Long](1, 5, 2, 3)
+          //           .transduce(
+          //             Sink.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
+          //           )
+          //           .runCollect,
+          //         equalTo(List(List(1L, 5L), List(2L, 3L)))
           //       )
           //     },
-          //     testM("transduces") {
+          //     testM("foldWeightedDecompose") {
           //       assertM(
-          //         Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
-          //           .transduce(ZSink.splitLines)
+          //         Stream(1, 5, 1)
+          //           .transduce(
+          //             Sink
+          //               .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
+          //                 (acc, el) =>
+          //                   el :: acc
+          //               }
+          //               .map(_.reverse)
+          //           )
           //           .runCollect,
-          //         equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
+          //         equalTo(List(List(1), List(4), List(1, 1)))
           //       )
           //     },
-          //     testM("single newline edgecase") {
+          //     testM("foldWeightedM") {
           //       assertM(
-          //         Stream("\n")
-          //           .transduce(ZSink.splitLines)
-          //           .mapConcat(identity)
+          //         Stream[Long](1, 5, 2, 3)
+          //           .transduce(
+          //             Sink
+          //               .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)(
+          //                 (acc, el) => UIO.succeed(el :: acc)
+          //               )
+          //               .map(_.reverse)
+          //           )
           //           .runCollect,
-          //         equalTo(List(""))
+          //         equalTo(List(List(1L, 5L), List(2L, 3L)))
           //       )
           //     },
-          //     testM("no newlines in data") {
+          //     testM("foldWeightedDecomposeM") {
           //       assertM(
-          //         Stream("abc", "abc", "abc")
-          //           .transduce(ZSink.splitLines)
-          //           .mapConcat(identity)
+          //         Stream(1, 5, 1)
+          //           .transduce(
+          //             Sink
+          //               .foldWeightedDecomposeM(List[Int]())(
+          //                 (i: Int) => UIO.succeed(i.toLong),
+          //                 4,
+          //                 (i: Int) => UIO.succeed(Chunk(i - 1, 1))
+          //               ) { (acc, el) =>
+          //                 UIO.succeed(el :: acc)
+          //               }
+          //               .map(_.reverse)
+          //           )
           //           .runCollect,
-          //         equalTo(List("abcabcabc"))
+          //         equalTo(List(List(1), List(4), List(1, 1)))
           //       )
           //     },
-          //     testM("\r\n on the boundary") {
+          //     testM("foldUntil") {
           //       assertM(
-          //         Stream("abc\r", "\nabc")
-          //           .transduce(ZSink.splitLines)
-          //           .mapConcat(identity)
+          //         Stream[Long](1, 1, 1, 1, 1, 1)
+          //           .transduce(Sink.foldUntil(0L, 3)(_ + (_: Long)))
           //           .runCollect,
-          //         equalTo(List("abc", "abc"))
+          //         equalTo(List(3L, 3L))
+          //       )
+          //     },
+          //     testM("foldUntilM") {
+          //       assertM(
+          //         Stream[Long](1, 1, 1, 1, 1, 1)
+          //           .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
+          //           .runCollect,
+          //         equalTo(List(3L, 3L))
+          //       )
+          //     },
+          //     testM("fromFunction") {
+          //       assertM(
+          //         Stream(1, 2, 3, 4, 5)
+          //           .transduce(Sink.fromFunction[Int, String](_.toString))
+          //           .runCollect,
+          //         equalTo(List("1", "2", "3", "4", "5"))
           //       )
           //     }
           //   ),
+          testM("fromOutputStream") {
+            import java.io.ByteArrayOutputStream
+
+            val output = new ByteArrayOutputStream()
+            val data   = "0123456789"
+            val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
+
+            for {
+              bytesWritten <- stream.run(ZSink.fromOutputStream(output))
+            } yield assert(bytesWritten, equalTo(10)) && assert(
+              new String(output.toByteArray, "UTF-8"),
+              equalTo(data)
+            )
+          },
+          testM("pull1") {
+            val stream = Stream.fromIterable(List(1))
+            val sink   = Sink.pull1(IO.succeed(None: Option[Int]))((i: Int) => Sink.succeed[Int, Option[Int]](Some(i)))
+
+            assertM(stream.run(sink), equalTo(Some(1): Option[Int]))
+          },
+          suite("splitLines")(
+            testM("preserves data")(
+              checkM(
+                Gen
+                  .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
+                  .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+              ) { (lines: List[String]) =>
+                val data = lines.mkString("\n")
+
+                for {
+                  initial            <- ZSink.splitLines.initial
+                  middle             <- ZSink.splitLines.step(initial, data)
+                  res                <- ZSink.splitLines.extract(middle)
+                  (result, leftover) = res
+                } yield assert((result ++ leftover).toArray[String].mkString("\n"), equalTo(lines.mkString("\n")))
+              }
+            ),
+            testM("handles leftovers") {
+              for {
+                initial            <- ZSink.splitLines.initial
+                middle             <- ZSink.splitLines.step(initial, "abc\nbc")
+                res                <- ZSink.splitLines.extract(middle)
+                (result, leftover) = res
+              } yield assert(result.toArray[String].mkString("\n"), equalTo("abc")) && assert(
+                leftover.toArray[String].mkString,
+                equalTo("bc")
+              )
+            },
+            testM("transduces") {
+              assertM(
+                Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
+                  .transduce(ZSink.splitLines)
+                  .runCollect,
+                equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
+              )
+            },
+            testM("single newline edgecase") {
+              assertM(
+                Stream("\n")
+                  .transduce(ZSink.splitLines)
+                  .mapConcat(identity)
+                  .runCollect,
+                equalTo(List(""))
+              )
+            },
+            testM("no newlines in data") {
+              assertM(
+                Stream("abc", "abc", "abc")
+                  .transduce(ZSink.splitLines)
+                  .mapConcat(identity)
+                  .runCollect,
+                equalTo(List("abcabcabc"))
+              )
+            },
+            testM("\r\n on the boundary") {
+              assertM(
+                Stream("abc\r", "\nabc")
+                  .transduce(ZSink.splitLines)
+                  .mapConcat(identity)
+                  .runCollect,
+                equalTo(List("abc", "abc"))
+              )
+            }
+          ),
           //   suite("throttleEnforce")(
           //     testM("throttleEnforce") {
 
