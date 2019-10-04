@@ -1,14 +1,15 @@
 package zio.stream
 
-import java.util.concurrent.TimeUnit
+// import java.util.concurrent.TimeUnit
 import scala.{ Stream => _ }
 import zio._
-import zio.clock.Clock
-import zio.duration._
-import zio.random.Random
+// import zio.clock.Clock
+// import zio.duration._
+// import zio.random.Random
 import zio.test._
-import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isTrue, succeeds }
-import zio.test.mock.MockClock
+// import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isTrue, succeeds }
+import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, succeeds }
+// import zio.test.mock.MockClock
 import SinkUtils._
 
 object SinkSpec
