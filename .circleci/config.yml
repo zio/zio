@@ -19,7 +19,7 @@ jdk_11: &jdk_11
   JDK_VERSION: 11
 
 machine_resource: &machine_resource
-  resource_class: large
+  resource_class: xlarge
 
 machine_ubuntu: &machine_ubuntu
   machine:
