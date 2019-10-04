@@ -24,7 +24,7 @@ object GenSpec extends ZIOBaseSpec {
     label(anyLongShrinksToZero, "anyLong shrinks to zero"),
     label(anyShortShrinksToZero, "anyShort shrinks to zero"),
     label(anyStringShrinksToEmptyString, "anyString shrinks to empty string"),
-    label(anyUnicodeCharShrinksToZero, "anyChar shrinks to zero"),
+    label(anyUnicodeCharShrinksToZero, "anyUnicodeChar shrinks to zero"),
     label(booleanGeneratesTrueAndFalse, "boolean generates true and false"),
     label(booleanShrinksToFalse, "boolean shrinks to false"),
     label(byteGeneratesValuesInRange, "byte generates values in range"),
