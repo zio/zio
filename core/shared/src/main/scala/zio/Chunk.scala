@@ -29,7 +29,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * The number of elements in the chunk.
    */
-  def length: Int
+  val length: Int
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
@@ -355,7 +355,12 @@ sealed trait Chunk[+A] { self =>
   /**
    * Determines if the chunk is not empty.
    */
-  final def notEmpty: Boolean = length > 0
+  final def nonEmpty: Boolean = length > 0
+
+  /**
+   * The number of elements in the chunk.
+   */
+  final val size: Int = length
 
   /**
    * Returns two splits of this chunk at the specified index.
