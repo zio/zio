@@ -223,7 +223,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
                 def go(state: sink.State, dirty: Boolean): B =
                   if (!dirty) {
                     if (done) StreamEffect.end
-                    else if (leftovers.notEmpty) {
+                    else if (leftovers.nonEmpty) {
                       val (newState, newLeftovers) = sink.stepChunkPure(state, leftovers)
                       leftovers = newLeftovers
                       go(newState, true)

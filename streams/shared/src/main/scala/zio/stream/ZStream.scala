@@ -2168,7 +2168,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                 doneRef.get.flatMap { done =>
                   if (done)
                     Pull.end
-                  else if (leftovers.notEmpty)
+                  else if (leftovers.nonEmpty)
                     sink.stepChunk(s, leftovers).flatMap {
                       case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
                     } else
@@ -2186,7 +2186,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                     case (b, leftovers) =>
                       leftoversRef
                         .update(_ ++ leftovers)
-                        .when(leftovers.notEmpty)
+                        .when(leftovers.nonEmpty)
                         .as(b)
                   } else
                   as.foldM(
@@ -2198,7 +2198,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                             case (b, leftovers) =>
                               leftoversRef
                                 .update(_ ++ leftovers)
-                                .when(leftovers.notEmpty)
+                                .when(leftovers.nonEmpty)
                                 .as(b)
                           }
                     },

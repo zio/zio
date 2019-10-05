@@ -949,7 +949,7 @@ object ZSink extends ZSinkPlatformSpecific {
                     init          <- sink.initial
                     stepResult    <- sink.stepChunk(init, leftover ++ Chunk.single(a))
                     (s, leftover) = stepResult
-                  } yield (s, None, leftover, leftover.notEmpty)
+                  } yield (s, None, leftover, leftover.nonEmpty)
             }
 
         def extract(state: State) =
@@ -1137,7 +1137,7 @@ object ZSink extends ZSinkPlatformSpecific {
             }
             .map { list =>
               val results   = list.map { case (k, (b, _)) => (k, b) }.toMap
-              val leftovers = Chunk.fromIterable(list.map { case (k, (_, chunk)) => (k, chunk) }).filter(_._2.notEmpty)
+              val leftovers = Chunk.fromIterable(list.map { case (k, (_, chunk)) => (k, chunk) }).filter(_._2.nonEmpty)
               (results, leftovers)
             }
 
