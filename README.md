@@ -53,7 +53,7 @@ See the [Code of Conduct](./docs/about/code_of_conduct.md)
 
 ## Support 
 
-Come chat with us [Discord][Link-Discord]
+Come chat with us on [Discord][Link-Discord]
 
 ---
 
