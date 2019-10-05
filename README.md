@@ -54,7 +54,6 @@ See the [Code of Conduct](./docs/about/code_of_conduct.md)
 ## Support 
 
 Come chat with us [Discord][Link-Discord]
-[![Discord][Image-Discord]][Link-Discord]
 
 ---
 
@@ -80,4 +79,3 @@ Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reser
 
 [Image-SoftwareMill]: ./website/static/img/softwaremill.svg "SoftwareMill"
 [Image-SeptimalMind]: ./website/static/img/septimal_mind.svg "Septimal Mind"
-[Image-Discord]: ./discord-readme.png "Discord"
