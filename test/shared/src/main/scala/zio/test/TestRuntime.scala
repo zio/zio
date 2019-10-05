@@ -5,19 +5,20 @@ import zio.Exit
 import zio.ZIO
 import zio.internal.Executor
 import zio.random.Random
+import zio.stream.ZStream
 
 object TestRuntime {
 
   /**
    * Returns multiple possible outcomes of the given `zio`.
    */
-  def analyse[R <: Random, E, A](zio: ZIO[R, E, A]): Gen[R, Option[Exit[E, A]]] = {
+  def paths[R <: Random, E, A](zio: ZIO[R, E, A]): ZStream[R, Nothing, Option[Exit[E, A]]] = {
 
     val yielding = yieldingEffects(zio)
 
     val singleRun = runOnce(yielding)
 
-    Gen.fromEffect(singleRun)
+    ZStream.repeatEffect(singleRun)
   }
 
   private def runOnce[R <: Random, E, A](zio: ZIO[R, E, A]) =
