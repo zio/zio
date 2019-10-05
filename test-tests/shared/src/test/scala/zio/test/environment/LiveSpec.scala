@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.{ DefaultRunnableSpec, _ }
+import zio.test._
 import zio.{ clock, console }
 
 object LiveSpec
