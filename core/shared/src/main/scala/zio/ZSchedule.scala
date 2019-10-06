@@ -149,8 +149,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
-      type State        = (self.State, that.State)
-      type RunningState = (self.State, that.State)
+      type State = (self.State, that.State)
       val initial = self.initial zip that.initial
       val extract = (a: A1, s: (self.State, that.State)) => (self.extract(a, s._1), that.extract(a, s._2))
       val update = (a: A1, s: (self.State, that.State)) =>
@@ -803,8 +802,8 @@ object ZSchedule {
    * |action|-----interval-----|action|-----interval-----|action|
    * </pre>
    */
-  final def spaced(interval: Duration): ZSchedule[Clock, Any, Duration] =
-    delayed(forever.map(_ => interval))
+  final def spaced(interval: Duration): ZSchedule[Clock, Any, Int] =
+    forever.delayed(_ => interval)
 
   /**
    * A schedule that always fails.

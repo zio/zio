@@ -8,8 +8,7 @@ import zio.test.Assertion._
 import zio.test.{ assert, assertM, suite, testM, TestResult }
 
 import scala.concurrent.Future
-import zio.test.mock.MockRandom
-import zio.test.mock.MockClock
+import zio.test.environment.{ TestClock, TestRandom }
 
 object ZScheduleSpec
     extends ZIOBaseSpec(
@@ -162,7 +161,7 @@ object ZScheduleSpec
             }
             val scheduled = run(schedule >>> ZSchedule.elapsed)(List.fill(5)(()))
             val expected  = List(0.millis, 250.millis, 500.millis, 750.millis, 1000.millis)
-            assertM(MockRandom.feedDoubles(0.5, 0.5, 0.5, 0.5, 0.5) *> scheduled, equalTo(expected))
+            assertM(TestRandom.feedDoubles(0.5, 0.5, 0.5, 0.5, 0.5) *> scheduled, equalTo(expected))
           },
           testM("for a given number of times with random jitter in custom interval") {
             val schedule = ZSchedule.spaced(500.millis).jittered_[Clock with Random](2, 4) {
@@ -170,20 +169,17 @@ object ZScheduleSpec
             }
             val scheduled = run(schedule >>> ZSchedule.elapsed)((List.fill(5)(())))
             val expected  = List(0, 1500, 3000, 5000, 7000).map(_.millis)
-            assertM(MockRandom.feedDoubles(0.5, 0.5, 1, 1, 0.5) *> scheduled, equalTo(expected))
+            assertM(TestRandom.feedDoubles(0.5, 0.5, 1, 1, 0.5) *> scheduled, equalTo(expected))
           },
           testM("fixed delay with error predicate") {
             var i = 0
             val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
               if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
             }
-            val strategy: ZSchedule[Clock, String, (Duration, Int)] = ZSchedule
-              .spaced(200.millis)
-              .fold((Duration.Zero, 0)) { case (acc, d) => (acc._1 + d, acc._2 + 1) }
-              .whileInput[String](_ == "KeepTryingError")
-            val expected = ("GiveUpError", (1000.millis, 5))
-            val result   = io.retryOrElseEither(strategy, (e: String, s: (Duration, Int)) => ZIO.succeed((e, s)))
-            assertM(MockClock.setTime(Duration.Infinity) *> result, isLeft(equalTo(expected)))
+            val strategy = ZSchedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
+            val expected = (800.millis, "GiveUpError", 4)
+            val result   = io.retryOrElseEither(strategy, (e: String, r: Int) => TestClock.fiberTime.map((_, e, r)))
+            assertM(TestClock.setTime(Duration.Infinity) *> result, isLeft(equalTo(expected)))
           },
           testM("fibonacci delay") {
             assertM(
@@ -316,8 +312,8 @@ object ZScheduleSpecUtil {
    */
   def run[A, B](
     sched: ZSchedule[Clock with Random, A, B]
-  )(xs: Iterable[A]): ZIO[MockClock with Random, Nothing, List[B]] = {
-    final class Proxy(clock0: MockClock.Service[Any], random0: Random.Service[Any]) extends Clock with Random {
+  )(xs: Iterable[A]): ZIO[TestClock with Random, Nothing, List[B]] = {
+    final class Proxy(clock0: TestClock.Service[Any], random0: Random.Service[Any]) extends Clock with Random {
       val random = random0
       val clock = new Clock.Service[Any] {
         def currentDateTime                                  = clock0.currentDateTime
@@ -337,7 +333,7 @@ object ZScheduleSpecUtil {
             s => loop(xs, s, sched.extract(x, state) :: acc)
           )
     }
-    ZIO.environment[MockClock with Random].map(e => new Proxy(e.clock, e.random)) >>>
+    ZIO.environment[TestClock with Random].map(e => new Proxy(e.clock, e.random)) >>>
       sched.initial.flatMap(loop(xs.toList, _, Nil)).map(_.reverse)
   }
 
@@ -364,34 +360,6 @@ object ZScheduleSpecUtil {
       i <- ref.update(_ + 1)
       x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
     } yield x
-
-  object TestRandom extends Random {
-    object random extends Random.Service[Any] {
-      val nextBoolean: UIO[Boolean] = UIO.succeed(false)
-      def nextBytes(length: Int): UIO[Chunk[Byte]] =
-        UIO.succeed(Chunk.empty)
-      val nextDouble: UIO[Double] =
-        UIO.succeed(0.5)
-      val nextFloat: UIO[Float] =
-        UIO.succeed(0.5f)
-      val nextGaussian: UIO[Double] =
-        UIO.succeed(0.5)
-      def nextInt(n: Int): UIO[Int] =
-        UIO.succeed(n - 1)
-      val nextInt: UIO[Int] =
-        UIO.succeed(0)
-      val nextLong: UIO[Long] =
-        UIO.succeed(0L)
-      def nextLong(n: Long): UIO[Long] =
-        UIO.succeed(0L)
-      val nextPrintableChar: UIO[Char] =
-        UIO.succeed('A')
-      def nextString(length: Int): UIO[String] =
-        UIO.succeed("")
-      def shuffle[A](list: List[A]): UIO[List[A]] =
-        UIO.succeed(list.reverse)
-    }
-  }
 
   case class Error(message: String) extends Exception
   case class Failure(message: String)

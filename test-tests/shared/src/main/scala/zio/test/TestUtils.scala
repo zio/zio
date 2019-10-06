@@ -3,9 +3,7 @@ package zio.test
 import scala.concurrent.{ ExecutionContext, Future }
 
 import zio.{ Schedule, UIO, ZIO }
-import zio.clock.Clock
 import zio.test.environment.TestEnvironment
-import zio.test.mock.MockEnvironment
 
 object TestUtils {
 
