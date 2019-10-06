@@ -1,5 +1,5 @@
 ---
-id: about_contributor
+id: about_contributing
 title:  "ZIO Contributor Guidelines"
 ---
 
