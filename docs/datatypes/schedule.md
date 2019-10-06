@@ -100,5 +100,5 @@ val expCapped = ZSchedule.exponential(100.milliseconds) || ZSchedule.spaced(1.se
 Stops retrying after a specified amount of time has elapsed:
 
 ```scala mdoc:silent
-val expMaxElapsed = Schedule.exponential(10.milliseconds) && ZSchedule.elapsed.whileOutput(_ < 30.seconds)
+val expMaxElapsed = ZSchedule.exponential(10.milliseconds) && ZSchedule.elapsed.whileOutput(_ < 30.seconds)
 ```
