@@ -75,7 +75,7 @@ val jitteredExp = ZSchedule.exponential(10.milliseconds).jittered
 Modifies the delay of a schedule:
 
 ```scala mdoc:silent
-val boosted = ZSchedule.spaced(1.second).delayed(_ + 100.milliseconds)
+val boosted = ZSchedule.spaced(1.second).delayed(_ => 100.milliseconds)
 ```
 
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy:
