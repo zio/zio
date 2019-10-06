@@ -6,7 +6,7 @@ import zio.test.AssertionSpecHelper._
 import zio.test.TestAspect.failure
 
 object AssertionSpec
-    extends DefaultRunnableSpec(
+    extends ZIOBaseSpec(
       suite("AssertionSpec")(
         test("anything must always succeeds") {
           assert(42, anything)

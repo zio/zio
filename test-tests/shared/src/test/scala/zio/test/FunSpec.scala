@@ -6,7 +6,7 @@ import zio.{ random, ZIO }
 import scala.math.abs
 
 object FunSpec
-    extends DefaultRunnableSpec(
+    extends ZIOBaseSpec(
       suite("FunSpec")(
         testM("fun converts effects into pure functions") {
           for {

@@ -8,7 +8,7 @@ import zio.test._
 import zio.{ clock, console }
 
 object LiveSpec
-    extends DefaultRunnableSpec(
+    extends ZIOBaseSpec(
       suite("LiveSpec")(
         testM("live can access real environment") {
           for {

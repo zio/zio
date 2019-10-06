@@ -4,7 +4,7 @@ import zio._
 import zio.test.Assertion.equalTo
 
 object ManagedSpec
-    extends DefaultRunnableSpec(
+    extends ZIOBaseSpec(
       suite("ManagedSpec")(
         suite("managed shared")(
           testM("first test") {
