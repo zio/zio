@@ -13,7 +13,7 @@ import BenchUtils._
 @Fork(1)
 @Threads(1)
 @State(Scope.Thread)
-class RoundtripBenchmark {
+private[this] class RoundtripBenchmark {
   type QueueElement = () => Int
 
   def mkEl(): QueueElement  = () => 1

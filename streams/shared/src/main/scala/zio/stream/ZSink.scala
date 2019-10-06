@@ -125,7 +125,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Replaces any error produced by this sink.
    */
-  final def asError[E1](e1: E1): ZSink[R, E1, A0, A, B] = self.mapError(_ => e1)
+  final def asError[E1](e1: => E1): ZSink[R, E1, A0, A, B] = self.mapError(new ZIO.ConstFn(() => e1))
 
   /**
    * Creates a sink where every element of type `A` entering the sink is first
@@ -949,7 +949,7 @@ object ZSink extends ZSinkPlatformSpecific {
                     init          <- sink.initial
                     stepResult    <- sink.stepChunk(init, leftover ++ Chunk.single(a))
                     (s, leftover) = stepResult
-                  } yield (s, None, leftover, leftover.notEmpty)
+                  } yield (s, None, leftover, leftover.nonEmpty)
             }
 
         def extract(state: State) =
@@ -1137,7 +1137,7 @@ object ZSink extends ZSinkPlatformSpecific {
             }
             .map { list =>
               val results   = list.map { case (k, (b, _)) => (k, b) }.toMap
-              val leftovers = Chunk.fromIterable(list.map { case (k, (_, chunk)) => (k, chunk) }).filter(_._2.notEmpty)
+              val leftovers = Chunk.fromIterable(list.map { case (k, (_, chunk)) => (k, chunk) }).filter(_._2.nonEmpty)
               (results, leftovers)
             }
 
@@ -1501,7 +1501,13 @@ object ZSink extends ZSinkPlatformSpecific {
    * the predicate `p`.
    */
   final def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
-    ignoreWhileM(a => IO.succeed(p(a)))
+    new SinkPure[Nothing, A, A, Unit] {
+      type State = Chunk[A]
+      val initialPure                  = Chunk.empty
+      def stepPure(state: State, a: A) = if (p(a)) state else Chunk.single(a)
+      def extractPure(state: State)    = Right(((), state))
+      def cont(state: State)           = state.isEmpty
+    }
 
   /**
    * Creates a sink by starts consuming value as soon as one fails
@@ -1510,11 +1516,10 @@ object ZSink extends ZSinkPlatformSpecific {
   final def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, Unit] =
     new ZSink[R, E, A, A, Unit] {
       type State = Chunk[A]
-      val initial = IO.succeed(Chunk.empty)
-      def step(state: State, a: A) =
-        p(a).map(if (_) state else Chunk.single(a))
-      def extract(state: State) = IO.succeed(((), state))
-      def cont(state: State)    = state.isEmpty
+      val initial                  = IO.succeed(Chunk.empty)
+      def step(state: State, a: A) = p(a).map(if (_) state else Chunk.single(a))
+      def extract(state: State)    = IO.succeed(((), state))
+      def cont(state: State)       = state.isEmpty
     }
 
   /**

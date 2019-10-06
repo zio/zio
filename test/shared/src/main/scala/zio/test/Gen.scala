@@ -48,6 +48,8 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     }
   }
 
+  final def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
+
   final def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = Gen {
     self.sample.flatMap { sample =>
       val values  = f(sample.value).sample
@@ -84,7 +86,7 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     self.zip(that).map(f.tupled)
 }
 
-object Gen extends GenZIO {
+object Gen extends GenZIO with FunctionVariants {
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
@@ -143,8 +145,26 @@ object Gen extends GenZIO {
   /**
    * A generator of strings. Shrinks towards the empty string.
    */
-  final val anyString: Gen[Random with Sized, String] =
-    Gen.string(Gen.anyChar)
+  final def anyString: Gen[Random with Sized, String] =
+    Gen.string(Gen.anyUnicodeChar)
+
+  /**
+   * A generator of Unicode characters. Shrinks toward '0'.
+   * Heavily inspired from:
+   * https://github.com/typelevel/scalacheck/blob/ab15a9fe012ca7c9feb48ee188e4d167df76d6ba/src/main/scala/org/scalacheck/Arbitrary.scala#L122-L134
+   */
+  final val anyUnicodeChar: Gen[Random, Char] = {
+    def unicodeRange(min: Int, max: Int): Gen[Random, Char] =
+      fromEffectSample {
+        // 0xFFFF and 0xFFFE are not characters in the Unicode standard.
+        // See http://www.unicode.org/charts/PDF/UFFF0.pdf
+        nextInt(max - min + 1)
+          .map(r => (min + r).toChar)
+          .map(Sample.shrinkIntegral(0))
+      }
+
+    Gen.oneOf(unicodeRange('\u0000', '\uD7FF'), unicodeRange('\uE000', '\uFFFD'))
+  }
 
   /**
    * A generator of booleans. Shrinks toward 'false'.
@@ -238,29 +258,6 @@ object Gen extends GenZIO {
    */
   final def fromRandomSample[R <: Random, A](f: Random.Service[Any] => UIO[Sample[R, A]]): Gen[R, A] =
     Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random))))
-
-  /**
-   * Constructs a generator of functions from `A` to `B` given a generator of
-   * `B` values. Two `A` values will be considered to be equal, and thus will
-   * be guaranteed to generate the same `B` value, if they have the same
-   * `hashCode`.
-   */
-  final def function[R, A, B](gen: Gen[R, B]): Gen[R, A => B] =
-    functionWith(gen)(_.hashCode)
-
-  /**
-   * Constructs a generator of functions from `A` to `B` given a generator of
-   * `B` values and a hashing function for `A` values. Two `A` values will be
-   * considered to be equal, and thus will be guaranteed to generate the same
-   * `B` value, if they have have the same hash. This is useful when `A` does
-   * not implement `hashCode` in a way that is constent with equality.
-   */
-  final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
-    Gen.fromEffect {
-      gen.sample.forever.process.use { pull =>
-        Fun.makeHash((_: A) => pull.optional.map(_.get.value))(hash)
-      }
-    }
 
   /**
    * A generator of integers inside the specified range: [start, end].

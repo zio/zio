@@ -16,11 +16,13 @@
 
 package zio.stream
 
+import java.io.{ IOException, InputStream }
+
 import zio._
 import zio.clock.Clock
 import zio.Cause
 
-object Stream extends ZStreamPlatformSpecific {
+object Stream {
   import ZStream.Pull
 
   /**
@@ -94,7 +96,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncInterrupt]]
    */
   final def effectAsyncInterrupt[E, A](
-    register: (IO[Option[E], A] => Unit) => Either[Canceler, Stream[E, A]],
+    register: (IO[Option[E], A] => Unit) => Either[Canceler[Any], Stream[E, A]],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncInterrupt(register, outputBuffer)
@@ -124,6 +126,15 @@ object Stream extends ZStreamPlatformSpecific {
     fa: Stream[E, Stream[E, A]]
   ): Stream[E, A] =
     ZStream.flattenPar(n, outputBuffer)(fa)
+
+  /**
+   * See [[ZStream.fromInputStream]]
+   */
+  final def fromInputStream(
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): StreamEffectChunk[Any, IOException, Byte] =
+    ZStream.fromInputStream(is, chunkSize)
 
   /**
    * See [[ZStream.fromChunk]]
