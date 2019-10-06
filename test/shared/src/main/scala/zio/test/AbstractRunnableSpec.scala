@@ -41,9 +41,9 @@ abstract class AbstractRunnableSpec {
       case None => Some(spec)
       case Some(testSearchTerm) =>
         spec.filter[Environment, Failure, Label, Test] {
-          case s @ SuiteCase(_, _, _)                                         => Some(s)
-          case TestCase(label, _) if !label.toString.contains(testSearchTerm) => None
-          case t @ TestCase(_, _)                                             => Some(t)
+          case SuiteCase(_, _, _)                                             => true
+          case TestCase(label, _) if !label.toString.contains(testSearchTerm) => false
+          case TestCase(_, _)                                                 => true
         }
     }
 

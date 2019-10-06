@@ -39,7 +39,7 @@ object DefaultTestReporter {
                          case _                      => UIO.succeed(false)
                        })
             hasFailures = failures.exists(identity)
-            status      = if (specs.isEmpty) Ignored else if (hasFailures) Failed else Passed
+            status      = if (hasFailures) Failed else Passed
             renderedLabel = if (specs.isEmpty) ""
             else if (hasFailures) renderFailureLabel(label, depth)
             else renderSuccessLabel(label, depth)
