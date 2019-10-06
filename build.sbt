@@ -285,7 +285,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.2-RC1",
-      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC1"
+      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2"
     )
   )
   .dependsOn(
