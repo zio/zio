@@ -23,9 +23,9 @@ object TestRuntime {
   }
 
   private def runOnce[R <: Random, E, A](zio: ZIO[R, E, A]) =
-    makeTestExecutor.flatMap(yieldingEffects(zio).lock(_).run)
+    makeRandomExecutor.flatMap(yieldingEffects(zio).lock(_).run)
 
-  private val makeTestExecutor: ZIO[Random, Nothing, Executor] =
+  private val makeRandomExecutor: ZIO[Random, Nothing, Executor] =
     ZIO.effectTotal {
       new Executor {
         case class ExecutorState(pendingRunnables: Vector[Runnable], isRunning: Boolean)
