@@ -9,7 +9,7 @@ import zio.test.TestUtils.{ report, scope }
 object TestMain {
 
   def main(args: Array[String]): Unit = {
-    val allTests: List[(String, ZIOBaseSpec)] = List(
+    val allTests: List[(String, AsyncBaseSpec)] = List(
       ("BoolAlgebraSpec", BoolAlgebraSpec),
       ("CheckSpec", CheckSpec),
       ("ClockSpec", ClockSpec),

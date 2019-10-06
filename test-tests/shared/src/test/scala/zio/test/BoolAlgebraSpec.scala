@@ -2,10 +2,11 @@ package zio.test
 
 import scala.concurrent.Future
 import scala.util.Random
+import BoolAlgebraSpecHelper._
 
 import zio.test.TestUtils.label
 
-object BoolAlgebraSpec extends ZIOBaseSpec {
+object BoolAlgebraSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(allReturnsConjunctionOfValues, "all returns conjunction of values"),
@@ -30,16 +31,6 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
     label(orIsAssociative, "or is associative"),
     label(orIsCommutative, "or is commutative")
   )
-
-  val value1 = "first success"
-  val value2 = "second success"
-  val value3 = "first failure"
-  val value4 = "second failure"
-
-  val success1 = BoolAlgebra.success(value1)
-  val success2 = BoolAlgebra.success(value2)
-  val failure1 = BoolAlgebra.failure(value3)
-  val failure2 = BoolAlgebra.failure(value4)
 
   def allReturnsConjunctionOfValues: Future[Boolean] =
     Future.successful(BoolAlgebra.all(List(success1, failure1, failure2)).get.isFailure)
@@ -206,4 +197,16 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
     val b = randomBoolAlgebra(size)
     if (a == b) (a, b) else randomEqualBoolAlgebra(size)
   }
+}
+
+object BoolAlgebraSpecHelper {
+  val value1 = "first success"
+  val value2 = "second success"
+  val value3 = "first failure"
+  val value4 = "second failure"
+
+  val success1 = BoolAlgebra.success(value1)
+  val success2 = BoolAlgebra.success(value2)
+  val failure1 = BoolAlgebra.failure(value3)
+  val failure2 = BoolAlgebra.failure(value4)
 }
