@@ -16,9 +16,7 @@
 
 package zio.stm
 
-import zio.UIO
-
-class TMap[K, V] {
+class TMap[K, V] private (table: TArray[List[(K, V)]]) {
   final def collect[K2, V2](pf: PartialFunction[(K, V), (K2, V2)]): STM[Nothing, TMap[K2, V2]] = ???
 
   final def contains[E](k: K): STM[E, Boolean] = ???
@@ -47,21 +45,29 @@ class TMap[K, V] {
 }
 
 object TMap {
+  private final val DefaultSize = 1000
 
   /**
    * Makes an empty `TMap`.
    */
-  final def empty[K, V]: STM[Nothing, TMap[K, V]] = make(List.empty[(K, V)])
+  final def empty[K, V]: STM[Nothing, TMap[K, V]] = apply(List.empty[(K, V)])
 
   /**
    * Makes a new `TMap` that is initialized with the specified values.
    */
-  final def make[K, V](items: => List[(K, V)]): STM[Nothing, TMap[K, V]] = ???
+  final def apply[K, V](items: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+    val buckets     = Array.fill[List[(K, V)]](DefaultSize)(Nil)
+    val uniqueItems = items.toMap.toList
 
-  /**
-   * A convenience method that makes a `TMap` and immediately commits the
-   * transaction to extract the value out.
-   */
-  final def makeCommit[K, V](items: => List[(K, V)]): UIO[TMap[K, V]] =
-    STM.atomically(make(items))
+    uniqueItems.foreach { kv =>
+      val idx = indexOf(kv._1)
+      buckets(idx) = kv :: buckets(idx)
+    }
+
+    val stmBuckets = buckets.map(b => TRef.make(b))
+
+    STM.collectAll(stmBuckets).map(refs => new TMap(TArray(refs.toArray)))
+  }
+
+  private final def indexOf[K](k: K): Int = k.hashCode() % DefaultSize
 }
