@@ -21,9 +21,9 @@ abstract class BaseTestTask(val taskDef: TaskDef, val testClassLoader: ClassLoad
   protected def run(eventHandler: EventHandler, loggers: Array[Logger]) =
     for {
       spec    <- spec.run.provide(new SbtTestLogger(loggers) with Clock.Live)
-      summary = SummaryBuilder.buildSummary(spec)
+      summary <- SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.run(summary)
-      events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
+      events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
       _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 

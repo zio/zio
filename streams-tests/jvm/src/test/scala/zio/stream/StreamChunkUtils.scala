@@ -24,7 +24,8 @@ trait StreamChunkUtils extends StreamUtils {
 
 object StreamChunkUtils extends StreamChunkUtils with GenUtils {
   def slurp[E, A](s: StreamChunk[E, A]): IO[E, Seq[A]] =
-    s.foldChunks(Chunk.empty: Chunk[A])(_ => true)((acc, el) => IO.succeed(acc ++ el))
+    s.chunks
+      .fold(Chunk.empty: Chunk[A])(_ ++ _)
       .map(_.toSeq)
 
   def foldLazyList[S, T](list: List[T], zero: S)(cont: S => Boolean)(f: (S, T) => S): S = {

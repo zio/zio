@@ -6,7 +6,7 @@ import scala.{ Stream => _ }
 import zio._
 import zio.clock.Clock
 import zio.duration._
-import zio.test.mock.MockClock
+import zio.test.environment.TestClock
 import java.util.concurrent.TimeUnit
 import org.specs2.matcher.MatchResult
 import org.specs2.matcher.describe.Diffable
@@ -1638,7 +1638,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
         step1 <- sink.step(init1, 1)
         res1  <- sink.extract(step1).map(_._1)
         init2 <- sink.initial
-        _     <- MockClock.adjust(23.milliseconds)
+        _     <- TestClock.adjust(23.milliseconds)
         step2 <- sink.step(init2, 2)
         res2  <- sink.extract(step2).map(_._1)
         init3 <- sink.initial
@@ -1647,7 +1647,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
         init4 <- sink.initial
         step4 <- sink.step(init4, 4)
         res4  <- sink.extract(step4).map(_._1)
-        _     <- MockClock.adjust(11.milliseconds)
+        _     <- TestClock.adjust(11.milliseconds)
         init5 <- sink.initial
         step5 <- sink.step(init5, 5)
         res5  <- sink.extract(step5).map(_._1)
@@ -1655,7 +1655,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     unsafeRun {
       for {
-        clock <- MockClock.make(MockClock.DefaultData)
+        clock <- TestClock.make(TestClock.DefaultData)
         test <- ZSink
                  .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
                  .use(sinkTest)
@@ -1672,7 +1672,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
         step1 <- sink.step(init1, 1)
         res1  <- sink.extract(step1).map(_._1)
         init2 <- sink.initial
-        _     <- MockClock.adjust(23.milliseconds)
+        _     <- TestClock.adjust(23.milliseconds)
         step2 <- sink.step(init2, 2)
         res2  <- sink.extract(step2).map(_._1)
         init3 <- sink.initial
@@ -1681,7 +1681,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
         init4 <- sink.initial
         step4 <- sink.step(init4, 4)
         res4  <- sink.extract(step4).map(_._1)
-        _     <- MockClock.adjust(11.milliseconds)
+        _     <- TestClock.adjust(11.milliseconds)
         init5 <- sink.initial
         step5 <- sink.step(init5, 5)
         res5  <- sink.extract(step5).map(_._1)
@@ -1689,7 +1689,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     unsafeRun {
       for {
-        clock <- MockClock.make(MockClock.DefaultData)
+        clock <- TestClock.make(TestClock.DefaultData)
         test <- ZSink
                  .throttleEnforce[Int](1, 10.milliseconds, 1)(_ => 1)
                  .use(sinkTest)
@@ -1716,7 +1716,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     unsafeRun {
       for {
-        clock <- MockClock.make(MockClock.DefaultData)
+        clock <- TestClock.make(TestClock.DefaultData)
         fiber <- ZSink
                   .throttleShape[Int](1, 1.second)(_.toLong)
                   .use(sinkTest)
@@ -1743,7 +1743,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     unsafeRun {
       for {
-        clock <- MockClock.make(MockClock.DefaultData)
+        clock <- TestClock.make(TestClock.DefaultData)
         test <- ZSink
                  .throttleShape[Int](1, 0.seconds)(_ => 100000L)
                  .use(sinkTest)
@@ -1760,11 +1760,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
         step1 <- sink.step(init1, 1)
         res1  <- sink.extract(step1).map(_._1)
         init2 <- sink.initial
-        _     <- MockClock.adjust(2.seconds)
+        _     <- TestClock.adjust(2.seconds)
         step2 <- sink.step(init2, 2)
         res2  <- sink.extract(step2).map(_._1)
         init3 <- sink.initial
-        _     <- MockClock.adjust(4.seconds)
+        _     <- TestClock.adjust(4.seconds)
         _     <- clock.sleep(4.seconds)
         step3 <- sink.step(init3, 3)
         res3  <- sink.extract(step3).map(_._1)
@@ -1772,7 +1772,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
 
     unsafeRun {
       for {
-        clock <- MockClock.make(MockClock.DefaultData)
+        clock <- TestClock.make(TestClock.DefaultData)
         fiber <- ZSink
                   .throttleShape[Int](1, 1.second, 2)(_.toLong)
                   .use(sinkTest)

@@ -9,7 +9,7 @@ import scala.util.Try
 import zio.Cause.{ die, fail, interrupt, Both }
 import zio.duration._
 import zio.syntax._
-import zio.test.mock.MockClock
+import zio.test.environment.TestClock
 
 class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -355,17 +355,17 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     )
   }
 
-  def testCached = unsafeRunWith(MockClock.make(MockClock.DefaultData)) {
+  def testCached = unsafeRunWith(TestClock.make(TestClock.DefaultData)) {
     def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
     for {
       ref   <- Ref.make(0)
       cache <- incrementAndGet(ref).cached(60.minutes)
       a     <- cache
-      _     <- MockClock.adjust(59.minutes)
+      _     <- TestClock.adjust(59.minutes)
       b     <- cache
-      _     <- MockClock.adjust(1.minute)
+      _     <- TestClock.adjust(1.minute)
       c     <- cache
-      _     <- MockClock.adjust(59.minutes)
+      _     <- TestClock.adjust(59.minutes)
       d     <- cache
     } yield (a must_=== b) and (b must_!== c) and (c must_=== d)
   }

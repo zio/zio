@@ -34,11 +34,11 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test:run;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testJS/test:run;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile"
 )
 
 lazy val root = project
@@ -61,6 +61,8 @@ lazy val root = project
     benchmarks,
     testJVM,
     testJS,
+    testTestsJVM,
+    testTestsJS,
     stacktracerJS,
     stacktracerJVM,
     testRunnerJS,
@@ -84,10 +86,10 @@ lazy val coreJS = core.js
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
   .dependsOn(core)
-  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(test)
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
@@ -126,7 +128,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(coreTests % "test->test;compile->compile")
   .settings(stdSettings("core-tests"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.stream"))
   .settings(skip in publish := true)
   .settings(
@@ -153,9 +155,25 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   )
 
 lazy val testJVM = test.jvm
-lazy val testJS = test.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test,
-  scalaJSUseMainModuleInitializer in Test := true
+lazy val testJS  = test.js
+
+lazy val testTests = crossProject(JSPlatform, JVMPlatform)
+  .in(file("test-tests"))
+  .dependsOn(test)
+  .settings(stdSettings("test-tests"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner)
+  .settings(buildInfoSettings("zio.test"))
+  .settings(skip in publish := true)
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val testTestsJVM = testTests.jvm.settings(
+  mainClass in Compile := Some("zio.test.TestMain")
+)
+lazy val testTestsJS = testTests.js.settings(
+  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3",
+  scalaJSUseMainModuleInitializer in Compile := true,
+  mainClass in Compile := Some("zio.test.TestMain")
 )
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
@@ -187,8 +205,8 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   )
   .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.29"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
-  .dependsOn(core % "test->test;compile->compile")
-  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(core)
+  .dependsOn(test)
 
 lazy val testRunnerJVM = testRunner.jvm
 lazy val testRunnerJS  = testRunner.js
@@ -202,7 +220,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner % "test->test;compile->compile")
+  .dependsOn(testRunner)
 
 lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm
@@ -224,8 +242,8 @@ lazy val benchmarks = project.module
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.25",
         "io.monix"                 %% "monix"           % "3.0.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.12",
-        "org.ow2.asm"              % "asm"              % "7.1",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.13",
+        "org.ow2.asm"              % "asm"              % "7.2",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
         "org.typelevel"            %% "cats-effect"     % "2.0.0"
