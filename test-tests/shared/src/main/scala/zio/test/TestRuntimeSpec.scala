@@ -14,7 +14,7 @@ import zio.random.Random
 object TestRuntimeSpec extends ZIOBaseSpec {
   val run: List[Async[(Boolean, String)]] = List(
     label(simpleSuccess, "returns simple success"),
-    // label(sleep, "allow to use sleep"),
+    label(sleep, "allow to use sleep"),
     label(simpleRace, "find both winner in a simple race")
   )
 
@@ -25,7 +25,7 @@ object TestRuntimeSpec extends ZIOBaseSpec {
   }
 
   def sleep: Future[Boolean] = {
-    val gen = paths(zio.ZIO.sleep(2.seconds))
+    val gen = paths(zio.ZIO.sleep(20.milliseconds))
 
     expectToSee(gen)(Success(()))
   }
