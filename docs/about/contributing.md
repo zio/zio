@@ -9,8 +9,6 @@ We welcome contributions from all people! You will learn about functional progra
 
 _You too can contribute to ZIO, we believe in you!_
 
-Please read the [Contributor License Agreement](#ZIO-Contributor-License-Agreement) before continuing below.
-
 # Contributing
 
 ## Getting Started
