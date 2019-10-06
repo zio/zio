@@ -91,7 +91,7 @@ object TMapSpec
             assertM(tx.commit, isNone)
           }
         ),
-        suite("filtering")(
+        suite("transformations")(
           testM("filter") {
             val tx =
               for {
