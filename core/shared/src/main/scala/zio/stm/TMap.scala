@@ -16,7 +16,7 @@
 
 package zio.stm
 
-class TMap[K, V] private (buckets: TArray[List[(K, V)]]) {
+class TMap[K, V] private (buckets: TArray[List[(K, V)]]) { self =>
   final def collect[K2, V2](pf: PartialFunction[(K, V), (K2, V2)]): STM[Nothing, TMap[K2, V2]] = ???
 
   final def contains[E](k: K): STM[E, Boolean] = get(k).map(_.isDefined)
@@ -37,11 +37,19 @@ class TMap[K, V] private (buckets: TArray[List[(K, V)]]) {
 
   final def getOrElse[E](k: K, default: => V): STM[E, V] = get(k).map(_.getOrElse(default))
 
-  final def insert[E](k: K, v: V): STM[E, TMap[K, V]] = ???
-
   final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] = ???
 
   final def mapM[E, K2, V2](f: ((K, V)) => STM[E, (K2, V2)]): STM[E, TMap[K2, V2]] = ???
+
+  final def put[E](k: K, v: V): STM[E, TMap[K, V]] = {
+    def update(bucket: List[(K, V)]): List[(K, V)] =
+      bucket match {
+        case Nil => List(k -> v)
+        case xs  => xs.map(kv => if (kv._1 == k) (k, v) else kv)
+      }
+
+    buckets.update(TMap.indexOf(k), update).as(self)
+  }
 }
 
 object TMap {

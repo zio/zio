@@ -48,6 +48,28 @@ object TMapSpec
             val tx = TMap.empty[String, Int].flatMap(_.contains("a"))
             assertM(tx.commit, isFalse)
           }
+        ),
+        suite("insertion and removal")(
+          testM("add new element") {
+            val tx =
+              for {
+                map1 <- TMap.empty[String, Int]
+                map2 <- map1.put("a", 1)
+                e    <- map2.get("a")
+              } yield e
+
+            assertM(tx.commit, isSome(equalTo(1)))
+          },
+          testM("overwrite existing element") {
+            val tx =
+              for {
+                map1 <- TMap(List("a" -> 1, "b" -> 2))
+                map2 <- map1.put("a", 10)
+                e    <- map2.get("a")
+              } yield e
+
+            assertM(tx.commit, isSome(equalTo(10)))
+          }
         )
       )
     )
