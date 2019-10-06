@@ -16,10 +16,10 @@
 
 package zio.stm
 
-class TMap[K, V] private (table: TArray[List[(K, V)]]) {
+class TMap[K, V] private (buckets: TArray[List[(K, V)]]) {
   final def collect[K2, V2](pf: PartialFunction[(K, V), (K2, V2)]): STM[Nothing, TMap[K2, V2]] = ???
 
-  final def contains[E](k: K): STM[E, Boolean] = ???
+  final def contains[E](k: K): STM[E, Boolean] = get(k).map(_.isDefined)
 
   final def delete[E](k: K): STM[E, TMap[K, V]] = ???
 
@@ -33,9 +33,9 @@ class TMap[K, V] private (table: TArray[List[(K, V)]]) {
 
   final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] = ???
 
-  final def get[E](k: K): STM[E, Option[V]] = ???
+  final def get[E](k: K): STM[E, Option[V]] = buckets(TMap.indexOf(k)).map(_.find(_._1 == k).map(_._2))
 
-  final def getOrElse[E](k: K, default: => V): STM[E, V] = ???
+  final def getOrElse[E](k: K, default: => V): STM[E, V] = get(k).map(_.getOrElse(default))
 
   final def insert[E](k: K, v: V): STM[E, TMap[K, V]] = ???
 
@@ -45,6 +45,7 @@ class TMap[K, V] private (table: TArray[List[(K, V)]]) {
 }
 
 object TMap {
+
   /**
    * Makes an empty `TMap`.
    */

@@ -22,9 +22,32 @@ import zio.ZIOBaseSpec
 
 object TMapSpec
     extends ZIOBaseSpec(
-      suite("TMapSpec")(
-        test("zio test template") {
-          assert(1, equalTo(1))
-        }
+      suite("TMap")(
+        suite("lookups")(
+          testM("get existing element") {
+            val tx = TMap(List("a" -> 1, "b" -> 2)).flatMap(_.get("a"))
+            assertM(tx.commit, isSome(equalTo(1)))
+          },
+          testM("get non-existing element") {
+            val tx = TMap.empty[String, Int].flatMap(_.get("a"))
+            assertM(tx.commit, isNone)
+          },
+          testM("getOrElse existing element") {
+            val tx = TMap(List("a" -> 1, "b" -> 2)).flatMap(_.getOrElse("a", 10))
+            assertM(tx.commit, equalTo(1))
+          },
+          testM("getOrElse non-existing element") {
+            val tx = TMap.empty[String, Int].flatMap(_.getOrElse("a", 10))
+            assertM(tx.commit, equalTo(10))
+          },
+          testM("contains existing element") {
+            val tx = TMap(List("a" -> 1, "b" -> 2)).flatMap(_.contains("a"))
+            assertM(tx.commit, isTrue)
+          },
+          testM("contains non-existing element") {
+            val tx = TMap.empty[String, Int].flatMap(_.contains("a"))
+            assertM(tx.commit, isFalse)
+          }
+        )
       )
     )
