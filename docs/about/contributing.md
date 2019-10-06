@@ -1,5 +1,5 @@
 ---
-id: about_contributor
+id: about_contributing
 title:  "ZIO Contributor Guidelines"
 ---
 
@@ -8,8 +8,6 @@ Thank you for your interest in contributing to ZIO, which is a small, zero-depen
 We welcome contributions from all people! You will learn about functional programming, and you will add your own unique touch to the ZIO project. We are happy to help you to get started and to hear your suggestions and answer your questions.
 
 _You too can contribute to ZIO, we believe in you!_
-
-Please read the [Contributor License Agreement](#ZIO-Contributor-License-Agreement) before continuing below.
 
 # Contributing
 
