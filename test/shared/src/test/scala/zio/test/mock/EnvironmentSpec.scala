@@ -54,7 +54,7 @@ object EnvironmentSpec extends DefaultRuntime {
     unsafeRunToFuture {
       for {
         i <- random.nextInt.provideManaged(MockEnvironment.Value)
-        _ <- Live.live(clock.sleep(1.millisecond)).provideManaged(MockEnvironment.Value)
+        _ <- clock.sleep(1.millisecond)
         j <- random.nextInt.provideManaged(MockEnvironment.Value)
       } yield i != j
     }

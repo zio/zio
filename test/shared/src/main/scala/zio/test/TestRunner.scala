@@ -20,7 +20,6 @@ import zio._
 import zio.clock.Clock
 import zio.console.Console
 import zio.internal.{ Platform, PlatformLive }
-import zio.test.TestRunner.ExecutionResult
 
 /**
  * A `TestRunner[R, E, L, S]` encapsulates all the logic necessary to run specs
@@ -39,9 +38,9 @@ case class TestRunner[L, -T, E, S](
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: Spec[L, T]): URIO[TestLogger with Clock, ExecutionResult[L, E, S]] =
+  final def run(spec: Spec[L, T]): URIO[TestLogger with Clock, ExecutedSpec[L, E, S]] =
     executor(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
-      case (duration, results) => reporter(duration, results).map(ExecutionResult(results, _))
+      case (duration, results) => reporter(duration, results).as(results)
     }
 
   /**
@@ -51,14 +50,14 @@ case class TestRunner[L, -T, E, S](
     spec: Spec[L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
-  ): ExecutionResult[L, E, S] =
+  ): ExecutedSpec[L, E, S] =
     buildRuntime(testLogger, clock).unsafeRun(run(spec))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
   final def unsafeRunAsync(spec: Spec[L, T], testLogger: TestLogger = defaultTestLogger, clock: Clock = Clock.Live)(
-    k: ExecutionResult[L, E, S] => Unit
+    k: ExecutedSpec[L, E, S] => Unit
   ): Unit =
     buildRuntime(testLogger, clock).unsafeRunAsync(run(spec)) {
       case Exit.Success(v) => k(v)
@@ -72,7 +71,7 @@ case class TestRunner[L, -T, E, S](
     spec: Spec[L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
-  ): Exit[Nothing, ExecutionResult[L, E, S]] =
+  ): Exit[Nothing, ExecutedSpec[L, E, S]] =
     buildRuntime(testLogger, clock).unsafeRunSync(run(spec))
 
   /**
@@ -92,7 +91,4 @@ case class TestRunner[L, -T, E, S](
       override def testLogger: TestLogger.Service = loggerSvc.testLogger
       override val clock: Clock.Service[Any]      = clockSvc.clock
     }
-}
-object TestRunner {
-  case class ExecutionResult[L, E, S](spec: ExecutedSpec[L, E, S], summary: String)
 }

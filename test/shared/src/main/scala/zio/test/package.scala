@@ -49,17 +49,15 @@ package object test extends CheckVariants {
   /**
    * A `TestReporter[L, E, S]` is capable of reporting test results annotated
    * with labels `L`, error type `E`, and success type `S`.
-   * Value returned in URIO is a summary of running the suite that will be logged at the very end by
-   * sbt or other tool that is used to run tests
    */
-  type TestReporter[-L, -E, -S] = (Duration, ExecutedSpec[L, E, S]) => URIO[TestLogger, String]
+  type TestReporter[-L, -E, -S] = (Duration, ExecutedSpec[L, E, S]) => URIO[TestLogger, Unit]
 
   object TestReporter {
 
     /**
      * TestReporter that does nothing
      */
-    final val silent: TestReporter[Any, Any, Any] = (_, _) => ZIO.succeed("")
+    final val silent: TestReporter[Any, Any, Any] = (_, _) => ZIO.unit
   }
 
   /**

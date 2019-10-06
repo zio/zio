@@ -71,9 +71,7 @@ object DefaultTestReporter {
           .foreach(renderSpec(spec))(TestLogger.logLine)
           .ignore
 
-      (printSpec(executedSpec) *> logStats(duration, executedSpec) as filterOutSuccess(executedSpec)
-        .flatMap(renderSpec)
-        .mkString("\n"))
+      printSpec(executedSpec) *> logStats(duration, executedSpec)
     }
   }
 
@@ -96,27 +94,6 @@ object DefaultTestReporter {
         s"Ran ${stats.total} test${if (stats.total == 1) "" else "s"} in ${duration.render}: ${stats.numberOfSuccess} succeeded, ${stats.numberOfIgnored} ignored, ${stats.numberOfFailed} failed"
       )
     )
-  }
-
-  private def filterOutSuccess[L, E, S](executedSpec: ExecutedSpec[L, E, S]): Seq[ExecutedSpec[L, E, S]] = {
-    def isFailure(testCase: Spec.TestCase[L, Either[TestFailure[E], TestSuccess[S]]]): Boolean =
-      testCase.test.isLeft
-
-    def hasFailures(suite: Spec.SuiteCase[L, ExecutedSpec[L, E, S]]): Boolean =
-      suite.specs.exists(_.caseValue match {
-        case s @ Spec.SuiteCase(_, _, _) => hasFailures(s)
-        case t @ Spec.TestCase(_, _)     => isFailure(t)
-      })
-
-    def loop(current: ExecutedSpec[L, E, S], acc: Seq[ExecutedSpec[L, E, S]]): Seq[ExecutedSpec[L, E, S]] =
-      current.caseValue match {
-        case suite @ Spec.SuiteCase(_, specs, _) if hasFailures(suite) =>
-          acc :+ Spec(suite.copy(specs = specs.flatMap(loop(_, Vector.empty))))
-        case t @ Spec.TestCase(_, _) if isFailure(t) => acc :+ current
-        case _                                       => acc
-      }
-
-    loop(executedSpec, Vector.empty)
   }
 
   private def renderSuccessLabel(label: String, offset: Int) =

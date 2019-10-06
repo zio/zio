@@ -15,6 +15,7 @@ object TestMain {
       scope(ClockSpec.run, "ClockSpec"),
       scope(ConsoleSpec.run, "ConsoleSpec"),
       scope(DefaultTestReporterSpec.run, "DefaultTestReporterSpec"),
+      scope(SummaryBuilderSpec.run, "SummaryBuilderSpec"),
       scope(EnvironmentSpec.run, "EnvironmentSpec"),
       scope(FunSpec.run, "FunSpec"),
       scope(GenSpec.run, "GenSpec"),

@@ -1,21 +1,20 @@
 package zio.test
 
-import zio._
 import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 import zio.test.ReportingTestUtils._
 import zio.test.TestUtils.label
+import zio.{ Cause, DefaultRuntime, IO, Managed }
 import zio.test.mock._
 
 import scala.concurrent.Future
 
-object DefaultTestReporterSpec extends DefaultRuntime {
-
+object SummaryBuilderSpec extends DefaultRuntime {
   val run: List[Async[(Boolean, String)]] = List(
-    label(reportSuccess, "correctly reports a successful test"),
-    label(reportFailure, "correctly reports a failed test"),
+    label(reportSuccess, "doesn't generate summary for a successful test"),
+    label(reportFailure, "includes a failed test"),
     label(reportError, "correctly reports an error in a test"),
-    label(reportSuite1, "correctly reports successful test suite"),
+    label(reportSuite1, "doesn't generate summary for a successful test suite"),
     label(reportSuite2, "correctly reports failed test suite"),
     label(reportSuites, "correctly reports multiple test suites"),
     label(simpleAssertion, "correctly reports failure of simple assertion")
@@ -28,13 +27,9 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     assert(1 + 1, equalTo(2))
   }
 
-  val test1Expected = expectedSuccess("Addition works fine")
-
   val test2 = makeTest("Subtraction works fine") {
     assert(1 - 1, equalTo(0))
   }
-
-  val test2Expected = expectedSuccess("Subtraction works fine")
 
   val test3 = makeTest("Value falls within range") {
     assert(52, equalTo(42) || (isGreaterThan(5) && isLessThan(10)))
@@ -73,69 +68,47 @@ object DefaultTestReporterSpec extends DefaultRuntime {
 
   val suite1 = suite("Suite1")(test1, test2)
 
-  val suite1Expected = Vector(
-    expectedSuccess("Suite1"),
-    withOffset(2)(test1Expected),
-    withOffset(2)(test2Expected)
-  )
-
   val suite2 = suite("Suite2")(test1, test2, test3)
 
-  val suite2Expected = Vector(
-    expectedFailure("Suite2"),
-    withOffset(2)(test1Expected),
-    withOffset(2)(test2Expected)
-  ) ++ test3Expected.map(withOffset(2)(_))
-
-  def reportStats(success: Int, ignore: Int, failure: Int) = {
-    val total = success + ignore + failure
-    cyan(
-      s"Ran $total test${if (total == 1) "" else "s"} in 0 ns: $success succeeded, $ignore ignored, $failure failed"
-    ) + "\n"
-  }
-
   def reportSuccess =
-    check(test1, Vector(test1Expected, reportStats(1, 0, 0)))
+    check(test1, noSummary)
 
   def reportFailure =
-    check(test3, test3Expected :+ reportStats(0, 0, 1))
+    check(test3, test3Expected)
 
   def reportError =
-    check(test4, test4Expected :+ reportStats(0, 0, 1))
+    check(test4, test4Expected)
 
   def reportSuite1 =
-    check(suite1, suite1Expected :+ reportStats(2, 0, 0))
+    check(suite1, noSummary)
 
   def reportSuite2 =
-    check(suite2, suite2Expected :+ reportStats(2, 0, 1))
+    check(suite2, expectedFailure("Suite2") +: test3Expected.map(withOffset(2)))
 
   def reportSuites =
-    check(
-      suite("Suite3")(suite1, test3),
-      Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected
-        .map(withOffset(2)) :+ reportStats(2, 0, 1)
-    )
+    check(suite("Suite3")(suite1, test3), expectedFailure("Suite3") +: test3Expected.map(withOffset(2)))
 
   def simpleAssertion =
-    check(test5, test5Expected :+ reportStats(0, 0, 1))
+    check(test5, test5Expected)
+
+  val noSummary: Vector[String] = Vector.empty
 
   def check[E](
     spec: ZSpec[MockEnvironment, String, String, Unit],
-    expectedOutput: Vector[String]
+    expectedSummary: Vector[String]
   ): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>
       val zio = for {
-        _ <- MockTestRunner(r)
-              .run(spec)
-              .provideSomeM(for {
-                logSvc   <- TestLogger.fromConsoleM
-                clockSvc <- MockClock.make(MockClock.DefaultData)
-              } yield new TestLogger with Clock {
-                override def testLogger: TestLogger.Service = logSvc.testLogger
-                override val clock: Clock.Service[Any]      = clockSvc.clock
-              })
-        output <- MockConsole.output
-      } yield output == expectedOutput
+        result <- MockTestRunner(r)
+                   .run(spec)
+                   .provideSomeM(for {
+                     logSvc   <- TestLogger.fromConsoleM
+                     clockSvc <- MockClock.make(MockClock.DefaultData)
+                   } yield new TestLogger with Clock {
+                     override def testLogger: TestLogger.Service = logSvc.testLogger
+                     override val clock: Clock.Service[Any]      = clockSvc.clock
+                   })
+      } yield SummaryBuilder.buildSummary(result) == expectedSummary.mkString("").stripLineEnd
 
       zio.provide(r)
     }

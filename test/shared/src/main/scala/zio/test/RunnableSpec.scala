@@ -19,7 +19,6 @@ package zio.test
 import zio.URIO
 import zio.clock.Clock
 import zio.test.Spec.TestCase
-import zio.test.TestRunner.ExecutionResult
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
@@ -35,10 +34,10 @@ abstract class RunnableSpec[L, T, E, S](runner0: TestRunner[L, T, E, S])(spec0: 
   override def spec   = spec0
 
   private val runSpec: URIO[TestLogger with Clock, Int] = for {
-    res                               <- run
-    ExecutionResult(results, summary) = res
-    hasFailures                       = results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
-    _                                 <- TestLogger.logLine(summary)
+    results     <- run
+    hasFailures = results.exists { case TestCase(_, test) => test.isLeft; case _ => false }
+    summary     = SummaryBuilder.buildSummary(results)
+    _           <- TestLogger.logLine(summary)
   } yield if (hasFailures) 1 else 0
 
   /**
