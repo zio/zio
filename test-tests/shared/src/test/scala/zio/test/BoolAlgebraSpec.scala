@@ -67,8 +67,7 @@ object BoolAlgebraSpec
           assert(failure1 || failure2, isFailure)
         },
         testM("hashCode is consistent with equals") {
-          zio.test.checkSome(equalBoolAlgebraOfSize(3))(n = 4) { pair =>
-            println(1)
+          zio.test.checkSome(equalBoolAlgebraOfSize(4))(n = 10) { pair =>
             val (a, b) = pair
             assert(a.hashCode, equalTo(b.hashCode))
           }
@@ -143,14 +142,16 @@ object BoolAlgebraSpecHelper {
   val isSuccess: Assertion[BoolAlgebra[_]] = assertion("isSuccess")()(_.isSuccess)
   val isFailure: Assertion[BoolAlgebra[_]] = assertion("isFailure")()(_.isFailure)
 
-  def boolAlgebra: Gen[Random with Sized, BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s))
+  def boolAlgebra: Gen[Random with Sized, BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s), 1)
 
   def boolAlgebraOfSize(size: Int): Gen[Random, BoolAlgebra[Int]] =
-    if (size == 0) {
+    if (size == 1) {
       Gen.int(0, 9).map(BoolAlgebra.success)
+    } else if (size == 2) {
+      boolAlgebraOfSize(size - 1).map(!_)
     } else {
       for {
-        n <- Gen.int(0, size - 1)
+        n <- Gen.int(1, size - 2)
         gen <- Gen.oneOf(
                 (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 && p._2),
                 (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 || p._2),
