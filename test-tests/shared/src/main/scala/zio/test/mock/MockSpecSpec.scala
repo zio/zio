@@ -21,13 +21,13 @@ import scala.concurrent.Future
 import zio.{ IO, Managed, ZIO }
 import zio.clock.Clock
 import zio.duration._
-import zio.test.{ assertM, testM, Assertion, Async, ZIOBaseSpec }
+import zio.test.{ assertM, testM, Assertion, Async, AsyncBaseSpec }
 import zio.test.Assertion.{ anything, equalTo, isNone, isUnit, isWithin }
 import zio.test.TestUtils.{ label, succeeded }
 import zio.test.mock.MockSpecUtils.{ intTuple22, Module }
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 
-object MockSpecSpec extends ZIOBaseSpec {
+object MockSpecSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(expect.singleParam, "expect singleParam"),

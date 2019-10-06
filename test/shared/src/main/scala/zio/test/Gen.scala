@@ -48,6 +48,8 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     }
   }
 
+  final def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
+
   final def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = Gen {
     self.sample.flatMap { sample =>
       val values  = f(sample.value).sample

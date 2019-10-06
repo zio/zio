@@ -6,7 +6,7 @@ import zio.{ random, Chunk, Ref, ZIO }
 import zio.test.Assertion._
 import zio.test.TestUtils.{ execute, failed, forAllTests, label, succeeded }
 
-object CheckSpec extends ZIOBaseSpec {
+object CheckSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(checkMIsPolymorphicInErrorType, "checkM is polymorphic in error type"),

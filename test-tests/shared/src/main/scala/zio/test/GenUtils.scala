@@ -1,10 +1,11 @@
 package zio.test
 
-import scala.concurrent.Future
-
-import zio.{ DefaultRuntime, Managed, UIO, ZIO }
+import zio.Exit.{ Failure, Success }
 import zio.random.Random
 import zio.test.environment.TestRandom
+import zio._
+
+import scala.concurrent.Future
 
 object GenUtils extends DefaultRuntime {
 
@@ -72,14 +73,15 @@ object GenUtils extends DefaultRuntime {
       }
     }
 
-  def checkSampleEffect[E, A](gen: Gen[Random with Sized, ZIO[Random with Sized, E, A]], size: Int = 100)(
-    f: List[Either[E, A]] => Boolean
-  ): Future[Boolean] =
-    unsafeRunToFuture(provideSize(sample(gen).flatMap(effects => ZIO.collectAll(effects.map(_.either)).map(f)))(size))
+  def sampleEffect[E, A](
+    gen: Gen[Random with Sized, ZIO[Random with Sized, E, A]],
+    size: Int = 100
+  ): ZIO[Random, Nothing, List[Exit[E, A]]] =
+    provideSize(sample(gen).flatMap(effects => ZIO.collectAll(effects.map(_.run))))(size)
 
-  def partitionEither[E, A](eas: List[Either[E, A]]): (List[E], List[A]) =
-    eas.foldRight((List.empty[E], List.empty[A])) {
-      case (Left(e), (es, as))  => (e :: es, as)
-      case (Right(a), (es, as)) => (es, a :: as)
+  def partitionExit[E, A](eas: List[Exit[E, A]]): (List[Failure[E]], List[A]) =
+    eas.foldRight((List.empty[Failure[E]], List.empty[A])) {
+      case (Failure(e), (es, as)) => (Failure(e) :: es, as)
+      case (Success(a), (es, as)) => (es, a :: as)
     }
 }
