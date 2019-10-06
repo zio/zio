@@ -161,8 +161,8 @@ object BoolAlgebraSpecHelper {
 
   def equalBoolAlgebraOfSize(size: Int): Gen[Random, (BoolAlgebra[Int], BoolAlgebra[Int])] =
     for {
-      a   <- boolAlgebraOfSize(size)
-      b   <- boolAlgebraOfSize(size)
+      a <- boolAlgebraOfSize(size)
+      b <- boolAlgebraOfSize(size)
       if a == b
     } yield (a, b)
 }
