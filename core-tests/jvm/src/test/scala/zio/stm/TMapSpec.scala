@@ -69,6 +69,26 @@ object TMapSpec
               } yield e
 
             assertM(tx.commit, isSome(equalTo(10)))
+          },
+          testM("remove existing element") {
+            val tx =
+              for {
+                map1 <- TMap(List("a" -> 1, "b" -> 2))
+                map2 <- map1.delete("a")
+                e    <- map2.get("a")
+              } yield e
+
+            assertM(tx.commit, isNone)
+          },
+          testM("remove non-existing element") {
+            val tx =
+              for {
+                map1 <- TMap.empty[String, Int]
+                map2 <- map1.delete("a")
+                e    <- map2.get("a")
+              } yield e
+
+            assertM(tx.commit, isNone)
           }
         )
       )

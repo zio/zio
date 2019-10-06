@@ -19,9 +19,11 @@ package zio.stm
 class TMap[K, V] private (buckets: TArray[List[(K, V)]]) { self =>
   final def collect[K2, V2](pf: PartialFunction[(K, V), (K2, V2)]): STM[Nothing, TMap[K2, V2]] = ???
 
-  final def contains[E](k: K): STM[E, Boolean] = get(k).map(_.isDefined)
+  final def contains[E](k: K): STM[E, Boolean] =
+    get(k).map(_.isDefined)
 
-  final def delete[E](k: K): STM[E, TMap[K, V]] = ???
+  final def delete[E](k: K): STM[E, TMap[K, V]] =
+    buckets.update(TMap.indexOf(k), _.filterNot(_._1 == k)).as(self)
 
   final def filter(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] = ???
 
@@ -33,9 +35,11 @@ class TMap[K, V] private (buckets: TArray[List[(K, V)]]) { self =>
 
   final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] = ???
 
-  final def get[E](k: K): STM[E, Option[V]] = buckets(TMap.indexOf(k)).map(_.find(_._1 == k).map(_._2))
+  final def get[E](k: K): STM[E, Option[V]] =
+    buckets(TMap.indexOf(k)).map(_.find(_._1 == k).map(_._2))
 
-  final def getOrElse[E](k: K, default: => V): STM[E, V] = get(k).map(_.getOrElse(default))
+  final def getOrElse[E](k: K, default: => V): STM[E, V] =
+    get(k).map(_.getOrElse(default))
 
   final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] = ???
 
