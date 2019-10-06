@@ -1,6 +1,5 @@
 package zio.test
 
-import zio.Runtime
 import zio.Exit
 import zio.ZIO
 import zio.internal.Executor
@@ -12,7 +11,7 @@ object TestRuntime {
   /**
    * Returns multiple possible outcomes of the given `zio`.
    */
-  def paths[R <: Random, E, A](zio: ZIO[R, E, A]): ZStream[R, Nothing, Option[Exit[E, A]]] = {
+  def paths[R <: Random, E, A](zio: ZIO[R, E, A]): ZStream[R, Nothing, Exit[E, A]] = {
 
     val yielding = yieldingEffects(zio)
 
@@ -22,47 +21,52 @@ object TestRuntime {
   }
 
   private def runOnce[R <: Random, E, A](zio: ZIO[R, E, A]) =
-    for {
-      env              <- ZIO.environment[R]
-      platform         <- ZIO.effectSuspendTotalWith(ZIO.succeed)
-      pendingRunnables = collection.mutable.Buffer.empty[Runnable]
-      testRuntime <- ZIO.effectTotal {
-                      val neverYieldingExecutor = new Executor {
-                        def here         = true
-                        def metrics      = None
-                        def yieldOpCount = Int.MaxValue
-                        def submit(runnable: Runnable): Boolean = {
-                          pendingRunnables += runnable
-                          true
-                        }
-                      }
+    makeTestExecutor.flatMap(yieldingEffects(zio).lock(_).run)
 
-                      Runtime(env, platform.withExecutor(neverYieldingExecutor))
-                    }
-      result <- ZIO.effectTotal {
-                 var result: Option[Exit[E, A]] = Option.empty
+  private val makeTestExecutor: ZIO[Random, Nothing, Executor] =
+    ZIO.effectTotal {
+      new Executor {
+        val pendingRunnables = new java.util.Vector[Runnable]
+        var isRunning = false
 
-                 testRuntime.unsafeRunAsync(zio)(r => result = Option(r))
+        def here         = true
+        def metrics      = None
+        def yieldOpCount = Int.MaxValue
+        def submit(runnable: Runnable): Boolean = synchronized {
+          if (isRunning)
+            pendingRunnables.add(runnable)
+          else {
+            isRunning = true
+            runnable.run()
 
-                 while (pendingRunnables.nonEmpty && result.isEmpty) {
-                   val randomIndex = util.Random.nextInt(pendingRunnables.length)
-
-                   pendingRunnables.remove(randomIndex).run()
-                 }
-
-                 result
-               }
-    } yield result
+            while (! pendingRunnables.isEmpty()) {
+              val randomIndex = util.Random.nextInt(pendingRunnables.size())
+              pendingRunnables.remove(randomIndex).run()
+            }
+            
+            isRunning = false
+          }
+          true
+        }
+    }
+  }
 
   private def yieldingEffects[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio match {
       // Introduce yields before every effect to be catched by the neverYieldingExecutor
       case effect: ZIO.EffectTotal[A]       => (ZIO.yieldNow *> effect): ZIO[Any, E, A]
       case effect: ZIO.EffectPartial[A]     => (ZIO.yieldNow *> effect): ZIO[Any, E, A]
+      // TODO: Modifiy callback?
       case effect: ZIO.EffectAsync[R, E, A] => ZIO.yieldNow *> effect
 
+      // TODO: Handle this effects too
+      case suspend: ZIO.EffectSuspendTotalWith[R, E, A] =>
+        new ZIO.EffectSuspendTotalWith(p => yieldingEffects(suspend.f(p)))
+      case suspend: ZIO.EffectSuspendPartialWith[R, A] =>
+        new ZIO.EffectSuspendPartialWith(p => yieldingEffects(suspend.f(p)))
+
       // Don't allow to change executor
-      case lock: ZIO.Lock[R, E, A] => yieldingEffects(lock.zio)
+      case lock: ZIO.Lock[R, E, A] => new ZIO.Lock(lock.executor, yieldingEffects(lock.zio))
       // Drop other yields
       case ZIO.Yield => ZIO.unit
       // Recursively apply the rewrite
@@ -89,10 +93,6 @@ object TestRuntime {
         yieldingEffects(provide.next).provide(provide.r)
       case read: ZIO.Read[R, E, A] =>
         ZIO.accessM(read.k.andThen(yieldingEffects))
-      case suspend: ZIO.EffectSuspendTotalWith[R, E, A] =>
-        new ZIO.EffectSuspendTotalWith(p => yieldingEffects(suspend.f(p)))
-      case suspend: ZIO.EffectSuspendPartialWith[R, A] =>
-        new ZIO.EffectSuspendPartialWith(p => yieldingEffects(suspend.f(p)))
       case newFib: ZIO.FiberRefNew[_] =>
         newFib
       case modify: ZIO.FiberRefModify[_, A] =>
