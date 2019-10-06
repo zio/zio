@@ -17,11 +17,14 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.test.TestArgs
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
+
   def done(): String                           = "Done"
-  def tasks(defs: Array[TaskDef]): Array[Task] = defs.map(new ZTestTask(_, testClassLoader))
+  def tasks(defs: Array[TaskDef]): Array[Task] = defs.map(new ZTestTask(_, testClassLoader, TestArgs.parse(args)))
 }
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader) extends BaseTestTask(taskDef, testClassLoader)
+class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, testArgs: TestArgs)
+    extends BaseTestTask(taskDef, testClassLoader, testArgs)

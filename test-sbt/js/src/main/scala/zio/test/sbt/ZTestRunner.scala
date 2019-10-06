@@ -17,6 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.test.TestArgs
 import zio.{ Exit, Runtime }
 
 final class ZTestRunner(
@@ -27,7 +28,7 @@ final class ZTestRunner(
 ) extends Runner {
   def done(): String = "Done"
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    defs.map(new ZTestTask(_, testClassLoader, runnerType))
+    defs.map(new ZTestTask(_, testClassLoader, runnerType, TestArgs.parse(args)))
 
   override def receiveMessage(msg: String): Option[String] = None
 
@@ -35,11 +36,11 @@ final class ZTestRunner(
     serializer(task.taskDef)
 
   override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
-    new ZTestTask(deserializer(task), testClassLoader, runnerType)
+    new ZTestTask(deserializer(task), testClassLoader, runnerType, TestArgs.parse(args))
 }
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, runnerType: String)
-    extends BaseTestTask(taskDef, testClassLoader) {
+class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, runnerType: String, testArgs: TestArgs)
+    extends BaseTestTask(taskDef, testClassLoader, testArgs) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     Runtime((), spec.platform).unsafeRunAsync(run(eventHandler, loggers)) { exit =>

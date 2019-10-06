@@ -2,10 +2,10 @@ package zio.test.sbt
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.clock.Clock
-import zio.test.{ AbstractRunnableSpec, TestLogger }
+import zio.test.{ AbstractRunnableSpec, TestArgs, TestLogger }
 import zio.{ Runtime, ZIO }
 
-abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
+abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader, args: TestArgs) extends Task {
   protected lazy val spec: AbstractRunnableSpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
@@ -18,7 +18,7 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
 
   protected def run(eventHandler: EventHandler, loggers: Array[Logger]) =
     for {
-      res    <- spec.run.provide(new SbtTestLogger(loggers) with Clock.Live)
+      res    <- spec.run(args).provide(new SbtTestLogger(loggers) with Clock.Live)
       events <- ZTestEvent.from(res, taskDef.fullyQualifiedName, taskDef.fingerprint)
       _      <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()

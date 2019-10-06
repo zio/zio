@@ -19,6 +19,7 @@ package zio.test
 import zio.URIO
 import zio.clock.Clock
 import zio.test.reflect.Reflect.EnableReflectiveInstantiation
+import zio.test.Spec.{ SuiteCase, TestCase }
 
 @EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {
@@ -35,8 +36,19 @@ abstract class AbstractRunnableSpec {
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final def run: URIO[TestLogger with Clock, ExecutedSpec[Label, Failure, Success]] =
-    runner.run(spec)
+  final def run(args: TestArgs): URIO[TestLogger with Clock, ExecutedSpec[Label, Failure, Success]] = {
+    val filteredSpec = args.testSearchTerm match {
+      case None => Some(spec)
+      case Some(testSearchTerm) =>
+        spec.filter[Environment, Failure, Label, Test] {
+          case s @ SuiteCase(_, _, _)                                         => Some(s)
+          case TestCase(label, _) if !label.toString.contains(testSearchTerm) => None
+          case t @ TestCase(_, _)                                             => Some(t)
+        }
+    }
+
+    runner.run(filteredSpec.getOrElse(spec))
+  }
 
   /**
    * the platform used by the runner
