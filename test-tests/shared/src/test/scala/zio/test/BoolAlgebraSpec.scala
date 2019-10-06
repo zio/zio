@@ -1,10 +1,8 @@
 package zio.test
 
+import zio.random.Random
 import zio.test.Assertion._
 import zio.test.BoolAlgebraSpecHelper._
-import zio.test.TestAspect._
-
-import scala.util.Random
 
 object BoolAlgebraSpec
     extends ZIOBaseSpec(
@@ -12,23 +10,21 @@ object BoolAlgebraSpec
         test("all returns conjunction of values") {
           assert(BoolAlgebra.all(List(success1, failure1, failure2)), isSome(isFailure))
         },
-        test("and distributes over or") {
-          val a = randomBoolAlgebra()
-          val b = randomBoolAlgebra()
-          val c = randomBoolAlgebra()
-          assert(a && (b || c), equalTo((a && b) || (a && c)))
-        } @@ nonFlaky(100),
-        test("and is associative") {
-          val a = randomBoolAlgebra()
-          val b = randomBoolAlgebra()
-          val c = randomBoolAlgebra()
-          assert((a && b) && c, equalTo(a && (b && c)))
-        } @@ nonFlaky(100),
-        test("and is commutative") {
-          val a = randomBoolAlgebra()
-          val b = randomBoolAlgebra()
-          assert(a && b, equalTo(b && a))
-        } @@ nonFlaky(100),
+        testM("and distributes over or") {
+          zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
+            assert(a && (b || c), equalTo((a && b) || (a && c)))
+          }
+        },
+        testM("and is associative") {
+          zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
+            assert((a && b) && c, equalTo(a && (b && c)))
+          }
+        },
+        testM("and is commutative") {
+          zio.test.check(boolAlgebra, boolAlgebra) { (a, b) =>
+            assert(a && b, equalTo(b && a))
+          }
+        },
         test("any returns disjunction of values") {
           assert(BoolAlgebra.any(List(success1, failure1, failure2)), isSome(isSuccess))
         },
@@ -50,29 +46,33 @@ object BoolAlgebraSpec
             isSome(equalTo(success1 && failure1 && failure2))
           )
         },
-        test("De Morgan's laws") {
-          val a = randomBoolAlgebra()
-          val b = randomBoolAlgebra()
-          assert(!(a && b), equalTo(!a || !b)) &&
-          assert(!a || !b, equalTo(!(a && b))) &&
-          assert(!(a || b), equalTo(!a && !b)) &&
-          assert(!a && !b, equalTo(!(a || b)))
-        } @@ nonFlaky(100),
-        test("double negative") {
-          val a = randomBoolAlgebra()
-          assert(!(!a), equalTo(a)) &&
-          assert(a, equalTo(!(!a)))
-        } @@ nonFlaky(100),
+        testM("De Morgan's laws") {
+          zio.test.check(boolAlgebra, boolAlgebra) { (a, b) =>
+            assert(!(a && b), equalTo(!a || !b)) &&
+            assert(!a || !b, equalTo(!(a && b))) &&
+            assert(!(a || b), equalTo(!a && !b)) &&
+            assert(!a && !b, equalTo(!(a || b)))
+          }
+        },
+        testM("double negative") {
+          zio.test.check(boolAlgebra) { a =>
+            assert(!(!a), equalTo(a)) &&
+            assert(a, equalTo(!(!a)))
+          }
+        },
         test("either returns disjunction of two values") {
           assert(success1 || success2, isSuccess) &&
           assert(success1 || failure1, isSuccess) &&
           assert(failure1 || success1, isSuccess) &&
           assert(failure1 || failure2, isFailure)
         },
-        test("hashCode is consistent with equals") {
-          val (a, b) = randomEqualBoolAlgebra(4)
-          assert(a.hashCode, equalTo(b.hashCode))
-        } @@ nonFlaky(10),
+        testM("hashCode is consistent with equals") {
+          zio.test.checkSome(equalBoolAlgebraOfSize(3))(n = 4) { pair =>
+            println(1)
+            val (a, b) = pair
+            assert(a.hashCode, equalTo(b.hashCode))
+          }
+        },
         test("failures collects failures") {
           val actual   = (success1 && success2 && failure1 && failure2).failures.get
           val expected = !failure1 && !failure2
@@ -107,28 +107,25 @@ object BoolAlgebraSpec
           val expected = BoolAlgebra.success("first") && BoolAlgebra.failure("first") && BoolAlgebra.failure("second")
           assert(actual, equalTo(expected))
         },
-        test("or distributes over and") {
-          val a = randomBoolAlgebra()
-          val b = randomBoolAlgebra()
-          val c = randomBoolAlgebra()
-
-          val left  = a || (b && c)
-          val right = (a || b) && (a || c)
-          assert(left, equalTo(right))
-        } @@ nonFlaky(100),
-        test("or is associative") {
-          val a     = randomBoolAlgebra()
-          val b     = randomBoolAlgebra()
-          val c     = randomBoolAlgebra()
-          val left  = (a || b) || c
-          val right = a || (b || c)
-          assert(left, equalTo(right))
-        } @@ nonFlaky(100),
-        test("or is commutative") {
-          val a = randomBoolAlgebra()
-          val b = randomBoolAlgebra()
-          assert(a || b, equalTo(b || a))
-        } @@ nonFlaky(100)
+        testM("or distributes over and") {
+          zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
+            val left  = a || (b && c)
+            val right = (a || b) && (a || c)
+            assert(left, equalTo(right))
+          }
+        },
+        testM("or is associative") {
+          zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
+            val left  = (a || b) || c
+            val right = a || (b || c)
+            assert(left, equalTo(right))
+          }
+        },
+        testM("or is commutative") {
+          zio.test.check(boolAlgebra, boolAlgebra) { (a, b) =>
+            assert(a || b, equalTo(b || a))
+          }
+        }
       )
     )
 
@@ -146,22 +143,26 @@ object BoolAlgebraSpecHelper {
   val isSuccess: Assertion[BoolAlgebra[_]] = assertion("isSuccess")()(_.isSuccess)
   val isFailure: Assertion[BoolAlgebra[_]] = assertion("isFailure")()(_.isFailure)
 
-  def randomBoolAlgebra(size: Int = Random.nextInt(10)): BoolAlgebra[Int] =
+  def boolAlgebra: Gen[Random with Sized, BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s))
+
+  def boolAlgebraOfSize(size: Int): Gen[Random, BoolAlgebra[Int]] =
     if (size == 0) {
-      BoolAlgebra.success(Random.nextInt(10))
+      Gen.int(0, 9).map(BoolAlgebra.success)
     } else {
-      val n = Random.nextInt(size)
-      Random.nextInt(3) match {
-        case 0 => randomBoolAlgebra(n) && randomBoolAlgebra(size - n - 1)
-        case 1 => randomBoolAlgebra(n) || randomBoolAlgebra(size - n - 1)
-        case 2 => !randomBoolAlgebra(size - 1)
-      }
+      for {
+        n <- Gen.int(0, size - 1)
+        gen <- Gen.oneOf(
+                (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 && p._2),
+                (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 || p._2),
+                boolAlgebraOfSize(size - 1).map(!_)
+              )
+      } yield gen
     }
 
-  @scala.annotation.tailrec
-  def randomEqualBoolAlgebra(size: Int = 3): (BoolAlgebra[Int], BoolAlgebra[Int]) = {
-    val a = randomBoolAlgebra(size)
-    val b = randomBoolAlgebra(size)
-    if (a == b) (a, b) else randomEqualBoolAlgebra(size)
-  }
+  def equalBoolAlgebraOfSize(size: Int): Gen[Random, (BoolAlgebra[Int], BoolAlgebra[Int])] =
+    for {
+      a   <- boolAlgebraOfSize(size)
+      b   <- boolAlgebraOfSize(size)
+      if a == b
+    } yield (a, b)
 }
