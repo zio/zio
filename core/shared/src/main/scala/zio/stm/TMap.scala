@@ -59,12 +59,6 @@ class TMap[K, V] private (buckets: TArray[List[(K, V)]]) { self =>
 }
 
 object TMap {
-
-  /**
-   * Makes an empty `TMap`.
-   */
-  final def empty[K, V]: STM[Nothing, TMap[K, V]] = apply(List.empty[(K, V)])
-
   /**
    * Makes a new `TMap` that is initialized with the specified values.
    */
@@ -82,7 +76,12 @@ object TMap {
     STM.collectAll(stmBuckets).map(refs => new TMap(TArray(refs.toArray)))
   }
 
-  private final def indexOf[K](k: K): Int = k.hashCode() % DefaultSize
+  /**
+   * Makes an empty `TMap`.
+   */
+  final def empty[K, V]: STM[Nothing, TMap[K, V]] = apply(List.empty[(K, V)])
 
   private final val DefaultSize = 1000
+
+  private final def indexOf[K](k: K): Int = k.hashCode() % DefaultSize
 }
