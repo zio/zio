@@ -46,10 +46,16 @@ object TestRuntime {
           true
         }
 
-        def addToPendingAndReturnOldState(runnable: Runnable): ExecutorState =
-          state.getAndUpdate { oldState =>
-            ExecutorState(runnable +: oldState.pendingRunnables, isRunning = true)
-          }
+        @tailrec
+        def addToPendingAndReturnOldState(runnable: Runnable): ExecutorState = {
+          val oldState = state.get()
+          val newState = ExecutorState(runnable +: oldState.pendingRunnables, isRunning = true)
+
+          if (state.compareAndSet(oldState, newState))
+            oldState
+          else
+            addToPendingAndReturnOldState(runnable)
+        }
 
         def runRandomPath(): Unit = {
           var curRunnable: Runnable = nextRunnableOrStopWithNull()
