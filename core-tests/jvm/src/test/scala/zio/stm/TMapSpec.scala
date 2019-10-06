@@ -116,6 +116,26 @@ object TMapSpec
 
             assertM(tx.commit, equalTo((true, false, true)))
           }
+        ),
+        suite("folds")(
+          testM("fold on non-empty map") {
+            val tx =
+              for {
+                map <- TMap(List("a" -> 1, "b" -> 2, "c" -> 3))
+                res <- map.fold(0)((acc, kv) => acc + kv._2)
+              } yield res
+
+            assertM(tx.commit, equalTo(6))
+          },
+          testM("fold on empty map") {
+            val tx =
+              for {
+                map <- TMap.empty[String, Int]
+                res <- map.fold(0)((acc, kv) => acc + kv._2)
+              } yield res
+
+            assertM(tx.commit, equalTo(0))
+          }
         )
       )
     )

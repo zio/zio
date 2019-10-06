@@ -31,7 +31,8 @@ class TMap[K, V] private (buckets: TArray[List[(K, V)]]) { self =>
   final def filterNot(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] =
     buckets.transform(_.filterNot(p)).as(self)
 
-  final def fold[A](acc: A)(op: (A, (K, V)) => A): STM[Nothing, A] = ???
+  final def fold[A](acc: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
+    buckets.fold(acc) { case (acc, items) => items.foldLeft(acc)(op) }
 
   final def foldM[A, E](acc: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = ???
 
