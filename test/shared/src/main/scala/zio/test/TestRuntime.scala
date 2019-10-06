@@ -5,6 +5,8 @@ import zio.ZIO
 import zio.internal.Executor
 import zio.random.Random
 import zio.stream.ZStream
+import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 
 object TestRuntime {
 
@@ -26,36 +28,65 @@ object TestRuntime {
   private val makeTestExecutor: ZIO[Random, Nothing, Executor] =
     ZIO.effectTotal {
       new Executor {
-        val pendingRunnables = new java.util.Vector[Runnable]
-        var isRunning = false
+        case class ExecutorState(pendingRunnables: Vector[Runnable], isRunning: Boolean)
 
-        def here         = true
-        def metrics      = None
-        def yieldOpCount = Int.MaxValue
-        def submit(runnable: Runnable): Boolean = synchronized {
-          if (isRunning)
-            pendingRunnables.add(runnable)
-          else {
-            isRunning = true
-            runnable.run()
+        val state = new AtomicReference(ExecutorState(Vector.empty, false))
 
-            while (! pendingRunnables.isEmpty()) {
-              val randomIndex = util.Random.nextInt(pendingRunnables.size())
-              pendingRunnables.remove(randomIndex).run()
-            }
-            
-            isRunning = false
+        override def here         = true
+        override def metrics      = None
+        override def yieldOpCount = Int.MaxValue
+        override def submit(runnable: Runnable): Boolean = {
+          val isAllreadyRunning: Boolean =
+            addToPendingAndReturnOldState(runnable).isRunning
+
+          if (!isAllreadyRunning) {
+            runRandomPath()
           }
+
           true
         }
+
+        def addToPendingAndReturnOldState(runnable: Runnable): ExecutorState =
+          state.getAndUpdate { oldState =>
+            ExecutorState(runnable +: oldState.pendingRunnables, isRunning = true)
+          }
+
+        def runRandomPath(): Unit = {
+          var curRunnable: Runnable = nextRunnableOrStopWithNull()
+
+          while (curRunnable != null) {
+            curRunnable.run()
+            curRunnable = nextRunnableOrStopWithNull()
+          }
+        }
+
+        @tailrec
+        private def nextRunnableOrStopWithNull(): Runnable = {
+          val oldState = state.get()
+
+          val (nextRunnable, newState) =
+            if (oldState.pendingRunnables.isEmpty) {
+              (null, ExecutorState(Vector.empty, isRunning = false))
+            } else {
+              val randomIndex             = util.Random.nextInt(oldState.pendingRunnables.length)
+              val (before, next +: after) = oldState.pendingRunnables.splitAt(randomIndex)
+
+              (next, ExecutorState(before ++ after, isRunning = true))
+            }
+
+          if (state.compareAndSet(oldState, newState))
+            nextRunnable
+          else
+            nextRunnableOrStopWithNull()
+        }
+      }
     }
-  }
 
   private def yieldingEffects[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio match {
       // Introduce yields before every effect to be catched by the neverYieldingExecutor
-      case effect: ZIO.EffectTotal[A]       => (ZIO.yieldNow *> effect): ZIO[Any, E, A]
-      case effect: ZIO.EffectPartial[A]     => (ZIO.yieldNow *> effect): ZIO[Any, E, A]
+      case effect: ZIO.EffectTotal[A]   => (ZIO.yieldNow *> effect): ZIO[Any, E, A]
+      case effect: ZIO.EffectPartial[A] => (ZIO.yieldNow *> effect): ZIO[Any, E, A]
       // TODO: Modifiy callback?
       case effect: ZIO.EffectAsync[R, E, A] => ZIO.yieldNow *> effect
 
