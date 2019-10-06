@@ -45,8 +45,6 @@ class TMap[K, V] private (table: TArray[List[(K, V)]]) {
 }
 
 object TMap {
-  private final val DefaultSize = 1000
-
   /**
    * Makes an empty `TMap`.
    */
@@ -70,4 +68,6 @@ object TMap {
   }
 
   private final def indexOf[K](k: K): Int = k.hashCode() % DefaultSize
+
+  private final val DefaultSize = 1000
 }

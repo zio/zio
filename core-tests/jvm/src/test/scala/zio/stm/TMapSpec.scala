@@ -20,10 +20,11 @@ import zio.test.Assertion._
 import zio.test._
 import zio.ZIOBaseSpec
 
-object TMapSpec extends ZIOBaseSpec(
-  suite("TMapSpec")(
-    test("zio test template") {
-      assert(1, equalTo(1))
-    }
-  )
-)
+object TMapSpec
+    extends ZIOBaseSpec(
+      suite("TMapSpec")(
+        test("zio test template") {
+          assert(1, equalTo(1))
+        }
+      )
+    )
