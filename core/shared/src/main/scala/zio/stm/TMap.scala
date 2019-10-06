@@ -25,9 +25,11 @@ class TMap[K, V] private (buckets: TArray[List[(K, V)]]) { self =>
   final def delete[E](k: K): STM[E, TMap[K, V]] =
     buckets.update(TMap.indexOf(k), _.filterNot(_._1 == k)).as(self)
 
-  final def filter(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] = ???
+  final def filter(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] =
+    buckets.transform(_.filter(p)).as(self)
 
-  final def filterNot(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] = ???
+  final def filterNot(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] =
+    buckets.transform(_.filterNot(p)).as(self)
 
   final def fold[A](acc: A)(op: (A, (K, V)) => A): STM[Nothing, A] = ???
 

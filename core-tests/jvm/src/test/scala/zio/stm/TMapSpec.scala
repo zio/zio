@@ -90,6 +90,32 @@ object TMapSpec
 
             assertM(tx.commit, isNone)
           }
+        ),
+        suite("filtering")(
+          testM("filter") {
+            val tx =
+              for {
+                map1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                map2 <- map1.filter(_._1 == "aa")
+                a    <- map2.contains("a")
+                aa   <- map2.contains("aa")
+                aaa  <- map2.contains("aaa")
+              } yield (a, aa, aaa)
+
+            assertM(tx.commit, equalTo((false, true, false)))
+          },
+          testM("filterNot") {
+            val tx =
+              for {
+                map1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                map2 <- map1.filterNot(_._1 == "aa")
+                a    <- map2.contains("a")
+                aa   <- map2.contains("aa")
+                aaa  <- map2.contains("aaa")
+              } yield (a, aa, aaa)
+
+            assertM(tx.commit, equalTo((true, false, true)))
+          }
         )
       )
     )
