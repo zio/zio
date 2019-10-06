@@ -51,6 +51,12 @@ See the [Code of Conduct](./docs/about/code_of_conduct.md)
 
 ---
 
+## Support 
+
+Come chat with us on [Discord][Link-Discord]
+
+---
+
 ### Legal
 
 Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reserved.
@@ -63,6 +69,7 @@ Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reser
 [Link-Circle]: https://circleci.com/gh/zio/zio "circleci"
 [Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
 [Link-SeptimalMind]: https://7mind.io "Septimal Mind"
+[Link-Discord]: https://discord.gg/2ccFBr4 "Discord"
 
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
