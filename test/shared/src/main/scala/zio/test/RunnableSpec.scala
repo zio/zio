@@ -16,8 +16,9 @@
 
 package zio.test
 
-import zio.{ Runtime, ZIO }
+import zio.clock.Clock
 import zio.test.Spec.TestCase
+import zio.{ UIO, URIO }
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
@@ -33,20 +34,32 @@ abstract class RunnableSpec[R, L, T, E, S](runner0: TestRunner[R, L, T, E, S])(s
   override def runner = runner0
   override def spec   = spec0
 
+  private val runSpec: URIO[TestLogger with Clock, Int] = for {
+    results     <- run
+    hasFailures <- results.exists { case TestCase(_, test) => test.map(_.isLeft); case _ => UIO.succeed(false) }
+    summary     <- SummaryBuilder.buildSummary(results)
+    _           <- TestLogger.logLine(summary)
+  } yield if (hasFailures) 1 else 0
+
   /**
    * A simple main function that can be used to run the spec.
    *
    * TODO: Parse command line options.
    */
   final def main(args: Array[String]): Unit = {
-    val results = runner.unsafeRun(spec)
-    val hasFailures = Runtime((), runner.platform).unsafeRun {
-      results.exists {
-        case TestCase(_, test) => test.map(_.isLeft)
-        case _                 => ZIO.succeed(false)
+    val runtime = runner.buildRuntime()
+    if (TestPlatform.isJVM) {
+      val exitCode = runtime.unsafeRun(runSpec)
+      doExit(exitCode)
+    } else if (TestPlatform.isJS) {
+      runtime.unsafeRunAsync[Nothing, Int](runSpec) { exit =>
+        val exitCode = exit.getOrElse(_ => 1)
+        doExit(exitCode)
       }
     }
-    try if (hasFailures) sys.exit(1) else sys.exit(0)
-    catch { case _: SecurityException => }
   }
+
+  private def doExit(exitCode: Int): Unit =
+    try sys.exit(exitCode)
+    catch { case _: SecurityException => }
 }

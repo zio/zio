@@ -19,27 +19,55 @@ package zio.test.sbt
 import sbt.testing._
 import zio.{ Exit, Runtime }
 
-final class ZTestRunner(
+import scala.collection.mutable
+
+sealed abstract class ZTestRunner(
   val args: Array[String],
   val remoteArgs: Array[String],
   testClassLoader: ClassLoader,
   runnerType: String
 ) extends Runner {
-  def done(): String = "Done"
-  def tasks(defs: Array[TaskDef]): Array[Task] =
-    defs.map(new ZTestTask(_, testClassLoader, runnerType))
+  def sendSummary: SendSummary
 
-  override def receiveMessage(msg: String): Option[String] = None
+  val summaries: mutable.Buffer[String] = mutable.Buffer.empty
+
+  def done(): String = summaries.filter(_.nonEmpty).flatMap(s => s :: "\n" :: Nil).mkString("", "", "Done")
+
+  def tasks(defs: Array[TaskDef]): Array[Task] =
+    defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary))
+
+  override def receiveMessage(summary: String): Option[String] = {
+    summaries += summary
+    None
+  }
 
   override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef)
 
   override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
-    new ZTestTask(deserializer(task), testClassLoader, runnerType)
+    new ZTestTask(deserializer(task), testClassLoader, runnerType, sendSummary)
 }
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, runnerType: String)
-    extends BaseTestTask(taskDef, testClassLoader) {
+final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader)
+    extends ZTestRunner(args, remoteArgs, testClassLoader, "master") {
+
+  //This implementation seems to be used when there's only single spec to run
+  override val sendSummary: SendSummary = SendSummary.fromSend(summary => {
+    summaries += summary
+    ()
+  })
+
+}
+
+final class ZSlaveTestRunner(
+  args: Array[String],
+  remoteArgs: Array[String],
+  testClassLoader: ClassLoader,
+  val sendSummary: SendSummary
+) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
+
+class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, runnerType: String, sendSummary: SendSummary)
+    extends BaseTestTask(taskDef, testClassLoader, sendSummary) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     Runtime((), spec.platform).unsafeRunAsync(run(eventHandler, loggers)) { exit =>
