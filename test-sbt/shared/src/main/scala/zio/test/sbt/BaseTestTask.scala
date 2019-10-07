@@ -2,11 +2,15 @@ package zio.test.sbt
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.clock.Clock
-import zio.test.{ AbstractRunnableSpec, SummaryBuilder, TestLogger }
+import zio.test.{ AbstractRunnableSpec, SummaryBuilder, TestArgs, TestLogger }
 import zio.{ Runtime, ZIO }
 
-abstract class BaseTestTask(val taskDef: TaskDef, val testClassLoader: ClassLoader, val sendSummary: SendSummary)
-    extends Task {
+abstract class BaseTestTask(
+  val taskDef: TaskDef,
+  val testClassLoader: ClassLoader,
+  val sendSummary: SendSummary,
+  val args: TestArgs
+) extends Task {
 
   protected lazy val spec: AbstractRunnableSpec = {
     import org.portablescala.reflect._
@@ -20,7 +24,11 @@ abstract class BaseTestTask(val taskDef: TaskDef, val testClassLoader: ClassLoad
 
   protected def run(eventHandler: EventHandler, loggers: Array[Logger]) =
     for {
-      spec    <- spec.run.provide(new SbtTestLogger(loggers) with Clock.Live)
+      spec <- args.testSearchTerm
+               .fold(spec.run)(
+                 s => spec.runner.run(spec.spec.filterTestLabels(_.toString.contains(s)).getOrElse(spec.spec))
+               )
+               .provide(new SbtTestLogger(loggers) with Clock.Live)
       summary <- SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.run(summary)
       events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
