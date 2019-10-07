@@ -218,20 +218,14 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       case t @ TestCase(_, _)            => Spec(f(t))
     }
 
-  final def filter[R1 <: R, E1 >: E, L1 >: L, T1 >: T](
-    f: SpecCase[R1, E1, L1, T1, Spec[R1, E1, L1, T1]] => Boolean
-  ): Option[Spec[R1, E1, L1, T1]] =
+  final def filterTestLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
     caseValue match {
-      case s @ SuiteCase(label, specs, exec) =>
-        val filtered = SuiteCase(label, specs.map(_.flatMap(_.filter(f))), exec)
-        if (f(filtered)) {
-          Some(Spec(filtered))
-        } else {
-          Some(Spec(s.copy(specs = ZIO.succeed(Vector.empty))))
-        }
+      case SuiteCase(label, specs, exec) =>
+        val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterTestLabels(f))), exec)
+        Some(Spec(filtered))
 
       case t @ TestCase(_, _) =>
-        if (f(t)) Some(Spec(t)) else None
+        if (f(t.label)) Some(Spec(t)) else None
     }
 
   final def mapTests[R1, E1, L1 >: L, T1](
