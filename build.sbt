@@ -46,7 +46,8 @@ lazy val root = project
   .settings(
     skip in publish := true,
     console := (console in Compile in coreJVM).value,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    welcomeMessage
   )
   .aggregate(
     coreJVM,
