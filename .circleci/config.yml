@@ -99,7 +99,7 @@ compile: &compile
     - <<: *load_cache
     - run:
         name: Compile code
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! compileJVM
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! compileJVMDotty
     - <<: *clean_cache
     - <<: *save_cache
 
