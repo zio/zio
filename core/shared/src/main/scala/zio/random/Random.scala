@@ -44,17 +44,19 @@ object Random extends Serializable {
       import scala.util.{ Random => SRandom }
 
       def choose[A](as: Chunk[A]): UIO[A] =
-        nextInt(as.length).map(as.apply)
+        ZIO.succeed(as.length).flatMap(nextInt(_).map(as.apply))
 
       def choose[A](as: Iterable[A]): UIO[A] =
-        nextInt(as.size).map { r =>
-          @scala.annotation.tailrec
-          def loop(dr: Int, it: Iterator[A]): A = {
-            val a = it.next()
-            if (dr == 0 || !it.hasNext) a else loop(dr - 1, it)
-          }
-          loop(r, as.iterator)
-        }
+        ZIO
+          .succeed(as.size)
+          .flatMap(nextInt(_).map { r =>
+            @scala.annotation.tailrec
+            def loop(dr: Int, it: Iterator[A]): A = {
+              val a = it.next()
+              if (dr == 0 || !it.hasNext) a else loop(dr - 1, it)
+            }
+            loop(r, as.iterator)
+          })
 
       def chooseByFrequency[A](as: Iterable[A])(f: A => Int): UIO[A] =
         ZIO
