@@ -21,7 +21,6 @@ object BuildHelper {
   )
 
   private val std2xOptions = Seq(
-    "-Xfatal-warnings",
     "-language:higherKinds",
     "-language:existentials",
     "-explaintypes",
@@ -29,7 +28,7 @@ object BuildHelper {
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard"
-  )
+  ) ++ customOptions
 
   private def optimizerOptions(optimize: Boolean) =
     if (optimize)
@@ -38,6 +37,16 @@ object BuildHelper {
         "-opt-inline-from:zio.internal.**"
       )
     else Nil
+
+  private def propertyFlag(property: String, default: Boolean) =
+    sys.props.get(property).map(_.toBoolean).getOrElse(default)
+
+  private def customOptions =
+    if (propertyFlag("fatal.warnings", false)) {
+      Seq("-Xfatal-warnings")
+    } else {
+      Nil
+    }
 
   def buildInfoSettings(packageName: String) =
     Seq(
