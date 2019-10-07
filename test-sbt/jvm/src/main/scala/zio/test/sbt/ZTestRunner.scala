@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
 import zio.ZIO
+import zio.test.TestArgs
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
@@ -40,8 +41,8 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
       .mkString("", "", "Done")
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    defs.map(new ZTestTask(_, testClassLoader, sendSummary))
+    defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
 }
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary)
-    extends BaseTestTask(taskDef, testClassLoader, sendSummary)
+class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
+    extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)
