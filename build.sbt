@@ -31,7 +31,8 @@ ThisBuild / publishTo := sonatypePublishToBundle.value
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
-addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
+addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile")
+addCommandAlias("compileJVMDotty", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test:run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
