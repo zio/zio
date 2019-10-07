@@ -359,8 +359,10 @@ object ZScheduleSpecUtil {
     object random extends Random.Service[Any] {
       def choose[A](as: Chunk[A]): ZIO[Any, Nothing, A] =
         UIO.succeed(as(0))
-      def chooseByFrequency[A](it: Iterable[A])(f: A => Int): ZIO[Any, Nothing, A] =
-        UIO.succeed(it.head)
+      def choose[A](as: Iterable[A]): ZIO[Any, Nothing, A] =
+        UIO.succeed(as.head)
+      def chooseByFrequency[A](as: Iterable[A])(f: A => Int): ZIO[Any, Nothing, A] =
+        UIO.succeed(as.head)
       val nextBoolean: UIO[Boolean] = UIO.succeed(false)
       def nextBytes(length: Int): UIO[Chunk[Byte]] =
         UIO.succeed(Chunk.empty)

@@ -307,6 +307,19 @@ object TestRandom {
       nextInt(as.length).map(as.apply)
 
     /**
+     * Randomly returns an element from the specified collection.
+     */
+    def choose[A](as: Iterable[A]): UIO[A] =
+      nextInt(as.size).map { r =>
+        @scala.annotation.tailrec
+        def loop(dr: Int, it: Iterator[A]): A = {
+          val a = it.next()
+          if (dr == 0 || !it.hasNext) a else loop(dr - 1, it)
+        }
+        loop(r, as.iterator)
+      }
+
+    /**
      * Returns an element from the collection based on the specified frequency distribution.
      */
     def chooseByFrequency[A](as: Iterable[A])(f: A => Int): UIO[A] =

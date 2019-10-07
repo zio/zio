@@ -29,15 +29,16 @@ object MockRandom {
   trait Service[R] extends Random.Service[R]
 
   object Service {
-    object next {
+    object choose {
       object _0 extends Method[Chunk[Any], Any]
-      object _1 extends Method[(Iterable[Any], Any => Int), Any]
+      object _1 extends Method[Iterable[Any], Any]
     }
-    object nextBoolean  extends Method[Unit, Boolean]
-    object nextBytes    extends Method[Int, Chunk[Byte]]
-    object nextDouble   extends Method[Unit, Double]
-    object nextFloat    extends Method[Unit, Float]
-    object nextGaussian extends Method[Unit, Double]
+    object chooseByFrequency extends Method[(Iterable[Any], Any => Int), Any]
+    object nextBoolean       extends Method[Unit, Boolean]
+    object nextBytes         extends Method[Int, Chunk[Byte]]
+    object nextDouble        extends Method[Unit, Double]
+    object nextFloat         extends Method[Unit, Float]
+    object nextGaussian      extends Method[Unit, Double]
     object nextInt {
       object _0 extends Method[Int, Int]
       object _1 extends Method[Unit, Int]
@@ -54,8 +55,9 @@ object MockRandom {
   implicit val mockable: Mockable[MockRandom] = (mock: Mock) =>
     new MockRandom {
       val random = new Service[Any] {
-        def choose[A](as: Chunk[A]): UIO[A]                            = mock(Service.next._0, as)
-        def chooseByFrequency[A](as: Iterable[A])(f: A => Int): UIO[A] = mock(Service.next._1, as, f)
+        def choose[A](as: Chunk[A]): UIO[A]                            = mock(Service.choose._0, as)
+        def choose[A](as: Iterable[A]): UIO[A]                         = mock(Service.choose._1, as)
+        def chooseByFrequency[A](as: Iterable[A])(f: A => Int): UIO[A] = mock(Service.chooseByFrequency, as, f)
         val nextBoolean: UIO[Boolean]                                  = mock(Service.nextBoolean)
         def nextBytes(length: Int): UIO[Chunk[Byte]]                   = mock(Service.nextBytes, length)
         val nextDouble: UIO[Double]                                    = mock(Service.nextDouble)

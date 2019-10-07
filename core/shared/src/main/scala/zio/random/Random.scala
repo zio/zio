@@ -24,6 +24,7 @@ trait Random extends Serializable {
 object Random extends Serializable {
   trait Service[R] extends Serializable {
     def choose[A](as: Chunk[A]): ZIO[R, Nothing, A]
+    def choose[A](as: Iterable[A]): ZIO[R, Nothing, A]
     def chooseByFrequency[A](as: Iterable[A])(f: A => Int): ZIO[R, Nothing, A]
     val nextBoolean: ZIO[R, Nothing, Boolean]
     def nextBytes(length: Int): ZIO[R, Nothing, Chunk[Byte]]
@@ -44,6 +45,16 @@ object Random extends Serializable {
 
       def choose[A](as: Chunk[A]): UIO[A] =
         nextInt(as.length).map(as.apply)
+
+      def choose[A](as: Iterable[A]): UIO[A] =
+        nextInt(as.size).map { r =>
+          @scala.annotation.tailrec
+          def loop(dr: Int, it: Iterator[A]): A = {
+            val a = it.next()
+            if (dr == 0 || !it.hasNext) a else loop(dr - 1, it)
+          }
+          loop(r, as.iterator)
+        }
 
       def chooseByFrequency[A](as: Iterable[A])(f: A => Int): UIO[A] =
         ZIO
