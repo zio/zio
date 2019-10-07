@@ -31,7 +31,11 @@ ThisBuild / publishTo := sonatypePublishToBundle.value
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
-addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
+addCommandAlias(
+  "compileJVM",
+  ";coreJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
+)
+addCommandAlias("compileJVMDotty", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
@@ -46,7 +50,8 @@ lazy val root = project
   .settings(
     skip in publish := true,
     console := (console in Compile in coreJVM).value,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    welcomeMessage
   )
   .aggregate(
     coreJVM,
