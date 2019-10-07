@@ -5,9 +5,9 @@ import java.io.{ ByteArrayOutputStream, PrintStream }
 import zio.test.Async
 import zio.test.environment.TestConsole.Data
 import zio.test.TestUtils.label
-import zio.test.ZIOBaseSpec
+import zio.test.AsyncBaseSpec
 
-object ConsoleSpec extends ZIOBaseSpec {
+object ConsoleSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(emptyOutput, "outputs nothing"),
