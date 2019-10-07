@@ -220,6 +220,29 @@ object BuildHelper {
     }
   )
 
+  def welcomeMessage = onLoadMessage := {
+    import scala.Console
+
+    def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
+
+    def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
+
+    s"""|${header(" ________ ___")}
+        |${header("|__  /_ _/ _ \\")} 
+        |${header("  / / | | | | |")}
+        |${header(" / /_ | | |_| |")}
+        |${header(s"/____|___\\___/   ${version.value}")}
+        |
+        |Useful sbt tasks:
+        |${item("fmt")} - Formats source files using scalafmt
+        |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
+        |${item("testJVM")} - Runs all JVM tests
+        |${item("testJS")} - Runs all ScalaJS tests
+        |${item("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")} - Only runs tests with matching term
+        |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
+      """.stripMargin
+  }
+
   implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))
   }
