@@ -122,7 +122,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
 lazy val streamsJVM = streams.jvm
   .settings(dottySettings)
 
-lazy val streamsJS  = streams.js
+lazy val streamsJS = streams.js
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
