@@ -23,6 +23,8 @@ trait Random extends Serializable {
 }
 object Random extends Serializable {
   trait Service[R] extends Serializable {
+    def choose[A](as: Chunk[A]): ZIO[R, Nothing, A]
+    def chooseByFrequency[A](as: Iterable[A])(f: A => Int): ZIO[R, Nothing, A]
     val nextBoolean: ZIO[R, Nothing, Boolean]
     def nextBytes(length: Int): ZIO[R, Nothing, Chunk[Byte]]
     val nextDouble: ZIO[R, Nothing, Double]
@@ -39,6 +41,22 @@ object Random extends Serializable {
   trait Live extends Random {
     val random: Service[Any] = new Service[Any] {
       import scala.util.{ Random => SRandom }
+
+      def choose[A](as: Chunk[A]): UIO[A] =
+        nextInt(as.length).map(as.apply)
+
+      def chooseByFrequency[A](as: Iterable[A])(f: A => Int): UIO[A] =
+        ZIO
+          .succeed(as.iterator.map(f).sum)
+          .flatMap(nextInt(_).map { r =>
+            @scala.annotation.tailrec
+            def loop(dr: Int, it: Iterator[A]): A = {
+              val a  = it.next()
+              val fa = f(a)
+              if (dr < fa || !it.hasNext) a else loop(dr - fa, it)
+            }
+            loop(r, as.iterator)
+          })
 
       val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
       def nextBytes(length: Int): UIO[Chunk[Byte]] =

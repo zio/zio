@@ -21,6 +21,9 @@ package object random {
   final val randomService: ZIO[Random, Nothing, Random.Service[Any]] =
     ZIO.access(_.random)
 
+  def choose[A](as: Chunk[A]): ZIO[Random, Nothing, A] = ZIO.accessM(_.random.choose(as))
+  def choose[A](as: Iterable[A])(f: A => Int): ZIO[Random, Nothing, A] =
+    ZIO.accessM(_.random.chooseByFrequency(as)(f))
   val nextBoolean: ZIO[Random, Nothing, Boolean]                = ZIO.accessM(_.random.nextBoolean)
   def nextBytes(length: Int): ZIO[Random, Nothing, Chunk[Byte]] = ZIO.accessM(_.random.nextBytes(length))
   val nextDouble: ZIO[Random, Nothing, Double]                  = ZIO.accessM(_.random.nextDouble)

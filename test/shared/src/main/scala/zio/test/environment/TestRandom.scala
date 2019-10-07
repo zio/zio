@@ -301,6 +301,28 @@ object TestRandom {
     }
 
     /**
+     * Randomly returns an element from the specified chunk.
+     */
+    def choose[A](as: Chunk[A]): UIO[A] =
+      nextInt(as.length).map(as.apply)
+
+    /**
+     * Returns an element from the collection based on the specified frequency distribution.
+     */
+    def chooseByFrequency[A](as: Iterable[A])(f: A => Int): UIO[A] =
+      ZIO
+        .succeed(as.iterator.map(f).sum)
+        .flatMap(nextInt(_).map { r =>
+          @scala.annotation.tailrec
+          def loop(dr: Int, it: Iterator[A]): A = {
+            val a  = it.next()
+            val fa = f(a)
+            if (dr < fa || !it.hasNext) a else loop(dr - fa, it)
+          }
+          loop(r, as.iterator)
+        })
+
+    /**
      * Takes a boolean from the buffer if one exists or else generates a
      * pseudo-random boolean.
      */

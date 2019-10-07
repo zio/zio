@@ -29,6 +29,10 @@ object MockRandom {
   trait Service[R] extends Random.Service[R]
 
   object Service {
+    object next {
+      object _0 extends Method[Chunk[Any], Any]
+      object _1 extends Method[(Iterable[Any], Any => Int), Any]
+    }
     object nextBoolean  extends Method[Unit, Boolean]
     object nextBytes    extends Method[Int, Chunk[Byte]]
     object nextDouble   extends Method[Unit, Double]
@@ -50,18 +54,20 @@ object MockRandom {
   implicit val mockable: Mockable[MockRandom] = (mock: Mock) =>
     new MockRandom {
       val random = new Service[Any] {
-        val nextBoolean: UIO[Boolean]                = mock(Service.nextBoolean)
-        def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(Service.nextBytes, length)
-        val nextDouble: UIO[Double]                  = mock(Service.nextDouble)
-        val nextFloat: UIO[Float]                    = mock(Service.nextFloat)
-        val nextGaussian: UIO[Double]                = mock(Service.nextGaussian)
-        def nextInt(n: Int): UIO[Int]                = mock(Service.nextInt._0, n)
-        val nextInt: UIO[Int]                        = mock(Service.nextInt._1)
-        val nextLong: UIO[Long]                      = mock(Service.nextLong._0)
-        def nextLong(n: Long): UIO[Long]             = mock(Service.nextLong._1, n)
-        val nextPrintableChar: UIO[Char]             = mock(Service.nextPrintableChar)
-        def nextString(length: Int)                  = mock(Service.nextString, length)
-        def shuffle[A](list: List[A]): UIO[List[A]]  = mock(Service.shuffle, list).asInstanceOf[UIO[List[A]]]
+        def choose[A](as: Chunk[A]): UIO[A]                            = mock(Service.next._0, as)
+        def chooseByFrequency[A](as: Iterable[A])(f: A => Int): UIO[A] = mock(Service.next._1, as, f)
+        val nextBoolean: UIO[Boolean]                                  = mock(Service.nextBoolean)
+        def nextBytes(length: Int): UIO[Chunk[Byte]]                   = mock(Service.nextBytes, length)
+        val nextDouble: UIO[Double]                                    = mock(Service.nextDouble)
+        val nextFloat: UIO[Float]                                      = mock(Service.nextFloat)
+        val nextGaussian: UIO[Double]                                  = mock(Service.nextGaussian)
+        def nextInt(n: Int): UIO[Int]                                  = mock(Service.nextInt._0, n)
+        val nextInt: UIO[Int]                                          = mock(Service.nextInt._1)
+        val nextLong: UIO[Long]                                        = mock(Service.nextLong._0)
+        def nextLong(n: Long): UIO[Long]                               = mock(Service.nextLong._1, n)
+        val nextPrintableChar: UIO[Char]                               = mock(Service.nextPrintableChar)
+        def nextString(length: Int): UIO[String]                       = mock(Service.nextString, length)
+        def shuffle[A](list: List[A]): UIO[List[A]]                    = mock(Service.shuffle, list).asInstanceOf[UIO[List[A]]]
       }
     }
 }
