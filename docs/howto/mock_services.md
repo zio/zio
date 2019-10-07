@@ -282,7 +282,8 @@ val combinedApp =
   for {
     _    <- console.putStrLn("What is your name?")
     name <- console.getStrLn.orDie
-    _    <- console.putStrLn(s"$name, your lucky number today is 42!")
+    num  <- random.nextInt
+    _    <- console.putStrLn(s"$name, your lucky number today is $num!")
   } yield ()
 
 val result = combinedApp.provideManaged(combinedEnv)
