@@ -230,6 +230,7 @@ object BuildHelper {
         |${item("testJVM")} - Runs all JVM tests
         |${item("testJS")} - Runs all ScalaJS tests
         |${item("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")} - Only runs tests with matching term
+        |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
       """.stripMargin
   }
 
