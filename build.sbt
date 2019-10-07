@@ -34,11 +34,11 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test:run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test:run;testTestsJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile"
 )
 
 lazy val root = project
@@ -168,12 +168,12 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(
-  mainClass in Test := Some("zio.test.TestMain")
+  mainClass in Compile := Some("zio.test.TestMain")
 )
 lazy val testTestsJS = testTests.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test,
-  scalaJSUseMainModuleInitializer in Test := true,
-  mainClass in Test := Some("zio.test.TestMain")
+  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3",
+  scalaJSUseMainModuleInitializer in Compile := true,
+  mainClass in Compile := Some("zio.test.TestMain")
 )
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
@@ -280,12 +280,12 @@ lazy val docs = project.module
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC4",
-      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC3",
+      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC4",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC6",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.2-RC1",
-      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC1"
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.3-RC1",
+      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2"
     )
   )
   .dependsOn(

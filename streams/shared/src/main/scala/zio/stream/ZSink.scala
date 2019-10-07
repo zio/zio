@@ -125,7 +125,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Replaces any error produced by this sink.
    */
-  final def asError[E1](e1: E1): ZSink[R, E1, A0, A, B] = self.mapError(_ => e1)
+  final def asError[E1](e1: => E1): ZSink[R, E1, A0, A, B] = self.mapError(new ZIO.ConstFn(() => e1))
 
   /**
    * Creates a sink where every element of type `A` entering the sink is first
@@ -949,7 +949,7 @@ object ZSink extends ZSinkPlatformSpecific {
                     init          <- sink.initial
                     stepResult    <- sink.stepChunk(init, leftover ++ Chunk.single(a))
                     (s, leftover) = stepResult
-                  } yield (s, None, leftover, leftover.notEmpty)
+                  } yield (s, None, leftover, leftover.nonEmpty)
             }
 
         def extract(state: State) =
@@ -1137,7 +1137,7 @@ object ZSink extends ZSinkPlatformSpecific {
             }
             .map { list =>
               val results   = list.map { case (k, (b, _)) => (k, b) }.toMap
-              val leftovers = Chunk.fromIterable(list.map { case (k, (_, chunk)) => (k, chunk) }).filter(_._2.notEmpty)
+              val leftovers = Chunk.fromIterable(list.map { case (k, (_, chunk)) => (k, chunk) }).filter(_._2.nonEmpty)
               (results, leftovers)
             }
 

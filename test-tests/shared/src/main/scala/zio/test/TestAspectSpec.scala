@@ -13,7 +13,7 @@ import zio.test.environment.Live
 
 import scala.reflect.ClassTag
 
-object TestAspectSpec extends ZIOBaseSpec {
+object TestAspectSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(aroundEvaluatesTestsInsideContextOfManaged, "around evaluates tests inside context of Managed"),

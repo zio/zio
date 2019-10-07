@@ -1,36 +1,134 @@
 package zio.test
 
-import scala.concurrent.Future
-import scala.util.Random
+import zio.random.Random
+import zio.test.Assertion._
+import zio.test.BoolAlgebraSpecHelper._
 
-import zio.test.TestUtils.label
+object BoolAlgebraSpec
+    extends ZIOBaseSpec(
+      suite("BoolAlgebraSpec")(
+        test("all returns conjunction of values") {
+          assert(BoolAlgebra.all(List(success1, failure1, failure2)), isSome(isFailure))
+        },
+        testM("and distributes over or") {
+          zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
+            assert(a && (b || c), equalTo((a && b) || (a && c)))
+          }
+        },
+        testM("and is associative") {
+          zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
+            assert((a && b) && c, equalTo(a && (b && c)))
+          }
+        },
+        testM("and is commutative") {
+          zio.test.check(boolAlgebra, boolAlgebra) { (a, b) =>
+            assert(a && b, equalTo(b && a))
+          }
+        },
+        test("any returns disjunction of values") {
+          assert(BoolAlgebra.any(List(success1, failure1, failure2)), isSome(isSuccess))
+        },
+        test("as maps values to constant value") {
+          assert(
+            (success1 && success2).as("value"),
+            equalTo(BoolAlgebra.success("value") && BoolAlgebra.success("value"))
+          )
+        },
+        test("both returns conjunction of two values") {
+          assert(success1 && success2, isSuccess) &&
+          assert(success1 && failure1, isFailure) &&
+          assert(failure1 && success1, isFailure) &&
+          assert(failure1 && failure2, isFailure)
+        },
+        test("collectAll combines multiple values") {
+          assert(
+            BoolAlgebra.collectAll(List(success1, failure1, failure2)),
+            isSome(equalTo(success1 && failure1 && failure2))
+          )
+        },
+        testM("De Morgan's laws") {
+          zio.test.check(boolAlgebra, boolAlgebra) { (a, b) =>
+            assert(!(a && b), equalTo(!a || !b)) &&
+            assert(!a || !b, equalTo(!(a && b))) &&
+            assert(!(a || b), equalTo(!a && !b)) &&
+            assert(!a && !b, equalTo(!(a || b)))
+          }
+        },
+        testM("double negative") {
+          zio.test.check(boolAlgebra) { a =>
+            assert(!(!a), equalTo(a)) &&
+            assert(a, equalTo(!(!a)))
+          }
+        },
+        test("either returns disjunction of two values") {
+          assert(success1 || success2, isSuccess) &&
+          assert(success1 || failure1, isSuccess) &&
+          assert(failure1 || success1, isSuccess) &&
+          assert(failure1 || failure2, isFailure)
+        },
+        testM("hashCode is consistent with equals") {
+          zio.test.checkSome(equalBoolAlgebraOfSize(4))(n = 10) { pair =>
+            val (a, b) = pair
+            assert(a.hashCode, equalTo(b.hashCode))
+          }
+        },
+        test("failures collects failures") {
+          val actual   = (success1 && success2 && failure1 && failure2).failures.get
+          val expected = !failure1 && !failure2
+          assert(actual, equalTo(expected))
+        },
+        test("foreach combines multiple values") {
+          def isEven(n: Int): BoolAlgebra[String] =
+            if (n % 2 == 0) BoolAlgebra.success(s"$n is even")
+            else BoolAlgebra.failure(s"$n is odd")
 
-object BoolAlgebraSpec extends ZIOBaseSpec {
+          val actual = BoolAlgebra.foreach(List(1, 2, 3))(isEven)
+          val expected = BoolAlgebra.failure("1 is odd") &&
+            BoolAlgebra.success("2 is even") &&
+            BoolAlgebra.failure("3 is odd")
 
-  val run: List[Async[(Boolean, String)]] = List(
-    label(allReturnsConjunctionOfValues, "all returns conjunction of values"),
-    label(andDistributesOverOr, "and distributes over or"),
-    label(andIsAssociative, "and is associative"),
-    label(andIsCommutative, "and is commutative"),
-    label(anyReturnsDisjunctionOfValues, "any returns disjunction of values"),
-    label(asMapsValuesToConstantValue, "as maps values to constant value"),
-    label(bothReturnsConjunctionOfTwoValues, "both returns conjunction of two values"),
-    label(collectAllCombinesMultipleValues, "collectAll combines multiple values"),
-    label(deMorgansLaws, "De Morgan's laws"),
-    label(doubleNegative, "double negative"),
-    label(eitherReturnsDisjunctionOfTwoValues, "either returns disjunction of two values"),
-    label(hashCodeIsConsistentWithEquals, "hashCode is consistent with equals"),
-    label(failuresCollectsFailures, "failures collects failures"),
-    label(foreachCombinesMultipleValues, "foreach combines multiple values"),
-    label(impliesReturnsImplicationOfTwoValues, "implies returns implication of two values"),
-    label(isFailureReturnsWhetherResultIsFailure, "isFailure returns whether result is failure"),
-    label(isSuccessReturnsWhetherResultIsSuccess, "isSuccess returns whether result is success"),
-    label(mapTransformsValues, "map transforms values"),
-    label(orDistributesOverAnd, "or distributes over and"),
-    label(orIsAssociative, "or is associative"),
-    label(orIsCommutative, "or is commutative")
-  )
+          assert(actual, isSome(equalTo(expected)))
+        },
+        test("implies returns implication of two values") {
+          assert(success1 ==> success2, isSuccess) &&
+          assert(success1 ==> failure1, isFailure) &&
+          assert(failure1 ==> success1, isSuccess) &&
+          assert(failure1 ==> failure2, isSuccess)
+        },
+        test("isFailure returns whether result is failure") {
+          assert(!success1.isFailure && failure1.isFailure, isTrue)
+        },
+        test("isSuccess returns whether result is success") {
+          assert(success1.isSuccess && !failure1.isSuccess, isTrue)
+        },
+        test("map transforms values") {
+          val actual   = (success1 && failure1 && failure2).map(_.split(" ").head)
+          val expected = BoolAlgebra.success("first") && BoolAlgebra.failure("first") && BoolAlgebra.failure("second")
+          assert(actual, equalTo(expected))
+        },
+        testM("or distributes over and") {
+          zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
+            val left  = a || (b && c)
+            val right = (a || b) && (a || c)
+            assert(left, equalTo(right))
+          }
+        },
+        testM("or is associative") {
+          zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
+            val left  = (a || b) || c
+            val right = a || (b || c)
+            assert(left, equalTo(right))
+          }
+        },
+        testM("or is commutative") {
+          zio.test.check(boolAlgebra, boolAlgebra) { (a, b) =>
+            assert(a || b, equalTo(b || a))
+          }
+        }
+      )
+    )
 
+object BoolAlgebraSpecHelper {
   val value1 = "first success"
   val value2 = "second success"
   val value3 = "first failure"
@@ -41,169 +139,31 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
   val failure1 = BoolAlgebra.failure(value3)
   val failure2 = BoolAlgebra.failure(value4)
 
-  def allReturnsConjunctionOfValues: Future[Boolean] =
-    Future.successful(BoolAlgebra.all(List(success1, failure1, failure2)).get.isFailure)
+  val isSuccess: Assertion[BoolAlgebra[_]] = assertion("isSuccess")()(_.isSuccess)
+  val isFailure: Assertion[BoolAlgebra[_]] = assertion("isFailure")()(_.isFailure)
 
-  def andDistributesOverOr: Future[Boolean] =
-    forall {
-      val a = randomBoolAlgebra()
-      val b = randomBoolAlgebra()
-      val c = randomBoolAlgebra()
-      (a && (b || c)) == ((a && b) || (a && c))
-    }
+  def boolAlgebra: Gen[Random with Sized, BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s), 1)
 
-  def andIsAssociative: Future[Boolean] =
-    forall {
-      val a = randomBoolAlgebra()
-      val b = randomBoolAlgebra()
-      val c = randomBoolAlgebra()
-      ((a && b) && c) == (a && (b && c))
-    }
-
-  def andIsCommutative: Future[Boolean] =
-    forall {
-      val a = randomBoolAlgebra()
-      val b = randomBoolAlgebra()
-      (a && b) == (b && a)
-    }
-
-  def anyReturnsDisjunctionOfValues: Future[Boolean] =
-    Future.successful(BoolAlgebra.any(List(success1, failure1, failure2)).get.isSuccess)
-
-  def asMapsValuesToConstantValue: Future[Boolean] =
-    Future.successful {
-      (success1 && success2).as("value") ==
-        (BoolAlgebra.success("value") && BoolAlgebra.success("value"))
-    }
-
-  def bothReturnsConjunctionOfTwoValues: Future[Boolean] =
-    Future.successful {
-      (success1 && success2).isSuccess &&
-      (success1 && failure1).isFailure &&
-      (failure1 && success1).isFailure &&
-      (failure1 && failure2).isFailure
-    }
-
-  def collectAllCombinesMultipleValues: Future[Boolean] =
-    Future.successful {
-      BoolAlgebra.collectAll(List(success1, failure1, failure2)) ==
-        Some((success1 && failure1 && failure2))
-    }
-
-  def doubleNegative: Future[Boolean] =
-    forall {
-      val a = randomBoolAlgebra()
-      (!(!a) == a) && a == !(!a)
-    }
-
-  def deMorgansLaws: Future[Boolean] =
-    forall {
-      val a = randomBoolAlgebra()
-      val b = randomBoolAlgebra()
-      (!(a && b) == (!a || !b)) &&
-      ((!a || !b) == !(a && b)) &&
-      (!(a || b) == (!a && !b)) &&
-      ((!a && !b) == !(a || b))
-    }
-
-  def eitherReturnsDisjunctionOfTwoValues: Future[Boolean] =
-    Future.successful {
-      (success1 || success2).isSuccess &&
-      (success1 || failure1).isSuccess &&
-      (failure1 || success1).isSuccess &&
-      (failure1 || failure2).isFailure
-    }
-
-  def failuresCollectsFailures: Future[Boolean] =
-    Future.successful {
-      val actual   = (success1 && success2 && failure1 && failure2).failures.get
-      val expected = !failure1 && !failure2
-      actual == expected
-    }
-
-  def foreachCombinesMultipleValues: Future[Boolean] =
-    Future.successful {
-      def isEven(n: Int): BoolAlgebra[String] =
-        if (n % 2 == 0) BoolAlgebra.success(s"$n is even")
-        else BoolAlgebra.failure(s"$n is odd")
-      BoolAlgebra.foreach(List(1, 2, 3))(isEven) ==
-        Some {
-          BoolAlgebra.failure("1 is odd") &&
-          BoolAlgebra.success("2 is even") &&
-          BoolAlgebra.failure("3 is odd")
-        }
-    }
-
-  def hashCodeIsConsistentWithEquals: Future[Boolean] =
-    Future.successful {
-      (1 to 10).forall { _ =>
-        val (a, b) = randomEqualBoolAlgebra(4)
-        a.hashCode == b.hashCode
-      }
-    }
-
-  def impliesReturnsImplicationOfTwoValues: Future[Boolean] =
-    Future.successful {
-      (success1 ==> success2).isSuccess &&
-      (success1 ==> failure1).isFailure &&
-      (failure1 ==> success1).isSuccess &&
-      (failure1 ==> failure2).isSuccess
-    }
-
-  def isFailureReturnsWhetherResultIsFailure: Future[Boolean] =
-    Future.successful(!success1.isFailure && failure1.isFailure)
-
-  def isSuccessReturnsWhetherResultIsSuccess: Future[Boolean] =
-    Future.successful(success1.isSuccess && !failure1.isSuccess)
-
-  def mapTransformsValues: Future[Boolean] =
-    Future.successful {
-      val actual   = (success1 && failure1 && failure2).map(_.split(" ").head)
-      val expected = BoolAlgebra.success("first") && BoolAlgebra.failure("first") && BoolAlgebra.failure("second")
-      actual == expected
-    }
-
-  def orDistributesOverAnd: Future[Boolean] =
-    forall {
-      val a = randomBoolAlgebra()
-      val b = randomBoolAlgebra()
-      val c = randomBoolAlgebra()
-      (a || (b && c)) == ((a || b) && (a || c))
-    }
-
-  def orIsAssociative: Future[Boolean] =
-    forall {
-      val a = randomBoolAlgebra()
-      val b = randomBoolAlgebra()
-      val c = randomBoolAlgebra()
-      ((a || b) || c) == (a || (b || c))
-    }
-
-  def orIsCommutative: Future[Boolean] =
-    forall {
-      val a = randomBoolAlgebra()
-      val b = randomBoolAlgebra()
-      (a || b) == (b || a)
-    }
-
-  def forall(p: => Boolean): Future[Boolean] =
-    Future.successful((1 to 100).forall(_ => p))
-
-  def randomBoolAlgebra(size: Int = Random.nextInt(10)): BoolAlgebra[Int] =
-    if (size == 0) {
-      BoolAlgebra.success(Random.nextInt(10))
+  def boolAlgebraOfSize(size: Int): Gen[Random, BoolAlgebra[Int]] =
+    if (size == 1) {
+      Gen.int(0, 9).map(BoolAlgebra.success)
+    } else if (size == 2) {
+      boolAlgebraOfSize(size - 1).map(!_)
     } else {
-      val n = Random.nextInt(size)
-      Random.nextInt(3) match {
-        case 0 => randomBoolAlgebra(n) && randomBoolAlgebra(size - n - 1)
-        case 1 => randomBoolAlgebra(n) || randomBoolAlgebra(size - n - 1)
-        case 2 => !randomBoolAlgebra(size - 1)
-      }
+      for {
+        n <- Gen.int(1, size - 2)
+        gen <- Gen.oneOf(
+                (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 && p._2),
+                (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 || p._2),
+                boolAlgebraOfSize(size - 1).map(!_)
+              )
+      } yield gen
     }
 
-  def randomEqualBoolAlgebra(size: Int = 3): (BoolAlgebra[Int], BoolAlgebra[Int]) = {
-    val a = randomBoolAlgebra(size)
-    val b = randomBoolAlgebra(size)
-    if (a == b) (a, b) else randomEqualBoolAlgebra(size)
-  }
+  def equalBoolAlgebraOfSize(size: Int): Gen[Random, (BoolAlgebra[Int], BoolAlgebra[Int])] =
+    for {
+      a <- boolAlgebraOfSize(size)
+      b <- boolAlgebraOfSize(size)
+      if a == b
+    } yield (a, b)
 }

@@ -1,14 +1,15 @@
 package zio.test
 
-import scala.concurrent.Future
-import zio.{ Cause, IO, Managed }
-import scala.{ Console => SConsole }
+import zio._
 import zio.clock.Clock
-import zio.test.environment._
-import zio.test.TestUtils.label
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
+import zio.test.ReportingTestUtils._
+import zio.test.TestUtils.label
+import zio.test.environment._
 
-object DefaultTestReporterSpec extends ZIOBaseSpec {
+import scala.concurrent.Future
+
+object DefaultTestReporterSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(reportSuccess, "correctly reports a successful test"),
@@ -116,34 +117,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     )
 
   def simpleAssertion =
-    check(
-      test5,
-      test5Expected :+ reportStats(0, 0, 1)
-    )
-
-  def expectedSuccess(label: String): String =
-    green("+") + " " + label + "\n"
-
-  def expectedFailure(label: String): String =
-    red("- " + label) + "\n"
-
-  def withOffset(n: Int)(s: String): String =
-    " " * n + s
-
-  def green(s: String): String =
-    SConsole.GREEN + s + SConsole.RESET
-
-  def red(s: String): String =
-    SConsole.RED + s + SConsole.RESET
-
-  def blue(s: String): String =
-    SConsole.BLUE + s + SConsole.RESET
-
-  def cyan(s: String): String =
-    SConsole.CYAN + s + SConsole.RESET
-
-  def yellowThenCyan(s: String): String =
-    SConsole.YELLOW + s + SConsole.CYAN
+    check(test5, test5Expected :+ reportStats(0, 0, 1))
 
   def check[E](spec: ZSpec[TestEnvironment, String, String, Unit], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(testEnvironmentManaged) { r =>

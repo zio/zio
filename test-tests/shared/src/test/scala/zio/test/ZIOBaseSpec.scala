@@ -1,7 +1,7 @@
 package zio.test
 
-import zio.DefaultRuntime
+import zio.duration._
+import zio.test.environment.TestEnvironment
 
-trait ZIOBaseSpec extends DefaultRuntime {
-  def run: List[Async[(Boolean, String)]]
-}
+abstract class ZIOBaseSpec(spec: => ZSpec[TestEnvironment, Any, String, Any])
+    extends DefaultRunnableSpec(spec, List(TestAspect.timeout(60.seconds)))

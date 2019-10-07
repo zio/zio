@@ -3,9 +3,9 @@ package zio.test.environment
 import zio.test.Async
 import zio.test.environment.TestSystem.Data
 import zio.test.TestUtils.label
-import zio.test.ZIOBaseSpec
+import zio.test.AsyncBaseSpec
 
-object SystemSpec extends ZIOBaseSpec {
+object SystemSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(env1, "fetch an environment variable and check that if it exists, return a reasonable value"),
