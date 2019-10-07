@@ -16,15 +16,15 @@
 
 package zio.test
 
-import scala.{ Console => SConsole }
-
 import zio.duration.Duration
-import zio.test.mock.{ Expectation, MockException }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
+import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
+import zio.test.mock.{ Expectation, MockException }
 import zio.{ Cause, UIO, URIO, ZIO }
+
+import scala.{ Console => SConsole }
 
 object DefaultTestReporter {
 
@@ -38,10 +38,12 @@ object DefaultTestReporter {
                          case Spec.TestCase(_, test) => test.map(_.isLeft);
                          case _                      => UIO.succeed(false)
                        })
-            hasFailures   = failures.exists(identity)
-            status        = if (hasFailures) Failed else Passed
-            renderedLabel = if (hasFailures) renderFailureLabel(label, depth) else renderSuccessLabel(label, depth)
-            rest          <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
+            hasFailures = failures.exists(identity)
+            status      = if (hasFailures) Failed else Passed
+            renderedLabel = if (specs.isEmpty) ""
+            else if (hasFailures) renderFailureLabel(label, depth)
+            else renderSuccessLabel(label, depth)
+            rest <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
           } yield rendered(Suite, label, status, depth, renderedLabel) +: rest
         case Spec.TestCase(label, result) =>
           result.map {

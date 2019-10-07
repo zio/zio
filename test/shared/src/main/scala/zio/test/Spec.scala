@@ -48,6 +48,19 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
+   * Returns a new Spec containing only tests with labels satisfying the specified predicate.
+   */
+  final def filterTestLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterTestLabels(f))), exec)
+        Some(Spec(filtered))
+
+      case t @ TestCase(_, _) =>
+        if (f(t.label)) Some(Spec(t)) else None
+    }
+
+  /**
    * Folds over all nodes to produce a final result.
    */
   final def fold[Z](f: SpecCase[R, E, L, T, Z] => Z): Z =
