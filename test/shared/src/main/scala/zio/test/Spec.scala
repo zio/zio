@@ -48,6 +48,19 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
+   * Traverses all nodes and leaves only the ones that have a path to tests that satisfy the given predicate.
+   */
+  final def filterTestLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterTestLabels(f))), exec)
+        Some(Spec(filtered))
+
+      case t @ TestCase(_, _) =>
+        if (f(t.label)) Some(Spec(t)) else None
+    }
+
+  /**
    * Folds over all nodes to produce a final result.
    */
   final def fold[Z](f: SpecCase[R, E, L, T, Z] => Z): Z =
@@ -216,16 +229,6 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     caseValue match {
       case SuiteCase(label, specs, exec) => Spec(f(SuiteCase(label, specs.map(_.map(_.transform(f))), exec)))
       case t @ TestCase(_, _)            => Spec(f(t))
-    }
-
-  final def filterTestLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
-    caseValue match {
-      case SuiteCase(label, specs, exec) =>
-        val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterTestLabels(f))), exec)
-        Some(Spec(filtered))
-
-      case t @ TestCase(_, _) =>
-        if (f(t.label)) Some(Spec(t)) else None
     }
 
   final def mapTests[R1, E1, L1 >: L, T1](
