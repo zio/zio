@@ -48,7 +48,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
-   * Traverses all nodes and leaves only the ones that have a path to tests that satisfy the given predicate.
+   * Returns a new Spec containing only tests with labels satisfying the specified predicate.
    */
   final def filterTestLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
     caseValue match {
