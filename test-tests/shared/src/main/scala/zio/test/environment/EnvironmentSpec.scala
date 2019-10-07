@@ -2,13 +2,13 @@ package zio.test.environment
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Future
-
 import zio._
 import zio.duration._
 import zio.test.Async
 import zio.test.TestUtils.label
 import zio.test.AsyncBaseSpec
+
+import scala.concurrent.Future
 
 object EnvironmentSpec extends AsyncBaseSpec {
 
@@ -55,6 +55,7 @@ object EnvironmentSpec extends AsyncBaseSpec {
     unsafeRunToFuture {
       for {
         i <- random.nextInt.provideManaged(TestEnvironment.Value)
+        _ <- clock.sleep(1.millisecond)
         j <- random.nextInt.provideManaged(TestEnvironment.Value)
       } yield i != j
     }

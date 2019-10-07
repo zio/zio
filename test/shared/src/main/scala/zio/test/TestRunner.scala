@@ -51,7 +51,7 @@ case class TestRunner[R, L, -T, E, S](
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
   ): ExecutedSpec[L, E, S] =
-    Runtime((), platform).unsafeRun(run(spec).provide(buildEnv(testLogger, clock)))
+    buildRuntime(testLogger, clock).unsafeRun(run(spec))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
@@ -63,7 +63,7 @@ case class TestRunner[R, L, -T, E, S](
   )(
     k: ExecutedSpec[L, E, S] => Unit
   ): Unit =
-    Runtime((), platform).unsafeRunAsync(run(spec).provide(buildEnv(testLogger, clock))) {
+    buildRuntime(testLogger, clock).unsafeRunAsync(run(spec)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -76,7 +76,7 @@ case class TestRunner[R, L, -T, E, S](
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
   ): Exit[Nothing, ExecutedSpec[L, E, S]] =
-    Runtime((), platform).unsafeRunSync(run(spec).provide(buildEnv(testLogger, clock)))
+    buildRuntime(testLogger, clock).unsafeRunSync(run(spec))
 
   /**
    * Creates a copy of this runner replacing the reporter.
@@ -84,8 +84,15 @@ case class TestRunner[R, L, -T, E, S](
   final def withReporter[L1 >: L, E1 >: E, S1 >: S](reporter: TestReporter[L1, E1, S1]) =
     copy(reporter = reporter)
 
-  private def buildEnv(loggerSvc: TestLogger, clockSvc: Clock): TestLogger with Clock = new TestLogger with Clock {
-    override def testLogger: TestLogger.Service = loggerSvc.testLogger
-    override val clock: Clock.Service[Any]      = clockSvc.clock
-  }
+  private[test] def buildRuntime(
+    loggerSvc: TestLogger = defaultTestLogger,
+    clockSvc: Clock = Clock.Live
+  ): Runtime[TestLogger with Clock] =
+    Runtime(buildEnv(loggerSvc, clockSvc), platform)
+
+  private def buildEnv(loggerSvc: TestLogger, clockSvc: Clock): TestLogger with Clock =
+    new TestLogger with Clock {
+      override def testLogger: TestLogger.Service = loggerSvc.testLogger
+      override val clock: Clock.Service[Any]      = clockSvc.clock
+    }
 }
