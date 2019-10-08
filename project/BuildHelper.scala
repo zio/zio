@@ -10,7 +10,7 @@ import BuildInfoKeys._
 
 object BuildHelper {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.2" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.2"  % "provided")
+  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.4"  % "provided")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -169,7 +169,7 @@ object BuildHelper {
       if (isDotty.value)
         Seq()
       else
-        Seq(compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.2"))
+        Seq(compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.4"))
     },
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
