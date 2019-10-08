@@ -43,6 +43,22 @@ object ZIOSpec
               e <- ZIO.foreachPar(actions)(a => a).flip
               v <- ref.get
             } yield assert(e, equalTo("C")) && assert(v, isFalse)
+          },
+          testM("interrupts effects on it's interruption") {
+            for {
+              ref     <- Ref.make(false)
+              latch   <- Promise.make[Nothing, Unit]
+              promise <- Promise.make[Nothing, Unit]
+              actions = List(
+                ZIO.never.onInterrupt(ref.set(true) *> latch.succeed(())).unit,
+                promise.succeed(()),
+              )
+              fiber <- ZIO.foreachPar(actions)(identity).fork
+              _ <- promise.await
+              e <- fiber.interrupt
+              _ <- latch.await
+              v <- ref.get
+            } yield assert((e.as(()), v), equalTo((Exit.interrupt.as(()), true)))
           }
         ),
         suite("forkAll")(
