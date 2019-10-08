@@ -9,8 +9,7 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.2" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.2"  % "provided")
+  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.2" % "test")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -161,15 +160,18 @@ object BuildHelper {
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.9", "2.13.0", "2.11.12"),
+    crossScalaVersions := Seq("2.12.10", "2.13.1", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
-    libraryDependencies ++= compileOnlyDeps ++ testDeps,
+    libraryDependencies ++= testDeps,
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq()
+        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.4.4" % Provided)
       else
-        Seq(compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.2"))
+        Seq(
+          "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,
+          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full)
+        )
     },
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
