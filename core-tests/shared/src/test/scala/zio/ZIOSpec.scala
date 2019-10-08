@@ -15,6 +15,36 @@ import scala.util.{ Failure, Success }
 object ZIOSpec
     extends ZIOBaseSpec(
       suite("ZIO")(
+        suite("foreachPar")(
+          testM("runs effects in parallel") {
+            assertM(for {
+              p <- Promise.make[Nothing, Unit]
+              _ <- UIO.foreachPar(List(UIO.never, p.succeed(())))(a => a).fork
+              _ <- p.await
+            } yield true, isTrue)
+          },
+          testM("propagates error") {
+            val ints = List(1, 2, 3, 4, 5, 6)
+            val odds = ZIO.foreachPar(ints) { n =>
+              if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail("not odd")
+            }
+            assertM(odds.flip, equalTo("not odd"))
+          },
+          testM("interrupts effects on first failure") {
+            for {
+              ref     <- Ref.make(false)
+              promise <- Promise.make[Nothing, Unit]
+              actions = List(
+                ZIO.never,
+                ZIO.succeed(1),
+                ZIO.fail("C"),
+                promise.await *> ref.set(true)
+              )
+              e <- ZIO.foreachPar(actions)(a => a).flip
+              v <- ref.get
+            } yield assert(e, equalTo("C")) && assert(v, isFalse)
+          }
+        ),
         suite("forkAll")(
           testM("happy-path") {
             val list = (1 to 1000).toList
