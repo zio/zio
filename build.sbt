@@ -124,9 +124,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val streamsJVM = streams.jvm
-  .settings(dottySettings)
-
+lazy val streamsJVM = streams.jvm.settings(dottySettings)
 lazy val streamsJS = streams.js
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
@@ -161,7 +159,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
     )
   )
 
-lazy val testJVM = test.jvm
+lazy val testJVM = test.jvm.settings(dottySettings)
 lazy val testJS  = test.js
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
