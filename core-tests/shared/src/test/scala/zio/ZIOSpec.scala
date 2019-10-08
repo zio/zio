@@ -10,6 +10,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, ignore, jvm, nonFlaky }
 
 import scala.annotation.tailrec
+import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
 object ZIOSpec
@@ -550,6 +551,30 @@ object ZIOSpec
               _ <- fiber.interrupt.fork
               a <- release.await
             } yield assert(a, isUnit)
+          },
+          testM("effectAsyncMaybe should not resume fiber twice after synchronous result") {
+            for {
+              unexpectedPlace <- Ref.make(Option.empty[Int])
+              fork <- ZIO
+                       .effectAsyncMaybe[Any, Nothing, Unit] { k =>
+                         scala.concurrent.Future {
+                           Thread.sleep(200L)
+                           k(unexpectedPlace.set(Some(1)))
+                         }(ExecutionContext.global)
+                         Some(IO.unit)
+                       }
+                       .flatMap { _ =>
+                         ZIO.sleep(500.millis) *> ZIO.never
+                       }
+                       .ensuring(unexpectedPlace.set(Some(2)))
+                       .uninterruptible
+                       .fork
+              result     <- withLive(fork.interrupt)(_.timeout(5.seconds).delay(50.millis))
+              unexpected <- unexpectedPlace.get
+            } yield {
+              assert(unexpected, isNone) &&
+              assert(result, isNone) // timeout happens
+            }
           },
           testM("sleep 0 must return") {
             assertM(clock.sleep(1.nanos).provide(Clock.Live), isUnit)

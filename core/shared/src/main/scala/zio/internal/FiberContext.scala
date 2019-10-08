@@ -418,8 +418,9 @@ private[zio] final class FiberContext[E, A](
 
                     if (traceEffects && inTracingRegion) addTrace(k)
 
-                    k(resumeAsync) match {
-                      case Some(zio) => if (exitAsync()) zio else null
+                    val neverRan = new AtomicBoolean(true)
+                    k(resumeAsync(neverRan)) match {
+                      case Some(zio) => if (neverRan.compareAndSet(true, false) && exitAsync()) zio else null
                       case None      => null
                     }
                   } else ZIO.interrupt
@@ -604,11 +605,11 @@ private[zio] final class FiberContext[E, A](
   /**
    * Resumes an asynchronous computation.
    *
+   * @param neverRan guards against double continuation
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final def resumeAsync: IO[E, Any] => Unit = {
-    val neverRan = new AtomicBoolean(true)
-    zio => if (neverRan.getAndSet(false) && exitAsync()) evaluateLater(zio)
+  private[this] final def resumeAsync(neverRan: AtomicBoolean): IO[E, Any] => Unit = { zio =>
+    if (neverRan.compareAndSet(true, false) && exitAsync()) evaluateLater(zio)
   }
 
   final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
