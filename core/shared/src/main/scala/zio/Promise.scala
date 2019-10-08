@@ -20,9 +20,10 @@ import java.util.concurrent.atomic.AtomicReference
 import Promise.internal._
 
 /**
- * A promise represents an asynchronous variable that can be set exactly once,
- * with the ability for an arbitrary number of fibers to suspend (by calling
- * `get`) and automatically resume when the variable is set.
+ * A promise represents an asynchronous variable, of [[zio.IO]] type, that can
+ * be set exactly once, with the ability for an arbitrary number of fibers to
+ * suspend (by calling `await`) and automatically resume when the variable is
+ * set.
  *
  * Promises can be used for building primitive actions whose completions
  * require the coordinated action of multiple fibers, and for building
@@ -30,12 +31,12 @@ import Promise.internal._
  * {{{
  * for {
  *   promise <- Promise.make[Nothing, Int]
- *   _       <- promise.complete(42).delay(1.second).fork
- *   value   <- promise.get // Resumes when forked fiber completes promise
+ *   _       <- promise.succeed(42).delay(1.second).fork
+ *   value   <- promise.await // Resumes when forked fiber completes promise
  * } yield value
  * }}}
  */
-class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal {
+class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal with Serializable {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
@@ -43,7 +44,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def await: IO[E, A] =
     IO.effectAsyncInterrupt[E, A](k => {
-      var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
+      var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
       var retry  = true
 
       while (retry) {
@@ -156,7 +157,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def succeed(a: A): UIO[Boolean] = complete(IO.succeed(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
+  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
     var retry = true
 
     while (retry) {

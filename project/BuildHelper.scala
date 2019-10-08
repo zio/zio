@@ -9,7 +9,7 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.1" % "test")
+  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.2" % "test")
   val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.2"  % "provided")
 
   private val stdOptions = Seq(
@@ -21,7 +21,6 @@ object BuildHelper {
   )
 
   private val std2xOptions = Seq(
-    "-Xfatal-warnings",
     "-language:higherKinds",
     "-language:existentials",
     "-explaintypes",
@@ -29,7 +28,7 @@ object BuildHelper {
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard"
-  )
+  ) ++ customOptions
 
   private def optimizerOptions(optimize: Boolean) =
     if (optimize)
@@ -39,15 +38,32 @@ object BuildHelper {
       )
     else Nil
 
-  val buildInfoSettings = Seq(
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-    buildInfoPackage := "zio",
-    buildInfoObject := "BuildInfo"
-  )
+  private def propertyFlag(property: String, default: Boolean) =
+    sys.props.get(property).map(_.toBoolean).getOrElse(default)
+
+  private def customOptions =
+    if (propertyFlag("fatal.warnings", false)) {
+      Seq("-Xfatal-warnings")
+    } else {
+      Nil
+    }
+
+  def buildInfoSettings(packageName: String) =
+    Seq(
+      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
+      buildInfoPackage := packageName,
+      buildInfoObject := "BuildInfo"
+    )
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.19.1-bin-20190904-beba63a-NIGHTLY",
+    crossScalaVersions += "0.19.0-RC1",
+    scalacOptions ++= {
+      if (isDotty.value)
+        Seq("-noindent")
+      else
+        Seq()
+    },
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
       val old = (Compile / doc / sources).value
@@ -203,6 +219,29 @@ object BuildHelper {
       }
     }
   )
+
+  def welcomeMessage = onLoadMessage := {
+    import scala.Console
+
+    def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
+
+    def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
+
+    s"""|${header(" ________ ___")}
+        |${header("|__  /_ _/ _ \\")} 
+        |${header("  / / | | | | |")}
+        |${header(" / /_ | | |_| |")}
+        |${header(s"/____|___\\___/   ${version.value}")}
+        |
+        |Useful sbt tasks:
+        |${item("fmt")} - Formats source files using scalafmt
+        |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
+        |${item("testJVM")} - Runs all JVM tests
+        |${item("testJS")} - Runs all ScalaJS tests
+        |${item("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")} - Only runs tests with matching term
+        |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
+      """.stripMargin
+  }
 
   implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))

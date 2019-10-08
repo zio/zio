@@ -1,5 +1,5 @@
 ---
-id: about_contributor
+id: about_contributing
 title:  "ZIO Contributor Guidelines"
 ---
 
@@ -9,21 +9,11 @@ We welcome contributions from all people! You will learn about functional progra
 
 _You too can contribute to ZIO, we believe in you!_
 
-Please read the [Contributor License Agreement](#ZIO-Contributor-License-Agreement) before continuing below.
-
 # Contributing
 
-To begin contributing, please follow these steps:
-
-1. [Get the Project](#Get-the-Project)
-2. [Build the Project](#Build-the-Project)
-3. [Find an Issue](#Find-an-Issue)
-4. [Fix an Issue](#Fix-an-Issue)
-5. [Prepare Your Code](#Prepare-Your-Code)
-6. [Create a Pull Request](#Create-a-Pull-Request)
-7. [Get Your Pull Request Merged](#Get-Your-Pull-Request-Merged)
-
 ## Getting Started
+
+To begin contributing, please follow these steps:
 
 ### Get The Project
 
@@ -243,15 +233,15 @@ For patent claims including, without limitation, method, process, and apparatus 
 
 Based on the grant of rights in Sections 2.1 and 2.2, if We include Your Contribution in a Material, We may license the Contribution under any license, including copyleft, permissive, commercial, or proprietary licenses. As a condition on the exercise of this right, We agree to also license the Contribution under the terms of the license or licenses which We are using for the Material on the Submission Date.
 
-### 2.4 Moral Rights.
+### 2.4 Moral Rights
 
 If moral rights apply to the Contribution, to the maximum extent permitted by law, You waive and agree not to assert such moral rights against Us or our successors in interest, or any of our licensees, either direct or indirect.
 
-### 2.5 Our Rights.
+### 2.5 Our Rights
 
 You acknowledge that We are not obligated to use Your Contribution as part of the Material and may decide to include any Contribution We consider appropriate.
 
-### 2.6 Reservation of Rights.
+### 2.6 Reservation of Rights
 
 Any rights not expressly licensed under this section are expressly reserved by You.
 

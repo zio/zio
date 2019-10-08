@@ -18,7 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
-import zio.{ Cause, Exit }
+import zio.Exit
 import zio.test.Assertion._
 import zio.test.Assertion.Render._
 
@@ -216,13 +216,13 @@ object Assertion {
   /**
    * Makes a new assertion that requires an exit value to die.
    */
-  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Nothing, Any]] =
-    Assertion.assertionRec[Exit[Nothing, Any]]("dies")(param(assertion)) { (self, actual) =>
+  final def dies(assertion: Assertion[Throwable]): Assertion[Exit[Any, Any]] =
+    Assertion.assertionRec[Exit[Any, Any]]("dies")(param(assertion)) { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.died =>
-          cause.untraced match {
-            case Cause.Die(t) => assertion.run(t)
-            case _            => BoolAlgebra.failure(AssertionValue(self, actual))
+          cause.dieOption match {
+            case Some(t) => assertion.run(t)
+            case _       => BoolAlgebra.failure(AssertionValue(self, actual))
           }
         case _ => BoolAlgebra.failure(AssertionValue(self, actual))
       }
@@ -240,7 +240,7 @@ object Assertion {
    */
   final def equalTo[A](expected: A): Assertion[A] =
     Assertion.assertion("equalTo")(param(expected)) { actual =>
-      (expected, actual) match {
+      (actual, expected) match {
         case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
         case (left, right)                     => left == right
       }
@@ -465,6 +465,11 @@ object Assertion {
 
   /**
    * Makes an assertion that requires a value have the specified type.
+   *
+   * Example:
+   * {{{
+   *   assert(Duration.fromNanos(1), isSubtype[Duration.Finite](Assertion.anything))
+   * }}}
    */
   final def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
     Assertion.assertionRec[Any]("isSubtype")(param(C.runtimeClass.getSimpleName)) { (self, actual) =>
@@ -555,4 +560,9 @@ object Assertion {
         case t: Throwable => assertion(t)
       }
     }
+
+  /**
+   * Returns a new assertion that requires the expression to throw an instance of given type (or its subtype)
+   */
+  final def throwsA[E: ClassTag]: Assertion[Any] = throws(isSubtype[E](anything))
 }

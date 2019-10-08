@@ -102,8 +102,12 @@ class Index extends React.Component {
             ]
           }
         />
-        <Block layout="twoColumn">
+        <Block layout="threeColumn">
           {[
+            {
+              content: `<a href="https://scalac.io/"><img src="${baseUrl}img/scalac.svg" /></a><br/>&nbsp;Scale fast with Scala`,
+              title: 'Scalac'
+            },
             {
               content: `<a href="https://7mind.io/"><img src="${baseUrl}img/septimal_mind.svg" /></a><br/>&nbsp;Inventing productivity`,
               title: 'Septimal Mind'

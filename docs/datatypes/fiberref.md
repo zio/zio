@@ -40,7 +40,7 @@ for {
 
 ## Propagation
 
-`FiberRef[A]` has *copy-on-fork* semantics for `ZIO#fork`. 
+`FiberRef[A]` has *copy-on-fork* semantics for `ZIO#fork`.
 
 This essentially means that a child `Fiber` starts with `FiberRef` values of its parent. When the child set a new value of `FiberRef`, the change is visible only to the child itself. The parent fiber still has its own value.
 
@@ -77,14 +77,25 @@ for {
   v        <- fiberRef.get
 } yield v == 10
 ```
- 
+
 ```scala mdoc:silent
-val withoutJoin = 
+val withoutJoin =
   for {
     fiberRef <- FiberRef.make[Int](0)
     fiber    <- fiberRef.set(10)
     v        <- fiberRef.get
   } yield v == 10
+```
+
+Furthermore you can customize how the values of the two fibers will be merged. To do this you specify the desired behavior during `FiberRef#make`:
+```scala mdoc:silent
+for {
+  fiberRef <- FiberRef.make(0, math.max)
+  child    <- fiberRef.update(_ + 1).fork
+  _        <- fiberRef.update(_ + 2)
+  _        <- child.join
+  value    <- fiberRef.get
+} yield value == 2
 ```
 
 ## Memory Safety
