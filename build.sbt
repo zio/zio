@@ -236,7 +236,7 @@ lazy val benchmarks = project.module
   .settings(replSettings)
   .settings(
     // skip 2.13 benchmarks until twitter-util publishes for 2.13
-    crossScalaVersions -= "2.13.0",
+    crossScalaVersions -= "2.13.1",
     //
     skip in publish := true,
     libraryDependencies ++=
@@ -270,7 +270,7 @@ lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
     // skip 2.13 mdoc until mdoc is available for 2.13
-    crossScalaVersions -= "2.13.0",
+    crossScalaVersions -= "2.13.1",
     //
     skip.in(publish) := true,
     moduleName := "zio-docs",
@@ -280,7 +280,7 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"                % "1.4.2" % "provided",
+      "com.github.ghik"     % "silencer-lib"                 % "1.4.4" % Provided cross CrossVersion.full,
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
