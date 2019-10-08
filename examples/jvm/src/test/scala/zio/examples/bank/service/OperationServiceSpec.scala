@@ -98,7 +98,7 @@ object OperationServiceSpec
           (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
 
         },
-        testM("Cannot create an operation without an invalid value (value < 1)") {
+        testM("Cannot create an operation with an invalid value (value < 1)") {
 
           val pipeline = for {
             account <- createAccount("John Doe")
@@ -121,7 +121,7 @@ object OperationServiceSpec
           (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
 
         },
-        testM("Cannot create an operation without an different sum of transactions value") {
+        testM("Cannot create an operation without a different sum of transactions value") {
 
           val pipeline = for {
             account <- createAccount("John Doe")
@@ -168,7 +168,7 @@ object OperationServiceSpec
           (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
 
         },
-        testM("Cannot create an operation with an invlid transaction") {
+        testM("Cannot create an operation with an invalid transaction") {
 
           val pipeline = for {
             account            <- createAccount("John Doe")
@@ -194,7 +194,7 @@ object OperationServiceSpec
           (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
 
         },
-        testM("Cannot transfer more money than current balance") {
+        testM("Cannot transfer more money than the current balance") {
 
           val pipeline = for {
             account     <- createAccountWithValue("John Doe", 500L)
