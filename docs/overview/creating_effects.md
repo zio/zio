@@ -17,7 +17,7 @@ Using the `ZIO.succeed` method, you can create an effect that succeeds with the 
 val s1 = ZIO.succeed(42)
 ```
 
-You can also create use methods in the companion objects of the `ZIO` type aliases:
+You can also use methods in the companion objects of the `ZIO` type aliases:
 
 ```scala mdoc:silent
 val s2: Task[Int] = Task.succeed(42)
