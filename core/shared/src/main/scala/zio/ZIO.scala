@@ -2024,18 +2024,18 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
     def arbiter(
-      promise: Promise[Nothing, Either[Cause[E], List[B]]],
+      promise: Promise[Cause[E], List[B]],
       buffer: Ref[Array[B]],
       todo: Ref[Int],
       idx: Int
     )(res: Exit[E, B]): ZIO[R, Nothing, Unit] =
       res.foldM[R, Nothing, Unit](
-        e => promise.succeed(Left(e)).unit,
+        e => promise.fail(e).unit,
         a =>
           todo.modify { t =>
             val updateBuffer = buffer.modify(b => (b.update(idx, a), b))
-            if (t == 1) (updateBuffer <* buffer.get.flatMap(b => promise.succeed(Right(b.toList)))) -> 0
-            else updateBuffer                                                                       -> (t - 1)
+            if (t == 1) (updateBuffer <* buffer.get.flatMap(b => promise.succeed(b.toList))) -> 0
+            else updateBuffer                                                                -> (t - 1)
           }.flatten
       )
 
@@ -2043,22 +2043,20 @@ private[zio] trait ZIOFunctions extends Serializable {
       size    <- UIO.effectTotal(as.size)
       todo    <- Ref.make(size)
       buffer  <- Ref.make(new Array[Any](size).asInstanceOf[Array[B]])
-      promise <- Promise.make[Nothing, Either[Cause[E], List[B]]]
+      promise <- Promise.make[Cause[E], List[B]]
       c <- ZIO.uninterruptibleMask { restore =>
             for {
-              as <- ZIO.traverse(as.zipWithIndex) {
-                     case (a, idx) =>
-                       ZIO
-                         .interruptible(fn(a))
-                         .run
-                         .flatMap { exit =>
-                           arbiter(promise, buffer, todo, idx)(exit)
-                         }
-                         .fork
-                   }
-              _ <- promise.succeed(Right(Nil)).when(as.isEmpty)
-              c <- restore(promise.await.absolve.unsandbox)
-                    .onError(_ => promise.interrupt *> Fiber.interruptAll(as))
+              fibers <- ZIO.traverse(as.zipWithIndex) {
+                         case (a, idx) =>
+                           ZIO
+                             .interruptible(fn(a))
+                             .run
+                             .flatMap(arbiter(promise, buffer, todo, idx))
+                             .fork
+                       }
+              _ <- promise.succeed(Nil).when(fibers.isEmpty)
+              c <- restore(promise.await.unsandbox)
+                    .onError(_ => promise.interrupt *> Fiber.interruptAll(fibers))
             } yield c
           }
     } yield c).refailWithTrace
@@ -2072,12 +2070,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = {
     def arbiter(
-      fibers: Iterable[Fiber[E, _]],
-      promise: Promise[E, Unit],
+      promise: Promise[Cause[E], Unit],
       todo: Ref[Int]
     )(res: Exit[E, _]): ZIO[R, Nothing, Unit] =
       res.foldM[R, Nothing, Unit](
-        e => promise.halt(e).unit *> Fiber.interruptAll(fibers),
+        e => promise.fail(e).unit,
         _ =>
           todo.modify { t =>
             if (t == 1) promise.succeed(()).unit -> 0 else UIO.unit -> (t - 1)
@@ -2087,15 +2084,14 @@ private[zio] trait ZIOFunctions extends Serializable {
     (for {
       size    <- UIO.effectTotal(as.size)
       todo    <- Ref.make(size)
-      promise <- Promise.make[E, Unit]
+      promise <- Promise.make[Cause[E], Unit]
       c <- ZIO.uninterruptibleMask { restore =>
             for {
-              as <- ZIO.traverse(as)(a => ZIO.interruptible(f(a)).fork)
-              _ <- ZIO.traverse_(as) { f =>
-                    f.await.flatMap(arbiter(as, promise, todo)).fork
-                  }
+              as <- ZIO.traverse(as) { a =>
+                     ZIO.interruptible(f(a)).run.flatMap(arbiter(promise, todo)).fork
+                   }
               _ <- promise.succeed(()).when(as.isEmpty)
-              c <- restore(promise.await).onInterrupt(promise.interrupt *> Fiber.interruptAll(as))
+              c <- restore(promise.await.unsandbox).onError(_ => promise.interrupt *> Fiber.interruptAll(as))
             } yield c
           }
     } yield c).refailWithTrace

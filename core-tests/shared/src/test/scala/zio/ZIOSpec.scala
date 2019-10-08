@@ -51,13 +51,59 @@ object ZIOSpec
               promise <- Promise.make[Nothing, Unit]
               actions = List(
                 ZIO.never.onInterrupt(ref.set(true) *> latch.succeed(())).unit,
-                promise.succeed(()),
+                promise.succeed(())
               )
               fiber <- ZIO.foreachPar(actions)(identity).fork
-              _ <- promise.await
-              e <- fiber.interrupt
-              _ <- latch.await
+              _     <- promise.await
+              e     <- fiber.interrupt
+              _     <- latch.await
+              v     <- ref.get
+            } yield assert((e.as(()), v), equalTo((Exit.interrupt.as(()), true)))
+          }
+        ),
+        suite("foreachPar_")(
+          testM("runs effects in parallel") {
+            assertM(for {
+              p <- Promise.make[Nothing, Unit]
+              _ <- UIO.foreachPar(List(UIO.never, p.succeed(())))(a => a).fork
+              _ <- p.await
+            } yield true, isTrue)
+          },
+          testM("propagates error") {
+            val ints = List(1, 2, 3, 4, 5, 6)
+            val odds = ZIO.foreachPar_(ints) { n =>
+              if (n % 2 != 0) ZIO.succeed(()) else ZIO.fail("not odd")
+            }
+            assertM(odds.flip, equalTo("not odd"))
+          },
+          testM("interrupts effects on first failure") {
+            for {
+              ref     <- Ref.make(false)
+              promise <- Promise.make[Nothing, Unit]
+              actions = List(
+                ZIO.never,
+                ZIO.succeed(1),
+                ZIO.fail("C"),
+                promise.await *> ref.set(true)
+              )
+              e <- ZIO.foreachPar_(actions)(identity).flip
               v <- ref.get
+            } yield assert(e, equalTo("C")) && assert(v, isFalse)
+          },
+          testM("interrupts effects on it's interruption") {
+            for {
+              ref     <- Ref.make(false)
+              latch   <- Promise.make[Nothing, Unit]
+              promise <- Promise.make[Nothing, Unit]
+              actions = List(
+                ZIO.never.onInterrupt(ref.set(true) *> latch.succeed(())).unit,
+                promise.succeed(())
+              )
+              fiber <- ZIO.foreachPar_(actions)(identity).fork
+              _     <- promise.await
+              e     <- fiber.interrupt
+              _     <- latch.await
+              v     <- ref.get
             } yield assert((e.as(()), v), equalTo((Exit.interrupt.as(()), true)))
           }
         ),
