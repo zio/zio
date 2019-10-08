@@ -1354,9 +1354,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         add <- self
                 .mapM(f)
                 .distributedDynamicWith(
-                  buffer, { (kv: (K, V)) =>
-                    decider.await.flatMap(_.tupled(kv))
-                  },
+                  buffer,
+                  (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
                   out.offer
                 )
         _ <- decider.succeed {
