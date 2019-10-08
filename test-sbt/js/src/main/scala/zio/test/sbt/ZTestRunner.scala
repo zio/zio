@@ -17,6 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.test.TestArgs
 import zio.{ Exit, Runtime }
 
 import scala.collection.mutable
@@ -34,7 +35,7 @@ sealed abstract class ZTestRunner(
   def done(): String = summaries.filter(_.nonEmpty).flatMap(s => s :: "\n" :: Nil).mkString("", "", "Done")
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary))
+    defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
 
   override def receiveMessage(summary: String): Option[String] = {
     summaries += summary
@@ -45,7 +46,7 @@ sealed abstract class ZTestRunner(
     serializer(task.taskDef)
 
   override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
-    new ZTestTask(deserializer(task), testClassLoader, runnerType, sendSummary)
+    new ZTestTask(deserializer(task), testClassLoader, runnerType, sendSummary, TestArgs.parse(args))
 }
 
 final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader)
@@ -66,8 +67,13 @@ final class ZSlaveTestRunner(
   val sendSummary: SendSummary
 ) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, runnerType: String, sendSummary: SendSummary)
-    extends BaseTestTask(taskDef, testClassLoader, sendSummary) {
+class ZTestTask(
+  taskDef: TaskDef,
+  testClassLoader: ClassLoader,
+  runnerType: String,
+  sendSummary: SendSummary,
+  testArgs: TestArgs
+) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     Runtime((), spec.platform).unsafeRunAsync(run(eventHandler, loggers)) { exit =>
