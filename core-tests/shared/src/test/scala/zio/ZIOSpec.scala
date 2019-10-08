@@ -10,7 +10,6 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, ignore, jvm, nonFlaky }
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
 object ZIOSpec
@@ -555,16 +554,16 @@ object ZIOSpec
           testM("effectAsyncMaybe should not resume fiber twice after synchronous result") {
             for {
               unexpectedPlace <- Ref.make(Option.empty[Int])
+              runtime         <- ZIO.runtime[Live[Clock]]
               fork <- ZIO
                        .effectAsyncMaybe[Any, Nothing, Unit] { k =>
-                         scala.concurrent.Future {
-                           Thread.sleep(200L)
-                           k(unexpectedPlace.set(Some(1)))
-                         }(ExecutionContext.global)
+                         runtime.unsafeRunAsync_ {
+                           withLive(ZIO.effectTotal(k(unexpectedPlace.set(Some(1)))))(_.delay(200.millis))
+                         }
                          Some(IO.unit)
                        }
                        .flatMap { _ =>
-                         ZIO.sleep(500.millis) *> ZIO.never
+                         ZIO.never
                        }
                        .ensuring(unexpectedPlace.set(Some(2)))
                        .uninterruptible
