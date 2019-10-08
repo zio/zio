@@ -45,7 +45,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile;testRunnerJS/test:run"
 )
 
 lazy val root = project
@@ -214,7 +214,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .jsSettings(
     libraryDependencies ++= Seq(
       "org.scala-js"      %% "scalajs-test-interface" % "0.6.29",
-      "io.github.cquiroz" %%% "scala-java-time"       % "2.0.0-RC3"
+      "io.github.cquiroz" %%% "scala-java-time"       % "2.0.0-RC3" % Test
     )
   )
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
@@ -233,6 +233,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .jsSettings(libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test)
   .dependsOn(testRunner)
 
 lazy val examplesJS  = examples.js
