@@ -20,6 +20,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 import scala.reflect.ClassTag
@@ -2025,7 +2026,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
     def arbiter(
       promise: Promise[Cause[E], List[B]],
-      buffer: Ref[Array[B]],
+      buffer: Ref[mutable.ArraySeq[B]],
       todo: Ref[Int],
       idx: Int
     )(res: Exit[E, B]): ZIO[R, Nothing, Unit] =
@@ -2042,7 +2043,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     (for {
       size    <- UIO.effectTotal(as.size)
       todo    <- Ref.make(size)
-      buffer  <- Ref.make(new Array[Any](size).asInstanceOf[Array[B]])
+      buffer  <- Ref.make(new mutable.ArraySeq[B](size))
       promise <- Promise.make[Cause[E], List[B]]
       c <- ZIO.uninterruptibleMask { restore =>
             for {
