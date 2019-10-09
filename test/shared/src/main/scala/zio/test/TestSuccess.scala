@@ -20,5 +20,5 @@ sealed trait TestSuccess[+S]
 
 object TestSuccess {
   final case class Succeeded[S](result: BoolAlgebra[S]) extends TestSuccess[S]
-  final case object Ignored                             extends TestSuccess[Nothing]
+  case object Ignored                                   extends TestSuccess[Nothing]
 }
