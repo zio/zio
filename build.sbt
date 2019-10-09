@@ -45,7 +45,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile;testRunnerJS/test:run"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile"
 )
 
 lazy val root = project
