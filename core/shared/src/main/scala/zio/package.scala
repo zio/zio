@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package object zio extends EitherCompat {
+package object zio extends ZEnvDefinition with EitherCompat {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
   type Canceler[R] = URIO[R, Any]
