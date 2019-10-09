@@ -660,7 +660,7 @@ private[zio] final class FiberContext[E, A](
     oldState match {
       case Executing(_, observers, interrupt) =>
         val interruptible = this.interruptible
-        val newState = Executing(FiberStatus.Suspended(interruptible), observers, interrupt)
+        val newState      = Executing(FiberStatus.Suspended(interruptible), observers, interrupt)
 
         if (interruptible && interrupt) false
         else if (!state.compareAndSet(oldState, newState)) enterAsync()
