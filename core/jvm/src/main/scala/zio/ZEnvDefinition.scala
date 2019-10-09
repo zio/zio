@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package zio
 
 import zio.clock.Clock
 import zio.console.Console
 import zio.system.System
 import zio.random.Random
+import zio.blocking.Blocking
 
-package object zio extends AbstractZIOPackage {
-  type ZEnv = Clock with Console with System with Random
+trait ZEnvDefinition {
+  type ZEnv = Clock with Console with System with Random with Blocking
 }

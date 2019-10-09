@@ -1,5 +1,3 @@
-package zio
-
 /*
  * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
@@ -16,7 +14,7 @@ package zio
  * limitations under the License.
  */
 
-abstract class AbstractZIOPackage extends EitherCompat {
+package object zio extends ZEnvDefinition with EitherCompat {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
   type Canceler[R] = URIO[R, Any]
