@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package zio
 
 import zio.clock.Clock
 import zio.console.Console
 import zio.system.System
 import zio.random.Random
-import zio.internal.{ Platform, PlatformLive }
+import zio.blocking.Blocking
 
-trait DefaultRuntime extends Runtime[ZEnv] {
-  val Platform: Platform = PlatformLive.Default
-  val Environment: ZEnv  = new Clock.Live with Console.Live with System.Live with Random.Live
+trait ZEnvDefinition {
+  type ZEnv = Clock with Console with System with Random with Blocking
 }
