@@ -622,7 +622,7 @@ private[zio] final class FiberContext[E, A](
 
     oldState match {
       case Executing(_, observers, interrupt) =>
-        val newState = Executing(FiberStatus.Suspended(isInterrupted()), observers, interrupt)
+        val newState = Executing(FiberStatus.Suspended(isInterruptible()), observers, interrupt)
 
         if (!state.compareAndSet(oldState, newState)) enterAsync()
         else if (shouldInterrupt()) {
@@ -662,7 +662,7 @@ private[zio] final class FiberContext[E, A](
     var result = false
 
     while (!result && (fiber ne null)) {
-      if (fiber.state.get.interrupt) result = true
+      if (fiber.state.get.interrupted) result = true
       fiber = fiber.parentFiber
     }
     result
@@ -722,11 +722,11 @@ private[zio] final class FiberContext[E, A](
 
       oldState match {
         case Executing(FiberStatus.Suspended(true), observers, false) =>
-          if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, true))) setInterrupted
+          if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, true))) setInterrupted()
           else evaluateLater(ZIO.interrupt)
 
         case Executing(status, observers, _) =>
-          if (!state.compareAndSet(oldState, Executing(status, observers, true))) setInterrupted
+          if (!state.compareAndSet(oldState, Executing(status, observers, true))) setInterrupted()
 
         case _ =>
       }
@@ -819,40 +819,20 @@ private[zio] object FiberContext {
   }
 
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
-    def interrupt: Boolean
+    def interrupted: Boolean
   }
   object FiberState extends Serializable {
     final case class Executing[E, A](
       status: FiberStatus,
       observers: List[Callback[Nothing, Exit[E, A]]],
-      interrupt: Boolean
+      interrupted: Boolean
     ) extends FiberState[E, A]
     final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A] {
-      def interrupt = false
+      def interrupted = false
     }
 
     def initial[E, A] = Executing[E, A](FiberStatus.Running, Nil, false)
   }
 
   type FiberRefLocals = java.util.Map[FiberRef[_], Any]
-
-  sealed abstract class SuperviseStatus extends Serializable with Product {
-    def convert: zio.SuperviseStatus = this match {
-      case SuperviseStatus.Supervised(_) => zio.SuperviseStatus.Supervised
-      case SuperviseStatus.Unsupervised  => zio.SuperviseStatus.Unsupervised
-    }
-  }
-  object SuperviseStatus {
-    final case class Supervised(value: java.util.Set[Fiber[_, _]]) extends SuperviseStatus {
-      def fibers: IndexedSeq[Fiber[_, _]] = {
-        val arr = Array.ofDim[Fiber[_, _]](value.size)
-        value
-          .toArray[Fiber[_, _]](arr)
-          .toIndexedSeq
-          // In WeakHashMap based sets elements can become null
-          .filter(_ != null)
-      }
-    }
-    case object Unsupervised extends SuperviseStatus
-  }
 }
