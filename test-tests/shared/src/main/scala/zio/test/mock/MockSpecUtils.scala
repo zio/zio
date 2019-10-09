@@ -109,9 +109,7 @@ object MockSpecUtils {
     }
 
     object > extends Service[Module] {
-      val static = ZIO.accessM { env: Module =>
-        env.module.static
-      }
+      val static                                     = ZIO.accessM[Module](_.module.static)
       def zeroParams                                 = ZIO.accessM(_.module.zeroParams)
       def zeroParamsWithParens()                     = ZIO.accessM(_.module.zeroParamsWithParens())
       def singleParam(a: Int)                        = ZIO.accessM(_.module.singleParam(a))

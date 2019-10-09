@@ -67,7 +67,7 @@ object AssertionSpec
             sampleUser,
             isCase[SampleUser, (String, Int)](
               termName = "SampleUser",
-              SampleUser.unapply,
+              { case SampleUser(name, age) => Some((name, age)) },
               equalTo((sampleUser.name, sampleUser.age))
             )
           )

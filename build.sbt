@@ -33,9 +33,12 @@ addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
 addCommandAlias(
   "compileJVM",
-  ";coreJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
 )
-addCommandAlias("compileJVMDotty", ";coreJVM/test:compile;stacktracerJVM/test:compile")
+addCommandAlias(
+  "compileJVMDotty",
+  ";coreJVM/test:compile;stacktracerJVM/test:compile;streamsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
+)
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
@@ -124,7 +127,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val streamsJVM = streams.jvm
+lazy val streamsJVM = streams.jvm.settings(dottySettings)
 lazy val streamsJS  = streams.js
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
@@ -159,7 +162,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
     )
   )
 
-lazy val testJVM = test.jvm
+lazy val testJVM = test.jvm.settings(dottySettings)
 lazy val testJS  = test.js
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
@@ -173,6 +176,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(
+  dottySettings,
   mainClass in Compile := Some("zio.test.TestMain")
 )
 lazy val testTestsJS = testTests.js.settings(
@@ -203,7 +207,6 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.scala-lang"     % "scala-reflect"            % scalaVersion.value,
       "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
@@ -213,7 +216,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(core)
   .dependsOn(test)
 
-lazy val testRunnerJVM = testRunner.jvm
+lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
 lazy val testRunnerJS  = testRunner.js
 
 /**
@@ -228,7 +231,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(testRunner)
 
 lazy val examplesJS  = examples.js
-lazy val examplesJVM = examples.jvm
+lazy val examplesJVM = examples.jvm.settings(dottySettings)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
