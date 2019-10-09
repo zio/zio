@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
 import com.github.ghik.silencer.silent
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
@@ -413,13 +413,13 @@ private[zio] final class FiberContext[E, A](
                   val zio = curZio.asInstanceOf[ZIO.EffectAsync[Any, E, Any]]
 
                   // Enter suspended state:
-                  curZio = if (enterAsync()) {
+                  curZio = if (enterAsync(curZio)) {
                     val k = zio.register
 
                     if (traceEffects && inTracingRegion) addTrace(k)
 
-                    k(resumeAsync) match {
-                      case Some(zio) => if (exitAsync()) zio else null
+                    k(resumeAsync(curZio)) match {
+                      case Some(zio) => if (exitAsync(curZio)) zio else null
                       case None      => null
                     }
                   } else ZIO.interrupt
@@ -606,9 +606,8 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final def resumeAsync: IO[E, Any] => Unit = {
-    val neverRan = new AtomicBoolean(true)
-    zio => if (neverRan.getAndSet(false) && exitAsync()) evaluateLater(zio)
+  private[this] final def resumeAsync(ref: AnyRef): IO[E, Any] => Unit = {
+    zio => if (exitAsync(ref)) evaluateLater(zio)
   }
 
   final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
@@ -654,16 +653,16 @@ private[zio] final class FiberContext[E, A](
     }
 
   @tailrec
-  private[this] final def enterAsync(): Boolean = {
+  private[this] final def enterAsync(ref: AnyRef): Boolean = {
     val oldState = state.get
 
     oldState match {
       case Executing(_, observers, interrupt) =>
         val interruptible = this.interruptible
-        val newState      = Executing(FiberStatus.Suspended(interruptible), observers, interrupt)
+        val newState      = Executing(FiberStatus.Suspended(interruptible, ref), observers, interrupt)
 
         if (interruptible && interrupt) false
-        else if (!state.compareAndSet(oldState, newState)) enterAsync()
+        else if (!state.compareAndSet(oldState, newState)) enterAsync(ref)
         else true
 
       case _ => false
@@ -671,13 +670,12 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[this] final def exitAsync(): Boolean = {
+  private[this] final def exitAsync(ref: AnyRef): Boolean = {
     val oldState = state.get
 
     oldState match {
-      case Executing(FiberStatus.Suspended(true), _, true) => false
-      case Executing(FiberStatus.Suspended(_), observers, interrupt) =>
-        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, interrupt))) exitAsync()
+      case Executing(FiberStatus.Suspended(_, oldRef), observers, interrupt) if ref eq oldRef =>
+        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, interrupt))) exitAsync(ref)
         else true
 
       case _ => false
@@ -742,7 +740,7 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(FiberStatus.Suspended(true), observers0, false) =>
+      case Executing(FiberStatus.Suspended(true, _), observers0, false) =>
         val observers = k :: observers0
 
         if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, true))) kill0(k)
@@ -812,7 +810,7 @@ private[zio] object FiberContext {
   sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
     case object Running                                extends FiberStatus
-    final case class Suspended(interruptible: Boolean) extends FiberStatus
+    final case class Suspended(interruptible: Boolean, ref: AnyRef) extends FiberStatus
   }
 
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
