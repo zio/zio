@@ -553,21 +553,27 @@ object ZIOSpec
           },
           testM("effectAsync should not resume fiber twice after interruption") {
             for {
-              unexpectedPlace <- Ref.make(Option.empty[Int])
+              step <- Promise.make[Nothing, Unit]
+              unexpectedPlace <- Ref.make(List.empty[Int])
               runtime         <- ZIO.runtime[Live[Clock]]
               fork <- ZIO
                        .effectAsync[Any, Nothing, Unit] { k =>
                          runtime.unsafeRunAsync_ {
-                           withLive(ZIO.effectTotal(k(unexpectedPlace.set(Some(1)))))(_.delay(200.millis))
+                           step.await *> ZIO.effectTotal(k(unexpectedPlace.update(1 :: _).unit))
                          }
                        }
-                       .ensuring(ZIO.never)
-                       .ensuring(unexpectedPlace.set(Some(2)))
+                       .ensuring(ZIO.effectAsync[Any, Nothing, Unit] { _ =>
+                         runtime.unsafeRunAsync_ {
+                           step.succeed(())
+                         }
+                         //never complete
+                       })
+                       .ensuring(unexpectedPlace.update(2 :: _))
                        .fork
-              result     <- withLive(fork.interrupt)(_.timeout(5.seconds).delay(50.millis))
+              result     <- withLive(fork.interrupt)(_.timeout(5.seconds))
               unexpected <- unexpectedPlace.get
             } yield {
-              assert(unexpected, isNone) &&
+              assert(unexpected, isEmpty) &&
               assert(result, isNone) // timeout happens
             }
           },
