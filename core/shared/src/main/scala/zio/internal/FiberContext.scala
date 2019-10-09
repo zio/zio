@@ -653,16 +653,16 @@ private[zio] final class FiberContext[E, A](
     }
 
   @tailrec
-  private[this] final def enterAsync(ref: AnyRef): Boolean = {
+  private[this] final def enterAsync(zio: ZIO[_, _, _]): Boolean = {
     val oldState = state.get
 
     oldState match {
       case Executing(_, observers, interrupt) =>
         val interruptible = this.interruptible
-        val newState      = Executing(FiberStatus.Suspended(interruptible, ref), observers, interrupt)
+        val newState      = Executing(FiberStatus.Suspended(interruptible, zio), observers, interrupt)
 
         if (interruptible && interrupt) false
-        else if (!state.compareAndSet(oldState, newState)) enterAsync(ref)
+        else if (!state.compareAndSet(oldState, newState)) enterAsync(zio)
         else true
 
       case _ => false
@@ -670,12 +670,12 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[this] final def exitAsync(ref: AnyRef): Boolean = {
+  private[this] final def exitAsync(zio: ZIO[_, _, _]): Boolean = {
     val oldState = state.get
 
     oldState match {
-      case Executing(FiberStatus.Suspended(_, oldRef), observers, interrupt) if ref eq oldRef =>
-        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, interrupt))) exitAsync(ref)
+      case Executing(FiberStatus.Suspended(_, oldZio), observers, interrupt) if zio eq oldZio =>
+        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, interrupt))) exitAsync(zio)
         else true
 
       case _ => false
@@ -810,7 +810,7 @@ private[zio] object FiberContext {
   sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
     case object Running                                             extends FiberStatus
-    final case class Suspended(interruptible: Boolean, ref: AnyRef) extends FiberStatus
+    final case class Suspended(interruptible: Boolean, zio: ZIO[_, _, _]) extends FiberStatus
   }
 
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
