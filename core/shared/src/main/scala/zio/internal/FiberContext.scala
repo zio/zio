@@ -606,8 +606,8 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final def resumeAsync(ref: AnyRef): IO[E, Any] => Unit = { zio =>
-    if (exitAsync(ref)) evaluateLater(zio)
+  private[this] final def resumeAsync(oldZio: ZIO[_, _, _]): IO[E, Any] => Unit = { zio =>
+    if (exitAsync(oldZio)) evaluateLater(zio)
   }
 
   final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
