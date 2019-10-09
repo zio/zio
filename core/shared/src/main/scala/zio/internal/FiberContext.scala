@@ -420,7 +420,7 @@ private[zio] final class FiberContext[E, A](
 
                     k(resumeAsync(zio)) match {
                       case Some(nextZio) => if (exitAsync(zio)) nextZio else null
-                      case None      => null
+                      case None          => null
                     }
                   } else ZIO.interrupt
 
@@ -809,7 +809,7 @@ private[zio] object FiberContext {
 
   sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
-    case object Running                                             extends FiberStatus
+    case object Running                                                   extends FiberStatus
     final case class Suspended(interruptible: Boolean, zio: ZIO[_, _, _]) extends FiberStatus
   }
 
