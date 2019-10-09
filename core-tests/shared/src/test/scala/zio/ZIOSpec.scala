@@ -577,6 +577,36 @@ object ZIOSpec
               assert(result, isNone) // timeout happens
             }
           },
+          testM("effectAsyncMaybe should not resume fiber twice after synchronous result") {
+            for {
+              step <- Promise.make[Nothing, Unit]
+              unexpectedPlace <- Ref.make(List.empty[Int])
+              runtime         <- ZIO.runtime[Live[Clock]]
+              fork <- ZIO
+                .effectAsyncMaybe[Any, Nothing, Unit] { k =>
+                  runtime.unsafeRunAsync_ {
+                    step.await *> ZIO.effectTotal(k(unexpectedPlace.update(1 :: _).unit))
+                  }
+                  Some(IO.unit)
+                }
+                .flatMap { _ =>
+                  ZIO.effectAsync[Any, Nothing, Unit] { _ =>
+                    runtime.unsafeRunAsync_ {
+                      step.succeed(())
+                    }
+                    //never complete
+                  }
+                }
+                .ensuring(unexpectedPlace.update(2 :: _))
+                .uninterruptible
+                .fork
+              result     <- withLive(fork.interrupt)(_.timeout(5.seconds))
+              unexpected <- unexpectedPlace.get
+            } yield {
+              assert(unexpected, isEmpty) &&
+              assert(result, isNone) // timeout happens
+            }
+          },
           testM("sleep 0 must return") {
             assertM(clock.sleep(1.nanos).provide(Clock.Live), isUnit)
           },
