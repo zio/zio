@@ -14,7 +14,8 @@ println(s"""```""")
 ```
 
 Java Time API which is not a part of ScalaJS. You might have to add dependecy that provides `java.time` package to
-avoid linker errors when using `Clock`.
+avoid linker errors when using `Clock`. ZIO uses [scala-java-time](https://github.com/cquiroz/scala-java-time) for
+running it's test.
 
 ## Example
 
