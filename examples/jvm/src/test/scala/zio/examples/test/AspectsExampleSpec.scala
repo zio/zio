@@ -3,30 +3,33 @@ package zio.examples.test
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
+import zio.duration._
 import zio.examples.test.Aspects._
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
-import zio.duration._
-import zio.{ UIO, ZIO, ZManaged }
+import zio.{ DefaultRuntime, Ref, ZIO }
 
 private object Aspects {
 
-  class FakeFile(name: String) {
+  sealed trait Status
 
-    def close(): UIO[Unit] = ZIO.accessM[Console](_.console.putStrLn(s"Closing $name")).provide(Console.Live)
+  case object Created   extends Status
+  case object Ready     extends Status
+  case object Happening extends Status
+  case object Done      extends Status
+
+  case class RefState(current: Status, previous: List[Status]) {
+
+    def newState(next: Status) = RefState(next, current +: previous)
+
   }
 
-  object FakeFile {
+  private val runtime = new DefaultRuntime {}
 
-    def create(name: String): UIO[FakeFile] = ZIO.succeed(new FakeFile(name))
-
-  }
-
-  val managed                                                       = ZManaged.make(FakeFile.create("file.txt"))(_.close())
-  val managedAssertion: TestResult => ZIO[Any, Nothing, TestResult] = ZIO.succeed
+  val zRef: Ref[RefState] = runtime.unsafeRun(Ref.make(RefState(Created, Nil)))
 
 }
 
@@ -46,13 +49,19 @@ object AspectsExampleSpec
           }
 
         },
-//        around(managed.map(_ => managedAssertion)) {
-//
-//          testM("Around test") {
-//            assertM(ZIO.succeed(10), equalTo(10))
-//          }
-//
-//        },
+        (around(zRef.update(_.newState(Ready)),
+                zRef.update(_.newState(Done)) *> putStrLn(
+                  "Around after occurs only at end of the Suite"
+                ).provide(Console.Live))) {
+          testM("Around test (inside sequential aspect)") {
+
+            val effect = zRef.update(_.newState(Happening))
+
+            assertM(effect, equalTo(RefState(Happening, List(Ready, Created))))
+
+          }
+
+        },
         eventually {
           testM("Intermittent test") {
 
@@ -73,7 +82,7 @@ object AspectsExampleSpec
 
         },
         nonFlaky(5) {
-          testM("non-flaky test") {
+          testM("Non-flaky test") {
 
             val chars: ZStream[Random, Nothing, Sample[Random, Char]] = Gen.printableChar.filter(_.isUpper).sample
 
@@ -95,5 +104,40 @@ object AspectsExampleSpec
 
           }
         },
+        testM("Ignore test (alternative style with @@)") {
+
+          assertM(ZIO.succeed(1), equalTo(2))
+
+        } @@ zio.test.TestAspect.ignore
       )
     )
+
+//
+//sequential {
+//
+//suite("Sequential examples") {
+//
+//(around(zRef.update(_.newState(Ready)),
+//zRef.update(_.newState(Done)) *> putStrLn(
+//"Around after occurs only at end of the Suite"
+//).provide(Console.Live))) {
+//testM("Around test (inside sequential aspect)") {
+//
+//val effect = zRef.update(_.newState(Happening))
+//
+//assertM(effect, equalTo(RefState(Happening, List(Ready, Created))))
+//
+//}
+//
+//}
+//
+//identity {
+//testM("Identity test (around validation inside sequential aspect)") {
+//val effect = zRef.get
+//assertM(effect, equalTo(RefState(Done, List(Happening, Ready, Created))))
+//}
+//
+//}
+//
+//}
+//},

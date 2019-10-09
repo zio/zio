@@ -22,10 +22,10 @@ object EffectsExampleSpec
             val env = Config("value")
             assertM(ZIO.access[Config](identity).provide(env), equalTo(env))
           },
-          testM("Effect failure (throgh effect-elimination") {
+          testM("Effect failure (through effect-elimination") {
             assertM(ZIO.fail("Failure").either, isLeft(equalTo("Failure")))
           },
-          testM("Effect success (throgh effect-elimination") {
+          testM("Effect success (through effect-elimination") {
             assertM(ZIO.succeed("Success").either, isRight(equalTo("Success")))
           }
         )

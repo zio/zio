@@ -33,7 +33,6 @@ object GenExampleSpec
 
           assertM(charIntGen.runCollect, forall(customPredicate))
 
-        }
-
+        },
       )
     )
