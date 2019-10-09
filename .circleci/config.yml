@@ -208,7 +208,7 @@ jobs:
       - <<: *scala_212
       - <<: *jdk_8
 
-  test_dotty:
+  compile_dotty:
     <<: *testJVMDotty
     <<: *machine_ubuntu
     environment:
@@ -304,7 +304,7 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_dotty:
+      - compile_dotty:
           requires:
             - lint
           filters:
