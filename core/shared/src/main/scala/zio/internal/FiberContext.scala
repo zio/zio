@@ -413,13 +413,13 @@ private[zio] final class FiberContext[E, A](
                   val zio = curZio.asInstanceOf[ZIO.EffectAsync[Any, E, Any]]
 
                   // Enter suspended state:
-                  curZio = if (enterAsync(curZio)) {
+                  curZio = if (enterAsync(zio)) {
                     val k = zio.register
 
                     if (traceEffects && inTracingRegion) addTrace(k)
 
-                    k(resumeAsync(curZio)) match {
-                      case Some(zio) => if (exitAsync(curZio)) zio else null
+                    k(resumeAsync(zio)) match {
+                      case Some(nextZio) => if (exitAsync(zio)) nextZio else null
                       case None      => null
                     }
                   } else ZIO.interrupt
