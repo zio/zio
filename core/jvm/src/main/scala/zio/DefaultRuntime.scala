@@ -23,9 +23,7 @@ import zio.random.Random
 import zio.blocking.Blocking
 import zio.internal.{ Platform, PlatformLive }
 
-trait DefaultRuntime extends Runtime[Clock with Console with System with Random with Blocking] {
-  type Environment = Clock with Console with System with Random with Blocking
-
-  val Platform: Platform       = PlatformLive.Default
-  val Environment: Environment = new Clock.Live with Console.Live with System.Live with Random.Live with Blocking.Live
+trait DefaultRuntime extends Runtime[ZEnv] {
+  val Platform: Platform = PlatformLive.Default
+  val Environment: ZEnv  = new Clock.Live with Console.Live with System.Live with Random.Live with Blocking.Live
 }
