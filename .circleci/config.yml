@@ -93,16 +93,6 @@ install_nodejs: &install_nodejs
         nvm use
         node -v
 
-compile: &compile
-  steps:
-    - checkout
-    - <<: *load_cache
-    - run:
-        name: Compile code
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! compileJVMDotty
-    - <<: *clean_cache
-    - <<: *save_cache
-
 lint: &lint
   steps:
     - checkout
@@ -137,6 +127,16 @@ testJVM: &testJVM
     - <<: *save_cache
     - store_test_results:
         path: core-tests/jvm/target/test-reports
+
+testJVMDotty: &testJVMDotty
+  steps:
+    - checkout
+    - <<: *load_cache
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMDotty
+    - <<: *clean_cache
+    - <<: *save_cache
 
 testJS: &testJS
   steps:
@@ -208,8 +208,8 @@ jobs:
       - <<: *scala_212
       - <<: *jdk_8
 
-  compile_dotty:
-    <<: *compile
+  test_dotty:
+    <<: *testJVMDotty
     <<: *machine_ubuntu
     environment:
       - <<: *scala_dotty
@@ -304,7 +304,7 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - compile_dotty:
+      - test_dotty:
           requires:
             - lint
           filters:
