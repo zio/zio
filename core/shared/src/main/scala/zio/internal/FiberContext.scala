@@ -665,12 +665,6 @@ private[zio] final class FiberContext[E, A](
         if (interruptible && interrupt) false
         else if (!state.compareAndSet(oldState, newState)) enterAsync()
         else true
-        if (!state.compareAndSet(oldState, newState)) enterAsync()
-        else if (shouldInterrupt) {
-          // Fiber interrupted, so go back into running state:
-          exitAsync()
-          false
-        } else true
 
       case _ => false
     }
