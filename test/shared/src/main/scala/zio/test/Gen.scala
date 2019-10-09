@@ -442,6 +442,6 @@ object Gen extends GenZIO with FunctionVariants {
     else if (n > max) max
     else n
 
-  private def defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
+  private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
     _ => ZStream.empty
 }
