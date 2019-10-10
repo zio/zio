@@ -24,7 +24,7 @@ object TestMain {
       ("SystemSpec", SystemSpec),
       ("TestAspectSpec", TestAspectSpec),
       ("TestSpec", TestSpec),
-      ("TestRuntimeSpec", TestRuntimeSpec)
+      ("RandomExecutorSpec", RandomExecutorSpec)
     )
 
     val selectedTests = args match {

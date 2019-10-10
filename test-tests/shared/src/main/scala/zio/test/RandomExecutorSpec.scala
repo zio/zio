@@ -3,7 +3,7 @@ package zio.test
 import scala.concurrent.Future
 
 import zio.test.TestUtils.label
-import zio.test.TestRuntime.paths
+import zio.test.RandomExecutor.paths
 import zio.UIO
 import zio.Exit.Success
 import zio.clock.Clock
@@ -11,7 +11,7 @@ import zio.duration._
 import zio.stream.ZStream
 import zio.random.Random
 
-object TestRuntimeSpec extends ZIOBaseSpec {
+object RandomExecutorSpec extends AsyncBaseSpec {
   val run: List[Async[(Boolean, String)]] = List(
     label(simpleSuccess, "returns simple success"),
     label(sleep, "allow to use sleep"),

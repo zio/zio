@@ -8,7 +8,7 @@ import zio.stream.ZStream
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 
-object TestRuntime {
+object RandomExecutor {
 
   /**
    * Returns multiple possible outcomes of the given `zio`.
@@ -17,12 +17,12 @@ object TestRuntime {
 
     val yielding = yieldingEffects(zio)
 
-    val singleRun = runOnce(yielding)
+    val singleRun = run(yielding)
 
     ZStream.repeatEffect(singleRun)
   }
 
-  private def runOnce[R <: Random, E, A](zio: ZIO[R, E, A]) =
+  def run[R <: Random, E, A](zio: ZIO[R, E, A]) =
     makeRandomExecutor.flatMap(yieldingEffects(zio).lock(_).run)
 
   private val makeRandomExecutor: ZIO[Random, Nothing, Executor] =
