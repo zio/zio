@@ -247,7 +247,7 @@ jobs:
       - <<: *jdk_8
 
   test_dotty_jdk8_jvm:
-    <<: *testJVM
+    <<: *testJVMDotty
     <<: *machine_ubuntu
     <<: *machine_resource
     environment:
@@ -334,12 +334,12 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-#      - test_dotty_jdk8_jvm:
-#          requires:
-#            - lint
-#          filters:
-#            tags:
-#              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+     - test_dotty_jdk8_jvm:
+         requires:
+           - lint
+         filters:
+           tags:
+             only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - test_212_jdk11_jvm:
           requires:
             - lint
