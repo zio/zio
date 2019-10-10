@@ -1,9 +1,9 @@
 package zio.test
 
 import zio.Exit
+import zio.UIO
 import zio.ZIO
 import zio.internal.Executor
-import zio.random.Random
 import zio.stream.ZStream
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
@@ -13,7 +13,7 @@ object RandomExecutor {
   /**
    * Returns multiple possible outcomes of the given `zio`.
    */
-  def paths[R <: Random, E, A](zio: ZIO[R, E, A]): ZStream[R, Nothing, Exit[E, A]] = {
+  def paths[R, E, A](zio: ZIO[R, E, A]): ZStream[R, Nothing, Exit[E, A]] = {
 
     val yielding = yieldingEffects(zio)
 
@@ -22,10 +22,10 @@ object RandomExecutor {
     ZStream.repeatEffect(singleRun)
   }
 
-  def run[R <: Random, E, A](zio: ZIO[R, E, A]) =
+  def run[R, E, A](zio: ZIO[R, E, A]) =
     makeRandomExecutor.flatMap(yieldingEffects(zio).lock(_).run)
 
-  private val makeRandomExecutor: ZIO[Random, Nothing, Executor] =
+  private val makeRandomExecutor: UIO[Executor] =
     ZIO.effectTotal {
       new Executor {
         case class ExecutorState(pendingRunnables: Vector[Runnable], isRunning: Boolean)
