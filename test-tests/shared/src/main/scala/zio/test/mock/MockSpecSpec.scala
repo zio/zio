@@ -894,14 +894,14 @@ object MockSpecSpec extends AsyncBaseSpec {
       testSpecDied(
         MockSpec.expectIn(Module.Service.command)(equalTo(1)),
         Module.>.command(2),
-        equalTo[Throwable](InvalidArgumentsException(Module.Service.command, 2, equalTo(1)))
+        equalTo(InvalidArgumentsException(Module.Service.command, 2, equalTo(1)))
       )
 
     def invalidMethod: Future[Boolean] =
       testSpecDied(
         MockSpec.expectIn(Module.Service.command)(equalTo(1)),
         Module.>.singleParam(1),
-        equalTo[Throwable](
+        equalTo(
           InvalidMethodException(Module.Service.singleParam, Expectation(Module.Service.command, equalTo(1)))
         )
       )
@@ -914,7 +914,7 @@ object MockSpecSpec extends AsyncBaseSpec {
             MockSpec.expectIn(Module.Service.command)(equalTo(3))
         ),
         Module.>.command(1),
-        equalTo[Throwable](
+        equalTo(
           UnmetExpectationsException(
             List(
               Expectation(Module.Service.command, equalTo(2)),
