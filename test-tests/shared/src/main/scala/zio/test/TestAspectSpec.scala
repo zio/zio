@@ -176,11 +176,8 @@ object TestAspectSpec extends AsyncBaseSpec {
   private def failsWithException[E](implicit ct: ClassTag[E]): Assertion[TestFailure[E]] =
     isCase(
       "Runtime", {
-        case TestFailure.Runtime(Cause.Die(e))            => Some(e)
-        case TestFailure.Runtime(Traced(Cause.Die(e), _)) => Some(e)
-        case x =>
-          println(x)
-          None
+        case TestFailure.Runtime(c) => c.dieOption
+        case _                      => None
       },
       isSubtype[E](anything)
     )
