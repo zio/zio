@@ -29,6 +29,12 @@ object AssertionSpec
         test("equalTo must fail when array does not equal specified array") {
           assert(Array(1, 2, 3), equalTo(Array(1, 2, 4)))
         } @@ failure,
+        test("equalTo must not have type inference issues") {
+          assert(List(1, 2, 3).filter(_ => false), equalTo(List.empty))
+        },
+        test("equalTo must fail when comparing two unrelated types") {
+          assert(1, equalTo("abc"))
+        } @@ failure,
         test("exists must succeed when at least one element of iterable satisfy specified assertion") {
           assert(Seq(1, 42, 5), exists(equalTo(42)))
         },
