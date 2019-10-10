@@ -71,4 +71,4 @@ Test aspects are powerful tools for modifying behavior of individual tests or ev
 
 **Zero Dependencies**
 
-As a library with zero third party dependencies, this project is available on the JVM, ScalaJS, and will be available on Dotty and Scala Native in the near future. So you can write your tests once and make sure that your code works correctly across all platforms that you support.
+As a library with zero third party dependencies, this project is available on the JVM, ScalaJS, Dotty, and will be available on Scala Native in the near future. So you can write your tests once and make sure that your code works correctly across all platforms that you support.
