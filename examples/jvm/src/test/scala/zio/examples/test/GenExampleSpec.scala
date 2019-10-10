@@ -29,10 +29,12 @@ object GenExampleSpec
 
           val isUpper: Assertion[Char] = assertion[Char]("String is not empty")()(_.isUpper)
 
-          val customPredicate = assertionDirect[CharInt]("Char is uppercase AND Int is within the range")()( ci => isUpper(ci.c) && isWithin(0, 1000).run(ci.i))
+          val customPredicate = assertionDirect[CharInt]("Char is uppercase AND Int is within the range")()(
+            ci => isUpper(ci.c) && isWithin(0, 1000).run(ci.i)
+          )
 
           assertM(charIntGen.runCollect, forall(customPredicate))
 
-        },
+        }
       )
     )

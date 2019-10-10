@@ -57,10 +57,13 @@ object MockingExampleSpec
           val consoleEnv: Managed[Nothing, MockConsole] =
             MockSpec.expectIn(MockConsole.Service.putStrLn)(equalTo("42"))
 
-          val mockEnv = (randomEnv &&& consoleEnv).map { case (r, c) => new MockRandom with MockConsole {
-            val random  = r.random
-            val console = c.console
-          }}
+          val mockEnv = (randomEnv &&& consoleEnv).map {
+            case (r, c) =>
+              new MockRandom with MockConsole {
+                val random  = r.random
+                val console = c.console
+              }
+          }
 
           val result = app.provideManaged(mockEnv)
           assertM(result, isUnit)
@@ -85,7 +88,7 @@ object MockingExampleSpec
           val app = random.nextInt
           val mockEnv: Managed[Nothing, MockRandom] =
             MockSpec.expectOut(MockRandom.Service.nextInt._1)(42) *>
-            MockSpec.expectOut(MockRandom.Service.nextInt._1)(42)
+              MockSpec.expectOut(MockRandom.Service.nextInt._1)(42)
 
           val result = app.provideManaged(mockEnv)
           assertM(result, equalTo(42))

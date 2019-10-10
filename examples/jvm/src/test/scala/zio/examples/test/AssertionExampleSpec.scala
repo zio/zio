@@ -105,7 +105,7 @@ private object assertionSuites {
       assert[String]("Some String", nonEmptyString)
 
     },
-    test("String is empty predicate (direct)") {
+    test("String is empty assertion (direct)") {
 
       def emptyString = assertion[String]("String is empty")()(_.isEmpty)
 
@@ -134,7 +134,7 @@ private object assertionSuites {
     }
   )
 
-  val compositionSuite = suite("assertions composition")(
+  val compositionSuite = suite("Assertions composition")(
     test("List contains an element and have a defined size") {
 
       val composition = contains(1) && hasSize(equalTo(5))

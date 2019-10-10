@@ -49,22 +49,24 @@ object AspectsExampleSpec
           }
 
         },
-        around(zRef.update(_.newState(Ready)), zRef.update(_.newState(Done))) {
-          testM("Around test (inside sequential aspect)") {
+        sequential {
+          suite("Sequential Suite ")(
+            around(zRef.update(_.newState(Ready)), zRef.update(_.newState(Done))) {
+              testM("Around test") {
 
-            val effect = zRef.update(_.newState(Happening))
+                val effect = zRef.update(_.newState(Happening))
 
-            assertM(effect, equalTo(RefState(Happening, List(Ready, Created))))
+                assertM(effect, equalTo(RefState(Happening, List(Ready, Created))))
 
-          }
-
-        },
-        identity {
-          testM("Identity test (around validation inside sequential aspect)") {
-            val effect = ZIO
-              .accessM[Blocking](_.blocking.effectBlocking { Thread.sleep(1000) }) *> zRef.get
-            assertM(effect, equalTo(RefState(Done, List(Happening, Ready, Created))))
-          }
+              }
+            },
+            identity {
+              testM("Identity test (around validation)") {
+                val effect = zRef.get
+                assertM(effect, equalTo(RefState(Done, List(Happening, Ready, Created))))
+              }
+            }
+          )
         },
         eventually {
           testM("Intermittent test") {
@@ -90,10 +92,12 @@ object AspectsExampleSpec
 
             val chars: ZStream[Random, Nothing, Sample[Random, Char]] = Gen.printableChar.filter(_.isUpper).sample
 
-            assertM(chars
-                      .mapM(v => putStrLn(v.value.toString).provide(Console.Live) *> ZIO.succeed(v.value.isUpper))
-                      .runCollect,
-                    forall(isTrue))
+            assertM(
+              chars
+                .mapM(v => putStrLn(v.value.toString).provide(Console.Live) *> ZIO.succeed(v.value.isUpper))
+                .runCollect,
+              forall(isTrue)
+            )
           }
         },
         timeout(3.seconds) {
