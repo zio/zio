@@ -15,6 +15,47 @@ import scala.util.{ Failure, Success }
 object ZIOSpec
     extends ZIOBaseSpec(
       suite("ZIO")(
+        suite("bracket")(
+          testM("bracket happy path") {
+            for {
+              release  <- Ref.make(false)
+              result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.effectTotal(a + 1))
+              released <- release.get
+            } yield assert(result, equalTo(43)) && assert(released, isTrue)
+          },
+          testM("bracket_ happy path") {
+            for {
+              release  <- Ref.make(false)
+              result   <- IO.succeed(42).bracket_(release.set(true), ZIO.effectTotal(0))
+              released <- release.get
+            } yield assert(result, equalTo(0)) && assert(released, isTrue)
+          },
+          testM("bracketExit happy path") {
+            for {
+              release <- Ref.make(false)
+              result <- ZIO.bracketExit(
+                         IO.succeed(42),
+                         (_: Int, _: Exit[_, _]) => release.set(true),
+                         (_: Int) => IO.succeed(0L)
+                       )
+              released <- release.get
+            } yield assert(result, equalTo(0L)) && assert(released, isTrue)
+          },
+          testM("bracketExit error handling") {
+            val releaseDied: Throwable = new RuntimeException("release died")
+            for {
+              exit <- ZIO
+                       .bracketExit[Any, String, Int, Int](
+                         ZIO.succeed(42),
+                         (_, _) => ZIO.die(releaseDied),
+                         _ => ZIO.fail("use failed")
+                       )
+                       .run
+              cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+            } yield assert(cause.failures, equalTo(List("use failed"))) &&
+              assert(cause.defects, equalTo(List(releaseDied)))
+          }
+        ),
         suite("foreachPar")(
           testM("runs effects in parallel") {
             assertM(for {
@@ -68,6 +109,44 @@ object ZIOSpec
             } yield assert(result, equalTo(Cause.die(boom)))
           }
         ),
+        suite("head")(
+          testM("on non empty list") {
+            assertM(ZIO.succeed(List(1, 2, 3)).head.either, isRight(equalTo(1)))
+          },
+          testM("on empty list") {
+            assertM(ZIO.succeed(List.empty).head.either, isLeft(isNone))
+          },
+          testM("on failure") {
+            assertM(ZIO.fail("Fail").head.either, isLeft(isSome(equalTo("Fail"))))
+          }
+        ),
+        suite("left")(
+          testM("on Left value") {
+            assertM(ZIO.succeed(Left("Left")).left, equalTo("Left"))
+          },
+          testM("on Right value") {
+            assertM(ZIO.succeed(Right("Right")).left.either, isLeft(isNone))
+          },
+          testM("on failure") {
+            assertM(ZIO.fail("Fail").left.either, isLeft(isSome(equalTo("Fail"))))
+          }
+        ),
+        suite("leftOrFail")(
+          testM("on Left value") {
+            assertM(UIO(Left(42)).leftOrFail(ExampleError), equalTo(42))
+          },
+          testM("on Right value") {
+            assertM(UIO(Right(12)).leftOrFail(ExampleError).flip, equalTo(ExampleError))
+          }
+        ),
+        suite("leftOrFailException")(
+          testM("on Left value") {
+            assertM(ZIO.succeed(Left(42)).leftOrFailException, equalTo(42))
+          },
+          testM("on Right value") {
+            assertM(ZIO.succeed(Right(2)).leftOrFailException.run, fails(Assertion.anything))
+          }
+        ),
         suite("parallelErrors")(
           testM("oneFailure") {
             for {
@@ -107,6 +186,47 @@ object ZIOSpec
           },
           testM("catch throwable after sandboxing") {
             assertM(ZIO.die(ExampleError).sandbox.option, equalTo(None))
+          }
+        ),
+        suite("replicate")(
+          testM("zero") {
+            val lst: Iterable[UIO[Int]] = ZIO.replicate(0)(ZIO.succeed(12))
+            assertM(ZIO.sequence(lst), equalTo(List.empty))
+          },
+          testM("negative") {
+            val anotherList: Iterable[UIO[Int]] = ZIO.replicate(-2)(ZIO.succeed(12))
+            assertM(ZIO.sequence(anotherList), equalTo(List.empty))
+          },
+          testM("positive") {
+            val lst: Iterable[UIO[Int]] = ZIO.replicate(2)(ZIO.succeed(12))
+            assertM(ZIO.sequence(lst), equalTo(List(12, 12)))
+          }
+        ),
+        suite("right")(
+          testM("on Right value") {
+            assertM(ZIO.succeed(Right("Right")).right, equalTo("Right"))
+          },
+          testM("on Left value") {
+            assertM(ZIO.succeed(Left("Left")).right.either, isLeft(isNone))
+          },
+          testM("on failure") {
+            assertM(ZIO.fail("Fail").right.either, isLeft(isSome(equalTo("Fail"))))
+          }
+        ),
+        suite("rightOrFail")(
+          testM("on Right value") {
+            assertM(UIO(Right(42)).rightOrFail(ExampleError), equalTo(42))
+          },
+          testM("on Left value") {
+            assertM(UIO(Left(1)).rightOrFail(ExampleError).flip, equalTo(ExampleError))
+          }
+        ),
+        suite("rightOrFailException")(
+          testM("on Right value") {
+            assertM(ZIO.succeed(Right(42)).rightOrFailException, equalTo(42))
+          },
+          testM("on Left value") {
+            assertM(ZIO.succeed(Left(2)).rightOrFailException.run, fails(Assertion.anything))
           }
         ),
         suite("RTS synchronous correctness")(
