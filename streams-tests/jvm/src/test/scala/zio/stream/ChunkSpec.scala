@@ -104,14 +104,20 @@ object ChunkSpec
         test("collect for empty Chunk") {
           assert(Chunk.empty.collect { case _ => 1 } == Chunk.empty, Assertion.isTrue)
         },
-        test("collect chunk") {
-          assert(Chunk(1, 2, 3, 4, 5, 6).collect { case x if x % 2 == 0 => 2 * x }, equalTo(Chunk(4, 8, 12)))
+        testM("collect chunk") {
+          val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
+          check(mediumChunks(intGen), pfGen) { (c, pf) =>
+            assert(c.collect(pf).toSeq, equalTo(c.toSeq.collect(pf)))
+          }
         },
         test("collectWhile for empty Chunk") {
           assert(Chunk.empty.collectWhile { case _ => 1 } == Chunk.empty, Assertion.isTrue)
         },
-        test("collectWhile chunk") {
-          assert(Chunk(1, 2, 3, 4, 5, 6).collectWhile { case x if x < 4 => 2 * x }, equalTo(Chunk(2, 4, 6)))
+        testM("collectWhile chunk") {
+          val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
+          check(mediumChunks(intGen), pfGen) { (c, pf) =>
+            assert(c.collectWhile(pf).toSeq, equalTo(c.toSeq.takeWhile(pf.isDefinedAt).map(pf.apply)))
+          }
         },
         testM("foreach") {
           check(mediumChunks(intGen)) { c =>
