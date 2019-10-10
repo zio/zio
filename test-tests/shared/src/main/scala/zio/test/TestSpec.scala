@@ -8,7 +8,7 @@ import zio.test.TestUtils.{ failed, label, succeeded }
 import zio.clock._
 import zio.test.Assertion._
 
-object TestSpec extends ZIOBaseSpec {
+object TestSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(assertMWorksCorrectly, "assertM works correctly"),

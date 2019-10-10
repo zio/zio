@@ -1354,9 +1354,8 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         add <- self
                 .mapM(f)
                 .distributedDynamicWith(
-                  buffer, { kv: (K, V) =>
-                    decider.await.flatMap(_.tupled(kv))
-                  },
+                  buffer,
+                  (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
                   out.offer
                 )
         _ <- decider.succeed {
@@ -1628,7 +1627,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       left: ZIO[R, Nothing, Take[E, A]],
       right: ZIO[R1, Nothing, Take[E1, B]]
     ): ZIO[R1, Nothing, (Take[E1, C], Loser)] =
-      left.raceWith(right)(
+      left.raceWith[R1, Nothing, Nothing, Take[E1, B], (Take[E1, C], Loser)](right)(
         (exit, right) => ZIO.done(exit).map(a => (a.map(l), Right(right))),
         (exit, left) => ZIO.done(exit).map(b => (b.map(r), Left(left)))
       )
@@ -2168,7 +2167,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                 doneRef.get.flatMap { done =>
                   if (done)
                     Pull.end
-                  else if (leftovers.notEmpty)
+                  else if (leftovers.nonEmpty)
                     sink.stepChunk(s, leftovers).flatMap {
                       case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
                     } else
@@ -2186,7 +2185,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                     case (b, leftovers) =>
                       leftoversRef
                         .update(_ ++ leftovers)
-                        .when(leftovers.notEmpty)
+                        .when(leftovers.nonEmpty)
                         .as(b)
                   } else
                   as.foldM(
@@ -2198,7 +2197,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                             case (b, leftovers) =>
                               leftoversRef
                                 .update(_ ++ leftovers)
-                                .when(leftovers.notEmpty)
+                                .when(leftovers.nonEmpty)
                                 .as(b)
                           }
                     },

@@ -17,7 +17,6 @@
     "Data Types": [
       "datatypes/datatypes_index",
       "datatypes/datatypes_fiber",
-      "datatypes/datatypes_fiberlocal",
       "datatypes/datatypes_fiberref",
       "datatypes/datatypes_io",
       "datatypes/datatypes_managed",

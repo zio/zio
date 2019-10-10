@@ -104,7 +104,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Maps the error value of this effect to the specified constant value.
    */
-  final def asError[E1](e1: => E1): ZIO[R, E1, A] = mapError(_ => e1)
+  final def asError[E1](e1: => E1): ZIO[R, E1, A] = mapError(new ZIO.ConstFn(() => e1))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -2036,7 +2036,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     ZIO
-      .succeed(as.iterator)
+      .effectTotal(as.iterator)
       .flatMap { i =>
         def loop(a: A): ZIO[R, E, Unit] =
           if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())

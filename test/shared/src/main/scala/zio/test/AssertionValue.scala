@@ -24,9 +24,9 @@ package zio.test
 sealed trait AssertionValue {
   type Value
 
-  val value: Value
+  def value: Value
 
-  val assertion: Assertion[Value]
+  def assertion: Assertion[Value]
 
   def negate: AssertionValue = AssertionValue(assertion.negate, value)
 }
