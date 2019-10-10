@@ -80,7 +80,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mentionedMethod(method: String): Matcher[List[ZTraceElement]] = mentionMethod(method)
 
-  private implicit final class CauseMust[R >: Environment](io: ZIO[R, _, _]) {
+  private implicit final class CauseMust[R >: ZEnv](io: ZIO[R, _, _]) {
     def causeMust(check: Cause[_] => Result): Result =
       unsafeRunSync(io).fold[Result](
         cause => {
