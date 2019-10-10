@@ -135,7 +135,7 @@ object ZIOSpec
           testM("on Left value") {
             assertM(UIO(Left(42)).leftOrFail(ExampleError), equalTo(42))
           },
-          testM("on Righ value") {
+          testM("on Right value") {
             assertM(UIO(Right(12)).leftOrFail(ExampleError).flip, equalTo(ExampleError))
           }
         ),
@@ -1387,49 +1387,4 @@ object ZIOSpecHelper {
       } yield v1 + v2
 
   def AsyncUnit[E] = IO.effectAsync[E, Unit](_(IO.unit))
-}
-
-object UncurriedBracketCompilesRegardlessOrderOfEAndRTypes {
-  class A
-  class B
-  class R
-  class R1 extends R
-  class R2 extends R1
-  class E
-  class E1 extends E
-
-  def infersEType1: ZIO[R, E, B] = {
-    val acquire: ZIO[R, E, A]            = ???
-    val release: A => ZIO[R, Nothing, _] = ???
-    val use: A => ZIO[R, E1, B]          = ???
-    acquire.bracket(release)(use)
-  }
-
-  def infersEType2: ZIO[R, E, B] = {
-    val acquire: ZIO[R, E1, A]           = ???
-    val release: A => ZIO[R, Nothing, _] = ???
-    val use: A => ZIO[R, E, B]           = ???
-    acquire.bracket(release, use)
-  }
-
-  def infersRType1: ZIO[R2, E, B] = {
-    val acquire: ZIO[R, E, A]             = ???
-    val release: A => ZIO[R1, Nothing, _] = ???
-    val use: A => ZIO[R2, E, B]           = ???
-    acquire.bracket(release)(use)
-  }
-
-  def infersRType2: ZIO[R2, E, B] = {
-    val acquire: ZIO[R2, E, A]            = ???
-    val release: A => ZIO[R1, Nothing, _] = ???
-    val use: A => ZIO[R, E, B]            = ???
-    acquire.bracket(release, use)
-  }
-
-  def infersRType3: ZIO[R2, E, B] = {
-    val acquire: ZIO[R1, E, A]            = ???
-    val release: A => ZIO[R2, Nothing, _] = ???
-    val use: A => ZIO[R, E, B]            = ???
-    ZIO.bracket(acquire, release, use)
-  }
 }
