@@ -97,16 +97,16 @@ object ZIOSpec
         ),
         suite("option")(
           testM("return success in Some") {
-            assertM(ZIO.succeed(11).option, equalTo[Option[Int]](Some(11)))
+            assertM(ZIO.succeed(11).option, equalTo(Some(11)))
           },
           testM("return failure as None") {
-            assertM(ZIO.fail(123).option, equalTo[Option[Int]](None))
+            assertM(ZIO.fail(123).option, equalTo(None))
           },
           testM("not catch throwable") {
             assertM(ZIO.die(ExampleError).option.run, dies(equalTo(ExampleError)))
           },
           testM("catch throwable after sandboxing") {
-            assertM(ZIO.die(ExampleError).sandbox.option, equalTo[Option[Int]](None))
+            assertM(ZIO.die(ExampleError).sandbox.option, equalTo(None))
           }
         ),
         suite("RTS synchronous correctness")(
