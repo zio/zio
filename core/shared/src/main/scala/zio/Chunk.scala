@@ -45,6 +45,20 @@ sealed trait Chunk[+A] { self =>
   def collect[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(p)
 
   /**
+   * Transforms all elements of the chunk for as long as the specified partial function is defined.
+   */
+  def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = {
+    val len = self.length
+
+    var i = 0
+    while (i < len && p.isDefinedAt(self(i))) {
+      i += 1
+    }
+
+    Chunk.Slice(self, 0, i).map(p.apply)
+  }
+
+  /**
    * Drops the first `n` elements of the chunk.
    */
   final def drop(n: Int): Chunk[A] = {
@@ -670,6 +684,18 @@ object Chunk {
 
       if (dest == null) Chunk.Empty
       else Chunk.Slice(Chunk.Arr(dest), 0, j)
+    }
+
+    override def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = {
+      val self = array
+      val len  = self.length
+
+      var i = 0
+      while (i < len && p.isDefinedAt(self(i))) {
+        i += 1
+      }
+
+      Chunk.Slice(this, 0, i).map(p.apply)
     }
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
