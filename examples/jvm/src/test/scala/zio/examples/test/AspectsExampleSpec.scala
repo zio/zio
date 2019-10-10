@@ -49,10 +49,7 @@ object AspectsExampleSpec
           }
 
         },
-        (around(zRef.update(_.newState(Ready)),
-                zRef.update(_.newState(Done)) *> putStrLn(
-                  "Around after occurs only at end of the Suite"
-                ).provide(Console.Live))) {
+        around(zRef.update(_.newState(Ready)), zRef.update(_.newState(Done))) {
           testM("Around test (inside sequential aspect)") {
 
             val effect = zRef.update(_.newState(Happening))
@@ -61,6 +58,13 @@ object AspectsExampleSpec
 
           }
 
+        },
+        identity {
+          testM("Identity test (around validation inside sequential aspect)") {
+            val effect = ZIO
+              .accessM[Blocking](_.blocking.effectBlocking { Thread.sleep(1000) }) *> zRef.get
+            assertM(effect, equalTo(RefState(Done, List(Happening, Ready, Created))))
+          }
         },
         eventually {
           testM("Intermittent test") {
@@ -111,33 +115,3 @@ object AspectsExampleSpec
         } @@ zio.test.TestAspect.ignore
       )
     )
-
-//
-//sequential {
-//
-//suite("Sequential examples") {
-//
-//(around(zRef.update(_.newState(Ready)),
-//zRef.update(_.newState(Done)) *> putStrLn(
-//"Around after occurs only at end of the Suite"
-//).provide(Console.Live))) {
-//testM("Around test (inside sequential aspect)") {
-//
-//val effect = zRef.update(_.newState(Happening))
-//
-//assertM(effect, equalTo(RefState(Happening, List(Ready, Created))))
-//
-//}
-//
-//}
-//
-//identity {
-//testM("Identity test (around validation inside sequential aspect)") {
-//val effect = zRef.get
-//assertM(effect, equalTo(RefState(Done, List(Happening, Ready, Created))))
-//}
-//
-//}
-//
-//}
-//},
