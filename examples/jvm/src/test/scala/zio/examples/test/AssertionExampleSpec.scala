@@ -1,10 +1,10 @@
 package examples
 
-import examples.PredicateSuites._
+import examples.assertionSuites._
 import zio.test.Assertion._
 import zio.test._
 
-private object PredicateSuites {
+private object assertionSuites {
 
   val operationsSuite = suite("Basic Operations")(
     test("Addition operation") {
@@ -66,18 +66,18 @@ private object PredicateSuites {
 
   val user = User("John Doe", "johndoe@zio.com")
 
-  val emailPredicate: Assertion[User] =
+  val emailassertion: Assertion[User] =
     hasField[User, String]("email", _.email, equalTo("johndoe@zio.com"))
 
   val patternMatchSuite = suite("Pattern match operations")(
     test("User has a email") {
-      assert(user, emailPredicate)
+      assert(user, emailassertion)
     },
     test("User not exists") {
       assert(Option.empty[User], isNone)
     },
     test("User exists and have a name") {
-      assert(Some(user), isSome(emailPredicate))
+      assert(Some(user), isSome(emailassertion))
     },
     test("Either is left") {
       assert(Left("Failure"), isLeft(equalTo("Failure")))
@@ -92,41 +92,49 @@ private object PredicateSuites {
       assert(Red, isSubtype[Color](not(equalTo(Green))))
     },
     test("Option content is `zio` ") {
-      val predicate: Assertion[Some[String]] = isCase("Some", Some.unapply, equalTo("zio"))
-      assert(Some("zio"), predicate)
+      val assertion: Assertion[Some[String]] = isCase("Some", Some.unapply, equalTo("zio"))
+      assert(Some("zio"), assertion)
     }
   )
 
-  val customPredicatesSuite = suite("Custom predicates")(
-    test("String is not empty predicate") {
-      def nonEmptyString = predicate[String]("String is not empty") { a =>
-        if (!a.isEmpty)
-          Assertion.success
-        else
-          Assertion.failure(())
-      }
+  val customAssertionsSuite = suite("Custom Assertions")(
+    test("String is not empty") {
 
-      assert("Some string", nonEmptyString)
+      def nonEmptyString: Assertion[String] = assertion[String]("String is not empty")()(_.nonEmpty)
+
+      assert[String]("Some String", nonEmptyString)
+
     },
     test("String is empty predicate (direct)") {
 
-      def emptyString = predicate[String]("String is empty") { a =>
-        if (a.isEmpty)
-          Assertion.success
-        else
-          Assertion.failure(())
-      }
+      def emptyString = assertion[String]("String is empty")()(_.isEmpty)
 
-      val predicateDirect = Predicate.predicateDirect[String]("String is empty (direct)") { a =>
-        emptyString.run(a)
-      }
+      val predicateDirect: Assertion[String] = assertionDirect[String]("String is empty (direct)")()(emptyString)
 
       assert("", predicateDirect)
+
+    },
+    test("Coproduct values are not empty (direct)") {
+
+      def nonEmptyString = assertion[String]("String is nonEmpty")()(_.nonEmpty)
+
+      sealed trait StringOrList
+
+      case class Str(value: String)           extends StringOrList
+      case class StrList(value: List[String]) extends StringOrList
+
+      val predicateDirect: Assertion[StringOrList] =
+        assertionDirect[StringOrList]("StringOrList is nonEmpty (direct)")() {
+          case Str(value)         => nonEmptyString(value)
+          case StrList(listValue) => nonEmptyString(listValue.mkString(""))
+        }
+
+      assert(Str("some value"), predicateDirect) && assert(StrList(List("", "some", "value", "")), predicateDirect)
 
     }
   )
 
-  val compositionSuite = suite("Predicates composition")(
+  val compositionSuite = suite("assertions composition")(
     test("List contains an element and have a defined size") {
 
       val composition = contains(1) && hasSize(equalTo(5))
@@ -147,13 +155,13 @@ private object PredicateSuites {
 
 }
 
-object PredicateExampleSpec
+object assertionExampleSpec
     extends DefaultRunnableSpec(
-      suite("Predicate examples")(
+      suite("Assertion examples")(
         operationsSuite,
         listSuite,
         patternMatchSuite,
-        customPredicatesSuite,
+        customAssertionsSuite,
         compositionSuite
       )
     )

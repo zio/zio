@@ -1,7 +1,7 @@
 package examples
 
 import zio.ZIO
-import zio.test.Predicate._
+import zio.test.Assertion._
 import zio.test.{ assertM, suite, testM, DefaultRunnableSpec }
 
 object EffectsExampleSpec

@@ -20,12 +20,12 @@ object AccountServiceSpec
             val pipeline = createAccount(command).either
 
             val assertion =
-              assertM[BankEnvironment, Either[AccountFailure, Account]](
+              assertM[BankEnvironment, Nothing, Either[AccountFailure, Account]](
                 pipeline,
                 isRight(equalTo(Account(1, "John Doe")))
               )
 
-            (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+            testEnv >>= assertion.provide
 
           },
           testM("Find an existent account") {
@@ -38,24 +38,24 @@ object AccountServiceSpec
             } yield res
 
             val assertion =
-              assertM[BankEnvironment, Either[AccountFailure, Account]](
+              assertM[BankEnvironment, Nothing, Either[AccountFailure, Account]](
                 pipeline.either,
                 isRight(equalTo(Account(1, "John Doe")))
               )
 
-            (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+            testEnv >>= assertion.provide
 
           },
           testM("Fail to find a nonexistent account") {
             val id       = 1
             val pipeline = findAccountById(id).either
 
-            val assertion = assertM[BankEnvironment, Either[AccountFailure, Account]](
+            val assertion = assertM[BankEnvironment, Nothing, Either[AccountFailure, Account]](
               pipeline,
               isLeft(equalTo(AccountNotFound(id)))
             )
 
-            (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+            testEnv >>= assertion.provide
 
           }
         )

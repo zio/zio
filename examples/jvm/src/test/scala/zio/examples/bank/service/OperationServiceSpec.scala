@@ -50,9 +50,9 @@ object OperationServiceSpec
           } yield balance.valueInCents
 
           val assertion =
-            assertM[BankEnvironment, Either[OperationFailure, Long]](pipeline.either, isRight(equalTo(500L)))
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, Long]](pipeline.either, isRight(equalTo(500L)))
 
-          (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+          testEnv >>= assertion.provide
 
         },
         testM("Deposit US$ 5.00 and Transfer US$ 4.00") {
@@ -73,12 +73,12 @@ object OperationServiceSpec
           } yield (ownerBalance.valueInCents, peerBalance.valueInCents)
 
           val assertion =
-            assertM[BankEnvironment, Either[OperationFailure, (Long, Long)]](
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, (Long, Long)]](
               pipeline.either,
               isRight(equalTo((100L, 400L)))
             )
 
-          (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+          testEnv >>= assertion.provide
 
         },
         testM("Cannot create an operation without transactions") {
@@ -90,12 +90,12 @@ object OperationServiceSpec
           } yield ()
 
           val assertion =
-            assertM[BankEnvironment, Either[OperationFailure, Unit]](
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, Unit]](
               pipeline.either,
               isLeft(equalTo(OperationWithoutTransactions()))
             )
 
-          (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+          testEnv >>= assertion.provide
 
         },
         testM("Cannot create an operation with an invalid value (value < 1)") {
@@ -113,12 +113,12 @@ object OperationServiceSpec
           } yield ()
 
           val assertion =
-            assertM[BankEnvironment, Either[OperationFailure, Unit]](
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, Unit]](
               pipeline.either,
               isLeft(equalTo(OperationInvalidValue(0L)))
             )
 
-          (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+          testEnv >>= assertion.provide
 
         },
         testM("Cannot create an operation without a different sum of transactions value") {
@@ -136,12 +136,12 @@ object OperationServiceSpec
           } yield ()
 
           val assertion =
-            assertM[BankEnvironment, Either[OperationFailure, Unit]](
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, Unit]](
               pipeline.either,
               isLeft(equalTo(OperationValueAndSumOfTransactionsDifferent(100L, 50L)))
             )
 
-          (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+          testEnv >>= assertion.provide
 
         },
         testM("Cannot create an operation without an existent account") {
@@ -160,12 +160,12 @@ object OperationServiceSpec
           } yield ()
 
           val assertion =
-            assertM[BankEnvironment, Either[OperationFailure, Unit]](
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, Unit]](
               pipeline.either,
               isLeft(equalTo(OperationNotFoundAccount(0, Some("owner"))))
             )
 
-          (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+          testEnv >>= assertion.provide
 
         },
         testM("Cannot create an operation with an invalid transaction") {
@@ -189,9 +189,9 @@ object OperationServiceSpec
           } yield result
 
           val assertion =
-            assertM[BankEnvironment, Boolean](pipeline, isTrue)
+            assertM[BankEnvironment, Nothing, Boolean](pipeline, isTrue)
 
-          (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+          testEnv >>= assertion.provide
 
         },
         testM("Cannot transfer more money than the current balance") {
@@ -210,12 +210,12 @@ object OperationServiceSpec
 
           } yield ()
           val assertion =
-            assertM[BankEnvironment, Either[OperationFailure, Unit]](
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, Unit]](
               pipeline.either,
               isLeft(equalTo(OperationOwnerAccountInsufficientValue(600L, 500L)))
             )
 
-          (testEnv >>= assertion.provide): ZIO[Any, Nothing, TestResult]
+          testEnv >>= assertion.provide
 
         }
       )
