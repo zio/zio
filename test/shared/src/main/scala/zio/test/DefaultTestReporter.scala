@@ -115,23 +115,25 @@ object DefaultTestReporter {
       case Spec.SuiteCase(_, executedSpecs, _) =>
         executedSpecs.flatMap(UIO.collectAll(_).map(_.foldLeft(Vector.empty[(L, Duration)])(_ ++ _)))
       case Spec.TestCase(label, test) =>
-        test.map { case (_, annotationMap) =>
-          val d = annotationMap.get(TestAnnotation.Timing)
-          if (d > Duration.Zero)
-            Vector(label -> annotationMap.get(TestAnnotation.Timing))
-          else
-            Vector.empty
+        test.map {
+          case (_, annotationMap) =>
+            val d = annotationMap.get(TestAnnotation.Timing)
+            if (d > Duration.Zero)
+              Vector(label -> annotationMap.get(TestAnnotation.Timing))
+            else
+              Vector.empty
         }
     }
     results.map { times =>
-      val count = times.length
-      val sum = times.map(_._2).fold(Duration.Zero)(_ + _)
+      val count   = times.length
+      val sum     = times.map(_._2).fold(Duration.Zero)(_ + _)
       val summary = s"Timed $count tests in ${sum.render}:\n"
       val details = times
         .sortBy(_._2)
         .reverse
-        .map { case (label, duration) =>
-          f"  ${green("+")} $label: ${duration.render} (${(duration.toNanos.toDouble / sum.toNanos) * 100}%2.2f%%)"
+        .map {
+          case (label, duration) =>
+            f"  ${green("+")} $label: ${duration.render} (${(duration.toNanos.toDouble / sum.toNanos) * 100}%2.2f%%)"
         }
         .mkString("\n")
       if (count > 0) Some(summary ++ details) else None
