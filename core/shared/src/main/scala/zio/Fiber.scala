@@ -220,7 +220,7 @@ trait Fiber[+E, +A] { self =>
     mapM(f andThen UIO.succeed)
 
   /**
-   * Effectually maps over the favlue the fiber computes.
+   * Effectually maps over the value the fiber computes.
    */
   def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber[E1, B] =
     new Fiber[E1, B] {
