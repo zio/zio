@@ -1826,23 +1826,39 @@ class ZStream[-R, +E, +A] private[stream] (val structure: ZStream.Structure[R, E
       for {
         scheduleInit  <- schedule.initial.toManaged_
         schedStateRef <- Ref.make(scheduleInit).toManaged_
-        stream = {
-          def repeated: ZStream[R1 with Clock, E, C] = ZStream.unwrap {
-            for {
-              scheduleState <- schedStateRef.get
-              decision      <- schedule.update((), scheduleState)
-              s2 = if (decision.cont)
-                ZStream
-                  .fromEffect(schedStateRef.set(decision.state) *> clock.sleep(decision.delay))
-                  .drain ++ self.map(f) ++ Stream.succeed(g(decision.finish())) ++ repeated
+        switchPull    <- ZManaged.switchable[R1 with Clock, E, ZIO[R1 with Clock, Option[E], C]]
+        currPull      <- switchPull(self.map(f).process).flatMap(as => Ref.make(as)).toManaged_
+        doneRef       <- Ref.make(false).toManaged_
+        pull = {
+          def go: ZIO[R1 with Clock, Option[E], C] =
+            doneRef.get.flatMap { done =>
+              if (done) ZIO.fail(None)
               else
-                ZStream.empty
-            } yield s2
-          }
-          self.map(f) ++ repeated
+                currPull.get.flatten.foldM(
+                  {
+                    case e @ Some(_) => ZIO.fail(e)
+                    case None =>
+                      schedStateRef.get
+                        .flatMap(schedule.update((), _))
+                        .flatMap { decision =>
+                          if (!decision.cont) doneRef.set(true) *> ZIO.fail(None)
+                          else {
+                            val nextPull =
+                              (ZStream.fromEffect(clock.sleep(decision.delay)).drain ++
+                                self.map(f) ++ Stream.succeed(g(decision.finish()))).process
+
+                            switchPull(nextPull).mapError(Some(_)).tap(currPull.set(_)) *>
+                              schedStateRef.set(decision.state) *> go
+                          }
+                        }
+                  },
+                  ZIO.succeed
+                )
+            }
+
+          go
         }
-        as <- stream.process
-      } yield as
+      } yield pull
     }
 
   /**
