@@ -150,6 +150,12 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   }
 
   /**
+   * Traverses the `Exit` with an effectual function.
+   */
+  def traverse[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
+    fold(c => ZIO.succeed(halt(c)), a => f(a).run)
+
+  /**
    * Discards the value.
    */
   final def unit: Exit[E, Unit] = as(())
