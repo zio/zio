@@ -21,13 +21,13 @@ import scala.concurrent.Future
 import zio.{ IO, Managed, ZIO }
 import zio.clock.Clock
 import zio.duration._
-import zio.test.{ assertM, testM, Assertion, Async, ZIOBaseSpec }
+import zio.test.{ assertM, testM, Assertion, Async, AsyncBaseSpec }
 import zio.test.Assertion.{ anything, equalTo, isNone, isUnit, isWithin }
 import zio.test.TestUtils.{ label, succeeded }
 import zio.test.mock.MockSpecUtils.{ intTuple22, Module }
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 
-object MockSpecSpec extends ZIOBaseSpec {
+object MockSpecSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(expect.singleParam, "expect singleParam"),
@@ -894,14 +894,14 @@ object MockSpecSpec extends ZIOBaseSpec {
       testSpecDied(
         MockSpec.expectIn(Module.Service.command)(equalTo(1)),
         Module.>.command(2),
-        equalTo[Throwable](InvalidArgumentsException(Module.Service.command, 2, equalTo(1)))
+        equalTo(InvalidArgumentsException(Module.Service.command, 2, equalTo(1)))
       )
 
     def invalidMethod: Future[Boolean] =
       testSpecDied(
         MockSpec.expectIn(Module.Service.command)(equalTo(1)),
         Module.>.singleParam(1),
-        equalTo[Throwable](
+        equalTo(
           InvalidMethodException(Module.Service.singleParam, Expectation(Module.Service.command, equalTo(1)))
         )
       )
@@ -914,7 +914,7 @@ object MockSpecSpec extends ZIOBaseSpec {
             MockSpec.expectIn(Module.Service.command)(equalTo(3))
         ),
         Module.>.command(1),
-        equalTo[Throwable](
+        equalTo(
           UnmetExpectationsException(
             List(
               Expectation(Module.Service.command, equalTo(2)),

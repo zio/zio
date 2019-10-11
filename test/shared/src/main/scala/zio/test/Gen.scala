@@ -48,6 +48,8 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     }
   }
 
+  final def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
+
   final def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = Gen {
     self.sample.flatMap { sample =>
       val values  = f(sample.value).sample
@@ -227,7 +229,7 @@ object Gen extends GenZIO with FunctionVariants {
    */
   final def fromIterable[R, A](
     as: Iterable[A],
-    shrinker: (A => ZStream[R, Nothing, A]) = (_: A) => ZStream.empty
+    shrinker: (A => ZStream[R, Nothing, A]) = defaultShrinker
   ): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
 
@@ -427,4 +429,7 @@ object Gen extends GenZIO with FunctionVariants {
     if (n < min) min
     else if (n > max) max
     else n
+
+  private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
+    _ => ZStream.empty
 }

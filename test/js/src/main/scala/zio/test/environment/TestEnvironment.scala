@@ -16,19 +16,19 @@
 
 package zio.test.environment
 
-import zio.{ DefaultRuntime, Managed }
+import zio.{ DefaultRuntime, Managed, ZEnv }
 import zio.scheduler.Scheduler
 import zio.test.Sized
 
 case class TestEnvironment(
   clock: TestClock.Test,
   console: TestConsole.Test,
-  live: Live.Service[DefaultRuntime#Environment],
+  live: Live.Service[ZEnv],
   random: TestRandom.Test,
   scheduler: TestClock.Test,
   sized: Sized.Service[Any],
   system: TestSystem.Test
-) extends Live[DefaultRuntime#Environment]
+) extends Live[ZEnv]
     with TestClock
     with TestConsole
     with TestRandom

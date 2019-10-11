@@ -104,7 +104,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Maps the error value of this effect to the specified constant value.
    */
-  final def asError[E1](e1: E1): ZIO[R, E1, A] = mapError(_ => e1)
+  final def asError[E1](e1: => E1): ZIO[R, E1, A] = mapError(new ZIO.ConstFn(() => e1))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -841,36 +841,42 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = {
     def arbiter[E1, A1](
-      fibers: Iterable[(Fiber[E1, A1], Int)],
-      done: Promise[E1, A1],
-      fails: Ref[Int],
-      idx: Int
+      fibers: List[Fiber[E1, A1]],
+      winner: Fiber[E1, A1],
+      promise: Promise[E1, (A1, Fiber[E1, A1])],
+      fails: Ref[Int]
     )(res: Exit[E1, A1]): ZIO[R1, Nothing, _] =
       res.foldM[R1, Nothing, Unit](
-        e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) done.halt(e).unit else ZIO.unit) -> (c - 1))),
+        e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) promise.halt(e).unit else ZIO.unit) -> (c - 1))),
         a =>
-          done
-            .complete(ZIO.succeed(a))
+          promise
+            .succeed(a -> winner)
             .flatMap(
               set =>
-                if (set) fibers.foldLeft(IO.unit)((io, f) => if (f._2 == idx) io else io <* f._1.interrupt)
+                if (set) fibers.foldLeft(IO.unit)((io, f) => if (f eq winner) io else io <* f.interrupt)
                 else ZIO.unit
             )
       )
 
     (for {
-      done  <- Promise.make[E1, A1]
+      done  <- Promise.make[E1, (A1, Fiber[E1, A1])]
       fails <- Ref.make[Int](ios.size)
       c <- ZIO.uninterruptibleMask { restore =>
             for {
               head <- ZIO.interruptible(self).fork
               tail <- ZIO.foreach(ios)(io => ZIO.interruptible(io).fork)
-              as   = (head :: tail).zipWithIndex
-              _ <- as.foldLeft[ZIO[R1, E1, _]](ZIO.unit) {
-                    case (io, (f, idx)) =>
-                      io *> f.await.flatMap(arbiter(as, done, fails, idx)).fork
+              fs   = head :: tail
+              _ <- fs.foldLeft[ZIO[R1, E1, _]](ZIO.unit) {
+                    case (io, f) =>
+                      io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                   }
-              c <- restore(done.await).onInterrupt(as.foldLeft(IO.unit)((io, f) => io <* f._1.interrupt))
+
+              inheritFiberRefs = { (res: (A1, Fiber[E1, A1])) =>
+                res._2.inheritFiberRefs.as(res._1)
+              }
+
+              c <- restore(done.await >>= inheritFiberRefs)
+                    .onInterrupt(fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt))
             } yield c
           }
     } yield c).refailWithTrace
@@ -2030,7 +2036,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     ZIO
-      .succeed(as.iterator)
+      .effectTotal(as.iterator)
       .flatMap { i =>
         def loop(a: A): ZIO[R, E, Unit] =
           if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())

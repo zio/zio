@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ DefaultRuntime, Managed }
+import zio.{ DefaultRuntime, Managed, ZEnv }
 import zio.blocking.Blocking
 import zio.scheduler.Scheduler
 import zio.test.Sized
@@ -25,13 +25,13 @@ case class TestEnvironment(
   blocking: Blocking.Service[Any],
   clock: TestClock.Test,
   console: TestConsole.Test,
-  live: Live.Service[DefaultRuntime#Environment],
+  live: Live.Service[ZEnv],
   random: TestRandom.Test,
   scheduler: TestClock.Test,
   sized: Sized.Service[Any],
   system: TestSystem.Test
 ) extends Blocking
-    with Live[DefaultRuntime#Environment]
+    with Live[ZEnv]
     with TestClock
     with TestConsole
     with TestRandom
