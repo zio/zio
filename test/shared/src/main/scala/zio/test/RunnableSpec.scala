@@ -36,7 +36,7 @@ abstract class RunnableSpec[R, L, T, E, S](runner0: TestRunner[R, L, T, E, S])(s
 
   private val runSpec: URIO[TestLogger with Clock, Int] = for {
     results     <- run
-    hasFailures <- results.exists { case TestCase(_, test) => test.map(_.isLeft); case _ => UIO.succeed(false) }
+    hasFailures <- results.exists { case TestCase(_, test) => test.map(_._1.isLeft); case _ => UIO.succeed(false) }
     summary     <- SummaryBuilder.buildSummary(results)
     _           <- TestLogger.logLine(summary)
   } yield if (hasFailures) 1 else 0

@@ -20,6 +20,7 @@ import zio.{ DefaultRuntime, Managed, ZEnv }
 import zio.blocking.Blocking
 import zio.scheduler.Scheduler
 import zio.test.Sized
+import zio.test.TestAnnotations
 
 case class TestEnvironment(
   blocking: Blocking.Service[Any],
@@ -29,30 +30,33 @@ case class TestEnvironment(
   random: TestRandom.Test,
   scheduler: TestClock.Test,
   sized: Sized.Service[Any],
-  system: TestSystem.Test
+  system: TestSystem.Test,
+  testAnnotations: TestAnnotations.Service[Any]
 ) extends Blocking
     with Live[ZEnv]
+    with Scheduler
+    with Sized
+    with TestAnnotations
     with TestClock
     with TestConsole
     with TestRandom
     with TestSystem
-    with Scheduler
-    with Sized
 
 object TestEnvironment {
 
   val Value: Managed[Nothing, TestEnvironment] =
     Managed.fromEffect {
       for {
-        clock    <- TestClock.makeTest(TestClock.DefaultData)
-        console  <- TestConsole.makeTest(TestConsole.DefaultData)
-        live     <- Live.makeService(new DefaultRuntime {}.Environment)
-        random   <- TestRandom.makeTest(TestRandom.DefaultData)
-        time     <- live.provide(zio.clock.nanoTime)
-        _        <- random.setSeed(time)
-        size     <- Sized.makeService(100)
-        system   <- TestSystem.makeTest(TestSystem.DefaultData)
-        blocking = Blocking.Live.blocking
-      } yield new TestEnvironment(blocking, clock, console, live, random, clock, size, system)
+        clock           <- TestClock.makeTest(TestClock.DefaultData)
+        console         <- TestConsole.makeTest(TestConsole.DefaultData)
+        live            <- Live.makeService(new DefaultRuntime {}.Environment)
+        random          <- TestRandom.makeTest(TestRandom.DefaultData)
+        size            <- Sized.makeService(100)
+        testAnnotations <- TestAnnotations.makeService
+        system          <- TestSystem.makeTest(TestSystem.DefaultData)
+        blocking        = Blocking.Live.blocking
+        time            <- live.provide(zio.clock.nanoTime)
+        _               <- random.setSeed(time)
+      } yield new TestEnvironment(blocking, clock, console, live, random, clock, size, system, testAnnotations)
     }
 }

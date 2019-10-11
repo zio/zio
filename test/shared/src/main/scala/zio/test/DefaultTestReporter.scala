@@ -35,7 +35,7 @@ object DefaultTestReporter {
           for {
             specs <- executedSpecs
             failures <- UIO.foreach(specs)(_.exists {
-                         case Spec.TestCase(_, test) => test.map(_.isLeft);
+                         case Spec.TestCase(_, test) => test.map(_._1.isLeft);
                          case _                      => UIO.succeed(false)
                        })
             hasFailures = failures.exists(identity)
@@ -47,17 +47,17 @@ object DefaultTestReporter {
           } yield rendered(Suite, label, status, depth, renderedLabel) +: rest
         case Spec.TestCase(label, result) =>
           result.map {
-            case Right(TestSuccess.Succeeded(_)) =>
+            case (Right(TestSuccess.Succeeded(_)), _) =>
               Seq(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
-            case Right(TestSuccess.Ignored) =>
+            case (Right(TestSuccess.Ignored), _) =>
               Seq(rendered(Test, label, Ignored, depth))
-            case Left(TestFailure.Assertion(result)) =>
+            case (Left(TestFailure.Assertion(result)), _) =>
               Seq(
                 result.fold(
                   details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
                 )(_ && _, _ || _, !_)
               )
-            case Left(TestFailure.Runtime(cause)) =>
+            case (Left(TestFailure.Runtime(cause)), _) =>
               Seq(
                 rendered(
                   Test,
@@ -77,6 +77,7 @@ object DefaultTestReporter {
       res <- render(executedSpec.mapLabel(_.toString))
       _   <- ZIO.foreach(res.flatMap(_.rendered))(TestLogger.logLine)
       _   <- logStats(duration, executedSpec)
+      _   <- renderTimed(executedSpec).flatMap(_.fold[URIO[TestLogger, Unit]](URIO.unit)(TestLogger.logLine))
     } yield ()
   }
 
@@ -92,9 +93,9 @@ object DefaultTestReporter {
           }
         case Spec.TestCase(_, result) =>
           result.map {
-            case Left(_)                         => (0, 0, 1)
-            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
-            case Right(TestSuccess.Ignored)      => (0, 1, 0)
+            case (Left(_), _)                         => (0, 0, 1)
+            case (Right(TestSuccess.Succeeded(_)), _) => (1, 0, 0)
+            case (Right(TestSuccess.Ignored), _)      => (0, 1, 0)
           }
       }
     for {
@@ -107,6 +108,34 @@ object DefaultTestReporter {
             )
           )
     } yield ()
+  }
+
+  private def renderTimed[L, E, S](executedSpec: ExecutedSpec[L, E, S]): UIO[Option[String]] = {
+    val results = executedSpec.fold[UIO[Vector[(L, Duration)]]] {
+      case Spec.SuiteCase(_, executedSpecs, _) =>
+        executedSpecs.flatMap(UIO.collectAll(_).map(_.foldLeft(Vector.empty[(L, Duration)])(_ ++ _)))
+      case Spec.TestCase(label, test) =>
+        test.map { case (_, annotationMap) =>
+          val d = annotationMap.get(TestAnnotation.Timing)
+          if (d > Duration.Zero)
+            Vector(label -> annotationMap.get(TestAnnotation.Timing))
+          else
+            Vector.empty
+        }
+    }
+    results.map { times =>
+      val count = times.length
+      val sum = times.map(_._2).fold(Duration.Zero)(_ + _)
+      val summary = s"Timed $count tests in ${sum.render}:\n"
+      val details = times
+        .sortBy(_._2)
+        .reverse
+        .map { case (label, duration) =>
+          f"  ${green("+")} $label: ${duration.render} (${(duration.toNanos.toDouble / sum.toNanos) * 100}%2.2f%%)"
+        }
+        .mkString("\n")
+      if (count > 0) Some(summary ++ details) else None
+    }
   }
 
   private def renderSuccessLabel(label: String, offset: Int) =

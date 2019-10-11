@@ -90,7 +90,7 @@ package object test extends CheckVariants {
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+L, +E, +S] = Spec[Any, Nothing, L, Either[TestFailure[E], TestSuccess[S]]]
+  type ExecutedSpec[+L, +E, +S] = Spec[Any, Nothing, L, (Either[TestFailure[E], TestSuccess[S]], TestAnnotationMap)]
 
   /**
    * Checks the assertion holds for the given value.

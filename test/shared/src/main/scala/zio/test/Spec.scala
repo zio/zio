@@ -180,6 +180,17 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
+   * Returns a new spec with tests remapped using the specified effectual function.
+   */
+  final def mapTestM[R1 <: R, E1 >: E, L1 >: L, T1](f: T => ZIO[R1, E1, T1]): Spec[R1, E1, L1, T1] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Spec.suite(label, specs.map(_.map(_.mapTestM(f))), exec)
+      case TestCase(label, test) =>
+        Spec.test(label, test.flatMap(f))
+    }
+
+  /**
    * Uses the specified `Managed` to provide each test in this spec with its
    * required environment.
    */
@@ -229,16 +240,6 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     caseValue match {
       case SuiteCase(label, specs, exec) => Spec(f(SuiteCase(label, specs.map(_.map(_.transform(f))), exec)))
       case t @ TestCase(_, _)            => Spec(f(t))
-    }
-
-  final def mapTests[R1, E1, L1 >: L, T1](
-    suiteCase: ZIO[R, E, Vector[Spec[R1, E1, L1, T1]]] => ZIO[R1, E1, Vector[Spec[R1, E1, L1, T1]]],
-    testCase: ZIO[R, E, T] => ZIO[R1, E1, T1]
-  ): Spec[R1, E1, L1, T1] =
-    caseValue match {
-      case SuiteCase(label, specs, exec) =>
-        Spec.suite(label, suiteCase(specs.map(_.map(_.mapTests(suiteCase, testCase)))), exec)
-      case TestCase(label, test) => Spec.test(label, testCase(test))
     }
 
   /**

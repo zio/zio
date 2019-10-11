@@ -1,7 +1,5 @@
 package zio.test
 
-import zio.Cause._
-
 import scala.concurrent.Future
 import zio.clock.Clock
 import zio.{ Cause, Ref, ZIO }

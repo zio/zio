@@ -19,6 +19,7 @@ package zio.test.environment
 import zio.{ DefaultRuntime, Managed, ZEnv }
 import zio.scheduler.Scheduler
 import zio.test.Sized
+import zio.test.TestAnnotations
 
 case class TestEnvironment(
   clock: TestClock.Test,
@@ -27,28 +28,31 @@ case class TestEnvironment(
   random: TestRandom.Test,
   scheduler: TestClock.Test,
   sized: Sized.Service[Any],
-  system: TestSystem.Test
+  system: TestSystem.Test,
+  testAnnotations: TestAnnotations.Service[Any]
 ) extends Live[ZEnv]
+    with Scheduler
+    with Sized
+    with TestAnnotations
     with TestClock
     with TestConsole
     with TestRandom
     with TestSystem
-    with Scheduler
-    with Sized
 
 object TestEnvironment {
 
   val Value: Managed[Nothing, TestEnvironment] =
     Managed.fromEffect {
       for {
-        clock   <- TestClock.makeTest(TestClock.DefaultData)
-        console <- TestConsole.makeTest(TestConsole.DefaultData)
-        live    <- Live.makeService(new DefaultRuntime {}.Environment)
-        random  <- TestRandom.makeTest(TestRandom.DefaultData)
-        time    <- live.provide(zio.clock.nanoTime)
-        _       <- random.setSeed(time)
-        size    <- Sized.makeService(100)
-        system  <- TestSystem.makeTest(TestSystem.DefaultData)
-      } yield new TestEnvironment(clock, console, live, random, clock, size, system)
+        clock           <- TestClock.makeTest(TestClock.DefaultData)
+        console         <- TestConsole.makeTest(TestConsole.DefaultData)
+        live            <- Live.makeService(new DefaultRuntime {}.Environment)
+        random          <- TestRandom.makeTest(TestRandom.DefaultData)
+        size            <- Sized.makeService(100)
+        system          <- TestSystem.makeTest(TestSystem.DefaultData)
+        testAnnotations <- TestAnnotations.makeService
+        time            <- live.provide(zio.clock.nanoTime)
+        _               <- random.setSeed(time)
+      } yield new TestEnvironment(clock, console, live, random, clock, size, system, testAnnotations)
     }
 }

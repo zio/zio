@@ -16,7 +16,7 @@ object SummaryBuilder {
     def append[A](collection: UIO[Seq[A]], item: A): UIO[Seq[A]] = collection.map(_ :+ item)
 
     def hasFailures(spec: ExecutedSpec[L, E, S]): UIO[Boolean] = spec.exists {
-      case Spec.TestCase(_, test) => test.map(_.isLeft)
+      case Spec.TestCase(_, test) => test.map(_._1.isLeft)
       case _                      => UIO.succeed(false)
     }
 
