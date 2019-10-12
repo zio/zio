@@ -50,32 +50,32 @@ object ZMXServer {
     return true
   }
 
-  def apply(config: ZMXConfig, selector: Selector, zStackSocket: ServerSocketChannel, zStackAddress: InetSocketAddress): Unit = {
-    zStackSocket.socket.setReuseAddress(true)
-    zStackSocket.bind(zStackAddress)
-    zStackSocket.configureBlocking(false)
-    zStackSocket.register(selector, SelectionKey.OP_ACCEPT)
+  def apply(config: ZMXConfig, selector: Selector, zmxSocket: ServerSocketChannel, zmxAddress: InetSocketAddress): Unit = {
+    zmxSocket.socket.setReuseAddress(true)
+    zmxSocket.bind(zmxAddress)
+    zmxSocket.configureBlocking(false)
+    zmxSocket.register(selector, SelectionKey.OP_ACCEPT)
     val buffer: ByteBuffer = ByteBuffer.allocate(256)
 
     var state: Boolean = true
     while (state) {
       selector.select()
-      val zStackKeys: Set[SelectionKey] = selector.selectedKeys.asScala
-      val zStackIter: Iterator[SelectionKey] = zStackKeys.iterator.asJava
-      while (zStackIter.hasNext) {
-        val currentKey: SelectionKey = zStackIter.next
+      val zmxKeys: Set[SelectionKey] = selector.selectedKeys.asScala
+      val zmxIter: Iterator[SelectionKey] = zmxKeys.iterator.asJava
+      while (zmxIter.hasNext) {
+        val currentKey: SelectionKey = zmxIter.next
         if (currentKey.isAcceptable) {
-          register(selector, zStackSocket)
+          register(selector, zmxSocket)
         } 
         if (currentKey.isReadable) {
           state = responseReceived(buffer, currentKey, config.debug)
           if (state == false) {
             println("Closing socket")
-            zStackSocket.close()
+            zmxSocket.close()
             selector.close()
           }
         }
-        zStackIter.remove()
+        zmxIter.remove()
       }
     } 
   }
