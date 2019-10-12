@@ -1826,13 +1826,13 @@ class ZStream[-R, +E, +A] private[stream] (val structure: ZStream.Structure[R, E
       for {
         scheduleInit  <- schedule.initial.toManaged_
         schedStateRef <- Ref.make(scheduleInit).toManaged_
-        switchPull    <- ZManaged.switchable[R1 with Clock, E, ZIO[R1 with Clock, Option[E], C]]
+        switchPull    <- ZManaged.switchable[R1 with Clock, E, Pull[R1 with Clock, E, C]]
         currPull      <- switchPull(self.map(f).process).flatMap(as => Ref.make(as)).toManaged_
         doneRef       <- Ref.make(false).toManaged_
         pull = {
           def go: ZIO[R1 with Clock, Option[E], C] =
             doneRef.get.flatMap { done =>
-              if (done) ZIO.fail(None)
+              if (done) Pull.end
               else
                 currPull.get.flatten.foldM(
                   {
@@ -1841,7 +1841,7 @@ class ZStream[-R, +E, +A] private[stream] (val structure: ZStream.Structure[R, E
                       schedStateRef.get
                         .flatMap(schedule.update((), _))
                         .flatMap { decision =>
-                          if (!decision.cont) doneRef.set(true) *> ZIO.fail(None)
+                          if (!decision.cont) doneRef.set(true) *> Pull.end
                           else {
                             val nextPull =
                               (ZStream.fromEffect(clock.sleep(decision.delay)).drain ++
@@ -2452,7 +2452,7 @@ object ZStream {
   }
 
   private[stream] sealed abstract class Structure[-R, +E, +A] {
-    def process: ZManaged[R, E, ZIO[R, Option[E], A]]
+    def process: ZManaged[R, E, Pull[R, E, A]]
   }
 
   private[stream] object Structure {
@@ -2465,34 +2465,31 @@ object ZStream {
           currPull: Ref[Pull[R, E, A]],
           nextPull: Ref[Option[() => Structure[R, E, A]]],
           switchPull: ZManaged[R, E, Pull[R, E, A]] => ZIO[R, E, Pull[R, E, A]]
-        ): ZIO[R, Option[E], A] =
+        ): Pull[R, E, A] =
           doneRef.get.flatMap { done =>
-            if (done) IO.fail(None)
+            if (done) Pull.end
             else
-              currPull.get.flatten.foldM(
-                {
-                  case e @ Some(_) => ZIO.fail(e)
-                  case None =>
-                    nextPull.get.flatMap {
-                      case None => doneRef.set(true) *> IO.fail(None)
-                      case Some(tl) =>
-                        tl() match {
-                          case Iterator(iter) =>
-                            switchPull(iter).mapError(Some(_)).tap(currPull.set) *>
-                              nextPull.set(None) *> go(doneRef, currPull, nextPull, switchPull)
-                          case Concat(hd, tl) =>
-                            // It is extremely important in this case to *NOT* recurse using
-                            // tl.process, as that would introduce a new ZManaged scope; this
-                            // will cause space leaks when used with streams that concatenate infinitely.
-                            // Instead, we re-use the same ZManaged scope introduced by the ZManaged.switchable
-                            // below to swap the current stream being pulled with tl.
-                            switchPull(hd.process).mapError(Some(_)).tap(currPull.set) *>
-                              nextPull.set(Some(tl)) *> go(doneRef, currPull, nextPull, switchPull)
-                        }
-                    }
-                },
-                ZIO.succeed
-              )
+              currPull.get.flatten.catchAll {
+                case e @ Some(_) => ZIO.fail(e)
+                case None =>
+                  nextPull.get.flatMap {
+                    case None => doneRef.set(true) *> Pull.end
+                    case Some(tl) =>
+                      tl() match {
+                        case Iterator(iter) =>
+                          switchPull(iter).mapError(Some(_)).tap(currPull.set) *>
+                            nextPull.set(None) *> go(doneRef, currPull, nextPull, switchPull)
+                        case Concat(hd, tl) =>
+                          // It is extremely important in this case to *NOT* recurse using
+                          // tl.process, as that would introduce a new ZManaged scope; this
+                          // will cause space leaks when used with streams that concatenate infinitely.
+                          // Instead, we re-use the same ZManaged scope introduced by the ZManaged.switchable
+                          // below to swap the current stream being pulled with tl.
+                          switchPull(hd.process).mapError(Some(_)).tap(currPull.set) *>
+                            nextPull.set(Some(tl)) *> go(doneRef, currPull, nextPull, switchPull)
+                      }
+                  }
+              }
           }
 
         for {
