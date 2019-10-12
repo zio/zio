@@ -1103,73 +1103,73 @@ object SinkSpec
               )
             }
           ),
-          //   suite("throttleEnforce")(
-          //     testM("throttleEnforce") {
+          suite("throttleEnforce")(
+            testM("throttleEnforce") {
 
-          //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
-          //         for {
-          //           init1 <- sink.initial
-          //           step1 <- sink.step(init1, 1)
-          //           res1  <- sink.extract(step1).map(_._1)
-          //           init2 <- sink.initial
-          //           _     <- TestClock.adjust(23.milliseconds)
-          //           step2 <- sink.step(init2, 2)
-          //           res2  <- sink.extract(step2).map(_._1)
-          //           init3 <- sink.initial
-          //           step3 <- sink.step(init3, 3)
-          //           res3  <- sink.extract(step3).map(_._1)
-          //           init4 <- sink.initial
-          //           step4 <- sink.step(init4, 4)
-          //           res4  <- sink.extract(step4).map(_._1)
-          //           _     <- TestClock.adjust(11.milliseconds)
-          //           init5 <- sink.initial
-          //           step5 <- sink.step(init5, 5)
-          //           res5  <- sink.extract(step5).map(_._1)
-          //         } yield assert(List(res1, res2, res3, res4, res5), equalTo(List(Some(1), Some(2), None, None, Some(5))))
+              def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
+                for {
+                  init1 <- sink.initial
+                  step1 <- sink.step(init1, 1)
+                  res1  <- sink.extract(step1).map(_._1)
+                  init2 <- sink.initial
+                  _     <- TestClock.adjust(23.milliseconds)
+                  step2 <- sink.step(init2, 2)
+                  res2  <- sink.extract(step2).map(_._1)
+                  init3 <- sink.initial
+                  step3 <- sink.step(init3, 3)
+                  res3  <- sink.extract(step3).map(_._1)
+                  init4 <- sink.initial
+                  step4 <- sink.step(init4, 4)
+                  res4  <- sink.extract(step4).map(_._1)
+                  _     <- TestClock.adjust(11.milliseconds)
+                  init5 <- sink.initial
+                  step5 <- sink.step(init5, 5)
+                  res5  <- sink.extract(step5).map(_._1)
+                } yield assert(List(res1, res2, res3, res4, res5), equalTo(List(Some(1), Some(2), None, None, Some(5))))
 
-          //       for {
-          //         clock <- TestClock.make(TestClock.DefaultData)
-          //         test <- ZSink
-          //                  .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
-          //                  .use(sinkTest)
-          //                  .provide(clock)
-          //       } yield test
-          //     },
-          //     testM("with burst") {
+              for {
+                clock <- TestClock.make(TestClock.DefaultData)
+                test <- ZSink
+                         .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
+                         .use(sinkTest)
+                         .provide(clock)
+              } yield test
+            },
+            testM("with burst") {
 
-          //       def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
-          //         for {
-          //           init1 <- sink.initial
-          //           step1 <- sink.step(init1, 1)
-          //           res1  <- sink.extract(step1).map(_._1)
-          //           init2 <- sink.initial
-          //           _     <- TestClock.adjust(23.milliseconds)
-          //           step2 <- sink.step(init2, 2)
-          //           res2  <- sink.extract(step2).map(_._1)
-          //           init3 <- sink.initial
-          //           step3 <- sink.step(init3, 3)
-          //           res3  <- sink.extract(step3).map(_._1)
-          //           init4 <- sink.initial
-          //           step4 <- sink.step(init4, 4)
-          //           res4  <- sink.extract(step4).map(_._1)
-          //           _     <- TestClock.adjust(11.milliseconds)
-          //           init5 <- sink.initial
-          //           step5 <- sink.step(init5, 5)
-          //           res5  <- sink.extract(step5).map(_._1)
-          //         } yield assert(
-          //           List(res1, res2, res3, res4, res5),
-          //           equalTo(List(Some(1), Some(2), Some(3), None, Some(5)))
-          //         )
+              def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
+                for {
+                  init1 <- sink.initial
+                  step1 <- sink.step(init1, 1)
+                  res1  <- sink.extract(step1).map(_._1)
+                  init2 <- sink.initial
+                  _     <- TestClock.adjust(23.milliseconds)
+                  step2 <- sink.step(init2, 2)
+                  res2  <- sink.extract(step2).map(_._1)
+                  init3 <- sink.initial
+                  step3 <- sink.step(init3, 3)
+                  res3  <- sink.extract(step3).map(_._1)
+                  init4 <- sink.initial
+                  step4 <- sink.step(init4, 4)
+                  res4  <- sink.extract(step4).map(_._1)
+                  _     <- TestClock.adjust(11.milliseconds)
+                  init5 <- sink.initial
+                  step5 <- sink.step(init5, 5)
+                  res5  <- sink.extract(step5).map(_._1)
+                } yield assert(
+                  List(res1, res2, res3, res4, res5),
+                  equalTo(List(Some(1), Some(2), Some(3), None, Some(5)))
+                )
 
-          //       for {
-          //         clock <- TestClock.make(TestClock.DefaultData)
-          //         test <- ZSink
-          //                  .throttleEnforce[Int](1, 10.milliseconds, 1)(_ => 1)
-          //                  .use(sinkTest)
-          //                  .provide(clock)
-          //       } yield test
-          //     }
-          //   ),
+              for {
+                clock <- TestClock.make(TestClock.DefaultData)
+                test <- ZSink
+                         .throttleEnforce[Int](1, 10.milliseconds, 1)(_ => 1)
+                         .use(sinkTest)
+                         .provide(clock)
+              } yield test
+            }
+          ),
           suite("throttleShape")(
             testM("throttleShape") {
 
