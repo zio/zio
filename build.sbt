@@ -139,7 +139,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.stream"))
   .settings(skip in publish := true)
-  .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
+  .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
   .settings(
     libraryDependencies ++= Seq(
       "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
