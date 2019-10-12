@@ -1328,7 +1328,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified promise will be interrupted, too.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): ZIO[R, Nothing, Boolean] =
-    self.run.flatMap(x => p.complete(ZIO.done(x))).onInterrupt(p.interrupt)
+    self.run.flatMap(x => p.completeWith(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
