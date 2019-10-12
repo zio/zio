@@ -1039,70 +1039,70 @@ object SinkSpec
 
           //     assertM(stream.run(sink), equalTo(Some(1)))
           //   },
-          //   suite("splitLines")(
-          //     testM("preserves data")(
-          //       checkM(
-          //         Gen
-          //           .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
-          //           .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
-          //       ) { (lines: List[String]) =>
-          //         val data = lines.mkString("\n")
+            suite ("splitLines")(
+              //     testM("preserves data")(
+              //       checkM(
+              //         Gen
+              //           .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
+              //           .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+              //       ) { (lines: List[String]) =>
+              //         val data = lines.mkString("\n")
 
-          //         for {
-          //           initial            <- ZSink.splitLines.initial
-          //           middle             <- ZSink.splitLines.step(initial, data)
-          //           res                <- ZSink.splitLines.extract(middle)
-          //           (result, leftover) = res
-          //         } yield assert((result ++ leftover).toArray[String].mkString("\n"), equalTo(lines.mkString("\n")))
-          //       }
-          //     ),
-          //     testM("handles leftovers") {
-          //       for {
-          //         initial            <- ZSink.splitLines.initial
-          //         middle             <- ZSink.splitLines.step(initial, "abc\nbc")
-          //         res                <- ZSink.splitLines.extract(middle)
-          //         (result, leftover) = res
-          //       } yield assert(result.toArray[String].mkString("\n"), equalTo("abc")) && assert(
-          //         leftover.toArray[String].mkString,
-          //         equalTo("bc")
-          //       )
-          //     },
-          //     testM("transduces") {
-          //       assertM(
-          //         Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
-          //           .transduce(ZSink.splitLines)
-          //           .runCollect,
-          //         equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
-          //       )
-          //     },
-          //     testM("single newline edgecase") {
-          //       assertM(
-          //         Stream("\n")
-          //           .transduce(ZSink.splitLines)
-          //           .mapConcat(identity)
-          //           .runCollect,
-          //         equalTo(List(""))
-          //       )
-          //     },
-          //     testM("no newlines in data") {
-          //       assertM(
-          //         Stream("abc", "abc", "abc")
-          //           .transduce(ZSink.splitLines)
-          //           .mapConcat(identity)
-          //           .runCollect,
-          //         equalTo(List("abcabcabc"))
-          //       )
-          //     },
-          //     testM("\\r\\n on the boundary") {
-          //       assertM(
-          //         Stream("abc\r", "\nabc")
-          //           .transduce(ZSink.splitLines)
-          //           .mapConcat(identity)
-          //           .runCollect,
-          //         equalTo(List("abc", "abc"))
-          //       )
-          //     }
-          //   ),
+              //         for {
+              //           initial            <- ZSink.splitLines.initial
+              //           middle             <- ZSink.splitLines.step(initial, data)
+              //           res                <- ZSink.splitLines.extract(middle)
+              //           (result, leftover) = res
+              //         } yield assert((result ++ leftover).toArray[String].mkString("\n"), equalTo(lines.mkString("\n")))
+              //       }
+              //     ),
+              testM("handles leftovers") {
+                for {
+                  initial            <- ZSink.splitLines.initial
+                  middle             <- ZSink.splitLines.step(initial, "abc\nbc")
+                  res                <- ZSink.splitLines.extract(middle)
+                  (result, leftover) = res
+                } yield assert(result.toArray[String].mkString("\n"), equalTo("abc")) && assert(
+                  leftover.toArray[String].mkString,
+                  equalTo("bc")
+                )
+              },
+              testM("transduces") {
+                assertM(
+                  Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
+                    .transduce(ZSink.splitLines)
+                    .runCollect,
+                  equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
+                )
+              },
+              testM("single newline edgecase") {
+                assertM(
+                  Stream("\n")
+                    .transduce(ZSink.splitLines)
+                    .mapConcat(identity)
+                    .runCollect,
+                  equalTo(List(""))
+                )
+              },
+              testM("no newlines in data") {
+                assertM(
+                  Stream("abc", "abc", "abc")
+                    .transduce(ZSink.splitLines)
+                    .mapConcat(identity)
+                    .runCollect,
+                  equalTo(List("abcabcabc"))
+                )
+              },
+              testM("\\r\\n on the boundary") {
+                assertM(
+                  Stream("abc\r", "\nabc")
+                    .transduce(ZSink.splitLines)
+                    .mapConcat(identity)
+                    .runCollect,
+                  equalTo(List("abc", "abc"))
+                )
+              }
+            )
           //   suite("throttleEnforce")(
           //     testM("throttleEnforce") {
 
