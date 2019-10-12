@@ -750,46 +750,46 @@ object SinkSpec
               assertM(sinkIteration(sink, 1), equalTo((1, Chunk.empty)))
             }
           ),
-          suite("zipPar")(
-            testM("happy path 1") {
-              val sink1 = ZSink.collectAllWhile[Int](_ < 5)
-              val sink2 = ZSink.collectAllWhile[Int](_ < 3)
-              ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
-            },
-            testM("happy path 2") {
-              val sink1 = ZSink.collectAllWhile[Int](_ < 5)
-              val sink2 = ZSink.collectAllWhile[Int](_ < 30)
-              ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
-            },
-            testM("happy path 3") {
-              val sink1 = ZSink.collectAllWhile[Int](_ < 50)
-              val sink2 = ZSink.collectAllWhile[Int](_ < 30)
-              ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
-            },
-            testM("extract error") {
-              val sink1 = ZSink.collectAllWhile[Int](_ < 5)
-              ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, extractErrorSink)
-            },
-            testM("step error") {
-              val sink1 = ZSink.collectAllWhile[Int](_ < 5)
-              ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, stepErrorSink)
-            },
-            testM("init error") {
-              val sink1 = ZSink.collectAllWhile[Int](_ < 5)
-              ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, initErrorSink)
-            },
-            testM("both error")(ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), stepErrorSink, initErrorSink)),
-            testM("remainder corner case 1") {
-              val sink1 = sinkWithLeftover(2, 3, -42)
-              val sink2 = sinkWithLeftover(2, 4, -42)
-              ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
-            },
-            testM("remainder corner case 2") {
-              val sink1 = sinkWithLeftover(3, 1, -42)
-              val sink2 = sinkWithLeftover(2, 4, -42)
-              ZipParLaws.laws(Stream(1, 2, 3, 4, 5, 6), sink1, sink2)
-            }
-          ),
+          // suite("zipPar")(
+          //   testM("happy path 1") {
+          //     val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+          //     val sink2 = ZSink.collectAllWhile[Int](_ < 3)
+          //     ZipParLaws.laws(zipParLawsStream, sink1, sink2)
+          //   },
+          //   testM("happy path 2") {
+          //     val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+          //     val sink2 = ZSink.collectAllWhile[Int](_ < 30)
+          //     ZipParLaws.laws(zipParLawsStream, sink1, sink2)
+          //   },
+          //   testM("happy path 3") {
+          //     val sink1 = ZSink.collectAllWhile[Int](_ < 50)
+          //     val sink2 = ZSink.collectAllWhile[Int](_ < 30)
+          //     ZipParLaws.laws(zipParLawsStream, sink1, sink2)
+          //   },
+          //   testM("extract error") {
+          //     val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+          //     ZipParLaws.laws(zipParLawsStream, sink1, extractErrorSink)
+          //   },
+          //   testM("step error") {
+          //     val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+          //     ZipParLaws.laws(zipParLawsStream, sink1, stepErrorSink)
+          //   },
+          //   testM("init error") {
+          //     val sink1 = ZSink.collectAllWhile[Int](_ < 5)
+          //     ZipParLaws.laws(zipParLawsStream, sink1, initErrorSink)
+          //   },
+          //   testM("both error")(ZipParLaws.laws(zipParLawsStream, stepErrorSink, initErrorSink)),
+          //   testM("remainder corner case 1") {
+          //     val sink1 = sinkWithLeftover(2, 3, -42)
+          //     val sink2 = sinkWithLeftover(2, 4, -42)
+          //     ZipParLaws.laws(zipParLawsStream, sink1, sink2)
+          //   },
+          //   testM("remainder corner case 2") {
+          //     val sink1 = sinkWithLeftover(3, 1, -42)
+          //     val sink2 = sinkWithLeftover(2, 4, -42)
+          //     ZipParLaws.laws(zipParLawsStream, sink1, sink2)
+          //   }
+          // ),
           suite("zipRight (*>)")(
             testM("happy path") {
               val sink = ZSink.identity[Int].zipRight(ZSink.succeed[Int, String]("Hello"))

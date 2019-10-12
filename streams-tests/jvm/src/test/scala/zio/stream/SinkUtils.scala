@@ -119,4 +119,6 @@ trait SinkUtils {
   }
 }
 
-object SinkUtils extends SinkUtils with StreamUtils with GenZIO
+object SinkUtils extends SinkUtils with StreamUtils with GenZIO {
+  val zipParLawsStream = Stream(1, 2, 3, 4, 5, 6)
+}
