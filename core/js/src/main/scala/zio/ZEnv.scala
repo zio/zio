@@ -33,63 +33,37 @@ object ZEnv {
    * }}}
    */
   def clockDecorator(f: Clock.Service[Any] => Clock.Service[Any]): ZEnv => ZEnv =
-    old =>
-      new ZEnvImpl(
-        clock0 = f(old.clock),
-        console0 = old.console,
-        system0 = old.system,
-        random0 = old.random
-      )
+    zEnvDecorator(clockDecorator = f)
 
   /**
    * Lifts a function that decorates a [[Console.Service[Any]]] to a function that decoratec an entire ZEnv.
    */
   def consoleDecorator(f: Console.Service[Any] => Console.Service[Any]): ZEnv => ZEnv =
-    old =>
-      new ZEnvImpl(
-        clock0 = old.clock,
-        console0 = f(old.console),
-        system0 = old.system,
-        random0 = old.random
-      )
+    zEnvDecorator(consoleDecorator = f)
 
   /**
    * Lifts a function that decorates a [[System.Service[Any]]] to a function that decoratec an entire ZEnv.
    */
   def systemDecorator(f: System.Service[Any] => System.Service[Any]): ZEnv => ZEnv =
-    old =>
-      new ZEnvImpl(
-        clock0 = old.clock,
-        console0 = old.console,
-        system0 = f(old.system),
-        random0 = old.random
-      )
+    zEnvDecorator(systemDecorator = f)
 
   /**
    * Lifts a function that decorates a [[Random.Service[Any]]] to a function that decoratec an entire ZEnv.
    */
   def randomDecorator(f: Random.Service[Any] => Random.Service[Any]): ZEnv => ZEnv =
+    zEnvDecorator(randomDecorator = f)
+
+  def zEnvDecorator(
+    clockDecorator: Clock.Service[Any] => Clock.Service[Any] = identity,
+    consoleDecorator: Console.Service[Any] => Console.Service[Any] = identity,
+    systemDecorator: System.Service[Any] => System.Service[Any] = identity,
+    randomDecorator: Random.Service[Any] => Random.Service[Any] = identity
+  ): ZEnv => ZEnv =
     old =>
-      new ZEnvImpl(
-        clock0 = old.clock,
-        console0 = old.console,
-        system0 = old.system,
-        random0 = f(old.random)
-      )
-  private[ZEnv] class ZEnvImpl(
-    clock0: Clock.Service[Any],
-    console0: Console.Service[Any],
-    system0: System.Service[Any],
-    random0: Random.Service[Any]
-  ) extends Clock
-      with Console
-      with System
-      with Random
-      with Blocking {
-    val clock    = clock0
-    val console  = console0
-    val system   = system0
-    val random   = random0
-    val blocking = blocking0
-  }
+      new Clock with Console with System with Random {
+        val clock   = clockDecorator(old.clock)
+        val console = consoleDecorator(old.console)
+        val system  = systemDecorator(old.system)
+        val random  = randomDecorator(old.random)
+      }
 }
