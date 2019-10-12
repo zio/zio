@@ -53,6 +53,9 @@ object ZEnv {
   def randomDecorator(f: Random.Service[Any] => Random.Service[Any]): ZEnv => ZEnv =
     zEnvDecorator(randomDecorator = f)
 
+  /**
+   * Create a decorator which modifies chosen parts of a Zenv.
+   */
   def zEnvDecorator(
     clockDecorator: Clock.Service[Any] => Clock.Service[Any] = identity,
     consoleDecorator: Console.Service[Any] => Console.Service[Any] = identity,

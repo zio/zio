@@ -58,7 +58,10 @@ object ZEnv {
   def blockingDecorator(f: Blocking.Service[Any] => Blocking.Service[Any]): ZEnv => ZEnv =
     zEnvDecorator(blockingDecorator = f)
 
-  def zEnvDecorator(
+  /**
+   * Create a decorator that modifies chosen parts of a Zenv.
+   */
+  def zEnvDecoratesor(
     clockDecorator: Clock.Service[Any] => Clock.Service[Any] = identity,
     consoleDecorator: Console.Service[Any] => Console.Service[Any] = identity,
     systemDecorator: System.Service[Any] => System.Service[Any] = identity,
