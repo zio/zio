@@ -482,25 +482,25 @@ object SinkSpec
             },
             testM("with leftover") {
               val sink = Sink.ignoreWhile[Int](_ < 0).optional
-              assertM(sinkIteration(sink, 1), equalTo((Some(()): Option[Unit], Chunk.single(1))))
+              assertM(sinkIteration(sink, 1), equalTo((Some(()), Chunk.single(1))))
             }
           ),
           suite("orElse")(
             testM("left") {
               val sink = ZSink.identity[Int] orElse ZSink.fail("Ouch")
-              assertM(sinkIteration(sink, 1), equalTo((Left(1): Either[Int, String], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Left(1), Chunk.empty)))
             },
             testM("right") {
               val sink = ZSink.fail("Ouch") orElse ZSink.identity[Int]
-              assertM(sinkIteration(sink, 1), equalTo((Right(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Right(1), Chunk.empty)))
             },
             testM("init error left") {
               val sink = initErrorSink orElse ZSink.identity[Int]
-              assertM(sinkIteration(sink, 1), equalTo((Right(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Right(1), Chunk.empty)))
             },
             testM("init error right") {
               val sink = ZSink.identity[Int] orElse initErrorSink
-              assertM(sinkIteration(sink, 1), equalTo((Left(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Left(1), Chunk.empty)))
             },
             testM("init error both") {
               val sink = initErrorSink orElse initErrorSink
@@ -508,11 +508,11 @@ object SinkSpec
             },
             testM("step error left") {
               val sink = stepErrorSink orElse ZSink.identity[Int]
-              assertM(sinkIteration(sink, 1), equalTo((Right(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Right(1), Chunk.empty)))
             },
             testM("step error right") {
               val sink = ZSink.identity[Int] orElse stepErrorSink
-              assertM(sinkIteration(sink, 1), equalTo((Left(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Left(1), Chunk.empty)))
             },
             testM("step error both") {
               val sink = stepErrorSink orElse stepErrorSink
@@ -520,11 +520,11 @@ object SinkSpec
             },
             testM("extract error left") {
               val sink = extractErrorSink orElse ZSink.identity[Int]
-              assertM(sinkIteration(sink, 1), equalTo((Right(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Right(1), Chunk.empty)))
             },
             testM("extract error right") {
               val sink = ZSink.identity[Int] orElse extractErrorSink
-              assertM(sinkIteration(sink, 1), equalTo((Left(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Left(1), Chunk.empty)))
             },
             testM("extract error both") {
               val sink = extractErrorSink orElse extractErrorSink
@@ -537,7 +537,7 @@ object SinkSpec
                 step1  <- sink.step(init, 1)
                 step2  <- sink.step(step1, 2)
                 result <- sink.extract(step2)
-              } yield assert(result, equalTo((Left(List(1, 2)): Either[List[Int], List[Int]], Chunk.empty)))
+              } yield assert(result, equalTo((Left(List(1, 2)), Chunk.empty)))
             },
             testM("left long right short") {
               val sink = ZSink.collectAll[Int] orElse ZSink.collectAllN[Int](2)
@@ -550,7 +550,7 @@ object SinkSpec
                 result <- sink.extract(step4)
               } yield assert(
                 result,
-                equalTo((Left(List(1, 2, 3, 4)): Either[List[Int], List[Int]], Chunk.empty))
+                equalTo((Left(List(1, 2, 3, 4)), Chunk.empty))
               )
             },
             testM("left long fail right short") {
@@ -563,21 +563,21 @@ object SinkSpec
                 step4  <- sink.step(step3, 4)
                 step5  <- sink.step(step4, 5)
                 result <- sink.extract(step5)
-              } yield assert(result, equalTo((Right(List(1, 2)): Either[List[Int], List[Int]], Chunk(3, 4, 5))))
+              } yield assert(result, equalTo((Right(List(1, 2)), Chunk(3, 4, 5))))
             }
           ),
           suite("raceBoth")(
             testM("left") {
               val sink = ZSink.identity[Int] raceBoth ZSink.succeed[Int, String]("Hello")
-              assertM(sinkIteration(sink, 1), equalTo((Left(1): Either[Int, String], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Left(1), Chunk.empty)))
             },
             testM("init error left") {
               val sink = initErrorSink raceBoth ZSink.identity[Int]
-              assertM(sinkIteration(sink, 1), equalTo((Right(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Right(1), Chunk.empty)))
             },
             testM("init error right") {
               val sink = ZSink.identity[Int] raceBoth initErrorSink
-              assertM(sinkIteration(sink, 1), equalTo((Left(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Left(1), Chunk.empty)))
             },
             testM("init error both") {
               val sink = initErrorSink raceBoth initErrorSink
@@ -588,11 +588,11 @@ object SinkSpec
             },
             testM("step error left") {
               val sink = stepErrorSink raceBoth ZSink.identity[Int]
-              assertM(sinkIteration(sink, 1), equalTo((Right(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Right(1), Chunk.empty)))
             },
             testM("step error right") {
               val sink = ZSink.identity[Int] raceBoth stepErrorSink
-              assertM(sinkIteration(sink, 1), equalTo((Left(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Left(1), Chunk.empty)))
             },
             testM("step error both") {
               val sink = stepErrorSink raceBoth stepErrorSink
@@ -603,11 +603,11 @@ object SinkSpec
             },
             testM("extract error left") {
               val sink = extractErrorSink raceBoth ZSink.identity[Int]
-              assertM(sinkIteration(sink, 1), equalTo((Right(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Right(1), Chunk.empty)))
             },
             testM("extract error right") {
               val sink = ZSink.identity[Int] raceBoth extractErrorSink
-              assertM(sinkIteration(sink, 1), equalTo((Left(1): Either[Int, Int], Chunk.empty)))
+              assertM(sinkIteration(sink, 1), equalTo((Left(1), Chunk.empty)))
             },
             testM("extract error both") {
               val sink = extractErrorSink raceBoth extractErrorSink
@@ -634,7 +634,7 @@ object SinkSpec
                 result <- sink.extract(step2)
               } yield assert(
                 result,
-                equalTo((Right(List(1, 2)): Either[List[Int], List[Int]], Chunk.empty))
+                equalTo((Right(List(1, 2)), Chunk.empty))
               )
             }
           ),
@@ -680,14 +680,14 @@ object SinkSpec
                          .flatMap(sink.stepChunk(_, Chunk(1, 2)).map(_._1))
                          .flatMap(sink.stepChunk(_, Chunk(2, 2)).map(_._1))
                          .flatMap(sink.extract)
-              } yield assert(under, equalTo(None -> Chunk.empty: (Option[List[Int]], Chunk[Int]))) && assert(
+              } yield assert(under, equalTo(None -> Chunk.empty)) && assert(
                 over,
-                equalTo(Some(List(1, 2, 2)) -> Chunk(2): (Option[List[Int]], Chunk[Int]))
+                equalTo(Some(List(1, 2, 2)) -> Chunk(2))
               )
             },
             testM("false predicate") {
               val sink = ZSink.identity[Int].untilOutput(_ < 0)
-              assertM(sinkIteration(sink, 1), equalTo((None, Chunk.empty): (Option[Int], Chunk[Int])))
+              assertM(sinkIteration(sink, 1), equalTo((None, Chunk.empty)))
             },
             testM("init error") {
               val sink = initErrorSink.untilOutput(_ == 0)
