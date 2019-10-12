@@ -61,7 +61,7 @@ object ZEnv {
   /**
    * Create a decorator that modifies chosen parts of a Zenv.
    */
-  def zEnvDecoratesor(
+  def zEnvDecorator(
     clockDecorator: Clock.Service[Any] => Clock.Service[Any] = identity,
     consoleDecorator: Console.Service[Any] => Console.Service[Any] = identity,
     systemDecorator: System.Service[Any] => System.Service[Any] = identity,
