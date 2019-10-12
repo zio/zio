@@ -16,25 +16,8 @@
 
 package zio.zmx
 
-import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
-
-sealed trait ZMXCommands
-
-case object Test extends ZMXCommands
-case object Stop extends ZMXCommands
-
-object ZMXCommands {
-  def ByteBufferToString(bytes: ByteBuffer): String = {
-    return new String(bytes.array()).trim()
-  }
-
-  def StringToByteBuffer(message: String): ByteBuffer = {
-    return ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8))
-  }
-}
-
 case class ZMXConfig(host: String, port: Int, debug: Boolean)
 object ZMXConfig {
   def empty = new ZMXConfig("localhost", 1111, false)
 }
+
