@@ -4,7 +4,7 @@ addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                   %
 addSbtPlugin("pl.project13.scala"                % "sbt-jcstress"              % "0.2.0")
 addSbtPlugin("org.scala-js"                      % "sbt-scalajs"               % "0.6.29")
 addSbtPlugin("org.portable-scala"                % "sbt-scalajs-crossproject"  % "0.6.1")
-addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"              % "2.0.6")
+addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"              % "2.0.7")
 addSbtPlugin("com.eed3si9n"                      % "sbt-buildinfo"             % "0.9.0")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"          % "3.0.0")
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies" % "0.2.11")
