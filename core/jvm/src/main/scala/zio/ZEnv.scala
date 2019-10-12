@@ -24,7 +24,7 @@ import zio.blocking.Blocking
 object ZEnv {
 
   /**
-   * Lifts a function that decorates a [[Clock.Service[Any]]] to a function that decoratec an entire ZEnv.
+   * Lifts a function that decorates a [[Clock.Service]] to a function that decoratec an entire ZEnv.
    *
    * Use this with [[ZIO#provideSome]] for maximum effect.
    * {{{
@@ -35,25 +35,25 @@ object ZEnv {
     zEnvDecorator(clockDecorator = f)
 
   /**
-   * Lifts a function that decorates a [[Console.Service[Any]]] to a function that decoratec an entire ZEnv.
+   * Lifts a function that decorates a [[Console.Service]] to a function that decoratec an entire ZEnv.
    */
   def consoleDecorator(f: Console.Service[Any] => Console.Service[Any]): ZEnv => ZEnv =
     zEnvDecorator(consoleDecorator = f)
 
   /**
-   * Lifts a function that decorates a [[System.Service[Any]]] to a function that decoratec an entire ZEnv.
+   * Lifts a function that decorates a [[System.Service]] to a function that decoratec an entire ZEnv.
    */
   def systemDecorator(f: System.Service[Any] => System.Service[Any]): ZEnv => ZEnv =
     zEnvDecorator(systemDecorator = f)
 
   /**
-   * Lifts a function that decorates a [[Random.Service[Any]]] to a function that decoratec an entire ZEnv.
+   * Lifts a function that decorates a [[Random.Service]] to a function that decoratec an entire ZEnv.
    */
   def randomDecorator(f: Random.Service[Any] => Random.Service[Any]): ZEnv => ZEnv =
     zEnvDecorator(randomDecorator = f)
 
   /**
-   * Lifts a function that decorates a [[Blocking.Service[Any]]] to a function that decoratec an entire ZEnv.
+   * Lifts a function that decorates a [[Blocking.Service]] to a function that decoratec an entire ZEnv.
    */
   def blockingDecorator(f: Blocking.Service[Any] => Blocking.Service[Any]): ZEnv => ZEnv =
     zEnvDecorator(blockingDecorator = f)
