@@ -45,7 +45,7 @@ object PromiseSpec
         testM("fail a promise using complete") {
           for {
             p  <- Promise.make[String, Int]
-            r  <- Ref.make[List[String]](List("first error", "second error"))
+            r  <- Ref.make(List("first error", "second error"))
             s  <- p.complete(r.modify(as => (as.head, as.tail)).flip)
             v1 <- p.await.run
             v2 <- p.await.run
@@ -56,7 +56,7 @@ object PromiseSpec
         testM("fail a promise using completeWith") {
           for {
             p  <- Promise.make[String, Int]
-            r  <- Ref.make[List[String]](List("first error", "second error"))
+            r  <- Ref.make(List("first error", "second error"))
             s  <- p.completeWith(r.modify(as => (as.head, as.tail)).flip)
             v1 <- p.await.run
             v2 <- p.await.run
