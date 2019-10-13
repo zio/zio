@@ -816,12 +816,12 @@ object SinkSpec
             }
           ),
           suite("fold")(
-            //     testM("fold")(checkM(pureStreamGen(Gen.anyInt), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
-            //       for {
-            //         xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-            //         ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
-            //       } yield assert(xs, equalTo(ys))
-            //     }),
+            testM("fold")(checkM(pureStreamGen(Gen.anyInt), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
+              for {
+                xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
+                ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
+              } yield assert(xs, equalTo(ys))
+            }),
             testM("short circuits") {
               val empty: Stream[Nothing, Int]     = ZStream.empty
               val single: Stream[Nothing, Int]    = ZStream.succeed(1)
