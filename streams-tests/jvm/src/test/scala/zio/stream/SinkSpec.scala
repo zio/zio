@@ -1040,22 +1040,22 @@ object SinkSpec
             assertM(stream.run(sink), isSome(equalTo(1)))
           },
           suite("splitLines")(
-            //     testM("preserves data")(
-            //       checkM(
-            //         Gen
-            //           .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
-            //           .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
-            //       ) { (lines: List[String]) =>
-            //         val data = lines.mkString("\n")
+            testM("preserves data")(
+              checkM(
+                Gen
+                  .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
+                  .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+              ) { (lines: List[String]) =>
+                val data = lines.mkString("\n")
 
-            //         for {
-            //           initial            <- ZSink.splitLines.initial
-            //           middle             <- ZSink.splitLines.step(initial, data)
-            //           res                <- ZSink.splitLines.extract(middle)
-            //           (result, leftover) = res
-            //         } yield assert((result ++ leftover).toArray[String].mkString("\n"), equalTo(lines.mkString("\n")))
-            //       }
-            //     ),
+                for {
+                  initial            <- ZSink.splitLines.initial
+                  middle             <- ZSink.splitLines.step(initial, data)
+                  res                <- ZSink.splitLines.extract(middle)
+                  (result, leftover) = res
+                } yield assert((result ++ leftover).toArray[String].mkString("\n"), equalTo(lines.mkString("\n")))
+              }
+            ),
             testM("handles leftovers") {
               for {
                 initial            <- ZSink.splitLines.initial
