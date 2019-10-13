@@ -1463,12 +1463,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                 c => (interruptWorkers.succeed(()) *> out.offer(Pull.halt(c))).unit.toManaged_,
                 _ => out.offer(Pull.end).unit.toManaged_
               )
-              .mapM(a => UIO(println("12")).as(a))
               .ensuringFirst(
-                UIO(println("14")) *> interruptWorkers.succeed(()) *> UIO(println("15")) *> permits
-                  .withPermits(n.toLong)(ZIO.unit) <* UIO(println("16"))
+                interruptWorkers.succeed(()) *> permits
+                  .withPermits(n.toLong)(ZIO.unit)
               )
-              .mapM(a => UIO(println("17")).as(a))
               .fork
       } yield out.take.flatten
     }
