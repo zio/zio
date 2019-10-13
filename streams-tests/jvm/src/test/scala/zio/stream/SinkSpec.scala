@@ -852,21 +852,21 @@ object SinkSpec
             }
           ),
           suite("foldM")(
-            //     testM("foldM") {
-            //       val ioGen = successes(Gen.anyString)
-            //       checkM(pureStreamGen(Gen.anyInt), Gen.function(ioGen), ioGen) { (s, f, z) =>
-            //         for {
-            //           sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(Function.untupled(f))))
-            //           foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
-            //                          .map(_.reverse)
-            //                          .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(x => f(x -> el))))
-            //                          .run
-            //         } yield assert(foldResult.succeeded, isTrue) implies assert(
-            //           foldResult,
-            //           succeeds(equalTo(sinkResult))
-            //         )
-            //       }
-            //     },
+            testM("foldM") {
+              val ioGen = successes(Gen.anyString)
+              checkM(pureStreamGen(Gen.anyInt), Gen.function(ioGen), ioGen) { (s, f, z) =>
+                for {
+                  sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(Function.untupled(f))))
+                  foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
+                                 .map(_.reverse)
+                                 .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(x => f(x -> el))))
+                                 .run
+                } yield assert(foldResult.succeeded, isTrue) implies assert(
+                  foldResult,
+                  succeeds(equalTo(sinkResult))
+                )
+              }
+            },
             testM("short circuits") {
               val empty: Stream[Nothing, Int]     = ZStream.empty
               val single: Stream[Nothing, Int]    = ZStream.succeed(1)
