@@ -23,48 +23,48 @@ import zio.random.Random
 object ZEnv {
 
   /**
-   * Lifts a function that decorates a [[Clock.Service]] to a function that decoratec an entire ZEnv.
+   * Map the [[Clock.Service]] component of a ZEnv, keeping all other services the same.
    *
    * Use this with [[ZIO#provideSome]] for maximum effect.
    * {{{
-   *   clock.sleep(1.second).provideSome(ZEnv.clockDecorator(oldClock => ???))
+   *   clock.sleep(1.second).provideSome(ZEnv.mapClock(oldClock => ???))
    * }}}
    */
-  def clockDecorator(f: Clock.Service[Any] => Clock.Service[Any]): ZEnv => ZEnv =
-    zEnvDecorator(clockDecorator = f)
+  def mapClock(f: Clock.Service[Any] => Clock.Service[Any]): ZEnv => ZEnv =
+    mapAll(mapClock = f)
 
   /**
-   * Lifts a function that decorates a [[Console.Service]] to a function that decoratec an entire ZEnv.
+   * Map the [[Console.Service]] component of a ZEnv, keeping all other services the same.
    */
-  def consoleDecorator(f: Console.Service[Any] => Console.Service[Any]): ZEnv => ZEnv =
-    zEnvDecorator(consoleDecorator = f)
+  def mapConsole(f: Console.Service[Any] => Console.Service[Any]): ZEnv => ZEnv =
+    mapAll(mapConsole = f)
 
   /**
-   * Lifts a function that decorates a [[System.Service]] to a function that decoratec an entire ZEnv.
+   * Map the [[System.Service]] component of a ZEnv, keeping all other services the same.
    */
-  def systemDecorator(f: System.Service[Any] => System.Service[Any]): ZEnv => ZEnv =
-    zEnvDecorator(systemDecorator = f)
+  def mapSystem(f: System.Service[Any] => System.Service[Any]): ZEnv => ZEnv =
+    mapAll(mapSystem = f)
 
   /**
-   * Lifts a function that decorates a [[Random.Service]] to a function that decoratec an entire ZEnv.
+   * Map the [[Random.Service]] component of a ZEnv, keeping all other services the same.
    */
-  def randomDecorator(f: Random.Service[Any] => Random.Service[Any]): ZEnv => ZEnv =
-    zEnvDecorator(randomDecorator = f)
+  def mapRandom(f: Random.Service[Any] => Random.Service[Any]): ZEnv => ZEnv =
+    mapAll(mapRandom = f)
 
   /**
-   * Create a decorator which modifies chosen parts of a Zenv.
+   * Map all components of a ZEnv individually.
    */
-  def zEnvDecorator(
-    clockDecorator: Clock.Service[Any] => Clock.Service[Any] = identity,
-    consoleDecorator: Console.Service[Any] => Console.Service[Any] = identity,
-    systemDecorator: System.Service[Any] => System.Service[Any] = identity,
-    randomDecorator: Random.Service[Any] => Random.Service[Any] = identity
+  def mapAll(
+    mapClock: Clock.Service[Any] => Clock.Service[Any] = identity,
+    mapConsole: Console.Service[Any] => Console.Service[Any] = identity,
+    mapSystem: System.Service[Any] => System.Service[Any] = identity,
+    mapRandom: Random.Service[Any] => Random.Service[Any] = identity
   ): ZEnv => ZEnv =
     old =>
       new Clock with Console with System with Random {
-        val clock   = clockDecorator(old.clock)
-        val console = consoleDecorator(old.console)
-        val system  = systemDecorator(old.system)
-        val random  = randomDecorator(old.random)
+        val clock   = mapClock(old.clock)
+        val console = mapConsole(old.console)
+        val system  = mapSystem(old.system)
+        val random  = mapRandom(old.random)
       }
 }
