@@ -7,7 +7,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.random.Random
 import zio.test._
-import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isTrue, succeeds }
+import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isSome, isTrue, succeeds }
 import zio.test.environment.TestClock
 import SinkUtils._
 
@@ -1019,26 +1019,26 @@ object SinkSpec
           //       )
           //     }
           //   ),
-          //   testM("fromOutputStream") {
-          //     import java.io.ByteArrayOutputStream
+          testM("fromOutputStream") {
+            import java.io.ByteArrayOutputStream
 
-          //     val output = new ByteArrayOutputStream()
-          //     val data   = "0123456789"
-          //     val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
+            val output = new ByteArrayOutputStream()
+            val data   = "0123456789"
+            val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
 
-          //     for {
-          //       bytesWritten <- stream.run(ZSink.fromOutputStream(output))
-          //     } yield assert(bytesWritten, equalTo(10)) && assert(
-          //       new String(output.toByteArray, "UTF-8"),
-          //       equalTo(data)
-          //     )
-          //   },
-          //   testM("pull1") {
-          //     val stream = Stream.fromIterable(List(1))
-          //     val sink   = Sink.pull1(IO.succeed(Option.empty[Int]))((i: Int) => Sink.succeed[Int, Option[Int]](Some(i)))
+            for {
+              bytesWritten <- stream.run(ZSink.fromOutputStream(output))
+            } yield assert(bytesWritten, equalTo(10)) && assert(
+              new String(output.toByteArray, "UTF-8"),
+              equalTo(data)
+            )
+          },
+          testM("pull1") {
+            val stream = Stream.fromIterable(List(1))
+            val sink   = Sink.pull1(IO.succeed(Option.empty[Int]))((i: Int) => Sink.succeed[Int, Option[Int]](Some(i)))
 
-          //     assertM(stream.run(sink), equalTo(Some(1)))
-          //   },
+            assertM(stream.run(sink), isSome(equalTo(1)))
+          },
           suite("splitLines")(
             //     testM("preserves data")(
             //       checkM(
