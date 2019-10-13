@@ -85,6 +85,9 @@ object ZIOSpec
               v <- ref.get
             } yield assert(e, equalTo("C")) && assert(v, isFalse)
           },
+          testM("is safe for empty input") {
+            assertM(ZIO.foreachPar(List.empty[ZIO[Any, Nothing, Unit]])(identity), equalTo(List.empty))
+          },
           testM("interrupts effects on it's interruption") {
             for {
               ref     <- Ref.make(false)

@@ -20,7 +20,6 @@ import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 import scala.reflect.ClassTag
@@ -2025,42 +2024,66 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
     def arbiter(
-      promise: Promise[Cause[E], List[B]],
-      buffer: Ref[mutable.ArraySeq[B]],
+      buffer: Array[Either[Cause[E], B]],
+      idx: Int,
+      interruptOthers: Promise[Nothing, Boolean],
       todo: Ref[Int],
-      idx: Int
+      failed: Ref[Boolean]
     )(res: Exit[E, B]): ZIO[R, Nothing, Unit] =
-      res.foldM[R, Nothing, Unit](
-        e => promise.fail(e).unit,
-        a =>
-          todo.modify { t =>
-            val updateBuffer = buffer.modify(b => (b.update(idx, a), b))
-            if (t == 1) (updateBuffer <* buffer.get.flatMap(b => promise.succeed(b.toList))) -> 0
-            else updateBuffer                                                                -> (t - 1)
-          }.flatten
-      )
-
-    (for {
-      size    <- UIO.effectTotal(as.size)
-      todo    <- Ref.make(size)
-      buffer  <- Ref.make(new mutable.ArraySeq[B](size))
-      promise <- Promise.make[Cause[E], List[B]]
-      c <- ZIO.uninterruptibleMask { restore =>
-            for {
-              fibers <- ZIO.traverse(as.zipWithIndex) {
-                         case (a, idx) =>
-                           ZIO
-                             .interruptible(fn(a))
-                             .run
-                             .flatMap(arbiter(promise, buffer, todo, idx))
-                             .fork
-                       }
-              _ <- promise.succeed(Nil).when(fibers.isEmpty)
-              c <- restore(promise.await.unsandbox)
-                    .onError(_ => promise.interrupt *> Fiber.interruptAll(fibers))
-            } yield c
+      res
+        .foldM(
+          e => {
+            buffer.update(idx, Left(e))
+            interruptOthers.succeed(true).when(!e.interrupted) *> failed.set(true) *> todo.update(_ - 1)
+          },
+          b => {
+            buffer.update(idx, Right(b))
+            todo.update(_ - 1)
           }
-    } yield c).refailWithTrace
+        )
+        .flatMap(t => interruptOthers.succeed(false).when(t == 0))
+
+    if (as.isEmpty) ZIO.succeed(List.empty)
+    else
+      (for {
+        size            <- UIO.effectTotal(as.size)
+        buffer          = Array.ofDim[Either[Cause[E], B]](size)
+        todo            <- Ref.make(size)
+        failed          <- Ref.make(false)
+        interruptOthers <- Promise.make[Nothing, Boolean]
+        c <- ZIO.uninterruptibleMask { restore =>
+              for {
+                fibers <- ZIO.traverse(as.zipWithIndex) {
+                           case (a, idx) =>
+                             ZIO
+                               .interruptible(fn(a))
+                               .run
+                               .flatMap(arbiter(buffer, idx, interruptOthers, todo, failed))
+                               .fork
+                         }
+                x = interruptOthers.await
+                  .flatMap(interrupt => Fiber.interruptAll(fibers).when(interrupt) *> failed.get)
+                  .flatMap(
+                    failed =>
+                      if (failed) {
+                        val h :: t = buffer.toList.collect {
+                          case Left(cause) => cause
+                        }
+                        val combined = t.fold(h)(_ && _)
+                        ZIO.fail(combined)
+                      } else {
+                        val result = buffer.toList.collect {
+                          case Right(b) => b
+                        }
+                        ZIO.succeed(result)
+                      }
+                  )
+                  .unsandbox
+
+                c <- restore(x).onInterrupt(Fiber.interruptAll(fibers))
+              } yield c
+            }
+      } yield c).refailWithTrace
   }
 
   /**
