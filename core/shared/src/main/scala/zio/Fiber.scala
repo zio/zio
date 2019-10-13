@@ -217,7 +217,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B The success value.
    * @return `Fiber[E, B]` The continued fiber.
    */
-  final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B]): UIO[Fiber[E1, B]] = 
+  final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B]): UIO[Fiber[E1, B]] =
     self.await.map(_.fold(Fiber.halt(_), f))
 
   /**
