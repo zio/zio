@@ -89,7 +89,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Completes the promise with the result of the specified effect. If the
    * promise has already been completed, the method will produce false.
    *
-   * Note that [[Promise.completeWith]]` will be much faster, so consider using
+   * Note that [[Promise.completeWith]] will be much faster, so consider using
    * that if you do not need to memoize the result of the specified effect.
    */
   final def complete(io: IO[E, A]): UIO[Boolean] =
