@@ -803,18 +803,18 @@ object SinkSpec
           })
         ),
         suite("Constructors")(
-          //   testM("foldLeft")(
-          //     checkM(
-          //       pureStreamGen(Gen.anyInt),
-          //       Gen.function[Random with Sized, (String, Int), String](Gen.anyString),
-          //       Gen.anyString
-          //     ) { (s, f, z) =>
-          //       for {
-          //         xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-          //         ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
-          //       } yield assert(xs, equalTo(ys))
-          //     }
-          //   ),
+          testM("foldLeft")(
+            checkM(
+              pureStreamGen(Gen.anyInt),
+              Gen.function[Random with Sized, (String, Int), String](Gen.anyString),
+              Gen.anyString
+            ) { (s, f, z) =>
+              for {
+                xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
+                ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
+              } yield assert(xs, equalTo(ys))
+            }
+          ),
           suite("fold")(
             //     testM("fold")(checkM(pureStreamGen(Gen.anyInt), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
             //       for {
