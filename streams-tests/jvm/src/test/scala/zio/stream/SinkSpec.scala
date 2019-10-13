@@ -936,89 +936,89 @@ object SinkSpec
             //       }
             //     )
           ),
-          //   suite("foldWeighted/foldUntil")(
-          //     testM("foldWeighted") {
-          //       assertM(
-          //         Stream[Long](1, 5, 2, 3)
-          //           .transduce(
-          //             Sink.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
-          //           )
-          //           .runCollect,
-          //         equalTo(List(List(1L, 5L), List(2L, 3L)))
-          //       )
-          //     },
-          //     testM("foldWeightedDecompose") {
-          //       assertM(
-          //         Stream(1, 5, 1)
-          //           .transduce(
-          //             Sink
-          //               .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
-          //                 (acc, el) =>
-          //                   el :: acc
-          //               }
-          //               .map(_.reverse)
-          //           )
-          //           .runCollect,
-          //         equalTo(List(List(1), List(4), List(1, 1)))
-          //       )
-          //     },
-          //     testM("foldWeightedM") {
-          //       assertM(
-          //         Stream[Long](1, 5, 2, 3)
-          //           .transduce(
-          //             Sink
-          //               .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)(
-          //                 (acc, el) => UIO.succeed(el :: acc)
-          //               )
-          //               .map(_.reverse)
-          //           )
-          //           .runCollect,
-          //         equalTo(List(List(1L, 5L), List(2L, 3L)))
-          //       )
-          //     },
-          //     testM("foldWeightedDecomposeM") {
-          //       assertM(
-          //         Stream(1, 5, 1)
-          //           .transduce(
-          //             Sink
-          //               .foldWeightedDecomposeM(List[Int]())(
-          //                 (i: Int) => UIO.succeed(i.toLong),
-          //                 4,
-          //                 (i: Int) => UIO.succeed(Chunk(i - 1, 1))
-          //               ) { (acc, el) =>
-          //                 UIO.succeed(el :: acc)
-          //               }
-          //               .map(_.reverse)
-          //           )
-          //           .runCollect,
-          //         equalTo(List(List(1), List(4), List(1, 1)))
-          //       )
-          //     },
-          //     testM("foldUntil") {
-          //       assertM(
-          //         Stream[Long](1, 1, 1, 1, 1, 1)
-          //           .transduce(Sink.foldUntil(0L, 3)(_ + (_: Long)))
-          //           .runCollect,
-          //         equalTo(List(3L, 3L))
-          //       )
-          //     },
-          //     testM("foldUntilM") {
-          //       assertM(
-          //         Stream[Long](1, 1, 1, 1, 1, 1)
-          //           .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
-          //           .runCollect,
-          //         equalTo(List(3L, 3L))
-          //       )
-          //     },
-          //     testM("fromFunction") {
-          //       assertM(
-          //         Stream(1, 2, 3, 4, 5)
-          //           .transduce(Sink.fromFunction[Int, String](_.toString))
-          //           .runCollect,
-          //         equalTo(List("1", "2", "3", "4", "5"))
-          //       )
-          //     }
-          //   ),
+          suite("foldWeighted/foldUntil")(
+            testM("foldWeighted") {
+              assertM(
+                Stream[Long](1, 5, 2, 3)
+                  .transduce(
+                    Sink.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
+                  )
+                  .runCollect,
+                equalTo(List(List(1L, 5L), List(2L, 3L)))
+              )
+            },
+            testM("foldWeightedDecompose") {
+              assertM(
+                Stream(1, 5, 1)
+                  .transduce(
+                    Sink
+                      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
+                        (acc, el) =>
+                          el :: acc
+                      }
+                      .map(_.reverse)
+                  )
+                  .runCollect,
+                equalTo(List(List(1), List(4), List(1, 1)))
+              )
+            },
+            testM("foldWeightedM") {
+              assertM(
+                Stream[Long](1, 5, 2, 3)
+                  .transduce(
+                    Sink
+                      .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)(
+                        (acc, el) => UIO.succeed(el :: acc)
+                      )
+                      .map(_.reverse)
+                  )
+                  .runCollect,
+                equalTo(List(List(1L, 5L), List(2L, 3L)))
+              )
+            },
+            testM("foldWeightedDecomposeM") {
+              assertM(
+                Stream(1, 5, 1)
+                  .transduce(
+                    Sink
+                      .foldWeightedDecomposeM(List[Int]())(
+                        (i: Int) => UIO.succeed(i.toLong),
+                        4,
+                        (i: Int) => UIO.succeed(Chunk(i - 1, 1))
+                      ) { (acc, el) =>
+                        UIO.succeed(el :: acc)
+                      }
+                      .map(_.reverse)
+                  )
+                  .runCollect,
+                equalTo(List(List(1), List(4), List(1, 1)))
+              )
+            },
+            testM("foldUntil") {
+              assertM(
+                Stream[Long](1, 1, 1, 1, 1, 1)
+                  .transduce(Sink.foldUntil(0L, 3)(_ + (_: Long)))
+                  .runCollect,
+                equalTo(List(3L, 3L))
+              )
+            },
+            testM("foldUntilM") {
+              assertM(
+                Stream[Long](1, 1, 1, 1, 1, 1)
+                  .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
+                  .runCollect,
+                equalTo(List(3L, 3L))
+              )
+            },
+            testM("fromFunction") {
+              assertM(
+                Stream(1, 2, 3, 4, 5)
+                  .transduce(Sink.fromFunction[Int, String](_.toString))
+                  .runCollect,
+                equalTo(List("1", "2", "3", "4", "5"))
+              )
+            }
+          ),
           testM("fromOutputStream") {
             import java.io.ByteArrayOutputStream
 
