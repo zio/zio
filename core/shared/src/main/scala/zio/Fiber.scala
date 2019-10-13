@@ -217,11 +217,21 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E, B]` mapped fiber
    */
   final def map[B](f: A => B): Fiber[E, B] =
-    new Fiber[E, B] {
-      def await: UIO[Exit[E, B]]        = self.await.map(_.map(f))
-      def poll: UIO[Option[Exit[E, B]]] = self.poll.map(_.map(_.map(f)))
-      def interrupt: UIO[Exit[E, B]]    = self.interrupt.map(_.map(f))
-      def inheritFiberRefs: UIO[Unit]   = self.inheritFiberRefs
+    mapM(f andThen UIO.succeed)
+
+  /**
+   * Effectually maps over the value the fiber computes.
+   */
+  def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber[E1, B] =
+    new Fiber[E1, B] {
+      def await: UIO[Exit[E1, B]] =
+        self.await.flatMap(_.foreach(f))
+      def inheritFiberRefs: UIO[Unit] =
+        self.inheritFiberRefs
+      def interrupt: UIO[Exit[E1, B]] =
+        self.interrupt.flatMap(_.foreach(f))
+      def poll: UIO[Option[Exit[E1, B]]] =
+        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
     }
 
   @deprecated("use as", "1.0.0")
