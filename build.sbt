@@ -48,6 +48,8 @@ addCommandAlias(
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile"
 )
 
+addCommandAlias("test", ";testJVM;testJS")
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -228,6 +230,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .jsSettings(libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test)
   .dependsOn(testRunner)
 
 lazy val examplesJS  = examples.js
