@@ -22,8 +22,7 @@ object TestMain {
       ("SampleSpec", SampleSpec),
       ("SchedulerSpec", SchedulerSpec),
       ("SystemSpec", SystemSpec),
-      ("TestAspectSpec", TestAspectSpec),
-      ("TestSpec", TestSpec)
+      ("TestAspectSpec", TestAspectSpec)
     )
 
     val selectedTests = args match {
