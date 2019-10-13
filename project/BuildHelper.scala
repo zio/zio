@@ -80,7 +80,7 @@ object BuildHelper {
        |import zio.duration._
        |object replRTS extends DefaultRuntime {}
        |import replRTS._
-       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -91,7 +91,7 @@ object BuildHelper {
        |import zio.stream._
        |object replRTS extends DefaultRuntime {}
        |import replRTS._
-       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -230,7 +230,7 @@ object BuildHelper {
     def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
 
     s"""|${header(" ________ ___")}
-        |${header("|__  /_ _/ _ \\")} 
+        |${header("|__  /_ _/ _ \\")}
         |${header("  / / | | | | |")}
         |${header(" / /_ | | |_| |")}
         |${header(s"/____|___\\___/   ${version.value}")}
