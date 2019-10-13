@@ -1247,65 +1247,65 @@ object SinkSpec
                 test <- fiber.join
               } yield test
             }
+          ),
+          suite("utf8DecodeChunk")(
+            testM("regular strings")(checkM(Gen.anyString) { s =>
+              assertM(
+                Stream(Chunk.fromArray(s.getBytes("UTF-8")))
+                  .transduce(ZSink.utf8DecodeChunk)
+                  .runCollect
+                  .map(_.mkString),
+                equalTo(s)
+              )
+            }),
+            testM("incomplete chunk 1") {
+              for {
+                init        <- ZSink.utf8DecodeChunk.initial
+                state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xC2.toByte))
+                state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0xA2.toByte))
+                result      <- ZSink.utf8DecodeChunk.extract(state2)
+                (string, _) = result
+              } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
+                assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
+                assert(string.getBytes("UTF-8"), equalTo(Array(0xC2.toByte, 0xA2.toByte)))
+            },
+            testM("incomplete chunk 2") {
+              for {
+                init        <- ZSink.utf8DecodeChunk.initial
+                state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xE0.toByte, 0xA4.toByte))
+                state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0xB9.toByte))
+                result      <- ZSink.utf8DecodeChunk.extract(state2)
+                (string, _) = result
+              } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
+                assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
+                assert(string.getBytes("UTF-8"), equalTo(Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte)))
+            },
+            testM("incomplete chunk 3") {
+              for {
+                init        <- ZSink.utf8DecodeChunk.initial
+                state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte))
+                state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0x88.toByte))
+                result      <- ZSink.utf8DecodeChunk.extract(state2)
+                (string, _) = result
+              } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
+                assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
+                assert(string.getBytes("UTF-8"), equalTo(Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte)))
+            },
+            testM("chunk with leftover") {
+              for {
+                init <- ZSink.utf8DecodeChunk.initial
+                state1 <- ZSink.utf8DecodeChunk
+                           .step(
+                             init,
+                             Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)
+                           )
+                result <- ZSink.utf8DecodeChunk.extract(state1).map(_._2.flatMap(identity).toArray[Byte])
+              } yield assert(ZSink.utf8DecodeChunk.cont(state1), isFalse) && assert(
+                result,
+                equalTo(Array(0xF0.toByte, 0x90.toByte))
+              )
+            }
           )
-          //   suite("utf8DecodeChunk")(
-          //     testM("regular strings")(checkM(Gen.anyString) { s =>
-          //       assertM(
-          //         Stream(Chunk.fromArray(s.getBytes("UTF-8")))
-          //           .transduce(ZSink.utf8DecodeChunk)
-          //           .runCollect
-          //           .map(_.mkString),
-          //         equalTo(s)
-          //       )
-          //     }),
-          //     testM("incomplete chunk 1") {
-          //       for {
-          //         init        <- ZSink.utf8DecodeChunk.initial
-          //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xC2.toByte))
-          //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0xA2.toByte))
-          //         result      <- ZSink.utf8DecodeChunk.extract(state2)
-          //         (string, _) = result
-          //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
-          //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
-          //         assert(string.getBytes("UTF-8"), equalTo(Array(0xC2.toByte, 0xA2.toByte)))
-          //     },
-          //     testM("incomplete chunk 2") {
-          //       for {
-          //         init        <- ZSink.utf8DecodeChunk.initial
-          //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xE0.toByte, 0xA4.toByte))
-          //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0xB9.toByte))
-          //         result      <- ZSink.utf8DecodeChunk.extract(state2)
-          //         (string, _) = result
-          //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
-          //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
-          //         assert(string.getBytes("UTF-8"), equalTo(Array(0xE0.toByte, 0xA4.toByte, 0xB9.toByte)))
-          //     },
-          //     testM("incomplete chunk 3") {
-          //       for {
-          //         init        <- ZSink.utf8DecodeChunk.initial
-          //         state1      <- ZSink.utf8DecodeChunk.step(init, Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte))
-          //         state2      <- ZSink.utf8DecodeChunk.step(state1, Chunk(0x88.toByte))
-          //         result      <- ZSink.utf8DecodeChunk.extract(state2)
-          //         (string, _) = result
-          //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isTrue) &&
-          //         assert(ZSink.utf8DecodeChunk.cont(state2), isFalse) &&
-          //         assert(string.getBytes("UTF-8"), equalTo(Array(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte)))
-          //     },
-          //     testM("chunk with leftover") {
-          //       for {
-          //         init <- ZSink.utf8DecodeChunk.initial
-          //         state1 <- ZSink.utf8DecodeChunk
-          //                    .step(
-          //                      init,
-          //                      Chunk(0xF0.toByte, 0x90.toByte, 0x8D.toByte, 0x88.toByte, 0xF0.toByte, 0x90.toByte)
-          //                    )
-          //         result <- ZSink.utf8DecodeChunk.extract(state1).map(_._2.flatMap(identity).toArray[Byte])
-          //       } yield assert(ZSink.utf8DecodeChunk.cont(state1), isFalse) && assert(
-          //         result,
-          //         equalTo(Array(0xF0.toByte, 0x90.toByte))
-          //       )
-          //     }
-          //   )
         ),
         suite("Usecases")(
           testM("Number array parsing with Sink.foldM") {
