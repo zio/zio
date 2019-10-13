@@ -734,9 +734,10 @@ private[zio] final class FiberContext[E, A](
 
     UIO.effectSuspendTotal {
       setInterrupted()
-      await <* UIO(children.get.foldLeft(UIO.unit) {
-        case (acc, child) => acc <* child.interrupt
-      })
+      // TODO: Children set can be changing...
+      children.get.foldLeft[UIO[Any]](UIO.unit) {
+        case (acc, child) => acc *> child.interrupt
+      } *> await
     }
   }
 

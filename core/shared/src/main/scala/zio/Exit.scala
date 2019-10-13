@@ -81,6 +81,15 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
+   * Flat maps over the value type.
+   */
+  final def flatMapM[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
+    self match {
+      case Success(a)     => f(a)
+      case e @ Failure(_) => ZIO.succeed(e)
+    }
+
+  /**
    * Folds over the value or cause.
    */
   final def fold[Z](failed: Cause[E] => Z, completed: A => Z): Z =

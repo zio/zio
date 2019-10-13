@@ -210,6 +210,17 @@ trait Fiber[+E, +A] { self =>
     self <* that
 
   /**
+   * Passes the success of this fiber to the specified callback, and continues
+   * with the fiber that it returns.
+   *
+   * @param f The callback.
+   * @tparam B The success value.
+   * @return `Fiber[E, B]` The continued fiber.
+   */
+  final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B]): UIO[Fiber[E1, B]] = 
+    self.await.map(_.fold(Fiber.halt(_), f))
+
+  /**
    * Maps over the value the Fiber computes.
    *
    * @param f mapping function
@@ -359,6 +370,11 @@ object Fiber {
    */
   final def fromEffect[E, A](io: IO[E, A]): UIO[Fiber[E, A]] =
     io.run.map(done(_))
+
+  /**
+   * Creates a `Fiber` that is halted with the specified cause.
+   */
+  final def halt[E](cause: Cause[E]): Fiber[E, Nothing] = done(Exit.halt(cause))
 
   /**
    * A fiber that is already interrupted.
