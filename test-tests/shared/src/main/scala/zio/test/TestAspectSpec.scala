@@ -15,6 +15,30 @@ object TestAspectSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(aroundEvaluatesTestsInsideContextOfManaged, "around evaluates tests inside context of Managed"),
+    label(
+      ifEnvRunsATestIfEnvironmentVariableSatisfiesAssertion,
+      "ifEnv runs a test if environment variable satisfies assertion"
+    ),
+    label(
+      ifEnvIgnoresATestIfEnvironmentVariableDoesNotSatisfyAssertion,
+      "ifEnv ignores a test if environment variable does not satisfy assertion"
+    ),
+    label(
+      ifEnvIgnoresATestIfEnvironmentVariableDoesNotExist,
+      "ifEnv ignores a tests if environment variable does not exist"
+    ),
+    label(
+      ifPropRunsATestIfPropertySatisfiesAssertion,
+      "ifProp runs a test if property satisfies assertion"
+    ),
+    label(
+      ifPropIgnoresATestIfPropertyDoesNotSatisfyAssertion,
+      "ifProp ignores a test if property does not satisfy assertion"
+    ),
+    label(
+      ifPropIgnoresATestIfPropertyDoesNotExist,
+      "ifProp ignores a test if property does not exist"
+    ),
     label(jsAppliesTestAspectOnlyOnJS, "js applies test aspect only on ScalaJS"),
     label(jsOnlyRunsTestsOnlyOnScalaJS, "jsOnly runs tests only on ScalaJS"),
     label(jvmAppliesTestAspectOnlyOnJVM, "jvm applies test aspect only on ScalaJS"),
@@ -147,6 +171,72 @@ object TestAspectSpec extends AsyncBaseSpec {
         )
       )
       failed(spec)
+    }
+
+  def ifEnvRunsATestIfEnvironmentVariableSatisfiesAssertion: Future[Boolean] =
+    unsafeRunToFuture {
+      onlyJVM {
+        succeeded {
+          ifEnv("PATH", containsString("bin")) {
+            test("identity")(assert(true, isTrue))
+          }
+        }
+      }
+    }
+
+  def ifEnvIgnoresATestIfEnvironmentVariableDoesNotSatisfyAssertion: Future[Boolean] =
+    unsafeRunToFuture {
+      onlyJVM {
+        ignored {
+          ifEnv("PATH", nothing) {
+            test("identity")(assert(true, isTrue))
+          }
+        }
+      }
+    }
+
+  def ifEnvIgnoresATestIfEnvironmentVariableDoesNotExist: Future[Boolean] =
+    unsafeRunToFuture {
+      onlyJVM {
+        ignored {
+          ifEnv("QWERTY", anything) {
+            test("identity")(assert(true, isTrue))
+          }
+        }
+      }
+    }
+
+  def ifPropRunsATestIfPropertySatisfiesAssertion: Future[Boolean] =
+    unsafeRunToFuture {
+      onlyJVM {
+        succeeded {
+          ifProp("java.vm.name", containsString("VM")) {
+            test("identity")(assert(true, isTrue))
+          }
+        }
+      }
+    }
+
+  def ifPropIgnoresATestIfPropertyDoesNotSatisfyAssertion: Future[Boolean] =
+    unsafeRunToFuture {
+      onlyJVM {
+        ignored {
+          ifProp("java.vm.name", nothing) {
+            test("identity")(assert(true, isTrue))
+          }
+        }
+      }
+    }
+
+  def ifPropIgnoresATestIfPropertyDoesNotExist: Future[Boolean] =
+    unsafeRunToFuture {
+      onlyJVM {
+        ignored {
+          ifProp("qwerty", anything) {
+            test("identity")(assert(true, isTrue))
+          }
+        }
+      }
     }
 
   def timeoutMakesTestsFailAfterGivenDuration: Future[Boolean] =

@@ -19,6 +19,8 @@ package zio.test
 import zio.{ clock, ZIO, ZManaged, ZSchedule }
 import zio.duration._
 import zio.clock.Clock
+import zio.system
+import zio.system.System
 import zio.test.environment.Live
 
 /**
@@ -222,23 +224,6 @@ object TestAspect extends TimeoutVariants {
   val flaky: TestAspectPoly = eventually
 
   /**
-   * An aspect that repeats the test a specified number of times, ensuring it
-   * is stable ("non-flaky"). Stops at the first failure.
-   */
-  def nonFlaky(n0: Int): TestAspectPoly =
-    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
-        def repeat(n: Int): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-          if (n <= 1) test
-          else test.flatMap(_ => repeat(n - 1))
-
-        repeat(n0)
-      }
-    }
-
-  /**
    * An aspect that returns the tests unchanged
    */
   val identity: TestAspectPoly =
@@ -247,6 +232,45 @@ object TestAspect extends TimeoutVariants {
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] = spec
+    }
+
+  /**
+   * An aspect that only runs a test if the specified environment variable
+   * satisfies the specified assertion.
+   */
+  def ifEnv(env: String, assertion: Assertion[String]): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[System], Nothing, Any, Nothing, Any] {
+      def perTest[R <: Live[System], E, S](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        Live.live(system.env(env)).orDie.flatMap { value =>
+          value
+            .filter(assertion.test)
+            .fold[ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]](ZIO.succeed(Right(TestSuccess.Ignored)))(
+              _ => test
+            )
+        }
+    }
+
+  /**
+   * An aspect that only runs a test if the specified Java property satisfies
+   * the specified assertion.
+   */
+  def ifProp(
+    prop: String,
+    assertion: Assertion[String]
+  ): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[System], Nothing, Any, Nothing, Any] {
+      def perTest[R <: Live[System], E, S](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        Live.live(system.property(prop)).orDie.flatMap { value =>
+          value
+            .filter(assertion.test)
+            .fold[ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]](ZIO.succeed(Right(TestSuccess.Ignored)))(
+              _ => test
+            )
+        }
     }
 
   /**
@@ -281,6 +305,23 @@ object TestAspect extends TimeoutVariants {
    */
   val jvmOnly: TestAspectPoly =
     if (TestPlatform.isJVM) identity else ignore
+
+  /**
+   * An aspect that repeats the test a specified number of times, ensuring it
+   * is stable ("non-flaky"). Stops at the first failure.
+   */
+  def nonFlaky(n0: Int): TestAspectPoly =
+    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
+        def repeat(n: Int): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+          if (n <= 1) test
+          else test.flatMap(_ => repeat(n - 1))
+
+        repeat(n0)
+      }
+    }
 
   /**
    * An aspect that executes the members of a suite in parallel.

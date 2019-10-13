@@ -45,6 +45,9 @@ object TestUtils {
     if (TestPlatform.isJS) test
     else test.repeat(Schedule.recurs(100) *> Schedule.identity[Boolean])
 
+  final def onlyJVM[R, E](zio: => ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    if (TestPlatform.isJVM) zio else ZIO.succeed(true)
+
   final def report(suites: Iterable[Async[List[(Boolean, String)]]])(implicit ec: ExecutionContext): Unit = {
     val async = Async
       .sequence(suites)
@@ -67,7 +70,10 @@ object TestUtils {
 
   final def succeeded[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
-    forAllTests(execSpec)(_.isRight)
+    forAllTests(execSpec) {
+      case Right(TestSuccess.Succeeded(_)) => true
+      case _                               => false
+    }
   }
 
   final def timeit[A](label: String)(async: Async[A]): Async[A] =
