@@ -15,10 +15,25 @@ object PromiseSpec
         },
         testM("complete a promise using complete") {
           for {
-            p <- Promise.make[Nothing, Int]
-            s <- p.complete(IO.succeed(14))
-            v <- p.await
-          } yield assert(s, isTrue) && assert(v, equalTo(14))
+            p  <- Promise.make[Nothing, Int]
+            r  <- Ref.make(13)
+            s  <- p.complete(r.update(_ + 1))
+            v1 <- p.await
+            v2 <- p.await
+          } yield assert(s, isTrue) &&
+            assert(v1, equalTo(14)) &&
+            assert(v2, equalTo(14))
+        },
+        testM("complete a promise using completeWith") {
+          for {
+            p  <- Promise.make[Nothing, Int]
+            r  <- Ref.make(13)
+            s  <- p.completeWith(r.update(_ + 1))
+            v1 <- p.await
+            v2 <- p.await
+          } yield assert(s, isTrue) &&
+            assert(v1, equalTo(14)) &&
+            assert(v2, equalTo(15))
         },
         testM("fail a promise using fail") {
           for {
@@ -29,10 +44,25 @@ object PromiseSpec
         },
         testM("fail a promise using complete") {
           for {
-            p <- Promise.make[String, Int]
-            s <- p.complete(IO.fail("error with done"))
-            v <- p.await.run
-          } yield assert(s, isTrue) && assert(v, fails(equalTo("error with done")))
+            p  <- Promise.make[String, Int]
+            r  <- Ref.make(List("first error", "second error"))
+            s  <- p.complete(r.modify(as => (as.head, as.tail)).flip)
+            v1 <- p.await.run
+            v2 <- p.await.run
+          } yield assert(s, isTrue) &&
+            assert(v1, fails(equalTo("first error"))) &&
+            assert(v2, fails(equalTo("first error")))
+        },
+        testM("fail a promise using completeWith") {
+          for {
+            p  <- Promise.make[String, Int]
+            r  <- Ref.make(List("first error", "second error"))
+            s  <- p.completeWith(r.modify(as => (as.head, as.tail)).flip)
+            v1 <- p.await.run
+            v2 <- p.await.run
+          } yield assert(s, isTrue) &&
+            assert(v1, fails(equalTo("first error"))) &&
+            assert(v2, fails(equalTo("second error")))
         },
         testM("complete a promise twice") {
           for {
