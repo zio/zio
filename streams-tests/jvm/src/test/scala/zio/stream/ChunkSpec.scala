@@ -169,7 +169,7 @@ object ChunkSpec
           assert(Chunk.empty ++ Chunk.fromArray(Array(1, 2, 3)), equalTo(Chunk(1, 2, 3)))
         },
         test("filterConstFalseResultsInEmptyChunk") {
-          assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo[Chunk[Int]](Chunk.empty))
+          assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo(Chunk.empty))
         },
         test("def testzipAllWith") {
           assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 4))) &&

@@ -241,7 +241,7 @@ object Gen extends GenZIO with FunctionVariants {
    */
   final def fromIterable[R, A](
     as: Iterable[A],
-    shrinker: (A => ZStream[R, Nothing, A]) = (_: A) => ZStream.empty
+    shrinker: (A => ZStream[R, Nothing, A]) = defaultShrinker
   ): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
 
@@ -441,4 +441,7 @@ object Gen extends GenZIO with FunctionVariants {
     if (n < min) min
     else if (n > max) max
     else n
+
+  private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
+    _ => ZStream.empty
 }
