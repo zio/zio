@@ -308,7 +308,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     uploadUsers(List(new User)) causeMust { cause =>
       (cause.traces.head.stackTrace must have size 2) and
         (cause.traces.head.stackTrace.head must mentionMethod("uploadUsers")) and
-        (cause.traces(1).stackTrace must beEmpty) and
+        (cause.traces(1).stackTrace must have size 1) and
         (cause.traces(1).executionTrace must have size 1) and
         (cause.traces(1).executionTrace.head must mentionMethod("uploadTo")) and
         (cause.traces(1).parentTrace must not be empty) and

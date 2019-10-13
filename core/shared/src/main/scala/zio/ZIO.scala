@@ -947,10 +947,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       inherit  <- Ref.make(None: Option[Boolean])
       c <- ZIO.uninterruptibleMask { restore =>
             for {
-              left   <- ZIO.interruptible(self).fork
-              right  <- ZIO.interruptible(that).fork
-              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork
-              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done)).fork
+              left  <- ZIO.interruptible(self).forkInternal
+              right <- ZIO.interruptible(that).forkInternal
+              left2 <- left.await
+                        .flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done))
+                        .forkInternal
+              right2 <- right.await
+                         .flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done))
+                         .forkInternal
 
               inheritFiberRefs = inherit.get.flatMap {
                 case None        => ZIO.unit
@@ -1572,6 +1576,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self &&& that
 
+  /**
+   * Forks an effect that will be executed without unhandled failures being
+   * reported. This is useful for implementing combinators that handle failures
+   * themselves.
+   */
+  private[zio] final def forkInternal: ZIO[R, Nothing, Fiber[E, A]] =
+    run.fork.map(_.mapM(IO.done))
 }
 
 private[zio] trait ZIOFunctions extends Serializable {
