@@ -926,15 +926,15 @@ object SinkSpec
                   .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 2)),
                 equalTo(Map[Int, Int](1 -> 1, 0 -> 2))
               )
-            }
-            //     testM("collectAllWhile")(
-            //       checkM(pureStreamGen(Gen.anyString), Gen.function(Gen.boolean)) { (s, f) =>
-            //         for {
-            //           sinkResult <- s.run(ZSink.collectAllWhile(f))
-            //           listResult <- s.runCollect.map(_.takeWhile(f)).run
-            //         } yield assert(listResult.succeeded, isTrue) implies assert(listResult, succeeds(equalTo(sinkResult)))
-            //       }
-            //     )
+            },
+            testM("collectAllWhile")(
+              checkM(pureStreamGen(Gen.anyString), Gen.function(Gen.boolean)) { (s, f) =>
+                for {
+                  sinkResult <- s.run(ZSink.collectAllWhile(f))
+                  listResult <- s.runCollect.map(_.takeWhile(f)).run
+                } yield assert(listResult.succeeded, isTrue) implies assert(listResult, succeeds(equalTo(sinkResult)))
+              }
+            )
           ),
           suite("foldWeighted/foldUntil")(
             testM("foldWeighted") {
