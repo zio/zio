@@ -3,6 +3,7 @@ package zio.stream
 import zio.test.{ Gen, Sized }
 import zio.random.Random
 import zio._
+import scala.concurrent.ExecutionContext
 
 trait StreamUtils extends ChunkUtils {
   def streamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[String, A]] =
@@ -40,6 +41,8 @@ trait StreamUtils extends ChunkUtils {
       case (n, head :: rest) => Some((head, (n - 1, rest)))
     }
 
+  def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
+    ec.execute(() => action)
 }
 
 object StreamUtils extends StreamUtils with GenUtils {
