@@ -3,7 +3,7 @@ package zio.stream
 import scala.{ Stream => _ }
 import zio._
 import zio.test._
-import zio.test.Assertion.{equalTo, fails}
+import zio.test.Assertion.{ equalTo, fails }
 
 object StreamBufferSpec
     extends ZIOBaseSpec(
@@ -23,7 +23,8 @@ object StreamBufferSpec
             assertM(
               (Stream.range(0, 10) ++ Stream.fail(e))
                 .buffer(2)
-                .run(Sink.collectAll[Int]).run,
+                .run(Sink.collectAll[Int])
+                .run,
               fails(equalTo(e))
             )
           },
@@ -48,7 +49,8 @@ object StreamBufferSpec
             assertM(
               (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
                 .bufferDropping(2)
-                .runCollect.run,
+                .runCollect
+                .run,
               fails(equalTo(e))
             )
           },
@@ -89,7 +91,8 @@ object StreamBufferSpec
             assertM(
               (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
                 .bufferSliding(2)
-                .runCollect.run,
+                .runCollect
+                .run,
               fails(equalTo(e))
             )
           },
