@@ -353,35 +353,22 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Applies random jitter to all sleeps executed by the schedule.
    */
   final def jittered(min: Double = 0.0, max: Double = 1.0)(implicit ev: ZEnv <:< R): ZSchedule[ZEnv, A, B] =
-    jittered_[R, ZEnv](min, max)(f => ZEnv.mapClock(f) andThen ev.apply)
+    jittered_(min, max)(f => ZEnv.mapClock(f) andThen ev.apply)
 
   /**
    * Applies random jitter to all sleeps executed by the schedule.
    * This version supports arbitrary environments.
    */
-  final def jittered_[R1 <: R, R2](min: Double, max: Double)(
-    f: (Clock.Service[Any] => Clock.Service[Any]) => R2 => R1
-  ): ZSchedule[R2 with Clock with Random, A, B] = {
-    final class Proxy(clock0: Clock.Service[Any], random0: Random.Service[Any]) extends Clock.Service[Any] {
-      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
-      def currentDateTime             = clock0.currentDateTime
-      val nanoTime                    = clock0.nanoTime
-      def sleep(duration: Duration) = random0.nextDouble.flatMap { random =>
+  final def jittered_[R1](min: Double, max: Double)(
+    f: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
+  ): ZSchedule[R1 with Clock with Random, A, B] =
+    modifyDelay_[R1 with Random] { (_, duration) =>
+      random.nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random
-        clock0.sleep(Duration.fromNanos(jittered.toLong))
+        Duration.fromNanos(jittered.toLong)
       }
-    }
-    new ZSchedule[R2 with Clock with Random, A, B] {
-      type State = (self.State, R)
-      val initial = for {
-        env  <- ZIO.environment[R2 with Clock with Random].map(env => f(clock => new Proxy(clock, env.random))(env))
-        init <- self.initial.provide(env)
-      } yield (init, env)
-      val extract = (a: A, s: (self.State, R)) => self.extract(a, s._1)
-      val update  = (a: A, s: (self.State, R)) => self.update(a, s._1).provide(s._2).map((_, s._2))
-    }
-  }
+    }(f)
 
   /**
    * Puts this schedule into the first element of a either, and passes along
@@ -411,6 +398,50 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       val extract = (a: A1, s: self.State) => f(self.extract(a, s))
       val update  = self.update
     }
+
+  /**
+   * Returns a new schedule with the specified effectful modification
+   * applied to each sleep performed by this schedule.
+   *
+   * Note that this does not apply to sleeps performed in ZSchedule#initial.
+   * All effects executed while calculating the modified duration will run with the old
+   * environment.
+   */
+  final def modifyDelay(
+    f: (B, Duration) => ZIO[ZEnv, Nothing, Duration]
+  )(
+    implicit ev: ZEnv <:< R
+  ): ZSchedule[ZEnv, A, B] = modifyDelay_(f)(g => ZEnv.mapClock(g) andThen ev.apply)
+
+  /**
+   * Returns a new schedule with the specified effectful modification
+   * applied to each sleep performed by this schedule.
+   *
+   * This version supports arbitrary environments.
+   *
+   * Note that this does not apply to sleeps performed in ZSchedule#initial.
+   * All effects executed while calculating the modified duration will run with the old
+   * environment.
+   */
+  final def modifyDelay_[R1](
+    f: (B, Duration) => ZIO[R1, Nothing, Duration]
+  )(
+    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
+  ): ZSchedule[R1 with Clock, A, B] = {
+    final class Proxy(clock0: Clock.Service[Any], env: R1, current: B) extends Clock.Service[Any] {
+      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
+      def currentDateTime             = clock0.currentDateTime
+      val nanoTime                    = clock0.nanoTime
+      def sleep(duration: Duration)   = f(current, duration).provide(env).flatMap(clock0.sleep)
+    }
+    new ZSchedule[R1 with Clock, A, B] {
+      type State = self.State
+      val initial = self.initial.provideSome(g(identity))
+      val extract = (a: A, s: self.State) => self.extract(a, s)
+      val update = (a: A, s: self.State) =>
+        self.update(a, s).provideSome(env => g(new Proxy(_, env, self.extract(a, s)))(env))
+    }
+  }
 
   /**
    * A new schedule that applies the current one but runs the specified effect

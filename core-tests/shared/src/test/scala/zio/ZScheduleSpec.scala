@@ -156,7 +156,7 @@ object ZScheduleSpec
             assertM(retried, equalTo("Error: 2"))
           },
           testM("for a given number of times with random jitter in (0, 1)") {
-            val schedule = ZSchedule.spaced(500.millis).jittered_[Clock, Clock](0, 1) { f => old =>
+            val schedule = ZSchedule.spaced(500.millis).jittered_[Clock](0, 1) { f => old =>
               new Clock { val clock = f(old.clock) }
             }
             val scheduled = run(schedule >>> ZSchedule.elapsed)(List.fill(5)(()))
@@ -164,7 +164,7 @@ object ZScheduleSpec
             assertM(TestRandom.feedDoubles(0.5, 0.5, 0.5, 0.5, 0.5) *> scheduled, equalTo(expected))
           },
           testM("for a given number of times with random jitter in custom interval") {
-            val schedule = ZSchedule.spaced(500.millis).jittered_[Clock, Clock](2, 4) { f => old =>
+            val schedule = ZSchedule.spaced(500.millis).jittered_[Clock](2, 4) { f => old =>
               new Clock { val clock = f(old.clock) }
             }
             val scheduled = run(schedule >>> ZSchedule.elapsed)((List.fill(5)(())))
