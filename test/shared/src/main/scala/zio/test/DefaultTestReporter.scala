@@ -17,14 +17,13 @@
 package zio.test
 
 import zio.duration.Duration
+import zio.test.ConsoleUtils._
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 import zio.test.mock.{ Expectation, MockException }
-import zio.{ Cause, UIO, URIO, ZIO }
-
-import scala.{ Console => SConsole }
+import zio.{ Cause, UIO, URIO }
 
 object DefaultTestReporter {
 
@@ -72,13 +71,16 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply[E, S](): TestReporter[String, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[String, E, S]) =>
-    for {
-      res <- render(executedSpec.mapLabel(_.toString))
-      _   <- ZIO.foreach(res.flatMap(_.rendered))(TestLogger.logLine)
-      _   <- logStats(duration, executedSpec)
-      _   <- renderTimed(executedSpec).flatMap(_.fold[URIO[TestLogger, Unit]](URIO.unit)(TestLogger.logLine))
-    } yield ()
+  def apply[E, S](testAnnotationRenderers: List[TestAnnotationRenderer]): TestReporter[String, E, S] = {
+    (duration: Duration, executedSpec: ExecutedSpec[String, E, S]) =>
+      for {
+        res <- render(executedSpec.mapLabel(_.toString))
+        _   <- URIO.foreach(res.flatMap(_.rendered))(TestLogger.logLine)
+        _   <- logStats(duration, executedSpec)
+        _ <- URIO.foreach(testAnnotationRenderers)(
+              render => render(executedSpec).flatMap(_.fold[URIO[TestLogger, Unit]](URIO.unit)(TestLogger.logLine))
+            )
+      } yield ()
   }
 
   private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]): URIO[TestLogger, Unit] = {
@@ -108,36 +110,6 @@ object DefaultTestReporter {
             )
           )
     } yield ()
-  }
-
-  private def renderTimed[L, E, S](executedSpec: ExecutedSpec[L, E, S]): UIO[Option[String]] = {
-    val results = executedSpec.fold[UIO[Vector[(L, Duration)]]] {
-      case Spec.SuiteCase(_, executedSpecs, _) =>
-        executedSpecs.flatMap(UIO.collectAll(_).map(_.foldLeft(Vector.empty[(L, Duration)])(_ ++ _)))
-      case Spec.TestCase(label, test) =>
-        test.map {
-          case (_, annotationMap) =>
-            val d = annotationMap.get(TestAnnotation.Timing)
-            if (d > Duration.Zero)
-              Vector(label -> annotationMap.get(TestAnnotation.Timing))
-            else
-              Vector.empty
-        }
-    }
-    results.map { times =>
-      val count   = times.length
-      val sum     = times.map(_._2).fold(Duration.Zero)(_ + _)
-      val summary = s"Timed $count tests in ${sum.render}:\n"
-      val details = times
-        .sortBy(_._2)
-        .reverse
-        .map {
-          case (label, duration) =>
-            f"  ${green("+")} $label: ${duration.render} (${(duration.toNanos.toDouble / sum.toNanos) * 100}%2.2f%%)"
-        }
-        .mkString("\n")
-      if (count > 0) Some(summary ++ details) else None
-    }
   }
 
   private def renderSuccessLabel(label: String, offset: Int) =
@@ -226,21 +198,6 @@ object DefaultTestReporter {
 
   private def withOffset(n: Int)(s: String): String =
     " " * n + s
-
-  private def green(s: String): String =
-    SConsole.GREEN + s + SConsole.RESET
-
-  private def red(s: String): String =
-    SConsole.RED + s + SConsole.RESET
-
-  private def blue(s: String): String =
-    SConsole.BLUE + s + SConsole.RESET
-
-  private def cyan(s: String): String =
-    SConsole.CYAN + s + SConsole.RESET
-
-  private def yellowThenCyan(s: String): String =
-    SConsole.YELLOW + s + SConsole.CYAN
 
   private def highlight(string: String, substring: String): String =
     string.replace(substring, yellowThenCyan(substring))

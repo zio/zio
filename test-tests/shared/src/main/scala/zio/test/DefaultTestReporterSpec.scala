@@ -142,6 +142,6 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
   def TestTestRunner(testEnvironment: TestEnvironment) =
     TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Unit]], String, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](Managed.succeed(testEnvironment)),
-      reporter = DefaultTestReporter()
+      reporter = DefaultTestReporter(TestAnnotationRenderer.Default)
     )
 }

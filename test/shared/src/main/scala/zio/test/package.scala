@@ -93,6 +93,11 @@ package object test extends CheckVariants {
   type ExecutedSpec[+L, +E, +S] = Spec[Any, Nothing, L, (Either[TestFailure[E], TestSuccess[S]], TestAnnotationMap)]
 
   /**
+   * A `TestAnnotationRenderer` knows how to render a test annotation.
+   */
+  type TestAnnotationRenderer = ExecutedSpec[String, Any, Any] => UIO[Option[String]]
+
+  /**
    * Checks the assertion holds for the given value.
    */
   final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
