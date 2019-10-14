@@ -2825,7 +2825,7 @@ object ZStream {
    * Constructs a stream from a range of integers (inclusive).
    */
   final def range(min: Int, max: Int): Stream[Nothing, Int] =
-    unfold(min)(cur => if (cur > max) None else Some((cur, cur + 1)))
+    iterate(min)(_ + 1).takeWhile(_ <= max)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
