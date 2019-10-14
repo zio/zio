@@ -576,7 +576,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 object ZSchedule {
   import scala.language.implicitConversions
 
-  implicit def zscheduleSyntax[A, B](sched: ZSchedule[DefaultRuntime#Environment, A, B]): ZScheduleSyntax[A, B] =
+  implicit def zscheduleSyntax[A, B](sched: ZSchedule[ZEnv, A, B]): ZScheduleSyntax[A, B] =
     new ZScheduleSyntax(sched)
 
   final def apply[R, S, A, B](

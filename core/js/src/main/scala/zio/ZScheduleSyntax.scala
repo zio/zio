@@ -15,19 +15,18 @@
  */
 package zio
 
-final class ZScheduleSyntax[A, B](private val sched: ZSchedule[DefaultRuntime#Environment, A, B]) extends AnyVal {
-  type Env = DefaultRuntime#Environment
+final class ZScheduleSyntax[A, B](private val sched: ZSchedule[ZEnv, A, B]) extends AnyVal {
 
   /**
    * Applies random jitter in the range (0, 1) to all sleeps executed by the schedule.
    */
-  final def jittered: ZSchedule[Env, A, B] =
+  final def jittered: ZSchedule[ZEnv, A, B] =
     jittered(0.0, 1.0)
 
   /**
    * Applies random jitter to all sleeps executed by the schedule.
    */
-  final def jittered(min: Double, max: Double): ZSchedule[Env, A, B] =
+  final def jittered(min: Double, max: Double): ZSchedule[ZEnv, A, B] =
     sched.jittered_[Env](min, max) { (old, clock0) =>
       new zio.clock.Clock with zio.console.Console with zio.system.System with zio.random.Random {
         val clock   = clock0.clock
