@@ -46,7 +46,8 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
   final def getOrElse[E](k: K, default: => V): STM[E, V] =
     get(k).map(_.getOrElse(default))
 
-  final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] = ???
+  final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] =
+    accessM(_.map(_.map(f))).flatMap(t => TRef.make(t)).map(r => new TMap(r))
 
   final def mapM[E, K2, V2](f: ((K, V)) => STM[E, (K2, V2)]): STM[E, TMap[K2, V2]] = ???
 
@@ -60,7 +61,7 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
     accessM(_.update(indexOf(k), update)).as(self)
   }
 
-  private def accessM[E, A](f: TArray[List[(K, V)]] => STM[E, A]) = buckets.get.flatMap(f)
+  private def accessM[E, A](f: TArray[List[(K, V)]] => STM[E, A]): STM[E, A] = buckets.get.flatMap(f)
 }
 
 object TMap {

@@ -115,6 +115,20 @@ object TMapSpec
               } yield (a, aa, aaa)
 
             assertM(tx.commit, equalTo((true, false, true)))
+          },
+          testM("map") {
+            def valuesOf(tmap: TMap[String, Int]): STM[Nothing, List[Int]] =
+              tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc).map(_.reverse)
+
+            val tx =
+              for {
+                map1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                map2 <- map1.map(kv => (kv._1, kv._2 * 2))
+                res1 <- valuesOf(map1)
+                res2 <- valuesOf(map2)
+              } yield (res1, res2)
+
+            assertM(tx.commit, equalTo((List(1, 2, 3), List(2, 4, 6))))
           }
         ),
         suite("folds")(
