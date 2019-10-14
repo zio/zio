@@ -363,6 +363,19 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def iterate[A](a: A)(f: A => A): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
+      Managed.effectTotal {
+        var state = a
+
+        () => {
+          val out = state
+          state = f(state)
+          out
+        }
+      }
+    }
+
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */

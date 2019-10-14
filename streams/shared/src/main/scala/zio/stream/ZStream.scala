@@ -2763,7 +2763,8 @@ object ZStream {
   /**
    * The infinite stream of iterative function application: a, f(a), f(f(a)), f(f(f(a))), ...
    */
-  final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] = ZStream.unfold(a)(a => Some(a -> f(a)))
+  final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] =
+    StreamEffect.iterate(a)(f)
 
   /**
    * Creates a single-valued stream from a managed resource
