@@ -719,13 +719,12 @@ object ZSchedule {
    * A schedule that recurs forever without delay. Returns the elapsed time
    * since the schedule began.
    */
-  final val elapsed: ZSchedule[Clock, Any, Duration] = {
+  final val elapsed: ZSchedule[Clock, Any, Duration] =
     ZSchedule[Clock, (Long, Long), Any, Duration](
       clock.nanoTime.map((_, 0L)),
       { case (_, (start, _))   => clock.nanoTime.map(currentTime => (start, currentTime - start)) },
       { case (_, (_, elapsed)) => Duration.fromNanos(elapsed) }
     )
-  }
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
