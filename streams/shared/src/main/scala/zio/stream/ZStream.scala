@@ -39,7 +39,8 @@ import zio.stream.ZStream.Pull
  * specialized effect type (ZIO), streams feature extremely good type inference
  * and should almost never require specification of any type parameters.
  */
-class ZStream[-R, +E, +A] private[stream] (val structure: ZStream.Structure[R, E, A]) extends Serializable { self =>
+class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStream.Structure[R, E, A])
+    extends Serializable { self =>
   import ZStream.GroupBy
 
   /**
@@ -1050,9 +1051,9 @@ class ZStream[-R, +E, +A] private[stream] (val structure: ZStream.Structure[R, E
    */
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] = {
     def go(
-      as: ZIO[R1, Option[E1], A],
+      as: Pull[R1, E1, A],
       finalizer: Ref[Exit[_, _] => URIO[R1, _]],
-      currPull: Ref[ZIO[R1, Option[E1], B]]
+      currPull: Ref[Pull[R1, E1, B]]
     ): ZIO[R1, Option[E1], B] = {
       val pullOuter = ZIO.uninterruptibleMask { restore =>
         restore(as).flatMap { a =>
