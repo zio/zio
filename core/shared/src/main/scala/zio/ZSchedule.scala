@@ -352,25 +352,30 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Applies random jitter to all sleeps executed by the schedule.
    */
-  final def jittered_[R1 <: R](min: Double, max: Double)(
-    splice: (R1, Clock) => R
-  ): ZSchedule[R1 with Clock with Random, A, B] = {
-    final class Proxy(clock0: Clock.Service[Any], random0: Random.Service[Any]) extends Clock {
-      val clock = new Clock.Service[Any] {
-        def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
-        def currentDateTime             = clock0.currentDateTime
-        val nanoTime                    = clock0.nanoTime
-        def sleep(duration: Duration) = random0.nextDouble.flatMap { random =>
-          val d        = duration.toNanos
-          val jittered = d * min * (1 - random) + d * max * random
-          clock0.sleep(Duration.fromNanos(jittered.toLong))
-        }
+  final def jittered(min: Double = 0.0, max: Double = 1.0)(implicit ev: ZEnv <:< R): ZSchedule[ZEnv, A, B] =
+    jittered_[R, ZEnv](min, max)(f => ZEnv.mapClock(f) andThen ev.apply)
+
+  /**
+   * Applies random jitter to all sleeps executed by the schedule.
+   * This version supports arbitrary environments.
+   */
+  final def jittered_[R1 <: R, R2](min: Double, max: Double)(
+    f: (Clock.Service[Any] => Clock.Service[Any]) => R2 => R1
+  ): ZSchedule[R2 with Clock with Random, A, B] = {
+    final class Proxy(clock0: Clock.Service[Any], random0: Random.Service[Any]) extends Clock.Service[Any] {
+      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
+      def currentDateTime             = clock0.currentDateTime
+      val nanoTime                    = clock0.nanoTime
+      def sleep(duration: Duration) = random0.nextDouble.flatMap { random =>
+        val d        = duration.toNanos
+        val jittered = d * min * (1 - random) + d * max * random
+        clock0.sleep(Duration.fromNanos(jittered.toLong))
       }
     }
-    new ZSchedule[R1 with Clock with Random, A, B] {
+    new ZSchedule[R2 with Clock with Random, A, B] {
       type State = (self.State, R)
       val initial = for {
-        env  <- ZIO.environment[R1 with Clock with Random].map(env => splice(env, new Proxy(env.clock, env.random)))
+        env  <- ZIO.environment[R2 with Clock with Random].map(env => f(clock => new Proxy(clock, env.random))(env))
         init <- self.initial.provide(env)
       } yield (init, env)
       val extract = (a: A, s: (self.State, R)) => self.extract(a, s._1)
@@ -419,11 +424,17 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Provide all requirements to the schedule.
    */
   final def provide(r: R): ZSchedule[Any, A, B] =
-    new ZSchedule[Any, A, B] {
+    provideSome(_ => r)
+
+  /**
+   * Provide some of the requirements to the schedule.
+   */
+  final def provideSome[R1](f: R1 => R): ZSchedule[R1, A, B] =
+    new ZSchedule[R1, A, B] {
       type State = self.State
-      val initial = self.initial.provide(r)
+      val initial = self.initial.provideSome(f)
       val extract = self.extract
-      val update  = (a: A, s: self.State) => self.update(a, s).provide(r)
+      val update  = (a: A, s: self.State) => self.update(a, s).provideSome(f)
     }
 
   /**
@@ -574,10 +585,6 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 }
 
 object ZSchedule {
-  import scala.language.implicitConversions
-
-  implicit def zscheduleSyntax[A, B](sched: ZSchedule[ZEnv, A, B]): ZScheduleSyntax[A, B] =
-    new ZScheduleSyntax(sched)
 
   final def apply[R, S, A, B](
     initial0: ZIO[R, Nothing, S],
