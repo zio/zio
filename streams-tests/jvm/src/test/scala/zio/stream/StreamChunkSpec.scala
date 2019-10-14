@@ -229,6 +229,17 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
+        testM("StreamChunk.collectWhile") {
+          checkM(
+            pureStreamChunkGen(smallChunks(intGen)),
+            Gen.partialFunction[Random with Sized, Int, String](stringGen)
+          ) { (s, pf) =>
+            for {
+              res1 <- slurp(s.collectWhile(pf))
+              res2 <- slurp(s).map(_.takeWhile(pf.isDefinedAt).map(pf.apply))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
         testM("StreamChunk.toInputStream") {
           val orig1  = List(1, 2, 3).map(_.toByte)
           val orig2  = List(4).map(_.toByte)

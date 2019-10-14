@@ -80,6 +80,28 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     ZStreamChunk(self.chunks.map(chunk => chunk.collect(p)))
 
   /**
+   * Transforms all elements of the stream for as long as the specified partial function is defined.
+   */
+  def collectWhile[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
+    ZStreamChunk {
+      ZStream {
+        for {
+          chunks  <- self.chunks.process
+          doneRef <- Ref.make(false).toManaged_
+          pull = doneRef.get.flatMap { done =>
+            if (done) Pull.end
+            else
+              for {
+                chunk     <- chunks
+                remaining = chunk.collectWhile(p)
+                _         <- doneRef.set(true).when(remaining.length < chunk.length)
+              } yield remaining
+          }
+        } yield pull
+      }
+    }
+
+  /**
    * Drops the specified number of elements from this stream.
    */
   def drop(n: Int): ZStreamChunk[R, E, A] =
