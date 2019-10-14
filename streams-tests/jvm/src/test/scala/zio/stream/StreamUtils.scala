@@ -11,11 +11,11 @@ trait StreamUtils extends ChunkUtils {
   def pureStreamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[Nothing, A]] =
     Gen.oneOf(
       Gen.const(Stream.empty),
-      Gen.medium(Gen.listOfN(_)(a).map(Stream.fromIterable), 1)
+      Gen.small(Gen.listOfN(_)(a).map(Stream.fromIterable), 1)
     )
 
   def failingStreamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[String, A]] =
-    Gen.medium(
+    Gen.small(
       n =>
         for {
           i  <- Gen.int(0, n - 1)
