@@ -17,29 +17,31 @@
 package zio.stm
 
 class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
+  import TMap.indexOf
+
   final def collect[K2, V2](pf: PartialFunction[(K, V), (K2, V2)]): STM[Nothing, TMap[K2, V2]] = ???
 
   final def contains[E](k: K): STM[E, Boolean] =
     get(k).map(_.isDefined)
 
   final def delete[E](k: K): STM[E, TMap[K, V]] =
-    buckets.get.flatMap(_.update(TMap.indexOf(k), _.filterNot(_._1 == k))).as(self)
+    accessM(_.update(indexOf(k), _.filterNot(_._1 == k))).as(self)
 
   final def filter(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] =
-    buckets.get.flatMap(_.transform(_.filter(p))).as(self)
+    accessM(_.transform(_.filter(p))).as(self)
 
   final def filterNot(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] =
-    buckets.get.flatMap(_.transform(_.filterNot(p))).as(self)
+    accessM(_.transform(_.filterNot(p))).as(self)
 
   final def fold[A](acc: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
-    buckets.get.flatMap(_.fold(acc) { case (acc, items) => items.foldLeft(acc)(op) })
+    accessM(_.fold(acc) { case (acc, items) => items.foldLeft(acc)(op) })
 
   final def foldM[A, E](acc: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = ???
 
   final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] = ???
 
   final def get[E](k: K): STM[E, Option[V]] =
-    buckets.get.flatMap(_.apply(TMap.indexOf(k))).map(_.find(_._1 == k).map(_._2))
+    accessM(_.apply(indexOf(k))).map(_.find(_._1 == k).map(_._2))
 
   final def getOrElse[E](k: K, default: => V): STM[E, V] =
     get(k).map(_.getOrElse(default))
@@ -55,8 +57,10 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
         case xs  => xs.map(kv => if (kv._1 == k) (k, v) else kv)
       }
 
-    buckets.get.flatMap(_.update(TMap.indexOf(k), update)).as(self)
+    accessM(_.update(indexOf(k), update)).as(self)
   }
+
+  private def accessM[E, A](f: TArray[List[(K, V)]] => STM[E, A]) = buckets.get.flatMap(f)
 }
 
 object TMap {
