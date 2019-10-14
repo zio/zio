@@ -428,7 +428,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   )(
     g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
   ): ZSchedule[R1 with Clock, A, B] = {
-    final class Proxy(clock0: Clock.Service[Any], env: R1, current: B) extends Clock.Service[Any] {
+    final class Proxy(val clock0: Clock.Service[Any], val env: R1, val current: B) extends Clock.Service[Any] {
       def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
       def currentDateTime             = clock0.currentDateTime
       val nanoTime                    = clock0.nanoTime
@@ -436,10 +436,10 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
     new ZSchedule[R1 with Clock, A, B] {
       type State = self.State
-      val initial = self.initial.provideSome(g(identity))
+      val initial = self.initial.provideSome[R1](g(identity))
       val extract = (a: A, s: self.State) => self.extract(a, s)
       val update = (a: A, s: self.State) =>
-        self.update(a, s).provideSome(env => g(new Proxy(_, env, self.extract(a, s)))(env))
+        self.update(a, s).provideSome[R1](env => g(new Proxy(_, env, self.extract(a, s)))(env))
     }
   }
 
