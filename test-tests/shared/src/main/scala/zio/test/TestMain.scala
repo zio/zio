@@ -9,19 +9,14 @@ import zio.test.TestUtils.{ report, scope }
 object TestMain {
 
   def main(args: Array[String]): Unit = {
-    val allTests: List[(String, ZIOBaseSpec)] = List(
-      ("AssertionSpec", AssertionSpec),
-      ("BoolAlgebraSpec", AssertionSpec),
+    val allTests: List[(String, AsyncBaseSpec)] = List(
       ("CheckSpec", CheckSpec),
       ("ClockSpec", ClockSpec),
       ("ConsoleSpec", ConsoleSpec),
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
+      ("SummaryBuilderSpec", SummaryBuilderSpec),
       ("EnvironmentSpec", EnvironmentSpec),
-      ("FunSpec", FunSpec),
       ("GenSpec", GenSpec),
-      ("GenZIOSpec", GenZIOSpec),
-      ("LiveSpec", LiveSpec),
-      ("ManagedSpec", ManagedSpec),
       ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec),

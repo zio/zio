@@ -8,9 +8,9 @@ import zio.duration._
 import zio.test.Async
 import zio.test.environment.TestClock.DefaultData
 import zio.test.TestUtils.{ label, nonFlaky }
-import zio.test.ZIOBaseSpec
+import zio.test.AsyncBaseSpec
 
-object ClockSpec extends ZIOBaseSpec {
+object ClockSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(e1, "sleep does not require passage of clock time"),

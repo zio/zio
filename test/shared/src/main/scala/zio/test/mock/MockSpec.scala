@@ -95,7 +95,7 @@ sealed trait MockSpec[-R, +E, +A] { self =>
 
         case MockSpec.FlatMap(nestedSpec, continue) =>
           for {
-            _   <- state.continuationsRef.update(continue :: _)
+            _   <- state.continuationsRef.update(continue.asInstanceOf[MockSpec.Continuation[R, E]] :: _)
             out <- unpack(state, nestedSpec)
           } yield out
 

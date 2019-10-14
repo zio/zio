@@ -104,6 +104,21 @@ object ChunkSpec
         test("collect for empty Chunk") {
           assert(Chunk.empty.collect { case _ => 1 } == Chunk.empty, Assertion.isTrue)
         },
+        testM("collect chunk") {
+          val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
+          check(mediumChunks(intGen), pfGen) { (c, pf) =>
+            assert(c.collect(pf).toSeq, equalTo(c.toSeq.collect(pf)))
+          }
+        },
+        test("collectWhile for empty Chunk") {
+          assert(Chunk.empty.collectWhile { case _ => 1 } == Chunk.empty, Assertion.isTrue)
+        },
+        testM("collectWhile chunk") {
+          val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
+          check(mediumChunks(intGen), pfGen) { (c, pf) =>
+            assert(c.collectWhile(pf).toSeq, equalTo(c.toSeq.takeWhile(pf.isDefinedAt).map(pf.apply)))
+          }
+        },
         testM("foreach") {
           check(mediumChunks(intGen)) { c =>
             var sum = 0
@@ -169,7 +184,7 @@ object ChunkSpec
           assert(Chunk.empty ++ Chunk.fromArray(Array(1, 2, 3)), equalTo(Chunk(1, 2, 3)))
         },
         test("filterConstFalseResultsInEmptyChunk") {
-          assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo[Chunk[Int]](Chunk.empty))
+          assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo(Chunk.empty))
         },
         test("def testzipAllWith") {
           assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 4))) &&

@@ -54,6 +54,12 @@ object Stream {
     ZStream.bracket(acquire)(release)
 
   /**
+   * See [[ZStream.bracketExit]]
+   */
+  final def bracketExit[E, A](acquire: IO[E, A])(release: (A, Exit[_, _]) => UIO[_]): Stream[E, A] =
+    ZStream.bracketExit(acquire)(release)
+
+  /**
    * See [[ZStream.die]]
    */
   final def die(ex: Throwable): Stream[Nothing, Nothing] =

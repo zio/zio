@@ -7,9 +7,9 @@ import zio.{ Chunk, UIO }
 import zio.test.environment.TestRandom.{ DefaultData, Test }
 import zio.test.Async
 import zio.test.TestUtils.label
-import zio.test.ZIOBaseSpec
+import zio.test.AsyncBaseSpec
 
-object RandomSpec extends ZIOBaseSpec {
+object RandomSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
     label(checkClear(_.nextBoolean)(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean), "clearBooleans"),

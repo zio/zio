@@ -3,9 +3,10 @@ package zio
 import zio.FiberRefSpecUtil._
 import zio.clock.Clock
 import zio.duration._
-import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.Live
+import zio.test.Assertion._
+import zio.test.TestAspect._
 
 object FiberRefSpec
     extends ZIOBaseSpec(
@@ -213,7 +214,7 @@ object FiberRefSpec
               _       <- looser2.raceAll(List(winner2))
               value2  <- fiberRef.get <* fiberRef.set(initial)
             } yield assert((value1, value2), equalTo((update1, update1)))
-          },
+          } @@ flaky,
           testM("the value of the winner is inherited when racing many ZIOs with raceAll") {
             for {
               fiberRef <- FiberRef.make(initial)

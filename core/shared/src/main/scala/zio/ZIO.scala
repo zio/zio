@@ -947,10 +947,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       inherit  <- Ref.make(None: Option[Boolean])
       c <- ZIO.uninterruptibleMask { restore =>
             for {
-              left   <- ZIO.interruptible(self).fork
-              right  <- ZIO.interruptible(that).fork
-              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork
-              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done)).fork
+              left  <- ZIO.interruptible(self).forkInternal
+              right <- ZIO.interruptible(that).forkInternal
+              left2 <- left.await
+                        .flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done))
+                        .forkInternal
+              right2 <- right.await
+                         .flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done))
+                         .forkInternal
 
               inheritFiberRefs = inherit.get.flatMap {
                 case None        => ZIO.unit
@@ -1331,7 +1335,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified promise will be interrupted, too.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): ZIO[R, Nothing, Boolean] =
-    self.run.flatMap(x => p.complete(ZIO.done(x))).onInterrupt(p.interrupt)
+    self.run.flatMap(x => p.completeWith(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
@@ -1575,6 +1579,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self &&& that
 
+  /**
+   * Forks an effect that will be executed without unhandled failures being
+   * reported. This is useful for implementing combinators that handle failures
+   * themselves.
+   */
+  private[zio] final def forkInternal: ZIO[R, Nothing, Fiber[E, A]] =
+    run.fork.map(_.mapM(IO.done))
 }
 
 private[zio] trait ZIOFunctions extends Serializable {
@@ -2039,7 +2050,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     ZIO
-      .succeed(as.iterator)
+      .effectTotal(as.iterator)
       .flatMap { i =>
         def loop(a: A): ZIO[R, E, Unit] =
           if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
