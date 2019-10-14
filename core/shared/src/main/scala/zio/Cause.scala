@@ -454,17 +454,17 @@ object Cause extends Serializable {
     }
     override final def hashCode: Int = Cause.flatten(self).hashCode
 
-    private def eq(that: Cause[_]): Boolean = (self, that) match {
+    private def eq(that: Cause[Any]): Boolean = (self, that) match {
       case (tl: Then[_], tr: Then[_]) => tl.left == tr.left && tl.right == tr.right
       case _                          => false
     }
 
-    private def assoc(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
+    private def assoc(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
       case (Then(Then(al, bl), cl), Then(ar, Then(br, cr))) => al == ar && bl == br && cl == cr
       case _                                                => false
     }
 
-    private def dist(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
+    private def dist(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
       case (Then(al, Both(bl, cl)), Both(Then(ar1, br), Then(ar2, cr)))
           if ar1 == ar2 && al == ar1 && bl == br && cl == cr =>
         true
@@ -489,17 +489,17 @@ object Cause extends Serializable {
     }
     override final def hashCode: Int = Cause.flatten(self).hashCode
 
-    private def eq(that: Cause[_]) = (self, that) match {
+    private def eq(that: Cause[Any]) = (self, that) match {
       case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right
       case _                          => false
     }
 
-    private def assoc(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
+    private def assoc(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
       case (Both(Both(al, bl), cl), Both(ar, Both(br, cr))) => al == ar && bl == br && cl == cr
       case _                                                => false
     }
 
-    private def dist(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
+    private def dist(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
       case (Both(Then(al1, bl), Then(al2, cl)), Then(ar, Both(br, cr)))
           if al1 == al2 && al1 == ar && bl == br && cl == cr =>
         true
@@ -509,7 +509,7 @@ object Cause extends Serializable {
       case _ => false
     }
 
-    private def comm(that: Cause[_]): Boolean = (self, that) match {
+    private def comm(that: Cause[Any]): Boolean = (self, that) match {
       case (Both(al, bl), Both(ar, br)) => al == br && bl == ar
       case _                            => false
     }
@@ -522,10 +522,10 @@ object Cause extends Serializable {
 
   private final case class Data(stackless: Boolean)
 
-  private[Cause] def sym(f: (Cause[_], Cause[_]) => Boolean): (Cause[_], Cause[_]) => Boolean =
+  private[Cause] def sym(f: (Cause[Any], Cause[Any]) => Boolean): (Cause[Any], Cause[Any]) => Boolean =
     (l, r) => f(l, r) || f(r, l)
 
-  private[Cause] def flatten(c: Cause[_]): Set[Cause[_]] = c match {
+  private[Cause] def flatten(c: Cause[Any]): Set[Cause[Any]] = c match {
     case Then(left, right) => flatten(left) ++ flatten(right)
     case Both(left, right) => flatten(left) ++ flatten(right)
     case Traced(cause, _)  => flatten(cause)

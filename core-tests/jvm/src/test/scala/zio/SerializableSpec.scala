@@ -237,7 +237,7 @@ object SerializableSpec
     )
 
 object SerializableSpecHelpers {
-  def serializeAndBack[T](a: T): IO[_, T] =
+  def serializeAndBack[T](a: T): IO[Any, T] =
     for {
       obj       <- IO.effectTotal(serializeToBytes(a))
       returnObj <- IO.effectTotal(getObjFromBytes[T](obj))

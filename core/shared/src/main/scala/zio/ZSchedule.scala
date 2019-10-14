@@ -282,7 +282,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * schedule may not run to completion. However, if the `Schedule` ever
    * decides not to continue, then the finalizer will be run.
    */
-  final def ensuring(finalizer: UIO[_]): ZSchedule[R, A, B] =
+  final def ensuring(finalizer: UIO[Any]): ZSchedule[R, A, B] =
     reconsiderM(
       (_, decision) =>
         (if (decision.cont) UIO.unit else finalizer) *>

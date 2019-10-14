@@ -59,7 +59,7 @@ object PlatformLive {
         } catch { case _: Throwable => throw t }
       }
 
-      def reportFailure(cause: Cause[_]): Unit =
+      def reportFailure(cause: Cause[Any]): Unit =
         if (!cause.interrupted)
           System.err.println(cause.prettyPrint)
 

@@ -136,7 +136,7 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified error reporter.
    */
-  final def withReportFailure(f: Cause[_] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
+  final def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
 
   /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.

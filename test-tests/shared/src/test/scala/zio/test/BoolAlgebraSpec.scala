@@ -139,8 +139,8 @@ object BoolAlgebraSpecHelper {
   val failure1 = BoolAlgebra.failure(value3)
   val failure2 = BoolAlgebra.failure(value4)
 
-  val isSuccess: Assertion[BoolAlgebra[_]] = assertion("isSuccess")()(_.isSuccess)
-  val isFailure: Assertion[BoolAlgebra[_]] = assertion("isFailure")()(_.isFailure)
+  val isSuccess: Assertion[BoolAlgebra[Any]] = assertion("isSuccess")()(_.isSuccess)
+  val isFailure: Assertion[BoolAlgebra[Any]] = assertion("isFailure")()(_.isFailure)
 
   def boolAlgebra: Gen[Random with Sized, BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s), 1)
 

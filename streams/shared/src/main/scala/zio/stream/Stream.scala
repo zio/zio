@@ -50,13 +50,13 @@ object Stream {
   /**
    * See [[ZStream.bracket]]
    */
-  final def bracket[E, A](acquire: IO[E, A])(release: A => UIO[_]): Stream[E, A] =
+  final def bracket[E, A](acquire: IO[E, A])(release: A => UIO[Any]): Stream[E, A] =
     ZStream.bracket(acquire)(release)
 
   /**
    * See [[ZStream.bracketExit]]
    */
-  final def bracketExit[E, A](acquire: IO[E, A])(release: (A, Exit[_, _]) => UIO[_]): Stream[E, A] =
+  final def bracketExit[E, A](acquire: IO[E, A])(release: (A, Exit[Any, Any]) => UIO[Any]): Stream[E, A] =
     ZStream.bracketExit(acquire)(release)
 
   /**
@@ -93,7 +93,7 @@ object Stream {
    * See [[ZStream.effectAsyncM]]
    */
   final def effectAsyncM[E, A](
-    register: (IO[Option[E], A] => Unit) => IO[E, _],
+    register: (IO[Option[E], A] => Unit) => IO[E, Any],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncM(register, outputBuffer)
@@ -116,7 +116,7 @@ object Stream {
   /**
    * See [[ZStream.finalizer]]
    */
-  final def finalizer(finalizer: UIO[_]): Stream[Nothing, Nothing] =
+  final def finalizer(finalizer: UIO[Any]): Stream[Nothing, Nothing] =
     ZStream.finalizer(finalizer)
 
   /**
@@ -177,7 +177,7 @@ object Stream {
    */
   final def repeatEffectWith[E, A](
     fa: IO[E, A],
-    schedule: Schedule[Unit, _]
+    schedule: Schedule[Unit, Any]
   ): ZStream[Clock, E, A] = ZStream.repeatEffectWith(fa, schedule)
 
   /**
@@ -201,13 +201,13 @@ object Stream {
   /**
    * See [[ZStream.fromQueue]]
    */
-  final def fromQueue[E, A](queue: ZQueue[_, _, Any, E, _, A]): Stream[E, A] =
+  final def fromQueue[E, A](queue: ZQueue[Nothing, Any, Any, E, Nothing, A]): Stream[E, A] =
     ZStream.fromQueue(queue)
 
   /**
    * See [[ZStream.fromQueueWithShutdown]]
    */
-  final def fromQueueWithShutdown[E, A](queue: ZQueue[_, _, Any, E, _, A]): Stream[E, A] =
+  final def fromQueueWithShutdown[E, A](queue: ZQueue[Nothing, Any, Any, E, Nothing, A]): Stream[E, A] =
     ZStream.fromQueueWithShutdown(queue)
 
   /**

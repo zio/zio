@@ -57,33 +57,36 @@ object ZManagedSpec
           testM("Invokes with the failure of the use") {
             val ex = new RuntimeException("Use died")
 
-            def res(exits: Ref[List[Exit[_, _]]]) =
+            def res(exits: Ref[List[Exit[Any, Any]]]) =
               for {
                 _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
                 _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
               } yield ()
 
             for {
-              exits  <- Ref.make[List[Exit[_, _]]](Nil)
+              exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
               _      <- res(exits).use_(ZIO.die(ex)).run
               result <- exits.get
-            } yield assert(result, equalTo(List[Exit[_, _]](Exit.Failure(Cause.Die(ex)), Exit.Failure(Cause.Die(ex)))))
+            } yield assert(
+              result,
+              equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex)), Exit.Failure(Cause.Die(ex))))
+            )
           },
           testM("Invokes with the failure of the subsequent acquire") {
             val useEx     = new RuntimeException("Use died")
             val acquireEx = new RuntimeException("Acquire died")
 
-            def res(exits: Ref[List[Exit[_, _]]]) =
+            def res(exits: Ref[List[Exit[Any, Any]]]) =
               for {
                 _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
                 _ <- ZManaged.makeExit(ZIO.die(acquireEx))((_, e) => exits.update(e :: _))
               } yield ()
 
             for {
-              exits  <- Ref.make[List[Exit[_, _]]](Nil)
+              exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
               _      <- res(exits).use_(ZIO.die(useEx)).run
               result <- exits.get
-            } yield assert(result, equalTo(List[Exit[_, _]](Exit.Failure(Cause.Die(acquireEx)))))
+            } yield assert(result, equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx)))))
           }
         ),
         suite("fromEffect")(
@@ -832,7 +835,7 @@ object ZManagedSpecUtil {
 
   def testFinalizersPar[R, E](
     n: Int,
-    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, _]
+    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, Any]
   ) =
     for {
       releases <- Ref.make[Int](0)
@@ -844,7 +847,7 @@ object ZManagedSpecUtil {
 
   def testAcquirePar[R, E](
     n: Int,
-    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, _]
+    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, Any]
   ) =
     for {
       effects      <- Ref.make(0)
