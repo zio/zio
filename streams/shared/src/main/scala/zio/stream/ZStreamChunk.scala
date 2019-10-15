@@ -131,6 +131,13 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     }
 
   /**
+   * Drops all elements of the stream until the specified predicate evaluates
+   * to `true`.
+   */
+  final def dropUntil(pred: A => Boolean): ZStreamChunk[R, E, A] =
+    dropWhile(!pred(_)).drop(1)
+
+  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
