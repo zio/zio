@@ -363,9 +363,19 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  /**
-   * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
-   */
+  final def iterate[A](a: A)(f: A => A): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
+      Managed.effectTotal {
+        var state = a
+
+        () => {
+          val out = state
+          state = f(state)
+          out
+        }
+      }
+    }
+
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect[Any, Nothing, A] {
       Managed.effectTotal {

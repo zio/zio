@@ -140,6 +140,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     interleave              $interleave
     interleaveWith          $interleaveWith
 
+  Stream.iterate $iterate
+
   Stream.map                $map
   Stream.mapAccum           $mapAccum
   Stream.mapAccumM          $mapAccumM
@@ -1180,6 +1182,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         result must_=== List(List(1, 2), List(3, 4))
       }
     )
+
+  private def iterate =
+    unsafeRun(Stream.iterate(1)(_ + 1).take(10).runCollect.map(_ must_== (1 to 10).toList))
 
   private def map =
     prop { (s: Stream[String, Byte], f: Byte => Int) =>
