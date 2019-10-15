@@ -29,7 +29,7 @@ object TestAspectSpec
           } yield if (TestPlatform.isJS) assert(result, isTrue) else assert(result, isFalse)
         },
         testM("jsOnly runs tests only on ScalaJS") {
-          val spec = test("Javascript-only")(assert(TestPlatform.isJS, isTrue)) @@ jsOnly
+          val spec   = test("Javascript-only")(assert(TestPlatform.isJS, isTrue)) @@ jsOnly
           val result = if (TestPlatform.isJS) succeeded(spec) else ignored(spec)
           result.map(assert(_, isTrue))
         },
