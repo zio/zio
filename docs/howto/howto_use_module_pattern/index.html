@@ -191,7 +191,7 @@ service effects:</p>
 <blockquote>
 <p><strong>Note:</strong> by convention such a helper would be defined inside module's companion object and named <code>&gt;</code>.
 This is to have a nice syntax to access effects like <code>Newsletter.&gt;.send(id, recipients)</code>.
-You can use the <code>@Accessable</code> macro from <a href="https://github.com/zio/zio-macros">zio-macros</a> to derrive this boilerplate code automatically.</p>
+You can use the <code>@accessible</code> macro from <a href="https://github.com/zio/zio-macros">zio-macros</a> to derrive this boilerplate code automatically.</p>
 </blockquote>
 <p>Should you need to create a test implementation it will most likely have diffrent dependencies (or none at all).</p>
 <h2><a class="anchor" aria-hidden="true" id="advantages-using-module-pattern"></a><a href="#advantages-using-module-pattern" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Advantages using module pattern</h2>
@@ -201,16 +201,6 @@ you will get a <strong>readable and accurate compiler error</strong>:</p>
   <span class="hljs-type">Helper</span>
     .send(id, recipients)
     .provide(<span class="hljs-keyword">new</span> <span class="hljs-type">NewsletterLive</span> {})
-<span class="hljs-comment">// error: object creation impossible, since:</span>
-<span class="hljs-comment">// it has 2 unimplemented members.</span>
-<span class="hljs-comment">// /** As seen from &lt;$anon: repl.Session.App0.NewsletterLive&gt;, the missing signatures are as follows.</span>
-<span class="hljs-comment">//  *  For convenience, these are usable as stub implementations.</span>
-<span class="hljs-comment">//  */</span>
-<span class="hljs-comment">//   val emailRenderer: repl.Session.App0.EmailRenderer.Service[Any] = ???</span>
-<span class="hljs-comment">//   val postman: repl.Session.App0.Postman.Service[Any] = ???</span>
-<span class="hljs-comment">// </span>
-<span class="hljs-comment">//     .provide(new NewsletterLive {})</span>
-<span class="hljs-comment">//                  ^^^^^^^^^^^^^^^^^</span>
 </code></pre>
 <pre><code class="hljs"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">creation</span> <span class="hljs-title">impossible</span>, <span class="hljs-title">since</span></span>:
 it has <span class="hljs-number">2</span> unimplemented members.
@@ -229,13 +219,6 @@ it has <span class="hljs-number">2</span> unimplemented members.
 }
 
 <span class="hljs-keyword">val</span> result2 = app.provide(<span class="hljs-keyword">new</span> <span class="hljs-type">NewsletterLiveCake</span> {})
-<span class="hljs-comment">// error: not found: value app</span>
-<span class="hljs-comment">// val result2 = app.provide(new NewsletterLiveCake {})</span>
-<span class="hljs-comment">//               ^^^</span>
-<span class="hljs-comment">// error: illegal inheritance;</span>
-<span class="hljs-comment">//  self-type repl.Session.App0.NewsletterLiveCake does not conform to repl.Session.App0.NewsletterLiveCake's selftype repl.Session.App0.NewsletterLiveCake with repl.Session.App0.EmailRenderer with repl.Session.App0.Postman</span>
-<span class="hljs-comment">// val result2 = app.provide(new NewsletterLiveCake {})</span>
-<span class="hljs-comment">//                               ^^^^^^^^^^^^^^^^^^</span>
 </code></pre>
 <p>The compiler error contains a trainwreck of interfaces. This case is still relatively simple, but as your application grows this quickly explodes
 and becomes completely unreadable.</p>
@@ -246,13 +229,10 @@ and becomes completely unreadable.</p>
 </code></pre>
 <p>Secondly, the dependencies are <strong>order-insensitive</strong>, meaning, you may provide the actual modules in any order you like.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> app = <span class="hljs-type">Helper</span>.send(id, recipients)
-<span class="hljs-comment">// app: ZIO[Newsletter, Nothing, Unit] = zio.ZIO$Read@5abdcc27</span>
 
 <span class="hljs-keyword">val</span> result3 = app.provide(<span class="hljs-keyword">new</span> <span class="hljs-type">EmailRendererLive</span> <span class="hljs-keyword">with</span> <span class="hljs-type">PostmanLive</span> <span class="hljs-keyword">with</span> <span class="hljs-type">NewsletterLive</span> {})
-<span class="hljs-comment">// result3: IO[Nothing, Unit] = zio.ZIO$Provide@3a23ed58</span>
 <span class="hljs-comment">// or</span>
 <span class="hljs-keyword">val</span> result4 = app.provide(<span class="hljs-keyword">new</span> <span class="hljs-type">PostmanLive</span> <span class="hljs-keyword">with</span> <span class="hljs-type">NewsletterLive</span> <span class="hljs-keyword">with</span> <span class="hljs-type">EmailRendererLive</span> {})
-<span class="hljs-comment">// result4: IO[Nothing, Unit] = zio.ZIO$Provide@1f371faf</span>
 </code></pre>
 <p>Another benefit is that this approach <strong>allows for circular dependencies</strong> between services. The environment is a single object with all the modules
 mixed in. It cannot be used until it's initialized and once it is, all of the services are ready to be used, in any order you wish.</p>
@@ -263,10 +243,4 @@ rely on the compiler to hint him what environment he needs to provide in order t
 <em>calls</em> to the collaborating service. Luckily both approaches are very simple.</p>
 <p>First learn how to <a href="/docs/howto/howto_test_effects">test effects</a> and once you are comfortable with testing effects, then the next step is to learn how to
 <a href="/docs/howto/howto_mock_services">mock services</a>.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/howto/howto_index"><span class="arrow-prev">← </span><span>Summary</span></a><a class="docs-next button" href="/docs/howto/howto_test_effects"><span>Test effects</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#how-to-structure-larger-zio-programs">How to structure larger ZIO programs?</a></li><li><a href="#hidden-inputs">Hidden inputs</a></li><li><a href="#environmental-effects">Environmental effects</a></li><li><a href="#module-pattern">Module pattern</a></li><li><a href="#dependency-injection">Dependency injection</a></li><li><a href="#advantages-using-module-pattern">Advantages using module pattern</a></li><li><a href="#next-steps">Next Steps</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
-        ((window.gitter = {}).chat = {}).options = {
-          showChatByDefault: false,
-          activationElement: '.gitter-open-chat-button',
-          room: 'zio/core'
-        };
-      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/howto/howto_index"><span class="arrow-prev">← </span><span>Summary</span></a><a class="docs-next button" href="/docs/howto/howto_test_effects"><span>Test effects</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#how-to-structure-larger-zio-programs">How to structure larger ZIO programs?</a></li><li><a href="#hidden-inputs">Hidden inputs</a></li><li><a href="#environmental-effects">Environmental effects</a></li><li><a href="#module-pattern">Module pattern</a></li><li><a href="#dependency-injection">Dependency injection</a></li><li><a href="#advantages-using-module-pattern">Advantages using module pattern</a></li><li><a href="#next-steps">Next Steps</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/img/discord.png" width="120" height="60" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>

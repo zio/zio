@@ -62,8 +62,11 @@
             });
         </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">JavaScript</h1></header><article><div><span><p>Include ZIO in your Scala.js project by adding the following to your <code>build.sbt</code>:</p>
 <pre><code class="hljs">scalaJSUseMainModuleInitializer := true
-libraryDependencies += <span class="hljs-string">"dev.zio"</span> %%% <span class="hljs-string">"zio"</span> % <span class="hljs-string">"1.0.0-RC14"</span>
+libraryDependencies += <span class="hljs-string">"dev.zio"</span> %%% <span class="hljs-string">"zio"</span> % <span class="hljs-string">"1.0.0-RC15"</span>
 </code></pre>
+<p>Java Time API which is not a part of ScalaJS. You might have to add dependecy that provides <code>java.time</code> package to
+avoid linker errors when using <code>Clock</code>. ZIO uses <a href="https://github.com/cquiroz/scala-java-time">scala-java-time</a> for
+running it's test.</p>
 <h2><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h2>
 <p>Your main function can extend <code>App</code> as follows.
 This example uses <a href="https://github.com/scala-js/scala-js-dom">scala-js-dom</a> to access the DOM; to run the example you
@@ -73,20 +76,14 @@ will need to add that library as a dependency to your <code>build.sbt</code>.</p
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> </span>{
 
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>] =
     <span class="hljs-keyword">for</span> {
-      p &lt;- <span class="hljs-type">IO</span>.defer(document.createElement(<span class="hljs-string">"p"</span>))
-      t &lt;- <span class="hljs-type">IO</span>.defer(document.createTextNode(<span class="hljs-string">"Hello World"</span>))
-      _ &lt;- <span class="hljs-type">IO</span>.defer(p.appendChild(t))
-      _ &lt;- <span class="hljs-type">IO</span>.defer(document.body.appendChild(p))
-    } <span class="hljs-keyword">yield</span> ()
+      p &lt;- <span class="hljs-type">IO</span>.effectSuspendTotal(document.createElement(<span class="hljs-string">"p"</span>))
+      t &lt;- <span class="hljs-type">IO</span>.effectSuspendTotal(document.createTextNode(<span class="hljs-string">"Hello World"</span>))
+      _ &lt;- <span class="hljs-type">IO</span>.effectSuspendTotal(p.appendChild(t))
+      _ &lt;- <span class="hljs-type">IO</span>.effectSuspendTotal(document.body.appendChild(p))
+    } <span class="hljs-keyword">yield</span> <span class="hljs-number">0</span>
 }
 
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/interop/interop_java"><span class="arrow-prev">← </span><span>Java</span></a><a class="docs-next button" href="/docs/interop/interop_monix"><span>Monix</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#example">Example</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
-        ((window.gitter = {}).chat = {}).options = {
-          showChatByDefault: false,
-          activationElement: '.gitter-open-chat-button',
-          room: 'zio/core'
-        };
-      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/interop/interop_java"><span class="arrow-prev">← </span><span>Java</span></a><a class="docs-next button" href="/docs/interop/interop_monix"><span>Monix</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#example">Example</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/img/discord.png" width="120" height="60" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
