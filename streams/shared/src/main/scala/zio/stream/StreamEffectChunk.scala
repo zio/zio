@@ -159,6 +159,30 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
       }
     }
 
+  override def takeUntil(pred: A => Boolean): StreamEffectChunk[R, E, A] =
+    StreamEffectChunk {
+      StreamEffect {
+        self.chunks.processEffect.flatMap { thunk =>
+          Managed.effectTotal {
+            var keepTaking = true
+
+            () => {
+              if (!keepTaking) StreamEffect.end
+              else {
+                val chunk = thunk()
+                val taken = chunk.takeWhile(!pred(_))
+                val last  = chunk.drop(taken.length).take(1)
+                if (last.nonEmpty) {
+                  keepTaking = false
+                }
+                taken ++ last
+              }
+            }
+          }
+        }
+      }
+    }
+
   override def takeWhile(pred: A => Boolean): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
       StreamEffect {
