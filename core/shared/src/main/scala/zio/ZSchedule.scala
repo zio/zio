@@ -812,15 +812,50 @@ object ZSchedule {
     identity[A].logInput(f)
 
   /**
-   * A schedule that waits forever when updating.
+   * A schedule that waits forever when updating or initializing.
    */
-  final val never: Schedule[Any, Unit] =
-    ZSchedule[Any, Nothing, Any, Unit](UIO.never, (_, _) => UIO.never, (_, _) => ())
+  final val never: Schedule[Any, Nothing] =
+    ZSchedule[Any, Nothing, Any, Nothing](UIO.never, (_, _) => UIO.never, (_, never) => never)
 
   /**
    * A schedule that executes once.
    */
   final val once: Schedule[Any, Unit] = recurs(1).unit
+
+  /**
+   * A schedule that sleeps for random duration that is uniformly distributed in the given range.
+   * The schedules output is the duration it has slept on the last update, or 0 if it hasn't updated yet.
+   */
+  final def randomDelay(min: Duration, max: Duration): ZSchedule[Random with Clock, Any, Duration] = {
+    val minNanos = min.toNanos
+    val maxNanos = max.toNanos
+    ZSchedule[Clock with Random, Duration, Any, Duration](
+      ZIO.succeed(Duration.Zero), {
+        case _ =>
+          random.nextLong(maxNanos - minNanos + 1).flatMap { n =>
+            val duration = Duration.fromNanos(n - minNanos)
+            clock.sleep(duration).as(duration)
+          }
+      },
+      { case (_, duration) => duration }
+    )
+  }
+
+  /**
+   * A schedule that sleeps for random duration that is normally distributed.
+   * The schedules output is the duration it has slept on the last update, or 0 if it hasn't updated yet.
+   */
+  final def randomDelayNormal(mean: Duration, std: Duration): ZSchedule[Random with Clock, Any, Duration] =
+    ZSchedule[Clock with Random, Duration, Any, Duration](
+      ZIO.succeed(Duration.Zero), {
+        case _ =>
+          random.nextGaussian.flatMap { n =>
+            val duration = mean + std * n
+            clock.sleep(duration).as(duration)
+          }
+      },
+      { case (_, duration) => duration }
+    )
 
   /**
    * A schedule that recurs the specified number of times. Returns the number
