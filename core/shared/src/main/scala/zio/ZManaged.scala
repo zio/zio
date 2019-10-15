@@ -226,16 +226,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged[R1, E1, B] {
       Ref.make[List[Exit[_, _] => ZIO[R1, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
-          acquire = for {
-            resR <- reserve
-                     .flatMap(res => finalizers.update(res.release :: _).as(res))
-                     .uninterruptible
-            r <- resR.acquire
-            resR1 <- f0(r).reserve
-                      .flatMap(res => finalizers.update(res.release :: _).as(res))
-                      .uninterruptible
-            r1 <- resR1.acquire
-          } yield r1,
+          acquire = ZIO.uninterruptibleMask { restore =>
+            reserve
+              .flatMap(resR => finalizers.update(resR.release :: _) *> restore(resR.acquire))
+              .flatMap(r => f0(r).reserve)
+              .flatMap(resR1 => finalizers.update(resR1.release :: _) *> restore(resR1.acquire))
+          },
           release = exitU =>
             for {
               fs    <- finalizers.get

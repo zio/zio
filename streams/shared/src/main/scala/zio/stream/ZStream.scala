@@ -38,25 +38,29 @@ import zio.stream.ZStream.Pull
  * Thanks to only first-order types, appropriate variance annotations, and
  * specialized effect type (ZIO), streams feature extremely good type inference
  * and should almost never require specification of any type parameters.
- *
- * `process` is a low-level consumption method, usually used for creating combinators
- * and constructors. For most usage, [[ZStream#fold]], [[ZStream#foreach]] or [[ZStream#run]]
- * should be preferred.
- *
- * The contract for the returned `Pull` is as follows:
- * - It must not be evaluted concurrently from multiple fibers - it is (usually)
- *   not thread-safe;
- * - If an evaluation of the `Pull` is interrupted, it is not safe to
- *   evaluate it again - it is (usually) not interruption-safe;
- * - Once the `Pull` has failed with a `None`, it is not safe
- *   to evaluate it again.
- *
- * The managed `Pull` can be used to read from the stream until it is empty
- * (or possibly forever, if the stream is infinite). The provided `Pull`
- * is valid only inside the scope of the managed resource.
  */
-class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Serializable { self =>
+class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStream.Structure[R, E, A])
+    extends Serializable { self =>
   import ZStream.GroupBy
+
+  /**
+   * `process` is a low-level consumption method, usually used for creating combinators
+   * and constructors. For most usage, [[ZStream#fold]], [[ZStream#foreach]] or [[ZStream#run]]
+   * should be preferred.
+   *
+   * The contract for the returned `Pull` is as follows:
+   * - It must not be evaluted concurrently from multiple fibers - it is (usually)
+   *   not thread-safe;
+   * - If an evaluation of the `Pull` is interrupted, it is not safe to
+   *   evaluate it again - it is (usually) not interruption-safe;
+   * - Once the `Pull` has failed with a `None`, it is not safe
+   *   to evaluate it again.
+   *
+   * The managed `Pull` can be used to read from the stream until it is empty
+   * (or possibly forever, if the stream is infinite). The provided `Pull`
+   * is valid only inside the scope of the managed resource.
+   */
+  val process: ZManaged[R, E, Pull[R, E, A]] = structure.process
 
   /**
    * Concatenates with another stream in strict order
@@ -847,7 +851,7 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * elements of this stream, and then emit the elements of the `other` stream.
    */
   final def concat[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
-    ZStream(UIO.succeed(self), UIO(other)).flatMap(ZStream.unwrap)
+    new ZStream(ZStream.Structure.Concat(structure, () => other.structure))
 
   /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
@@ -1045,38 +1049,42 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
    * Returns a stream made of the concatenation in strict order of all the streams
    * produced by passing each element of this stream to `f0`
    */
-  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] = {
+    def go(
+      as: Pull[R1, E1, A],
+      finalizer: Ref[Exit[_, _] => URIO[R1, _]],
+      currPull: Ref[Pull[R1, E1, B]]
+    ): ZIO[R1, Option[E1], B] = {
+      val pullOuter = ZIO.uninterruptibleMask { restore =>
+        restore(as).flatMap { a =>
+          (for {
+            reservation <- f0(a).process.reserve
+            bs          <- restore(reservation.acquire)
+            _           <- finalizer.set(reservation.release)
+            _           <- currPull.set(bs)
+          } yield ()).mapError(Some(_))
+        }
+      }
+
+      currPull.get.flatten.catchAll {
+        case e @ Some(e1) =>
+          (finalizer.get.flatMap(_(Exit.fail(e1))) *> finalizer.set(_ => UIO.unit)).uninterruptible *> ZIO.fail(
+            e
+          )
+        case None =>
+          (finalizer.get.flatMap(_(Exit.succeed(()))) *> finalizer
+            .set(_ => UIO.unit)).uninterruptible *> pullOuter *> go(as, finalizer, currPull)
+      }
+    }
+
     ZStream[R1, E1, B] {
       for {
         currPull  <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
         as        <- self.process
         finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
-        pullOuter = ZIO.uninterruptibleMask { restore =>
-          restore(as).flatMap { a =>
-            (for {
-              reservation <- f0(a).process.reserve
-              bs          <- restore(reservation.acquire)
-              _           <- finalizer.set(reservation.release)
-              _           <- currPull.set(bs)
-            } yield ()).mapError(Some(_))
-          }
-        }
-        bs = {
-          def go: Pull[R1, E1, B] =
-            currPull.get.flatten.catchAll {
-              case e @ Some(e1) =>
-                (finalizer.get.flatMap(_(Exit.fail(e1))) *> finalizer.set(_ => UIO.unit)).uninterruptible *> ZIO.fail(
-                  e
-                )
-              case None =>
-                (finalizer.get.flatMap(_(Exit.succeed(()))) *> finalizer
-                  .set(_ => UIO.unit)).uninterruptible *> pullOuter *> go
-            }
-
-          go
-        }
-      } yield bs
+      } yield go(as, finalizer, currPull)
     }
+  }
 
   /**
    * Maps each element of this stream to another stream and returns the
@@ -1801,15 +1809,16 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
-   * and then repeat again according to the provided schedule. The schedule output will be emitted at the end of each repetition.
+   * and then repeat again according to the provided schedule. The schedule output will be emitted at
+   * the end of each repetition.
    */
   final def repeatEither[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZStream[R1 with Clock, E, Either[B, A]] =
     repeatWith(schedule)(Right(_), Left(_))
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
-   * and then repeat again according to the provided schedule. The schedule output will be emitted at the end of each repetition and
-   * can be unified with the stream elements using the provided functions
+   * and then repeat again according to the provided schedule. The schedule output will be emitted at
+   * the end of each repetition and can be unified with the stream elements using the provided functions.
    */
   final def repeatWith[R1 <: R, B, C](
     schedule: ZSchedule[R1, Unit, B]
@@ -1818,23 +1827,39 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
       for {
         scheduleInit  <- schedule.initial.toManaged_
         schedStateRef <- Ref.make(scheduleInit).toManaged_
-        stream = {
-          def repeated: ZStream[R1 with Clock, E, C] = ZStream.unwrap {
-            for {
-              scheduleState <- schedStateRef.get
-              decision      <- schedule.update((), scheduleState)
-              s2 = if (decision.cont)
-                ZStream
-                  .fromEffect(schedStateRef.set(decision.state) *> clock.sleep(decision.delay))
-                  .drain ++ self.map(f) ++ Stream.succeed(g(decision.finish())) ++ repeated
+        switchPull    <- ZManaged.switchable[R1 with Clock, E, Pull[R1 with Clock, E, C]]
+        currPull      <- switchPull(self.map(f).process).flatMap(as => Ref.make(as)).toManaged_
+        doneRef       <- Ref.make(false).toManaged_
+        pull = {
+          def go: ZIO[R1 with Clock, Option[E], C] =
+            doneRef.get.flatMap { done =>
+              if (done) Pull.end
               else
-                ZStream.empty
-            } yield s2
-          }
-          self.map(f) ++ repeated
+                currPull.get.flatten.foldM(
+                  {
+                    case e @ Some(_) => ZIO.fail(e)
+                    case None =>
+                      schedStateRef.get
+                        .flatMap(schedule.update((), _))
+                        .flatMap { decision =>
+                          if (!decision.cont) doneRef.set(true) *> Pull.end
+                          else {
+                            val nextPull =
+                              (ZStream.fromEffect(clock.sleep(decision.delay)).drain ++
+                                self.map(f) ++ Stream.succeed(g(decision.finish()))).process
+
+                            switchPull(nextPull).mapError(Some(_)).tap(currPull.set(_)) *>
+                              schedStateRef.set(decision.state) *> go
+                          }
+                        }
+                  },
+                  ZIO.succeed
+                )
+            }
+
+          go
         }
-        as <- stream.process
-      } yield as
+      } yield pull
     }
 
   /**
@@ -2027,13 +2052,13 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
         as            <- self.process
         keepTakingRef <- Ref.make(true).toManaged_
         pull = keepTakingRef.get.flatMap { p =>
-          if (!p) UIO.succeed(Pull.end)
+          if (!p) Pull.end
           else
             as.flatMap { a =>
-              if (pred(a)) keepTakingRef.set(false) *> UIO.succeed(Pull.emit(a))
-              else UIO.succeed(Pull.emit(a))
+              if (pred(a)) keepTakingRef.set(false).as(a)
+              else Pull.emit(a)
             }
-        }.flatten
+        }
       } yield pull
     }
 
@@ -2058,6 +2083,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZStream[R1, E1, A] =
     ZStream[R1, E1, A](self.process.map(_.tap(f(_).mapError(Some(_)))))
 
+  /**
+   * Converts this stream of bytes into a `java.io.InputStream` wrapped in a [[ZManaged]].
+   * The returned input stream will only be valid within the scope of the ZManaged.
+   */
   @silent("never used")
   def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
     for {
@@ -2409,10 +2438,10 @@ object ZStream {
     val end: Pull[Any, Nothing, Nothing]                     = IO.fail(None)
     def emit[A](a: A): Pull[Any, Nothing, A]                 = UIO.succeed(a)
     def fail[E](e: E): Pull[Any, E, Nothing]                 = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): Pull[Any, E, Nothing]          = IO.halt(c).mapError(Some(_))
+    def halt[E](c: Cause[E]): Pull[Any, E, Nothing]          = IO.halt(c.map(Some(_)))
     def die(t: Throwable): Pull[Any, Nothing, Nothing]       = UIO.die(t)
     def dieMessage(m: String): Pull[Any, Nothing, Nothing]   = UIO.dieMessage(m)
-    def done[E, A](e: Exit[E, A]): Pull[Any, E, A]           = IO.done(e).mapError(Some(_))
+    def done[E, A](e: Exit[E, A]): Pull[Any, E, A]           = IO.done(e.mapError(Some(_)))
     def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A] = p.await.mapError(Some(_))
 
     def fromTake[E, A](take: Take[E, A]): Pull[Any, E, A] =
@@ -2421,6 +2450,58 @@ object ZStream {
         case Take.Fail(e)  => halt(e)
         case Take.End      => end
       }
+  }
+
+  private[stream] sealed abstract class Structure[-R, +E, +A] {
+    def process: ZManaged[R, E, Pull[R, E, A]]
+  }
+
+  private[stream] object Structure {
+    final case class Iterator[-R, +E, +A](process: ZManaged[R, E, Pull[R, E, A]]) extends Structure[R, E, A]
+    final case class Concat[-R, +E, +A](hd: Structure[R, E, A], tl: () => Structure[R, E, A])
+        extends Structure[R, E, A] {
+      val process: ZManaged[R, E, Pull[R, E, A]] = {
+        def go(
+          doneRef: Ref[Boolean],
+          currPull: Ref[Pull[R, E, A]],
+          nextPull: Ref[Option[() => Structure[R, E, A]]],
+          switchPull: ZManaged[R, E, Pull[R, E, A]] => ZIO[R, E, Pull[R, E, A]]
+        ): Pull[R, E, A] =
+          doneRef.get.flatMap { done =>
+            if (done) Pull.end
+            else
+              currPull.get.flatten.catchAll {
+                case e @ Some(_) => ZIO.fail(e)
+                case None =>
+                  nextPull.get.flatMap {
+                    case None => doneRef.set(true) *> Pull.end
+                    case Some(tl) =>
+                      tl() match {
+                        case Iterator(iter) =>
+                          switchPull(iter).mapError(Some(_)).tap(currPull.set) *>
+                            nextPull.set(None) *> go(doneRef, currPull, nextPull, switchPull)
+                        case Concat(hd, tl) =>
+                          // It is extremely important in this case to *NOT* recurse using
+                          // tl.process, as that would introduce a new ZManaged scope; this
+                          // will cause space leaks when used with streams that concatenate infinitely.
+                          // Instead, we re-use the same ZManaged scope introduced by the ZManaged.switchable
+                          // below to swap the current stream being pulled with tl.
+                          switchPull(hd.process).mapError(Some(_)).tap(currPull.set) *>
+                            nextPull.set(Some(tl)) *> go(doneRef, currPull, nextPull, switchPull)
+                      }
+                  }
+              }
+          }
+
+        for {
+          switchPull <- ZManaged.switchable[R, E, Pull[R, E, A]]
+          as         <- switchPull(hd.process).toManaged_
+          currPull   <- Ref.make[Pull[R, E, A]](as).toManaged_
+          nextPull   <- Ref.make[Option[() => Structure[R, E, A]]](Some(tl)).toManaged_
+          doneRef    <- Ref.make(false).toManaged_
+        } yield go(doneRef, currPull, nextPull, switchPull)
+      }
+    }
   }
 
   /**
@@ -2500,7 +2581,7 @@ object ZStream {
    * Creates a stream from a scoped [[Pull]].
    */
   final def apply[R, E, A](pull: ZManaged[R, E, Pull[R, E, A]]): ZStream[R, E, A] =
-    new ZStream[R, E, A](pull)
+    new ZStream[R, E, A](ZStream.Structure.Iterator(pull))
 
   /**
    * Creates a stream from a single value that will get cleaned up after the

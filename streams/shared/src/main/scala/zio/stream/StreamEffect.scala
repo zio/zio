@@ -22,15 +22,17 @@ import zio._
 
 private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E, () => A])
     extends ZStream[R, E, A](
-      processEffect.map { thunk =>
-        UIO.effectTotal {
-          try UIO.succeed(thunk())
-          catch {
-            case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
-            case StreamEffect.End        => IO.fail(None)
-          }
-        }.flatten
-      }
+      ZStream.Structure.Iterator(
+        processEffect.map { thunk =>
+          UIO.effectTotal {
+            try UIO.succeed(thunk())
+            catch {
+              case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
+              case StreamEffect.End        => IO.fail(None)
+            }
+          }.flatten
+        }
+      )
     ) { self =>
 
   override def collect[B](pf: PartialFunction[A, B]): StreamEffect[R, E, B] =
