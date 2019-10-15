@@ -1,16 +1,13 @@
 package zio.test
 
-import zio.Cause._
-
-import scala.concurrent.Future
 import zio.clock.Clock
-import zio.{ Cause, Ref, ZIO }
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.Live
+import zio.{ Cause, Ref, ZIO }
 
+import scala.concurrent.Future
 import scala.reflect.ClassTag
 
 object TestAspectSpec extends AsyncBaseSpec {
