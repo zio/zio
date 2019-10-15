@@ -652,13 +652,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       } yield l.reverse must_=== (0 to 10).toList
     )
 
-  private def dropUntil = {
-    def dropUntil[A](as: List[A])(f: A => Boolean): List[A] =
-      as.dropWhile(!f(_)).drop(1)
+  private def dropUntil =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
-      unsafeRunSync(s.dropUntil(p).runCollect) must_=== unsafeRunSync(s.runCollect.map(dropUntil(_)(p)))
+      unsafeRunSync(s.dropUntil(p).runCollect) must_=== unsafeRunSync(s.runCollect.map(StreamUtils.dropUntil(_)(p)))
     }
-  }
 
   private def dropWhile =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
@@ -1565,15 +1562,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       } yield ints must_=== List(1)
     )
 
-  private def takeUntil = {
-    def takeUntil[A](as: List[A])(f: A => Boolean): List[A] =
-      as.takeWhile(!f(_)) ++ as.dropWhile(!f(_)).take(1)
+  private def takeUntil =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
-      val streamTakeWhile = unsafeRunSync(s.takeUntil(p).runCollect)
-      val listTakeWhile   = unsafeRunSync(s.runCollect.map(takeUntil(_)(p)))
-      listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
+      val streamTakeUntil = unsafeRunSync(s.takeUntil(p).runCollect)
+      val listTakeUntil   = unsafeRunSync(s.runCollect.map(StreamUtils.takeUntil(_)(p)))
+      listTakeUntil.succeeded ==> (streamTakeUntil must_=== listTakeUntil)
     }
-  }
 
   private def takeWhile =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
