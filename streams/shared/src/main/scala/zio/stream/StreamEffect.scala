@@ -22,7 +22,7 @@ import zio._
 
 private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E, () => A])
     extends ZStream[R, E, A](
-      ZStream.Structure.Iterator(
+      Structure.Iterator(
         processEffect.map { thunk =>
           UIO.effectTotal {
             try UIO.succeed(thunk())

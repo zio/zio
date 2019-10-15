@@ -39,8 +39,8 @@ import zio.stream.ZStream.Pull
  * specialized effect type (ZIO), streams feature extremely good type inference
  * and should almost never require specification of any type parameters.
  */
-class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStream.Structure[R, E, A])
-    extends Serializable { self =>
+class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: Structure[R, E, A]) extends Serializable {
+  self =>
   import ZStream.GroupBy
 
   /**
@@ -851,7 +851,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * elements of this stream, and then emit the elements of the `other` stream.
    */
   final def concat[R1 <: R, E1 >: E, A1 >: A](other: => ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
-    new ZStream(ZStream.Structure.Concat(structure, () => other.structure))
+    new ZStream(self.structure ++ other.structure)
 
   /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
@@ -1049,42 +1049,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Returns a stream made of the concatenation in strict order of all the streams
    * produced by passing each element of this stream to `f0`
    */
-  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] = {
-    def go(
-      as: Pull[R1, E1, A],
-      finalizer: Ref[Exit[_, _] => URIO[R1, _]],
-      currPull: Ref[Pull[R1, E1, B]]
-    ): ZIO[R1, Option[E1], B] = {
-      val pullOuter = ZIO.uninterruptibleMask { restore =>
-        restore(as).flatMap { a =>
-          (for {
-            reservation <- f0(a).process.reserve
-            bs          <- restore(reservation.acquire)
-            _           <- finalizer.set(reservation.release)
-            _           <- currPull.set(bs)
-          } yield ()).mapError(Some(_))
-        }
-      }
-
-      currPull.get.flatten.catchAll {
-        case e @ Some(e1) =>
-          (finalizer.get.flatMap(_(Exit.fail(e1))) *> finalizer.set(_ => UIO.unit)).uninterruptible *> ZIO.fail(
-            e
-          )
-        case None =>
-          (finalizer.get.flatMap(_(Exit.succeed(()))) *> finalizer
-            .set(_ => UIO.unit)).uninterruptible *> pullOuter *> go(as, finalizer, currPull)
-      }
-    }
-
-    ZStream[R1, E1, B] {
-      for {
-        currPull  <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
-        as        <- self.process
-        finalizer <- ZManaged.finalizerRef[R1](_ => UIO.unit)
-      } yield go(as, finalizer, currPull)
-    }
-  }
+  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+    new ZStream(self.structure.flatMap(f0(_).structure))
 
   /**
    * Maps each element of this stream to another stream and returns the
@@ -1510,7 +1476,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Returns a stream made of the elements of this stream transformed with `f0`
    */
   def map[B](f0: A => B): ZStream[R, E, B] =
-    ZStream[R, E, B](self.process.map(_.map(f0)))
+    new ZStream[R, E, B](self.structure.map(f0))
 
   /**
    * Statefully maps over the elements of this stream to produce new elements.
@@ -1573,7 +1539,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Maps over elements of the stream with the specified effectful function.
    */
   final def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B](self.process.map(_.flatMap(f(_).mapError(Some(_)))))
+    new ZStream[R1, E1, B](self.structure.mapM(f))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -2452,58 +2418,6 @@ object ZStream {
       }
   }
 
-  private[stream] sealed abstract class Structure[-R, +E, +A] {
-    def process: ZManaged[R, E, Pull[R, E, A]]
-  }
-
-  private[stream] object Structure {
-    final case class Iterator[-R, +E, +A](process: ZManaged[R, E, Pull[R, E, A]]) extends Structure[R, E, A]
-    final case class Concat[-R, +E, +A](hd: Structure[R, E, A], tl: () => Structure[R, E, A])
-        extends Structure[R, E, A] {
-      val process: ZManaged[R, E, Pull[R, E, A]] = {
-        def go(
-          doneRef: Ref[Boolean],
-          currPull: Ref[Pull[R, E, A]],
-          nextPull: Ref[Option[() => Structure[R, E, A]]],
-          switchPull: ZManaged[R, E, Pull[R, E, A]] => ZIO[R, E, Pull[R, E, A]]
-        ): Pull[R, E, A] =
-          doneRef.get.flatMap { done =>
-            if (done) Pull.end
-            else
-              currPull.get.flatten.catchAll {
-                case e @ Some(_) => ZIO.fail(e)
-                case None =>
-                  nextPull.get.flatMap {
-                    case None => doneRef.set(true) *> Pull.end
-                    case Some(tl) =>
-                      tl() match {
-                        case Iterator(iter) =>
-                          switchPull(iter).mapError(Some(_)).tap(currPull.set) *>
-                            nextPull.set(None) *> go(doneRef, currPull, nextPull, switchPull)
-                        case Concat(hd, tl) =>
-                          // It is extremely important in this case to *NOT* recurse using
-                          // tl.process, as that would introduce a new ZManaged scope; this
-                          // will cause space leaks when used with streams that concatenate infinitely.
-                          // Instead, we re-use the same ZManaged scope introduced by the ZManaged.switchable
-                          // below to swap the current stream being pulled with tl.
-                          switchPull(hd.process).mapError(Some(_)).tap(currPull.set) *>
-                            nextPull.set(Some(tl)) *> go(doneRef, currPull, nextPull, switchPull)
-                      }
-                  }
-              }
-          }
-
-        for {
-          switchPull <- ZManaged.switchable[R, E, Pull[R, E, A]]
-          as         <- switchPull(hd.process).toManaged_
-          currPull   <- Ref.make[Pull[R, E, A]](as).toManaged_
-          nextPull   <- Ref.make[Option[() => Structure[R, E, A]]](Some(tl)).toManaged_
-          doneRef    <- Ref.make(false).toManaged_
-        } yield go(doneRef, currPull, nextPull, switchPull)
-      }
-    }
-  }
-
   /**
    * Representation of a grouped stream.
    * This allows to filter which groups will be processed.
@@ -2581,7 +2495,7 @@ object ZStream {
    * Creates a stream from a scoped [[Pull]].
    */
   final def apply[R, E, A](pull: ZManaged[R, E, Pull[R, E, A]]): ZStream[R, E, A] =
-    new ZStream[R, E, A](ZStream.Structure.Iterator(pull))
+    new ZStream[R, E, A](Structure.Iterator(pull))
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -2799,7 +2713,7 @@ object ZStream {
    * Creates a stream from an effect producing a value of type `A`
    */
   final def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
-    managed(fa.toManaged_)
+    new ZStream(Structure.Effect(fa))
 
   /**
    * Creates a stream from a [[Pull]].
