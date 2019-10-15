@@ -2763,7 +2763,8 @@ object ZStream {
   /**
    * The infinite stream of iterative function application: a, f(a), f(f(a)), f(f(f(a))), ...
    */
-  final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] = ZStream.unfold(a)(a => Some(a -> f(a)))
+  final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] =
+    StreamEffect.iterate(a)(f)
 
   /**
    * Creates a single-valued stream from a managed resource
@@ -2824,7 +2825,7 @@ object ZStream {
    * Constructs a stream from a range of integers (inclusive).
    */
   final def range(min: Int, max: Int): Stream[Nothing, Int] =
-    unfold(min)(cur => if (cur > max) None else Some((cur, cur + 1)))
+    iterate(min)(_ + 1).takeWhile(_ <= max)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
