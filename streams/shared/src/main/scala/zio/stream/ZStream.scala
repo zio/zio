@@ -946,7 +946,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Drops all elements of the stream until the specified predicate evaluates
    * to `true`.
    */
-  def dropUntil(pred: A => Boolean): ZStream[R, E, A] =
+  final def dropUntil(pred: A => Boolean): ZStream[R, E, A] =
     dropWhile(!pred(_)).drop(1)
 
   /**
