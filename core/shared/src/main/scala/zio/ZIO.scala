@@ -722,10 +722,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * {{{
    * val effect: ZIO[Console with Logging, Nothing, Unit] = ???
    *
-   * effect.provideSome[Console](console =>
+   * effect.provideSome[Console](env =>
    *   new Console with Logging {
-   *     val console = console
-   *     val logging = new Logging {
+   *     val console = env.console
+   *     val logging = new Logging.Service[Any] {
    *       def log(line: String) = console.putStrLn(line)
    *     }
    *   }
