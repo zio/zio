@@ -1,11 +1,11 @@
 package zio.stream
 
-import zio.test.{ Gen, Sized }
+import zio.test.{ Gen, GenZIO, Sized }
 import zio.random.Random
 import zio._
 import scala.concurrent.ExecutionContext
 
-trait StreamUtils extends ChunkUtils {
+trait StreamUtils extends ChunkUtils with GenZIO {
   def streamGen[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Stream[String, A]] =
     Gen.oneOf(failingStreamGen(a), pureStreamGen(a))
 
