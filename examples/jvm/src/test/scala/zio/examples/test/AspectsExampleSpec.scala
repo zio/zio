@@ -1,6 +1,5 @@
 package zio.examples.test
 
-import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
@@ -36,7 +35,7 @@ private object Aspects {
 object AspectsExampleSpec
     extends DefaultRunnableSpec(
       suite("Aspect examples")(
-        (before(putStrLn("Applying migrations")) >>> after(putStrLn("Cleaning database..."))) {
+        (before(putStrLn("Applying migrations...")) >>> after(putStrLn("Cleaning database..."))) {
           testM("Before and After aspects") {
 
             val pipeline
@@ -103,12 +102,9 @@ object AspectsExampleSpec
         timeout(3.seconds) {
           testM("Timeout test (will fail)") {
 
-            val blockingEffect = ZIO
-              .accessM[Blocking](_.blocking.effectBlocking { Thread.sleep(5000); "value" })
-              .either
-              .provide(Blocking.Live)
+            val effect = ZIO.never *> ZIO.succeed("value")
 
-            assertM(blockingEffect, isRight(equalTo("value")))
+            assertM(effect, equalTo("value"))
 
           }
         },
