@@ -106,7 +106,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    */
   def drop(n: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
-      ZStream[R, E, Chunk[A]] {
+      ZStream {
         for {
           chunks     <- self.chunks.process
           counterRef <- Ref.make(n).toManaged_
@@ -143,7 +143,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    */
   def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
-      ZStream[R, E, Chunk[A]] {
+      ZStream {
         for {
           chunks          <- self.chunks.process
           keepDroppingRef <- Ref.make(true).toManaged_
@@ -368,7 +368,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    */
   def take(n: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
-      ZStream[R, E, Chunk[A]] {
+      ZStream {
         for {
           chunks     <- self.chunks.process
           counterRef <- Ref.make(n).toManaged_
@@ -415,7 +415,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    */
   def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
-      ZStream[R, E, Chunk[A]] {
+      ZStream {
         for {
           chunks  <- self.chunks.process
           doneRef <- Ref.make(false).toManaged_
@@ -423,10 +423,10 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
             if (done) Pull.end
             else
               for {
-                chunk     <- chunks
-                remaining = chunk.takeWhile(pred)
-                _         <- doneRef.set(true).when(remaining.length < chunk.length)
-              } yield remaining
+                chunk <- chunks
+                taken = chunk.takeWhile(pred)
+                _     <- doneRef.set(true).when(taken.length < chunk.length)
+              } yield taken
           }
         } yield pull
       }

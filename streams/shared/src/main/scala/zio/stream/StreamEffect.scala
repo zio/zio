@@ -67,7 +67,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
     }
 
   override def dropWhile(pred: A => Boolean): StreamEffect[R, E, A] =
-    StreamEffect[R, E, A] {
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var drop = true
@@ -180,7 +180,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
     }
 
   override def take(n: Int): StreamEffect[R, E, A] =
-    StreamEffect[R, E, A] {
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var counter = 0
@@ -217,7 +217,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
     }
 
   override def takeWhile(pred: A => Boolean): StreamEffect[R, E, A] =
-    StreamEffect[R, E, A] {
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
           {
