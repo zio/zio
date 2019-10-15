@@ -137,6 +137,14 @@ Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is ex
 Here again the design of `zio-test` shines. Since our tests are ordinary values we can just transform them with a call to `mapTest`.
 It accepts a lambda of type `ZIO[R with TestSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with TestSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `DefaultRunnableSpec` cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added `zio-test-sbt` to our dependencies and `zio.test.sbt.TestFramework` to SBT's `testFrameworks` our tests should be automatically picked up by SBT on invocation of `test`. However if we're not using SBT or have some other special needs `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `test:run`.
 
+```scala
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-test"     % zioVersion % "test",
+  "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+),
+testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
+```
+
 ## Using Test Environment
 
 What we expect from tests (at least those that we consider unit tests) is to be stable i.e. consecutive runs should yield the same results and take
