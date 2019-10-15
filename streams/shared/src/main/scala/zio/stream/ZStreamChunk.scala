@@ -386,6 +386,30 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     }
 
   /**
+   * Takes all elements of the stream until the specified predicate evaluates
+   * to `true`.
+   */
+  def takeUntil(pred: A => Boolean): ZStreamChunk[R, E, A] =
+    ZStreamChunk {
+      ZStream {
+        for {
+          chunks        <- self.chunks.process
+          keepTakingRef <- Ref.make(true).toManaged_
+          pull = keepTakingRef.get.flatMap { keepTaking =>
+            if (!keepTaking) Pull.end
+            else
+              for {
+                chunk <- chunks
+                taken = chunk.takeWhile(!pred(_))
+                last  = chunk.drop(taken.length).take(1)
+                _     <- keepTakingRef.set(false).when(last.nonEmpty)
+              } yield taken ++ last
+          }
+        } yield pull
+      }
+    }
+
+  /**
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
