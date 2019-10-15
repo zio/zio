@@ -28,7 +28,7 @@ object Schedule {
   /**
    * See [[ZSchedule.never]]
    */
-  final val never: Schedule[Any, Unit] =
+  final val never: Schedule[Any, Nothing] =
     ZSchedule.never
 
   /**
