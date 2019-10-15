@@ -48,8 +48,6 @@ addCommandAlias(
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile"
 )
 
-addCommandAlias("test", ";testJVM;testJS")
-
 lazy val root = project
   .in(file("."))
   .settings(
@@ -220,7 +218,10 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(test)
 
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS  = testRunner.js
+lazy val testRunnerJS = testRunner.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  )
 
 /**
  * Examples sub-project that is not included in the root project.
