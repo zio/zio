@@ -1,10 +1,10 @@
 package zio.test
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import zio.test.mock.MockSpecSpec
+import zio.test.TestUtils.{report, scope}
 import zio.test.environment._
-import zio.test.TestUtils.{ report, scope }
+import zio.test.mock.MockSpecSpec
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object TestMain {
 
@@ -21,8 +21,7 @@ object TestMain {
       ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec),
       ("SchedulerSpec", SchedulerSpec),
-      ("SystemSpec", SystemSpec),
-      ("TestAspectSpec", TestAspectSpec)
+      ("SystemSpec", SystemSpec)
     )
 
     val selectedTests = args match {
