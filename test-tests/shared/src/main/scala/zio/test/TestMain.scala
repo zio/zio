@@ -12,7 +12,6 @@ object TestMain {
     val allTests: List[(String, AsyncBaseSpec)] = List(
       ("CheckSpec", CheckSpec),
       ("ClockSpec", ClockSpec),
-      ("ConsoleSpec", ConsoleSpec),
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("SummaryBuilderSpec", SummaryBuilderSpec),
       ("EnvironmentSpec", EnvironmentSpec),
