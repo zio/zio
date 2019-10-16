@@ -24,7 +24,7 @@ import zio.blocking.Blocking
 object ZEnv {
 
   /**
-   * Map the [[Clock.Service]] component of a ZEnv, keeping all other services the same.
+   * Map the [[clock.Clock.Service]] component of a ZEnv, keeping all other services the same.
    *
    * Use this with [[ZIO#provideSome]] for maximum effect.
    * {{{
@@ -35,25 +35,25 @@ object ZEnv {
     mapAll(mapClock = f)
 
   /**
-   * Map the [[Console.Service]] component of a ZEnv, keeping all other services the same.
+   * Map the [[console.Console.Service]] component of a ZEnv, keeping all other services the same.
    */
   def mapConsole(f: Console.Service[Any] => Console.Service[Any]): ZEnv => ZEnv =
     mapAll(mapConsole = f)
 
   /**
-   * Map the [[System.Service]] component of a ZEnv, keeping all other services the same.
+   * Map the [[system.System.Service]] component of a ZEnv, keeping all other services the same.
    */
   def mapSystem(f: System.Service[Any] => System.Service[Any]): ZEnv => ZEnv =
     mapAll(mapSystem = f)
 
   /**
-   * Map the [[Random.Service]] component of a ZEnv, keeping all other services the same.
+   * Map the [[random.Random.Service]] component of a ZEnv, keeping all other services the same.
    */
   def mapRandom(f: Random.Service[Any] => Random.Service[Any]): ZEnv => ZEnv =
     mapAll(mapRandom = f)
 
   /**
-   * Map the [[Blocking.Service]] component of a ZEnv, keeping all other services the same.
+   * Map the [[blocking.Blocking.Service]] component of a ZEnv, keeping all other services the same.
    */
   def mapBlocking(f: Blocking.Service[Any] => Blocking.Service[Any]): ZEnv => ZEnv =
     mapAll(mapBlocking = f)
