@@ -2,6 +2,7 @@ package zio.stream
 
 import zio._
 import zio.ZQueueSpecUtil.waitForSize
+import zio.clock.Clock
 import zio.duration._
 import zio.test._
 import zio.test.Assertion.{
@@ -1052,27 +1053,27 @@ object StreamSpec
             equalTo(List(1, 1))
           )
         ),
-        // testM("Stream.repeatEffectWith")(
-        //   for {
-        //     ref <- Ref.make[List[Int]](Nil)
-        //     _ <- Stream
-        //           .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
-        //           .take(2)
-        //           .run(Sink.drain)
-        //     result <- ref.get
-        //   } yield assert(result, equalTo(List(1, 1)))
-        // ),
+        testM("Stream.repeatEffectWith")(
+          (for {
+            ref <- Ref.make[List[Int]](Nil)
+            _ <- Stream
+                  .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+                  .take(2)
+                  .run(Sink.drain)
+            result <- ref.get
+          } yield assert(result, equalTo(List(1, 1)))).provide(Clock.Live)
+        ),
         suite("Stream.mapMPar")(
-          // testM("foreachParN equivalence") {
-          //   checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(successes(Gen.anyByte))) { (data, f) =>
-          //     val s = Stream.fromIterable(data)
+          testM("foreachParN equivalence") {
+            checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(successes(Gen.anyByte))) { (data, f) =>
+              val s = Stream.fromIterable(data)
 
-          //     for {
-          //       l <- s.mapMPar(8)(f).runCollect
-          //       r <- IO.foreachParN(8)(data)(f)
-          //     } yield assert(l, equalTo(r))
-          //   }
-          // },
+              for {
+                l <- s.mapMPar(8)(f).runCollect
+                r <- IO.foreachParN(8)(data)(f)
+              } yield assert(l, equalTo(r))
+            }
+          },
           testM("order when n = 1") {
             for {
               queue  <- Queue.unbounded[Int]
@@ -1243,18 +1244,18 @@ object StreamSpec
                 .run(Sink.collectAll[Int]),
               equalTo(List(1, 1, 1, 1, 1))
             )
+          ),
+          testM("short circuits")(
+            (for {
+              ref <- Ref.make[List[Int]](Nil)
+              _ <- Stream
+                    .fromEffect(ref.update(1 :: _))
+                    .repeat(Schedule.spaced(10.millis))
+                    .take(2)
+                    .run(Sink.drain)
+              result <- ref.get
+            } yield assert(result, equalTo(List(1, 1)))).provide(Clock.Live)
           )
-          // testM("short circuits")(
-          //   for {
-          //     ref <- Ref.make[List[Int]](Nil)
-          //     _ <- Stream
-          //           .fromEffect(ref.update(1 :: _))
-          //           .repeat(Schedule.spaced(10.millis))
-          //           .take(2)
-          //           .run(Sink.drain)
-          //     result <- ref.get
-          //   } yield assert(result, equalTo(List(1, 1)))
-          // )
         ),
         suite("Stream.repeatEither")(
           testM("emits schedule output")(
@@ -1276,25 +1277,18 @@ object StreamSpec
                 )
               )
             )
-          )
-          // testM("short circuits") {
-          //   import zio.test.environment.TestClock
-
-          //   for {
-          //     clock <- TestClock.make(TestClock.DefaultData)
-          //     ref <- Ref.make[List[Int]](Nil)
-          //     _ <- Stream
-          //           .fromEffect(ref.update(1 :: _))
-          //           .repeatEither(Schedule.spaced(10.millis))
-          //           .take(3) // take one schedule output
-          //           .run(Sink.drain)
-          //     _     <- clock.clock.setTime(15.millis)
-          //     _     <- clock.clock.setTime(25.millis)
-          //     _     <- clock.clock.setTime(35.millis)
-          //     _     <- clock.clock.setTime(45.millis)
-          //     result <- ref.get
-          //   } yield assert(result, equalTo(List(1, 1)))
-          // }
+          ),
+          testM("short circuits") {
+            (for {
+              ref <- Ref.make[List[Int]](Nil)
+              _ <- Stream
+                    .fromEffect(ref.update(1 :: _))
+                    .repeatEither(Schedule.spaced(10.millis))
+                    .take(3) // take one schedule output
+                    .run(Sink.drain)
+              result <- ref.get
+            } yield assert(result, equalTo(List(1, 1)))).provide(Clock.Live)
+          }
         ),
         suite("Stream.schedule")(
           testM("scheduleElementsWith")(
