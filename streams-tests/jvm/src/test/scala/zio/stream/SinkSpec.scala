@@ -805,7 +805,7 @@ object SinkSpec
         suite("Constructors")(
           testM("foldLeft")(
             checkM(
-              pureStreamGen(Gen.anyInt),
+              Gen.small(streamGen(Gen.anyInt,  _)),
               Gen.function[Random with Sized, (String, Int), String](Gen.anyString),
               Gen.anyString
             ) { (s, f, z) =>
@@ -816,7 +816,7 @@ object SinkSpec
             }
           ),
           suite("fold")(
-            testM("fold")(checkM(pureStreamGen(Gen.anyInt), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
+            testM("fold")(checkM(Gen.small(streamGen(Gen.anyInt,  _)), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
               for {
                 xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
                 ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
@@ -854,7 +854,7 @@ object SinkSpec
           suite("foldM")(
             testM("foldM") {
               val ioGen = successes(Gen.anyString)
-              checkM(pureStreamGen(Gen.anyInt), Gen.function(ioGen), ioGen) { (s, f, z) =>
+              checkM(Gen.small(streamGen(Gen.anyInt,  _)), Gen.function(ioGen), ioGen) { (s, f, z) =>
                 for {
                   sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(Function.untupled(f))))
                   foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
@@ -928,7 +928,7 @@ object SinkSpec
               )
             },
             testM("collectAllWhile")(
-              checkM(pureStreamGen(Gen.anyString), Gen.function(Gen.boolean)) { (s, f) =>
+              checkM(Gen.small(pureStreamGen(Gen.anyString, _)), Gen.function(Gen.boolean)) { (s, f) =>
                 for {
                   sinkResult <- s.run(ZSink.collectAllWhile(f))
                   listResult <- s.runCollect.map(_.takeWhile(f)).run

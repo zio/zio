@@ -425,17 +425,16 @@ object StreamSpec
         ),
         suite("Stream.dropUntil")(testM("dropUntil") {
           def dropUntil[A](as: List[A])(f: A => Boolean): List[A] = as.dropWhile(!f(_)).drop(1)
-          checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+          checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               res1 <- s.dropUntil(p).runCollect
               res2 <- s.runCollect.map(dropUntil(_)(p))
-
             } yield assert(res1, equalTo(res2))
           }
         }),
         suite("Stream.dropWhile")(
           testM("dropWhile")(
-            checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s: Stream[String, Byte], p: Byte => Boolean) =>
+            checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s: Stream[String, Byte], p: Byte => Boolean) =>
               for {
                 res1 <- s.dropWhile(p).runCollect
                 res2 <- s.runCollect.map(_.dropWhile(p))
@@ -483,13 +482,13 @@ object StreamSpec
             execution <- log.get
           } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
         },
-        testM("Stream.filter")(checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+        testM("Stream.filter")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
             res2 <- s.runCollect.map(_.filter(p))
           } yield assert(res1, equalTo(res2))
         }),
-        testM("Stream.filterM")(checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
+        testM("Stream.filterM")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filterM(s => IO.succeed(p(s))).runCollect
             res2 <- s.runCollect.map(_.filter(p))
@@ -511,24 +510,22 @@ object StreamSpec
 
             assertM(stream.runCollect.either, isRight(equalTo(List(expected))))
           },
-          testM("left identity")(checkM(Gen.anyInt, Gen.function(streamOfInts)) { (x, f) =>
+          testM("left identity")(checkM(Gen.anyInt, Gen.function(pureStreamOfInts)) { (x, f) =>
             for {
               res1 <- Stream(x).flatMap(f).runCollect
               res2 <- f(x).runCollect
             } yield assert(res1, equalTo(res2))
           }),
-          testM("right identity")(
-            checkM(streamOfInts)(
+          testM("right identity")(checkM(pureStreamOfInts)(
               m =>
                 for {
                   res1 <- m.flatMap(i => Stream(i)).runCollect
                   res2 <- m.runCollect
                 } yield assert(res1, equalTo(res2))
-            )
-          ),
+            )),
           testM("associativity") {
-            val fnGen = Gen.function(streamOfInts)
-            checkM(streamOfInts, fnGen, fnGen) { (m: Stream[String, Int], f: Int => Stream[String, Int], g: Int => Stream[String, Int]) =>
+            val fnGen = Gen.function(pureStreamOfInts)
+            checkM(pureStreamOfInts, fnGen, fnGen) { (m: Stream[String, Int], f: Int => Stream[String, Int], g: Int => Stream[String, Int]) =>
               for {
                 leftStream  <- m.flatMap(f).flatMap(g).runCollect
                 rightStream <- m.flatMap(x => f(x).flatMap(g)).runCollect
@@ -576,7 +573,8 @@ object StreamSpec
             } yield assert(flatMap, equalTo(flatMapPar))
           }),
           testM("consistent with flatMap")(checkM(Gen.int(1, Int.MaxValue), Gen.small(Gen.listOfN(_)(Gen.anyInt))) {
-            (n: Int, m: List[Int]) =>
+            (n
+            , m) =>
               for {
                 flatMap    <- Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect.map(_.toSet)
                 flatMapPar <- Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i)).runCollect.map(_.toSet)
@@ -863,7 +861,7 @@ object StreamSpec
             sum <- ref.get
           } yield assert(sum, equalTo(10))
         },
-        testM("Stream.fromChunk")(checkM(smallChunks(Gen.anyInt)) { c: Chunk[Int] =>
+        testM("Stream.fromChunk")(checkM(smallChunks(Gen.anyInt)) { c =>
           assertM(Stream.fromChunk(c).runCollect, equalTo(c.toSeq.toList))
         }),
         testM("Stream.fromInputStream") {
@@ -875,10 +873,10 @@ object StreamSpec
             assert(chunks.flatMap(_.toArray[Byte]).toArray, equalTo(data))
           }
         },
-        testM("Stream.fromIterable")(checkM(Gen.listOf(Gen.anyInt)) { l =>
+        testM("Stream.fromIterable")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
           assertM(Stream.fromIterable(l).runCollect, equalTo(l))
         }),
-        testM("Stream.fromIterator")(checkM(Gen.listOf(Gen.anyInt)) { l =>
+        testM("Stream.fromIterator")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
           assertM(Stream.fromIterator(UIO.effectTotal(l.iterator)).runCollect, equalTo(l))
         }),
         testM("Stream.fromQueue")(checkM(smallChunks(Gen.anyInt)) { c =>
@@ -972,7 +970,7 @@ object StreamSpec
 
             assertM(s1.interleave(s2).runCollect, equalTo(List(2, 5, 3, 6, 7)))
           },
-          testM("interleaveWith")(checkM(pureStreamGen(Gen.boolean), streamOfInts, streamOfInts) { (b, s1, s2) =>
+          testM("interleaveWith") {
             def interleave(b: List[Boolean], s1: => List[Int], s2: => List[Int]): List[Int] =
               b.headOption.map { hd =>
                 if (hd) s1 match {
@@ -991,17 +989,19 @@ object StreamSpec
                   }
               }.getOrElse(List.empty)
 
-            for {
-              interleavedStream <- s1.interleaveWith(s2)(b).runCollect.run
-              b                 <- b.runCollect
-              s1                <- s1.runCollect
-              s2                <- s2.runCollect
-              interleavedLists  = interleave(b, s1, s2)
-            } yield assert(interleavedStream.succeeded, isFalse) || assert(
-              interleavedStream,
-              succeeds(equalTo(interleavedLists))
-            )
-          })
+            checkM(streamGen(Gen.boolean, 2), streamGen(Gen.anyInt, 2), streamGen(Gen.anyInt, 2)) { (b, s1, s2) =>
+              for {
+                interleavedStream <- s1.interleaveWith(s2)(b).runCollect.run
+                b                 <- b.runCollect
+                s1                <- s1.runCollect
+                s2                <- s2.runCollect
+                interleavedLists  = interleave(b, s1, s2)
+              } yield assert(interleavedStream.succeeded, isFalse) || assert(
+                interleavedStream,
+                succeeds(equalTo(interleavedLists))
+              )
+            }
+          }
         ),
         testM("Stream.map")(checkM(streamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
           for {
@@ -1565,7 +1565,7 @@ object StreamSpec
             equalTo((0 to 9).toList)
           )
         },
-        testM("Stream.unNone")(checkM(pureStreamGen(Gen.option(Gen.anyInt))) { s =>
+        testM("Stream.unNone")(checkM(Gen.small(pureStreamGen(Gen.option(Gen.anyInt), _))) { s =>
           for {
             res1 <- (s.unNone.runCollect)
             res2 <- (s.runCollect.map(_.flatten))
