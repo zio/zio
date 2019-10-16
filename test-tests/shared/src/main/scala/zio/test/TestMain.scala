@@ -18,8 +18,7 @@ object TestMain {
       ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec),
-      ("SchedulerSpec", SchedulerSpec),
-      ("SystemSpec", SystemSpec)
+      ("SchedulerSpec", SchedulerSpec)
     )
 
     val selectedTests = args match {
