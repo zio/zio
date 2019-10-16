@@ -724,7 +724,7 @@ object ZSink extends ZSinkPlatformSpecific {
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, E, A, A, Option[B]] =
+    final def ? : ZSink[R, Nothing, A, A, Option[B]] =
       new ZSink[R, Nothing, A, A, Option[B]] {
         type State = OptionalState
         sealed trait OptionalState
@@ -908,7 +908,7 @@ object ZSink extends ZSinkPlatformSpecific {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, E, A, A, Option[B]] = ?
+    final def optional: ZSink[R, Nothing, A, A, Option[B]] = ?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
@@ -980,7 +980,7 @@ object ZSink extends ZSinkPlatformSpecific {
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, E, A, A, Option[B]] = widen.?
+    final def ? : ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Takes a `Sink`, and lifts it to be chunked in its input. This
@@ -1018,7 +1018,7 @@ object ZSink extends ZSinkPlatformSpecific {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, E, A, A, Option[B]] = widen.?
+    final def optional: ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
