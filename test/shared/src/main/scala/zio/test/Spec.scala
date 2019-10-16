@@ -36,10 +36,8 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    */
   final def @@[R1 <: R, E1 >: E, T1 >: T, S, S1 <: S, S2 >: S](
     aspect: TestAspect[Nothing, R1, Nothing, E1, S1, S2]
-  )(implicit ev: T <:< Either[TestFailure[Nothing], TestSuccess[S]]): Spec[R1, E1, L, T1] = {
-    val _ = ev
-    aspect(self.asInstanceOf[ZSpec[R, E, L, S]]).asInstanceOf[Spec[R1, E1, L, T1]]
-  }
+  )(implicit ev: T <:< Either[TestFailure[Nothing], TestSuccess[S]]): Spec[R1, E1, L, T1] =
+    aspect(self.mapTest(ev)).asInstanceOf[Spec[R1, E1, L, T1]]
 
   /**
    * Returns a new spec with the suite labels distinguished by `Left`, and the
