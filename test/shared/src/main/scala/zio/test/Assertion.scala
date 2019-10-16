@@ -390,7 +390,10 @@ object Assertion {
    * assertion.
    */
   final def isLeft[A](assertion: Assertion[A]): Assertion[Either[A, Any]] =
-    Assertion.assertionRec("isLeft")(param(assertion))(assertion)(_.swap.toOption)
+    Assertion.assertionRec("isLeft")(param(assertion))(assertion) {
+      case Left(a)  => Some(a)
+      case Right(_) => None
+    }
 
   /**
    * Makes a new assertion that requires the numeric value be less than
@@ -433,7 +436,10 @@ object Assertion {
    * assertion.
    */
   final def isRight[A](assertion: Assertion[A]): Assertion[Either[Any, A]] =
-    Assertion.assertionRec("isRight")(param(assertion))(assertion)(_.toOption)
+    Assertion.assertionRec("isRight")(param(assertion))(assertion) {
+      case Right(a) => Some(a)
+      case Left(_)  => None
+    }
 
   /**
    * Makes a new assertion that requires a Some value satisfying the specified
