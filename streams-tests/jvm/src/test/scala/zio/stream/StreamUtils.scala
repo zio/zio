@@ -43,6 +43,12 @@ trait StreamUtils extends ChunkUtils {
 
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
+
+  def dropUntil[A](as: List[A])(f: A => Boolean): List[A] =
+    as.dropWhile(!f(_)).drop(1)
+
+  def takeUntil[A](as: List[A])(f: A => Boolean): List[A] =
+    as.takeWhile(!f(_)) ++ as.dropWhile(!f(_)).take(1)
 }
 
 object StreamUtils extends StreamUtils with GenUtils {
