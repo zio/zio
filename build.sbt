@@ -48,8 +48,6 @@ addCommandAlias(
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile"
 )
 
-addCommandAlias("test", ";testJVM;testJS")
-
 lazy val root = project
   .in(file("."))
   .settings(
@@ -213,7 +211,10 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(test)
 
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS  = testRunner.js
+lazy val testRunnerJS = testRunner.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  )
 
 /**
  * Examples sub-project that is not included in the root project.
@@ -290,9 +291,12 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.3-RC1",
-      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2"
+      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
+      "dev.zio"             %% "zio-macros-access"           % "0.4.0",
+      "dev.zio"             %% "zio-macros-mock"             % "0.4.0"
     )
   )
+  .settings(macroSettings)
   .dependsOn(
     coreJVM,
     streamsJVM

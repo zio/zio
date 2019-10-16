@@ -22,15 +22,17 @@ import zio._
 
 private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E, () => A])
     extends ZStream[R, E, A](
-      processEffect.map { thunk =>
-        UIO.effectTotal {
-          try UIO.succeed(thunk())
-          catch {
-            case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
-            case StreamEffect.End        => IO.fail(None)
-          }
-        }.flatten
-      }
+      ZStream.Structure.Iterator(
+        processEffect.map { thunk =>
+          UIO.effectTotal {
+            try UIO.succeed(thunk())
+            catch {
+              case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
+              case StreamEffect.End        => IO.fail(None)
+            }
+          }.flatten
+        }
+      )
     ) { self =>
 
   override def collect[B](pf: PartialFunction[A, B]): StreamEffect[R, E, B] =
@@ -363,9 +365,19 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  /**
-   * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
-   */
+  final def iterate[A](a: A)(f: A => A): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
+      Managed.effectTotal {
+        var state = a
+
+        () => {
+          val out = state
+          state = f(state)
+          out
+        }
+      }
+    }
+
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect[Any, Nothing, A] {
       Managed.effectTotal {

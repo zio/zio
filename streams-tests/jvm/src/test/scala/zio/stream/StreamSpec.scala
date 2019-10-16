@@ -1007,6 +1007,9 @@ object StreamSpec
             }
           }
         ),
+        testM("Stream.iterate")(
+          assertM(Stream.iterate(1)(_ + 1).take(10).runCollect, equalTo((1 to 10).toList))
+        ),
         testM("Stream.map")(checkM(pureStreamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
           for {
             res1 <- s.map(f).runCollect
