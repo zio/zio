@@ -14,8 +14,7 @@ import zio.test.Assertion.{
   isLeft,
   isRight,
   isTrue,
-  isUnit,
-  succeeds
+  isUnit
 }
 import scala.{ Stream => _ }
 import Exit.Success
@@ -516,16 +515,19 @@ object StreamSpec
               res2 <- f(x).runCollect
             } yield assert(res1, equalTo(res2))
           }),
-          testM("right identity")(checkM(pureStreamOfInts)(
+          testM("right identity")(
+            checkM(pureStreamOfInts)(
               m =>
                 for {
                   res1 <- m.flatMap(i => Stream(i)).runCollect
                   res2 <- m.runCollect
                 } yield assert(res1, equalTo(res2))
-            )),
+            )
+          ),
           testM("associativity") {
-            val fnGen = Gen.function(pureStreamOfInts)
-            checkM(pureStreamOfInts, fnGen, fnGen) { (m: Stream[String, Int], f: Int => Stream[String, Int], g: Int => Stream[String, Int]) =>
+            val tinyStream = Gen.int(0, 2).flatMap(pureStreamGen(Gen.anyInt, _))
+            val fnGen      = Gen.function(tinyStream)
+            checkM(tinyStream, fnGen, fnGen) { (m, f, g) =>
               for {
                 leftStream  <- m.flatMap(f).flatMap(g).runCollect
                 rightStream <- m.flatMap(x => f(x).flatMap(g)).runCollect
@@ -573,8 +575,7 @@ object StreamSpec
             } yield assert(flatMap, equalTo(flatMapPar))
           }),
           testM("consistent with flatMap")(checkM(Gen.int(1, Int.MaxValue), Gen.small(Gen.listOfN(_)(Gen.anyInt))) {
-            (n
-            , m) =>
+            (n, m) =>
               for {
                 flatMap    <- Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect.map(_.toSet)
                 flatMapPar <- Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i)).runCollect.map(_.toSet)
@@ -989,21 +990,24 @@ object StreamSpec
                   }
               }.getOrElse(List.empty)
 
-            checkM(streamGen(Gen.boolean, 2), streamGen(Gen.anyInt, 2), streamGen(Gen.anyInt, 2)) { (b, s1, s2) =>
+            val int = Gen.int(0, 5)
+
+            checkM(
+              int.flatMap(pureStreamGen(Gen.boolean, _)),
+              int.flatMap(pureStreamGen(Gen.anyInt, _)),
+              int.flatMap(pureStreamGen(Gen.anyInt, _))
+            ) { (b, s1, s2) =>
               for {
-                interleavedStream <- s1.interleaveWith(s2)(b).runCollect.run
+                interleavedStream <- s1.interleaveWith(s2)(b).runCollect
                 b                 <- b.runCollect
                 s1                <- s1.runCollect
                 s2                <- s2.runCollect
                 interleavedLists  = interleave(b, s1, s2)
-              } yield assert(interleavedStream.succeeded, isFalse) || assert(
-                interleavedStream,
-                succeeds(equalTo(interleavedLists))
-              )
+              } yield assert(interleavedStream, equalTo(interleavedLists))
             }
           }
         ),
-        testM("Stream.map")(checkM(streamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
+        testM("Stream.map")(checkM(pureStreamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
           for {
             res1 <- s.map(f).runCollect
             res2 <- s.runCollect.map(_.map(f))
@@ -1020,7 +1024,7 @@ object StreamSpec
             equalTo(List(1, 2, 3))
           )
         },
-        testM("Stream.mapConcat")(checkM(streamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
+        testM("Stream.mapConcat")(checkM(pureStreamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
           for {
             res1 <- s.mapConcat(f).runCollect
             res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
@@ -1603,7 +1607,7 @@ object StreamSpec
 
             assertM(s1.zipWith(s2)((a, b) => a.flatMap(a => b.map(a + _))).runCollect, equalTo(List(2, 4)))
           },
-          testM("zipWithIndex")(checkM(streamOfBytes) { s =>
+          testM("zipWithIndex")(checkM(pureStreamOfBytes) { s =>
             for {
               res1 <- (s.zipWithIndex.runCollect)
               res2 <- (s.runCollect.map(_.zipWithIndex))

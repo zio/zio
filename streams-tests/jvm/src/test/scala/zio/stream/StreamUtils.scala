@@ -12,27 +12,29 @@ trait StreamUtils extends ChunkUtils with GenZIO {
   def pureStreamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, Stream[Nothing, A]] =
     max match {
       case 0 => Gen.const(Stream.empty)
-      case n => 
+      case n =>
         Gen.oneOf(
           Gen.const(Stream.empty),
           Gen.int(1, n).flatMap(Gen.listOfN(_)(a)).map(Stream.fromIterable)
-        )  
+        )
     }
 
   def failingStreamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, Stream[String, A]] =
     max match {
       case 0 => Gen.const(ZStream.fromEffect(IO.fail("fail-case")))
       case _ =>
-      Gen.int(1, max).flatMap(
-        n =>
-        for {
-          i  <- Gen.int(0, n - 1)
-          it <- Gen.listOfN(n)(a)
-        } yield ZStream.unfoldM((i, it)) {
-          case (_, Nil) | (0, _) => IO.fail("fail-case")
-          case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
-        }
-        )
+        Gen
+          .int(1, max)
+          .flatMap(
+            n =>
+              for {
+                i  <- Gen.int(0, n - 1)
+                it <- Gen.listOfN(n)(a)
+              } yield ZStream.unfoldM((i, it)) {
+                case (_, Nil) | (0, _) => IO.fail("fail-case")
+                case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
+              }
+          )
     }
 
   def pureStreamEffectGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, StreamEffect[Any, Nothing, A]] =
@@ -58,7 +60,7 @@ object StreamUtils extends StreamUtils with GenUtils {
 
   val listOfInts = Gen.listOf(intGen)
 
-  val pureStreamOfBytes    = Gen.small(pureStreamGen(Gen.anyByte, _))
+  val pureStreamOfBytes   = Gen.small(pureStreamGen(Gen.anyByte, _))
   val pureStreamOfInts    = Gen.small(pureStreamGen(intGen, _))
   val pureStreamOfStrings = Gen.small(pureStreamGen(stringGen, _))
 }

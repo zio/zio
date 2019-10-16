@@ -805,7 +805,7 @@ object SinkSpec
         suite("Constructors")(
           testM("foldLeft")(
             checkM(
-              Gen.small(streamGen(Gen.anyInt,  _)),
+              Gen.small(streamGen(Gen.anyInt, _)),
               Gen.function[Random with Sized, (String, Int), String](Gen.anyString),
               Gen.anyString
             ) { (s, f, z) =>
@@ -816,11 +816,12 @@ object SinkSpec
             }
           ),
           suite("fold")(
-            testM("fold")(checkM(Gen.small(streamGen(Gen.anyInt,  _)), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
-              for {
-                xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-                ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
-              } yield assert(xs, equalTo(ys))
+            testM("fold")(checkM(Gen.small(streamGen(Gen.anyInt, _)), Gen.function(Gen.anyString), Gen.anyString) {
+              (s, f, z) =>
+                for {
+                  xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
+                  ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
+                } yield assert(xs, equalTo(ys))
             }),
             testM("short circuits") {
               val empty: Stream[Nothing, Int]     = ZStream.empty
@@ -854,7 +855,7 @@ object SinkSpec
           suite("foldM")(
             testM("foldM") {
               val ioGen = successes(Gen.anyString)
-              checkM(Gen.small(streamGen(Gen.anyInt,  _)), Gen.function(ioGen), ioGen) { (s, f, z) =>
+              checkM(Gen.small(streamGen(Gen.anyInt, _)), Gen.function(ioGen), ioGen) { (s, f, z) =>
                 for {
                   sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(Function.untupled(f))))
                   foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
