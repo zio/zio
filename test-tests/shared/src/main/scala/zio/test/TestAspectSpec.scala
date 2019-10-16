@@ -1,13 +1,11 @@
 package zio.test
 
 import scala.concurrent.Future
-import zio.clock.Clock
 import zio.{ Cause, Ref, ZIO }
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.test.environment.Live
 
 import scala.reflect.ClassTag
 
@@ -151,17 +149,17 @@ object TestAspectSpec extends AsyncBaseSpec {
 
   def timeoutMakesTestsFailAfterGivenDuration: Future[Boolean] =
     unsafeRunToFuture {
-      val spec = (testM("timeoutMakesTestsFailAfterGivenDuration") {
+      val spec = testM("timeoutMakesTestsFailAfterGivenDuration") {
         assertM(ZIO.never *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(1.nano)
+      } @@ timeout(1.nano)
       failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ns exceeded."))
     }
 
   def timeoutReportProblemWithInterruption =
     unsafeRunToFuture {
-      val spec = (testM("timeoutReportProblemWithInterruption") {
+      val spec = testM("timeoutReportProblemWithInterruption") {
         assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
-      }: ZSpec[Live[Clock], Any, String, Any]) @@ timeout(10.millis, 1.nano)
+      } @@ timeout(10.millis, 1.nano)
       failedWith(
         spec,
         cause =>
