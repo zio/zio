@@ -16,6 +16,8 @@
 
 package zio
 
+import scala.annotation.tailrec
+
 sealed trait Cause[+E] extends Product with Serializable { self =>
   import Cause._
 
@@ -334,15 +336,22 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
-  private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z =
-    (f.lift(z -> self).getOrElse(z), self) match {
-      case (z, Then(left, right)) => right.foldLeft(left.foldLeft(z)(f))(f)
-      case (z, Both(left, right)) => right.foldLeft(left.foldLeft(z)(f))(f)
-      case (z, Traced(cause, _))  => cause.foldLeft(z)(f)
-      case (z, Meta(cause, _))    => cause.foldLeft(z)(f)
-
-      case (z, _) => z
-    }
+  private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
+    @tailrec
+    def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
+      (f.lift(z -> cause).getOrElse(z), cause) match {
+        case (z, Then(left, right)) => loop(z, left, right :: stack)
+        case (z, Both(left, right)) => loop(z, left, right :: stack)
+        case (z, Traced(cause, _))  => loop(z, cause, stack)
+        case (z, Meta(cause, _))    => loop(z, cause, stack)
+        case (z, _) =>
+          stack match {
+            case hd :: tl => loop(z, hd, tl)
+            case Nil      => z
+          }
+      }
+    loop(z, self, List.empty)
+  }
 }
 
 object Cause extends Serializable {
