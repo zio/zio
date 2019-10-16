@@ -106,6 +106,24 @@ object BoolAlgebraSpec
           val expected = BoolAlgebra.success("first") && BoolAlgebra.failure("first") && BoolAlgebra.failure("second")
           assert(actual, equalTo(expected))
         },
+        testM("monad left identity") {
+          zio.test.check(boolAlgebra) { a =>
+            assert(a.flatMap(BoolAlgebra.success), equalTo(a))
+          }
+        },
+        testM("monad right identity") {
+          val genInt      = Gen.int(0, 9)
+          val genFunction = Gen.function[Random with Sized, Int, BoolAlgebra[Int]](boolAlgebra)
+          zio.test.check(genInt, genFunction) { (a, f) =>
+            assert(BoolAlgebra.success(a).flatMap(f), equalTo(f(a)))
+          }
+        },
+        testM("monad associativity") {
+          val genFunction = Gen.function[Random with Sized, Int, BoolAlgebra[Int]](boolAlgebra)
+          zio.test.check(boolAlgebra, genFunction, genFunction) { (a, f, g) =>
+            assert(a.flatMap(f).flatMap(g), equalTo(a.flatMap(n => f(n).flatMap(g))))
+          }
+        },
         testM("or distributes over and") {
           zio.test.check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
             val left  = a || (b && c)

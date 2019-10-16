@@ -417,10 +417,10 @@ object GenSpec extends AsyncBaseSpec {
     val property = checkSome(gen)(100)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
-          failureDetails.fragment.value.toString == "(List(0),List(1))" ||
-            failureDetails.fragment.value.toString == "(List(1),List(0))" ||
-            failureDetails.fragment.value.toString == "(List(0),List(-1))" ||
-            failureDetails.fragment.value.toString == "(List(-1),List(0))"
+          failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
+            failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
+            failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
+            failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
         case _ => false
       }
     }
@@ -433,7 +433,7 @@ object GenSpec extends AsyncBaseSpec {
     val property = checkSome(gen)(100)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
-          failureDetails.fragment.value.toString == "List(0)"
+          failureDetails.assertion.head.value.toString == "List(0)"
         case _ => false
       }
     }
@@ -449,7 +449,7 @@ object GenSpec extends AsyncBaseSpec {
     val property = checkSome(gen)(100)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
-          failureDetails.fragment.value.toString == "1"
+          failureDetails.assertion.head.value.toString == "1"
         case _ => false
       }
     }

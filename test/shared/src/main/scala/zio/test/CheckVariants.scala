@@ -229,8 +229,7 @@ trait CheckVariants {
             ZIO.succeed {
               BoolAlgebra.success {
                 FailureDetails(
-                  AssertionValue(Assertion.anything, ()),
-                  AssertionValue(Assertion.anything, ())
+                  ::(AssertionValue(Assertion.anything, ()), Nil)
                 )
               }
             }
