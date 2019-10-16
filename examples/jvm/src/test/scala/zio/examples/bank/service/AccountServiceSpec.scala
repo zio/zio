@@ -1,6 +1,5 @@
 package zio.examples.bank.service
 
-import zio.ZIO
 import zio.examples.bank.TestEnvironment._
 import zio.examples.bank.domain.{ Account, CreateAccount }
 import zio.examples.bank.environment.Environments.BankEnvironment
