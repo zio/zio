@@ -5,7 +5,9 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.TestEnvironment
-import zio.{Cause, Ref, ZIO}
+import zio.{ Cause, Ref, ZIO }
+
+import scala.reflect.ClassTag
 
 object TestAspectSpec
     extends ZIOBaseSpec(
@@ -46,54 +48,52 @@ object TestAspectSpec
           val result = if (TestPlatform.isJVM) succeeded(spec) else ignored(spec)
           result.map(assert(_, isTrue))
         },
-        testM("failure makes a test pass if the result was a failure") {
-          val spec   = test("test")(assert(throw new java.lang.Exception("boom"), isFalse)) @@ failure
-          val result = succeeded(spec)
-          result.map(assert(_, isTrue))
-        },
-        testM("failure makes a test pass if it died with a specified failure") {
-          val spec = test("test")(assert(throw new NullPointerException(), isFalse)) @@ failure(
-            TestAspectSpecHelper.failsWithException[NullPointerException]
+        test("failure makes a test pass if the result was a failure") {
+          assert(throw new java.lang.Exception("boom"), isFalse)
+        } @@ failure,
+        test("failure makes a test pass if it died with a specified failure") {
+          assert(throw new NullPointerException(), isFalse)
+        } @@ failure(
+          TestAspectSpecUtil.failsWithException[NullPointerException]
+        ),
+        test("failure does not make a test pass if it failed with an unexpected exception") {
+          assert(throw new NullPointerException(), isFalse)
+        } @@ failure(TestAspectSpecUtil.failsWithException[IllegalArgumentException])
+          @@ failure,
+        test("failure does not make a test pass if the specified failure does not match") {
+          assert(throw new RuntimeException(), isFalse)
+        } @@ failure(
+          isCase[TestFailure[String], Cause[String]]("Runtime", {
+            case TestFailure.Runtime(e) => Some(e); case _ => None
+          }, equalTo(Cause.fail("boom")))
+        ) @@ failure,
+        test("failure makes tests pass on any assertion failure") {
+          assert(true, equalTo(false))
+        } @@ failure,
+        test("failure makes tests pass on an expected assertion failure") {
+          assert(true, equalTo(false))
+        } @@ failure(
+          isCase[TestFailure[Any], Any](
+            "Assertion",
+            { case TestFailure.Assertion(result) => Some(result); case _ => None },
+            anything
           )
-          succeeded(spec).map(assert(_, isTrue))
-        },
-        testM("failure does not make a test pass if it failed with an unexpected exception") {
-          val spec = test("test")(
-            assert(throw new NullPointerException(), isFalse)
-          ) @@ failure(TestAspectSpecHelper.failsWithException[IllegalArgumentException])
-          failed(spec).map(assert(_, isTrue))
-        },
-        testM("failure does not make a test pass if the specified failure does not match") {
-          val spec = test("test")(assert(throw new RuntimeException(), isFalse)) @@ failure(
-            isCase[TestFailure[String], Cause[String]]("Runtime", {
-              case TestFailure.Runtime(e) => Some(e); case _ => None
-            }, equalTo(Cause.fail("boom")))
-          )
-          failed(spec).map(assert(_, isTrue))
-        },
-        testM("failure makes tests pass on any assertion failure") {
-          val spec = test("test")(assert(true, equalTo(false))) @@ failure
-          succeeded(spec).map(assert(_, isTrue))
-        },
-        testM("failure makes tests pass on an expected assertion failure") {
-          val spec = test("test")(assert(true, equalTo(false))) @@ failure(
-            isCase[TestFailure[Any], Any]("Assertion", {
-              case TestFailure.Assertion(result) => Some(result); case _ => None
-            }, anything)
-          )
-          succeeded(spec).map(assert(_, isTrue))
-        },
+        ),
         testM("timeout makes tests fail after given duration") {
-          val spec = (testM("test") {
-            assertM(ZIO.never *> ZIO.unit, equalTo(()))                    //todo what is this doing?
-          }: ZSpec[TestEnvironment, Any, String, Any]) @@ timeout(1.nanos) //todo confirm type change didn't break anything (was typed ZSpec[Live[Clock], Any, String, Any])
+          val spec = TestAspect.timeout(1.nanos) {
+            testM("test") {
+              assertM(ZIO.never *> ZIO.unit, equalTo(()))
+            }
+          }
           val result = failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ns exceeded."))
           result.map(assert(_, isTrue))
         },
         testM("timeout reports problem with interruption") {
-          val spec = (testM("timeoutReportProblemWithInterruption") {
-            assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
-          }: ZSpec[TestEnvironment, Any, String, Any]) @@ timeout(10.millis, 1.nano) //todo confirm type change didn't break anything (was typed ZSpec[Live[Clock], Any, String, Any])
+          val spec = TestAspect.timeout(10.millis, 1.nano) {
+            testM("timeoutReportProblemWithInterruption") {
+              assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
+            }: ZSpec[TestEnvironment, Any, String, Any]
+          }
           val result =
             failedWith(
               spec,
@@ -106,3 +106,13 @@ object TestAspectSpec
         }
       )
     )
+object TestAspectSpecUtil {
+  def failsWithException[E](implicit ct: ClassTag[E]): Assertion[TestFailure[E]] =
+    isCase(
+      "Runtime", {
+        case TestFailure.Runtime(c) => c.dieOption
+        case _                      => None
+      },
+      isSubtype[E](anything)
+    )
+}
