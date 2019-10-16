@@ -14,7 +14,6 @@ object TestMain {
       ("ClockSpec", ClockSpec),
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("SummaryBuilderSpec", SummaryBuilderSpec),
-      ("EnvironmentSpec", EnvironmentSpec),
       ("GenSpec", GenSpec),
       ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
