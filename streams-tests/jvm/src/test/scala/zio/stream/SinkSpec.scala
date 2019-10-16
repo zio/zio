@@ -816,7 +816,7 @@ object SinkSpec
             }
           ),
           suite("fold")(
-            testM("fold")(checkM(Gen.small(streamGen(Gen.anyInt, _)), Gen.function2(Gen.anyString), Gen.anyString) {
+            testM("fold")(checkM(Gen.small(pureStreamGen(Gen.anyInt, _)), Gen.function2(Gen.anyString), Gen.anyString) {
               (s, f, z) =>
                 for {
                   xs <- s.run(ZSink.foldLeft(z)(f))
