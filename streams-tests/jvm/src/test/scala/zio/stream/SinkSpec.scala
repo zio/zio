@@ -805,22 +805,22 @@ object SinkSpec
         suite("Constructors")(
           testM("foldLeft")(
             checkM(
-              Gen.small(streamGen(Gen.anyInt, _)),
-              Gen.function[Random with Sized, (String, Int), String](Gen.anyString),
+              Gen.small(pureStreamGen(Gen.anyInt, _)),
+              Gen.function2(Gen.anyString),
               Gen.anyString
             ) { (s, f, z) =>
               for {
-                xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-                ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
+                xs <- s.run(ZSink.foldLeft(z)(f))
+                ys <- s.runCollect.map(_.foldLeft(z)(f))
               } yield assert(xs, equalTo(ys))
             }
           ),
           suite("fold")(
-            testM("fold")(checkM(Gen.small(streamGen(Gen.anyInt, _)), Gen.function(Gen.anyString), Gen.anyString) {
+            testM("fold")(checkM(Gen.small(streamGen(Gen.anyInt, _)), Gen.function2(Gen.anyString), Gen.anyString) {
               (s, f, z) =>
                 for {
-                  xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-                  ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
+                  xs <- s.run(ZSink.foldLeft(z)(f))
+                  ys <- s.runCollect.map(_.foldLeft(z)(f))
                 } yield assert(xs, equalTo(ys))
             }),
             testM("short circuits") {
@@ -855,12 +855,12 @@ object SinkSpec
           suite("foldM")(
             testM("foldM") {
               val ioGen = successes(Gen.anyString)
-              checkM(Gen.small(streamGen(Gen.anyInt, _)), Gen.function(ioGen), ioGen) { (s, f, z) =>
+              checkM(Gen.small(pureStreamGen(Gen.anyInt, _)), Gen.function2(ioGen), ioGen) { (s, f, z) =>
                 for {
-                  sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(Function.untupled(f))))
+                  sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(f)))
                   foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
                                  .map(_.reverse)
-                                 .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(x => f(x -> el))))
+                                 .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
                                  .run
                 } yield assert(foldResult.succeeded, isTrue) implies assert(
                   foldResult,
