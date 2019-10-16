@@ -424,11 +424,10 @@ object StreamSpec
           } yield assert(l.reverse, equalTo((0 to 10).toList))
         ),
         suite("Stream.dropUntil")(testM("dropUntil") {
-          def dropUntil[A](as: List[A])(f: A => Boolean): List[A] = as.dropWhile(!f(_)).drop(1)
           checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               res1 <- s.dropUntil(p).runCollect
-              res2 <- s.runCollect.map(dropUntil(_)(p))
+              res2 <- s.runCollect.map(StreamUtils.dropUntil(_)(p))
             } yield assert(res1, equalTo(res2))
           }
         }),
@@ -1379,15 +1378,13 @@ object StreamSpec
             } yield assert(ints, equalTo(List(1)))
           ),
           testM("takeUntil") {
-            def takeUntil[A](as: List[A])(f: A => Boolean): List[A] =
-              as.takeWhile(!f(_)) ++ as.dropWhile(!f(_)).take(1)
             checkM(streamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
               for {
-                streamTakeWhile <- s.takeUntil(p).runCollect.run
-                listTakeWhile   <- s.runCollect.map(takeUntil(_)(p)).run
-              } yield assert(listTakeWhile.succeeded, isTrue) implies assert(
-                streamTakeWhile,
-                equalTo(listTakeWhile)
+                streamTakeUntil <- s.takeUntil(p).runCollect.run
+                listTakeUntil   <- s.runCollect.map(StreamUtils.takeUntil(_)(p)).run
+              } yield assert(listTakeUntil.succeeded, isTrue) implies assert(
+                streamTakeUntil,
+                equalTo(listTakeUntil)
               )
             }
           },

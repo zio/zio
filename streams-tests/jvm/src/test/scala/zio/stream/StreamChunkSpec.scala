@@ -70,11 +70,27 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
+        testM("StreamChunk.dropUntil") {
+          checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+            for {
+              res1 <- slurp(s.dropUntil(p))
+              res2 <- slurp(s).map(seq => StreamUtils.dropUntil(seq.toList)(p))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
         testM("StreamChunk.dropWhile") {
           checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
             for {
               res1 <- slurp(s.dropWhile(p))
               res2 <- slurp(s).map(_.dropWhile(p))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
+        testM("StreamChunk.takeUntil") {
+          checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+            for {
+              res1 <- slurp(s.takeUntil(p))
+              res2 <- slurp(s).map(seq => StreamUtils.takeUntil(seq.toList)(p))
             } yield assert(res1, equalTo(res2))
           }
         },
