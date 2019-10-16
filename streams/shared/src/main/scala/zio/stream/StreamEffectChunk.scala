@@ -21,6 +21,30 @@ import zio._
 private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamEffect[R, E, Chunk[A]])
     extends ZStreamChunk[R, E, A](chunks) { self =>
 
+  override def collectWhile[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
+    StreamEffectChunk {
+      StreamEffect {
+        self.chunks.processEffect.flatMap { thunk =>
+          ZManaged.effectTotal {
+            var done = false
+
+            def pull(): Chunk[B] =
+              if (done) StreamEffect.end
+              else {
+                val chunk     = thunk()
+                val remaining = chunk.collectWhile(p)
+                if (remaining.length < chunk.length) {
+                  done = true
+                }
+                remaining
+              }
+
+            () => pull()
+          }
+        }
+      }
+    }
+
   override def drop(n: Int): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
       StreamEffect {
