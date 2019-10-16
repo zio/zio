@@ -34,8 +34,8 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * test("foo") { assert(42, equalTo(42)) } @@ ignore
    * }}}
    */
-  final def @@[R1 <: R, E1 >: E, T1 >: T, S](
-    aspect: TestAspect[Nothing, R1, Nothing, E1, S, S]
+  final def @@[R1 <: R, E1 >: E, T1 >: T, S, S1 <: S, S2 >: S](
+    aspect: TestAspect[Nothing, R1, Nothing, E1, S1, S2]
   )(implicit ev: T <:< Either[TestFailure[Nothing], TestSuccess[S]]): Spec[R1, E1, L, T1] = {
     val _ = ev
     aspect(self.asInstanceOf[ZSpec[R, E, L, S]]).asInstanceOf[Spec[R1, E1, L, T1]]
