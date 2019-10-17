@@ -32,12 +32,10 @@ object CauseSpec
               assert(c.untraced.traces.headOption, isNone)
             }
           },
-          zio.test.test("`Cause.foldLeft is stack safe") {
-            val n = 100000
-            def causeN(n: Int, acc: Cause[String] = Cause.fail("fail")): Cause[String] =
-              if (n == 1) acc
-              else causeN(n - 1, Both(acc, Cause.fail("fail")))
-            assert(causeN(n).failures.length, equalTo(n))
+          zio.test.test("`Cause.failures is stack safe") {
+            val n     = 100000
+            val cause = List.fill(n)(Cause.fail("fail")).reduce(_ && _)
+            assert(cause.failures.length, equalTo(n))
           }
         ),
         suite("Then")(
