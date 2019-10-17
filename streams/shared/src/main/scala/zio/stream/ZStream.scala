@@ -946,7 +946,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Drops all elements of the stream until the specified predicate evaluates
    * to `true`.
    */
-  def dropUntil(pred: A => Boolean): ZStream[R, E, A] =
+  final def dropUntil(pred: A => Boolean): ZStream[R, E, A] =
     dropWhile(!pred(_)).drop(1)
 
   /**
@@ -954,7 +954,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * evaluates to `true`.
    */
   def dropWhile(pred: A => Boolean): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         as              <- self.process
         keepDroppingRef <- Ref.make(true).toManaged_
@@ -2031,7 +2031,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Takes the specified number of elements from this stream.
    */
   def take(n: Int): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         as      <- self.process
         counter <- Ref.make(0).toManaged_
@@ -2047,7 +2047,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * to `true`.
    */
   def takeUntil(pred: A => Boolean): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         as            <- self.process
         keepTakingRef <- Ref.make(true).toManaged_
@@ -2067,7 +2067,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * evaluates to `true`.
    */
   def takeWhile(pred: A => Boolean): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       self.process.map { as =>
         for {
           a <- as
