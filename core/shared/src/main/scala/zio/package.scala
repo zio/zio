@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package object zio extends EitherCompat {
+package object zio extends ZEnvDefinition with EitherCompat {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
-  type Canceler = UIO[_]
-  type FiberId  = Long
+  type Canceler[R] = URIO[R, Any]
+  type FiberId     = Long
 
   type RIO[-R, +A]  = ZIO[R, Throwable, A]
   type URIO[-R, +A] = ZIO[R, Nothing, A]

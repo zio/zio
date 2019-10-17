@@ -17,7 +17,7 @@ Using the `ZIO.succeed` method, you can create an effect that succeeds with the 
 val s1 = ZIO.succeed(42)
 ```
 
-You can also create use methods in the companion objects of the `ZIO` type aliases:
+You can also use methods in the companion objects of the `ZIO` type aliases:
 
 ```scala mdoc:silent
 val s2: Task[Int] = Task.succeed(42)
@@ -148,7 +148,7 @@ def putStrLn(line: String): UIO[Unit] =
   ZIO.effectTotal(println(line))
 ```
 
-You should be careful when using `ZIO.effectTotal`&mdash;when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
+You should be careful when using `ZIO.effectTotal`—when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
 
 If you wish to refine the error type of an effect (by treating other errors as fatal), then you can use the `ZIO#refineToOrDie` method:
 

@@ -53,7 +53,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [Event Driven Messenger](https://github.com/edvmorango/event-driven-messenger) by [edvmorango](https://github.com/edvmorango)
 - [Zorechka Bot](https://github.com/wix-incubator/zorechka-bot) by [wix-incubator](https://github.com/wix-incubator)
 - [A ZIO + http4s + Circe + Quill + Tapir giter8 template](https://github.com/pandaforme/ultron.g8) by [pandaforme](https://github.com/pandaforme)
-
+- [More ZIO/http4s: with http4s authentication, encoding/decoding + zio tests](https://github.com/TimPigden/zio-http4s-examples) by [Tim Pigden](https://github.com/TimPigden)
 ## Projects using ZIO
 
 - [Rudder](https://github.com/normation/rudder): an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Uses queues, brackets, interop with Java, and historical code. See [context and references](https://issues.rudder.io/issues/14870).
@@ -61,4 +61,5 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Support
 
+- [Offical Discord Server](https://discord.gg/2ccFBr4)
 - [Official Gitter Channel](https://gitter.im/ZIO/Core)

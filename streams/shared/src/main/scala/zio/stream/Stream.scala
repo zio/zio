@@ -16,11 +16,13 @@
 
 package zio.stream
 
+import java.io.{ IOException, InputStream }
+
 import zio._
 import zio.clock.Clock
 import zio.Cause
 
-object Stream extends ZStreamPlatformSpecific {
+object Stream {
   import ZStream.Pull
 
   /**
@@ -50,6 +52,12 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def bracket[E, A](acquire: IO[E, A])(release: A => UIO[_]): Stream[E, A] =
     ZStream.bracket(acquire)(release)
+
+  /**
+   * See [[ZStream.bracketExit]]
+   */
+  final def bracketExit[E, A](acquire: IO[E, A])(release: (A, Exit[_, _]) => UIO[_]): Stream[E, A] =
+    ZStream.bracketExit(acquire)(release)
 
   /**
    * See [[ZStream.die]]
@@ -94,7 +102,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncInterrupt]]
    */
   final def effectAsyncInterrupt[E, A](
-    register: (IO[Option[E], A] => Unit) => Either[Canceler, Stream[E, A]],
+    register: (IO[Option[E], A] => Unit) => Either[Canceler[Any], Stream[E, A]],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncInterrupt(register, outputBuffer)
@@ -126,9 +134,18 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.flattenPar(n, outputBuffer)(fa)
 
   /**
+   * See [[ZStream.fromInputStream]]
+   */
+  final def fromInputStream(
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): StreamEffectChunk[Any, IOException, Byte] =
+    ZStream.fromInputStream(is, chunkSize)
+
+  /**
    * See [[ZStream.fromChunk]]
    */
-  final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
+  final def fromChunk[A](c: Chunk[A]): Stream[Nothing, A] =
     ZStream.fromChunk(c)
 
   /**
@@ -142,6 +159,12 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def fromPull[E, A](pull: Pull[Any, E, A]): Stream[E, A] =
     ZStream.fromPull(pull)
+
+  /**
+   * See [[ZStream.paginate]]
+   */
+  final def paginate[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
+    ZStream.paginate(s)(f)
 
   /**
    * See [[ZStream.repeatEffect]]
@@ -162,6 +185,18 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
     ZStream.fromIterable(as)
+
+  /**
+   * See [[ZStream.fromIterator]]
+   */
+  final def fromIterator[E, A](iterator: IO[E, Iterator[A]]): Stream[E, A] =
+    ZStream.fromIterator(iterator)
+
+  /**
+   * See [[ZStream.fromIteratorManaged]]
+   */
+  final def fromIteratorManaged[E, A](iterator: Managed[E, Iterator[A]]): Stream[E, A] =
+    ZStream.fromIteratorManaged(iterator)
 
   /**
    * See [[ZStream.fromQueue]]

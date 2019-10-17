@@ -16,6 +16,7 @@
 
 package zio.stream
 
+import com.github.ghik.silencer.silent
 import zio._
 
 /**
@@ -29,7 +30,7 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   import ZStream.Pull
 
   /**
@@ -39,17 +40,73 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
     ZStreamChunk(chunks ++ that.chunks)
 
   /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` chunks in a queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def buffer(capacity: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk(chunks.buffer(capacity))
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * elements into a dropping queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferDropping(capacity: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk(chunks.bufferDropping(capacity))
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * elements into a sliding queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferSliding(capacity: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk(chunks.bufferSliding(capacity))
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * elements into an unbounded queue.
+   */
+  final def bufferUnbounded: ZStreamChunk[R, E, A] =
+    ZStreamChunk(chunks.bufferUnbounded)
+
+  /**
    * Collects a filtered, mapped subset of the stream.
    */
   final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
     ZStreamChunk(self.chunks.map(chunk => chunk.collect(p)))
 
   /**
+   * Transforms all elements of the stream for as long as the specified partial function is defined.
+   */
+  def collectWhile[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
+    ZStreamChunk {
+      ZStream {
+        for {
+          chunks  <- self.chunks.process
+          doneRef <- Ref.make(false).toManaged_
+          pull = doneRef.get.flatMap { done =>
+            if (done) Pull.end
+            else
+              for {
+                chunk     <- chunks
+                remaining = chunk.collectWhile(p)
+                _         <- doneRef.set(true).when(remaining.length < chunk.length)
+              } yield remaining
+          }
+        } yield pull
+      }
+    }
+
+  /**
    * Drops the specified number of elements from this stream.
    */
-  final def drop(n: Int): ZStreamChunk[R, E, A] =
+  def drop(n: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
-      ZStream[R, E, Chunk[A]] {
+      ZStream {
         for {
           chunks     <- self.chunks.process
           counterRef <- Ref.make(n).toManaged_
@@ -74,12 +131,19 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
     }
 
   /**
+   * Drops all elements of the stream until the specified predicate evaluates
+   * to `true`.
+   */
+  final def dropUntil(pred: A => Boolean): ZStreamChunk[R, E, A] =
+    dropWhile(!pred(_)).drop(1)
+
+  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
-      ZStream[R, E, Chunk[A]] {
+      ZStream {
         for {
           chunks          <- self.chunks.process
           keepDroppingRef <- Ref.make(true).toManaged_
@@ -123,45 +187,104 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
    */
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStreamChunk[R1, E1, B]): ZStreamChunk[R1, E1, B] =
     ZStreamChunk(
-      chunks.flatMap(_.map(f0).foldLeft[ZStream[R1, E1, Chunk[B]]](ZStream.empty)((acc, el) => acc ++ el.chunks))
+      chunks.flatMap(_.map(f0).fold[ZStream[R1, E1, Chunk[B]]](ZStream.empty)((acc, el) => acc ++ el.chunks))
     )
 
   /**
    * Returns a stream made of the concatenation of all the chunks in this stream
    */
-  final def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
+  def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
+
+  /**
+   * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
+   * See [[ZStream.fold]]
+   */
+  def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
+    chunks
+      .foldWhileManagedM[R, E, Chunk[A1], S](s)(_ => true) { (s: S, as: Chunk[A1]) =>
+        as.foldM[Any, Nothing, S](s)((s, a) => ZIO.succeed(f(s, a)))
+      }
+      .use(ZIO.succeed)
 
   /**
    * Executes an effectful fold over the stream of values.
+   * See [[ZStream.foldM]]
    */
-  final def foldManaged[R1 <: R, E1 >: E, A1 >: A, S](
-    s: S
-  )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
-      as.foldMLazy(s)(cont)(f)
+  final def foldM[R1 <: R, E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    chunks
+      .foldWhileManagedM[R1, E1, Chunk[A1], S](s)(_ => true) { (s, as) =>
+        as.foldM(s)(f)
+      }
+      .use(ZIO.succeed)
+
+  /**
+   * Executes a pure fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   * See [[ZStream.foldManaged]]
+   */
+  final def foldManaged[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
+    chunks
+      .foldWhileManagedM[R, E, Chunk[A1], S](s)(_ => true) { (s: S, as: Chunk[A1]) =>
+        as.foldM[Any, Nothing, S](s)((s, a) => ZIO.succeed(f(s, a)))
+      }
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   * See [[ZStream.foldManagedM]]
+   */
+  final def foldManagedM[R1 <: R, E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    chunks.foldWhileManagedM[R1, E1, Chunk[A1], S](s)(_ => true) { (s, as) =>
+      as.foldM(s)(f)
     }
 
-  final def fold[R1 <: R, E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    foldManaged[R1, E1, A1, S](s)(cont)(f).use(ZIO.succeed)
+  /**
+   * Reduces the elements in the stream to a value of type `S`.
+   * Stops the fold early when the condition is not fulfilled.
+   * See [[ZStream.foldWhile]]
+   */
+  final def foldWhile[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZIO[R, E, S] =
+    chunks
+      .foldWhileManagedM[R, E, Chunk[A1], S](s)(cont) { (s: S, as: Chunk[A1]) =>
+        as.foldWhileM(s)(cont)((s, a) => ZIO.succeed(f(s, a)))
+      }
+      .use(ZIO.succeed)
 
   /**
-   * Executes an effectful fold over the stream of chunks.
+   * Executes an effectful fold over the stream of values.
+   * Stops the fold early when the condition is not fulfilled.
+   * See [[ZStream.foldWhileM]]
    */
-  final def foldChunksManaged[R1 <: R, E1 >: E, A1 >: A, S](
+  final def foldWhileM[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
-  )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    chunks.foldManaged[R1, E1, Chunk[A1], S](s)(cont)(f)
-
-  final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
-    s: S
-  )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    chunks.fold[R1, E1, Chunk[A1], S](s)(cont)(f)
+  )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+    chunks
+      .foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
+        as.foldWhileM(s)(cont)(f)
+      }
+      .use(ZIO.succeed)
 
   /**
-   * Reduces the elements in the stream to a value of type `S`
+   * Executes a pure fold over the stream of values.
+   * Stops the fold early when the condition is not fulfilled.
+   * See [[ZStream.foldWhileManaged]]
    */
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
-    fold[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a)))
+  def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
+    chunks.foldWhileManagedM[R, E, Chunk[A1], S](s)(cont) { (s: S, as: Chunk[A1]) =>
+      as.foldWhileM[Any, Nothing, S](s)(cont)((s, a) => ZIO.succeed(f(s, a)))
+    }
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Stops the fold early when the condition is not fulfilled.
+   * See [[ZStream.foldWhileManagedM]]
+   */
+  final def foldWhileManagedM[R1 <: R, E1 >: E, A1 >: A, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    chunks.foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
+      as.foldWhileM(s)(cont)(f)
+    }
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -175,7 +298,7 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
    */
   final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
     chunks.foreachWhile[R1, E1] { as =>
-      as.foldMLazy(true)(identity) { (p, a) =>
+      as.foldWhileM(true)(identity) { (p, a) =>
         if (p) f(a)
         else IO.succeed(p)
       }
@@ -184,21 +307,28 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
    */
-  def map[@specialized B](f: A => B): ZStreamChunk[R, E, B] =
+  def map[B](f: A => B): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.map(f)))
 
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
-  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
+  final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
 
   /**
-   * Maps each element to a chunk, and flattens the chunks into the output of
+   * Maps each element to a chunk and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
+  def mapConcatChunk[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.flatMap(f)))
+
+  /**
+   * Maps each element to an iterable and flattens the iterable into the output of
+   * this stream.
+   */
+  def mapConcat[B](f: A => Iterable[B]): ZStreamChunk[R, E, B] =
+    mapConcatChunk(f andThen Chunk.fromIterable)
 
   /**
    * Maps over elements of the stream with the specified effectful function.
@@ -236,9 +366,9 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
   /**
    * Takes the specified number of elements from this stream.
    */
-  final def take(n: Int): ZStreamChunk[R, E, A] =
+  def take(n: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
-      ZStream[R, E, Chunk[A]] {
+      ZStream {
         for {
           chunks     <- self.chunks.process
           counterRef <- Ref.make(n).toManaged_
@@ -256,12 +386,36 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
     }
 
   /**
+   * Takes all elements of the stream until the specified predicate evaluates
+   * to `true`.
+   */
+  def takeUntil(pred: A => Boolean): ZStreamChunk[R, E, A] =
+    ZStreamChunk {
+      ZStream {
+        for {
+          chunks        <- self.chunks.process
+          keepTakingRef <- Ref.make(true).toManaged_
+          pull = keepTakingRef.get.flatMap { keepTaking =>
+            if (!keepTaking) Pull.end
+            else
+              for {
+                chunk <- chunks
+                taken = chunk.takeWhile(!pred(_))
+                last  = chunk.drop(taken.length).take(1)
+                _     <- keepTakingRef.set(false).when(last.nonEmpty)
+              } yield taken ++ last
+          }
+        } yield pull
+      }
+    }
+
+  /**
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  final def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
-      ZStream[R, E, Chunk[A]] {
+      ZStream {
         for {
           chunks  <- self.chunks.process
           doneRef <- Ref.make(false).toManaged_
@@ -269,10 +423,10 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
             if (done) Pull.end
             else
               for {
-                chunk     <- chunks
-                remaining = chunk.takeWhile(pred)
-                _         <- doneRef.set(true).when(remaining.length < chunk.length)
-              } yield remaining
+                chunk <- chunks
+                taken = chunk.takeWhile(pred)
+                _     <- doneRef.set(true).when(taken.length < chunk.length)
+              } yield taken
           }
         } yield pull
       }
@@ -286,12 +440,32 @@ class ZStreamChunk[-R, +E, @specialized +A](val chunks: ZStream[R, E, Chunk[A]])
       as.mapM_(f0)
     })
 
+  @silent("never used")
+  def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- process
+      javaStream = new java.io.InputStream {
+        override def read(): Int = {
+          val exit = runtime.unsafeRunSync[Option[Throwable], Byte](pull.asInstanceOf[Pull[R, Throwable, Byte]])
+          ZStream.exitToInputStreamRead(exit)
+        }
+      }
+    } yield javaStream
+
   /**
-   * Converts the stream to a managed queue. After managed queue is used, the
-   * queue will never again produce chunks and should be discarded.
+   * Converts the stream to a managed queue. After managed the queue is used,
+   * the queue will never again produce chunks and should be discarded.
    */
-  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, E1, Queue[Take[E1, Chunk[A1]]]] =
+  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
     chunks.toQueue(capacity)
+
+  /**
+   * Converts the stream into an unbounded managed queue. After the managed queue
+   * is used, the queue will never again produce values and should be discarded.
+   */
+  final def toQueueUnbounded[E1 >: E, A1 >: A]: ZManaged[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
+    chunks.toQueueUnbounded
 
   /**
    * Converts the stream to a managed queue and immediately consume its
@@ -321,7 +495,7 @@ object ZStreamChunk {
    * The empty stream of chunks
    */
   final val empty: StreamChunk[Nothing, Nothing] =
-    new StreamChunk[Nothing, Nothing](Stream.empty)
+    new StreamEffectChunk(StreamEffect.empty)
 
   /**
    * Creates a `ZStreamChunk` from a stream of chunks
@@ -333,11 +507,11 @@ object ZStreamChunk {
    * Creates a `ZStreamChunk` from a variable list of chunks
    */
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A](Stream.fromIterable(as))
+    new StreamEffectChunk(StreamEffect.fromIterable(as))
 
   /**
    * Creates a `ZStreamChunk` from a chunk
    */
   final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A](Stream.succeed(as))
+    new StreamEffectChunk(StreamEffect.succeed(as))
 }
