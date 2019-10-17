@@ -37,7 +37,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   final def @@[R0 <: R1, R1 <: R, E0 >: E, E1 >: E0, S0 <: S, S, S1 >: S](aspect: TestAspect[R0, R1, E0, E1, S0, S1])(
     implicit ev: T <:< Either[TestFailure[Nothing], TestSuccess[S]]
   ): Spec[R1, E0, L, Either[TestFailure[Nothing], TestSuccess[S]]] =
-    aspect(self.mapTest(ev))
+    aspect(mapTest(ev))
 
   /**
    * Returns a new spec with the suite labels distinguished by `Left`, and the
