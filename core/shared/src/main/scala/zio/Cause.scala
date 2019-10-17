@@ -340,7 +340,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
   private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
     @tailrec
     def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
-      (f.lift(z -> cause).getOrElse(z), cause) match {
+      (f.applyOrElse[(Z, Cause[E]), Z](z -> cause, _ => z), cause) match {
         case (z, Then(left, right)) => loop(z, left, right :: stack)
         case (z, Both(left, right)) => loop(z, left, right :: stack)
         case (z, Traced(cause, _))  => loop(z, cause, stack)
