@@ -29,15 +29,23 @@ object EnvironmentSpec
             input1 <- console.getStrLn
             input2 <- console.getStrLn
           } yield {
-            assert(input1, equalTo("Input 1"))
+            assert(input1, equalTo("Input 1")) &&
             assert(input2, equalTo("Input 2"))
           }
         },
         testM("Random returns next pseudorandom integer") {
           for {
             i <- random.nextInt
-            //_ <- clock.sleep(1.millisecond) //TODO this causes test to fail with a timeout which is odd, but not sure why we needed to sleep here
             j <- random.nextInt
+          } yield !assert(i, equalTo(j))
+        },
+        /*Live clock is used to seed random number generator;
+            Node.js only has 1ms resolution so need to wait at least that long to avoid flakiness on ScalaJS*/
+        testM("Check different copies of TestEnvironment are seeded with different seeds") {
+          for {
+            i <- random.nextInt.provideManaged(TestEnvironment.Value)
+            _ <- Live.live(clock.sleep(1.millisecond))
+            j <- random.nextInt.provideManaged(TestEnvironment.Value)
           } yield !assert(i, equalTo(j))
         },
         testM("System returns an environment variable when it is set") {

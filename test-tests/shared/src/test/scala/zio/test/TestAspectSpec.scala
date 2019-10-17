@@ -20,7 +20,10 @@ object TestAspectSpec
             } @@ around(ref.set(1), ref.set(-1))
             result <- succeeded(spec)
             after  <- ref.get
-          } yield assert(result && (after == -1), isTrue)
+          } yield {
+            assert(result, isTrue) &&
+            assert(after, equalTo(-1))
+          }
         },
         testM("js applies test aspect only on ScalaJS") {
           for {
@@ -33,7 +36,7 @@ object TestAspectSpec
         testM("jsOnly runs tests only on ScalaJS") {
           val spec   = test("Javascript-only")(assert(TestPlatform.isJS, isTrue)) @@ jsOnly
           val result = if (TestPlatform.isJS) succeeded(spec) else ignored(spec)
-          result.map(assert(_, isTrue))
+          assertM(result, isTrue)
         },
         testM("jvm applies test aspect only on jvm") {
           for {
@@ -46,7 +49,7 @@ object TestAspectSpec
         testM("jvmOnly runs tests only on the JVM") {
           val spec   = test("JVM-only")(assert(TestPlatform.isJVM, isTrue)) @@ jvmOnly
           val result = if (TestPlatform.isJVM) succeeded(spec) else ignored(spec)
-          result.map(assert(_, isTrue))
+          assertM(result, isTrue)
         },
         test("failure makes a test pass if the result was a failure") {
           assert(throw new java.lang.Exception("boom"), isFalse)
@@ -86,7 +89,7 @@ object TestAspectSpec
             }
           }
           val result = failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ns exceeded."))
-          result.map(assert(_, isTrue))
+          assertM(result, isTrue)
         },
         testM("timeout reports problem with interruption") {
           val spec = TestAspect.timeout(10.millis, 1.nano) {
@@ -102,7 +105,7 @@ object TestAspectSpec
                   "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
                 )
             )
-          result.map(assert(_, isTrue))
+          assertM(result, isTrue)
         }
       )
     )
