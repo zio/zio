@@ -103,9 +103,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -142,9 +142,9 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -192,9 +192,9 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
     )
   )
 
