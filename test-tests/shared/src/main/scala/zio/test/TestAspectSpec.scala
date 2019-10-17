@@ -40,7 +40,8 @@ object TestAspectSpec extends AsyncBaseSpec {
       "failure does not make tests pass on unexpected assertion failure"
     ),
     label(timeoutMakesTestsFailAfterGivenDuration, "timeout makes tests fail after given duration"),
-    label(timeoutReportProblemWithInterruption, "timeout reports problem with interruption")
+    label(timeoutReportProblemWithInterruption, "timeout reports problem with interruption"),
+    label(testAspectsDoNotHaveTypeInferenceIssues, "test aspects do not have type inference issues")
   )
 
   def aroundEvaluatesTestsInsideContextOfManaged: Future[Boolean] =
@@ -167,6 +168,14 @@ object TestAspectSpec extends AsyncBaseSpec {
             "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
           )
       )
+    }
+
+  def testAspectsDoNotHaveTypeInferenceIssues: Future[Boolean] =
+    unsafeRunToFuture {
+      val spec = testM("timeout makes tests fail after given duration") {
+        assertM(ZIO.never *> ZIO.unit, equalTo(()))
+      } @@ timeout(1.nanos) @@ failure(failsWithException[TestTimeoutException])
+      succeeded(spec)
     }
 
   private def failsWithException[E](implicit ct: ClassTag[E]): Assertion[TestFailure[E]] =
