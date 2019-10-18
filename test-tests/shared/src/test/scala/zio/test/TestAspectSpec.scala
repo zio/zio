@@ -3,7 +3,7 @@ package zio.test
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.TestAspectSpecUtil.failsWithException
+import zio.test.TestAspectSpecUtil._
 import zio.test.TestUtils._
 import zio.{ Cause, Ref, ZIO }
 
@@ -55,8 +55,8 @@ object TestAspectSpec
           assert(throw new java.lang.Exception("boom"), isFalse)
         } @@ failure,
         test("failure makes a test pass if it died with a specified failure") {
-          assert(throw new NullPointerException(), isFalse)
-        } @@ failure(failsWithException[NullPointerException]),
+          assert(throw nullPointerException, isFalse)
+        } @@ failure(diesWith(equalTo(nullPointerException))),
         test("failure does not make a test pass if it failed with an unexpected exception") {
           assert(throw new NullPointerException(), isFalse)
         } @@ failure(failsWithException[IllegalArgumentException])
@@ -83,21 +83,11 @@ object TestAspectSpec
         testM("timeout makes tests fail after given duration") {
           assertM(ZIO.never *> ZIO.unit, equalTo(()))
         } @@ timeout(1.nanos)
-          @@ failure(failsWithException[TestTimeoutException]),
+          @@ failure(diesWith(equalTo(timeoutFailure))),
         testM("timeout reports problem with interruption") {
           assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
         } @@ timeout(10.millis, 1.nano)
-          @@ failure(
-            isCase[TestFailure[Any], Throwable](
-              "Runtime",
-              { case TestFailure.Runtime(e) => Some(e).map(_.dieOption.head); case _ => None },
-              equalTo(
-                TestTimeoutException(
-                  "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
-                )
-              )
-            )
-          )
+          @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
       )
     )
 object TestAspectSpecUtil {
@@ -109,4 +99,20 @@ object TestAspectSpecUtil {
       },
       isSubtype[E](anything)
     )
+  def diesWith(assertion: Assertion[Throwable]): Assertion[TestFailure[Any]] =
+    isCase(
+      "Runtime", {
+        case TestFailure.Runtime(c) => Some(c).map(_.dieOption.head)
+        case _                      => None
+      },
+      assertion
+    )
+  val interruptionTimeoutFailure =
+    TestTimeoutException(
+      "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
+    )
+  val timeoutFailure = TestTimeoutException("Timeout of 1 ns exceeded.")
+
+  val nullPointerException = new NullPointerException()
+
 }
