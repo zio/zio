@@ -3,8 +3,8 @@ package zio.test
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
+import zio.test.TestAspectSpecUtil.failsWithException
 import zio.test.TestUtils._
-import zio.test.environment.TestEnvironment
 import zio.{ Cause, Ref, ZIO }
 
 import scala.reflect.ClassTag
@@ -56,12 +56,10 @@ object TestAspectSpec
         } @@ failure,
         test("failure makes a test pass if it died with a specified failure") {
           assert(throw new NullPointerException(), isFalse)
-        } @@ failure(
-          TestAspectSpecUtil.failsWithException[NullPointerException]
-        ),
+        } @@ failure(failsWithException[NullPointerException]),
         test("failure does not make a test pass if it failed with an unexpected exception") {
           assert(throw new NullPointerException(), isFalse)
-        } @@ failure(TestAspectSpecUtil.failsWithException[IllegalArgumentException])
+        } @@ failure(failsWithException[IllegalArgumentException])
           @@ failure,
         test("failure does not make a test pass if the specified failure does not match") {
           assert(throw new RuntimeException(), isFalse)
@@ -82,31 +80,32 @@ object TestAspectSpec
             anything
           )
         ),
-        testM("timeout makes tests fail after given duration") {
-          val spec = TestAspect.timeout(1.nanos) {
-            testM("test") {
-              assertM(ZIO.never *> ZIO.unit, equalTo(()))
-            }
-          }
-          val result = failedWith(spec, cause => cause == TestTimeoutException("Timeout of 1 ns exceeded."))
+        /*doesn't compile, aspects do seem to work as intended below though...
+        test("test aspects do not have type inference issues") {
+          val spec = testM("timeout makes tests fail after given duration") {
+            assertM(ZIO.never *> ZIO.unit, equalTo(()))
+          } @@ timeout(1.nanos) @@ failure(failsWithException[TestTimeoutException])
+          val result = succeeded(spec)
           assertM(result, isTrue)
-        },
+        },*/
+        testM("timeout makes tests fail after given duration") {
+          assertM(ZIO.never *> ZIO.unit, equalTo(()))
+        } @@ timeout(1.nanos)
+          @@ failure(failsWithException[TestTimeoutException]),
         testM("timeout reports problem with interruption") {
-          val spec = TestAspect.timeout(10.millis, 1.nano) {
-            testM("timeoutReportProblemWithInterruption") {
-              assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
-            }: ZSpec[TestEnvironment, Any, String, Any]
-          }
-          val result =
-            failedWith(
-              spec,
-              cause =>
-                cause == TestTimeoutException(
+          assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
+        } @@ timeout(10.millis, 1.nano)
+          @@ failure(
+            isCase[TestFailure[Any], Throwable](
+              "Runtime",
+              { case TestFailure.Runtime(e) => Some(e).map(_.dieOption.head); case _ => None },
+              equalTo(
+                TestTimeoutException(
                   "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
                 )
+              )
             )
-          assertM(result, isTrue)
-        }
+          )
       )
     )
 object TestAspectSpecUtil {
