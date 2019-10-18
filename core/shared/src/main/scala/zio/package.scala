@@ -30,13 +30,7 @@ package object zio extends ZEnvDefinition with EitherCompat {
   type URManaged[-R, +A] = ZManaged[R, Nothing, A]
   type Managed[+E, +A]   = ZManaged[Any, E, A]
   type UManaged[+A]      = ZManaged[Any, Nothing, A]
-  type TManaged[+A]      = ZManaged[Any, Throwable, A]
-
-  type RMan[-R, +A]  = ZManaged[R, Throwable, A]
-  type URMan[-R, +A] = ZManaged[R, Nothing, A]
-  type Man[+E, +A]   = ZManaged[Any, E, A]
-  type UMan[+A]      = ZManaged[Any, Nothing, A]
-  type TMan[+A]      = ZManaged[Any, Throwable, A]
+  type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
 
   type Schedule[-A, +B] = ZSchedule[Any, A, B]
 
