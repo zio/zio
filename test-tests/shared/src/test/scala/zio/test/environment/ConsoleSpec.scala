@@ -11,7 +11,7 @@ object ConsoleSpec
         testM("outputs nothing") {
           for {
             output <- TestConsole.output
-          } yield assert(output.length, equalTo(0))
+          } yield assert(output, isEmpty)
         },
         testM("writes to output") {
           for {
@@ -73,7 +73,7 @@ object ConsoleSpec
             _      <- putStr("Second line")
             _      <- clearOutput
             output <- TestConsole.output
-          } yield assert(output, equalTo(Vector.empty))
+          } yield assert(output, isEmpty)
         }
       )
     )

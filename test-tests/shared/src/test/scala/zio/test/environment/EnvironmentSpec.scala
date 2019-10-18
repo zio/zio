@@ -52,13 +52,13 @@ object EnvironmentSpec
           for {
             _   <- TestSystem.putEnv("k1", "v1")
             env <- system.env("k1")
-          } yield assert(env, equalTo(Some("v1")))
+          } yield assert(env, isSome(equalTo("v1")))
         },
         testM("System returns a property when it is set") {
           for {
             _   <- TestSystem.putProperty("k1", "v1")
             env <- system.property("k1")
-          } yield assert(env, equalTo(Some("v1")))
+          } yield assert(env, isSome(equalTo("v1")))
         },
         testM("System returns the line separator when it is set") {
           for {

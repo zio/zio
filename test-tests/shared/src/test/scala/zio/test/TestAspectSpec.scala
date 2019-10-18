@@ -80,14 +80,6 @@ object TestAspectSpec
             anything
           )
         ),
-        /*doesn't compile, aspects do seem to work as intended below though...
-        test("test aspects do not have type inference issues") {
-          val spec = testM("timeout makes tests fail after given duration") {
-            assertM(ZIO.never *> ZIO.unit, equalTo(()))
-          } @@ timeout(1.nanos) @@ failure(failsWithException[TestTimeoutException])
-          val result = succeeded(spec)
-          assertM(result, isTrue)
-        },*/
         testM("timeout makes tests fail after given duration") {
           assertM(ZIO.never *> ZIO.unit, equalTo(()))
         } @@ timeout(1.nanos)
