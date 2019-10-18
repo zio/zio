@@ -103,9 +103,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -142,9 +142,9 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -192,9 +192,9 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
     )
   )
 
@@ -292,7 +292,7 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
-      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC5",
+      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC4",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
