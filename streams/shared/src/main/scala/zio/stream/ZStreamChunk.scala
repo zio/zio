@@ -74,6 +74,13 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     ZStreamChunk(chunks.bufferUnbounded)
 
   /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails. Allows recovery from all errors, except external interruption.
+   */
+  final def catchAllCause[R1 <: R, E2, A1 >: A](f: Cause[E] => ZStreamChunk[R1, E2, A1]): ZStreamChunk[R1, E2, A1] =
+    ZStreamChunk(chunks.catchAllCause(c => f(c).chunks))
+
+  /**
    * Collects a filtered, mapped subset of the stream.
    */
   final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
