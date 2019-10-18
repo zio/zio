@@ -63,11 +63,8 @@ object TestAspectSpec
           @@ failure,
         test("failure does not make a test pass if the specified failure does not match") {
           assert(throw new RuntimeException(), isFalse)
-        } @@ failure(
-          isCase[TestFailure[String], Cause[String]]("Runtime", {
-            case TestFailure.Runtime(e) => Some(e); case _ => None
-          }, equalTo(Cause.fail("boom")))
-        ) @@ failure,
+        } @@ failure(diesWith(equalTo(Cause.fail("boom"))))
+          @@ failure,
         test("failure makes tests pass on any assertion failure") {
           assert(true, equalTo(false))
         } @@ failure,
