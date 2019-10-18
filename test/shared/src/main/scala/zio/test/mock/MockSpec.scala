@@ -18,11 +18,17 @@ package zio.test.mock
 
 import scala.language.implicitConversions
 
+import com.github.ghik.silencer.silent
 import zio.{ IO, Managed, Ref, UIO, ZIO }
 import zio.test.Assertion
 import zio.test.mock.MockException.UnmetExpectationsException
 import zio.test.mock.MockSpec.{ Continuation, State }
 
+/**
+ * A `MockSpec[R, E, A]` represents a mocked call to service `R` that returns an effect that may fail with an error `E` or produce a single `A`.
+ *
+ * The monadic structure is used to build sequential expectations for the mocked service, its `unit` value models a spec with expected no calls.
+ */
 sealed trait MockSpec[-R, +E, +A] { self =>
 
   /**
@@ -87,10 +93,10 @@ sealed trait MockSpec[-R, +E, +A] { self =>
       }
 
       UIO.succeed(spec).flatMap {
-        case MockSpec.Succeed(value) =>
+        case MockSpec.Empty =>
           popContinuation.flatMap {
-            case Some(cont) => unpack(state, cont(value))
-            case None       => UIO.succeed(Right(value))
+            case Some(cont) => unpack(state, cont(()))
+            case None       => UIO.succeed(Right(()))
           }
 
         case MockSpec.FlatMap(nestedSpec, continue) =>
@@ -138,10 +144,11 @@ sealed trait MockSpec[-R, +E, +A] { self =>
   }
 
   /**
-   * Returns a mock specification whose success is mapped by the specified `f` function.
+   * Returns a dummy specification. This is required for the for-comprehension syntax.
    */
-  final def map[B](f: A => B): MockSpec[R, E, B] =
-    flatMap(a => MockSpec.succeed(f(a)))
+  @silent("parameter value f in method map is never used")
+  final def map[B](f: A => B): MockSpec[R, E, Nothing] =
+    flatMap(_ => MockSpec.expectNothing)
 
   /**
    * A named alias for `&&&` or `<*>`.
@@ -171,9 +178,7 @@ object MockSpec {
     continuationsRef: Ref[List[Continuation[R, E]]]
   )
 
-  private[mock] final case class Succeed[A](
-    value: A
-  ) extends MockSpec[Any, Nothing, A]
+  private[mock] case object Empty extends MockSpec[Any, Nothing, Nothing]
 
   private[mock] final case class FlatMap[R, E, A, B](
     value: MockSpec[R, E, A],
@@ -242,6 +247,11 @@ object MockSpec {
     MockedCall(Expectation(m, a), f)
 
   /**
+   * Returns a specification that expects no calls.
+   */
+  final val expectNothing: MockSpec[Any, Nothing, Nothing] = Empty
+
+  /**
    * Creates a mock specification expecting method `m` to be called with arguments
    * satisfying assertion `a` and returning value produced by effect `f`.
    */
@@ -261,13 +271,6 @@ object MockSpec {
    */
   final def expectOutM[R, E, B](m: Method[Unit, B])(f: => IO[E, B]): MockSpec[R, E, Unit] =
     expectM(m)(Assertion.anything)(_ => f)
-
-  /**
-   * Creates a mock specification that holds the final value `a` produced by specification.
-   * Models completed specification with no further expectations.
-   */
-  final def succeed[A](a: A): MockSpec[Any, Nothing, A] =
-    Succeed(a)
 
   /**
    * Automatically converts specification to managed environement.
