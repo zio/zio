@@ -25,13 +25,18 @@ package object zio extends ZEnvDefinition with EitherCompat {
   type IO[+E, +A]   = ZIO[Any, E, A]
   type UIO[+A]      = ZIO[Any, Nothing, A]
   type Task[+A]     = ZIO[Any, Throwable, A]
-  @deprecated("use RIO", "1.0.0")
-  type TaskR[-R, +A] = RIO[R, A]
 
-  @deprecated("use RIO", "1.0.0")
-  val TaskR = RIO
+  type RManaged[-R, +A]  = ZManaged[R, Throwable, A]
+  type URManaged[-R, +A] = ZManaged[R, Nothing, A]
+  type Managed[+E, +A]   = ZManaged[Any, E, A]
+  type UManaged[+A]      = ZManaged[Any, Nothing, A]
+  type TManaged[+A]      = ZManaged[Any, Throwable, A]
 
-  type Managed[+E, +A] = ZManaged[Any, E, A]
+  type RMan[-R, +A]  = ZManaged[R, Throwable, A]
+  type URMan[-R, +A] = ZManaged[R, Nothing, A]
+  type Man[+E, +A]   = ZManaged[Any, E, A]
+  type UMan[+A]      = ZManaged[Any, Nothing, A]
+  type TMan[+A]      = ZManaged[Any, Throwable, A]
 
   type Schedule[-A, +B] = ZSchedule[Any, A, B]
 
@@ -41,4 +46,10 @@ package object zio extends ZEnvDefinition with EitherCompat {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))
   }
+
+  @deprecated("use RIO", "1.0.0")
+  type TaskR[-R, +A] = RIO[R, A]
+
+  @deprecated("use RIO", "1.0.0")
+  val TaskR = RIO
 }
