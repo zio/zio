@@ -18,22 +18,27 @@ package zio.test.mock
 
 import zio.test.Assertion
 
+/**
+ * A `MockException` is used internally by the mock framework to
+ * signal failed expectations to the test framework.
+ */
 sealed trait MockException extends Throwable
 
 object MockException {
 
-  final case class InvalidArgumentsException[A, B](
-    method: Method[A, B],
+  final case class InvalidArgumentsException[M, I, A](
+    method: Method[M, I, A],
     args: Any,
     assertion: Assertion[Any]
   ) extends MockException
 
-  final case class InvalidMethodException[A0, B0, A1, B1](
-    method: Method[A0, B0],
-    expectation: Expectation[A1, B1]
+  final case class InvalidMethodException[M0, I0, A0, M1, I1, A1](
+    method: Method[M0, I0, A0],
+    expectedMethod: Method[M1, I1, A1],
+    assertion: Assertion[A1]
   ) extends MockException
 
-  final case class UnmetExpectationsException[A >: Nothing, B >: Nothing](
-    expectations: List[Expectation[A, B]]
+  final case class UnmetExpectationsException[M, I >: Nothing, A >: Nothing](
+    expectations: List[(Method[M, I, A], Assertion[A])]
   ) extends MockException
 }

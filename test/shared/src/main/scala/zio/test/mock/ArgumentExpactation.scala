@@ -16,14 +16,17 @@
 
 package zio.test.mock
 
+import zio.test.Assertion
+
 /**
- * The `Mockable[A]` represents a mock service builder used by the mock
- * framework to construct a mock implementation from a mock.
+ * An `ArgumentExpectation[M, I, A]` represents an expectation on input `I` arguments
+ * for capability of module `M` that returns an effect that may produce a single `A`.
  */
-trait Mockable[A] {
+final case class ArgumentExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[I]) {
 
   /**
-   * Provided a mock constructs a mock implementation of service `A`.
+   * Provides the `ReturnExpectation` to produce the final `Expectation`.
    */
-  def environment(mock: Mock): A
+  def returns[E](returns: ReturnExpectation[I, E, A]): Expectation[M, E, A] =
+    Expectation.Call[M, I, E, A](method, assertion, returns.io)
 }
