@@ -17,8 +17,7 @@ object TestMain {
       ("GenSpec", GenSpec),
       ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
-      ("SampleSpec", SampleSpec),
-      ("SchedulerSpec", SchedulerSpec)
+      ("SampleSpec", SampleSpec)
     )
 
     val selectedTests = args match {
