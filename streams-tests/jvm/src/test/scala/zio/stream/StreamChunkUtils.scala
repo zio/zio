@@ -9,16 +9,16 @@ import zio.{ Chunk, IO }
 trait StreamChunkUtils extends StreamUtils {
   def streamChunkGen[R <: Random with Sized, A: ClassTag](as: Gen[R, Chunk[A]]): Gen[R, StreamChunk[String, A]] =
     Gen.oneOf(
-      failingStreamGen(as).map(StreamChunk(_)),
-      pureStreamGen(as).map(StreamChunk(_)),
-      failingStreamEffectGen(as).map(StreamEffectChunk(_)),
-      pureStreamEffectGen(as).map(StreamEffectChunk(_))
+      Gen.small(failingStreamGen(as, _)).map(StreamChunk(_)),
+      Gen.small(pureStreamGen(as, _)).map(StreamChunk(_)),
+      Gen.small(failingStreamEffectGen(as, _)).map(StreamEffectChunk(_)),
+      Gen.small(pureStreamEffectGen(as, _)).map(StreamEffectChunk(_))
     )
 
   def pureStreamChunkGen[R <: Random with Sized, A: ClassTag](as: Gen[R, Chunk[A]]): Gen[R, StreamChunk[Nothing, A]] =
     Gen.oneOf(
-      pureStreamGen(as).map(StreamChunk(_)),
-      pureStreamEffectGen(as).map(StreamEffectChunk(_))
+      Gen.small(pureStreamGen(as, _)).map(StreamChunk(_)),
+      Gen.small(pureStreamEffectGen(as, _)).map(StreamEffectChunk(_))
     )
 }
 
