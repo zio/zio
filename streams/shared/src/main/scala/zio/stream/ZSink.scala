@@ -1724,15 +1724,14 @@ object ZSink extends ZSinkPlatformSpecific {
 
           if (i == l) {
             // We've found a new frame, store it (_without_ the delimiter),
-            // reset the delimiter pointer and advance the frame pointer
+            // reset the delimiter pointer and advance the start pointer
             buf += frame.substring(start, j - l)
             i = 0
             start = j
           } else if (j == m) {
-            // We've reached the end of the frame, but found no delimiter,
-            // though we may have been about to; hence, we keep the indices
-            // intact so we can start from where we left off in the next
-            // step
+            // We've reached the end of the frame in the middle of the
+            // delimiter; hence, we keep the indices intact so we can
+            // start from where we left off in the next step
           } else {
             // We've found a character that does not match the delimiter,
             // reset the delimiter pointer and advance the frame pointer
