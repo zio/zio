@@ -1678,6 +1678,81 @@ object ZSink extends ZSinkPlatformSpecific {
   final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
     splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
 
+  final def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
+    new SinkPure[Nothing, String, String, Chunk[String]] {
+      type State = SplitOnState
+      case class SplitOnState(
+        // Index into the delimiter
+        i: Int,
+        // Index into the current frame
+        j: Int,
+        // Signals when extraction is
+        cont: Boolean,
+        // Accumulated strings from previous pulls
+        leftover: String,
+        // Frames already collected
+        frames: Chunk[String]
+      )
+
+      def initialPure: State = SplitOnState(0, 0, true, "", Chunk.empty)
+
+      def extractPure(state: State): Either[Nothing, (Chunk[String], Chunk[String])] = {
+        val (frames, leftover) =
+          if (state.cont && !state.leftover.isEmpty)
+            state.frames + state.leftover -> Chunk.empty
+          else
+            state.frames -> Chunk.single(state.leftover)
+        Right(frames -> leftover)
+      }
+
+      def stepPure(s: State, a: String): State = {
+        val frame = s.leftover + a
+        val l     = delimiter.length
+        val m     = frame.length
+
+        var start = 0
+        var i     = s.i
+        var j     = s.j
+
+        val buf = mutable.ArrayBuffer[String]()
+
+        while (j < m) {
+          while (i < l && j < m && delimiter(i) == frame(j)) {
+            i += 1
+            j += 1
+          }
+
+          if (i == l) {
+            // We've found a new frame, store it (_without_ the delimiter),
+            // reset the delimiter pointer and advance the frame pointer
+            buf += frame.substring(start, j - l)
+            i = 0
+            start = j
+          } else if (j == m) {
+            // We've reached the end of the frame, but found no delimiter,
+            // though we may have been about to; hence, we keep the indices
+            // intact so we can start from where we left off in the next
+            // step
+          } else {
+            // We've found a character that does not match the delimiter,
+            // reset the delimiter pointer and advance the frame pointer
+            // until we find a character that matches, or reach the end
+            // of the frame
+            i = 0
+            while (j < m && frame(j) != delimiter(0)) j += 1
+          }
+        }
+
+        if (buf.isEmpty) SplitOnState(i, j, true, frame, s.frames)
+        else {
+          val frames = Chunk.fromArray(buf.toArray[String])
+          SplitOnState(0, j - start, i > 0, frame.drop(start), s.frames ++ frames)
+        }
+      }
+
+      def cont(state: State): Boolean = state.cont
+    }
+
   /**
    * Creates a single-value sink from a value.
    */
