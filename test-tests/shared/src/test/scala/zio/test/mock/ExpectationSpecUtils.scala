@@ -16,9 +16,50 @@
 
 package zio.test.mock
 
-import zio.{ IO, UIO, ZIO }
+import zio.{ IO, Managed, UIO, ZIO }
+import zio.clock.Clock
+import zio.duration.Duration
+import zio.test.{ assertM, testM, Assertion }
 
 object ExpectationSpecUtils {
+
+  private[mock] def testSpec[E, A](name: String)(
+    mock: Managed[Nothing, Module],
+    app: ZIO[Module, E, A],
+    check: Assertion[A]
+  ) = testM(name) {
+    val result = mock.use[Any, E, A](app.provide _)
+    assertM(result, check)
+  }
+
+  private[mock] def testSpecTimeboxed[E, A](name: String)(duration: Duration)(
+    mock: Managed[Nothing, Module],
+    app: ZIO[Module, E, A],
+    check: Assertion[Option[A]]
+  ) = testM(name) {
+    val result =
+      mock
+        .use(app.provide _)
+        .timeout(duration)
+        .provide(Clock.Live)
+
+    assertM(result, check)
+  }
+
+  private[mock] def testSpecDied[E, A](name: String)(
+    mock: Managed[Nothing, Module],
+    app: ZIO[Module, E, A],
+    check: Assertion[Throwable]
+  ) = testM(name) {
+    val result =
+      mock
+        .use(app.provide _)
+        .orElse(ZIO.unit)
+        .absorb
+        .flip
+
+    assertM(result, check)
+  }
 
   val intTuple22 = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 
