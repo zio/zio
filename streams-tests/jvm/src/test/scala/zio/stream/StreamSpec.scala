@@ -445,6 +445,10 @@ object StreamSpec
             )
           }
         ),
+        testM("Stream.either") {
+          val s = Stream(1, 2, 3) ++ Stream.fail("Boom")
+          s.either.runCollect.map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
+        },
         testM("Stream.ensuring") {
           for {
             log <- Ref.make[List[String]](Nil)
@@ -1146,6 +1150,11 @@ object StreamSpec
             assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either, isLeft(equalTo("Ouch")))
           }
         ),
+        testM("Stream.orElse") {
+          val s1 = Stream(1, 2, 3) ++ Stream.fail("Boom")
+          val s2 = Stream(4, 5, 6)
+          s1.orElse(s2).runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
+        },
         testM("Stream.paginate") {
           val s = (0, List(1, 2, 3))
 
