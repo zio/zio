@@ -92,26 +92,26 @@ object TMapSpec
           }
         ),
         suite("transformations")(
-          testM("filter") {
+          testM("retainIf") {
             val tx =
               for {
-                map1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
-                map2 <- map1.filter(_._1 == "aa")
-                a    <- map2.contains("a")
-                aa   <- map2.contains("aa")
-                aaa  <- map2.contains("aaa")
+                map <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                _   <- map.retainIf(_._1 == "aa")
+                a   <- map.contains("a")
+                aa  <- map.contains("aa")
+                aaa <- map.contains("aaa")
               } yield (a, aa, aaa)
 
             assertM(tx.commit, equalTo((false, true, false)))
           },
-          testM("filterNot") {
+          testM("removeIf") {
             val tx =
               for {
-                map1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
-                map2 <- map1.filterNot(_._1 == "aa")
-                a    <- map2.contains("a")
-                aa   <- map2.contains("aa")
-                aaa  <- map2.contains("aaa")
+                map <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                _   <- map.removeIf(_._1 == "aa")
+                a   <- map.contains("a")
+                aa  <- map.contains("aa")
+                aaa <- map.contains("aaa")
               } yield (a, aa, aaa)
 
             assertM(tx.commit, equalTo((true, false, true)))

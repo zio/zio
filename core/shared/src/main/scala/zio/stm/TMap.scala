@@ -27,18 +27,13 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
   final def delete[E](k: K): STM[E, TMap[K, V]] =
     accessM(_.update(indexOf(k), _.filterNot(_._1 == k))).as(self)
 
-  final def filter(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] =
-    accessM(_.transform(_.filter(p))).as(self)
-
-  final def filterNot(p: ((K, V)) => Boolean): STM[Nothing, TMap[K, V]] =
-    accessM(_.transform(_.filterNot(p))).as(self)
-
   final def fold[A](acc: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
     accessM(_.fold(acc) { case (acc, items) => items.foldLeft(acc)(op) })
 
   final def foldM[A, E](acc: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = ???
 
-  final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] = ???
+  final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] =
+    self.foldM(())((_, kv) => f(kv))
 
   final def get[E](k: K): STM[E, Option[V]] =
     accessM(_.apply(indexOf(k))).map(_.find(_._1 == k).map(_._2))
@@ -46,6 +41,7 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
   final def getOrElse[E](k: K, default: => V): STM[E, V] =
     get(k).map(_.getOrElse(default))
 
+  // TODO: ensure proper rehashing by using factory!!!
   final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] =
     accessM(_.map(_.map(f))).flatMap(t => TRef.make(t)).map(r => new TMap(r))
 
@@ -61,10 +57,18 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
     accessM(_.update(indexOf(k), update)).as(self)
   }
 
-  private def accessM[E, A](f: TArray[List[(K, V)]] => STM[E, A]): STM[E, A] = buckets.get.flatMap(f)
+  final def removeIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =
+    accessM(_.transform(_.filterNot(p)))
+
+  final def retainIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =
+    accessM(_.transform(_.filter(p)))
+
+  private def accessM[E, A](f: TArray[List[(K, V)]] => STM[E, A]): STM[E, A] =
+    buckets.get.flatMap(f)
 }
 
 object TMap {
+
   /**
    * Makes a new `TMap` that is initialized with the specified values.
    */
