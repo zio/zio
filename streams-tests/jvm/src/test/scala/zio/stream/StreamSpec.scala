@@ -156,7 +156,11 @@ object StreamSpec
                   (latch.succeed(()) *> UIO.never)
                     .onInterrupt(cancelled.set(true))
               }
-              fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, ZSchedule.spaced(30.minutes)).runCollect.untraced.fork
+              fiber <- Stream(1, 1, 2)
+                        .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .runCollect
+                        .untraced
+                        .fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -170,7 +174,11 @@ object StreamSpec
                 (latch.succeed(()) *> UIO.never)
                   .onInterrupt(cancelled.set(true))
               }
-              fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, ZSchedule.spaced(30.minutes)).runCollect.untraced.fork
+              fiber <- Stream(1, 1, 2)
+                        .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .runCollect
+                        .untraced
+                        .fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
