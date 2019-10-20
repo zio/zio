@@ -113,7 +113,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     guarantee ordering                 $flatMapParGuaranteeOrdering
     consistent with flatMap            $flatMapParConsistency
     short circuiting                   $flatMapParShortCircuiting
-    interruption propagation           $flatMapParInterruptionPropagation
+    interruption propagation fmp       $flatMapParInterruptionPropagation
     inner errors interrupt all fibers  $flatMapParInnerErrorsInterruptAllFibers
     outer errors interrupt all fibers  $flatMapParOuterErrorsInterruptAllFibers
     inner defects interrupt all fibers $flatMapParInnerDefectsInterruptAllFibers
@@ -163,10 +163,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   Stream.repeatEffectWith   $repeatEffectWith
 
   Stream.mapMPar
-    foreachParN equivalence  $mapMPar
-    order when n = 1         $mapMParOrder
-    interruption propagation $mapMParInterruptionPropagation
-    guarantee ordering       $mapMParGuaranteeOrdering
+    foreachParN equivalence       $mapMPar
+    order when n = 1              $mapMParOrder
+    interruption propagation mpn  $mapMParInterruptionPropagation
+    guarantee ordering            $mapMParGuaranteeOrdering
 
   Stream merging
     merge                         $merge

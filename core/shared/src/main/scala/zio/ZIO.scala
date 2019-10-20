@@ -967,12 +967,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       done     <- Promise.make[E2, C]
       raceDone <- Ref.make[Boolean](false)
       inherit  <- Ref.make(None: Option[Boolean])
-      c <- ZIO.uninterruptibleMask { restore =>
-            for {
-              left   <- ZIO.interruptible(self).fork
-              right  <- ZIO.interruptible(that).fork
-              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork
-              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done)).fork
+      c <- ZIO.uninterruptibleMask(restore => 
+      for {
+              left   <- self.interruptible.fork
+              right  <- that.interruptible.fork
+              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork.daemon
+              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done)).fork.daemon
 
               inheritFiberRefs = inherit.get.flatMap {
                 case None        => ZIO.unit
@@ -980,9 +980,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
                 case Some(false) => right2.inheritFiberRefs
               }
 
-              c <- restore(done.await <* inheritFiberRefs) //.onInterrupt(left.interrupt *> right.interrupt)
-            } yield c
-          }
+              c <- restore(done.await <* inheritFiberRefs)
+            } yield c)
     } yield c
   }
 

@@ -144,6 +144,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     redeem + ensuring + interrupt                 $testRedeemEnsuringInterrupt
     finalizer can detect interruption             $testFinalizerCanDetectInterruption
     interruption of raced                         $testInterruptedOfRaceInterruptsContestents
+    interruption of raced regression              $testInterruptOfRacedRegression
     cancelation is guaranteed                     $testCancelationIsGuaranteed
     interruption of unending bracket              $testInterruptionOfUnendingBracket
     recovery of error in finalizer                $testRecoveryOfErrorInFinalizer
@@ -749,6 +750,20 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
     unsafeRun(io) must_=== 2
   }
+
+  def testInterruptOfRacedRegression =
+    nonFlaky {
+      for {
+        ref   <- Ref.make(0)
+        cont1 <- Promise.make[Nothing, Unit]
+        cont2 <- Promise.make[Nothing, Unit]
+        make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never.interruptible).onInterrupt(ref.update(_ + 1))
+        raced <- (make(cont1).uninterruptible race (make(cont2)).uninterruptible).fork
+        _     <- cont1.await *> cont2.await
+        _     <- raced.interrupt
+        count <- ref.get
+      } yield count must_=== 2
+    }
 
   def testCancelationIsGuaranteed = {
     val io = for {

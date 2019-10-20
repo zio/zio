@@ -717,28 +717,29 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def kill0: UIO[Exit[E, A]] = {
     @tailrec
-    def setInterrupted(): Unit = {
+    def setInterruptedLoop(): Unit = {
       val oldState = state.get
 
       oldState match {
         case Executing(FiberStatus.Suspended(true), observers, false) =>
-          if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, true))) setInterrupted()
+          if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, true))) setInterruptedLoop()
           else evaluateLater(ZIO.interrupt)
 
         case Executing(status, observers, _) =>
-          if (!state.compareAndSet(oldState, Executing(status, observers, true))) setInterrupted()
+          if (!state.compareAndSet(oldState, Executing(status, observers, true))) setInterruptedLoop()
 
         case _ =>
       }
     }
 
-    UIO.effectSuspendTotal {
-      setInterrupted()
-      // TODO: Children set can be changing...
-      children.get.foldLeft[UIO[Any]](UIO.unit) {
-        case (acc, child) => acc *> child.interrupt
-      } *> await
-    }
+    val setInterrupt = UIO(setInterruptedLoop())
+
+    val interruptChildren = 
+      UIO.effectSuspendTotal(children.get.foldLeft[UIO[Any]](UIO.unit) {
+        case (acc, child) => acc.flatMap(_ => child.interrupt)
+      })
+
+    setInterrupt *> await <* interruptChildren
   }
 
   @tailrec
