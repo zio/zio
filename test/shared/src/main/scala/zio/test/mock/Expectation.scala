@@ -26,7 +26,7 @@ import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
 import zio.test.mock.MockException.UnmetExpectationsException
 
 /**
- * A `Expectation[-M, E, A]` is an immutable data structure that represents
+ * A `Expectation[-M, +E, +A]` is an immutable data structure that represents
  * expectations on module `M` capabilities.
  *
  * This structure is a monad, becouse we need the sequential composability and

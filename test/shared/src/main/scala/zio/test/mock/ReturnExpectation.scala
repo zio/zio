@@ -22,12 +22,12 @@ import zio.IO
  * A `ReturnExpectation[-I, E, +A]` represents an expectation on output for capability of module `M`
  * that given input arguments `I` returns an effect that may fail with an error `E` or produce a single `A`.
  */
-sealed trait ReturnExpectation[-I, E, +A] {
+sealed trait ReturnExpectation[-I, +E, +A] {
   val io: I => IO[E, A]
 }
 
 object ReturnExpectation {
 
   private[mock] final case class Succeed[I, +A](io: I => IO[Nothing, A]) extends ReturnExpectation[I, Nothing, A]
-  private[mock] final case class Fail[I, E](io: I => IO[E, Nothing])     extends ReturnExpectation[I, E, Nothing]
+  private[mock] final case class Fail[I, +E](io: I => IO[E, Nothing])    extends ReturnExpectation[I, E, Nothing]
 }
