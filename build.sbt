@@ -48,8 +48,6 @@ addCommandAlias(
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/run;testTestsJS/test;examplesJS/test:compile"
 )
 
-addCommandAlias("test", ";testJVM;testJS")
-
 lazy val root = project
   .in(file("."))
   .settings(
@@ -105,9 +103,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -142,13 +140,6 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.stream"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
-    )
-  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
@@ -194,9 +185,9 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
     )
   )
 
@@ -220,7 +211,10 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(test)
 
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS  = testRunner.js
+lazy val testRunnerJS = testRunner.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  )
 
 /**
  * Examples sub-project that is not included in the root project.
@@ -251,7 +245,7 @@ lazy val benchmarks = project.module
         "co.fs2"                   %% "fs2-core"        % "2.0.1",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.25",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.26",
         "io.monix"                 %% "monix"           % "3.0.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.13",
@@ -291,15 +285,18 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
-      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC5",
+      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC4",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.3-RC1",
-      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2"
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.4-RC1",
+      "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
+      "dev.zio"             %% "zio-macros-access"           % "0.4.0",
+      "dev.zio"             %% "zio-macros-mock"             % "0.4.0"
     )
   )
+  .settings(macroSettings)
   .dependsOn(
     coreJVM,
     streamsJVM
