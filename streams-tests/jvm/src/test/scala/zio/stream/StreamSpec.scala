@@ -322,20 +322,17 @@ object StreamSpec
           testM("recovery from errors") {
             val s1 = Stream(1, 2) ++ Stream.fail("Boom")
             val s2 = Stream(3, 4)
-
-            assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
+            s1.catchAllCause(_ => s2).runCollect.map(assert(_, equalTo(List(1, 2, 3, 4))))
           },
           testM("recovery from defects") {
             val s1 = Stream(1, 2) ++ Stream.dieMessage("Boom")
             val s2 = Stream(3, 4)
-
-            assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
+            s1.catchAllCause(_ => s2).runCollect.map(assert(_, equalTo(List(1, 2, 3, 4))))
           },
           testM("happy path") {
             val s1 = Stream(1, 2)
             val s2 = Stream(3, 4)
-
-            assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2)))
+            s1.catchAllCause(_ => s2).runCollect.map(assert(_, equalTo(List(1, 2))))
           },
           testM("executes finalizers") {
             for {
@@ -349,8 +346,7 @@ object StreamSpec
           testM("failures on the scope") {
             val s1 = Stream(1, 2) ++ ZStream(ZManaged.fail("Boom"))
             val s2 = Stream(3, 4)
-
-            assertM(s1.catchAllCause(_ => s2).runCollect, equalTo(List(1, 2, 3, 4)))
+            s1.catchAllCause(_ => s2).runCollect.map(assert(_, equalTo(List(1, 2, 3, 4))))
           }
         ),
         suite("Stream.chunkN")(
@@ -370,13 +366,11 @@ object StreamSpec
             assertM(Stream(1, 2, 3, 4, 5).chunkN(2).runCollect, equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
           },
           testM("error") {
-            assertM(
-              (Stream(1, 2, 3, 4, 5) ++ Stream.fail("broken"))
-                .chunkN(3)
-                .catchAll(_ => Stream(Chunk(6)))
-                .runCollect,
-              equalTo(List(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6)))
-            )
+            (Stream(1, 2, 3, 4, 5) ++ Stream.fail("broken"))
+              .chunkN(3)
+              .catchAll(_ => Stream(Chunk(6)))
+              .runCollect
+              .map(assert(_, equalTo(List(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6)))))
           }
         ),
         testM("Stream.collect") {
