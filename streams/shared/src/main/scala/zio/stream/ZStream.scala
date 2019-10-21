@@ -1000,7 +1000,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * which the predicate evaluates to true.
    */
   def filter(pred: A => Boolean): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       self.process.map { as =>
         def pull: Pull[R, E, A] = as.flatMap { a =>
           if (pred(a)) Pull.emit(a)
@@ -1016,7 +1016,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * which the predicate evaluates to true.
    */
   final def filterM[R1 <: R, E1 >: E](pred: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] =
-    ZStream[R1, E1, A] {
+    ZStream {
       self.process.map { as =>
         def pull: Pull[R1, E1, A] =
           as.flatMap { a =>
