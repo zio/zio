@@ -1,6 +1,7 @@
 package zio.stream
 
 import zio.Chunk
+import zio.{ IO, UIO }
 import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test._
@@ -59,6 +60,14 @@ object ChunkSpec
             assert(chunk.filter(p).toSeq, equalTo(chunk.toSeq.filter(p)))
           }
         },
+        suite("filterM")(
+          testM("filterM happy path")(checkM(mediumChunks(stringGen), Gen.function(Gen.boolean)) { (chunk, p) =>
+            chunk.filterM(s => UIO.succeed(p(s))).map(assert(_, equalTo(chunk.filter(p))))
+          }),
+          testM("filterM error") {
+            Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_, equalTo(Left("Ouch"))))
+          }
+        ),
         testM("drop chunk") {
           check(largeChunks(intGen), intGen) { (chunk, n) =>
             assert(chunk.drop(n).toSeq, equalTo(chunk.toSeq.drop(n)))
