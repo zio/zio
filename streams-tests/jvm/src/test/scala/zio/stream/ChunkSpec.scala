@@ -48,6 +48,14 @@ object ChunkSpec
             assert(c.map(f).toSeq, equalTo(c.toSeq.map(f)))
           }
         },
+        suite("mapM")(
+          testM("mapM happy path")(checkM(mediumChunks(stringGen), Gen.function(Gen.boolean)) { (chunk, f) =>
+            chunk.mapM(s => UIO.succeed(f(s))).map(assert(_, equalTo(chunk.map(f))))
+          }),
+          testM("mapM error") {
+            Chunk(1, 2, 3).mapM(_ => IO.fail("Ouch")).either.map(assert(_, equalTo(Left("Ouch"))))
+          }
+        ),
         testM("flatMap") {
           val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
           check(smallChunks(intGen), fn) { (c, f) =>
