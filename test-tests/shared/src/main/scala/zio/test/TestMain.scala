@@ -11,7 +11,6 @@ object TestMain {
   def main(args: Array[String]): Unit = {
     val allTests: List[(String, AsyncBaseSpec)] = List(
       ("CheckSpec", CheckSpec),
-      ("ClockSpec", ClockSpec),
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("SummaryBuilderSpec", SummaryBuilderSpec),
       ("GenSpec", GenSpec),
