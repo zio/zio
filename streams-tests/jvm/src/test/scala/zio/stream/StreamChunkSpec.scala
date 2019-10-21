@@ -269,6 +269,34 @@ object StreamChunkSpec
             )
           }
           assertM(inputStreamResult.run, succeeds(equalTo(orig1 ++ orig2)))
+        },
+        testM("StreamChunk.ensuring") {
+          for {
+            log <- Ref.make(List.empty[String])
+            _ <- (for {
+                  _ <- StreamChunk(
+                        Stream
+                          .bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                          .flatMap(_ => Stream.succeed(Chunk(())))
+                      )
+                  _ <- StreamChunk(Stream.fromEffect(log.update("Use" :: _)).flatMap(_ => Stream.empty))
+                } yield ()).ensuring(log.update("Ensuring" :: _)).run(Sink.drain)
+            execution <- log.get
+          } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
+        },
+        testM("StreamChunk.ensuringFirst") {
+          for {
+            log <- Ref.make(List.empty[String])
+            _ <- (for {
+                  _ <- StreamChunk(
+                        Stream
+                          .bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                          .flatMap(_ => Stream.succeed(Chunk(())))
+                      )
+                  _ <- StreamChunk(Stream.fromEffect(log.update("Use" :: _)).flatMap(_ => Stream.empty))
+                } yield ()).ensuringFirst(log.update("Ensuring" :: _)).run(Sink.drain)
+            execution <- log.get
+          } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
         }
       )
     )
