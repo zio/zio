@@ -204,8 +204,7 @@ object StreamChunkSpec
           }
         },
         testM("StreamChunk.fold") {
-          checkM(chunksOfStrings, intGen, Gen.function[Random, (Int, String), Int](intGen)) { (s, zero, f0) =>
-            val f = Function.untupled(f0)
+          checkM(chunksOfStrings, intGen, Gen.function2(intGen)) { (s, zero, f) =>
             for {
               res1 <- s.fold(zero)(f)
               res2 <- slurp(s).map(_.foldLeft(zero)(f))
@@ -217,9 +216,8 @@ object StreamChunkSpec
             chunksOfStrings,
             intGen,
             toBoolFn[Random, Int],
-            Gen.function[Random, (Int, String), Int](intGen)
-          ) { (s, zero, cont, f0) =>
-            val f = Function.untupled(f0)
+            Gen.function2(intGen)
+          ) { (s, zero, cont, f) =>
             for {
               res1 <- s.foldWhileM[Any, Nothing, String, Int](zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
               res2 <- slurp(s).map(l => foldLazyList(l.toList, zero)(cont)(f))

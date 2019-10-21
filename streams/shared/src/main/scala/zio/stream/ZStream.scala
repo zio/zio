@@ -2642,16 +2642,20 @@ object ZStream {
         maybeStream <- UIO(
                         register(
                           k =>
-                            runtime.unsafeRun(
-                              k.foldCauseM(
-                                  Cause.sequenceCauseOption(_) match {
-                                    case None    => output.offer(Pull.end)
-                                    case Some(c) => output.offer(Pull.halt(c))
-                                  },
-                                  a => output.offer(Pull.emit(a))
-                                )
-                                .unit
-                            )
+                            try {
+                              runtime.unsafeRun(
+                                k.foldCauseM(
+                                    Cause.sequenceCauseOption(_) match {
+                                      case None    => output.offer(Pull.end)
+                                      case Some(c) => output.offer(Pull.halt(c))
+                                    },
+                                    a => output.offer(Pull.emit(a))
+                                  )
+                                  .unit
+                              )
+                            } catch {
+                              case FiberFailure(Cause.Interrupt) =>
+                            }
                         )
                       ).toManaged_
         pull <- maybeStream match {
@@ -2676,16 +2680,20 @@ object ZStream {
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register(
               k =>
-                runtime.unsafeRun(
-                  k.foldCauseM(
-                      Cause.sequenceCauseOption(_) match {
-                        case None    => output.offer(Pull.end)
-                        case Some(c) => output.offer(Pull.halt(c))
-                      },
-                      a => output.offer(Pull.emit(a))
-                    )
-                    .unit
-                )
+                try {
+                  runtime.unsafeRun(
+                    k.foldCauseM(
+                        Cause.sequenceCauseOption(_) match {
+                          case None    => output.offer(Pull.end)
+                          case Some(c) => output.offer(Pull.halt(c))
+                        },
+                        a => output.offer(Pull.emit(a))
+                      )
+                      .unit
+                  )
+                } catch {
+                  case FiberFailure(Cause.Interrupt) =>
+                }
             ).toManaged_
       } yield output.take.flatten
     }
@@ -2707,16 +2715,20 @@ object ZStream {
         eitherStream <- UIO(
                          register(
                            k =>
-                             runtime.unsafeRun(
-                               k.foldCauseM(
-                                   Cause.sequenceCauseOption(_) match {
-                                     case None    => output.offer(Pull.end)
-                                     case Some(c) => output.offer(Pull.halt(c))
-                                   },
-                                   a => output.offer(Pull.emit(a))
-                                 )
-                                 .unit
-                             )
+                             try {
+                               runtime.unsafeRun(
+                                 k.foldCauseM(
+                                     Cause.sequenceCauseOption(_) match {
+                                       case None    => output.offer(Pull.end)
+                                       case Some(c) => output.offer(Pull.halt(c))
+                                     },
+                                     a => output.offer(Pull.emit(a))
+                                   )
+                                   .unit
+                               )
+                             } catch {
+                               case FiberFailure(Cause.Interrupt) =>
+                             }
                          )
                        ).toManaged_
         pull <- eitherStream match {
