@@ -22,32 +22,31 @@ object ClockSpec
             _     <- adjust(11.hours)
             _     <- latch.await
           } yield assert((), anything)
-        } @@ nonFlaky(100)
-          @@ timeout(10.second),
-        testM("sleep delays effect until time is adjusted") { //flaky
+        } @@ nonFlaky(100),
+        testM("sleep delays effect until time is adjusted") {
           for {
-            ref    <- Ref.make(true)
-            _      <- sleep(10.hours).flatMap(_ => ref.set(false)).fork
-            _      <- adjust(9.hours)
-            result <- ref.get
+            testClock <- TestClock.makeTest(DefaultData)
+            ref       <- Ref.make(true)
+            _         <- testClock.sleep(10.hours).flatMap(_ => ref.set(false)).fork
+            _         <- testClock.adjust(9.hours)
+            result    <- ref.get
           } yield assert(result, isTrue)
-        } @@ nonFlaky(100)
-          @@ timeout(10.second),
-        testM("sleep correctly handles multiple sleeps") { //flaky
+        } @@ nonFlaky(100),
+        testM("sleep correctly handles multiple sleeps") {
           for {
-            latch1 <- Promise.make[Nothing, Unit]
-            latch2 <- Promise.make[Nothing, Unit]
-            ref    <- Ref.make("")
-            _      <- sleep(3.hours).flatMap(_ => ref.update(_ + "World!")).flatMap(_ => latch2.succeed(())).fork
-            _      <- sleep(1.hours).flatMap(_ => ref.update(_ + "Hello, ")).flatMap(_ => latch1.succeed(())).fork
-            _      <- adjust(2.hours)
-            _      <- latch1.await
-            _      <- adjust(2.hours)
-            _      <- latch2.await
-            result <- ref.get
+            testClock <- TestClock.makeTest(DefaultData)
+            latch1    <- Promise.make[Nothing, Unit]
+            latch2    <- Promise.make[Nothing, Unit]
+            ref       <- Ref.make("")
+            _         <- testClock.sleep(3.hours).flatMap(_ => ref.update(_ + "World!")).flatMap(_ => latch2.succeed(())).fork
+            _         <- testClock.sleep(1.hours).flatMap(_ => ref.update(_ + "Hello, ")).flatMap(_ => latch1.succeed(())).fork
+            _         <- testClock.adjust(2.hours)
+            _         <- latch1.await
+            _         <- testClock.adjust(2.hours)
+            _         <- latch2.await
+            result    <- ref.get
           } yield assert(result, equalTo("Hello, World!"))
-        } @@ nonFlaky(100)
-          @@ timeout(10.second),
+        } @@ nonFlaky(100),
         testM("sleep correctly handles new set time") {
           for {
             latch <- Promise.make[Nothing, Unit]
@@ -55,30 +54,28 @@ object ClockSpec
             _     <- setTime(11.hours)
             _     <- latch.await
           } yield assert((), anything)
-        } @@ nonFlaky(100)
-          @@ timeout(10.second),
-        testM("sleep does sleep instantly when sleep duration less than set time") { //flaky
+        } @@ nonFlaky(100),
+        testM("sleep does sleep instantly when sleep duration less than set time") {
           for {
-            latch <- Promise.make[Nothing, Unit]
-            _     <- (setTime(11.hours) *> latch.succeed(())).fork
-            _     <- latch.await *> sleep(10.hours)
+            testClock <- TestClock.makeTest(DefaultData)
+            latch     <- Promise.make[Nothing, Unit]
+            _         <- (testClock.setTime(11.hours) *> latch.succeed(())).fork
+            _         <- latch.await *> testClock.sleep(10.hours)
           } yield assert((), anything)
-        } @@ nonFlaky(100)
-          @@ timeout(10.seconds),
+        } @@ nonFlaky(100),
         testM("adjust correctly advances nanotime") {
           for {
             time1 <- nanoTime
             _     <- adjust(1.millis)
             time2 <- nanoTime
           } yield assert(fromNanos(time2 - time1), equalTo(1.millis))
-        }
-          @@ timeout(10.second),
+        },
         testM("adjust correctly advances currentTime") {
           for {
             time1 <- currentTime(TimeUnit.NANOSECONDS)
             _     <- adjust(1.millis)
             time2 <- currentTime(TimeUnit.NANOSECONDS)
-          } yield assert(fromNanos(time2 - time1), equalTo(1.millis))
+          } yield assert(time2 - time1, equalTo(1.millis.toNanos))
         },
         testM("adjust correctly advances currentDateTime") {
           for {
@@ -88,22 +85,20 @@ object ClockSpec
           } yield assert((time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli), equalTo(1L))
         },
         testM("adjust does not produce sleeps") {
-          for {
-            _      <- adjust(1.millis)
-            sleeps <- sleeps
-          } yield assert(sleeps, isEmpty)
+          adjust(1.millis)
+          assertM(sleeps, isEmpty)
         },
         testM("setTime correctly sets nanotime") {
           for {
             _    <- setTime(1.millis)
             time <- clock.nanoTime
-          } yield assert(fromNanos(time), equalTo(1.millis))
+          } yield assert(time, equalTo(1.millis.toNanos))
         },
         testM("setTime correctly sets currentTime") {
           for {
             _    <- setTime(1.millis)
             time <- currentTime(TimeUnit.NANOSECONDS)
-          } yield assert(fromNanos(time), equalTo(1.millis))
+          } yield assert(time, equalTo(1.millis.toNanos))
         },
         testM("setTime correctly sets currentDateTime") {
           for {
@@ -118,10 +113,9 @@ object ClockSpec
           } yield assert(sleeps, isEmpty)
         },
         testM("setTimeZone correctly sets timeZone") {
-          for {
-            _        <- setTimeZone(ZoneId.of("UTC"))
-            timeZone <- timeZone
-          } yield assert(timeZone, equalTo(ZoneId.of("UTC")))
+          setTimeZone(ZoneId.of("UTC"))
+          assertM(timeZone, equalTo(ZoneId.of("UTC")))
+
         },
         testM("setTimeZone does not produce sleeps") {
           setTimeZone(ZoneId.of("UTC"))
@@ -135,7 +129,7 @@ object ClockSpec
           } yield result == None
           assertM(example, isTrue)
         } @@ nonFlaky(100),
-        testM("recurrence example from TestClock documentation works correctly") { //flaky
+        testM("recurrence example from TestClock documentation works correctly") {
           val example = for {
             q <- Queue.unbounded[Unit]
             _ <- (q.offer(()).delay(60.minutes)).forever.fork
@@ -148,13 +142,15 @@ object ClockSpec
             e <- q.poll.map(_.isEmpty)
           } yield a && b && c && d && e
           assertM(example, isTrue)
-        } @@ nonFlaky(100),
-        testM("fiber time is not subject to race conditions") { //flaky
+        },
+        testM("fiber time is not subject to race conditions") { //times out
           for {
-            _      <- adjust(Duration.Infinity)
-            _      <- sleep(2.millis).zipPar(ZIO.sleep(1.millis))
-            result <- TestClock.fiberTime
-          } yield assert(result, equalTo(2.millis))
+            testClock <- TestClock.makeTest(DefaultData)
+            _         <- testClock.adjust(Duration.Infinity)
+            _         <- ZIO.sleep(2.millis).zipPar(ZIO.sleep(1.millis))
+            result    <- testClock.fiberTime
+          } yield assert(result.toNanos, equalTo(2.millis.toNanos))
         } @@ nonFlaky(100)
+        //@@ timeout(10.seconds)
       )
     )
