@@ -1,10 +1,10 @@
 package zio.examples.test
 
-import zio.{ clock, console, random, Managed }
+import zio.{ clock, console, random }
 import zio.test.{ assertM, suite, testM, DefaultRunnableSpec }
 import zio.test.Assertion._
 import zio.test.mock.{ MockClock, MockConsole, MockRandom }
-import zio.test.mock.Expectation.{ failure, unit, value, valueF }
+import zio.test.mock.Expectation.{ unit, value, valueF }
 
 object MockingExampleSpec
     extends DefaultRunnableSpec(

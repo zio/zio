@@ -17,6 +17,7 @@
 package zio.test.mock
 
 import com.github.ghik.silencer.silent
+import zio.=!=
 import zio.test.Assertion
 
 /**
@@ -24,8 +25,6 @@ import zio.test.Assertion
  * input `I` and returns an effect that may produce a single `A`.
  */
 trait Method[M, I, A] { self =>
-
-  import Method._
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.
@@ -57,16 +56,4 @@ trait Method[M, I, A] { self =>
       case _ => fragments.mkString(".")
     }
   }
-}
-
-object Method {
-
-  /**
-   * Evidence type `A` is not equal to type `B`.
-   */
-  trait =!=[A, B]
-
-  implicit def neq[A, B]: A =!= B    = null
-  implicit def neqAmbig1[A]: A =!= A = null
-  implicit def neqAmbig2[A]: A =!= A = null
 }

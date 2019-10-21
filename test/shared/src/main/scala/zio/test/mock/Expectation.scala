@@ -29,8 +29,8 @@ import zio.test.mock.MockException.UnmetExpectationsException
  * A `Expectation[-M, +E, +A]` is an immutable data structure that represents
  * expectations on module `M` capabilities.
  *
- * This structure is a monad, becouse we need the sequential composability and
- * in Scala we get the the convinient for-comprehension syntax for free.
+ * This structure is a monad, because we need the sequential composability and
+ * in Scala we get the convenient for-comprehension syntax for free.
  *
  *  - `Empty`   models expectation for no calls, the monadic `unit` value
  *  - `Call`    models a call on `M` modules capability that takes arguments `I`
