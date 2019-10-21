@@ -1103,8 +1103,20 @@ object SinkSpec
               )
             }
           ),
+          testM("splitLinesChunk")(checkM(Gen.medium(Gen.listOfN(_)(Gen.anyString))) { xs =>
+            val chunks: Chunk[String] = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
+            val ys: List[String] =
+              xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
+
+            for {
+              initial            <- ZSink.splitLinesChunk.initial
+              middle             <- ZSink.splitLinesChunk.step(initial, chunks)
+              res                <- ZSink.splitLinesChunk.extract(middle)
+              (result, leftover) = res
+            } yield assert((result ++ leftover.flatten).toArray[String].toList, equalTo(ys))
+          }),
           suite("splitOn")(
-            testM("preserves data")(checkM(Gen.listOf(Gen.string(Gen.anyChar)).filter(_.nonEmpty)) { lines =>
+            testM("preserves data")(checkM(Gen.listOf(Gen.anyString).filter(_.nonEmpty)) { lines =>
               val data = lines.mkString("|")
               val sink = ZSink.splitOn("|")
 

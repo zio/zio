@@ -1678,15 +1678,18 @@ object ZSink extends ZSinkPlatformSpecific {
   final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
     splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
 
+  /**
+   * Splits strings on a delimiter.
+   */
   final def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
     new SinkPure[Nothing, String, String, Chunk[String]] {
       type State = SplitOnState
       case class SplitOnState(
         // Index into the delimiter
-        i: Int,
+        delimiterPointer: Int,
         // Index into the current frame
-        j: Int,
-        // Signals when extraction is
+        framePointer: Int,
+        // Signals when extraction of the delimiter is ongoing
         cont: Boolean,
         // Accumulated strings from previous pulls
         leftover: String,
@@ -1711,8 +1714,8 @@ object ZSink extends ZSinkPlatformSpecific {
         val m     = frame.length
 
         var start = 0
-        var i     = s.i
-        var j     = s.j
+        var i     = s.delimiterPointer
+        var j     = s.framePointer
 
         val buf = mutable.ArrayBuffer[String]()
 
