@@ -44,7 +44,7 @@ object MockingExampleSpec
           val randomEnv  = MockRandom.nextInt._1 returns value(42)
           val consoleEnv = MockConsole.putStrLn(equalTo("42")) returns unit
 
-          val mockEnv    = (randomEnv &&& consoleEnv).map { case (r, c) => new MockRandom with MockConsole {
+          val mockEnv = (randomEnv &&& consoleEnv).map { case (r, c) => new MockRandom with MockConsole {
             val random  = r.random
             val console = c.console
           }}
