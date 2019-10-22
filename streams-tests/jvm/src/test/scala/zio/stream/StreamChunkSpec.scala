@@ -47,15 +47,6 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
-        testM("StreamChunk.mapConcatChunk") {
-          val fn = Gen.function[Random with Sized, String, Chunk[Int]](smallChunks(intGen))
-          checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
-            for {
-              res1 <- slurp(s.mapConcatChunk(f))
-              res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
-            } yield assert(res1, equalTo(res2))
-          }
-        },
         testM("StreamChunk.mapConcat") {
           val fn = Gen.function[Random with Sized, String, Iterable[Int]](Gen.small(Gen.listOfN(_)(intGen)))
           checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
@@ -65,6 +56,53 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
+        testM("StreamChunk.mapConcatChunk") {
+          val fn = Gen.function[Random with Sized, String, Chunk[Int]](smallChunks(intGen))
+          checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
+            for {
+              res1 <- slurp(s.mapConcatChunk(f))
+              res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
+            } yield assert(res1, equalTo(res2))
+          }
+        },
+        suite("StreamChunk.mapConcatChunkM")(
+          testM("mapConcatChunkM happy path") {
+            val fn = Gen.function[Random with Sized, String, Chunk[Int]](smallChunks(intGen))
+            checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
+              for {
+                res1 <- slurp(s.mapConcatChunkM(s => UIO.succeed(f(s))))
+                res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
+              } yield assert(res1, equalTo(res2))
+            }
+          },
+          testM("mapConcatM error") {
+            StreamChunk
+              .succeed(Chunk.single(1))
+              .mapConcatChunkM(_ => IO.fail("Ouch"))
+              .run(Sink.drain)
+              .either
+              .map(assert(_, equalTo(Left("Ouch"))))
+          }
+        ),
+        suite("StreamChunk.mapConcatM")(
+          testM("mapConcatM happy path") {
+            val fn = Gen.function[Random with Sized, String, Iterable[Int]](Gen.listOf(intGen))
+            checkM(pureStreamChunkGen(tinyChunks(stringGen)), fn) { (s, f) =>
+              for {
+                res1 <- slurp(s.mapConcatM(s => UIO.succeed(f(s))))
+                res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
+              } yield assert(res1, equalTo(res2))
+            }
+          },
+          testM("mapConcatM error") {
+            StreamChunk
+              .succeed(Chunk.single(1))
+              .mapConcatM(_ => IO.fail("Ouch"))
+              .run(Sink.drain)
+              .either
+              .map(assert(_, equalTo(Left("Ouch"))))
+          }
+        ),
         testM("StreamChunk.drop") {
           checkM(chunksOfStrings, intGen) { (s, n) =>
             for {
