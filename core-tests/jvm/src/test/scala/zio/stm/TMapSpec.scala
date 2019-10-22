@@ -149,7 +149,25 @@ object TMapSpec
               } yield res
 
             assertM(tx.commit, equalTo(0))
-          }
+          },
+          testM("foldM on non-empty map") {
+            val tx =
+              for {
+                tmap <- TMap(List("a" -> 1, "b" -> 2, "c" -> 3))
+                res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
+              } yield res
+
+            assertM(tx.commit, equalTo(6))
+          },
+          testM("foldM on empty map") {
+            val tx =
+              for {
+                tmap <- TMap.empty[String, Int]
+                res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
+              } yield res
+
+            assertM(tx.commit, equalTo(0))
+          },
         )
       )
     )

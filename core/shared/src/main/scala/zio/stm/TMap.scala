@@ -25,10 +25,18 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
   final def delete[E](k: K): STM[E, TMap[K, V]] =
     accessM(_.update(indexOf(k), _.filterNot(_._1 == k))).as(self)
 
-  final def fold[A](acc: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
-    accessM(_.fold(acc)((acc, items) => items.foldLeft(acc)(op)))
+  final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
+    accessM(_.fold(zero)((acc, chain) => chain.foldLeft(acc)(op)))
 
-  final def foldM[A, E](acc: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = ???
+  final def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
+    def loopM(acc: STM[E, A], remaining: List[(K, V)]): STM[E, A] =
+      remaining match {
+        case Nil          => acc
+        case head :: tail => loopM(acc.flatMap(op(_, head)), tail)
+      }
+
+    accessM(_.foldM(zero)((acc, chain) => loopM(STM.succeed(acc), chain)))
+  }
 
   final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] =
     self.foldM(())((_, kv) => f(kv))
