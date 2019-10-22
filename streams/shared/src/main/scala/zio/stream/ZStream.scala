@@ -1558,6 +1558,13 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     mapM(f).mapConcatChunk(identity)
 
   /**
+   * Effectfully maps each element to an iterable, and flattens the iterables into
+   * the output of this stream.
+   */
+  final def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Iterable[B]]): ZStream[R1, E1, B] =
+    mapM(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
+
+  /**
    * Transforms the errors that possibly result from this stream.
    */
   final def mapError[E1](f: E => E1): ZStream[R, E1, A] =
