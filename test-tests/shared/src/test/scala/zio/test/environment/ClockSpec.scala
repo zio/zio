@@ -18,51 +18,55 @@ object ClockSpec
         testM("sleep does not require passage of clock time") {
           for {
             latch <- Promise.make[Nothing, Unit]
-            _     <- sleep(10.hours).flatMap(_ => latch.succeed(())).fork
+            _     <- (sleep(10.hours) *> latch.succeed(())).fork
             _     <- adjust(11.hours)
             _     <- latch.await
           } yield assert((), anything)
         } @@ nonFlaky(100),
         testM("sleep delays effect until time is adjusted") {
           for {
-            testClock <- TestClock.makeTest(DefaultData)
-            ref       <- Ref.make(true)
-            _         <- testClock.sleep(10.hours).flatMap(_ => ref.set(false)).fork
-            _         <- testClock.adjust(9.hours)
-            result    <- ref.get
+            ref    <- Ref.make(true)
+            _      <- (sleep(10.hours) *> ref.set(false)).fork
+            _      <- adjust(9.hours)
+            result <- ref.get
           } yield assert(result, isTrue)
         } @@ nonFlaky(100),
+        //todo  remove `@@ after(setTime(0.hours))` if possible. This doesn't depend on absolute time so I don't think
+        // it should rely on resetting the clock. Fails intermittently without it.
         testM("sleep correctly handles multiple sleeps") {
           for {
-            testClock <- TestClock.makeTest(DefaultData)
-            latch1    <- Promise.make[Nothing, Unit]
-            latch2    <- Promise.make[Nothing, Unit]
-            ref       <- Ref.make("")
-            _         <- testClock.sleep(3.hours).flatMap(_ => ref.update(_ + "World!")).flatMap(_ => latch2.succeed(())).fork
-            _         <- testClock.sleep(1.hours).flatMap(_ => ref.update(_ + "Hello, ")).flatMap(_ => latch1.succeed(())).fork
-            _         <- testClock.adjust(2.hours)
-            _         <- latch1.await
-            _         <- testClock.adjust(2.hours)
-            _         <- latch2.await
-            result    <- ref.get
+            latch1 <- Promise.make[Nothing, Unit]
+            latch2 <- Promise.make[Nothing, Unit]
+            ref    <- Ref.make("")
+            _      <- (sleep(3.hours) *> ref.update(_ + "World!") *> latch2.succeed(())).fork
+            _      <- (sleep(1.hours) *> ref.update(_ + "Hello, ") *> latch1.succeed(())).fork
+            _      <- adjust(2.hours)
+            _      <- latch1.await
+            _      <- adjust(2.hours)
+            _      <- latch2.await
+            result <- ref.get
           } yield assert(result, equalTo("Hello, World!"))
-        } @@ nonFlaky(100),
+        } @@ after(setTime(0.hours))
+          @@ nonFlaky(100),
         testM("sleep correctly handles new set time") {
           for {
             latch <- Promise.make[Nothing, Unit]
-            _     <- sleep(10.hours).flatMap(_ => latch.succeed(())).fork
+            _     <- (sleep(10.hours) *> latch.succeed(())).fork
             _     <- setTime(11.hours)
             _     <- latch.await
           } yield assert((), anything)
-        } @@ nonFlaky(100),
+        } @@ nonFlaky(100)
+          @@ timeout(10.seconds),
+        //todo fix - times out
         testM("sleep does sleep instantly when sleep duration less than set time") {
           for {
-            testClock <- TestClock.makeTest(DefaultData)
-            latch     <- Promise.make[Nothing, Unit]
-            _         <- (testClock.setTime(11.hours) *> latch.succeed(())).fork
-            _         <- latch.await *> testClock.sleep(10.hours)
+            latch <- Promise.make[Nothing, Unit]
+            _     <- (setTime(11.hours) *> latch.succeed(())).fork
+            _     <- latch.await *> sleep(10.hours)
           } yield assert((), anything)
-        } @@ nonFlaky(100),
+        } @@ after(setTime(0.hours))
+          @@ timeout(1.seconds) //todo remove once working
+          @@ nonFlaky(100),
         testM("adjust correctly advances nanotime") {
           for {
             time1 <- nanoTime
@@ -85,8 +89,7 @@ object ClockSpec
           } yield assert((time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli), equalTo(1L))
         },
         testM("adjust does not produce sleeps") {
-          adjust(1.millis)
-          assertM(sleeps, isEmpty)
+          adjust(1.millis) *> assertM(sleeps, isEmpty)
         },
         testM("setTime correctly sets nanotime") {
           for {
@@ -113,13 +116,12 @@ object ClockSpec
           } yield assert(sleeps, isEmpty)
         },
         testM("setTimeZone correctly sets timeZone") {
-          setTimeZone(ZoneId.of("UTC"))
-          assertM(timeZone, equalTo(ZoneId.of("UTC")))
-
+          setTimeZone(ZoneId.of("UTC+10")) *>
+            assertM(timeZone, equalTo(ZoneId.of("UTC+10")))
         },
         testM("setTimeZone does not produce sleeps") {
-          setTimeZone(ZoneId.of("UTC"))
-          assertM(sleeps, isEmpty)
+          setTimeZone(ZoneId.of("UTC+11")) *>
+            assertM(sleeps, isEmpty)
         },
         testM("timeout example from TestClock documentation works correctly") {
           val example = for {
@@ -143,14 +145,13 @@ object ClockSpec
           } yield a && b && c && d && e
           assertM(example, isTrue)
         },
-        testM("fiber time is not subject to race conditions") { //times out
+        //todo fix - looks like fiberTime is 100x larger than it's supposed to be - conversion error somewhere?
+        testM("fiber time is not subject to race conditions") {
           for {
-            testClock <- TestClock.makeTest(DefaultData)
-            _         <- testClock.adjust(Duration.Infinity)
-            _         <- ZIO.sleep(2.millis).zipPar(ZIO.sleep(1.millis))
-            result    <- testClock.fiberTime
-          } yield assert(result.toNanos, equalTo(2.millis.toNanos))
+            _      <- setTime(Duration.Infinity)
+            _      <- sleep(2.millis).zipPar(sleep(1.millis))
+            result <- fiberTime
+          } yield assert(result.toMillis, equalTo(2.millis.toMillis)) //todo fails "200 did not satisfy equalTo(2)"
         } @@ nonFlaky(100)
-        //@@ timeout(10.seconds)
       )
     )

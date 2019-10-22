@@ -35,7 +35,7 @@ object SchedulerSpec
             executed  <- promise.poll.map(_.nonEmpty)
           } yield assert(executed, isFalse)
         ),
-        testM("scheduled tasks can be canceled")( //working
+        testM("scheduled tasks can be canceled")(
           for {
             scheduler <- scheduler
             promise   <- Promise.make[Nothing, Unit]
@@ -64,11 +64,11 @@ object SchedulerSpec
             promise   <- Promise.make[Nothing, Unit]
             _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
             _         <- ZIO.effectTotal(scheduler.shutdown())
-            _         <- promise.await //how does the test clock advance without an adjust?
+            _         <- promise.await
             time      <- clock.currentTime(NANOSECONDS)
           } yield assert(fromNanos(time), equalTo(10.seconds))
         )
-      ) @@ timeout(10.seconds) //avoid 3min penalty if the promise isn't fulfilled
+      )
     )
 
 object SchedulerSpecUtil {
