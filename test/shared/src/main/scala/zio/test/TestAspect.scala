@@ -232,7 +232,7 @@ object TestAspect extends TimeoutVariants {
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
         def repeat(n: Int): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
           if (n <= 1) test
-          else test.flatMap(_ => repeat(n - 1))
+          else test.flatMap(_.fold(e => ZIO.succeed(Left(e)), _ => repeat(n - 1)))
 
         repeat(n0)
       }
