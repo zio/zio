@@ -377,6 +377,48 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     } yield pull
 
   /**
+   * Provides the stream with its required environment, which eliminates
+   * its dependency on `R`.
+   */
+  final def provide(r: R): StreamChunk[E, A] =
+    provideSome(_ => r)
+
+  /**
+   * An effectful version of `provide`, useful when the act of provision
+   * requires an effect.
+   */
+  final def provideM[E1 >: E](r: IO[E1, R]): StreamChunk[E1, A] =
+    provideSomeM(r)
+
+  /**
+   * Uses the given [[Managed]] to provide the environment required to run this stream,
+   * leaving no outstanding environments.
+   */
+  final def provideManaged[E1 >: E](m: Managed[E1, R]): StreamChunk[E1, A] =
+    provideSomeManaged(m)
+
+  /**
+   * Provides some of the environment reuqired to run this effect,
+   * leaving the remainder `R0`.
+   */
+  final def provideSome[R0](env: R0 => R): ZStreamChunk[R0, E, A] =
+    ZStreamChunk(chunks.provideSome(env))
+
+  /**
+   * Effectfully provides some of the environment required to run this effect
+   * leaving the remainder `R0`.
+   */
+  final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R]): ZStreamChunk[R0, E1, A] =
+    ZStreamChunk(chunks.provideSomeM(env))
+
+  /**
+   * Uses the given [[Managed]] to provide some of the environment required to run
+   * this stream, leaving the remainder `R0`.
+   */
+  final def provideSomeManaged[R0, E1 >: E](env: ZManaged[R0, E1, R]): ZStreamChunk[R0, E1, A] =
+    ZStreamChunk(chunks.provideSomeManaged(env))
+
+  /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
   final def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, Chunk[A1], B]): ZIO[R1, E1, B] =
