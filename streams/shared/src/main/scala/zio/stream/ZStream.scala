@@ -238,7 +238,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                      .fork
         bs <- ZStream
                .fromPull(consume(stateVar, permits))
-               .mapConcat(identity)
+               .mapConcatChunk(identity)
                .process
                .ensuringFirst(producer.interrupt.fork)
       } yield bs
@@ -478,7 +478,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                    }
           stream = ZStream
             .unfoldM(UnfoldState(None, scheduleInit, notify))(consume(_, out, permits))
-            .mapConcat(identity)
+            .mapConcatChunk(identity)
         } yield stream
       }
 
@@ -1537,18 +1537,32 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
+   * Maps each element to an iterable, and flattens the iterables into the
+   * output of this stream.
+   */
+  final def mapConcat[B](f: A => Iterable[B]): ZStream[R, E, B] =
+    mapConcatChunk(f andThen Chunk.fromIterable)
+
+  /**
    * Maps each element to a chunk, and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStream[R, E, B] =
+  def mapConcatChunk[B](f: A => Chunk[B]): ZStream[R, E, B] =
     flatMap(a => ZStream.fromChunk(f(a)))
 
   /**
    * Effectfully maps each element to a chunk, and flattens the chunks into
    * the output of this stream.
    */
-  final def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Chunk[B]]): ZStream[R1, E1, B] =
-    mapM(f).mapConcat(identity)
+  final def mapConcatChunkM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Chunk[B]]): ZStream[R1, E1, B] =
+    mapM(f).mapConcatChunk(identity)
+
+  /**
+   * Effectfully maps each element to an iterable, and flattens the iterables into
+   * the output of this stream.
+   */
+  final def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Iterable[B]]): ZStream[R1, E1, B] =
+    mapM(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
 
   /**
    * Transforms the errors that possibly result from this stream.
