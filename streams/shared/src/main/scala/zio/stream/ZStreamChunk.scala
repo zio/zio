@@ -169,6 +169,18 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     }
 
   /**
+   * Executes the provided finalizer after this stream's finalizers run.
+   */
+  final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStreamChunk[R1, E, A] =
+    ZStreamChunk(chunks.ensuring(fin))
+
+  /**
+   * Executes the provided finalizer before this stream's finalizers run.
+   */
+  final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStreamChunk[R1, E, A] =
+    ZStreamChunk(chunks.ensuringFirst(fin))
+
+  /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
