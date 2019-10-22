@@ -1033,6 +1033,23 @@ object StreamSpec
             res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
           } yield assert(res1, equalTo(res2))
         }),
+        suite("Stream.mapConcatChunkM")(
+          testM("mapConcatChunkM happy path") {
+            checkM(pureStreamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
+              for {
+                res1 <- s.mapConcatChunkM(b => UIO.succeed(f(b))).runCollect
+                res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
+              } yield assert(res1, equalTo(res2))
+            }
+          },
+          testM("mapConcatChunkM error") {
+            Stream(1, 2, 3)
+              .mapConcatChunkM(_ => IO.fail("Ouch"))
+              .runCollect
+              .either
+              .map(assert(_, equalTo(Left("Ouch"))))
+          }
+        ),
         testM("Stream.mapM") {
           checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(successes(Gen.anyByte))) { (data, f) =>
             val s = Stream.fromIterable(data)
