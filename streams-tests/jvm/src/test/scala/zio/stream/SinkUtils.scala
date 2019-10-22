@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.{ Chunk, IO, UIO }
-import zio.test.{ assert, GenZIO, TestResult, Gen }
+import zio.test.{ assert, Gen, GenZIO, TestResult }
 import zio.test.Assertion.{ equalTo, isLeft, isRight, isTrue }
 
 trait SinkUtils {
