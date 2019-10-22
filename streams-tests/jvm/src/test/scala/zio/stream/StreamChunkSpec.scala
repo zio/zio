@@ -28,6 +28,17 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
+        suite("StreamChunk.filterM")(
+          testM("filterM happy path")(checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
+            for {
+              res1 <- slurp(s.filterM(s => UIO.succeed(p(s))))
+              res2 <- slurp(s).map(_.filter(p))
+            } yield assert(res1, equalTo(res2))
+          }),
+          testM("filterM error") {
+            Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_, equalTo(Left("Ouch"))))
+          }
+        ),
         testM("StreamChunk.filterNot") {
           checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, p) =>
             for {

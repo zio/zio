@@ -173,7 +173,14 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    * which the predicate evaluates to true.
    */
   def filter(pred: A => Boolean): ZStreamChunk[R, E, A] =
-    ZStreamChunk[R, E, A](self.chunks.map(_.filter(pred)))
+    ZStreamChunk(self.chunks.map(_.filter(pred)))
+
+  /**
+   * Filters this stream by the specified effectful predicate, retaining all elements for
+   * which the predicate evaluates to true.
+   */
+  final def filterM[R1 <: R, E1 >: E](pred: A => ZIO[R1, E1, Boolean]): ZStreamChunk[R1, E1, A] =
+    ZStreamChunk(self.chunks.mapM(_.filterM(pred)))
 
   /**
    * Filters this stream by the specified predicate, removing all elements for
