@@ -22,7 +22,8 @@ package zio.stm
  *
  * Caution: doesn't provide stack-safety guarantees.
  */
-class TMap[K, V] private (tBuckets: TRef[TArray[List[(K, V)]]], tCapacity: TRef[Int]) { self =>
+class TMap[K, V] private (private val tBuckets: TRef[TArray[List[(K, V)]]], private val tCapacity: TRef[Int]) { self =>
+  import TMap.{ allocate, LoadFactor }
 
   /**
    * Tests whether or not map contains a key.
@@ -104,16 +105,31 @@ class TMap[K, V] private (tBuckets: TRef[TArray[List[(K, V)]]], tCapacity: TRef[
    * Stores new binding into the map.
    */
   final def put[E](k: K, v: V): STM[E, Unit] = {
-    def update(bucket: List[(K, V)]): List[(K, V)] =
+    def upsert(bucket: List[(K, V)]): List[(K, V)] =
       bucket match {
         case Nil => List(k -> v)
         case xs  => xs.map(kv => if (kv._1 == k) (k, v) else kv)
       }
 
+    def resize(capacity: Int, data: List[(K, V)]): STM[Nothing, Unit] = {
+      val newCapacity = capacity * 2
+
+      for {
+        tmap       <- allocate(newCapacity, data)
+        newBuckets <- tmap.tBuckets.get
+        _          <- self.tBuckets.set(newBuckets)
+        _          <- self.tCapacity.set(newCapacity)
+      } yield ()
+    }
+
     for {
-      buckets <- tBuckets.get
-      idx     <- indexOf(k)
-      _       <- buckets.update(idx, update)
+      buckets     <- tBuckets.get
+      idx         <- indexOf(k)
+      _           <- buckets.update(idx, upsert)
+      data        <- self.fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
+      capacity    <- tCapacity.get
+      needsResize = capacity * LoadFactor < data.size
+      _           <- if (needsResize) resize(capacity, data) else STM.unit
     } yield ()
   }
 
@@ -131,8 +147,6 @@ class TMap[K, V] private (tBuckets: TRef[TArray[List[(K, V)]]], tCapacity: TRef[
 
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => k.hashCode() % c)
-
-  // private def increaseCapacity: STM[Nothing, TMap[K, V]] = ???
 }
 
 object TMap {
@@ -140,9 +154,9 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with the specified values.
    */
-  final def apply[K, V](items: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val capacity = if (items.isEmpty) DefaultCapacity else 2 * items.size
-    withCapacity(capacity, items)
+  final def apply[K, V](data: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+    val capacity = if (data.isEmpty) DefaultCapacity else 2 * data.size
+    allocate(capacity, data)
   }
 
   /**
@@ -150,9 +164,9 @@ object TMap {
    */
   final def empty[K, V]: STM[Nothing, TMap[K, V]] = apply(List.empty[(K, V)])
 
-  private final def withCapacity[K, V](capacity: Int, items: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+  private final def allocate[K, V](capacity: Int, data: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets     = Array.fill[List[(K, V)]](capacity)(Nil)
-    val uniqueItems = items.toMap.toList
+    val uniqueItems = data.toMap.toList
 
     uniqueItems.foreach { kv =>
       val idx = kv._1.hashCode() % capacity
