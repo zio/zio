@@ -67,8 +67,26 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
         val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterTestLabels(f))), exec)
         Some(Spec(filtered))
 
-      case t @ TestCase(_, _) =>
-        if (f(t.label)) Some(Spec(t)) else None
+      case t @ TestCase(label, _) =>
+        if (f(label)) Some(Spec(t)) else None
+    }
+
+  /**
+   * Returns a new Spec containing only tests/suites with labels satisfying the specified predicate.
+   */
+  final def filterLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
+    caseValue match {
+      case s @ SuiteCase(label, specs, exec) =>
+        // If the suite matched the label, no need to filter anything underneath it.
+        if (f(label)) {
+          Some(Spec(s))
+        } else {
+          val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterLabels(f))), exec)
+          Some(Spec(filtered))
+        }
+
+      case t @ TestCase(label, _) =>
+        if (f(label)) Some(Spec(t)) else None
     }
 
   /**
