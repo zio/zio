@@ -22,7 +22,7 @@ package zio.stm
  *
  * Caution: doesn't provide stack-safety guarantees.
  */
-class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]], size: TRef[Int], capacity: TRef[Int]) { self =>
+class TMap[K, V] private (tBuckets: TRef[TArray[List[(K, V)]]], tCapacity: TRef[Int]) { self =>
 
   /**
    * Tests whether or not map contains a key.
@@ -34,13 +34,20 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]], size: TRef[Int], 
    * Removes binding for given key.
    */
   final def delete[E](k: K): STM[E, Unit] =
-    accessM(buckets => indexOf(k).flatMap(idx => buckets.update(idx, _.filterNot(_._1 == k)))).unit
+    for {
+      buckets <- tBuckets.get
+      idx     <- indexOf(k)
+      _       <- buckets.update(idx, _.filterNot(_._1 == k))
+    } yield ()
 
   /**
    * Atomically folds using pure function.
    */
   final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
-    accessM(_.fold(zero)((acc, chain) => chain.foldLeft(acc)(op)))
+    for {
+      buckets <- tBuckets.get
+      res     <- buckets.fold(zero)((acc, chain) => chain.foldLeft(acc)(op))
+    } yield res
 
   /**
    * Atomically folds using effectful function.
@@ -52,7 +59,10 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]], size: TRef[Int], 
         case head :: tail => loopM(acc.flatMap(op(_, head)), tail)
       }
 
-    accessM(_.foldM(zero)((acc, chain) => loopM(STM.succeed(acc), chain)))
+    for {
+      buckets <- tBuckets.get
+      res     <- buckets.foldM(zero)((acc, chain) => loopM(STM.succeed(acc), chain))
+    } yield res
   }
 
   /**
@@ -65,7 +75,11 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]], size: TRef[Int], 
    * Retrieves value associated with given key.
    */
   final def get[E](k: K): STM[E, Option[V]] =
-    accessM(buckets => indexOf(k).flatMap(buckets(_))).map(_.find(_._1 == k).map(_._2))
+    for {
+      buckets <- tBuckets.get
+      idx     <- indexOf(k)
+      bucket  <- buckets(idx)
+    } yield bucket.find(_._1 == k).map(_._2)
 
   /**
    * Retrieves value associated with given key or default value, in case the
@@ -96,25 +110,29 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]], size: TRef[Int], 
         case xs  => xs.map(kv => if (kv._1 == k) (k, v) else kv)
       }
 
-    accessM(buckets => indexOf(k).flatMap(idx => buckets.update(idx, update))).unit
+    for {
+      buckets <- tBuckets.get
+      idx     <- indexOf(k)
+      _       <- buckets.update(idx, update)
+    } yield ()
   }
 
   /**
    * Removes bindings matching predicate.
    */
   final def removeIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =
-    accessM(_.transform(_.filterNot(p)))
+    tBuckets.get.flatMap(_.transform(_.filterNot(p)))
 
   /**
    * Retains bindings matching predicate.
    */
   final def retainIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =
-    accessM(_.transform(_.filter(p)))
+    tBuckets.get.flatMap(_.transform(_.filter(p)))
 
-  private def accessM[E, A](f: TArray[List[(K, V)]] => STM[E, A]): STM[E, A] =
-    buckets.get.flatMap(f)
+  private def indexOf(k: K): STM[Nothing, Int] =
+    tCapacity.get.map(c => k.hashCode() % c)
 
-  private def indexOf(k: K): STM[Nothing, Int] = capacity.get.map(c => k.hashCode() % c)
+  // private def increaseCapacity: STM[Nothing, TMap[K, V]] = ???
 }
 
 object TMap {
@@ -122,8 +140,10 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with the specified values.
    */
-  final def apply[K, V](items: => List[(K, V)]): STM[Nothing, TMap[K, V]] =
-    withCapacity(DefaultCapacity, items)
+  final def apply[K, V](items: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+    val capacity = if (items.isEmpty) DefaultCapacity else 2 * items.size
+    withCapacity(capacity, items)
+  }
 
   /**
    * Makes an empty `TMap`.
@@ -142,10 +162,10 @@ object TMap {
     for {
       tBuckets  <- STM.collectAll(buckets.map(b => TRef.make(b)))
       tArray    <- TRef.make(TArray(tBuckets.toArray))
-      tSize     <- TRef.make(0)
       tCapacity <- TRef.make(capacity)
-    } yield new TMap(tArray, tSize, tCapacity)
+    } yield new TMap(tArray, tCapacity)
   }
 
-  private final val DefaultCapacity = 1000
+  private final val DefaultCapacity = 100
+  private final val LoadFactor      = 0.75
 }
