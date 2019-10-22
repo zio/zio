@@ -12,6 +12,44 @@ import scala.{ Stream => _ }
 object StreamChunkSpec
     extends ZIOBaseSpec(
       suite("StreamChunkSpec")(
+        testM("StreamChunk.catchAllCauseErrors") {
+          val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
+          val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
+          s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
+        },
+        testM("StreamChunk.catchAllCauseDefects") {
+          val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.dieMessage("Boom"))
+          val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
+          s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
+        },
+        testM("StreamChunk.catchAllCauseHappyPath") {
+          val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3)))
+          val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
+          s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3))))
+        },
+        testM("StreamChunk.catchAllCauseFinalizers") {
+          for {
+            fins   <- Ref.make(List[String]())
+            s1     = StreamChunk((Stream(Chunk(1), Chunk(2, 3)) ++ Stream.fail("Boom")).ensuring(fins.update("s1" :: _)))
+            s2     = StreamChunk((Stream(Chunk(4, 5), Chunk(6)) ++ Stream.fail("Boom")).ensuring(fins.update("s2" :: _)))
+            _      <- s1.catchAllCause(_ => s2).flattenChunks.runCollect.run
+            result <- fins.get
+          } yield assert(result, equalTo(List("s2", "s1")))
+        },
+        testM("StreamChunk.catchAllCauseScopeErrors") {
+          val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream(Managed.fail("Boom")))
+          val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
+          s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
+        },
+        testM("StreamChunk.either") {
+          val s = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
+          s.either.flattenChunks.runCollect.map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
+        },
+        testM("StreamChunk.orElse") {
+          val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
+          val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
+          s1.orElse(s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
+        },
         testM("StreamChunk.map") {
           checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, f) =>
             for {
