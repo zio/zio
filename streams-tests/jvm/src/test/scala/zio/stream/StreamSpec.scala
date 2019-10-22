@@ -1021,9 +1021,9 @@ object StreamSpec
             equalTo(List(1, 2, 3))
           )
         },
-        testM("Stream.mapConcat")(checkM(pureStreamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
+        testM("Stream.mapConcatChunk")(checkM(pureStreamOfBytes, Gen.function(smallChunks(Gen.anyInt))) { (s, f) =>
           for {
-            res1 <- s.mapConcat(f).runCollect
+            res1 <- s.mapConcatChunk(f).runCollect
             res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
           } yield assert(res1, equalTo(res2))
         }),
