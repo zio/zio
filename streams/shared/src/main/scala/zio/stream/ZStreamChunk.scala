@@ -74,6 +74,20 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     ZStreamChunk(chunks.bufferUnbounded)
 
   /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails with a typed error.
+   */
+  final def catchAll[R1 <: R, E2, A1 >: A](f: E => ZStreamChunk[R1, E2, A1]): ZStreamChunk[R1, E2, A1] =
+    self.catchAllCause(_.failureOrCause.fold(f, c => ZStreamChunk(ZStream.halt(c))))
+
+  /**
+   * Switches over to the stream produced by the provided function in case this one
+   * fails. Allows recovery from all errors, except external interruption.
+   */
+  final def catchAllCause[R1 <: R, E2, A1 >: A](f: Cause[E] => ZStreamChunk[R1, E2, A1]): ZStreamChunk[R1, E2, A1] =
+    ZStreamChunk(chunks.catchAllCause(c => f(c).chunks))
+
+  /**
    * Collects a filtered, mapped subset of the stream.
    */
   final def collect[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
@@ -179,6 +193,16 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    */
   final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStreamChunk[R1, E, A] =
     ZStreamChunk(chunks.ensuringFirst(fin))
+
+  /**
+   * Returns a stream whose failures and successes have been lifted into an
+   * `Either`. The resulting stream cannot fail, because the failures have
+   * been exposed as part of the `Either` success case.
+   *
+   * @note the stream will end as soon as the first error occurs.
+   */
+  final def either: ZStreamChunk[R, Nothing, Either[E, A]] =
+    self.map(Right(_)).catchAll(e => ZStreamChunk.succeed(Chunk.single(Left(e))))
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
@@ -368,6 +392,14 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    */
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
     ZStreamChunk(chunks.mapM(_.mapM(f0)))
+
+  /**
+   * Switches to the provided stream in case this one fails with a typed error.
+   *
+   * See also [[ZStream#catchAll]].
+   */
+  final def orElse[R1 <: R, E2, A1 >: A](that: => ZStreamChunk[R1, E2, A1]): ZStreamChunk[R1, E2, A1] =
+    self.catchAll(_ => that)
 
   final def process =
     for {
