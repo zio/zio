@@ -19,8 +19,6 @@ package zio.stm
 class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
   import TMap.indexOf
 
-  final def collect[K2, V2](pf: PartialFunction[(K, V), (K2, V2)]): STM[Nothing, TMap[K2, V2]] = ???
-
   final def contains[E](k: K): STM[E, Boolean] =
     get(k).map(_.isDefined)
 
@@ -28,7 +26,7 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
     accessM(_.update(indexOf(k), _.filterNot(_._1 == k))).as(self)
 
   final def fold[A](acc: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
-    accessM(_.fold(acc) { case (acc, items) => items.foldLeft(acc)(op) })
+    accessM(_.fold(acc)((acc, items) => items.foldLeft(acc)(op)))
 
   final def foldM[A, E](acc: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = ???
 
@@ -41,20 +39,19 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
   final def getOrElse[E](k: K, default: => V): STM[E, V] =
     get(k).map(_.getOrElse(default))
 
-  // TODO: ensure proper rehashing by using factory!!!
   final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] =
-    accessM(_.map(_.map(f))).flatMap(t => TRef.make(t)).map(r => new TMap(r))
+    self.fold(List.empty[(K2, V2)])((acc, pair) => f(pair) :: acc).flatMap(TMap(_))
 
   final def mapM[E, K2, V2](f: ((K, V)) => STM[E, (K2, V2)]): STM[E, TMap[K2, V2]] = ???
 
-  final def put[E](k: K, v: V): STM[E, TMap[K, V]] = {
+  final def put[E](k: K, v: V): STM[E, Unit] = {
     def update(bucket: List[(K, V)]): List[(K, V)] =
       bucket match {
         case Nil => List(k -> v)
         case xs  => xs.map(kv => if (kv._1 == k) (k, v) else kv)
       }
 
-    accessM(_.update(indexOf(k), update)).as(self)
+    accessM(_.update(indexOf(k), update)).unit
   }
 
   final def removeIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =

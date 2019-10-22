@@ -53,9 +53,9 @@ object TMapSpec
           testM("add new element") {
             val tx =
               for {
-                map1 <- TMap.empty[String, Int]
-                map2 <- map1.put("a", 1)
-                e    <- map2.get("a")
+                tmap <- TMap.empty[String, Int]
+                _    <- tmap.put("a", 1)
+                e    <- tmap.get("a")
               } yield e
 
             assertM(tx.commit, isSome(equalTo(1)))
@@ -63,9 +63,9 @@ object TMapSpec
           testM("overwrite existing element") {
             val tx =
               for {
-                map1 <- TMap(List("a" -> 1, "b" -> 2))
-                map2 <- map1.put("a", 10)
-                e    <- map2.get("a")
+                tmap <- TMap(List("a" -> 1, "b" -> 2))
+                _    <- tmap.put("a", 10)
+                e    <- tmap.get("a")
               } yield e
 
             assertM(tx.commit, isSome(equalTo(10)))
@@ -73,9 +73,9 @@ object TMapSpec
           testM("remove existing element") {
             val tx =
               for {
-                map1 <- TMap(List("a" -> 1, "b" -> 2))
-                map2 <- map1.delete("a")
-                e    <- map2.get("a")
+                tmap <- TMap(List("a" -> 1, "b" -> 2))
+                _    <- tmap.delete("a")
+                e    <- tmap.get("a")
               } yield e
 
             assertM(tx.commit, isNone)
@@ -83,9 +83,9 @@ object TMapSpec
           testM("remove non-existing element") {
             val tx =
               for {
-                map1 <- TMap.empty[String, Int]
-                map2 <- map1.delete("a")
-                e    <- map2.get("a")
+                tmap <- TMap.empty[String, Int]
+                _    <- tmap.delete("a")
+                e    <- tmap.get("a")
               } yield e
 
             assertM(tx.commit, isNone)
@@ -95,11 +95,11 @@ object TMapSpec
           testM("retainIf") {
             val tx =
               for {
-                map <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
-                _   <- map.retainIf(_._1 == "aa")
-                a   <- map.contains("a")
-                aa  <- map.contains("aa")
-                aaa <- map.contains("aaa")
+                tmap <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                _    <- tmap.retainIf(_._1 == "aa")
+                a    <- tmap.contains("a")
+                aa   <- tmap.contains("aa")
+                aaa  <- tmap.contains("aaa")
               } yield (a, aa, aaa)
 
             assertM(tx.commit, equalTo((false, true, false)))
@@ -107,11 +107,11 @@ object TMapSpec
           testM("removeIf") {
             val tx =
               for {
-                map <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
-                _   <- map.removeIf(_._1 == "aa")
-                a   <- map.contains("a")
-                aa  <- map.contains("aa")
-                aaa <- map.contains("aaa")
+                tmap <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                _    <- tmap.removeIf(_._1 == "aa")
+                a    <- tmap.contains("a")
+                aa   <- tmap.contains("aa")
+                aaa  <- tmap.contains("aaa")
               } yield (a, aa, aaa)
 
             assertM(tx.commit, equalTo((true, false, true)))
@@ -122,10 +122,10 @@ object TMapSpec
 
             val tx =
               for {
-                map1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
-                map2 <- map1.map(kv => (kv._1, kv._2 * 2))
-                res1 <- valuesOf(map1)
-                res2 <- valuesOf(map2)
+                tmap1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                tmap2 <- tmap1.map(kv => (kv._1, kv._2 * 2))
+                res1  <- valuesOf(tmap1)
+                res2  <- valuesOf(tmap2)
               } yield (res1, res2)
 
             assertM(tx.commit, equalTo((List(1, 2, 3), List(2, 4, 6))))
@@ -135,8 +135,8 @@ object TMapSpec
           testM("fold on non-empty map") {
             val tx =
               for {
-                map <- TMap(List("a" -> 1, "b" -> 2, "c" -> 3))
-                res <- map.fold(0)((acc, kv) => acc + kv._2)
+                tmap <- TMap(List("a" -> 1, "b" -> 2, "c" -> 3))
+                res  <- tmap.fold(0)((acc, kv) => acc + kv._2)
               } yield res
 
             assertM(tx.commit, equalTo(6))
@@ -144,8 +144,8 @@ object TMapSpec
           testM("fold on empty map") {
             val tx =
               for {
-                map <- TMap.empty[String, Int]
-                res <- map.fold(0)((acc, kv) => acc + kv._2)
+                tmap <- TMap.empty[String, Int]
+                res  <- tmap.fold(0)((acc, kv) => acc + kv._2)
               } yield res
 
             assertM(tx.commit, equalTo(0))
