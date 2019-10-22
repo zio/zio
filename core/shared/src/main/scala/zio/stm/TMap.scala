@@ -22,8 +22,7 @@ package zio.stm
  *
  * Caution: doesn't provide stack-safety guarantees.
  */
-class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
-  import TMap.indexOf
+class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]], size: TRef[Int], capacity: TRef[Int]) { self =>
 
   /**
    * Tests whether or not map contains a key.
@@ -34,8 +33,8 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
   /**
    * Removes binding for given key.
    */
-  final def delete[E](k: K): STM[E, TMap[K, V]] =
-    accessM(_.update(indexOf(k), _.filterNot(_._1 == k))).as(self)
+  final def delete[E](k: K): STM[E, Unit] =
+    accessM(buckets => indexOf(k).flatMap(idx => buckets.update(idx, _.filterNot(_._1 == k)))).unit
 
   /**
    * Atomically folds using pure function.
@@ -66,7 +65,7 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
    * Retrieves value associated with given key.
    */
   final def get[E](k: K): STM[E, Option[V]] =
-    accessM(_.apply(indexOf(k))).map(_.find(_._1 == k).map(_._2))
+    accessM(buckets => indexOf(k).flatMap(buckets(_))).map(_.find(_._1 == k).map(_._2))
 
   /**
    * Retrieves value associated with given key or default value, in case the
@@ -97,7 +96,7 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
         case xs  => xs.map(kv => if (kv._1 == k) (k, v) else kv)
       }
 
-    accessM(_.update(indexOf(k), update)).unit
+    accessM(buckets => indexOf(k).flatMap(idx => buckets.update(idx, update))).unit
   }
 
   /**
@@ -114,6 +113,8 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
 
   private def accessM[E, A](f: TArray[List[(K, V)]] => STM[E, A]): STM[E, A] =
     buckets.get.flatMap(f)
+
+  private def indexOf(k: K): STM[Nothing, Int] = capacity.get.map(c => k.hashCode() % c)
 }
 
 object TMap {
@@ -121,27 +122,30 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with the specified values.
    */
-  final def apply[K, V](items: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val buckets     = Array.fill[List[(K, V)]](DefaultSize)(Nil)
-    val uniqueItems = items.toMap.toList
-
-    uniqueItems.foreach { kv =>
-      val idx = indexOf(kv._1)
-      buckets(idx) = kv :: buckets(idx)
-    }
-
-    for {
-      bref <- STM.collectAll(buckets.map(b => TRef.make(b)))
-      aref <- TRef.make(TArray(bref.toArray))
-    } yield new TMap(aref)
-  }
+  final def apply[K, V](items: => List[(K, V)]): STM[Nothing, TMap[K, V]] =
+    withCapacity(DefaultCapacity, items)
 
   /**
    * Makes an empty `TMap`.
    */
   final def empty[K, V]: STM[Nothing, TMap[K, V]] = apply(List.empty[(K, V)])
 
-  private final val DefaultSize = 1000
+  private final def withCapacity[K, V](capacity: Int, items: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+    val buckets     = Array.fill[List[(K, V)]](capacity)(Nil)
+    val uniqueItems = items.toMap.toList
 
-  private final def indexOf[K](k: K): Int = k.hashCode() % DefaultSize
+    uniqueItems.foreach { kv =>
+      val idx = kv._1.hashCode() % capacity
+      buckets(idx) = kv :: buckets(idx)
+    }
+
+    for {
+      tBuckets  <- STM.collectAll(buckets.map(b => TRef.make(b)))
+      tArray    <- TRef.make(TArray(tBuckets.toArray))
+      tSize     <- TRef.make(0)
+      tCapacity <- TRef.make(capacity)
+    } yield new TMap(tArray, tSize, tCapacity)
+  }
+
+  private final val DefaultCapacity = 1000
 }
