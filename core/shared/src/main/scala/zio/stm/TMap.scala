@@ -48,9 +48,10 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
     get(k).map(_.getOrElse(default))
 
   final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] =
-    self.fold(List.empty[(K2, V2)])((acc, pair) => f(pair) :: acc).flatMap(TMap(_))
+    self.fold(List.empty[(K2, V2)])((acc, kv) => f(kv) :: acc).flatMap(TMap(_))
 
-  final def mapM[E, K2, V2](f: ((K, V)) => STM[E, (K2, V2)]): STM[E, TMap[K2, V2]] = ???
+  final def mapM[E, K2, V2](f: ((K, V)) => STM[E, (K2, V2)]): STM[E, TMap[K2, V2]] =
+    self.foldM(List.empty[(K2, V2)])((acc, kv) => f(kv).map(_ :: acc)).flatMap(TMap(_))
 
   final def put[E](k: K, v: V): STM[E, Unit] = {
     def update(bucket: List[(K, V)]): List[(K, V)] =
