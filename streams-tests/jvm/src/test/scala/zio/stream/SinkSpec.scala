@@ -1041,11 +1041,7 @@ object SinkSpec
           },
           suite("splitLines")(
             testM("preserves data")(
-              checkM(
-                Gen
-                  .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
-                  .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
-              ) { (lines: List[String]) =>
+              checkM(weirdStringGenForSplitLines) { lines =>
                 val data = lines.mkString("\n")
 
                 for {
@@ -1103,18 +1099,19 @@ object SinkSpec
               )
             }
           ),
-          testM("splitLinesChunk")(checkM(Gen.medium(Gen.listOfN(_)(Gen.anyString))) { xs =>
-            val chunks: Chunk[String] = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
-            val ys: List[String] =
-              xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
+          testM("splitLinesChunk")(
+            checkM(weirdStringGenForSplitLines) { xs =>
+              val chunks = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
+              val ys     = xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
 
-            for {
-              initial            <- ZSink.splitLinesChunk.initial
-              middle             <- ZSink.splitLinesChunk.step(initial, chunks)
-              res                <- ZSink.splitLinesChunk.extract(middle)
-              (result, leftover) = res
-            } yield assert((result ++ leftover.flatten).toArray[String].toList, equalTo(ys))
-          }),
+              for {
+                initial            <- ZSink.splitLinesChunk.initial
+                middle             <- ZSink.splitLinesChunk.step(initial, chunks)
+                res                <- ZSink.splitLinesChunk.extract(middle)
+                (result, leftover) = res
+              } yield assert((result ++ leftover.flatten).toArray[String].toList, equalTo(ys))
+            }
+          ),
           suite("splitOn")(
             testM("preserves data")(checkM(Gen.listOf(Gen.anyString).filter(_.nonEmpty)) { lines =>
               val data = lines.mkString("|")

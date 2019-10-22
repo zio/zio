@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.{ Chunk, IO, UIO }
-import zio.test.{ assert, GenZIO, TestResult }
+import zio.test.{ assert, GenZIO, TestResult, Gen }
 import zio.test.Assertion.{ equalTo, isLeft, isRight, isTrue }
 
 trait SinkUtils {
@@ -121,4 +121,8 @@ trait SinkUtils {
 
 object SinkUtils extends SinkUtils with StreamUtils with GenZIO {
   val zipParLawsStream = Stream(1, 2, 3, 4, 5, 6)
+
+  val weirdStringGenForSplitLines = Gen
+    .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
+    .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
 }
