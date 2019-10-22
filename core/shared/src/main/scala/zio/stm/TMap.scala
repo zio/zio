@@ -16,18 +16,36 @@
 
 package zio.stm
 
+/**
+ * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
+ * conflicts via chaining.
+ *
+ * Caution: doesn't provide stack-safety guarantees.
+ */
 class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
   import TMap.indexOf
 
+  /**
+   * Tests whether or not map contains a key.
+   */
   final def contains[E](k: K): STM[E, Boolean] =
     get(k).map(_.isDefined)
 
+  /**
+   * Removes binding for given key.
+   */
   final def delete[E](k: K): STM[E, TMap[K, V]] =
     accessM(_.update(indexOf(k), _.filterNot(_._1 == k))).as(self)
 
+  /**
+   * Atomically folds using pure function.
+   */
   final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
     accessM(_.fold(zero)((acc, chain) => chain.foldLeft(acc)(op)))
 
+  /**
+   * Atomically folds using effectful function.
+   */
   final def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
     def loopM(acc: STM[E, A], remaining: List[(K, V)]): STM[E, A] =
       remaining match {
@@ -38,21 +56,40 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
     accessM(_.foldM(zero)((acc, chain) => loopM(STM.succeed(acc), chain)))
   }
 
+  /**
+   * Atomically performs side-effect for each binding present in map.
+   */
   final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] =
     self.foldM(())((_, kv) => f(kv))
 
+  /**
+   * Retrieves value associated with given key.
+   */
   final def get[E](k: K): STM[E, Option[V]] =
     accessM(_.apply(indexOf(k))).map(_.find(_._1 == k).map(_._2))
 
+  /**
+   * Retrieves value associated with given key or default value, in case the
+   * key isn't present.
+   */
   final def getOrElse[E](k: K, default: => V): STM[E, V] =
     get(k).map(_.getOrElse(default))
 
+  /**
+   * Creates new [[TMap]] by mapping all bindings using pure function.
+   */
   final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] =
     self.fold(List.empty[(K2, V2)])((acc, kv) => f(kv) :: acc).flatMap(TMap(_))
 
+  /**
+   * Creates new [[TMap]] by mapping all bindings using effectful function.
+   */
   final def mapM[E, K2, V2](f: ((K, V)) => STM[E, (K2, V2)]): STM[E, TMap[K2, V2]] =
     self.foldM(List.empty[(K2, V2)])((acc, kv) => f(kv).map(_ :: acc)).flatMap(TMap(_))
 
+  /**
+   * Stores new binding into the map.
+   */
   final def put[E](k: K, v: V): STM[E, Unit] = {
     def update(bucket: List[(K, V)]): List[(K, V)] =
       bucket match {
@@ -63,9 +100,15 @@ class TMap[K, V] private (buckets: TRef[TArray[List[(K, V)]]]) { self =>
     accessM(_.update(indexOf(k), update)).unit
   }
 
+  /**
+   * Removes bindings matching predicate.
+   */
   final def removeIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =
     accessM(_.transform(_.filterNot(p)))
 
+  /**
+   * Retains bindings matching predicate.
+   */
   final def retainIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =
     accessM(_.transform(_.filter(p)))
 
