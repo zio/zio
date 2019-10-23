@@ -37,7 +37,7 @@ class TMap[K, V] private (
   /**
    * Removes binding for given key.
    */
-  final def delete[E](k: K): STM[E, Unit] = {
+  final def delete(k: K): STM[Nothing, Unit] = {
     def removeMatching(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
       val (toRemove, toRetain) = bucket.partition(_._1 == k)
       if (toRemove.isEmpty) STM.succeed(toRetain) else tSize.update(_ - toRemove.size).as(toRetain)
@@ -84,7 +84,7 @@ class TMap[K, V] private (
   /**
    * Retrieves value associated with given key.
    */
-  final def get[E](k: K): STM[E, Option[V]] =
+  final def get(k: K): STM[Nothing, Option[V]] =
     for {
       buckets <- tBuckets.get
       idx     <- indexOf(k)
@@ -95,13 +95,13 @@ class TMap[K, V] private (
    * Retrieves value associated with given key or default value, in case the
    * key isn't present.
    */
-  final def getOrElse[E](k: K, default: => V): STM[E, V] =
+  final def getOrElse(k: K, default: => V): STM[Nothing, V] =
     get(k).map(_.getOrElse(default))
 
   /**
    * Stores new binding into the map.
    */
-  final def put[E](k: K, v: V): STM[E, Unit] = {
+  final def put(k: K, v: V): STM[Nothing, Unit] = {
     def upsert(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
       val exists = bucket.find(_._1 == k).isDefined
 
