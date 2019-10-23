@@ -236,7 +236,7 @@ object Promise {
     ref: Ref[A]
   )(
     acquire: (Promise[E, B], A) => (UIO[C], A)
-  )(release: (C, Promise[E, B]) => UIO[_]): IO[E, B] =
+  )(release: (C, Promise[E, B]) => UIO[Any]): IO[E, B] =
     for {
       pRef <- Ref.make[Option[(C, Promise[E, B])]](None)
       b <- (for {
