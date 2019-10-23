@@ -159,19 +159,13 @@ class TMap[K, V] private (
    * Atomically updates all bindings using pure function.
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
-    for {
-      data <- fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
-      _    <- overwriteWith(data)
-    } yield ()
+    transformM((k, v) => STM.succeed(f(k, v)))
 
   /**
    * Atomically updates all bindings using effectful function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    for {
-      data <- foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
-      _    <- overwriteWith(data)
-    } yield ()
+    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc)).flatMap(overwriteWith)
 
   /**
    * Atomically updates all values using pure function.
