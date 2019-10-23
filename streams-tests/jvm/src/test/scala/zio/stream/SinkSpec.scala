@@ -1148,7 +1148,7 @@ object SinkSpec
               assertM(
                 Stream("test")
                   .transduce(ZSink.splitOn("test"))
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List(""))
               )
@@ -1157,7 +1157,7 @@ object SinkSpec
               assertM(
                 Stream("abc", "abc", "abc")
                   .transduce(ZSink.splitOn("hello"))
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abcabcabc"))
               )
@@ -1166,7 +1166,7 @@ object SinkSpec
               assertM(
                 Stream("abc<", ">abc")
                   .transduce(ZSink.splitOn("<>"))
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abc", "abc"))
               )
