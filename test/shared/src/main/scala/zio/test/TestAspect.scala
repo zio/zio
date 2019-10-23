@@ -396,11 +396,11 @@ object TestAspect extends TimeoutVariants {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-        test.map(_.flatMap {
-          case TestSuccess.Ignored =>
+        test.map {
+          case Right(TestSuccess.Ignored) =>
             Left(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
-          case s => Right(s)
-        })
+          case x => x
+        }
     }
 
   /**
