@@ -174,10 +174,10 @@ object TMap {
     }
 
     for {
-      tBuckets  <- STM.collectAll(buckets.map(b => TRef.make(b)))
-      tArray    <- TRef.make(TArray(tBuckets.toArray))
+      tChains   <- STM.collectAll(buckets.map(b => TRef.make(b)))
+      tBuckets  <- TRef.make(TArray(tChains.toArray))
       tCapacity <- TRef.make(capacity)
-    } yield new TMap(tArray, tCapacity)
+    } yield new TMap(tBuckets, tCapacity)
   }
 
   private final val DefaultCapacity = 100
