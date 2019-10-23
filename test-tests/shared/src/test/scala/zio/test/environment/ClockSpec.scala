@@ -31,8 +31,6 @@ object ClockSpec
             result <- ref.get
           } yield assert(result, isTrue)
         } @@ nonFlaky(100),
-        //todo  remove `@@ after(setTime(0.hours))` if possible. This doesn't depend on absolute time so I don't think
-        // it should rely on resetting the clock. Fails intermittently without it.
         testM("sleep correctly handles multiple sleeps") {
           for {
             latch1 <- Promise.make[Nothing, Unit]
@@ -55,18 +53,14 @@ object ClockSpec
             _     <- setTime(11.hours)
             _     <- latch.await
           } yield assert((), anything)
-        } @@ nonFlaky(100)
-          @@ timeout(10.seconds),
-        //todo fix - times out
-        testM("sleep does sleep instantly when sleep duration less than set time") {
+        } @@ nonFlaky(100),
+        testM("sleep does sleep instantly when sleep duration less than or equal to clock time") {
           for {
             latch <- Promise.make[Nothing, Unit]
-            _     <- (setTime(11.hours) *> latch.succeed(())).fork
+            _     <- (adjust(10.hours) *> latch.succeed(())).fork
             _     <- latch.await *> sleep(10.hours)
           } yield assert((), anything)
-        } @@ after(setTime(0.hours))
-          @@ timeout(1.seconds) //todo remove once working
-          @@ nonFlaky(100),
+        } @@ nonFlaky(100),
         testM("adjust correctly advances nanotime") {
           for {
             time1 <- nanoTime
@@ -145,13 +139,13 @@ object ClockSpec
           } yield a && b && c && d && e
           assertM(example, isTrue)
         },
-        //todo fix - looks like fiberTime is 100x larger than it's supposed to be - conversion error somewhere?
         testM("fiber time is not subject to race conditions") {
           for {
-            _      <- setTime(Duration.Infinity)
-            _      <- sleep(2.millis).zipPar(sleep(1.millis))
-            result <- fiberTime
-          } yield assert(result.toMillis, equalTo(2.millis.toMillis)) //todo fails "200 did not satisfy equalTo(2)"
+            _        <- adjust(2.millis)
+            _        <- sleep(2.millis).zipPar(sleep(1.millis))
+            result   <- fiberTime
+            expected <- clock.currentTime(TimeUnit.MILLISECONDS)
+          } yield assert(result.toMillis, equalTo(expected))
         } @@ nonFlaky(100)
       )
     )
