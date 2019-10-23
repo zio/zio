@@ -20,7 +20,7 @@ import scala.annotation.tailrec
 import scala.{ Console => SConsole }
 
 import zio.duration.Duration
-import zio.test.mock.{ Expectation, MockException }
+import zio.test.mock.{ Method, MockException }
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
@@ -184,14 +184,16 @@ object DefaultTestReporter {
       case InvalidArgumentsException(method, args, assertion) =>
         renderTestFailure(s"$method called with invalid arguments", assert(args, assertion))
 
-      case InvalidMethodException(method, expectation) =>
+      case InvalidMethodException(method, expectedMethod, assertion) =>
         List(
           red(s"- invalid call to $method"),
-          renderExpectation(expectation, tabSize)
+          renderExpectation(expectedMethod, assertion, tabSize)
         ).mkString("\n")
 
       case UnmetExpectationsException(expectations) =>
-        (red(s"- unmet expectations") :: expectations.map(renderExpectation(_, tabSize))).mkString("\n")
+        (red(s"- unmet expectations") :: expectations.map {
+          case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
+        }).mkString("\n")
     }
 
   private def renderTestFailure(label: String, testResult: TestResult): String =
@@ -201,8 +203,8 @@ object DefaultTestReporter {
       )(_ && _, _ || _, !_).rendered.mkString("\n")
     )
 
-  private def renderExpectation[A, B](expectation: Expectation[A, B], offset: Int): String =
-    withOffset(offset)(s"expected ${expectation.method} with arguments ${cyan(expectation.assertion.toString)}")
+  private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[A], offset: Int): String =
+    withOffset(offset)(s"expected $method with arguments ${cyan(assertion.toString)}")
 
   private def withOffset(n: Int)(s: String): String =
     " " * n + s

@@ -67,7 +67,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
     }
 
   override def dropWhile(pred: A => Boolean): StreamEffect[R, E, A] =
-    StreamEffect[R, E, A] {
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var drop = true
@@ -149,7 +149,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
       }
     }
 
-  override def mapConcat[B](f: A => Chunk[B]): StreamEffect[R, E, B] =
+  override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffect[R, E, B] =
     StreamEffect[R, E, B] {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
@@ -180,7 +180,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
     }
 
   override def take(n: Int): StreamEffect[R, E, A] =
-    StreamEffect[R, E, A] {
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var counter = 0
@@ -196,8 +196,28 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
       }
     }
 
+  override def takeUntil(pred: A => Boolean): StreamEffect[R, E, A] =
+    StreamEffect {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal {
+          var keepTaking = true
+
+          () => {
+            if (!keepTaking) StreamEffect.end
+            else {
+              val a = thunk()
+              if (pred(a)) {
+                keepTaking = false
+              }
+              a
+            }
+          }
+        }
+      }
+    }
+
   override def takeWhile(pred: A => Boolean): StreamEffect[R, E, A] =
-    StreamEffect[R, E, A] {
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
           {

@@ -165,19 +165,6 @@ package object test extends CheckVariants {
       }
     )
 
-  /**
-   * Adds syntax for adding aspects.
-   * {{{
-   * test("foo") { assert(42, equalTo(42)) } @@ ignore
-   * }}}
-   */
-  implicit class ZSpecSyntax[R, E, L, S](spec: ZSpec[R, E, L, S]) {
-    def @@[LowerR <: R, UpperR >: R, LowerE <: E, UpperE >: E, LowerS <: S, UpperS >: S](
-      aspect: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
-    ): ZSpec[R, E, L, S] =
-      aspect(spec)
-  }
-
   val defaultTestRunner: TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any] =
     TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
 }
