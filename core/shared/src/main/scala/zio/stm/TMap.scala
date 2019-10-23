@@ -26,7 +26,7 @@ class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],
   private val tCapacity: TRef[Int],
   private val tSize: TRef[Int]
-) { self =>
+) {
 
   /**
    * Tests whether or not map contains a key.
@@ -79,7 +79,7 @@ class TMap[K, V] private (
    * Atomically performs side-effect for each binding present in map.
    */
   final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] =
-    self.foldM(())((_, kv) => f(kv))
+    foldM(())((_, kv) => f(kv))
 
   /**
    * Retrieves value associated with given key.
@@ -113,11 +113,11 @@ class TMap[K, V] private (
 
     def resize(newCapacity: Int): STM[Nothing, Unit] =
       for {
-        data       <- self.fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
+        data       <- fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
         tmap       <- TMap.allocate(newCapacity, data)
         newBuckets <- tmap.tBuckets.get
-        _          <- self.tBuckets.set(newBuckets)
-        _          <- self.tCapacity.set(newCapacity)
+        _          <- tBuckets.set(newBuckets)
+        _          <- tCapacity.set(newCapacity)
       } yield ()
 
     for {
@@ -136,9 +136,9 @@ class TMap[K, V] private (
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
     for {
-      data     <- self.fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
-      buckets  <- self.tBuckets.get
-      capacity <- self.tCapacity.get
+      data     <- fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
+      buckets  <- tBuckets.get
+      capacity <- tCapacity.get
       _        <- buckets.transform(_ => Nil)
       updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
       _        <- STM.collectAll(updates)
@@ -149,9 +149,9 @@ class TMap[K, V] private (
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     for {
-      data     <- self.foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
-      buckets  <- self.tBuckets.get
-      capacity <- self.tCapacity.get
+      data     <- foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
+      buckets  <- tBuckets.get
+      capacity <- tCapacity.get
       _        <- buckets.transform(_ => Nil)
       updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
       _        <- STM.collectAll(updates)
