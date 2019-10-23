@@ -79,34 +79,34 @@ object TestAspectSpec
         ),
         test("ifEnv runs a test if environment variable satisfies assertion") {
           assert(true, isTrue)
-        } @@ jvmOnly @@ ifEnv("PATH", containsString("bin")) @@ success,
+        } @@ ifEnv("PATH", containsString("bin")) @@ success @@ jvmOnly,
         test("ifEnv ignores a test if environment variable does not satisfy assertion") {
           assert(true, isFalse)
-        } @@ jvmOnly @@ ifEnv("PATH", nothing),
+        } @@ ifEnv("PATH", nothing) @@ jvmOnly,
         test("ifEnv ignores a test if environment variable does not exist") {
           assert(true, isFalse)
-        } @@ jvmOnly @@ ifEnv("QWERTY", anything),
+        } @@ ifEnv("QWERTY", anything) @@ jvmOnly,
         test("ifEnvSet runs a test if environment variable is set") {
           assert(true, isTrue)
-        } @@ jvmOnly @@ ifEnvSet("PATH") @@ success,
+        } @@ ifEnvSet("PATH") @@ success @@ jvmOnly,
         test("ifEnvSet ignores a test if environment variable is not set") {
           assert(true, isFalse)
-        } @@ jvmOnly @@ ifEnvSet("QWERTY"),
+        } @@ ifEnvSet("QWERTY") @@ jvmOnly,
         test("ifProp runs a test if property satisfies assertion") {
           assert(true, isTrue)
-        } @@ jvmOnly @@ ifProp("java.vm.name", containsString("VM")) @@ success,
+        } @@ ifProp("java.vm.name", containsString("VM")) @@ success @@ jvmOnly,
         test("ifProp ignores a test if property does not satisfy assertion") {
           assert(true, isFalse)
-        } @@ jvmOnly @@ ifProp("java.vm.name", nothing),
+        } @@ ifProp("java.vm.name", nothing) @@ jvmOnly,
         test("ifProp ignores a test if property does not exist") {
           assert(true, isFalse)
-        } @@ jvmOnly @@ ifProp("qwerty", anything),
+        } @@ ifProp("qwerty", anything) @@ jvmOnly,
         test("ifPropSet runs a test if property is set") {
           assert(true, isTrue)
-        } @@ jvmOnly @@ ifPropSet("java.vm.name") @@ success,
+        } @@ ifPropSet("java.vm.name") @@ success @@ jvmOnly,
         test("ifPropSet ignores a test if property is not set") {
           assert(true, isFalse)
-        } @@ jvmOnly @@ ifPropSet("qwerty"),
+        } @@ ifPropSet("qwerty") @@ jvmOnly,
         testM("timeout makes tests fail after given duration") {
           assertM(ZIO.never *> ZIO.unit, equalTo(()))
         } @@ timeout(1.nanos)
