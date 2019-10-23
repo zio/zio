@@ -31,7 +31,7 @@ class TMap[K, V] private (
   /**
    * Tests whether or not map contains a key.
    */
-  final def contains[E](k: K): STM[E, Boolean] =
+  final def contains(k: K): STM[Nothing, Boolean] =
     get(k).map(_.isDefined)
 
   /**
