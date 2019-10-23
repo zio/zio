@@ -101,8 +101,7 @@ class TMap[K, V] private (
   /**
    * Collects all keys stored in map.
    */
-  final def keys: STM[Nothing, List[K]] =
-    fold(List.empty[K])((acc, kv) => kv._1 :: acc)
+  final def keys: STM[Nothing, List[K]] = toList.map(_.map(_._1))
 
   /**
    * Stores new binding into the map.
@@ -153,7 +152,7 @@ class TMap[K, V] private (
    * Collects all bindings into a list.
    */
   final def toList: STM[Nothing, List[(K, V)]] =
-    fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
+    collectWith((k, v) => STM.succeed(k -> v))
 
   /**
    * Atomically updates all bindings using pure function.
@@ -166,7 +165,7 @@ class TMap[K, V] private (
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     for {
-      data     <- foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
+      data     <- collectWith(f)
       buckets  <- tBuckets.get
       capacity <- tCapacity.get
       _        <- buckets.transform(_ => Nil)
@@ -192,11 +191,13 @@ class TMap[K, V] private (
   /**
    * Collects all values stored in map.
    */
-  final def values: STM[Nothing, List[V]] =
-    fold(List.empty[V])((acc, kv) => kv._2 :: acc)
+  final def values: STM[Nothing, List[V]] = toList.map(_.map(_._2))
 
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => k.hashCode() % c)
+
+  private def collectWith[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
+    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
 }
 
 object TMap {
