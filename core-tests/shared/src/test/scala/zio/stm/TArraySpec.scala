@@ -161,8 +161,7 @@ object TArraySpec
           testM("happy-path") {
             for {
               tArray <- makeTArray(1)(42)
-              _      <- tArray.update(0, a => -a).commit
-              items  <- tArray.fold(List.empty[Int])((acc, a) => a :: acc).commit
+              items  <- (tArray.update(0, a => -a) *> valuesOf(tArray)).commit
             } yield assert(items, equalTo(List(-42)))
           },
           testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
@@ -176,8 +175,7 @@ object TArraySpec
           testM("happy-path") {
             for {
               tArray <- makeTArray(1)(42)
-              _      <- tArray.updateM(0, a => STM.succeed(-a)).commit
-              items  <- tArray.fold(List.empty[Int])((acc, a) => a :: acc).commit
+              items  <- (tArray.updateM(0, a => STM.succeed(-a)) *> valuesOf(tArray)).commit
             } yield assert(items, equalTo(List(-42)))
           },
           testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
@@ -206,4 +204,7 @@ object TArraySpecUtil {
 
   def makeTArray[T](n: Int)(a: T): UIO[TArray[T]] =
     ZIO.sequence(List.fill(n)(TRef.makeCommit(a))).map(refs => TArray(refs.toArray))
+
+  def valuesOf[T](array: TArray[T]): STM[Nothing, List[T]] =
+    array.fold(List.empty[T])((acc, a) => a :: acc).map(_.reverse)
 }
