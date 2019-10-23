@@ -30,7 +30,8 @@ object ClockSpec
             _      <- adjust(9.hours)
             result <- ref.get
           } yield assert(result, isTrue)
-        } @@ nonFlaky(100),
+        } @@ after(setTime(0.hours))
+          @@ nonFlaky(100),
         testM("sleep correctly handles multiple sleeps") {
           for {
             latch1 <- Promise.make[Nothing, Unit]
