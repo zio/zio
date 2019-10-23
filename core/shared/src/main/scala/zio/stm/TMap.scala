@@ -154,6 +154,18 @@ class TMap[K, V] private (
     } yield ()
 
   /**
+   * Atomically updates all values using pure function.
+   */
+  final def transformValues(f: V => V): STM[Nothing, Unit] =
+    transform(kv => kv._1 -> f(kv._2))
+
+  /**
+   * Atomically updates all values using effectful function.
+   */
+  final def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
+    transformM(kv => f(kv._2).map(v => kv._1 -> v))
+
+  /**
    * Removes bindings matching predicate.
    */
   final def removeIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =

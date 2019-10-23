@@ -120,21 +120,41 @@ object TMapSpec
             val tx =
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
-                _    <- tmap.transform(kv => (kv._1, kv._2 * 2))
-                res  <- tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc).map(_.reverse)
+                _    <- tmap.transform(kv => kv._1.replaceAll("a", "b") -> kv._2 * 2)
+                res  <- tmap.fold(List.empty[(String, Int)])((acc, kv) => kv :: acc)
               } yield res
 
-            assertM(tx.commit, equalTo(List(2, 4, 6)))
+            assertM(tx.commit, hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
           },
           testM("transformM") {
             val tx =
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
-                _    <- tmap.transformM(kv => STM.succeed(kv._1 -> kv._2 * 2))
+                _    <- tmap.transformM(kv => STM.succeed(kv._1.replaceAll("a", "b") -> kv._2 * 2))
+                res  <- tmap.fold(List.empty[(String, Int)])((acc, kv) => kv :: acc)
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
+          },
+          testM("transformValues") {
+            val tx =
+              for {
+                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                _    <- tmap.transformValues(_ * 2)
                 res  <- tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc).map(_.reverse)
               } yield res
 
-            assertM(tx.commit, equalTo(List(2, 4, 6)))
+            assertM(tx.commit, hasSameElements(List(2, 4, 6)))
+          },
+          testM("transformValuesM") {
+            val tx =
+              for {
+                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                _    <- tmap.transformValuesM(v => STM.succeed(v * 2))
+                res  <- tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc).map(_.reverse)
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(2, 4, 6)))
           }
         ),
         suite("folds")(
