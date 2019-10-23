@@ -542,7 +542,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
   /**
    * Adds an effect to consumption of every element of the stream.
    */
-  final def tap[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, _]): ZStreamChunk[R1, E1, A] =
+  final def tap[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, Any]): ZStreamChunk[R1, E1, A] =
     ZStreamChunk(chunks.tap[R1, E1] { as =>
       as.mapM_(f0)
     })
