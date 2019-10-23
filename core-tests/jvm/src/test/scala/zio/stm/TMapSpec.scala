@@ -96,7 +96,7 @@ object TMapSpec
             val tx =
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
-                _    <- tmap.retainIf(_._1 == "aa")
+                _    <- tmap.retainIf((k, _) => k == "aa")
                 a    <- tmap.contains("a")
                 aa   <- tmap.contains("aa")
                 aaa  <- tmap.contains("aaa")
@@ -108,7 +108,7 @@ object TMapSpec
             val tx =
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
-                _    <- tmap.removeIf(_._1 == "aa")
+                _    <- tmap.removeIf((k, _) => k == "aa")
                 a    <- tmap.contains("a")
                 aa   <- tmap.contains("aa")
                 aaa  <- tmap.contains("aaa")
@@ -120,7 +120,7 @@ object TMapSpec
             val tx =
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
-                _    <- tmap.transform(kv => kv._1.replaceAll("a", "b") -> kv._2 * 2)
+                _    <- tmap.transform((k, v) => k.replaceAll("a", "b") -> v * 2)
                 res  <- tmap.fold(List.empty[(String, Int)])((acc, kv) => kv :: acc)
               } yield res
 
@@ -130,7 +130,7 @@ object TMapSpec
             val tx =
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
-                _    <- tmap.transformM(kv => STM.succeed(kv._1.replaceAll("a", "b") -> kv._2 * 2))
+                _    <- tmap.transformM((k, v) => STM.succeed(k.replaceAll("a", "b") -> v * 2))
                 res  <- tmap.fold(List.empty[(String, Int)])((acc, kv) => kv :: acc)
               } yield res
 

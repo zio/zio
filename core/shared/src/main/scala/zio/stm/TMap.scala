@@ -134,9 +134,9 @@ class TMap[K, V] private (
   /**
    * Atomically updates all bindings using pure function.
    */
-  final def transform(f: ((K, V)) => (K, V)): STM[Nothing, Unit] =
+  final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
     for {
-      data       <- self.fold(List.empty[(K, V)])((acc, kv) => f(kv) :: acc)
+      data       <- self.fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
       tmap       <- TMap.fromIterable(data)
       newBuckets <- tmap.tBuckets.get
       _          <- self.tBuckets.set(newBuckets)
@@ -145,9 +145,9 @@ class TMap[K, V] private (
   /**
    * Atomically updates all bindings using effectful function.
    */
-  final def transformM[E](f: ((K, V)) => STM[E, (K, V)]): STM[E, Unit] =
+  final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     for {
-      data       <- self.foldM(List.empty[(K, V)])((acc, kv) => f(kv).map(_ :: acc))
+      data       <- self.foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
       tmap       <- TMap.fromIterable(data)
       newBuckets <- tmap.tBuckets.get
       _          <- self.tBuckets.set(newBuckets)
@@ -157,25 +157,25 @@ class TMap[K, V] private (
    * Atomically updates all values using pure function.
    */
   final def transformValues(f: V => V): STM[Nothing, Unit] =
-    transform(kv => kv._1 -> f(kv._2))
+    transform((k, v) => k -> f(v))
 
   /**
    * Atomically updates all values using effectful function.
    */
   final def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
-    transformM(kv => f(kv._2).map(v => kv._1 -> v))
+    transformM((k, v) => f(v).map(v => k -> v))
 
   /**
    * Removes bindings matching predicate.
    */
-  final def removeIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =
-    tBuckets.get.flatMap(_.transform(_.filterNot(p)))
+  final def removeIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
+    tBuckets.get.flatMap(_.transform(_.filterNot(kv => p(kv._1, kv._2))))
 
   /**
    * Retains bindings matching predicate.
    */
-  final def retainIf(p: ((K, V)) => Boolean): STM[Nothing, Unit] =
-    tBuckets.get.flatMap(_.transform(_.filter(p)))
+  final def retainIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
+    tBuckets.get.flatMap(_.transform(_.filter(kv => p(kv._1, kv._2))))
 
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => k.hashCode() % c)
