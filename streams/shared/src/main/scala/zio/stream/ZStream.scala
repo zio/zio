@@ -238,7 +238,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                      .fork
         bs <- ZStream
                .fromPull(consume(stateVar, permits))
-               .mapConcat(identity)
+               .mapConcatChunk(identity)
                .process
                .ensuringFirst(producer.interrupt.fork)
       } yield bs
@@ -478,7 +478,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                    }
           stream = ZStream
             .unfoldM(UnfoldState(None, scheduleInit, notify))(consume(_, out, permits))
-            .mapConcat(identity)
+            .mapConcatChunk(identity)
         } yield stream
       }
 
@@ -987,20 +987,20 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Executes the provided finalizer after this stream's finalizers run.
    */
   final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
-    ZStream[R1, E, A](self.process.ensuring(fin))
+    ZStream(self.process.ensuring(fin))
 
   /**
    * Executes the provided finalizer before this stream's finalizers run.
    */
   final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
-    ZStream[R1, E, A](self.process.ensuringFirst(fin))
+    ZStream(self.process.ensuringFirst(fin))
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
   def filter(pred: A => Boolean): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       self.process.map { as =>
         def pull: Pull[R, E, A] = as.flatMap { a =>
           if (pred(a)) Pull.emit(a)
@@ -1016,7 +1016,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * which the predicate evaluates to true.
    */
   final def filterM[R1 <: R, E1 >: E](pred: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] =
-    ZStream[R1, E1, A] {
+    ZStream {
       self.process.map { as =>
         def pull: Pull[R1, E1, A] =
           as.flatMap { a =>
@@ -1537,18 +1537,32 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
+   * Maps each element to an iterable, and flattens the iterables into the
+   * output of this stream.
+   */
+  final def mapConcat[B](f: A => Iterable[B]): ZStream[R, E, B] =
+    mapConcatChunk(f andThen Chunk.fromIterable)
+
+  /**
    * Maps each element to a chunk, and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f: A => Chunk[B]): ZStream[R, E, B] =
+  def mapConcatChunk[B](f: A => Chunk[B]): ZStream[R, E, B] =
     flatMap(a => ZStream.fromChunk(f(a)))
 
   /**
    * Effectfully maps each element to a chunk, and flattens the chunks into
    * the output of this stream.
    */
-  final def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Chunk[B]]): ZStream[R1, E1, B] =
-    mapM(f).mapConcat(identity)
+  final def mapConcatChunkM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Chunk[B]]): ZStream[R1, E1, B] =
+    mapM(f).mapConcatChunk(identity)
+
+  /**
+   * Effectfully maps each element to an iterable, and flattens the iterables into
+   * the output of this stream.
+   */
+  final def mapConcatM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, Iterable[B]]): ZStream[R1, E1, B] =
+    mapM(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
 
   /**
    * Transforms the errors that possibly result from this stream.
