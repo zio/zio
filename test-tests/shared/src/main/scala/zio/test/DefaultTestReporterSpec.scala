@@ -43,14 +43,14 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
 
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(" + yellowThenCyan("equalTo(42)") + " || (isGreaterThan(5) && isLessThan(10)))")}\n"
     ),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && " + yellowThenCyan("isLessThan(10)") + "))")}\n"
-    ),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n")
+    )
   )
 
   val test4 = Spec.test("Failing test", fail(Cause.fail("Fail")))
@@ -78,13 +78,13 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
 
   val test6Expected = Vector(
     expectedFailure("Multiple nested failures"),
-    withOffset(2)(
-      s"${blue("Right(Some(3))")} did not satisfy ${cyan("isRight(" + yellowThenCyan("isSome(isGreaterThan(4))") + ")")}\n"
-    ),
+    withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n"),
     withOffset(2)(
       s"${blue("Some(3)")} did not satisfy ${cyan("isSome(" + yellowThenCyan("isGreaterThan(4)") + ")")}\n"
     ),
-    withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n")
+    withOffset(2)(
+      s"${blue("Right(Some(3))")} did not satisfy ${cyan("isRight(" + yellowThenCyan("isSome(isGreaterThan(4))") + ")")}\n"
+    )
   )
 
   val suite1 = suite("Suite1")(test1, test2)

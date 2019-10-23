@@ -143,14 +143,12 @@ object DefaultTestReporter {
     @tailrec
     def loop(failureDetails: List[AssertionValue], rendered: Seq[String]): Seq[String] =
       failureDetails match {
-        case whole :: fragment :: failureDetails =>
-          loop(fragment :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
-        case fragment :: Nil =>
-          loop(Nil, rendered :+ renderFragment(fragment, offset))
-        case Nil =>
+        case fragment :: whole :: failureDetails =>
+          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
+        case _ =>
           rendered
       }
-    loop(failureDetails.reverse, Seq())
+    Seq(renderFragment(failureDetails.head, offset)) ++ loop(failureDetails, Seq())
   }
 
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int) =
