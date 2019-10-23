@@ -40,6 +40,13 @@ sealed trait Chunk[+A] { self =>
     else Chunk.Concat(self, that)
 
   /**
+   * Appends an element to the chunk
+   */
+  final def +[A1 >: A](a: A1): Chunk[A1] =
+    if (self.length == 0) Chunk.single(a)
+    else Chunk.Concat(self, Chunk.single(a))
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   def collect[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(p)
