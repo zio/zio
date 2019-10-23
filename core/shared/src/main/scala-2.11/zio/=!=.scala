@@ -1,5 +1,6 @@
 /*
  * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2013-2019 Miles Sabin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +15,22 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio
+
+import scala.annotation.implicitNotFound
 
 /**
- * The `Mockable[A]` represents a mock service builder used by the mock
- * framework to construct a mock implementation from a mock.
+ * Evidence type `A` is not equal to type `B`.
+ *
+ * Based on https://github.com/milessabin/shapeless.
  */
-trait Mockable[A] {
+@implicitNotFound("${A} must not be ${B}")
+trait =!=[A, B] extends Serializable
 
-  /**
-   * Provided a mock constructs a mock implementation of service `A`.
-   */
-  def environment(mock: Mock): A
+object =!= {
+  def unexpected : Nothing = sys.error("Unexpected invocation")
+
+  implicit def neq[A, B] : A =!= B = new =!=[A, B] {}
+  implicit def neqAmbig1[A] : A =!= A = unexpected
+  implicit def neqAmbig2[A] : A =!= A = unexpected
 }

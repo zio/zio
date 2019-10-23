@@ -724,7 +724,7 @@ object ZSink extends ZSinkPlatformSpecific {
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, E, A, A, Option[B]] =
+    final def ? : ZSink[R, Nothing, A, A, Option[B]] =
       new ZSink[R, Nothing, A, A, Option[B]] {
         type State = OptionalState
         sealed trait OptionalState
@@ -908,7 +908,7 @@ object ZSink extends ZSinkPlatformSpecific {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, E, A, A, Option[B]] = ?
+    final def optional: ZSink[R, Nothing, A, A, Option[B]] = ?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
@@ -980,7 +980,7 @@ object ZSink extends ZSinkPlatformSpecific {
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, E, A, A, Option[B]] = widen.?
+    final def ? : ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Takes a `Sink`, and lifts it to be chunked in its input. This
@@ -1018,7 +1018,7 @@ object ZSink extends ZSinkPlatformSpecific {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, E, A, A, Option[B]] = widen.?
+    final def optional: ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
@@ -1819,24 +1819,6 @@ object ZSink extends ZSinkPlatformSpecific {
 
     ZManaged.fromEffect(sink)
   }
-
-  /**
-   * Decodes individual bytes into a String using UTF-8. Up to `bufferSize` bytes
-   * will be buffered by the sink.
-   *
-   * This sink uses the String constructor's behavior when handling malformed byte
-   * sequences.
-   */
-  def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): ZSink[Any, Nothing, Byte, Byte, String] =
-    foldUntil[List[Byte], Byte](Nil, bufferSize.toLong)((chunk, byte) => byte :: chunk).mapM { bytes =>
-      val chunk = Chunk.fromIterable(bytes.reverse)
-
-      for {
-        init   <- utf8DecodeChunk.initial
-        state  <- utf8DecodeChunk.step(init, chunk)
-        string <- utf8DecodeChunk.extract(state)
-      } yield string._1
-    }
 
   /**
    * Decodes chunks of bytes into a String.
