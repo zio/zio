@@ -7,7 +7,7 @@ import zio.test.Assertion.{ equalTo, fails }
 
 object StreamBufferSpec
     extends ZIOBaseSpec(
-      suite("SinkSpec")(
+      suite("StreamBufferSpec")(
         suite("Stream.buffer")(
           testM("buffer the Stream")(checkM(Gen.listOf(Gen.anyInt)) { list =>
             assertM(

@@ -168,6 +168,12 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def unit: Exit[E, Unit] = as(())
 
   /**
+   * Shorthand to remove any trace from the underlying cause, if
+   * this is a failure.
+   */
+  final def untraced: Exit[E, A] = fold(c => Failure(c.untraced), Success(_))
+
+  /**
    * Named alias for `<*>`.
    */
   final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
