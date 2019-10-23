@@ -19,7 +19,6 @@ package zio.stm
 import zio.test.Assertion._
 import zio.test._
 import zio.ZIOBaseSpec
-import zio.stm.TMapSpecUtils._
 
 object TMapSpec
     extends ZIOBaseSpec(
@@ -117,27 +116,25 @@ object TMapSpec
 
             assertM(tx.commit, equalTo((true, false, true)))
           },
-          testM("map") {
+          testM("transform") {
             val tx =
               for {
-                tmap1 <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
-                tmap2 <- tmap1.map(kv => (kv._1, kv._2 * 2))
-                res1  <- valuesOf(tmap1)
-                res2  <- valuesOf(tmap2)
-              } yield (res1, res2)
+                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                _    <- tmap.transform(kv => (kv._1, kv._2 * 2))
+                res  <- tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc).map(_.reverse)
+              } yield res
 
-            assertM(tx.commit, equalTo((List(1, 2, 3), List(2, 4, 6))))
+            assertM(tx.commit, equalTo(List(2, 4, 6)))
           },
-          testM("mapM") {
+          testM("transformM") {
             val tx =
               for {
-                tmap1 <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
-                tmap2 <- tmap1.mapM(kv => STM.succeed(kv._1 -> kv._2 * 2))
-                res1  <- valuesOf(tmap1)
-                res2  <- valuesOf(tmap2)
-              } yield (res1, res2)
+                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                _    <- tmap.transformM(kv => STM.succeed(kv._1 -> kv._2 * 2))
+                res  <- tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc).map(_.reverse)
+              } yield res
 
-            assertM(tx.commit, equalTo((List(1, 2, 3), List(2, 4, 6))))
+            assertM(tx.commit, equalTo(List(2, 4, 6)))
           }
         ),
         suite("folds")(
@@ -180,8 +177,3 @@ object TMapSpec
         )
       )
     )
-
-object TMapSpecUtils {
-  def valuesOf(tmap: TMap[String, Int]): STM[Nothing, List[Int]] =
-    tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc).map(_.reverse)
-}

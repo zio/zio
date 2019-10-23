@@ -27,7 +27,6 @@ class TMap[K, V] private (
   private val tCapacity: TRef[Int],
   private val tSize: TRef[Int]
 ) { self =>
-  import TMap.{ allocate, LoadFactor }
 
   /**
    * Tests whether or not map contains a key.
@@ -100,18 +99,6 @@ class TMap[K, V] private (
     get(k).map(_.getOrElse(default))
 
   /**
-   * Creates new [[TMap]] by mapping all bindings using pure function.
-   */
-  final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] =
-    self.fold(List.empty[(K2, V2)])((acc, kv) => f(kv) :: acc).flatMap(TMap.fromIterable)
-
-  /**
-   * Creates new [[TMap]] by mapping all bindings using effectful function.
-   */
-  final def mapM[E, K2, V2](f: ((K, V)) => STM[E, (K2, V2)]): STM[E, TMap[K2, V2]] =
-    self.foldM(List.empty[(K2, V2)])((acc, kv) => f(kv).map(_ :: acc)).flatMap(TMap.fromIterable)
-
-  /**
    * Stores new binding into the map.
    */
   final def put[E](k: K, v: V): STM[E, Unit] = {
@@ -129,7 +116,7 @@ class TMap[K, V] private (
     def resize(newCapacity: Int): STM[Nothing, Unit] =
       for {
         data       <- self.fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
-        tmap       <- allocate(newCapacity, data)
+        tmap       <- TMap.allocate(newCapacity, data)
         newBuckets <- tmap.tBuckets.get
         _          <- self.tBuckets.set(newBuckets)
         _          <- self.tCapacity.set(newCapacity)
@@ -141,10 +128,32 @@ class TMap[K, V] private (
       _           <- buckets.updateM(idx, upsert)
       size        <- tSize.get
       capacity    <- tCapacity.get
-      needsResize = capacity * LoadFactor < size
+      needsResize = capacity * TMap.LoadFactor < size
       _           <- if (needsResize) resize(capacity * 2) else STM.unit
     } yield ()
   }
+
+  /**
+   * Atomically updates all bindings using pure function.
+   */
+  final def transform(f: ((K, V)) => (K, V)): STM[Nothing, Unit] =
+    for {
+      data       <- self.fold(List.empty[(K, V)])((acc, kv) => f(kv) :: acc)
+      tmap       <- TMap.fromIterable(data)
+      newBuckets <- tmap.tBuckets.get
+      _          <- self.tBuckets.set(newBuckets)
+    } yield ()
+
+  /**
+   * Atomically updates all bindings using effectful function.
+   */
+  final def transformM[E](f: ((K, V)) => STM[E, (K, V)]): STM[E, Unit] =
+    for {
+      data       <- self.foldM(List.empty[(K, V)])((acc, kv) => f(kv).map(_ :: acc))
+      tmap       <- TMap.fromIterable(data)
+      newBuckets <- tmap.tBuckets.get
+      _          <- self.tBuckets.set(newBuckets)
+    } yield ()
 
   /**
    * Removes bindings matching predicate.
