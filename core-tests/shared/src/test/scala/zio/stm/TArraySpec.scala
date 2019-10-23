@@ -161,8 +161,9 @@ object TArraySpec
           testM("happy-path") {
             for {
               tArray <- makeTArray(1)(42)
-              v      <- tArray.update(0, a => -a).commit
-            } yield assert(v, equalTo(-42))
+              _      <- tArray.update(0, a => -a).commit
+              items  <- tArray.fold(List.empty[Int])((acc, a) => a :: acc).commit
+            } yield assert(items, equalTo(List(-42)))
           },
           testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
             for {
@@ -175,8 +176,9 @@ object TArraySpec
           testM("happy-path") {
             for {
               tArray <- makeTArray(1)(42)
-              v      <- tArray.updateM(0, a => STM.succeed(-a)).commit
-            } yield assert(v, equalTo(-42))
+              _      <- tArray.updateM(0, a => STM.succeed(-a)).commit
+              items  <- tArray.fold(List.empty[Int])((acc, a) => a :: acc).commit
+            } yield assert(items, equalTo(List(-42)))
           },
           testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
             for {
