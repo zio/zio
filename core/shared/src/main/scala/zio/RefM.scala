@@ -164,7 +164,7 @@ object RefM extends Serializable {
   final def make[A](
     a: A,
     n: Int = 1000,
-    onDefect: Cause[_] => UIO[Unit] = _ => IO.unit
+    onDefect: Cause[Any] => UIO[Unit] = _ => IO.unit
   ): UIO[RefM[A]] =
     for {
       ref   <- Ref.make(a)

@@ -505,10 +505,10 @@ sealed trait Chunk[+A] { self =>
   /**
    * Effectfully maps the elements of this chunk purely for the effects.
    */
-  final def mapM_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = {
-    val len               = self.length
-    var zio: ZIO[R, E, _] = ZIO.unit
-    var i                 = 0
+  final def mapM_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
+    val len                 = self.length
+    var zio: ZIO[R, E, Any] = ZIO.unit
+    var i                   = 0
 
     while (i < len) {
       val a = self(i)
@@ -529,7 +529,7 @@ sealed trait Chunk[+A] { self =>
    * Effectfully traverses the elements of this chunk purely for the effects.
    */
   @deprecated("use mapM_", "1.0.0")
-  final def traverse_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = mapM_(f)
+  final def traverse_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = mapM_(f)
 
   /**
    * Zips this chunk with the specified chunk using the specified combiner.

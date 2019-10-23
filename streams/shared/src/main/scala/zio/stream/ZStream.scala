@@ -880,7 +880,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def distributedDynamicWith[E1 >: E, A1 >: A](
     maximumLag: Int,
     decide: A => UIO[Int => Boolean],
-    done: Take[E1, Nothing] => UIO[_] = (_: Any) => UIO.unit
+    done: Take[E1, Nothing] => UIO[Any] = (_: Any) => UIO.unit
   ): ZManaged[R, Nothing, UIO[(Int, Queue[Take[E1, A1]])]] =
     Ref
       .make[Vector[Queue[Take[E1, A1]]]](Vector())
@@ -986,13 +986,13 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Executes the provided finalizer after this stream's finalizers run.
    */
-  final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
+  final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
     ZStream(self.process.ensuring(fin))
 
   /**
    * Executes the provided finalizer before this stream's finalizers run.
    */
-  final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
+  final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
     ZStream(self.process.ensuringFirst(fin))
 
   /**
@@ -1305,14 +1305,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
    */
-  final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZIO[R1, E1, Unit] =
+  final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
     foreachWhile(f.andThen(_.as(true)))
 
   /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
-  final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZManaged[R1, E1, Unit] =
+  final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZManaged[R1, E1, Unit] =
     foreachWhileManaged(f.andThen(_.as(true)))
 
   /**
@@ -1489,7 +1489,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
    * signalled.
    */
-  final def into[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]): ZIO[R1, E1, Unit] =
+  final def into[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, Nothing, Any, Take[E1, A1], Any]): ZIO[R1, E1, Unit] =
     intoManaged(queue).use_(UIO.unit)
 
   /**
@@ -1497,7 +1497,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * composition.
    */
   final def intoManaged[R1 <: R, E1 >: E, A1 >: A](
-    queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]
+    queue: ZQueue[R1, E1, Nothing, Any, Take[E1, A1], Any]
   ): ZManaged[R1, E1, Unit] =
     self
       .foreachManaged(a => queue.offer(Take.Value(a)).unit)
@@ -2094,7 +2094,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Adds an effect to consumption of every element of the stream.
    */
-  final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZStream[R1, E1, A] =
+  final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZStream[R1, E1, A] =
     ZStream[R1, E1, A](self.process.map(_.tap(f(_).mapError(Some(_)))))
 
   /**
@@ -2601,7 +2601,7 @@ object ZStream {
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
    */
-  final def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZStream[R, E, A] =
+  final def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
     managed(ZManaged.make(acquire)(release))
 
   /**
@@ -2610,7 +2610,7 @@ object ZStream {
    */
   final def bracketExit[R, E, A](
     acquire: ZIO[R, E, A]
-  )(release: (A, Exit[_, _]) => ZIO[R, Nothing, _]): ZStream[R, E, A] =
+  )(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
     managed(ZManaged.makeExit(acquire)(release))
 
   /**
@@ -2685,7 +2685,7 @@ object ZStream {
    * error type `E` can be used to signal the end of the stream, by setting it to `None`.
    */
   final def effectAsyncM[R, E, A](
-    register: (ZIO[R, Option[E], A] => Unit) => ZIO[R, E, _],
+    register: (ZIO[R, Option[E], A] => Unit) => ZIO[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream[R, E, A] {
@@ -2761,7 +2761,7 @@ object ZStream {
   /**
    * Creates an empty stream that never fails and executes the finalizer when it ends.
    */
-  final def finalizer[R](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
+  final def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Nothing] =
     ZStream[R, Nothing, Nothing] {
       for {
         finalizerRef <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit).toManaged_
@@ -2842,7 +2842,7 @@ object ZStream {
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
    */
-  final def fromQueue[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
+  final def fromQueue[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
     ZStream[R, E, A] {
       ZManaged.reserve(
         Reservation(
@@ -2859,7 +2859,7 @@ object ZStream {
   /**
    * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
    */
-  final def fromQueueWithShutdown[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
+  final def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
     ZStream(fromQueue(queue).process.ensuringFirst(queue.shutdown))
 
   /**
@@ -2945,7 +2945,7 @@ object ZStream {
    */
   final def repeatEffectWith[R, E, A](
     fa: ZIO[R, E, A],
-    schedule: ZSchedule[R, Unit, _]
+    schedule: ZSchedule[R, Unit, Any]
   ): ZStream[R with Clock, E, A] =
     fromEffect(fa).repeat(schedule)
 
