@@ -16,6 +16,8 @@
 
 package zio
 
+import scala.annotation.tailrec
+
 sealed trait Cause[+E] extends Product with Serializable { self =>
   import Cause._
 
@@ -31,42 +33,31 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       .reverse
 
   final def died: Boolean =
-    self match {
-      case Die(_)            => true
-      case Then(left, right) => left.died || right.died
-      case Both(left, right) => left.died || right.died
-      case Traced(cause, _)  => cause.died
-      case Meta(cause, _)    => cause.died
-      case _                 => false
-    }
+    dieOption.isDefined
 
   /**
    * Returns the `Throwable` associated with the first `Die` in this `Cause` if
    * one exists.
    */
   final def dieOption: Option[Throwable] =
-    fold(failCase = _ => None, dieCase = t => Some(t), interruptCase = None)(
-      thenCase = _ orElse _,
-      bothCase = _ orElse _,
-      tracedCase = (z, _) => z
-    )
+    find { case Die(t) => t }
 
   final def failed: Boolean =
-    self match {
-      case Fail(_)           => true
-      case Then(left, right) => left.failed || right.failed
-      case Both(left, right) => left.failed || right.failed
-      case Traced(cause, _)  => cause.failed
-      case Meta(cause, _)    => cause.failed
-      case _                 => false
-    }
+    failureOption.isDefined
+
+  /**
+   * Returns the `E` associated with the first `Fail` in this `Cause` if one
+   * exists.
+   */
+  def failureOption: Option[E] =
+    find { case Fail(e) => e }
 
   /**
    * Retrieve the first checked error on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause`
    * that is known to contain only `Die` or `Interrupt` causes.
    * */
-  final def failureOrCause: Either[E, Cause[Nothing]] = self.failures.headOption match {
+  final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
     case Some(error) => Left(error)
     case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
   }
@@ -123,14 +114,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     }
 
   final def interrupted: Boolean =
-    self match {
-      case Interrupt         => true
-      case Then(left, right) => left.interrupted || right.interrupted
-      case Both(left, right) => left.interrupted || right.interrupted
-      case Traced(cause, _)  => cause.interrupted
-      case Meta(cause, _)    => cause.interrupted
-      case _                 => false
-    }
+    find { case Interrupt => () }.isDefined
 
   final def map[E1](f: E => E1): Cause[E1] =
     flatMap(f andThen fail)
@@ -290,7 +274,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * "most important" `Throwable`.
    */
   final def squashWith(f: E => Throwable): Throwable =
-    failures.headOption.map(f) orElse
+    failureOption.map(f) orElse
       (if (interrupted) Some(new InterruptedException) else None) orElse
       defects.headOption getOrElse (new InterruptedException)
 
@@ -325,8 +309,6 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       case Meta(c, data)    => c.stripFailures.map(Meta(_, data))
     }
 
-  final def succeeded: Boolean = !failed
-
   final def traces: List[ZTrace] =
     self
       .foldLeft(List.empty[ZTrace]) {
@@ -334,15 +316,43 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
-  private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z =
-    (f.lift(z -> self).getOrElse(z), self) match {
-      case (z, Then(left, right)) => right.foldLeft(left.foldLeft(z)(f))(f)
-      case (z, Both(left, right)) => right.foldLeft(left.foldLeft(z)(f))(f)
-      case (z, Traced(cause, _))  => cause.foldLeft(z)(f)
-      case (z, Meta(cause, _))    => cause.foldLeft(z)(f)
+  private def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
+    @tailrec
+    def loop(cause: Cause[E], stack: List[Cause[E]]): Option[Z] =
+      f.lift(cause) match {
+        case Some(z) => Some(z)
+        case None =>
+          cause match {
+            case Then(left, right) => loop(left, right :: stack)
+            case Both(left, right) => loop(left, right :: stack)
+            case Traced(cause, _)  => loop(cause, stack)
+            case Meta(cause, _)    => loop(cause, stack)
+            case _ =>
+              stack match {
+                case hd :: tl => loop(hd, tl)
+                case Nil      => None
+              }
+          }
+      }
+    loop(self, Nil)
+  }
 
-      case (z, _) => z
-    }
+  private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
+    @tailrec
+    def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
+      (f.applyOrElse[(Z, Cause[E]), Z](z -> cause, _ => z), cause) match {
+        case (z, Then(left, right)) => loop(z, left, right :: stack)
+        case (z, Both(left, right)) => loop(z, left, right :: stack)
+        case (z, Traced(cause, _))  => loop(z, cause, stack)
+        case (z, Meta(cause, _))    => loop(z, cause, stack)
+        case (z, _) =>
+          stack match {
+            case hd :: tl => loop(z, hd, tl)
+            case Nil      => z
+          }
+      }
+    loop(z, self, Nil)
+  }
 }
 
 object Cause extends Serializable {
