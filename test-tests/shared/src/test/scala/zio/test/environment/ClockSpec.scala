@@ -22,7 +22,8 @@ object ClockSpec
             _     <- adjust(11.hours)
             _     <- latch.await
           } yield assert((), anything)
-        } @@ nonFlaky(100),
+        } @@ after(setTime(0.hours))
+          @@ nonFlaky(100),
         testM("sleep delays effect until time is adjusted") {
           for {
             ref    <- Ref.make(true)
@@ -54,7 +55,8 @@ object ClockSpec
             _     <- setTime(11.hours)
             _     <- latch.await
           } yield assert((), anything)
-        } @@ nonFlaky(100),
+        } @@ after(setTime(0.hours))
+          @@ nonFlaky(100),
         testM("sleep does sleep instantly when sleep duration less than or equal to clock time") {
           for {
             latch <- Promise.make[Nothing, Unit]
