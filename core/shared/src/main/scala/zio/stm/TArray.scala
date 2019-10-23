@@ -81,9 +81,14 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
     if (0 <= index && index < array.size) array(index).update(fn)
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 
-  /** Atomically updates element in the array with given transactionall effect. */
+  /** Atomically updates element in the array with given transactional effect. */
   final def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, A] =
-    if (0 <= index && index < array.size) array(index).get.flatMap(fn)
+    if (0 <= index && index < array.size)
+      for {
+        currentVal <- array(index).get
+        newVal     <- fn(currentVal)
+        _          <- array(index).set(newVal)
+      } yield newVal
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 }
 
