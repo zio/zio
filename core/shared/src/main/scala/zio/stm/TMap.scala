@@ -136,10 +136,12 @@ class TMap[K, V] private (
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
     for {
-      data       <- self.fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
-      tmap       <- TMap.fromIterable(data)
-      newBuckets <- tmap.tBuckets.get
-      _          <- self.tBuckets.set(newBuckets)
+      data     <- self.fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
+      buckets  <- self.tBuckets.get
+      capacity <- self.tCapacity.get
+      _        <- buckets.transform(_ => Nil)
+      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
+      _        <- STM.collectAll(updates)
     } yield ()
 
   /**
@@ -147,23 +149,28 @@ class TMap[K, V] private (
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     for {
-      data       <- self.foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
-      tmap       <- TMap.fromIterable(data)
-      newBuckets <- tmap.tBuckets.get
-      _          <- self.tBuckets.set(newBuckets)
+      data     <- self.foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
+      buckets  <- self.tBuckets.get
+      capacity <- self.tCapacity.get
+      _        <- buckets.transform(_ => Nil)
+      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
+      _        <- STM.collectAll(updates)
     } yield ()
 
   /**
    * Atomically updates all values using pure function.
    */
   final def transformValues(f: V => V): STM[Nothing, Unit] =
-    transform((k, v) => k -> f(v))
+    tBuckets.get.flatMap(_.transform(_.map(kv => kv._1 -> f(kv._2))))
 
   /**
    * Atomically updates all values using effectful function.
    */
   final def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
-    transformM((k, v) => f(v).map(v => k -> v))
+    for {
+      buckets <- tBuckets.get
+      _       <- buckets.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _))))
+    } yield ()
 
   /**
    * Removes bindings matching predicate.
