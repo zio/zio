@@ -164,6 +164,14 @@ object TMap {
    */
   final def empty[K, V]: STM[Nothing, TMap[K, V]] = apply(List.empty[(K, V)])
 
+  /**
+    * Makes a new `TMap` initialized with provided iterable.
+    */
+  final def fromIterable[K, V](data: => Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
+    val capacity = if (data.isEmpty) DefaultCapacity else 2 * data.size
+    allocate(capacity, data.toList)
+  }
+
   private final def allocate[K, V](capacity: Int, data: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets     = Array.fill[List[(K, V)]](capacity)(Nil)
     val uniqueItems = data.toMap.toList
