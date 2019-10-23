@@ -253,6 +253,13 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * As aspect that only runs a test if the specified environment variable is
+   * set.
+   */
+  def ifEnvSet(env: String): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
+    ifEnv(env, Assertion.anything)
+
+  /**
    * An aspect that only runs a test if the specified Java property satisfies
    * the specified assertion.
    */
@@ -272,6 +279,12 @@ object TestAspect extends TimeoutVariants {
             )
         }
     }
+
+  /**
+   * As aspect that only runs a test if the specified Java property is set.
+   */
+  def ifPropSet(prop: String): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
+    ifProp(prop, Assertion.anything)
 
   /**
    * An aspect that marks tests as ignored.
