@@ -26,7 +26,7 @@ object TMapSpec
       suite("TMap")(
         suite("lookups")(
           testM("get existing element") {
-            val tx = TMap(List("a" -> 1, "b" -> 2)).flatMap(_.get("a"))
+            val tx = TMap("a" -> 1, "b" -> 2).flatMap(_.get("a"))
             assertM(tx.commit, isSome(equalTo(1)))
           },
           testM("get non-existing element") {
@@ -34,7 +34,7 @@ object TMapSpec
             assertM(tx.commit, isNone)
           },
           testM("getOrElse existing element") {
-            val tx = TMap(List("a" -> 1, "b" -> 2)).flatMap(_.getOrElse("a", 10))
+            val tx = TMap("a" -> 1, "b" -> 2).flatMap(_.getOrElse("a", 10))
             assertM(tx.commit, equalTo(1))
           },
           testM("getOrElse non-existing element") {
@@ -42,7 +42,7 @@ object TMapSpec
             assertM(tx.commit, equalTo(10))
           },
           testM("contains existing element") {
-            val tx = TMap(List("a" -> 1, "b" -> 2)).flatMap(_.contains("a"))
+            val tx = TMap("a" -> 1, "b" -> 2).flatMap(_.contains("a"))
             assertM(tx.commit, isTrue)
           },
           testM("contains non-existing element") {
@@ -64,7 +64,7 @@ object TMapSpec
           testM("overwrite existing element") {
             val tx =
               for {
-                tmap <- TMap(List("a" -> 1, "b" -> 2))
+                tmap <- TMap("a" -> 1, "b" -> 2)
                 _    <- tmap.put("a", 10)
                 e    <- tmap.get("a")
               } yield e
@@ -74,7 +74,7 @@ object TMapSpec
           testM("remove existing element") {
             val tx =
               for {
-                tmap <- TMap(List("a" -> 1, "b" -> 2))
+                tmap <- TMap("a" -> 1, "b" -> 2)
                 _    <- tmap.delete("a")
                 e    <- tmap.get("a")
               } yield e
@@ -96,7 +96,7 @@ object TMapSpec
           testM("retainIf") {
             val tx =
               for {
-                tmap <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.retainIf(_._1 == "aa")
                 a    <- tmap.contains("a")
                 aa   <- tmap.contains("aa")
@@ -108,7 +108,7 @@ object TMapSpec
           testM("removeIf") {
             val tx =
               for {
-                tmap <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.removeIf(_._1 == "aa")
                 a    <- tmap.contains("a")
                 aa   <- tmap.contains("aa")
@@ -120,7 +120,7 @@ object TMapSpec
           testM("map") {
             val tx =
               for {
-                tmap1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                tmap1 <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 tmap2 <- tmap1.map(kv => (kv._1, kv._2 * 2))
                 res1  <- valuesOf(tmap1)
                 res2  <- valuesOf(tmap2)
@@ -131,7 +131,7 @@ object TMapSpec
           testM("mapM") {
             val tx =
               for {
-                tmap1 <- TMap(List("a" -> 1, "aa" -> 2, "aaa" -> 3))
+                tmap1 <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 tmap2 <- tmap1.mapM(kv => STM.succeed(kv._1 -> kv._2 * 2))
                 res1  <- valuesOf(tmap1)
                 res2  <- valuesOf(tmap2)
@@ -144,7 +144,7 @@ object TMapSpec
           testM("fold on non-empty map") {
             val tx =
               for {
-                tmap <- TMap(List("a" -> 1, "b" -> 2, "c" -> 3))
+                tmap <- TMap("a" -> 1, "b" -> 2, "c" -> 3)
                 res  <- tmap.fold(0)((acc, kv) => acc + kv._2)
               } yield res
 
@@ -162,7 +162,7 @@ object TMapSpec
           testM("foldM on non-empty map") {
             val tx =
               for {
-                tmap <- TMap(List("a" -> 1, "b" -> 2, "c" -> 3))
+                tmap <- TMap("a" -> 1, "b" -> 2, "c" -> 3)
                 res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
               } yield res
 

@@ -93,13 +93,13 @@ class TMap[K, V] private (private val tBuckets: TRef[TArray[List[(K, V)]]], priv
    * Creates new [[TMap]] by mapping all bindings using pure function.
    */
   final def map[K2, V2](f: ((K, V)) => (K2, V2)): STM[Nothing, TMap[K2, V2]] =
-    self.fold(List.empty[(K2, V2)])((acc, kv) => f(kv) :: acc).flatMap(TMap(_))
+    self.fold(List.empty[(K2, V2)])((acc, kv) => f(kv) :: acc).flatMap(TMap.fromIterable)
 
   /**
    * Creates new [[TMap]] by mapping all bindings using effectful function.
    */
   final def mapM[E, K2, V2](f: ((K, V)) => STM[E, (K2, V2)]): STM[E, TMap[K2, V2]] =
-    self.foldM(List.empty[(K2, V2)])((acc, kv) => f(kv).map(_ :: acc)).flatMap(TMap(_))
+    self.foldM(List.empty[(K2, V2)])((acc, kv) => f(kv).map(_ :: acc)).flatMap(TMap.fromIterable)
 
   /**
    * Stores new binding into the map.
@@ -154,25 +154,22 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with the specified values.
    */
-  final def apply[K, V](data: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val capacity = if (data.isEmpty) DefaultCapacity else 2 * data.size
-    allocate(capacity, data)
-  }
+  final def apply[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
   /**
    * Makes an empty `TMap`.
    */
-  final def empty[K, V]: STM[Nothing, TMap[K, V]] = apply(List.empty[(K, V)])
+  final def empty[K, V]: STM[Nothing, TMap[K, V]] = fromIterable(Nil)
 
   /**
-    * Makes a new `TMap` initialized with provided iterable.
-    */
-  final def fromIterable[K, V](data: => Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
+   * Makes a new `TMap` initialized with provided iterable.
+   */
+  final def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val capacity = if (data.isEmpty) DefaultCapacity else 2 * data.size
     allocate(capacity, data.toList)
   }
 
-  private final def allocate[K, V](capacity: Int, data: => List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+  private final def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets     = Array.fill[List[(K, V)]](capacity)(Nil)
     val uniqueItems = data.toMap.toList
 
