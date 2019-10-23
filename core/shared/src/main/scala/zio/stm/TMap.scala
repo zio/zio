@@ -99,6 +99,12 @@ class TMap[K, V] private (
     get(k).map(_.getOrElse(default))
 
   /**
+   * Collects all keys stored in map.
+   */
+  final def keys: STM[Nothing, List[K]] =
+    fold(List.empty[K])((acc, kv) => kv._1 :: acc)
+
+  /**
    * Stores new binding into the map.
    */
   final def put(k: K, v: V): STM[Nothing, Unit] = {
@@ -130,6 +136,18 @@ class TMap[K, V] private (
       _           <- if (needsResize) resize(capacity * 2) else STM.unit
     } yield ()
   }
+
+  /**
+   * Removes bindings matching predicate.
+   */
+  final def removeIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
+    tBuckets.get.flatMap(_.transform(_.filterNot(kv => p(kv._1, kv._2))))
+
+  /**
+   * Retains bindings matching predicate.
+   */
+  final def retainIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
+    tBuckets.get.flatMap(_.transform(_.filter(kv => p(kv._1, kv._2))))
 
   /**
    * Collects all bindings into a list.
@@ -179,16 +197,10 @@ class TMap[K, V] private (
     } yield ()
 
   /**
-   * Removes bindings matching predicate.
+   * Collects all values stored in map.
    */
-  final def removeIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
-    tBuckets.get.flatMap(_.transform(_.filterNot(kv => p(kv._1, kv._2))))
-
-  /**
-   * Retains bindings matching predicate.
-   */
-  final def retainIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
-    tBuckets.get.flatMap(_.transform(_.filter(kv => p(kv._1, kv._2))))
+  final def values: STM[Nothing, List[V]] =
+    fold(List.empty[V])((acc, kv) => kv._2 :: acc)
 
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => k.hashCode() % c)

@@ -47,6 +47,18 @@ object TMapSpec
           testM("contains non-existing element") {
             val tx = TMap.empty[String, Int].flatMap(_.contains("a"))
             assertM(tx.commit, isFalse)
+          },
+          testM("collect all elements") {
+            val tx = TMap("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.toList)
+            assertM(tx.commit, hasSameElements(List("a" -> 1, "b" -> 2, "c" -> 3)))
+          },
+          testM("collect all keys") {
+            val tx = TMap("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.keys)
+            assertM(tx.commit, hasSameElements(List("a", "b", "c")))
+          },
+          testM("collect all values") {
+            val tx = TMap("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.values)
+            assertM(tx.commit, hasSameElements(List(1, 2, 3)))
           }
         ),
         suite("insertion and removal")(
