@@ -165,7 +165,14 @@ class TMap[K, V] private (
    * Atomically updates all bindings using effectful function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc)).flatMap(overwriteWith)
+    for {
+      data     <- foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
+      buckets  <- tBuckets.get
+      capacity <- tCapacity.get
+      _        <- buckets.transform(_ => Nil)
+      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
+      _        <- STM.collectAll(updates)
+    } yield ()
 
   /**
    * Atomically updates all values using pure function.
@@ -190,15 +197,6 @@ class TMap[K, V] private (
 
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => k.hashCode() % c)
-
-  private def overwriteWith[E](data: List[(K, V)]): STM[E, Unit] =
-    for {
-      buckets  <- tBuckets.get
-      capacity <- tCapacity.get
-      _        <- buckets.transform(_ => Nil)
-      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
-      _        <- STM.collectAll(updates)
-    } yield ()
 }
 
 object TMap {
