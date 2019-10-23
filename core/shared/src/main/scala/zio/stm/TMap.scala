@@ -103,11 +103,12 @@ class TMap[K, V] private (
    */
   final def put[E](k: K, v: V): STM[E, Unit] = {
     def upsert(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
-      val hasKey    = bucket.find(_._1 == k).isDefined
-      val newBucket = if (hasKey) bucket.map(kv => if (kv._1 == k) (k, v) else kv) else (k, v) :: bucket
-      val diff      = newBucket.size - bucket.size
+      val exists = bucket.find(_._1 == k).isDefined
 
-      if (diff == 0) STM.succeed(newBucket) else tSize.update(_ + diff).as(newBucket)
+      if (exists)
+        STM.succeed(bucket.map(kv => if (kv._1 == k) (k, v) else kv))
+      else
+        tSize.update(_ + 1).as((k, v) :: bucket)
     }
 
     def resize(newCapacity: Int): STM[Nothing, Unit] =
