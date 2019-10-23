@@ -101,7 +101,8 @@ class TMap[K, V] private (
   /**
    * Collects all keys stored in map.
    */
-  final def keys: STM[Nothing, List[K]] = toList.map(_.map(_._1))
+  final def keys: STM[Nothing, List[K]] =
+    toList.map(_.map(_._1))
 
   /**
    * Stores new binding into the map.
@@ -191,7 +192,8 @@ class TMap[K, V] private (
   /**
    * Collects all values stored in map.
    */
-  final def values: STM[Nothing, List[V]] = toList.map(_.map(_._2))
+  final def values: STM[Nothing, List[V]] =
+    toList.map(_.map(_._2))
 
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => k.hashCode() % c)
