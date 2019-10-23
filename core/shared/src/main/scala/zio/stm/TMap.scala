@@ -113,7 +113,7 @@ class TMap[K, V] private (
 
     def resize(newCapacity: Int): STM[Nothing, Unit] =
       for {
-        data       <- fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
+        data       <- toList
         tmap       <- TMap.allocate(newCapacity, data)
         newBuckets <- tmap.tBuckets.get
         _          <- tBuckets.set(newBuckets)
@@ -130,6 +130,12 @@ class TMap[K, V] private (
       _           <- if (needsResize) resize(capacity * 2) else STM.unit
     } yield ()
   }
+
+  /**
+   * Collects all bindings into a list.
+   */
+  final def toList: STM[Nothing, List[(K, V)]] =
+    fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
 
   /**
    * Atomically updates all bindings using pure function.

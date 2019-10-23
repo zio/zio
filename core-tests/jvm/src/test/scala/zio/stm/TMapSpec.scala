@@ -121,7 +121,7 @@ object TMapSpec
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.transform((k, v) => k.replaceAll("a", "b") -> v * 2)
-                res  <- tmap.fold(List.empty[(String, Int)])((acc, kv) => kv :: acc)
+                res  <- tmap.toList
               } yield res
 
             assertM(tx.commit, hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
@@ -131,7 +131,7 @@ object TMapSpec
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.transformM((k, v) => STM.succeed(k.replaceAll("a", "b") -> v * 2))
-                res  <- tmap.fold(List.empty[(String, Int)])((acc, kv) => kv :: acc)
+                res  <- tmap.toList
               } yield res
 
             assertM(tx.commit, hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
@@ -141,20 +141,20 @@ object TMapSpec
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.transformValues(_ * 2)
-                res  <- tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc)
+                res  <- tmap.toList
               } yield res
 
-            assertM(tx.commit, hasSameElements(List(2, 4, 6)))
+            assertM(tx.commit, hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
           },
           testM("transformValuesM") {
             val tx =
               for {
                 tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.transformValuesM(v => STM.succeed(v * 2))
-                res  <- tmap.fold(List.empty[Int])((acc, kv) => kv._2 :: acc)
+                res  <- tmap.toList
               } yield res
 
-            assertM(tx.commit, hasSameElements(List(2, 4, 6)))
+            assertM(tx.commit, hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
           }
         ),
         suite("folds")(
