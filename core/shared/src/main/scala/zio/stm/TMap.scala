@@ -22,7 +22,11 @@ package zio.stm
  *
  * Caution: doesn't provide stack-safety guarantees.
  */
-class TMap[K, V] private (private val tBuckets: TRef[TArray[List[(K, V)]]], private val tCapacity: TRef[Int]) { self =>
+class TMap[K, V] private (
+  private val tBuckets: TRef[TArray[List[(K, V)]]],
+  private val tCapacity: TRef[Int],
+  private val tSize: TRef[Int]
+) { self =>
   import TMap.{ allocate, LoadFactor }
 
   /**
@@ -34,12 +38,18 @@ class TMap[K, V] private (private val tBuckets: TRef[TArray[List[(K, V)]]], priv
   /**
    * Removes binding for given key.
    */
-  final def delete[E](k: K): STM[E, Unit] =
+  final def delete[E](k: K): STM[E, Unit] = {
+    def removeMatching(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
+      val (toRemove, toRetain) = bucket.partition(_._1 == k)
+      tSize.update(_ - toRemove.size).as(toRetain)
+    }
+
     for {
       buckets <- tBuckets.get
       idx     <- indexOf(k)
-      _       <- buckets.update(idx, _.filterNot(_._1 == k))
+      _       <- buckets.updateM(idx, removeMatching)
     } yield ()
+  }
 
   /**
    * Atomically folds using pure function.
@@ -47,7 +57,7 @@ class TMap[K, V] private (private val tBuckets: TRef[TArray[List[(K, V)]]], priv
   final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
     for {
       buckets <- tBuckets.get
-      res     <- buckets.fold(zero)((acc, chain) => chain.foldLeft(acc)(op))
+      res     <- buckets.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op))
     } yield res
 
   /**
@@ -62,7 +72,7 @@ class TMap[K, V] private (private val tBuckets: TRef[TArray[List[(K, V)]]], priv
 
     for {
       buckets <- tBuckets.get
-      res     <- buckets.foldM(zero)((acc, chain) => loopM(STM.succeed(acc), chain))
+      res     <- buckets.foldM(zero)((acc, bucket) => loopM(STM.succeed(acc), bucket))
     } yield res
   }
 
@@ -105,31 +115,34 @@ class TMap[K, V] private (private val tBuckets: TRef[TArray[List[(K, V)]]], priv
    * Stores new binding into the map.
    */
   final def put[E](k: K, v: V): STM[E, Unit] = {
-    def upsert(bucket: List[(K, V)]): List[(K, V)] =
-      bucket match {
+    def upsert(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
+      val newBucket = bucket match {
         case Nil => List(k -> v)
         case xs  => xs.map(kv => if (kv._1 == k) (k, v) else kv)
       }
 
-    def resize(capacity: Int, data: List[(K, V)]): STM[Nothing, Unit] = {
-      val newCapacity = capacity * 2
+      val diff = newBucket.size - bucket.size
 
+      if (diff == 0) STM.succeed(newBucket) else tSize.update(_ + diff).as(newBucket)
+    }
+
+    def resize(newCapacity: Int): STM[Nothing, Unit] =
       for {
+        data       <- self.fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
         tmap       <- allocate(newCapacity, data)
         newBuckets <- tmap.tBuckets.get
         _          <- self.tBuckets.set(newBuckets)
         _          <- self.tCapacity.set(newCapacity)
       } yield ()
-    }
 
     for {
       buckets     <- tBuckets.get
       idx         <- indexOf(k)
-      _           <- buckets.update(idx, upsert)
-      data        <- self.fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
+      _           <- buckets.updateM(idx, upsert)
+      size        <- tSize.get
       capacity    <- tCapacity.get
-      needsResize = capacity * LoadFactor < data.size
-      _           <- if (needsResize) resize(capacity, data) else STM.unit
+      needsResize = capacity * LoadFactor < size
+      _           <- if (needsResize) resize(capacity * 2) else STM.unit
     } yield ()
   }
 
@@ -182,7 +195,8 @@ object TMap {
       tChains   <- STM.collectAll(buckets.map(b => TRef.make(b)))
       tBuckets  <- TRef.make(TArray(tChains.toArray))
       tCapacity <- TRef.make(capacity)
-    } yield new TMap(tBuckets, tCapacity)
+      tSize     <- TRef.make(uniqueItems.size)
+    } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
   private final val DefaultCapacity = 100
