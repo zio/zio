@@ -77,6 +77,24 @@ object TestAspectSpec
             anything
           )
         ),
+        test("ifEnv runs a test if environment variable satisfies assertion") {
+          assert(true, isTrue)
+        } @@ jvmOnly @@ ifEnv("PATH", containsString("bin")) @@ success,
+        test("ifEnv ignores a test if environment variable does not satisfy assertion") {
+          assert(true, isFalse)
+        } @@ jvmOnly @@ ifEnv("PATH", nothing),
+        test("ifEnv ignores a test if environment variable does not exist") {
+          assert(true, isFalse)
+        } @@ jvmOnly @@ ifEnv("QWERTY", anything),
+        test("ifProp runs a test if property satisfies assertion") {
+          assert(true, isTrue)
+        } @@ jvmOnly @@ ifProp("java.vm.name", containsString("VM")) @@ success,
+        test("ifProp ignores a test if property does not satisfy assertion") {
+          assert(true, isFalse)
+        } @@ jvmOnly @@ ifProp("java.vm.name", nothing),
+        test("ifProp ignores a test if property does not exist") {
+          assert(true, isFalse)
+        } @@ jvmOnly @@ ifProp("qwerty", anything),
         testM("timeout makes tests fail after given duration") {
           assertM(ZIO.never *> ZIO.unit, equalTo(()))
         } @@ timeout(1.nanos)

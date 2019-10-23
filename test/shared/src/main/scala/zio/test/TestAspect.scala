@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ clock, ZIO, ZManaged, ZSchedule }
+import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration._
 import zio.clock.Clock
 import zio.system
@@ -211,7 +211,7 @@ object TestAspect extends TimeoutVariants {
             case other                                        => Left(TestFailure.Assertion(assert(TestFailure.Runtime(other), p)))
           }, {
             case Left(e) => if (p.run(e).isSuccess) succeed else Left(TestFailure.Assertion(assert(e, p)))
-            case _       => Left(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
+            case _       => Left(TestFailure.Runtime(Cause.die(new RuntimeException("did not fail as expected"))))
           }
         )
       }
@@ -374,6 +374,21 @@ object TestAspect extends TimeoutVariants {
    * An aspect that executes the members of a suite sequentially.
    */
   val sequential: TestAspectPoly = executionStrategy(ExecutionStrategy.Sequential)
+
+  /**
+   * An aspect that converts ignored tests into test failures.
+   */
+  val success: TestAspectPoly =
+    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test.map(_.flatMap {
+          case TestSuccess.Ignored =>
+            Left(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
+          case s => Right(s)
+        })
+    }
 
   /**
    * An aspect that times out tests using the specified duration.
