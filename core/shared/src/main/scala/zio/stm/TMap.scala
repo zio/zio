@@ -160,12 +160,8 @@ class TMap[K, V] private (
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
     for {
-      data     <- fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
-      buckets  <- tBuckets.get
-      capacity <- tCapacity.get
-      _        <- buckets.transform(_ => Nil)
-      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
-      _        <- STM.collectAll(updates)
+      data <- fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
+      _    <- overwriteWith(data)
     } yield ()
 
   /**
@@ -173,12 +169,8 @@ class TMap[K, V] private (
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     for {
-      data     <- foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
-      buckets  <- tBuckets.get
-      capacity <- tCapacity.get
-      _        <- buckets.transform(_ => Nil)
-      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
-      _        <- STM.collectAll(updates)
+      data <- foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
+      _    <- overwriteWith(data)
     } yield ()
 
   /**
@@ -204,6 +196,15 @@ class TMap[K, V] private (
 
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => k.hashCode() % c)
+
+  private def overwriteWith[E](data: List[(K, V)]): STM[E, Unit] =
+    for {
+      buckets  <- tBuckets.get
+      capacity <- tCapacity.get
+      _        <- buckets.transform(_ => Nil)
+      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
+      _        <- STM.collectAll(updates)
+    } yield ()
 }
 
 object TMap {
