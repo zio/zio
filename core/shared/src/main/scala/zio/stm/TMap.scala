@@ -40,7 +40,7 @@ class TMap[K, V] private (
   final def delete[E](k: K): STM[E, Unit] = {
     def removeMatching(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
       val (toRemove, toRetain) = bucket.partition(_._1 == k)
-      tSize.update(_ - toRemove.size).as(toRetain)
+      if (toRemove.isEmpty) STM.succeed(toRetain) else tSize.update(_ - toRemove.size).as(toRetain)
     }
 
     for {
