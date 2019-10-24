@@ -16,8 +16,9 @@
 
 package zio
 
-import zio.duration.Duration
+import java.time.OffsetDateTime
 
+import zio.duration.Duration
 import java.util.concurrent.TimeUnit
 
 // This cannot extend Clock.Service[Clock] because of Scala 2.11 support
@@ -30,6 +31,12 @@ package object clock {
    */
   final def currentTime(unit: TimeUnit): ZIO[Clock, Nothing, Long] =
     ZIO.accessM(_.clock currentTime unit)
+
+  /**
+   * Get the current time, represented in the current timezone.
+   */
+  def currentDateTime: ZIO[Clock, Nothing, OffsetDateTime] =
+    ZIO.accessM(_.clock.currentDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
