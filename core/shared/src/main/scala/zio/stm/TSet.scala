@@ -31,7 +31,7 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
 
   final def intersect(that: TSet[A]): STM[Nothing, Unit] = ???
 
-  final def put(a: A): STM[Nothing, Unit] = ???
+  final def put(a: A): STM[Nothing, Unit] = tmap.put(a, ())
 
   final def removeIf(p: A => Boolean): STM[Nothing, Unit] = ???
 

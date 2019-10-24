@@ -36,6 +36,28 @@ object TSetSpec
             val tx = TSet(1, 2, 3, 4).flatMap(_.toList)
             assertM(tx.commit, hasSameElements(List(1, 2, 3, 4)))
           }
+        ),
+        suite("insertion and removal")(
+          testM("add new element") {
+            val tx =
+              for {
+                tset <- TSet.empty[Int]
+                _    <- tset.put(1)
+                res  <- tset.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(1)))
+          },
+          testM("add duplicate element") {
+            val tx =
+              for {
+                tset <- TSet(1)
+                _    <- tset.put(1)
+                res  <- tset.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(1)))
+          }
         )
       )
     )
