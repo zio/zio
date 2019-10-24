@@ -54,7 +54,10 @@ class TMap[K, V] private (
    * Atomically folds using pure function.
    */
   final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
-    foldM(zero)((a, kv) => STM.succeed(op(a, kv)))
+    for {
+      buckets <- tBuckets.get
+      res     <- buckets.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op))
+    } yield res
 
   /**
    * Atomically folds using effectful function.
