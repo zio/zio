@@ -19,8 +19,6 @@ package zio.stm
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
- *
- * Caution: doesn't provide stack-safety guarantees.
  */
 class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],

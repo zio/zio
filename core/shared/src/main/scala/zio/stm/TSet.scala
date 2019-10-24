@@ -16,6 +16,9 @@
 
 package zio.stm
 
+/**
+ * Transactional set implemented on top of [[TMap]].
+ */
 class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
 
   /**
