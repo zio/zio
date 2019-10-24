@@ -153,26 +153,19 @@ class TMap[K, V] private (
    * Collects all bindings into a list.
    */
   final def toList: STM[Nothing, List[(K, V)]] =
-    collectM((k, v) => STM.succeed(k -> v))
+    fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
 
   /**
    * Atomically updates all bindings using pure function.
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
-    transformM((k, v) => STM.succeed(f(k, v)))
+    foldMap(f).flatMap(overwriteWith)
 
   /**
    * Atomically updates all bindings using effectful function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    for {
-      data     <- collectM(f)
-      buckets  <- tBuckets.get
-      capacity <- tCapacity.get
-      _        <- buckets.transform(_ => Nil)
-      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
-      _        <- STM.collectAll(updates)
-    } yield ()
+    foldMapM(f).flatMap(overwriteWith)
 
   /**
    * Atomically updates all values using pure function.
@@ -195,11 +188,24 @@ class TMap[K, V] private (
   final def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
 
-  private def collectM[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
+  private def foldMap(f: (K, V) => (K, V)): STM[Nothing, List[(K, V)]] =
+    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
+
+  private def foldMapM[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
     foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
 
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => k.hashCode() % c)
+
+  private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
+    for {
+      buckets  <- tBuckets.get
+      capacity <- tCapacity.get
+      _        <- buckets.transform(_ => Nil)
+      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
+      _        <- STM.collectAll(updates)
+    } yield ()
+
 }
 
 object TMap {
