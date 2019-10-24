@@ -473,7 +473,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           case Left(Some(nextState)) => extract(nextState)
           // When the next batch has completed we extract and keep the
           // schedule's state.
-          case Right(_)              => extract(unfoldState.scheduleState)
+          case Right(_) => extract(unfoldState.scheduleState)
         }
     }
 
