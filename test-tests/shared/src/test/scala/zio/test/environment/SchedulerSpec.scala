@@ -7,10 +7,9 @@ import zio.duration._
 import zio.internal.Scheduler.CancelToken
 import zio.scheduler.scheduler
 import zio.test.Assertion._
-import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestClock._
-import zio.{ clock, DefaultRuntime, Promise, UIO, ZIO }
+import zio.{ clock, DefaultRuntime, Promise, ZIO }
 import SchedulerSpecUtil._
 import zio.internal.{ Scheduler => IScheduler }
 
