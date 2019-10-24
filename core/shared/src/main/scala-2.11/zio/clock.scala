@@ -17,9 +17,9 @@
 package zio
 
 import java.time.OffsetDateTime
+import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
-import java.util.concurrent.TimeUnit
 
 // This cannot extend Clock.Service[Clock] because of Scala 2.11 support
 package object clock {
