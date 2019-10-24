@@ -16,15 +16,16 @@
 
 package zio.test
 
+import scala.annotation.tailrec
+import scala.{ Console => SConsole }
+
 import zio.duration.Duration
+import zio.test.mock.{ Method, MockException }
+import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
-import zio.test.mock.{ Method, MockException }
 import zio.{ Cause, UIO, URIO, ZIO }
-
-import scala.{ Console => SConsole }
 
 object DefaultTestReporter {
 
@@ -118,10 +119,12 @@ object DefaultTestReporter {
   private def renderFailureLabel(label: String, offset: Int) =
     withOffset(offset)(red("- " + label))
 
-  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] = failureDetails match {
-    case FailureDetails(fragment, whole, genFailureDetails) =>
-      renderGenFailureDetails(genFailureDetails, offset) ++ renderAssertion(fragment, whole, offset)
-  }
+  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] =
+    failureDetails match {
+      case FailureDetails(assertionFailureDetails, genFailureDetails) =>
+        renderGenFailureDetails(genFailureDetails, offset) ++
+          renderAssertionFailureDetails(assertionFailureDetails, offset)
+    }
 
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Seq[String] =
     failureDetails match {
@@ -136,11 +139,17 @@ object DefaultTestReporter {
       case None => Seq()
     }
 
-  private def renderAssertion(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
-    if (whole.assertion == fragment.assertion)
-      Seq(renderFragment(fragment, offset))
-    else
-      Seq(renderWhole(fragment, whole, offset), renderFragment(fragment, offset))
+  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Seq[String] = {
+    @tailrec
+    def loop(failureDetails: List[AssertionValue], rendered: Seq[String]): Seq[String] =
+      failureDetails match {
+        case fragment :: whole :: failureDetails =>
+          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
+        case _ =>
+          rendered
+      }
+    Seq(renderFragment(failureDetails.head, offset)) ++ loop(failureDetails, Seq())
+  }
 
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
