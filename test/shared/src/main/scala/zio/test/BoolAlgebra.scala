@@ -91,6 +91,13 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
     ).fold(Some(_), _ => None)
 
   /**
+   * Returns a new result, with all values mapped to new results using the
+   * specified function.
+   */
+  final def flatMap[B](f: A => BoolAlgebra[B]): BoolAlgebra[B] =
+    fold(f)(and, or, not)
+
+  /**
    * Folds over the result bottom up, first converting values to `B`
    * values, and then combining the `B` values, using the specified functions.
    */
@@ -139,7 +146,7 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
    * Returns a new result, with all values mapped by the specified function.
    */
   final def map[B](f: A => B): BoolAlgebra[B] =
-    fold(f andThen success)(and, or, not)
+    flatMap(f andThen success)
 
   /**
    * Negates this result, converting all successes into failures and failures
