@@ -23,6 +23,20 @@ import zio.ZIOBaseSpec
 object TMapSpec
     extends ZIOBaseSpec(
       suite("TMap")(
+        suite("factories")(
+          testM("apply") {
+            val tx = TMap("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3).flatMap(_.toList)
+            assertM(tx.commit, hasSameElements(List("a" -> 1, "b" -> 3, "c" -> 2)))
+          },
+          testM("empty") {
+            val tx = TMap.empty[String, Int].flatMap(_.toList)
+            assertM(tx.commit, isEmpty)
+          },
+          testM("fromIterable") {
+            val tx = TMap.fromIterable(List("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3)).flatMap(_.toList)
+            assertM(tx.commit, hasSameElements(List("a" -> 1, "b" -> 3, "c" -> 2)))
+          }
+        ),
         suite("lookups")(
           testM("get existing element") {
             val tx = TMap("a" -> 1, "b" -> 2).flatMap(_.get("a"))
