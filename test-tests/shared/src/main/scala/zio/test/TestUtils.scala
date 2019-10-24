@@ -66,7 +66,10 @@ object TestUtils {
 
   final def succeeded[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
-    forAllTests(execSpec)(_.isRight)
+    forAllTests(execSpec) {
+      case Right(TestSuccess.Succeeded(_)) => true
+      case _                               => false
+    }
   }
 
   final def timeit[A](label: String)(async: Async[A]): Async[A] =

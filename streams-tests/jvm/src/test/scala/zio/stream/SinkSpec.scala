@@ -1041,11 +1041,7 @@ object SinkSpec
           },
           suite("splitLines")(
             testM("preserves data")(
-              checkM(
-                Gen
-                  .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
-                  .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
-              ) { (lines: List[String]) =>
+              checkM(weirdStringGenForSplitLines) { lines =>
                 val data = lines.mkString("\n")
 
                 for {
@@ -1079,7 +1075,7 @@ object SinkSpec
               assertM(
                 Stream("\n")
                   .transduce(ZSink.splitLines)
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List(""))
               )
@@ -1088,7 +1084,7 @@ object SinkSpec
               assertM(
                 Stream("abc", "abc", "abc")
                   .transduce(ZSink.splitLines)
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abcabcabc"))
               )
@@ -1097,7 +1093,80 @@ object SinkSpec
               assertM(
                 Stream("abc\r", "\nabc")
                   .transduce(ZSink.splitLines)
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
+                  .runCollect,
+                equalTo(List("abc", "abc"))
+              )
+            }
+          ),
+          testM("splitLinesChunk")(
+            checkM(weirdStringGenForSplitLines) { xs =>
+              val chunks = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
+              val ys     = xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
+
+              for {
+                initial            <- ZSink.splitLinesChunk.initial
+                middle             <- ZSink.splitLinesChunk.step(initial, chunks)
+                res                <- ZSink.splitLinesChunk.extract(middle)
+                (result, leftover) = res
+              } yield assert((result ++ leftover.flatten).toArray[String].toList, equalTo(ys))
+            }
+          ),
+          suite("splitOn")(
+            testM("preserves data")(checkM(Gen.listOf(Gen.anyString).filter(_.nonEmpty)) { lines =>
+              val data = lines.mkString("|")
+              val sink = ZSink.splitOn("|")
+
+              for {
+                initial            <- sink.initial
+                middle             <- sink.step(initial, data)
+                res                <- sink.extract(middle)
+                (result, leftover) = res
+              } yield assert((result ++ leftover).toArray[String].mkString("|"), equalTo(data))
+            }),
+            testM("handles leftovers") {
+              val sink = ZSink.splitOn("\n")
+              for {
+                initial            <- sink.initial
+                middle             <- sink.step(initial, "abc\nbc")
+                res                <- sink.extract(middle)
+                (result, leftover) = res
+              } yield assert(result.toArray[String].mkString("\n"), equalTo("abc")) && assert(
+                leftover.toArray[String].mkString,
+                equalTo("bc")
+              )
+            },
+            testM("transduces") {
+              assertM(
+                Stream("abc", "delimiter", "bc", "delimiter", "bcd", "bcd")
+                  .transduce(ZSink.splitOn("delimiter"))
+                  .runCollect,
+                equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
+              )
+            },
+            testM("single newline edgecase") {
+              assertM(
+                Stream("test")
+                  .transduce(ZSink.splitOn("test"))
+                  .mapConcatChunk(identity)
+                  .runCollect,
+                equalTo(List(""))
+              )
+            },
+            testM("no delimiter in data") {
+              assertM(
+                Stream("abc", "abc", "abc")
+                  .transduce(ZSink.splitOn("hello"))
+                  .mapConcatChunk(identity)
+                  .runCollect,
+                equalTo(List("abcabcabc"))
+              )
+            },
+            testM("delimiter on the boundary") {
+              assertM(
+                Stream("abc<", ">abc")
+                  .transduce(ZSink.splitOn("<>"))
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abc", "abc"))
               )

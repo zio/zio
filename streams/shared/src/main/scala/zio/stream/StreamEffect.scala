@@ -149,7 +149,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
       }
     }
 
-  override def mapConcat[B](f: A => Chunk[B]): StreamEffect[R, E, B] =
+  override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffect[R, E, B] =
     StreamEffect[R, E, B] {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {

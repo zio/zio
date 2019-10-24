@@ -47,8 +47,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   "single effectTotal for-comprehension" >> singleEffectTotalForComp
   "single suspendWith for-comprehension" >> singleSuspendWithForComp
 
-  private def show(trace: ZTrace): Unit   = if (debug) println(trace.prettyPrint)
-  private def show(cause: Cause[_]): Unit = if (debug) println(cause.prettyPrint)
+  private def show(trace: ZTrace): Unit     = if (debug) println(trace.prettyPrint)
+  private def show(cause: Cause[Any]): Unit = if (debug) println(cause.prettyPrint)
 
   private def mentionsMethod(method: String, trace: ZTraceElement): Boolean =
     trace match {
@@ -80,8 +80,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mentionedMethod(method: String): Matcher[List[ZTraceElement]] = mentionMethod(method)
 
-  private implicit final class CauseMust[R >: ZEnv](io: ZIO[R, _, _]) {
-    def causeMust(check: Cause[_] => Result): Result =
+  private implicit final class CauseMust[R >: ZEnv](io: ZIO[R, Any, Any]) {
+    def causeMust(check: Cause[Any] => Result): Result =
       unsafeRunSync(io).fold[Result](
         cause => {
           show(cause)
