@@ -78,8 +78,8 @@ class TMap[K, V] private (
   /**
    * Atomically performs side-effect for each binding present in map.
    */
-  final def foreach[E](f: ((K, V)) => STM[E, Unit]): STM[E, Unit] =
-    foldM(())((_, kv) => f(kv))
+  final def foreach[E](f: (K, V) => STM[E, Unit]): STM[E, Unit] =
+    foldM(())((_, kv) => f(kv._1, kv._2))
 
   /**
    * Retrieves value associated with given key.
