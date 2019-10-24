@@ -23,6 +23,21 @@ import zio.ZIOBaseSpec
 object TSetSpec
     extends ZIOBaseSpec(
       suite("TSet")(
+        suite("factories")(
+          testM("apply") {
+            val tx = TSet(1, 2, 2, 3).flatMap(_.toList)
+            assertM(tx.commit, hasSameElements(List(1, 2, 3)))
+
+          },
+          testM("empty") {
+            val tx = TSet.empty[Int].flatMap(_.toList)
+            assertM(tx.commit, isEmpty)
+          },
+          testM("fromIterable") {
+            val tx = TSet.fromIterable(List(1, 2, 2, 3)).flatMap(_.toList)
+            assertM(tx.commit, hasSameElements(List(1, 2, 3)))
+          }
+        ),
         suite("lookups")(
           testM("contains existing element") {
             val tx = TSet(1, 2, 3, 4).flatMap(_.contains(1))
@@ -103,7 +118,7 @@ object TSetSpec
               } yield (a, aa, aaa)
 
             assertM(tx.commit, equalTo((true, false, true)))
-          },
-        ),
+          }
+        )
       )
     )
