@@ -19,8 +19,6 @@ package zio.stm
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
- *
- * Caution: doesn't provide stack-safety guarantees.
  */
 class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],
@@ -211,7 +209,7 @@ class TMap[K, V] private (
 object TMap {
 
   /**
-   * Makes a new `TMap` that is initialized with the specified values.
+   * Makes a new `TMap` that is initialized with specified values.
    */
   final def apply[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
