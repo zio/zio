@@ -87,6 +87,11 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.retainIf((k, _) => p(k))
 
   /**
+   * Returns the set's cardinality.
+   */
+  final def size: STM[Nothing, Int] = toList.map(_.size)
+
+  /**
    * Collects all elements into a list.
    */
   final def toList: STM[Nothing, List[A]] = tmap.keys

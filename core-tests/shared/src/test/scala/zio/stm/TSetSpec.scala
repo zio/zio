@@ -50,6 +50,10 @@ object TSetSpec
           testM("collect all elements") {
             val tx = TSet(1, 2, 3, 4).flatMap(_.toList)
             assertM(tx.commit, hasSameElements(List(1, 2, 3, 4)))
+          },
+          testM("cardinality") {
+            val tx = TSet(1, 2, 3, 4).flatMap(_.size)
+            assertM(tx.commit, equalTo(4))
           }
         ),
         suite("insertion and removal")(
