@@ -24,6 +24,14 @@ object TSetSpec
     extends ZIOBaseSpec(
       suite("TSet")(
         suite("lookups")(
+          testM("contains existing element") {
+            val tx = TSet(1, 2, 3, 4).flatMap(_.contains(1))
+            assertM(tx.commit, isTrue)
+          },
+          testM("contains non-existing element") {
+            val tx = TSet(1, 2, 3, 4).flatMap(_.contains(0))
+            assertM(tx.commit, isFalse)
+          },
           testM("collect all elements") {
             val tx = TSet(1, 2, 3, 4).flatMap(_.toList)
             assertM(tx.commit, hasSameElements(List(1, 2, 3, 4)))

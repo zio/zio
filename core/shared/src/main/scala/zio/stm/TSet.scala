@@ -17,7 +17,7 @@
 package zio.stm
 
 class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
-  final def contains(a: A): STM[Nothing, Boolean] = ???
+  final def contains(a: A): STM[Nothing, Boolean] = tmap.contains(a)
 
   final def delete(a: A): STM[Nothing, Unit] = ???
 
