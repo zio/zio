@@ -17,7 +17,33 @@
 package zio.stm
 
 class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
+  final def contains(a: A): STM[Nothing, Boolean] = ???
+
+  final def delete(a: A): STM[Nothing, Unit] = ???
+
+  final def diff(that: TSet[A]): STM[Nothing, Unit] = ???
+
+  final def fold[B](zero: B)(op: (B, A) => B): STM[Nothing, B] = ???
+
+  final def foldM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] = ???
+
+  final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] = ???
+
+  final def intersect(that: TSet[A]): STM[Nothing, Unit] = ???
+
+  final def put(a: A): STM[Nothing, Unit] = ???
+
+  final def removeIf(p: A => Boolean): STM[Nothing, Unit] = ???
+
+  final def retainIf(p: A => Boolean): STM[Nothing, Unit] = ???
+
   final def toList: STM[Nothing, List[A]] = tmap.keys
+
+  final def transform(f: A => A): STM[Nothing, Unit] = ???
+
+  final def transformM[E](f: A => STM[E, A]): STM[E, Unit] = ???
+
+  final def union(that: TSet[A]): STM[Nothing, Unit] = ???
 }
 
 object TSet {
