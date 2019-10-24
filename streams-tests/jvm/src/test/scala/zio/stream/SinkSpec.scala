@@ -5,7 +5,6 @@ import scala.{ Stream => _ }
 import zio._
 import zio.clock.Clock
 import zio.duration._
-import zio.random.Random
 import zio.test._
 import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isSome, isTrue, succeeds }
 import zio.test.environment.TestClock
@@ -805,22 +804,23 @@ object SinkSpec
         suite("Constructors")(
           testM("foldLeft")(
             checkM(
-              pureStreamGen(Gen.anyInt),
-              Gen.function[Random with Sized, (String, Int), String](Gen.anyString),
+              Gen.small(pureStreamGen(Gen.anyInt, _)),
+              Gen.function2(Gen.anyString),
               Gen.anyString
             ) { (s, f, z) =>
               for {
-                xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-                ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
+                xs <- s.run(ZSink.foldLeft(z)(f))
+                ys <- s.runCollect.map(_.foldLeft(z)(f))
               } yield assert(xs, equalTo(ys))
             }
           ),
           suite("fold")(
-            testM("fold")(checkM(pureStreamGen(Gen.anyInt), Gen.function(Gen.anyString), Gen.anyString) { (s, f, z) =>
-              for {
-                xs <- s.run(ZSink.foldLeft(z)(Function.untupled(f)))
-                ys <- s.runCollect.map(_.foldLeft(z)(Function.untupled(f)))
-              } yield assert(xs, equalTo(ys))
+            testM("fold")(checkM(Gen.small(pureStreamGen(Gen.anyInt, _)), Gen.function2(Gen.anyString), Gen.anyString) {
+              (s, f, z) =>
+                for {
+                  xs <- s.run(ZSink.foldLeft(z)(f))
+                  ys <- s.runCollect.map(_.foldLeft(z)(f))
+                } yield assert(xs, equalTo(ys))
             }),
             testM("short circuits") {
               val empty: Stream[Nothing, Int]     = ZStream.empty
@@ -854,12 +854,12 @@ object SinkSpec
           suite("foldM")(
             testM("foldM") {
               val ioGen = successes(Gen.anyString)
-              checkM(pureStreamGen(Gen.anyInt), Gen.function(ioGen), ioGen) { (s, f, z) =>
+              checkM(Gen.small(pureStreamGen(Gen.anyInt, _)), Gen.function2(ioGen), ioGen) { (s, f, z) =>
                 for {
-                  sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(Function.untupled(f))))
+                  sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(f)))
                   foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
                                  .map(_.reverse)
-                                 .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(x => f(x -> el))))
+                                 .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
                                  .run
                 } yield assert(foldResult.succeeded, isTrue) implies assert(
                   foldResult,
@@ -928,7 +928,7 @@ object SinkSpec
               )
             },
             testM("collectAllWhile")(
-              checkM(pureStreamGen(Gen.anyString), Gen.function(Gen.boolean)) { (s, f) =>
+              checkM(Gen.small(pureStreamGen(Gen.anyString, _)), Gen.function(Gen.boolean)) { (s, f) =>
                 for {
                   sinkResult <- s.run(ZSink.collectAllWhile(f))
                   listResult <- s.runCollect.map(_.takeWhile(f)).run
@@ -1041,11 +1041,7 @@ object SinkSpec
           },
           suite("splitLines")(
             testM("preserves data")(
-              checkM(
-                Gen
-                  .listOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
-                  .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
-              ) { (lines: List[String]) =>
+              checkM(weirdStringGenForSplitLines) { lines =>
                 val data = lines.mkString("\n")
 
                 for {
@@ -1079,7 +1075,7 @@ object SinkSpec
               assertM(
                 Stream("\n")
                   .transduce(ZSink.splitLines)
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List(""))
               )
@@ -1088,7 +1084,7 @@ object SinkSpec
               assertM(
                 Stream("abc", "abc", "abc")
                   .transduce(ZSink.splitLines)
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abcabcabc"))
               )
@@ -1097,7 +1093,80 @@ object SinkSpec
               assertM(
                 Stream("abc\r", "\nabc")
                   .transduce(ZSink.splitLines)
-                  .mapConcat(identity)
+                  .mapConcatChunk(identity)
+                  .runCollect,
+                equalTo(List("abc", "abc"))
+              )
+            }
+          ),
+          testM("splitLinesChunk")(
+            checkM(weirdStringGenForSplitLines) { xs =>
+              val chunks = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
+              val ys     = xs.headOption.map(_ :: xs.drop(1).sliding(2, 2).toList.map(_.mkString)).getOrElse(Nil)
+
+              for {
+                initial            <- ZSink.splitLinesChunk.initial
+                middle             <- ZSink.splitLinesChunk.step(initial, chunks)
+                res                <- ZSink.splitLinesChunk.extract(middle)
+                (result, leftover) = res
+              } yield assert((result ++ leftover.flatten).toArray[String].toList, equalTo(ys))
+            }
+          ),
+          suite("splitOn")(
+            testM("preserves data")(checkM(Gen.listOf(Gen.anyString).filter(_.nonEmpty)) { lines =>
+              val data = lines.mkString("|")
+              val sink = ZSink.splitOn("|")
+
+              for {
+                initial            <- sink.initial
+                middle             <- sink.step(initial, data)
+                res                <- sink.extract(middle)
+                (result, leftover) = res
+              } yield assert((result ++ leftover).toArray[String].mkString("|"), equalTo(data))
+            }),
+            testM("handles leftovers") {
+              val sink = ZSink.splitOn("\n")
+              for {
+                initial            <- sink.initial
+                middle             <- sink.step(initial, "abc\nbc")
+                res                <- sink.extract(middle)
+                (result, leftover) = res
+              } yield assert(result.toArray[String].mkString("\n"), equalTo("abc")) && assert(
+                leftover.toArray[String].mkString,
+                equalTo("bc")
+              )
+            },
+            testM("transduces") {
+              assertM(
+                Stream("abc", "delimiter", "bc", "delimiter", "bcd", "bcd")
+                  .transduce(ZSink.splitOn("delimiter"))
+                  .runCollect,
+                equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
+              )
+            },
+            testM("single newline edgecase") {
+              assertM(
+                Stream("test")
+                  .transduce(ZSink.splitOn("test"))
+                  .mapConcatChunk(identity)
+                  .runCollect,
+                equalTo(List(""))
+              )
+            },
+            testM("no delimiter in data") {
+              assertM(
+                Stream("abc", "abc", "abc")
+                  .transduce(ZSink.splitOn("hello"))
+                  .mapConcatChunk(identity)
+                  .runCollect,
+                equalTo(List("abcabcabc"))
+              )
+            },
+            testM("delimiter on the boundary") {
+              assertM(
+                Stream("abc<", ">abc")
+                  .transduce(ZSink.splitOn("<>"))
+                  .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abc", "abc"))
               )

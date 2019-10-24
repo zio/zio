@@ -7,6 +7,7 @@ import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
 import zio.test._
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import StreamUtils.inParallel
+import zio.Exit.{ Cause => _, _ }
 
 object StreamEffectAsyncSpec
     extends ZIOBaseSpec(
@@ -182,8 +183,8 @@ object StreamEffectAsyncSpec
               run    <- stream.run(ZSink.fromEffect(ZIO.never)).fork
               _      <- waitForValue(refCnt.get, 7)
               isDone <- refDone.get
-              _      <- run.interrupt
-            } yield assert(isDone, isFalse)
+              exit   <- run.interrupt
+            } yield assert(isDone, isFalse) && assert(exit.untraced, equalTo(Failure(Cause.Interrupt)))
           }
         )
       )

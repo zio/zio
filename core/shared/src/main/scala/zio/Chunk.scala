@@ -40,6 +40,13 @@ sealed trait Chunk[+A] { self =>
     else Chunk.Concat(self, that)
 
   /**
+   * Appends an element to the chunk
+   */
+  final def +[A1 >: A](a: A1): Chunk[A1] =
+    if (self.length == 0) Chunk.single(a)
+    else Chunk.Concat(self, Chunk.single(a))
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
   def collect[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(p)
@@ -123,6 +130,40 @@ sealed trait Chunk[+A] { self =>
 
     if (j == 0) Chunk.Empty
     else Chunk.Slice(Chunk.Arr(dest), 0, j)
+  }
+
+  /**
+   * Filters this chunk by the specified effectful predicate, retaining all elements for
+   * which the predicate evaluates to true.
+   */
+  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
+    implicit val A: ClassTag[A] = Chunk.classTagOf(this)
+
+    val len                              = self.length
+    var dest: ZIO[R, E, (Array[A], Int)] = ZIO.succeed((Array.ofDim[A](len), 0))
+
+    var i = 0
+    while (i < len) {
+      val elem = self(i)
+
+      dest = dest.zipWith(f(elem)) {
+        case ((array, idx), res) =>
+          var resIdx = idx
+          if (res) {
+            array(idx) = elem
+            resIdx = idx + 1
+          }
+          (array, resIdx)
+      }
+
+      i += 1
+    }
+
+    dest.map {
+      case (array, arrLen) =>
+        if (arrLen == 0) Chunk.empty
+        else Chunk.Slice(Chunk.Arr(array), 0, arrLen)
+    }
   }
 
   /**
@@ -471,10 +512,10 @@ sealed trait Chunk[+A] { self =>
   /**
    * Effectfully maps the elements of this chunk purely for the effects.
    */
-  final def mapM_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = {
-    val len               = self.length
-    var zio: ZIO[R, E, _] = ZIO.unit
-    var i                 = 0
+  final def mapM_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
+    val len                 = self.length
+    var zio: ZIO[R, E, Any] = ZIO.unit
+    var i                   = 0
 
     while (i < len) {
       val a = self(i)
@@ -495,7 +536,7 @@ sealed trait Chunk[+A] { self =>
    * Effectfully traverses the elements of this chunk purely for the effects.
    */
   @deprecated("use mapM_", "1.0.0")
-  final def traverse_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = mapM_(f)
+  final def traverse_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = mapM_(f)
 
   /**
    * Zips this chunk with the specified chunk using the specified combiner.

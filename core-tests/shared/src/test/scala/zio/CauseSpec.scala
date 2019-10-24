@@ -31,6 +31,11 @@ object CauseSpec
             check(causes) { c =>
               assert(c.untraced.traces.headOption, isNone)
             }
+          },
+          zio.test.test("`Cause.failures is stack safe") {
+            val n     = 100000
+            val cause = List.fill(n)(Cause.fail("fail")).reduce(_ && _)
+            assert(cause.failures.length, equalTo(n))
           }
         ),
         suite("Then")(

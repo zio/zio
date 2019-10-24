@@ -30,18 +30,16 @@ object MockConsole {
 
   trait Service[R] extends Console.Service[R]
 
-  object Service {
-    object putStr   extends Method[String, Unit]
-    object putStrLn extends Method[String, Unit]
-    object getStrLn extends Method[Unit, String]
-  }
+  object putStr   extends Method[MockConsole, String, Unit]
+  object putStrLn extends Method[MockConsole, String, Unit]
+  object getStrLn extends Method[MockConsole, Unit, String]
 
   implicit val mockable: Mockable[MockConsole] = (mock: Mock) =>
     new MockConsole {
       val console = new Service[Any] {
-        def putStr(line: String): UIO[Unit]   = mock(Service.putStr, line)
-        def putStrLn(line: String): UIO[Unit] = mock(Service.putStrLn, line)
-        val getStrLn: IO[IOException, String] = mock(Service.getStrLn)
+        def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
+        def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
+        val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
       }
     }
 }
