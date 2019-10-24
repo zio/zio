@@ -153,7 +153,7 @@ class TMap[K, V] private (
    * Collects all bindings into a list.
    */
   final def toList: STM[Nothing, List[(K, V)]] =
-    collectWith((k, v) => STM.succeed(k -> v))
+    collectM((k, v) => STM.succeed(k -> v))
 
   /**
    * Atomically updates all bindings using pure function.
@@ -166,7 +166,7 @@ class TMap[K, V] private (
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     for {
-      data     <- collectWith(f)
+      data     <- collectM(f)
       buckets  <- tBuckets.get
       capacity <- tCapacity.get
       _        <- buckets.transform(_ => Nil)
@@ -195,7 +195,7 @@ class TMap[K, V] private (
   final def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
 
-  private def collectWith[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
+  private def collectM[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
     foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
 
   private def indexOf(k: K): STM[Nothing, Int] =
