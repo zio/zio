@@ -189,6 +189,17 @@ object TSetSpec
               } yield res
 
             assertM(tx.commit, hasSameElements(List(2, 3)))
+          },
+          testM("intersect") {
+            val tx =
+              for {
+                tset1 <- TSet(1, 2, 3)
+                tset2 <- TSet(1, 4, 5)
+                _     <- tset1.intersect(tset2)
+                res   <- tset1.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(1)))
           }
         )
       )

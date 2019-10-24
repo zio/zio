@@ -38,7 +38,11 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
     foldM(())((_, a) => f(a))
 
-  final def intersect(that: TSet[A]): STM[Nothing, Unit] = ???
+  final def intersect(other: TSet[A]): STM[Nothing, Unit] =
+    for {
+      vals <- other.toList.map(_.toSet)
+      _    <- retainIf(vals.contains)
+    } yield ()
 
   final def put(a: A): STM[Nothing, Unit] =
     tmap.put(a, ())
