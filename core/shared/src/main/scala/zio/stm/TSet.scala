@@ -61,7 +61,11 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   final def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
     tmap.transformM((k, v) => f(k).map(_ -> v))
 
-  final def union(that: TSet[A]): STM[Nothing, Unit] = ???
+  final def union(other: TSet[A]): STM[Nothing, Unit] =
+    for {
+      vals <- other.toList
+      _    <- STM.collectAll(vals.map(put))
+    } yield ()
 }
 
 object TSet {

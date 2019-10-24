@@ -200,6 +200,17 @@ object TSetSpec
               } yield res
 
             assertM(tx.commit, hasSameElements(List(1)))
+          },
+          testM("union") {
+            val tx =
+              for {
+                tset1 <- TSet(1, 2, 3)
+                tset2 <- TSet(1, 4, 5)
+                _     <- tset1.union(tset2)
+                res   <- tset1.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(1, 2, 3, 4, 5)))
           }
         )
       )
