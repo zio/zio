@@ -57,6 +57,26 @@ object TSetSpec
               } yield res
 
             assertM(tx.commit, hasSameElements(List(1)))
+          },
+          testM("remove existing element") {
+            val tx =
+              for {
+                tset <- TSet(1, 2)
+                _    <- tset.delete(1)
+                res  <- tset.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(2)))
+          },
+          testM("remove non-existing element") {
+            val tx =
+              for {
+                tset <- TSet(1, 2)
+                _    <- tset.delete(3)
+                res  <- tset.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(1, 2)))
           }
         )
       )
