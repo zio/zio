@@ -192,11 +192,11 @@ class TMap[K, V] private (
   final def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
 
-  private def indexOf(k: K): STM[Nothing, Int] =
-    tCapacity.get.map(c => k.hashCode() % c)
-
   private def collectWith[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
     foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
+
+  private def indexOf(k: K): STM[Nothing, Int] =
+    tCapacity.get.map(c => k.hashCode() % c)
 }
 
 object TMap {
