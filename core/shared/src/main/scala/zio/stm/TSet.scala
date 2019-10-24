@@ -23,7 +23,11 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   final def delete(a: A): STM[Nothing, Unit] =
     tmap.delete(a)
 
-  final def diff(that: TSet[A]): STM[Nothing, Unit] = ???
+  final def diff(other: TSet[A]): STM[Nothing, Unit] =
+    for {
+      vals <- other.toList.map(_.toSet)
+      _    <- removeIf(vals.contains)
+    } yield ()
 
   final def fold[B](zero: B)(op: (B, A) => B): STM[Nothing, B] =
     tmap.fold(zero)((acc, kv) => op(acc, kv._1))

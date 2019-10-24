@@ -177,6 +177,19 @@ object TSetSpec
 
             assertM(tx.commit, equalTo(0))
           }
+        ),
+        suite("set operations")(
+          testM("diff") {
+            val tx =
+              for {
+                tset1 <- TSet(1, 2, 3)
+                tset2 <- TSet(1, 4, 5)
+                _     <- tset1.diff(tset2)
+                res   <- tset1.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(2, 3)))
+          }
         )
       )
     )
