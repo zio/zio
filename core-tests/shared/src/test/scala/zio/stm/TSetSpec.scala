@@ -78,6 +78,32 @@ object TSetSpec
 
             assertM(tx.commit, hasSameElements(List(1, 2)))
           }
-        )
+        ),
+        suite("transformations")(
+          testM("retainIf") {
+            val tx =
+              for {
+                tset <- TSet("a", "aa", "aaa")
+                _    <- tset.retainIf(_ == "aa")
+                a    <- tset.contains("a")
+                aa   <- tset.contains("aa")
+                aaa  <- tset.contains("aaa")
+              } yield (a, aa, aaa)
+
+            assertM(tx.commit, equalTo((false, true, false)))
+          },
+          testM("removeIf") {
+            val tx =
+              for {
+                tset <- TSet("a", "aa", "aaa")
+                _    <- tset.removeIf(_ == "aa")
+                a    <- tset.contains("a")
+                aa   <- tset.contains("aa")
+                aaa  <- tset.contains("aaa")
+              } yield (a, aa, aaa)
+
+            assertM(tx.commit, equalTo((true, false, true)))
+          },
+        ),
       )
     )

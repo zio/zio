@@ -33,9 +33,9 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
 
   final def put(a: A): STM[Nothing, Unit] = tmap.put(a, ())
 
-  final def removeIf(p: A => Boolean): STM[Nothing, Unit] = ???
+  final def removeIf(p: A => Boolean): STM[Nothing, Unit] = tmap.removeIf((k, _) => p(k))
 
-  final def retainIf(p: A => Boolean): STM[Nothing, Unit] = ???
+  final def retainIf(p: A => Boolean): STM[Nothing, Unit] = tmap.retainIf((k, _) => p(k))
 
   final def toList: STM[Nothing, List[A]] = tmap.keys
 
