@@ -139,6 +139,44 @@ object TSetSpec
 
             assertM(tx.commit, hasSameElements(List(2, 4, 6)))
           }
+        ),
+        suite("folds")(
+          testM("fold on non-empty set") {
+            val tx =
+              for {
+                tset <- TSet(1, 2, 3)
+                res  <- tset.fold(0)(_ + _)
+              } yield res
+
+            assertM(tx.commit, equalTo(6))
+          },
+          testM("fold on empty set") {
+            val tx =
+              for {
+                tset <- TSet.empty[Int]
+                res  <- tset.fold(0)(_ + _)
+              } yield res
+
+            assertM(tx.commit, equalTo(0))
+          },
+          testM("foldM on non-empty set") {
+            val tx =
+              for {
+                tset <- TSet(1, 2, 3)
+                res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
+              } yield res
+
+            assertM(tx.commit, equalTo(6))
+          },
+          testM("foldM on empty set") {
+            val tx =
+              for {
+                tset <- TSet.empty[Int]
+                res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
+              } yield res
+
+            assertM(tx.commit, equalTo(0))
+          }
         )
       )
     )

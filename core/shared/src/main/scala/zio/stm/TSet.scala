@@ -25,11 +25,14 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
 
   final def diff(that: TSet[A]): STM[Nothing, Unit] = ???
 
-  final def fold[B](zero: B)(op: (B, A) => B): STM[Nothing, B] = ???
+  final def fold[B](zero: B)(op: (B, A) => B): STM[Nothing, B] =
+    tmap.fold(zero)((acc, kv) => op(acc, kv._1))
 
-  final def foldM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] = ???
+  final def foldM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
+    tmap.foldM(zero)((acc, kv) => op(acc, kv._1))
 
-  final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] = ???
+  final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
+    foldM(())((_, a) => f(a))
 
   final def intersect(that: TSet[A]): STM[Nothing, Unit] = ???
 
