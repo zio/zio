@@ -211,7 +211,7 @@ class TMap[K, V] private (
 object TMap {
 
   /**
-   * Makes a new `TMap` that is initialized with the specified values.
+   * Makes a new `TMap` that is initialized with specified values.
    */
   final def apply[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
