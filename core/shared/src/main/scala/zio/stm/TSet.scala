@@ -17,9 +17,11 @@
 package zio.stm
 
 class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
-  final def contains(a: A): STM[Nothing, Boolean] = tmap.contains(a)
+  final def contains(a: A): STM[Nothing, Boolean] =
+    tmap.contains(a)
 
-  final def delete(a: A): STM[Nothing, Unit] = tmap.delete(a)
+  final def delete(a: A): STM[Nothing, Unit] =
+    tmap.delete(a)
 
   final def diff(that: TSet[A]): STM[Nothing, Unit] = ???
 
@@ -31,17 +33,22 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
 
   final def intersect(that: TSet[A]): STM[Nothing, Unit] = ???
 
-  final def put(a: A): STM[Nothing, Unit] = tmap.put(a, ())
+  final def put(a: A): STM[Nothing, Unit] =
+    tmap.put(a, ())
 
-  final def removeIf(p: A => Boolean): STM[Nothing, Unit] = tmap.removeIf((k, _) => p(k))
+  final def removeIf(p: A => Boolean): STM[Nothing, Unit] =
+    tmap.removeIf((k, _) => p(k))
 
-  final def retainIf(p: A => Boolean): STM[Nothing, Unit] = tmap.retainIf((k, _) => p(k))
+  final def retainIf(p: A => Boolean): STM[Nothing, Unit] =
+    tmap.retainIf((k, _) => p(k))
 
   final def toList: STM[Nothing, List[A]] = tmap.keys
 
-  final def transform(f: A => A): STM[Nothing, Unit] = ???
+  final def transform(f: A => A): STM[Nothing, Unit] =
+    tmap.transform((k, v) => f(k) -> v)
 
-  final def transformM[E](f: A => STM[E, A]): STM[E, Unit] = ???
+  final def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
+    tmap.transformM((k, v) => f(k).map(_ -> v))
 
   final def union(that: TSet[A]): STM[Nothing, Unit] = ???
 }

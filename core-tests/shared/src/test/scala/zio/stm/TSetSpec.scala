@@ -118,6 +118,26 @@ object TSetSpec
               } yield (a, aa, aaa)
 
             assertM(tx.commit, equalTo((true, false, true)))
+          },
+          testM("transform") {
+            val tx =
+              for {
+                tset <- TSet(1, 2, 3)
+                _    <- tset.transform(_ * 2)
+                res  <- tset.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(2, 4, 6)))
+          },
+          testM("transformM") {
+            val tx =
+              for {
+                tset <- TSet(1, 2, 3)
+                _    <- tset.transformM(a => STM.succeed(a * 2))
+                res  <- tset.toList
+              } yield res
+
+            assertM(tx.commit, hasSameElements(List(2, 4, 6)))
           }
         )
       )
