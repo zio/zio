@@ -22,7 +22,7 @@ import com.github.ghik.silencer.silent
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
-import zio.{ Cause, _ }
+import zio._
 
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
@@ -50,6 +50,9 @@ private[zio] final class FiberContext[E, A](
 
   @noinline
   private[this] def interrupted = state.get.interrupt
+
+  @volatile
+  private[this] var asyncEpoch: Long = 0L
 
   private[this] val traceExec: Boolean =
     PlatformConstants.tracingSupported && platform.tracing.tracingConfig.traceExecution
@@ -412,14 +415,17 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.EffectAsync =>
                   val zio = curZio.asInstanceOf[ZIO.EffectAsync[Any, E, Any]]
 
+                  val epoch = asyncEpoch
+                  asyncEpoch = epoch + 1
+
                   // Enter suspended state:
-                  curZio = if (enterAsync(zio)) {
+                  curZio = if (enterAsync(epoch)) {
                     val k = zio.register
 
                     if (traceEffects && inTracingRegion) addTrace(k)
 
-                    k(resumeAsync(zio)) match {
-                      case Some(nextZio) => if (exitAsync(zio)) nextZio else null
+                    k(resumeAsync(epoch)) match {
+                      case Some(nextZio) => if (exitAsync(epoch)) nextZio else null
                       case None          => null
                     }
                   } else ZIO.interrupt
@@ -606,8 +612,8 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final def resumeAsync(oldZio: ZIO[_, _, _]): IO[E, Any] => Unit = { zio =>
-    if (exitAsync(oldZio)) evaluateLater(zio)
+  private[this] final def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio =>
+    if (exitAsync(epoch)) evaluateLater(zio)
   }
 
   final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
@@ -653,16 +659,16 @@ private[zio] final class FiberContext[E, A](
     }
 
   @tailrec
-  private[this] final def enterAsync(zio: ZIO[_, _, _]): Boolean = {
+  private[this] final def enterAsync(epoch: Long): Boolean = {
     val oldState = state.get
 
     oldState match {
       case Executing(_, observers, interrupt) =>
         val interruptible = this.interruptible
-        val newState      = Executing(FiberStatus.Suspended(interruptible, zio), observers, interrupt)
+        val newState      = Executing(FiberStatus.Suspended(interruptible, epoch), observers, interrupt)
 
         if (interruptible && interrupt) false
-        else if (!state.compareAndSet(oldState, newState)) enterAsync(zio)
+        else if (!state.compareAndSet(oldState, newState)) enterAsync(epoch)
         else true
 
       case _ => false
@@ -670,12 +676,12 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[this] final def exitAsync(zio: ZIO[_, _, _]): Boolean = {
+  private[this] final def exitAsync(epoch: Long): Boolean = {
     val oldState = state.get
 
     oldState match {
-      case Executing(FiberStatus.Suspended(_, oldZio), observers, interrupt) if zio eq oldZio =>
-        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, interrupt))) exitAsync(zio)
+      case Executing(FiberStatus.Suspended(_, oldEpoch), observers, interrupt) if epoch == oldEpoch =>
+        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, interrupt))) exitAsync(epoch)
         else true
 
       case _ => false
@@ -809,8 +815,8 @@ private[zio] object FiberContext {
 
   sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
-    case object Running                                                   extends FiberStatus
-    final case class Suspended(interruptible: Boolean, zio: ZIO[_, _, _]) extends FiberStatus
+    case object Running                                             extends FiberStatus
+    final case class Suspended(interruptible: Boolean, epoch: Long) extends FiberStatus
   }
 
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
