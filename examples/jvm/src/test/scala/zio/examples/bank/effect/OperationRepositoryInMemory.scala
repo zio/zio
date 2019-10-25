@@ -1,5 +1,7 @@
 package zio.examples.bank.effect
 
+import java.time.LocalDate
+
 import zio.examples.bank.domain._
 import zio.{ Ref, ZIO }
 
@@ -32,17 +34,18 @@ class OperationRepositoryInMemory(accountDb: Ref[Map[Int, Account]], operationDb
       _            <- operationDb.update(s => s.+((id, newOperation)))
     } yield newOperation
 
-  override def getAccountBalance(accountId: Int): ZIO[Any, Unit, Balance] =
+  override def getAccountBalance(accountId: Int, date: LocalDate): ZIO[Any, Unit, Balance] =
     for {
-      operations   <- operationDb.get.map(_.values.toList)
-      account      <- findAccountById(accountId)
-      transactions = operations.flatMap(_.transactions).filter(_.targetAccount == account)
+      operations <- operationDb.get.map(_.values.toList)
+      account    <- findAccountById(accountId)
+      transactions = operations
+        .flatMap(_.transactions)
+        .filter(t => t.targetAccount == account && !t.processingDate.isAfter(date))
       value = transactions.foldRight(0L) { (c, acc) =>
         val value = c.action match {
           case Credit => c.valueInCents
           case Debit  => c.valueInCents * -1
         }
-
         value + acc
       }
     } yield Balance(value, account)

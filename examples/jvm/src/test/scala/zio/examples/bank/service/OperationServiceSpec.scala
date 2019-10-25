@@ -1,23 +1,20 @@
 package zio.examples.bank.service
 
+import java.time.LocalDate
+
 import zio.ZIO
+import zio.clock.Clock
+import zio.duration._
 import zio.examples.bank.TestEnvironment.testEnv
 import zio.examples.bank.domain._
-import zio.examples.bank.effect.ZDate
-import zio.examples.bank.environment.Environments.{ AccountEnvironment, BankEnvironment, OperationEnvironment }
-import zio.examples.bank.failure.{
-  OperationFailure,
-  OperationInvalidValue,
-  OperationNotFoundAccount,
-  OperationOwnerAccountInsufficientValue,
-  OperationValueAndSumOfTransactionsDifferent,
-  OperationWithInvalidCreateTransactions,
-  OperationWithoutTransactions
-}
+import zio.examples.bank.effect.{ AccountRepository, Logger, OperationRepository }
+import zio.examples.bank.environment.Environments.{ AccountEnvironment, BankEnvironment }
+import zio.examples.bank.failure._
 import zio.examples.bank.service.OperationServiceImpl._
 import zio.examples.bank.service.OperationServiceTests._
 import zio.test.Assertion._
 import zio.test._
+import zio.test.environment.TestClock
 
 private object OperationServiceTests {
 
@@ -29,7 +26,7 @@ private object OperationServiceTests {
     ZIO.accessM { env =>
       for {
         account <- createAccount(ownerName)
-        today   <- env.date.today
+        today   <- env.clock.currentDateTime.map(_.toLocalDate)
         createDeposit = CreateOperation(
           value,
           account.id,
@@ -41,6 +38,22 @@ private object OperationServiceTests {
       } yield account
 
     }
+
+  def createAccountWithValueScheduled(ownerName: String,
+                                      value: Long,
+                                      date: LocalDate): ZIO[BankEnvironment, OperationFailure, Account] =
+    for {
+      account <- createAccount(ownerName)
+      createDeposit = CreateOperation(
+        value,
+        account.id,
+        account.id,
+        List(CreateTransaction(account, value, Credit, date)),
+        isExternal = true
+      )
+      _ <- createOperation(createDeposit)
+    } yield account
+
 }
 
 object OperationServiceSpec
@@ -64,7 +77,7 @@ object OperationServiceSpec
           val pipeline = for {
             account     <- createAccountWithValue("John Doe", 500L)
             peerAccount <- createAccount("Anna P. Erwin")
-            today       <- ZIO.accessM[ZDate](_.date.today)
+            today       <- ZIO.accessM[Clock](_.clock.currentDateTime.map(_.toLocalDate))
             createTransfer = CreateOperation(
               400L,
               account.id,
@@ -107,7 +120,7 @@ object OperationServiceSpec
 
           val pipeline = for {
             account <- createAccount("John Doe")
-            today   <- ZIO.accessM[ZDate](_.date.today)
+            today   <- ZIO.accessM[Clock](_.clock.currentDateTime.map(_.toLocalDate))
             createDeposit = CreateOperation(
               0L,
               account.id,
@@ -131,8 +144,7 @@ object OperationServiceSpec
 
           val pipeline = for {
             account <- createAccount("John Doe")
-            today   <- ZIO.accessM[ZDate](_.date.today)
-
+            today   <- ZIO.accessM[Clock](_.clock.currentDateTime.map(_.toLocalDate))
             createDeposit = CreateOperation(
               100L,
               account.id,
@@ -155,7 +167,7 @@ object OperationServiceSpec
         testM("Cannot create an operation without an existent account") {
 
           val pipeline = for {
-            today <- ZIO.accessM[ZDate](_.date.today)
+            today <- ZIO.accessM[Clock](_.clock.currentDateTime.map(_.toLocalDate))
             createDeposit = CreateOperation(
               100L,
               0,
@@ -179,7 +191,7 @@ object OperationServiceSpec
 
           val pipeline = for {
             account            <- createAccount("John Doe")
-            today              <- ZIO.accessM[ZDate](_.date.today)
+            today              <- ZIO.accessM[Clock](_.clock.currentDateTime.map(_.toLocalDate))
             invalidTransaction = CreateTransaction(account, 0L, Debit, today)
             createDeposit = CreateOperation(
               100L,
@@ -207,7 +219,7 @@ object OperationServiceSpec
           val pipeline = for {
             account     <- createAccountWithValue("John Doe", 500L)
             peerAccount <- createAccount("Anna P. Erwin")
-            today       <- ZIO.accessM[ZDate](_.date.today)
+            today       <- ZIO.accessM[Clock](_.clock.currentDateTime.map(_.toLocalDate))
             createTransfer = CreateOperation(
               600L,
               account.id,
@@ -226,6 +238,54 @@ object OperationServiceSpec
 
           testEnv >>= assertion.provide
 
-        }
+        },
+        testM("Balance don't aggregates an US$ 5.00 deposit scheduled") {
+
+          val pipeline = for {
+            tomorrow <- ZIO.accessM[Clock](_.clock.currentDateTime.map(_.toLocalDate.plusDays(1L)))
+            account  <- createAccountWithValueScheduled("John Doe", 500L, tomorrow)
+            balance  <- findBalance(account.id)
+          } yield balance.valueInCents
+
+          val assertion =
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, Long]](pipeline.either, isRight(equalTo(0L)))
+
+          testEnv >>= assertion.provide
+
+        },
+        testM("Balance aggregates an US$ 5.00 deposit scheduled when time passes") {
+
+          val pipeline: ZIO[BankEnvironment, OperationFailure, (Long, Long)] = for {
+            tomorrow     <- ZIO.accessM[Clock](_.clock.currentDateTime.map(_.toLocalDate.plusDays(1L)))
+            account      <- createAccountWithValueScheduled("John Doe", 500L, tomorrow)
+            todayBalance <- findBalance(account.id)
+            newTime      <- TestClock.makeTest(TestClock.DefaultData.copy())
+            _            <- newTime.adjust((24 * 60 * 60).seconds)
+            newEnv <- ZIO
+                       .environment[BankEnvironment]
+                       .map(
+                         ce =>
+                           new Clock with Logger with AccountRepository with OperationRepository {
+                             override val log: Logger.Effect                              = ce.log
+                             override val accountRepository: AccountRepository.Effect     = ce.accountRepository
+                             override val clock: Clock.Service[Any]                       = newTime
+                             override val operationRepository: OperationRepository.Effect = ce.operationRepository
+                         }
+                       )
+            tomorrowBalance <- findBalance(account.id).provide(newEnv)
+
+          } yield (todayBalance.valueInCents, tomorrowBalance.valueInCents)
+
+          val customAssertion = assertionDirect[(Long, Long)]("")()(
+            balances => equalTo(0L)(balances._1) && equalTo(500L)(balances._2)
+          )
+
+          val assertion =
+            assertM[BankEnvironment, Nothing, Either[OperationFailure, (Long, Long)]](pipeline.either,
+                                                                                      isRight(customAssertion))
+
+          testEnv >>= assertion.provide
+
+        },
       )
     )

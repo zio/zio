@@ -1,11 +1,12 @@
 package zio.examples.bank.environment
 
-import zio.examples.bank.effect.{ AccountRepository, Logger, OperationRepository, ZDate }
+import zio.clock.Clock
+import zio.examples.bank.effect.{ AccountRepository, Logger, OperationRepository }
 
 object Environments {
 
-  type BankEnvironment      = Logger with AccountRepository with OperationRepository with ZDate
+  type BankEnvironment      = Clock with Logger with AccountRepository with OperationRepository
   type AccountEnvironment   = Logger with AccountRepository
-  type OperationEnvironment = Logger with AccountRepository with OperationRepository with ZDate
+  type OperationEnvironment = Clock with Logger with AccountRepository with OperationRepository
 
 }

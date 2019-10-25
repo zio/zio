@@ -366,7 +366,7 @@ object TestAspect extends TimeoutVariants {
                   decision =>
                     if (decision.cont) Live.live(clock.sleep(decision.delay)) *> loop(decision.state)
                     else ZIO.halt(err)
-              ), {
+                ), {
               case Left(e) =>
                 schedule
                   .update(e, state)
