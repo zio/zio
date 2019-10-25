@@ -23,8 +23,10 @@ class OperationRepositoryInMemory(accountDb: Ref[Map[Int, Account]], operationDb
 
   override def createOperation(o: CreateOperation): ZIO[Any, Throwable, Operation] =
     for {
-      id           <- nextId()
-      transactions = o.transactions.map(t => Transaction(id, t.targetAccount, t.valueInCents, t.action))
+      id <- nextId()
+      transactions = o.transactions.map(
+        t => Transaction(id, t.targetAccount, t.valueInCents, t.action, t.processingDate)
+      )
       ownerAccount <- accountDb.get.map(_(o.ownerReference))
       newOperation = Operation.apply(id, o.valueInCents, ownerAccount, o.peerReference, transactions)
       _            <- operationDb.update(s => s.+((id, newOperation)))

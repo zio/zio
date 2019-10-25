@@ -11,11 +11,12 @@ object TestEnvironment {
     accountDb   <- Ref.make(Map.empty[Int, Account])
     operationDb <- Ref.make(Map.empty[Int, Operation])
     env <- ZIO
-            .effect(new Logger with AccountRepository with OperationRepository {
+            .effect(new Logger with AccountRepository with OperationRepository with ZDate {
               override val log: Logger.Effect                          = SilentLogger
               override val accountRepository: AccountRepository.Effect = new AccountRepositoryInMemory(accountDb)
               override val operationRepository: OperationRepository.Effect =
                 new OperationRepositoryInMemory(accountDb, operationDb)
+              override val date: ZDate.Effect = ZDateLive
             })
             .orDie
 

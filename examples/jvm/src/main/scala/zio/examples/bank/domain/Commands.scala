@@ -1,5 +1,7 @@
 package zio.examples.bank.domain
 
+import java.time.LocalDate
+
 case class CreateAccount(ownerName: String)
 
 case class CreateOperation(
@@ -10,4 +12,4 @@ case class CreateOperation(
   isExternal: Boolean
 )
 
-case class CreateTransaction(targetAccount: Account, valueInCents: Long, action: Action)
+case class CreateTransaction(targetAccount: Account, valueInCents: Long, action: Action, processingDate: LocalDate)

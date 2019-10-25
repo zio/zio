@@ -1,5 +1,7 @@
 package zio.examples.bank.pure
 
+import java.time.LocalDate
+
 import zio.examples.bank.domain.{ Account, Balance, CreateOperation, CreateTransaction, Credit, Debit }
 import zio.examples.bank.failure._
 import zio.test._
@@ -11,7 +13,11 @@ object OperationPureSpec
         test("A CreateOperation command with the value lesser than 1 must fail") {
 
           val command =
-            CreateOperation(0, 0, 0, List(CreateTransaction(Account(0, "Nonexistent"), 0, Credit)), isExternal = true)
+            CreateOperation(0,
+                            0,
+                            0,
+                            List(CreateTransaction(Account(0, "Nonexistent"), 0, Credit, LocalDate.now())),
+                            isExternal = true)
 
           assert(valueIsValid(command), isLeft(equalTo(OperationInvalidValue(0))))
 
@@ -19,7 +25,11 @@ object OperationPureSpec
         test("A CreateOperation command with the value greater than 0 must succeed") {
 
           val command =
-            CreateOperation(100, 0, 0, List(CreateTransaction(Account(0, "Nonexistent"), 0, Credit)), isExternal = true)
+            CreateOperation(100,
+                            0,
+                            0,
+                            List(CreateTransaction(Account(0, "Nonexistent"), 0, Credit, LocalDate.now())),
+                            isExternal = true)
 
           assert(valueIsValid(command), isRight(equalTo(command)))
 
@@ -39,7 +49,7 @@ object OperationPureSpec
               100,
               0,
               0,
-              List(CreateTransaction(Account(0, "Nonexistent"), 100, Credit)),
+              List(CreateTransaction(Account(0, "Nonexistent"), 100, Credit, LocalDate.now())),
               isExternal = true
             )
 
@@ -48,7 +58,7 @@ object OperationPureSpec
         },
         test("A CreateOperation command with invalid transactions must fail") {
 
-          val transactions = List(CreateTransaction(Account(0, "Nonexistent"), -100, Credit))
+          val transactions = List(CreateTransaction(Account(0, "Nonexistent"), -100, Credit, LocalDate.now()))
           val command =
             CreateOperation(100, 0, 0, transactions, isExternal = true)
 
@@ -62,7 +72,7 @@ object OperationPureSpec
               100,
               0,
               0,
-              List(CreateTransaction(Account(0, "Nonexistent"), 100, Credit)),
+              List(CreateTransaction(Account(0, "Nonexistent"), 100, Credit, LocalDate.now())),
               isExternal = true
             )
 
@@ -77,8 +87,8 @@ object OperationPureSpec
               0,
               0,
               List(
-                CreateTransaction(Account(0, "Nonexistent"), 150, Debit),
-                CreateTransaction(Account(0, "Nonexistent"), 100, Credit)
+                CreateTransaction(Account(0, "Nonexistent"), 150, Debit, LocalDate.now()),
+                CreateTransaction(Account(0, "Nonexistent"), 100, Credit, LocalDate.now())
               ),
               isExternal = false
             )
@@ -97,7 +107,7 @@ object OperationPureSpec
               0,
               0,
               List(
-                CreateTransaction(Account(1, "Nonexistent"), 110, Debit)
+                CreateTransaction(Account(1, "Nonexistent"), 110, Debit, LocalDate.now())
               ),
               isExternal = true
             )
@@ -116,7 +126,7 @@ object OperationPureSpec
               0,
               0,
               List(
-                CreateTransaction(Account(1, "Nonexistent"), 100, Credit)
+                CreateTransaction(Account(1, "Nonexistent"), 100, Credit, LocalDate.now())
               ),
               isExternal = true
             )
