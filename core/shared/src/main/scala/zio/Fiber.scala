@@ -217,11 +217,21 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E, B]` mapped fiber
    */
   final def map[B](f: A => B): Fiber[E, B] =
-    new Fiber[E, B] {
-      def await: UIO[Exit[E, B]]        = self.await.map(_.map(f))
-      def poll: UIO[Option[Exit[E, B]]] = self.poll.map(_.map(_.map(f)))
-      def interrupt: UIO[Exit[E, B]]    = self.interrupt.map(_.map(f))
-      def inheritFiberRefs: UIO[Unit]   = self.inheritFiberRefs
+    mapM(f andThen UIO.succeed)
+
+  /**
+   * Effectually maps over the value the fiber computes.
+   */
+  def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber[E1, B] =
+    new Fiber[E1, B] {
+      def await: UIO[Exit[E1, B]] =
+        self.await.flatMap(_.foreach(f))
+      def inheritFiberRefs: UIO[Unit] =
+        self.inheritFiberRefs
+      def interrupt: UIO[Exit[E1, B]] =
+        self.interrupt.flatMap(_.foreach(f))
+      def poll: UIO[Option[Exit[E1, B]]] =
+        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
     }
 
   @deprecated("use as", "1.0.0")
@@ -308,7 +318,7 @@ object Fiber {
     interruptStatus: InterruptStatus,
     superviseStatus: SuperviseStatus,
     executor: Executor,
-    children: UIO[IndexedSeq[Fiber[_, _]]]
+    children: UIO[IndexedSeq[Fiber[Any, Any]]]
   )
 
   /**
@@ -391,7 +401,7 @@ object Fiber {
    * @param fs `Iterable` of fibers to be interrupted
    * @return `UIO[Unit]`
    */
-  final def interruptAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
+  final def interruptAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
 
   /**
@@ -400,7 +410,7 @@ object Fiber {
    * @param fs `Iterable` of fibers to be awaited
    * @return `UIO[Unit]`
    */
-  final def awaitAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
+  final def awaitAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
 
   /**
@@ -411,7 +421,7 @@ object Fiber {
    * @param fs `Iterable` of fibers to be joined
    * @return `UIO[Unit]`
    */
-  final def joinAll[E](fs: Iterable[Fiber[E, _]]): IO[E, Unit] =
+  final def joinAll[E](fs: Iterable[Fiber[E, Any]]): IO[E, Unit] =
     fs.foldLeft[IO[E, Unit]](IO.unit)((io, f) => io *> f.join.unit).refailWithTrace
 
   /**

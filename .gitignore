@@ -16,3 +16,4 @@ coursier
 website/node_modules
 website/build
 website/i18n/en.json
+website/yarn.lock

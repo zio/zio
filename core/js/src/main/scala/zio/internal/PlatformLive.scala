@@ -41,7 +41,7 @@ object PlatformLive {
         throw t
       }
 
-      def reportFailure(cause: Cause[_]): Unit =
+      def reportFailure(cause: Cause[Any]): Unit =
         if (!cause.interrupted)
           println(cause.prettyPrint)
 

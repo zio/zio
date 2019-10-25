@@ -15,6 +15,47 @@ import scala.util.{ Failure, Success }
 object ZIOSpec
     extends ZIOBaseSpec(
       suite("ZIO")(
+        suite("bracket")(
+          testM("bracket happy path") {
+            for {
+              release  <- Ref.make(false)
+              result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.effectTotal(a + 1))
+              released <- release.get
+            } yield assert(result, equalTo(43)) && assert(released, isTrue)
+          },
+          testM("bracket_ happy path") {
+            for {
+              release  <- Ref.make(false)
+              result   <- IO.succeed(42).bracket_(release.set(true), ZIO.effectTotal(0))
+              released <- release.get
+            } yield assert(result, equalTo(0)) && assert(released, isTrue)
+          },
+          testM("bracketExit happy path") {
+            for {
+              release <- Ref.make(false)
+              result <- ZIO.bracketExit(
+                         IO.succeed(42),
+                         (_: Int, _: Exit[Any, Any]) => release.set(true),
+                         (_: Int) => IO.succeed(0L)
+                       )
+              released <- release.get
+            } yield assert(result, equalTo(0L)) && assert(released, isTrue)
+          },
+          testM("bracketExit error handling") {
+            val releaseDied: Throwable = new RuntimeException("release died")
+            for {
+              exit <- ZIO
+                       .bracketExit[Any, String, Int, Int](
+                         ZIO.succeed(42),
+                         (_, _) => ZIO.die(releaseDied),
+                         _ => ZIO.fail("use failed")
+                       )
+                       .run
+              cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+            } yield assert(cause.failures, equalTo(List("use failed"))) &&
+              assert(cause.defects, equalTo(List(releaseDied)))
+          }
+        ),
         suite("foreachPar")(
           testM("runs effects in parallel") {
             assertM(for {
@@ -68,6 +109,44 @@ object ZIOSpec
             } yield assert(result, equalTo(Cause.die(boom)))
           }
         ),
+        suite("head")(
+          testM("on non empty list") {
+            assertM(ZIO.succeed(List(1, 2, 3)).head.either, isRight(equalTo(1)))
+          },
+          testM("on empty list") {
+            assertM(ZIO.succeed(List.empty).head.either, isLeft(isNone))
+          },
+          testM("on failure") {
+            assertM(ZIO.fail("Fail").head.either, isLeft(isSome(equalTo("Fail"))))
+          }
+        ),
+        suite("left")(
+          testM("on Left value") {
+            assertM(ZIO.succeed(Left("Left")).left, equalTo("Left"))
+          },
+          testM("on Right value") {
+            assertM(ZIO.succeed(Right("Right")).left.either, isLeft(isNone))
+          },
+          testM("on failure") {
+            assertM(ZIO.fail("Fail").left.either, isLeft(isSome(equalTo("Fail"))))
+          }
+        ),
+        suite("leftOrFail")(
+          testM("on Left value") {
+            assertM(UIO(Left(42)).leftOrFail(ExampleError), equalTo(42))
+          },
+          testM("on Right value") {
+            assertM(UIO(Right(12)).leftOrFail(ExampleError).flip, equalTo(ExampleError))
+          }
+        ),
+        suite("leftOrFailException")(
+          testM("on Left value") {
+            assertM(ZIO.succeed(Left(42)).leftOrFailException, equalTo(42))
+          },
+          testM("on Right value") {
+            assertM(ZIO.succeed(Right(2)).leftOrFailException.run, fails(Assertion.anything))
+          }
+        ),
         suite("parallelErrors")(
           testM("oneFailure") {
             for {
@@ -97,16 +176,57 @@ object ZIOSpec
         ),
         suite("option")(
           testM("return success in Some") {
-            assertM(ZIO.succeed(11).option, equalTo[Option[Int]](Some(11)))
+            assertM(ZIO.succeed(11).option, equalTo(Some(11)))
           },
           testM("return failure as None") {
-            assertM(ZIO.fail(123).option, equalTo[Option[Int]](None))
+            assertM(ZIO.fail(123).option, equalTo(None))
           },
           testM("not catch throwable") {
             assertM(ZIO.die(ExampleError).option.run, dies(equalTo(ExampleError)))
           },
           testM("catch throwable after sandboxing") {
-            assertM(ZIO.die(ExampleError).sandbox.option, equalTo[Option[Int]](None))
+            assertM(ZIO.die(ExampleError).sandbox.option, equalTo(None))
+          }
+        ),
+        suite("replicate")(
+          testM("zero") {
+            val lst: Iterable[UIO[Int]] = ZIO.replicate(0)(ZIO.succeed(12))
+            assertM(ZIO.sequence(lst), equalTo(List.empty))
+          },
+          testM("negative") {
+            val anotherList: Iterable[UIO[Int]] = ZIO.replicate(-2)(ZIO.succeed(12))
+            assertM(ZIO.sequence(anotherList), equalTo(List.empty))
+          },
+          testM("positive") {
+            val lst: Iterable[UIO[Int]] = ZIO.replicate(2)(ZIO.succeed(12))
+            assertM(ZIO.sequence(lst), equalTo(List(12, 12)))
+          }
+        ),
+        suite("right")(
+          testM("on Right value") {
+            assertM(ZIO.succeed(Right("Right")).right, equalTo("Right"))
+          },
+          testM("on Left value") {
+            assertM(ZIO.succeed(Left("Left")).right.either, isLeft(isNone))
+          },
+          testM("on failure") {
+            assertM(ZIO.fail("Fail").right.either, isLeft(isSome(equalTo("Fail"))))
+          }
+        ),
+        suite("rightOrFail")(
+          testM("on Right value") {
+            assertM(UIO(Right(42)).rightOrFail(ExampleError), equalTo(42))
+          },
+          testM("on Left value") {
+            assertM(UIO(Left(1)).rightOrFail(ExampleError).flip, equalTo(ExampleError))
+          }
+        ),
+        suite("rightOrFailException")(
+          testM("on Right value") {
+            assertM(ZIO.succeed(Right(42)).rightOrFailException, equalTo(42))
+          },
+          testM("on Left value") {
+            assertM(ZIO.succeed(Left(2)).rightOrFailException.run, fails(Assertion.anything))
           }
         ),
         suite("RTS synchronous correctness")(
@@ -620,12 +740,12 @@ object ZIOSpec
             } yield assert(result, equalTo(42))
           },
           testM("supervising returns fiber refs") {
-            def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
+            def forkAwaitStart(ref: Ref[List[Fiber[Any, Any]]]) =
               withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
 
             val io =
               for {
-                ref <- Ref.make(List.empty[Fiber[_, _]])
+                ref <- Ref.make(List.empty[Fiber[Any, Any]])
                 f1  <- ZIO.children
                 _   <- forkAwaitStart(ref)
                 f2  <- ZIO.children
@@ -637,18 +757,18 @@ object ZIOSpec
           } @@ flaky,
           testM("supervising in unsupervised returns Nil") {
             for {
-              ref  <- Ref.make(Option.empty[Fiber[_, _]])
+              ref  <- Ref.make(Option.empty[Fiber[Any, Any]])
               _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
               fibs <- ZIO.children
             } yield assert(fibs, isEmpty)
           } @@ flaky,
           testM("supervise fibers") {
-            def makeChild(n: Int, fibers: Ref[List[Fiber[_, _]]]) =
+            def makeChild(n: Int, fibers: Ref[List[Fiber[Any, Any]]]) =
               (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork.tap(fiber => fibers.update(fiber :: _))
 
             val io =
               for {
-                fibers  <- Ref.make(List.empty[Fiber[_, _]])
+                fibers  <- Ref.make(List.empty[Fiber[Any, Any]])
                 counter <- Ref.make(0)
                 _ <- (makeChild(1, fibers) *> makeChild(2, fibers)).handleChildrenWith { fs =>
                       fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> counter.update(_ + 1).unit)
@@ -868,7 +988,9 @@ object ZIOSpec
               for {
                 promise <- Promise.make[Nothing, Unit]
                 fiber <- IO
-                          .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[_, _]) => IO.unit)(
+                          .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))(
+                            (_, _: Exit[Any, Any]) => IO.unit
+                          )(
                             _ => IO.unit: IO[Nothing, Unit]
                           )
                           .fork
@@ -885,7 +1007,7 @@ object ZIOSpec
           },
           testM("bracketExit use is interruptible") {
             for {
-              fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
+              fiber <- IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => IO.unit)(_ => IO.never).fork
               res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
             } yield assert(res, equalTo(0))
           },
@@ -906,7 +1028,7 @@ object ZIOSpec
             for {
               done <- Promise.make[Nothing, Unit]
               fiber <- withLatch { release =>
-                        IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => done.succeed(()))(
+                        IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
                             _ => release *> IO.never
                           )
                           .fork
@@ -1080,7 +1202,7 @@ object ZIOSpec
                 fiber1 <- latch1
                            .succeed(())
                            .bracketExit[Clock, Nothing, Unit](
-                             (_: Boolean, _: Exit[_, _]) => ZIO.unit,
+                             (_: Boolean, _: Exit[Any, Any]) => ZIO.unit,
                              (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
                            )
                            .uninterruptible
@@ -1170,12 +1292,12 @@ object ZIOSpec
             assertM(io, isTrue)
           } @@ flaky,
           testM("supervision inheritance") {
-            def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
+            def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[Any, Any]]]): UIO[Fiber[Nothing, A]] =
               withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
 
             val io =
               (for {
-                ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
+                ref  <- Ref.make[List[Fiber[Any, Any]]](Nil) // To make strong ref
                 _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
                 fibs <- ZIO.children
               } yield fibs.size == 1).supervised

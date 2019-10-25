@@ -53,7 +53,7 @@ object GenExampleSpec
             case _         => true
           }.sample.map(_.value).runCollect
 
-          val assertion = not(equalTo[Tree[_]](EmptyNode))
+          val assertion = not(equalTo(EmptyNode))
 
           assertM(nonEmptyTree, forall(assertion))
 

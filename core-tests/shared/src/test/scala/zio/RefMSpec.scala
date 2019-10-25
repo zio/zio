@@ -36,7 +36,7 @@ object RefMSpec
           for {
             refM  <- RefM.make[State](Active)
             value <- refM.updateSome { case Closed => IO.succeed(Active) }
-          } yield assert(value, equalTo[State](Active))
+          } yield assert(value, equalTo(Active))
         },
         testM("updateSome twice") {
           for {
@@ -46,7 +46,7 @@ object RefMSpec
                        case Active  => IO.succeed(Changed)
                        case Changed => IO.succeed(Closed)
                      }
-          } yield assert(value1, equalTo[State](Changed)) && assert(value2, equalTo[State](Closed))
+          } yield assert(value1, equalTo(Changed)) && assert(value2, equalTo(Closed))
         },
         testM("updateSome with failure") {
           for {
@@ -78,23 +78,23 @@ object RefMSpec
                  }
             value2 <- refM.get
           } yield assert(r1, equalTo("changed")) &&
-            assert(value1, equalTo[State](Changed)) &&
+            assert(value1, equalTo(Changed)) &&
             assert(r2, equalTo("closed")) &&
-            assert(value2, equalTo[State](Closed))
+            assert(value2, equalTo(Closed))
         },
         testM("modifySome") {
           for {
             refM  <- RefM.make[State](Active)
             r     <- refM.modifySome("State doesn't change") { case Closed => IO.succeed("active" -> Active) }
             value <- refM.get
-          } yield assert(r, equalTo("State doesn't change")) && assert(value, equalTo[State](Active))
+          } yield assert(r, equalTo("State doesn't change")) && assert(value, equalTo(Active))
         },
         testM("modifySome with failure not triggered") {
           for {
             refM  <- RefM.make[State](Active)
             r     <- refM.modifySome("State doesn't change") { case Closed => IO.fail(failure) }.orDieWith(new Exception(_))
             value <- refM.get
-          } yield assert(r, equalTo("State doesn't change")) && assert(value, equalTo[State](Active))
+          } yield assert(r, equalTo("State doesn't change")) && assert(value, equalTo(Active))
         },
         testM("modifySome with failure") {
           for {
