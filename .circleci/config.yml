@@ -122,7 +122,7 @@ testJVM: &testJVM
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJVM
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -146,7 +146,7 @@ testJS: &testJS
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJS
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
