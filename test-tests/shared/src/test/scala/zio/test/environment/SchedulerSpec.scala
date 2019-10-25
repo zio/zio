@@ -23,7 +23,7 @@ object SchedulerSpec
             _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
             _         <- TestClock.adjust(10.seconds)
             _         <- promise.await
-          } yield (assert((), anything)) //test will timeout if promise does not succeed so getting here = pass
+          } yield assertCompletes
         ),
         testM("scheduled tasks only get executed when time has passed")(
           for {

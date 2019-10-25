@@ -112,6 +112,12 @@ package object test extends CheckVariants {
     }
 
   /**
+   * Asserts that the given test was completed.
+   */
+  final val assertCompletes: TestResult =
+    assert(true, Assertion.isTrue)
+
+  /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   final def assertM[R, E, A](value: ZIO[R, E, A], assertion: Assertion[A]): ZIO[R, E, TestResult] =
