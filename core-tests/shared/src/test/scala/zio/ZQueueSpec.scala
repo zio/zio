@@ -715,7 +715,7 @@ object ZQueueSpec
             f <- q.offer(1).forever.fork
             _ <- q.shutdown
             _ <- f.await
-          } yield assert(true, isTrue)
+          } yield assertCompletes
         } @@ jvm(nonFlaky(100)),
         testM("shutdown race condition with take") {
           for {
@@ -725,7 +725,7 @@ object ZQueueSpec
             f <- q.take.forever.fork
             _ <- q.shutdown
             _ <- f.await
-          } yield assert(true, isTrue)
+          } yield assertCompletes
         } @@ jvm(nonFlaky(100))
       )
     )

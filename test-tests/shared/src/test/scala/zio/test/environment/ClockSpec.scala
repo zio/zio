@@ -21,7 +21,7 @@ object ClockSpec
             _     <- (sleep(10.hours) *> latch.succeed(())).fork
             _     <- adjust(11.hours)
             _     <- latch.await
-          } yield assert((), anything)
+          } yield assertCompletes
         } @@ after(setTime(0.hours))
           @@ nonFlaky(100),
         testM("sleep delays effect until time is adjusted") {
@@ -54,7 +54,7 @@ object ClockSpec
             _     <- (sleep(10.hours) *> latch.succeed(())).fork
             _     <- setTime(11.hours)
             _     <- latch.await
-          } yield assert((), anything)
+          } yield assertCompletes
         } @@ after(setTime(0.hours))
           @@ nonFlaky(100),
         testM("sleep does sleep instantly when sleep duration less than or equal to clock time") {
@@ -62,7 +62,7 @@ object ClockSpec
             latch <- Promise.make[Nothing, Unit]
             _     <- (adjust(10.hours) *> latch.succeed(())).fork
             _     <- latch.await *> sleep(10.hours)
-          } yield assert((), anything)
+          } yield assertCompletes
         } @@ nonFlaky(100),
         testM("adjust correctly advances nanotime") {
           for {
