@@ -19,4 +19,4 @@ package zio.test
 /**
  * `FailureDetails` keeps track of details relevant to failures.
  */
-final case class FailureDetails(fragment: AssertionValue, whole: AssertionValue, gen: Option[GenFailureDetails] = None)
+final case class FailureDetails(assertion: ::[AssertionValue], gen: Option[GenFailureDetails] = None)

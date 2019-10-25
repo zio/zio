@@ -211,7 +211,7 @@ private[zio] final class FiberContext[E, A](
    *
    * @param io0 The `IO` to evaluate on the fiber.
    */
-  final def evaluateNow(io0: IO[E, _]): Unit = {
+  final def evaluateNow(io0: IO[E, Any]): Unit = {
     // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
     // it in `ObjectRef` and performance will plummet.
     var curZio: IO[E, Any] = io0
@@ -425,9 +425,9 @@ private[zio] final class FiberContext[E, A](
                   } else ZIO.interrupt
 
                 case ZIO.Tags.Fork =>
-                  val zio = curZio.asInstanceOf[ZIO.Fork[Any, _, Any]]
+                  val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                  val value: FiberContext[_, Any] = fork(zio.value)
+                  val value: FiberContext[Any, Any] = fork(zio.value)
 
                   supervise(value)
 
@@ -557,10 +557,10 @@ private[zio] final class FiberContext[E, A](
 
   // We make a copy of the supervised fibers set as an array
   // to prevent mutations of the set from propagating to the caller.
-  private[this] final def getFibers: UIO[IndexedSeq[Fiber[_, _]]] =
+  private[this] final def getFibers: UIO[IndexedSeq[Fiber[Any, Any]]] =
     UIO {
       supervised.peek() match {
-        case SuperviseStatus.Unsupervised  => Array.empty[Fiber[_, _]].toIndexedSeq
+        case SuperviseStatus.Unsupervised  => Array.empty[Fiber[Any, Any]].toIndexedSeq
         case s: SuperviseStatus.Supervised => s.fibers
       }
     }
@@ -574,7 +574,7 @@ private[zio] final class FiberContext[E, A](
 
     val childSupervised = supervised.peek() match {
       case SuperviseStatus.Unsupervised  => SuperviseStatus.Unsupervised
-      case SuperviseStatus.Supervised(_) => SuperviseStatus.Supervised(newWeakSet[Fiber[_, _]])
+      case SuperviseStatus.Supervised(_) => SuperviseStatus.Supervised(newWeakSet[Fiber[Any, Any]])
     }
 
     val tracingRegion = inTracingRegion
@@ -637,7 +637,7 @@ private[zio] final class FiberContext[E, A](
   private[this] final def changeSupervision(status: zio.SuperviseStatus): IO[E, Unit] = ZIO.effectTotal {
     status match {
       case zio.SuperviseStatus.Supervised =>
-        val set = newWeakSet[Fiber[_, _]]
+        val set = newWeakSet[Fiber[Any, Any]]
 
         supervised.push(SuperviseStatus.Supervised(set))
       case zio.SuperviseStatus.Unsupervised =>
@@ -646,7 +646,7 @@ private[zio] final class FiberContext[E, A](
 
   }
 
-  private[this] final def supervise(child: FiberContext[_, _]): Unit =
+  private[this] final def supervise(child: FiberContext[Any, Any]): Unit =
     supervised.peek() match {
       case SuperviseStatus.Unsupervised    =>
       case SuperviseStatus.Supervised(set) => set.add(child); ()
@@ -682,7 +682,7 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def exitSupervision: UIO[_] = ZIO.effectTotal(supervised.pop())
+  private[this] final def exitSupervision: UIO[Any] = ZIO.effectTotal(supervised.pop())
 
   @inline
   private[this] final def interruptible: Boolean = interruptStatus.peekOrElse(true)
@@ -829,7 +829,7 @@ private[zio] object FiberContext {
     def initial[E, A] = Executing[E, A](FiberStatus.Running, Nil, false)
   }
 
-  type FiberRefLocals = java.util.Map[FiberRef[_], Any]
+  type FiberRefLocals = java.util.Map[FiberRef[Any], Any]
 
   sealed abstract class SuperviseStatus extends Serializable with Product {
     def convert: zio.SuperviseStatus = this match {
@@ -838,11 +838,11 @@ private[zio] object FiberContext {
     }
   }
   object SuperviseStatus {
-    final case class Supervised(value: java.util.Set[Fiber[_, _]]) extends SuperviseStatus {
-      def fibers: IndexedSeq[Fiber[_, _]] = {
-        val arr = Array.ofDim[Fiber[_, _]](value.size)
+    final case class Supervised(value: java.util.Set[Fiber[Any, Any]]) extends SuperviseStatus {
+      def fibers: IndexedSeq[Fiber[Any, Any]] = {
+        val arr = Array.ofDim[Fiber[Any, Any]](value.size)
         value
-          .toArray[Fiber[_, _]](arr)
+          .toArray[Fiber[Any, Any]](arr)
           .toIndexedSeq
           // In WeakHashMap based sets elements can become null
           .filter(_ != null)

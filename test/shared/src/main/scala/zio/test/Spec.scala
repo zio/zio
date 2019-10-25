@@ -29,6 +29,17 @@ import Spec._
 final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E, L, T]]) { self =>
 
   /**
+   * Syntax for adding aspects.
+   * {{{
+   * test("foo") { assert(42, equalTo(42)) } @@ ignore
+   * }}}
+   */
+  final def @@[R0 <: R1, R1 <: R, E0 >: E, E1 >: E0, S0 <: S, S, S1 >: S](aspect: TestAspect[R0, R1, E0, E1, S0, S1])(
+    implicit ev: T <:< Either[TestFailure[Nothing], TestSuccess[S]]
+  ): Spec[R1, E0, L, Either[TestFailure[Nothing], TestSuccess[S]]] =
+    aspect(mapTest(ev))
+
+  /**
    * Returns a new spec with the suite labels distinguished by `Left`, and the
    * test labels distinguished by `Right`.
    */
@@ -56,8 +67,26 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
         val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterTestLabels(f))), exec)
         Some(Spec(filtered))
 
-      case t @ TestCase(_, _) =>
-        if (f(t.label)) Some(Spec(t)) else None
+      case t @ TestCase(label, _) =>
+        if (f(label)) Some(Spec(t)) else None
+    }
+
+  /**
+   * Returns a new Spec containing only tests/suites with labels satisfying the specified predicate.
+   */
+  final def filterLabels(f: L => Boolean): Option[Spec[R, E, L, T]] =
+    caseValue match {
+      case s @ SuiteCase(label, specs, exec) =>
+        // If the suite matched the label, no need to filter anything underneath it.
+        if (f(label)) {
+          Some(Spec(s))
+        } else {
+          val filtered = SuiteCase(label, specs.map(_.flatMap(_.filterLabels(f))), exec)
+          Some(Spec(filtered))
+        }
+
+      case t @ TestCase(label, _) =>
+        if (f(label)) Some(Spec(t)) else None
     }
 
   /**

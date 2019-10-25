@@ -135,7 +135,15 @@ at the end of the world we provide a suite that can be a tree of other suites an
 Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is expected where `R` can be at maximum of type `Environment` in `DefaultRunnableSpec` `R` cannot be more than `TestEnvironment`. So just like in normal application if our
 `R` is composed of some other modules we need to provide them first before test can be executed. How can we provide our dependencies?
 Here again the design of `zio-test` shines. Since our tests are ordinary values we can just transform them with a call to `mapTest`.
-It accepts a lambda of type `ZIO[R with TestSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with TestSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `DefaultRunnableSpec` cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added `zio-test` to SBTs `testFrameworks` our tests should be automatically picked up by SBT on invocation of `test`. However if we're not using SBT or have some other special needs `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `test:run`.
+It accepts a lambda of type `ZIO[R with TestSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with TestSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `DefaultRunnableSpec` cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added `zio-test-sbt` to our dependencies and `zio.test.sbt.TestFramework` to SBT's `testFrameworks` our tests should be automatically picked up by SBT on invocation of `test`. However if we're not using SBT or have some other special needs `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `test:run`.
+
+```scala
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-test"     % zioVersion % "test",
+  "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+),
+testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
+```
 
 ## Using Test Environment
 
@@ -361,3 +369,42 @@ for {
 
 It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.
+
+### Test Aspects
+
+Test aspects are used to modify existing tests or even entire suites that you have already created. Test aspects are
+applied to a test or suite using the `@@` operator. This is an example test suite showing the use of aspects to modify 
+test behaviour:
+
+```scala
+import zio.duration._
+import zio.test.Assertion._
+import zio.test.TestAspect._
+import zio.test._
+
+object MySpec
+    extends DefaultRunnableSpec(
+      suite("A Suite")(
+        test("A passing test") {
+          assert(true, isTrue)
+        },
+        test("A passing test run for JVM only") {
+          assert(true, isTrue)
+        } @@ jvmOnly, //@@ jvmOnly only runs tests on the JVM
+        test("A passing test run for JS only") {
+          assert(true, isTrue)
+        } @@ jsOnly, //@@ jsOnly only runs tests on Scala.js
+        test("A passing test with a timeout") {
+          assert(true, isTrue)
+        } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
+        test("A failing test... that passes") {
+          assert(true, isFalse)
+        } @@ failure, //@@ failure turns a failing test into a passing test
+        test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
+          assert(false, isTrue)
+        } @@ jvmOnly           // only run on the JVM
+          @@ eventually        //@@ eventually retries a test indefinitely until it succeeds
+          @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
+      ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
+    )
+``` 

@@ -80,7 +80,7 @@ object BuildHelper {
        |import zio.duration._
        |object replRTS extends DefaultRuntime {}
        |import replRTS._
-       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -91,7 +91,7 @@ object BuildHelper {
        |import zio.stream._
        |object replRTS extends DefaultRuntime {}
        |import replRTS._
-       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -222,6 +222,22 @@ object BuildHelper {
     }
   )
 
+  def macroSettings = Seq(
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 13)) => Seq("-Ymacro-annotations")
+        case _             => Seq.empty
+      }
+    },
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 12 =>
+          Seq(compilerPlugin(("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)))
+        case _ => Seq.empty
+      }
+    }
+  )
+
   def welcomeMessage = onLoadMessage := {
     import scala.Console
 
@@ -230,7 +246,7 @@ object BuildHelper {
     def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
 
     s"""|${header(" ________ ___")}
-        |${header("|__  /_ _/ _ \\")} 
+        |${header("|__  /_ _/ _ \\")}
         |${header("  / / | | | | |")}
         |${header(" / /_ | | |_| |")}
         |${header(s"/____|___\\___/   ${version.value}")}

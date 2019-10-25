@@ -1,29 +1,20 @@
 package zio.test
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import zio.test.mock.MockSpecSpec
-import zio.test.environment._
 import zio.test.TestUtils.{ report, scope }
+import zio.test.environment._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object TestMain {
 
   def main(args: Array[String]): Unit = {
     val allTests: List[(String, AsyncBaseSpec)] = List(
       ("CheckSpec", CheckSpec),
-      ("ClockSpec", ClockSpec),
-      ("ConsoleSpec", ConsoleSpec),
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("SummaryBuilderSpec", SummaryBuilderSpec),
-      ("EnvironmentSpec", EnvironmentSpec),
       ("GenSpec", GenSpec),
-      ("MockSpecSpec", MockSpecSpec),
       ("RandomSpec", RandomSpec),
-      ("SampleSpec", SampleSpec),
-      ("SchedulerSpec", SchedulerSpec),
-      ("SystemSpec", SystemSpec),
-      ("TestAspectSpec", TestAspectSpec),
-      ("TestSpec", TestSpec)
+      ("SampleSpec", SampleSpec)
     )
 
     val selectedTests = args match {

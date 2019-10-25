@@ -28,18 +28,16 @@ object MockSystem {
 
   trait Service[R] extends System.Service[R]
 
-  object Service {
-    object env           extends Method[String, Option[String]]
-    object property      extends Method[String, Option[String]]
-    object lineSeparator extends Method[Unit, String]
-  }
+  object env           extends Method[MockSystem, String, Option[String]]
+  object property      extends Method[MockSystem, String, Option[String]]
+  object lineSeparator extends Method[MockSystem, Unit, String]
 
   implicit val mockable: Mockable[MockSystem] = (mock: Mock) =>
     new MockSystem {
       val system = new Service[Any] {
-        def env(variable: String): IO[SecurityException, Option[String]] = mock(Service.env, variable)
-        def property(prop: String): IO[Throwable, Option[String]]        = mock(Service.property, prop)
-        val lineSeparator: UIO[String]                                   = mock(Service.lineSeparator)
+        def env(variable: String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
+        def property(prop: String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)
+        val lineSeparator: UIO[String]                                   = mock(MockSystem.lineSeparator)
       }
     }
 }
