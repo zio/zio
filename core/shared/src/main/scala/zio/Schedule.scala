@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.duration.Duration
-
 object Schedule {
 
   /**
@@ -67,12 +65,6 @@ object Schedule {
    * See [[ZSchedule.collectUntilM]]
    */
   final def collectUntilM[A](f: A => UIO[Boolean]): Schedule[A, List[A]] = ZSchedule.collectUntilM(f)
-
-  /**
-   * See [[ZSchedule.delayed]]
-   */
-  final def delayed[A](s: Schedule[A, Duration]): ZSchedule[zio.clock.Clock, A, Duration] =
-    ZSchedule.delayed(s)
 
   /**
    * See [[ZSchedule.doWhile]]

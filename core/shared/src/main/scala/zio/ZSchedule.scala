@@ -69,7 +69,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def &&[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)
-      val initial = self.initial.zip(that.initial)
+      val initial = self.initial.zipPar(that.initial)
       val extract = (a: A1, s: (self.State, that.State)) => (self.extract(a, s._1), that.extract(a, s._2))
       val update  = (a: A1, s: (self.State, that.State)) => self.update(a, s._1).zipPar(that.update(a, s._2))
     }
@@ -127,8 +127,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 
   /**
    * Returns the composition of this schedule and the specified schedule,
-   * by piping the output of this one into the input of the other. Delays produced by this
-   * schedule will always run before the second schedule is evaluated.
+   * by piping the output of this one into the input of the other.
+   * Effects described by this schedule will always be executed before the effects described by the second schedule.
    */
   final def >>>[R1 <: R, C](that: ZSchedule[R1, B, C]): ZSchedule[R1, A, C] =
     new ZSchedule[R1, A, C] {
@@ -164,6 +164,26 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def |||[R1 <: R, B1 >: B, C](that: ZSchedule[R1, C, B1]): ZSchedule[R1, Either[A, C], B1] =
     (self +++ that).map(_.merge)
+
+  /**
+   * Returns a new schedule with the given delay added to every update.
+   */
+  final def addDelay(f: B => Duration): ZSchedule[R with Clock, A, B] =
+    addDelayM(b => ZIO.succeed(f(b)))
+
+  /**
+   * Returns a new schedule with the effectfully calculated delay added to every update.
+   */
+  final def addDelayM[R1 <: R](f: B => ZIO[R1, Nothing, Duration]): ZSchedule[R1 with Clock, A, B] =
+    updated(
+      update =>
+        (a, s) =>
+          for {
+            delay <- f(extract(a, s))
+            s1    <- update(a, s)
+            _     <- ZIO.sleep(delay)
+          } yield s1
+    )
 
   /**
    * The same as `andThenEither`, but merges the output.
@@ -208,7 +228,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     (self && that).map(f.tupled)
 
   /**
-   * Peeks at the state produced by this schedule, executes some action, and
+   * Peeks at the output produced by this schedule, executes some action, and
    * then continues the schedule or not based on the specified state predicate.
    */
   final def check[A1 <: A](test: (A1, B) => UIO[Boolean]): ZSchedule[R, A1, B] =
@@ -248,24 +268,71 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule with the given delay added to every update.
+   * Returns a new schedule with the specified pure modification
+   * applied to each delay produced by this schedule.
    */
-  final def delayed(f: B => Duration): ZSchedule[R with Clock, A, B] =
-    delayedM(b => ZIO.succeed(f(b)))
+  final def delayed(
+    f: Duration => Duration
+  )(
+    implicit ev: ZEnv <:< R
+  ): ZSchedule[ZEnv, A, B] = delayedEnv(f)(env => ZEnv.mapClock(env) andThen ev.apply)
 
   /**
-   * Returns a new schedule with the effectfully calculated delay added to every update.
+   * Returns a new schedule with the specified pure modification
+   * applied to each delay produced by this schedule.
+   *
+   * This version supports arbitrary environments.
    */
-  final def delayedM[R1 <: R](f: B => ZIO[R1, Nothing, Duration]): ZSchedule[R1 with Clock, A, B] =
-    updated(
-      update =>
-        (a, s) =>
-          for {
-            delay <- f(extract(a, s))
-            s1    <- update(a, s)
-            _     <- ZIO.sleep(delay)
-          } yield s1
-    )
+  final def delayedEnv[R1 <: Clock](
+    f: Duration => Duration
+  )(
+    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
+  ): ZSchedule[R1, A, B] =
+    delayedMEnv[R1](d => ZIO.succeed(f(d)))(g)
+
+  /**
+   * Returns a new schedule with the specified effectful modification
+   * applied to each delay produced by this schedule.
+   */
+  final def delayedM(
+    f: Duration => ZIO[ZEnv, Nothing, Duration]
+  )(
+    implicit ev: ZEnv <:< R
+  ): ZSchedule[ZEnv, A, B] =
+    delayedMEnv(f)(env => ZEnv.mapClock(env) andThen ev.apply)
+
+  /**
+   * Returns a new schedule with the specified effectful modification
+   * applied to each delay produced by this schedule.
+   *
+   * This version supports arbitrary environments.
+   */
+  final def delayedMEnv[R1 <: Clock](
+    f: Duration => ZIO[R1, Nothing, Duration]
+  )(
+    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
+  ): ZSchedule[R1, A, B] = {
+    def proxy(clock0: Clock.Service[Any], env: R1): Clock.Service[Any] = new Clock.Service[Any] {
+      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
+      def currentDateTime             = clock0.currentDateTime
+      val nanoTime                    = clock0.nanoTime
+      def sleep(duration: Duration)   = f(duration).flatMap(clock0.sleep).provide(env)
+    }
+    new ZSchedule[R1, A, B] {
+      type State = (self.State, R)
+      val initial =
+        for {
+          oldEnv <- ZIO.environment[R1]
+          env    = g(proxy(_, oldEnv))(oldEnv)
+          init   <- self.initial.provide(env)
+        } yield (init, env)
+      val extract = { case (a, (s, _)) => self.extract(a, s) }
+      val update = {
+        case (a, (s, env)) =>
+          self.update(a, s).provide(env).map((_, env))
+      }
+    }
+  }
 
   /**
    * Returns a new schedule that contramaps the input and maps the output.
@@ -353,16 +420,16 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Applies random jitter to all sleeps executed by the schedule.
    */
   final def jittered(min: Double = 0.0, max: Double = 1.0)(implicit ev: ZEnv <:< R): ZSchedule[ZEnv, A, B] =
-    jittered_(min, max)(f => ZEnv.mapClock(f) andThen ev.apply)
+    jitteredEnv(min, max)(f => ZEnv.mapClock(f) andThen ev.apply)
 
   /**
    * Applies random jitter to all sleeps executed by the schedule.
    * This version supports arbitrary environments.
    */
-  final def jittered_[R1](min: Double, max: Double)(
+  final def jitteredEnv[R1](min: Double, max: Double)(
     f: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
   ): ZSchedule[R1 with Clock with Random, A, B] =
-    modifyDelay_[R1 with Random] { (_, duration) =>
+    delayedMEnv[R1 with Clock with Random] { duration =>
       random.nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random
@@ -411,7 +478,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     f: (B, Duration) => ZIO[ZEnv, Nothing, Duration]
   )(
     implicit ev: ZEnv <:< R
-  ): ZSchedule[ZEnv, A, B] = modifyDelay_(f)(g => ZEnv.mapClock(g) andThen ev.apply)
+  ): ZSchedule[ZEnv, A, B] = modifyDelayEnv(f)(g => ZEnv.mapClock(g) andThen ev.apply)
 
   /**
    * Returns a new schedule with the specified effectful modification
@@ -423,7 +490,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * All effects executed while calculating the modified duration will run with the old
    * environment.
    */
-  final def modifyDelay_[R1](
+  final def modifyDelayEnv[R1](
     f: (B, Duration) => ZIO[R1, Nothing, Duration]
   )(
     g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
@@ -657,8 +724,8 @@ object ZSchedule {
   /**
    * A new schedule derived from the specified schedule which transforms the delays into effectful sleeps.
    */
-  final def delayed[R, A](s: ZSchedule[R, A, Duration]): ZSchedule[R with Clock, A, Duration] =
-    s.delayed(x => x)
+  final def delayed[R <: Clock, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] =
+    s.addDelay(x => x)
 
   /**
    * A schedule that recurs for as long as the predicate evaluates to true.
@@ -875,7 +942,7 @@ object ZSchedule {
    * </pre>
    */
   final def spaced(interval: Duration): ZSchedule[Clock, Any, Int] =
-    forever.delayed(_ => interval)
+    forever.addDelay(_ => interval)
 
   /**
    * A schedule that always fails.
