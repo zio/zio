@@ -50,7 +50,7 @@ object FiberSpec
               child1    <- (fiberRef.set("child1") *> semaphore.release).fork
               child2    <- (fiberRef.set("child2") *> semaphore.release).fork
               _         <- semaphore.acquireN(2)
-              _         <- child1.zipPar(child2).inheritFiberRefs
+              _         <- child1.zip(child2).inheritFiberRefs
               value     <- fiberRef.get
             } yield assert(value, equalTo("child1"))
           }
@@ -65,12 +65,12 @@ object FiberSpec
         suite("if one composed fiber fails then all must fail")(
           testM("`await`") {
             for {
-              exit <- Fiber.fail("fail").zipPar(Fiber.never).await
+              exit <- Fiber.fail("fail").zip(Fiber.never).await
             } yield assert(exit, fails(equalTo("fail")))
           },
           testM("`join`") {
             for {
-              exit <- Fiber.fail("fail").zipPar(Fiber.never).join.run
+              exit <- Fiber.fail("fail").zip(Fiber.never).join.run
             } yield assert(exit, fails(equalTo("fail")))
           },
           testM("`awaitAll`") {

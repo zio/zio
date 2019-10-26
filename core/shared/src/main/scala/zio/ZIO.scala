@@ -2106,7 +2106,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeed[E, List[A]](List()))) { (aIO, asFiberIO) =>
       asFiberIO.zip(aIO.fork).map {
         case (asFiber, aFiber) =>
-          asFiber.zipWithPar(aFiber)((as, a) => a :: as)
+          asFiber.zipWith(aFiber)((as, a) => a :: as)
       }
     }
 
