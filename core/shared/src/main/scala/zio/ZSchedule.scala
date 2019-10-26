@@ -326,11 +326,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
           env    = g(proxy(_, oldEnv))(oldEnv)
           init   <- self.initial.provide(env)
         } yield (init, env)
-      val extract = { case (a, (s, _)) => self.extract(a, s) }
-      val update = {
-        case (a, (s, env)) =>
-          self.update(a, s).provide(env).map((_, env))
-      }
+      val extract = (a: A, s: State) => self.extract(a, s._1)
+      val update  = (a: A, s: State) => self.update(a, s._1).provide(s._2).map((_, s._2))
     }
   }
 
@@ -575,7 +572,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the update function transformed by the
    * specified update transformer.
    */
-  final def updated[R1 <: R, A1 <: A, C](
+  final def updated[R1 <: R, A1 <: A](
     f: ((A, State) => ZIO[R, Unit, State]) => (A1, State) => ZIO[R1, Unit, State]
   ): ZSchedule[R1, A1, B] =
     new ZSchedule[R1, A1, B] {
