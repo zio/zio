@@ -152,14 +152,14 @@ object ZIOSpec
             for {
               f1     <- IO.fail("error1").fork
               f2     <- IO.succeed("success1").fork
-              errors <- f1.zip(f2).join.parallelErrors[String].flip
+              errors <- f1.zipPar(f2).join.parallelErrors[String].flip
             } yield assert(errors, equalTo(List("error1")))
           },
           testM("allFailures") {
             for {
               f1     <- IO.fail("error1").fork
               f2     <- IO.fail("error2").fork
-              errors <- f1.zip(f2).join.parallelErrors[String].flip
+              errors <- f1.zipPar(f2).join.parallelErrors[String].flip
             } yield assert(errors, equalTo(List("error1", "error2")))
           }
         ),

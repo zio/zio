@@ -126,10 +126,10 @@ trait Fiber[+E, +A] { self =>
    * @tparam C type of the resulting fiber
    * @return `Fiber[E1, C]` combined fiber
    */
-  final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
+  final def zipWithPar[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def await: UIO[Exit[E1, C]] =
-        self.await.zipWith(that.await)(_.zipWith(_)(f, _ && _))
+        self.await.flatMap(IO.done).zipWithPar(that.await.flatMap(IO.done))(f).run
 
       def poll: UIO[Option[Exit[E1, C]]] =
         self.poll.zipWith(that.poll) {
@@ -151,33 +151,33 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
-    zipWith(that)((a, b) => (a, b))
+  final def <&>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+    zipWithPar(that)((a, b) => (a, b))
 
   /**
-   * Named alias for `<*>`.
+   * Named alias for `<&>`.
    *
    * @param that fiber to be zipped
    * @tparam E1 error type
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
-    self <*> that
+  final def zipPar[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+    self <&> that
 
   /**
-   * Same as `zip` but discards the output of the left hand side.
+   * Same as `zipPar` but discards the output of the left hand side.
    *
    * @param that fiber to be zipped
    * @tparam E1 error type
    * @tparam B type of the fiber
    * @return `Fiber[E1, B]` combined fiber
    */
-  final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
-    (self zip that).map(_._2)
+  final def &>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+    zipWithPar(that)((_, b) => b)
 
   /**
-   * Named alias for `*>`.
+   * Named alias for `&>`.
    *
    * @param that fiber to be zipped
    * @tparam E1 error type
@@ -185,29 +185,29 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E1, B]` combined fiber
    */
   final def zipRight[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
-    self *> that
+    self &> that
 
   /**
-   * Same as `zip` but discards the output of the right hand side.
+   * Same as `zipPar` but discards the output of the right hand side.
    *
    * @param that fiber to be zipped
    * @tparam E1 error type
    * @tparam B type of the fiber
    * @return `Fiber[E1, A]` combined fiber
    */
-  final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
-    zip(that).map(_._1)
+  final def <&[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+    zipWithPar(that)((a, _) => a)
 
   /**
-   * Named alias for `<*`.
+   * Named alias for `<&`.
    *
    * @param that fiber to be zipped
    * @tparam E1 error type
    * @tparam B type of the fiber
    * @return `Fiber[E1, A]` combined fiber
    */
-  final def zipLeft[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
-    self <* that
+  final def zipLeftPar[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+    self <& that
 
   /**
    * Maps over the value the Fiber computes.
@@ -411,7 +411,7 @@ object Fiber {
    * @return `UIO[Unit]`
    */
   final def awaitAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
+    fs.foldLeft[Fiber[Any, Any]](Fiber.unit)(_ &> _).await.unit
 
   /**
    * Joins all fibers, awaiting their _successful_ completion.
@@ -422,7 +422,7 @@ object Fiber {
    * @return `UIO[Unit]`
    */
   final def joinAll[E](fs: Iterable[Fiber[E, Any]]): IO[E, Unit] =
-    fs.foldLeft[IO[E, Unit]](IO.unit)((io, f) => io *> f.join.unit).refailWithTrace
+    fs.foldLeft[Fiber[E, Any]](Fiber.unit)(_ &> _).join.unit.refailWithTrace
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.

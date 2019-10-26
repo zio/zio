@@ -50,7 +50,7 @@ object FiberSpec
               child1    <- (fiberRef.set("child1") *> semaphore.release).fork
               child2    <- (fiberRef.set("child2") *> semaphore.release).fork
               _         <- semaphore.acquireN(2)
-              _         <- child1.zip(child2).inheritFiberRefs
+              _         <- child1.zipPar(child2).inheritFiberRefs
               value     <- fiberRef.get
             } yield assert(value, equalTo("child1"))
           }
@@ -60,6 +60,41 @@ object FiberSpec
             for {
               exit <- Fiber.interrupt.join.run
             } yield assert(exit, equalTo(Exit.interrupt))
+          }
+        ),
+        suite("if one composed fiber fails then all must fail")(
+          testM("`await`") {
+            for {
+              exit <- Fiber.fail("fail").zipPar(Fiber.never).await
+            } yield assert(exit, fails(equalTo("fail")))
+          },
+          testM("`join`") {
+            for {
+              exit <- Fiber.fail("fail").zipPar(Fiber.never).join.run
+            } yield assert(exit, fails(equalTo("fail")))
+          },
+          testM("`awaitAll`") {
+            for {
+              exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).run
+            } yield assert(exit, succeeds(isUnit))
+          },
+          testM("`joinAll`") {
+            for {
+              exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).run
+            } yield assert(exit, succeeds(isUnit))
+          },
+          testM("shard example") {
+            def shard[R, E, A](queue: Queue[A], n: Int, worker: A => ZIO[R, E, Unit]): ZIO[R, E, Nothing] = {
+              val worker1 = queue.take.flatMap(a => worker(a).uninterruptible).forever
+              ZIO.forkAll(List.fill(n)(worker1)).flatMap(_.join) *> ZIO.never
+            }
+            for {
+              queue  <- Queue.unbounded[Int]
+              _      <- queue.offerAll(1 to 100)
+              worker = (n: Int) => if (n == 100) ZIO.fail("fail") else queue.offer(n).unit
+              exit   <- shard(queue, 4, worker).run
+              _      <- queue.shutdown
+            } yield assert(exit, fails(equalTo("fail")))
           }
         )
       )
