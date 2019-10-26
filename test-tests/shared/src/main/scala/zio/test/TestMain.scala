@@ -13,7 +13,6 @@ object TestMain {
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("SummaryBuilderSpec", SummaryBuilderSpec),
       ("GenSpec", GenSpec),
-      ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec)
     )
 
