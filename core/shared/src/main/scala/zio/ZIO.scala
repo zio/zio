@@ -1495,12 +1495,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * either side fails, then the other side will be interrupted.
    */
   final def zipWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] = {
-    def coordinate[A, B](f: (A, B) => C, leftWinner: Boolean)(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
+    def coordinate[A, B](
+      f: (A, B) => C,
+      leftWinner: Boolean
+    )(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
       winner match {
         case Exit.Success(a) => loser.join.map(f(a, _))
         case Exit.Failure(cause) =>
           loser.interrupt.flatMap {
-            case Exit.Success(_)          => ZIO.halt(cause)
+            case Exit.Success(_) => ZIO.halt(cause)
             case Exit.Failure(loserCause) =>
               if (leftWinner) ZIO.halt(cause && loserCause)
               else ZIO.halt(loserCause && cause)
