@@ -129,7 +129,7 @@ trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def await: UIO[Exit[E1, C]] =
-        self.await.zipWith(that.await)(_.zipWith(_)(f, _ && _))
+        self.await.flatMap(IO.done).zipWithPar(that.await.flatMap(IO.done))(f).run
 
       def poll: UIO[Option[Exit[E1, C]]] =
         self.poll.zipWith(that.poll) {
@@ -174,7 +174,7 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E1, B]` combined fiber
    */
   final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
-    (self zip that).map(_._2)
+    zipWith(that)((_, b) => b)
 
   /**
    * Named alias for `*>`.
@@ -196,7 +196,7 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E1, A]` combined fiber
    */
   final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
-    zip(that).map(_._1)
+    zipWith(that)((a, _) => a)
 
   /**
    * Named alias for `<*`.
@@ -411,7 +411,7 @@ object Fiber {
    * @return `UIO[Unit]`
    */
   final def awaitAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
+    fs.foldLeft[Fiber[Any, Any]](Fiber.unit)(_ *> _).await.unit
 
   /**
    * Joins all fibers, awaiting their _successful_ completion.
@@ -422,7 +422,7 @@ object Fiber {
    * @return `UIO[Unit]`
    */
   final def joinAll[E](fs: Iterable[Fiber[E, Any]]): IO[E, Unit] =
-    fs.foldLeft[IO[E, Unit]](IO.unit)((io, f) => io *> f.join.unit).refailWithTrace
+    fs.foldLeft[Fiber[E, Any]](Fiber.unit)(_ *> _).join.unit.refailWithTrace
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
