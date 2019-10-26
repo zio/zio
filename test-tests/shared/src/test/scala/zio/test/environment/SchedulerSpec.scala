@@ -7,10 +7,9 @@ import zio.duration._
 import zio.internal.Scheduler.CancelToken
 import zio.scheduler.scheduler
 import zio.test.Assertion._
-import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestClock._
-import zio.{ clock, DefaultRuntime, Promise, UIO, ZIO }
+import zio.{ clock, DefaultRuntime, Promise, ZIO }
 import SchedulerSpecUtil._
 import zio.internal.{ Scheduler => IScheduler }
 
@@ -24,7 +23,7 @@ object SchedulerSpec
             _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
             _         <- TestClock.adjust(10.seconds)
             _         <- promise.await
-          } yield (assert((), anything)) //test will timeout if promise does not succeed so getting here = pass
+          } yield assertCompletes
         ),
         testM("scheduled tasks only get executed when time has passed")(
           for {
