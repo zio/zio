@@ -3,7 +3,7 @@ package zio.test.environment
 import zio.test.Assertion._
 import zio.test.environment.RandomSpecUtil._
 import zio.test.environment.TestRandom.DefaultData
-import zio.test.{ assert, suite, test, testM, TestResult, ZIOBaseSpec }
+import zio.test.{ assert, suite, testM, TestResult, ZIOBaseSpec }
 import zio._
 
 object RandomSpec
@@ -40,12 +40,15 @@ object RandomSpec
         testM("bounded nextInt generates values within the bounds")(forAllBounded(_.nextInt)(_.nextInt(_))),
         testM("bounded nextLong generates values within the bounds")(forAllBounded(_.nextLong)(_.nextLong(_))),
         testM("shuffle")(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_))),
-        test("referential transparency") {
-          val rt   = new DefaultRuntime {}
+        testM("referential transparency") {
           val test = TestRandom.makeTest(DefaultData)
-          val x    = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
-          val y    = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
-          assert(x, equalTo(y))
+          ZIO
+            .runtime[Any]
+            .map(rt => {
+              val x = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
+              val y = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
+              assert(x, equalTo(y))
+            })
         }
       )
     )
