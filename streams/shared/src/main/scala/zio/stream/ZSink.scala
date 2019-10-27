@@ -555,6 +555,18 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
+   * Performs the specified effect for every element that is consumed by this sink.
+   */
+  final def tapInput[R1 <: R, E1 >: E, A1 <: A](f: A1 => ZIO[R1, E1, Unit]): ZSink[R1, E1, A0, A1, B] =
+    contramapM(a => f(a).as(a))
+
+  /**
+   * Performs the specified effect for every element that is produced by this sink.
+   */
+  final def tapOutput[R1 <: R, E1 >: E](f: B => ZIO[R1, E1, Unit]): ZSink[R1, E1, A0, A, B] =
+    mapM(b => f(b).as(b))
+
+  /**
    * Times the invocation of the sink
    */
   final def timed: ZSink[R with Clock, E, A0, A, (Duration, B)] =
