@@ -357,8 +357,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def ensuring(finalizer: UIO[_]): ZSchedule[R, A, B] =
     new ZSchedule[R, A, B] {
-      type State = (self.State, Ref[UIO[_]])
-      val initial = self.initial <*> Ref.make(finalizer)
+      type State = (self.State, Ref[UIO[Any]])
+      val initial = self.initial <*> Ref.make[UIO[Any]](finalizer)
       val extract = (a: A, s: State) => self.extract(a, s._1)
       val update = (a: A, s: State) =>
         self.update(a, s._1).tapError(_ => s._2.modify(fin => (fin, ZIO.unit)).flatten).map((_, s._2))
