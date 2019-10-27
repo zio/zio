@@ -3,7 +3,7 @@ package zio.stream
 import com.github.ghik.silencer.silent
 import zio.random.Random
 import zio.stream.StreamChunkUtils._
-import zio.test.Assertion.{ equalTo, isFalse, succeeds }
+import zio.test.Assertion.{ equalTo, isFalse, isLeft, succeeds }
 import zio.test._
 import zio._
 
@@ -197,6 +197,24 @@ object StreamChunkSpec
             } yield assert(res1, equalTo(res2))
           }
         },
+        suite("StreamChunk.mapAccumM")(
+          testM("mapAccumM happy path") {
+            checkM(chunksOfInts) { s =>
+              for {
+                res1 <- slurp(s.mapAccumM(0)((acc, el) => UIO.succeed((acc + el, acc + el))))
+                res2 <- slurp(s).map(_.scanLeft(0)((acc, el) => acc + el).drop(1))
+              } yield assert(res1, equalTo(res2))
+            }
+          },
+          testM("mapAccumM error") {
+            StreamChunk
+              .fromChunks(Chunk(1), Chunk(2, 3), Chunk.empty)
+              .mapAccumM(0)((_, _) => IO.fail("Ouch"))
+              .run(Sink.drain)
+              .either
+              .map(assert(_, isLeft(equalTo("Ouch"))))
+          }
+        ),
         testM("StreamChunk.mapM") {
           checkM(chunksOfInts, Gen.function[Random, Int, Int](intGen)) { (s, f) =>
             for {

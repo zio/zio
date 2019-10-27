@@ -480,6 +480,41 @@ sealed trait Chunk[+A] { self =>
     toArrayOption.fold(s"${self.getClass.getSimpleName}()")(_.mkString(s"${self.getClass.getSimpleName}(", ",", ")"))
 
   /**
+   * Statefully and effectfully maps over the elements of this chunk to produce
+   * new elements.
+   */
+  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] = {
+    val len                             = self.length
+    var dest: ZIO[R, E, (S1, Array[B])] = UIO.succeed((s1, null.asInstanceOf[Array[B]]))
+
+    var i = 0
+    while (i < len) {
+      val j = i
+      dest = dest.flatMap {
+        case (state, array) =>
+          f1(state, self(j)).map {
+            case (state2, b) =>
+              val array2 = if (array == null) {
+                implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+                Array.ofDim[B](len)
+              } else array
+
+              array2(j) = b
+              (state2, array2)
+          }
+      }
+
+      i += 1
+    }
+
+    dest.map {
+      case (state, array) =>
+        if (array == null) (state, Chunk.empty)
+        else (state, Chunk.fromArray(array))
+    }
+  }
+
+  /**
    * Effectfully maps the elements of this chunk.
    */
   final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
