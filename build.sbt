@@ -232,7 +232,7 @@ lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm.settings(dottySettings)
 
 lazy val benchmarks = project.module
-  .dependsOn(coreJVM, streamsJVM)
+  .dependsOn(coreJVM, streamsJVM, testJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
