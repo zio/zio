@@ -160,8 +160,13 @@ object ZIOSpec
               f1     <- IO.fail("error1").fork
               f2     <- IO.fail("error2").fork
               errors <- f1.zip(f2).join.parallelErrors[String].flip
-            } yield assert(errors, equalTo(List("error1", "error2")))
-          }
+            } yield assert(
+              errors,
+              equalTo(List("error1", "error2")) ||
+                equalTo(List("error1")) ||
+                equalTo(List("error2"))
+            )
+          } @@ nonFlaky(100)
         ),
         suite("raceAll")(
           testM("returns first success") {
