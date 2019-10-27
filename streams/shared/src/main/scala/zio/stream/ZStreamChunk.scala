@@ -357,7 +357,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    * Statefully maps over the elements of this stream to produce new elements.
    */
   final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
-    ZStreamChunk(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
+    ZStreamChunk(chunks.mapAccum(s1)((s1, as) => as.mapAccum(s1)(f1)))
 
   /**
    * Maps each element to an iterable and flattens the iterables into the output of
