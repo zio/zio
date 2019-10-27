@@ -19,10 +19,22 @@ class GenBenchmarks {
     Gen.exponential
 
   @Benchmark
-  def zioListOfInts: Gen[Random, List[Int]] =
+  def zioIntListOfSizeN: Gen[Random, List[Int]] =
     Gen.listOfN(size)(Gen.anyInt)
 
   @Benchmark
-  def zioGenString: Gen[Random, String] =
+  def zioStringOfSizeN: Gen[Random, String] =
     Gen.stringN(size)(Gen.anyChar)
+
+  @Benchmark
+  def randomDouble: Double =
+    scala.util.Random.nextDouble()
+
+  @Benchmark
+  def randomIntListOfSizeN: List[Int] =
+    List.fill(size)(scala.util.Random.nextInt())
+
+  @Benchmark
+  def randomStringOfSizeN: String =
+    scala.util.Random.alphanumeric.take(size).mkString
 }
