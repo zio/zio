@@ -360,12 +360,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def ensuring(finalizer: UIO[_]): ZSchedule[R, A, B] =
     updated(
-      update =>
-        (a: A, s: State) =>
-          update(a, s).foldM(
-            _ => finalizer *> ZIO.fail(()),
-            ZIO.succeed
-          )
+      update => (a: A, s: State) => update(a, s).tapError(_ => finalizer)
     )
 
   /**
