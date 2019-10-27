@@ -1017,14 +1017,23 @@ object StreamSpec
         testM("Stream.mapAccum") {
           assertM(Stream(1, 1, 1).mapAccum(0)((acc, el) => (acc + el, acc + el)).runCollect, equalTo(List(1, 2, 3)))
         },
-        testM("Stream.mapAccumM") {
-          assertM(
+        suite("Stream.mapAccumM")(
+          testM("mapAccumM happy path") {
+            assertM(
+              Stream(1, 1, 1)
+                .mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
+                .runCollect,
+              equalTo(List(1, 2, 3))
+            )
+          },
+          testM("mapAccumM error") {
             Stream(1, 1, 1)
-              .mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
-              .runCollect,
-            equalTo(List(1, 2, 3))
-          )
-        },
+              .mapAccumM(0)((_, _) => IO.fail("Ouch"))
+              .runCollect
+              .either
+              .map(assert(_, isLeft(equalTo("Ouch"))))
+          }
+        ),
         testM("Stream.mapConcat")(checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
           for {
             res1 <- s.mapConcat(f).runCollect
