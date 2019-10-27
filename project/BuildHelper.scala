@@ -37,11 +37,14 @@ object BuildHelper {
       )
     else Nil
 
-  private def propertyFlag(property: String, default: Boolean) =
-    sys.props.get(property).map(_.toBoolean).getOrElse(default)
+  private def propertyFlag(property: String) = sys.props.get(property).map(_.toBoolean)
+
+  private def envVarFlag(property: String) = sys.env.get(property).map(_.toBoolean)
+
+  def fatalWarnings: Boolean = propertyFlag("fatal.warnings") orElse envVarFlag("SCALAC_FATAL_WARNINGS") getOrElse true
 
   private def customOptions =
-    if (propertyFlag("fatal.warnings", false)) {
+    if (fatalWarnings) {
       Seq("-Xfatal-warnings")
     } else {
       Nil
@@ -157,6 +160,14 @@ object BuildHelper {
       case _ => Seq.empty
     }
 
+  val checkCanRunCI = taskKey[Unit]("Checks if prerequisites are in place in order to queue a CI run")
+
+  val checkCanRunCISetting = checkCanRunCI in Compile := {
+    if (!fatalWarnings) {
+      sys.error(s"-Xfatal-warnings is currently off. Turn it on before queueing a CI run")
+    }
+  }
+
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
@@ -253,6 +264,7 @@ object BuildHelper {
         |
         |Useful sbt tasks:
         |${item("fmt")} - Formats source files using scalafmt
+        |${item("ci")} - Verifies sources and triggers CI to run
         |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
         |${item("testJVM")} - Runs all JVM tests
         |${item("testJS")} - Runs all ScalaJS tests

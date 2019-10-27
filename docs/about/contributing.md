@@ -151,6 +151,12 @@ If all the tests are passing, then you can format your code:
 fmt
 ```
 
+And then set CI to run with:
+
+```bash
+ci
+```
+
 If your changes altered an API, then you may need to rebuild the microsite to make sure none of the (compiled) documentation breaks:
 
 ```bash

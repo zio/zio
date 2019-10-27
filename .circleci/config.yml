@@ -93,9 +93,19 @@ install_nodejs: &install_nodejs
         nvm use
         node -v
 
+check_should_run: &check_should_run
+  - run: |
+      if git log -1 --format=oneline $CIRCLE_SHA1 | grep --ignore-case '\[run ci\]'; then
+        echo 'CI set to run'
+      else
+        echo 'Early-exiting since CI is not set to run (no "[run ci]" in commit message). Use the "ci" SBT task.'
+        exit 1
+      fi
+
 lint: &lint
   steps:
     - checkout
+    - check_should_run
     - <<: *load_cache
     - run:
         name: Lint code
@@ -122,7 +132,7 @@ testJVM: &testJVM
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM
+        command: ./sbt ++${SCALA_VERSION}! testJVM
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -134,7 +144,7 @@ testJVMDotty: &testJVMDotty
     - <<: *load_cache
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMDotty
+        command: ./sbt ++${SCALA_VERSION}! testJVMDotty
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -146,7 +156,7 @@ testJS: &testJS
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
+        command: ./sbt ++${SCALA_VERSION}! testJS
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:

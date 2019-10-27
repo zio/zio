@@ -31,6 +31,7 @@ ThisBuild / publishTo := sonatypePublishToBundle.value
 
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("check", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
+addCommandAlias("ci", "check; checkCanRunCI; git commit --only --allow-empty -m \"[run ci]\"")
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
@@ -54,6 +55,7 @@ lazy val root = project
     skip in publish := true,
     console := (console in Compile in coreJVM).value,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    checkCanRunCISetting,
     welcomeMessage
   )
   .aggregate(
