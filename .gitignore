@@ -8,9 +8,12 @@ project/.sbt
 test-output/
 .bloop
 .metals
+.idea
+coursier
 
 # if you are here to add your IDE's files please read this instead:
 # https://stackoverflow.com/questions/7335420/global-git-ignore#22885996
 website/node_modules
 website/build
 website/i18n/en.json
+website/yarn.lock

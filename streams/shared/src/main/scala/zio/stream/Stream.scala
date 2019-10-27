@@ -16,11 +16,14 @@
 
 package zio.stream
 
+import java.io.{ IOException, InputStream }
+
 import zio._
 import zio.clock.Clock
 import zio.Cause
 
-object Stream extends ZStreamPlatformSpecific {
+object Stream {
+  import ZStream.Pull
 
   /**
    * See [[ZStream.empty]]
@@ -35,15 +38,26 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.never
 
   /**
-   * See [[ZStream.apply]]
+   * See [[ZStream.apply[A]*]]
    */
   final def apply[A](as: A*): Stream[Nothing, A] = ZStream(as: _*)
 
   /**
+   * See [[ZStream.apply[R,E,A]*]]
+   */
+  final def apply[E, A](pull: Managed[E, Pull[Any, E, A]]): Stream[E, A] = ZStream(pull)
+
+  /**
    * See [[ZStream.bracket]]
    */
-  final def bracket[E, A](acquire: IO[E, A])(release: A => UIO[_]): Stream[E, A] =
+  final def bracket[E, A](acquire: IO[E, A])(release: A => UIO[Any]): Stream[E, A] =
     ZStream.bracket(acquire)(release)
+
+  /**
+   * See [[ZStream.bracketExit]]
+   */
+  final def bracketExit[E, A](acquire: IO[E, A])(release: (A, Exit[Any, Any]) => UIO[Any]): Stream[E, A] =
+    ZStream.bracketExit(acquire)(release)
 
   /**
    * See [[ZStream.die]]
@@ -61,7 +75,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsync]]
    */
   final def effectAsync[E, A](
-    register: (IO[E, A] => Unit) => Unit,
+    register: (IO[Option[E], A] => Unit) => Unit,
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsync(register, outputBuffer)
@@ -70,7 +84,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncMaybe]]
    */
   final def effectAsyncMaybe[E, A](
-    register: (IO[E, A] => Unit) => Option[Stream[E, A]],
+    register: (IO[Option[E], A] => Unit) => Option[Stream[E, A]],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncMaybe(register, outputBuffer)
@@ -79,7 +93,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncM]]
    */
   final def effectAsyncM[E, A](
-    register: (IO[E, A] => Unit) => IO[E, _],
+    register: (IO[Option[E], A] => Unit) => IO[E, Any],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncM(register, outputBuffer)
@@ -88,7 +102,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncInterrupt]]
    */
   final def effectAsyncInterrupt[E, A](
-    register: (IO[E, A] => Unit) => Either[Canceler, Stream[E, A]],
+    register: (IO[Option[E], A] => Unit) => Either[Canceler[Any], Stream[E, A]],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncInterrupt(register, outputBuffer)
@@ -102,7 +116,7 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.finalizer]]
    */
-  final def finalizer(finalizer: UIO[_]): Stream[Nothing, Nothing] =
+  final def finalizer(finalizer: UIO[Any]): Stream[Nothing, Nothing] =
     ZStream.finalizer(finalizer)
 
   /**
@@ -114,15 +128,24 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.flattenPar]]
    */
-  final def flattenPar[E, A](n: Long, outputBuffer: Int = 16)(
+  final def flattenPar[E, A](n: Int, outputBuffer: Int = 16)(
     fa: Stream[E, Stream[E, A]]
   ): Stream[E, A] =
     ZStream.flattenPar(n, outputBuffer)(fa)
 
   /**
+   * See [[ZStream.fromInputStream]]
+   */
+  final def fromInputStream(
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): StreamEffectChunk[Any, IOException, Byte] =
+    ZStream.fromInputStream(is, chunkSize)
+
+  /**
    * See [[ZStream.fromChunk]]
    */
-  final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
+  final def fromChunk[A](c: Chunk[A]): Stream[Nothing, A] =
     ZStream.fromChunk(c)
 
   /**
@@ -130,6 +153,18 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def fromEffect[E, A](fa: IO[E, A]): Stream[E, A] =
     ZStream.fromEffect(fa)
+
+  /**
+   * See [[ZStream.fromPull]]
+   */
+  final def fromPull[E, A](pull: Pull[Any, E, A]): Stream[E, A] =
+    ZStream.fromPull(pull)
+
+  /**
+   * See [[ZStream.paginate]]
+   */
+  final def paginate[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
+    ZStream.paginate(s)(f)
 
   /**
    * See [[ZStream.repeatEffect]]
@@ -142,7 +177,7 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def repeatEffectWith[E, A](
     fa: IO[E, A],
-    schedule: Schedule[Unit, _]
+    schedule: Schedule[Unit, Any]
   ): ZStream[Clock, E, A] = ZStream.repeatEffectWith(fa, schedule)
 
   /**
@@ -152,15 +187,38 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.fromIterable(as)
 
   /**
+   * See [[ZStream.fromIterator]]
+   */
+  final def fromIterator[E, A](iterator: IO[E, Iterator[A]]): Stream[E, A] =
+    ZStream.fromIterator(iterator)
+
+  /**
+   * See [[ZStream.fromIteratorManaged]]
+   */
+  final def fromIteratorManaged[E, A](iterator: Managed[E, Iterator[A]]): Stream[E, A] =
+    ZStream.fromIteratorManaged(iterator)
+
+  /**
    * See [[ZStream.fromQueue]]
    */
-  final def fromQueue[E, A](queue: ZQueue[_, _, Any, E, _, A]): Stream[E, A] =
+  final def fromQueue[E, A](queue: ZQueue[Nothing, Any, Any, E, Nothing, A]): Stream[E, A] =
     ZStream.fromQueue(queue)
+
+  /**
+   * See [[ZStream.fromQueueWithShutdown]]
+   */
+  final def fromQueueWithShutdown[E, A](queue: ZQueue[Nothing, Any, Any, E, Nothing, A]): Stream[E, A] =
+    ZStream.fromQueueWithShutdown(queue)
 
   /**
    * See [[ZStream.halt]]
    */
   final def halt[E](cause: Cause[E]): Stream[E, Nothing] = fromEffect(ZIO.halt(cause))
+
+  /**
+   * See [[ZStream.iterate]]
+   */
+  final def iterate[A](a: A)(f: A => A): ZStream[Any, Nothing, A] = Stream.unfold(a)(a => Some(a -> f(a)))
 
   /**
    * See [[ZStream.managed]]
@@ -171,7 +229,7 @@ object Stream extends ZStreamPlatformSpecific {
   /**
    * See [[ZStream.mergeAll]]
    */
-  final def mergeAll[E, A](n: Long, outputBuffer: Int = 16)(
+  final def mergeAll[E, A](n: Int, outputBuffer: Int = 16)(
     streams: Stream[E, A]*
   ): Stream[E, A] =
     ZStream.mergeAll[Any, E, A](n, outputBuffer)(streams: _*)
@@ -188,11 +246,9 @@ object Stream extends ZStreamPlatformSpecific {
   final def succeed[A](a: A): Stream[Nothing, A] =
     ZStream.succeed(a)
 
-  /**
-   * See [[ZStream.succeedLazy]]
-   */
+  @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    ZStream.succeedLazy(a)
+    succeed(a)
 
   /**
    * See [[ZStream.unfold]]
@@ -211,4 +267,10 @@ object Stream extends ZStreamPlatformSpecific {
    */
   final def unwrap[E, A](fa: IO[E, Stream[E, A]]): Stream[E, A] =
     ZStream.unwrap(fa)
+
+  /**
+   * See [[ZStream.unwrapManaged]]
+   */
+  final def unwrapManaged[E, A](fa: Managed[E, ZStream[Any, E, A]]): Stream[E, A] =
+    ZStream.unwrapManaged(fa)
 }

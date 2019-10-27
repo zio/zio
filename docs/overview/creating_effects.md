@@ -17,22 +17,22 @@ Using the `ZIO.succeed` method, you can create an effect that succeeds with the 
 val s1 = ZIO.succeed(42)
 ```
 
-You can also create use methods in the companion objects of the `ZIO` type aliases:
+You can also use methods in the companion objects of the `ZIO` type aliases:
 
 ```scala mdoc:silent
 val s2: Task[Int] = Task.succeed(42)
 ```
 
-The `succeed` method is eager, which means the value passed to `succeed` will be constructed _before_ the method is invoked. Although this is the most common way to construct a successful effect, you can achieve lazy construction using the `ZIO.succeedLazy` method:
+The `succeed` method is eager, which means the value passed to `succeed` will be constructed _before_ the method is invoked. Although this is the most common way to construct a successful effect, you can achieve lazy construction using the `ZIO.effectTotal` method:
 
 ```scala mdoc:silent
 lazy val bigList = (0 to 1000000).toList
 lazy val bigString = bigList.map(_.toString).mkString("\n")
 
-val s3 = ZIO.succeedLazy(bigString)
+val s3 = ZIO.effectTotal(bigString)
 ```
 
-The value inside a successful effect constructed with `ZIO.succeedLazy` will only be constructed if absolutely required.
+The value inside a successful effect constructed with `ZIO.effectTotal` will only be constructed if absolutely required.
 
 ## From Failure Values
 
@@ -148,7 +148,7 @@ def putStrLn(line: String): UIO[Unit] =
   ZIO.effectTotal(println(line))
 ```
 
-You should be careful when using `ZIO.effectTotal`&mdash;when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
+You should be careful when using `ZIO.effectTotal`—when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
 
 If you wish to refine the error type of an effect (by treating other errors as fatal), then you can use the `ZIO#refineToOrDie` method:
 

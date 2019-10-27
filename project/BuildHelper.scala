@@ -9,8 +9,7 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.1"  % "provided")
+  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.2" % "test")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -21,7 +20,6 @@ object BuildHelper {
   )
 
   private val std2xOptions = Seq(
-    "-Xfatal-warnings",
     "-language:higherKinds",
     "-language:existentials",
     "-explaintypes",
@@ -29,7 +27,7 @@ object BuildHelper {
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard"
-  )
+  ) ++ customOptions
 
   private def optimizerOptions(optimize: Boolean) =
     if (optimize)
@@ -39,14 +37,32 @@ object BuildHelper {
       )
     else Nil
 
-  val buildInfoSettings = Seq(
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-    buildInfoPackage := "zio",
-    buildInfoObject := "BuildInfo"
-  )
+  private def propertyFlag(property: String, default: Boolean) =
+    sys.props.get(property).map(_.toBoolean).getOrElse(default)
+
+  private def customOptions =
+    if (propertyFlag("fatal.warnings", false)) {
+      Seq("-Xfatal-warnings")
+    } else {
+      Nil
+    }
+
+  def buildInfoSettings(packageName: String) =
+    Seq(
+      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
+      buildInfoPackage := packageName,
+      buildInfoObject := "BuildInfo"
+    )
 
   val dottySettings = Seq(
-    crossScalaVersions += "0.16.0-RC3",
+    // Keep this consistent with the version in .circleci/config.yml
+    crossScalaVersions += "0.19.0-RC1",
+    scalacOptions ++= {
+      if (isDotty.value)
+        Seq("-noindent")
+      else
+        Seq()
+    },
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
       val old = (Compile / doc / sources).value
@@ -58,7 +74,28 @@ object BuildHelper {
     }
   )
 
-  val replSettings = Seq(
+  val replSettings = makeReplSettings {
+    """|import zio._
+       |import zio.console._
+       |import zio.duration._
+       |object replRTS extends DefaultRuntime {}
+       |import replRTS._
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+    """.stripMargin
+  }
+
+  val streamReplSettings = makeReplSettings {
+    """|import zio._
+       |import zio.console._
+       |import zio.duration._
+       |import zio.stream._
+       |object replRTS extends DefaultRuntime {}
+       |import replRTS._
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+    """.stripMargin
+  }
+
+  def makeReplSettings(initialCommandsStr: String) = Seq(
     // In the repl most warnings are useless or worse.
     // This is intentionally := as it's more direct to enumerate the few
     // options we do want than to try to subtract off the ones we don't.
@@ -73,14 +110,7 @@ object BuildHelper {
       "-Xsource:2.13",
       "-Yrepl-class-based"
     ),
-    initialCommands in Compile in console := """
-                                               |import zio._
-                                               |import zio.console._
-                                               |import zio.duration._
-                                               |object replRTS extends DefaultRuntime {}
-                                               |import replRTS._
-                                               |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
-    """.stripMargin
+    initialCommands in Compile in console := initialCommandsStr
   )
 
   def extraOptions(scalaVersion: String, optimize: Boolean) =
@@ -130,15 +160,18 @@ object BuildHelper {
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.8", "2.13.0", "2.11.12"),
+    crossScalaVersions := Seq("2.12.10", "2.13.1", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
-    libraryDependencies ++= compileOnlyDeps ++ testDeps,
+    libraryDependencies ++= testDeps,
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq()
+        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.4.4" % Provided)
       else
-        Seq(compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.1"))
+        Seq(
+          "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,
+          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full)
+        )
     },
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
@@ -188,6 +221,45 @@ object BuildHelper {
       }
     }
   )
+
+  def macroSettings = Seq(
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 13)) => Seq("-Ymacro-annotations")
+        case _             => Seq.empty
+      }
+    },
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 12 =>
+          Seq(compilerPlugin(("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)))
+        case _ => Seq.empty
+      }
+    }
+  )
+
+  def welcomeMessage = onLoadMessage := {
+    import scala.Console
+
+    def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
+
+    def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
+
+    s"""|${header(" ________ ___")}
+        |${header("|__  /_ _/ _ \\")}
+        |${header("  / / | | | | |")}
+        |${header(" / /_ | | |_| |")}
+        |${header(s"/____|___\\___/   ${version.value}")}
+        |
+        |Useful sbt tasks:
+        |${item("fmt")} - Formats source files using scalafmt
+        |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
+        |${item("testJVM")} - Runs all JVM tests
+        |${item("testJS")} - Runs all ScalaJS tests
+        |${item("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")} - Only runs tests with matching term
+        |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
+      """.stripMargin
+  }
 
   implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))

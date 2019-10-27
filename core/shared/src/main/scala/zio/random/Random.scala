@@ -31,6 +31,7 @@ object Random extends Serializable {
     def nextInt(n: Int): ZIO[R, Nothing, Int]
     val nextInt: ZIO[R, Nothing, Int]
     val nextLong: ZIO[R, Nothing, Long]
+    def nextLong(n: Long): ZIO[R, Nothing, Long]
     val nextPrintableChar: ZIO[R, Nothing, Char]
     def nextString(length: Int): ZIO[R, Nothing, String]
     def shuffle[A](list: List[A]): ZIO[R, Nothing, List[A]]
@@ -54,6 +55,7 @@ object Random extends Serializable {
       def nextInt(n: Int): UIO[Int]               = ZIO.effectTotal(SRandom.nextInt(n))
       val nextInt: UIO[Int]                       = ZIO.effectTotal(SRandom.nextInt())
       val nextLong: UIO[Long]                     = ZIO.effectTotal(SRandom.nextLong())
+      def nextLong(n: Long): UIO[Long]            = Random.nextLongWith(nextLong, n)
       val nextPrintableChar: UIO[Char]            = ZIO.effectTotal(SRandom.nextPrintableChar())
       def nextString(length: Int): UIO[String]    = ZIO.effectTotal(SRandom.nextString(length))
       def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
@@ -73,11 +75,28 @@ object Random extends Serializable {
             buffer(i2) = tmp
             buffer
         }
-      _ <- ZIO.traverse(list.length to 2 by -1) { n: Int =>
+      _ <- ZIO.traverse(list.length to 2 by -1) { (n: Int) =>
             nextInt(n).flatMap { k =>
               swap(n - 1, k)
             }
           }
       buffer <- bufferRef.get
     } yield buffer.toList
+
+  protected[zio] def nextLongWith(nextLong: UIO[Long], n: Long): UIO[Long] =
+    if (n <= 0)
+      UIO.die(new IllegalArgumentException("n must be positive"))
+    else {
+      nextLong.flatMap { r =>
+        val m = n - 1
+        if ((n & m) == 0L)
+          UIO.succeed(r & m)
+        else {
+          def loop(u: Long): UIO[Long] =
+            if (u + m - u % m < 0L) nextLong.flatMap(r => loop(r >>> 1))
+            else UIO.succeed(u % n)
+          loop(r >>> 1)
+        }
+      }
+    }
 }

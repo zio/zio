@@ -54,14 +54,22 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
   /**
+   * Replaces the success value with the one provided.
+   */
+  final def as[B](b: B): Exit[E, B] = map(_ => b)
+
+  /**
+   * Replaces the error value with the one provided.
+   */
+  final def asError[E1](e1: E1): Exit[E1, A] = mapError(_ => e1)
+
+  /**
    * Maps over both the error and value type.
    */
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
 
-  /**
-   * Replaces the value with the one provided.
-   */
-  final def const[B](b: B): Exit[E, B] = map(_ => b)
+  @deprecated("use as", "1.0.0")
+  final def const[B](b: B): Exit[E, B] = as(b)
 
   /**
    * Flat maps over the value type.
@@ -89,6 +97,13 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
       case Failure(cause) => failed(cause)
       case Success(v)     => completed(v)
     }
+
+  /**
+   * Applies the function `f` to the successful result of the `Exit` and
+   * returns the result in a new `Exit`.
+   */
+  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
+    fold(c => ZIO.succeed(halt(c)), a => f(a).run)
 
   /**
    * Retrieves the `A` if succeeded, or else returns the specified default `A`.
@@ -142,9 +157,21 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   }
 
   /**
+   * Alias for [[Exit.foreach]]
+   */
+  final def traverse[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
+    foreach(f)
+
+  /**
    * Discards the value.
    */
-  final def unit: Exit[E, Unit] = const(())
+  final def unit: Exit[E, Unit] = as(())
+
+  /**
+   * Shorthand to remove any trace from the underlying cause, if
+   * this is a failure.
+   */
+  final def untraced: Exit[E, A] = fold(c => Failure(c.untraced), Success(_))
 
   /**
    * Named alias for `<*>`.

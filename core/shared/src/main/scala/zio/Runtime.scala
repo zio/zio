@@ -107,13 +107,16 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be used at the edges of your program.
    */
-  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): scala.concurrent.Future[A] =
+  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): CancelableFuture[E, A] =
     unsafeRun(io.toFuture)
 
   /**
    * Constructs a new `Runtime` with the specified new environment.
    */
-  final def const[R1](r1: R1): Runtime[R1] = map(_ => r1)
+  final def as[R1](r1: R1): Runtime[R1] = map(_ => r1)
+
+  @deprecated("use as", "1.0.0")
+  final def const[R1](r1: R1): Runtime[R1] = as(r1)
 
   /**
    * Constructs a new `Runtime` with the specified executor.
@@ -133,7 +136,7 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified error reporter.
    */
-  final def withReportFailure(f: Cause[_] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
+  final def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
 
   /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.

@@ -51,7 +51,7 @@ The release effect is guaranteed to be executed by the runtime system, even in t
 import zio._
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.succeedLazy(???)
+def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
 def closeFile(f: File): UIO[Unit] = UIO.unit
 def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit

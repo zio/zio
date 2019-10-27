@@ -16,18 +16,16 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import com.github.ghik.silencer.silent
-
-import scala.collection.JavaConverters._
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
-import zio.Cause
-import zio._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
+import zio.{ Cause, _ }
 
 import scala.annotation.{ switch, tailrec }
+import scala.collection.JavaConverters._
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -48,9 +46,10 @@ private[zio] final class FiberContext[E, A](
   import FiberState._
 
   // Accessed from multiple threads:
-  private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
+  private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
 
-  @volatile private[this] var interrupted = false
+  @noinline
+  private[this] def interrupted = state.get.interrupt
 
   private[this] val traceExec: Boolean =
     PlatformConstants.tracingSupported && platform.tracing.tracingConfig.traceExecution
@@ -146,7 +145,7 @@ private[zio] final class FiberContext[E, A](
       case v    => k(v)
     }
 
-  private object InterruptExit extends Function[Any, IO[E, Any]] {
+  private[this] object InterruptExit extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
       val isInterruptible = interruptStatus.peekOrElse(true)
 
@@ -160,7 +159,7 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private object TracingRegionExit extends Function[Any, IO[E, Any]] {
+  private[this] object TracingRegionExit extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
       // don't use effectTotal to avoid TracingRegionExit appearing in execution trace twice with traceEffects=true
       tracingStatus.popDrop(())
@@ -173,7 +172,7 @@ private[zio] final class FiberContext[E, A](
    * Unwinds the stack, looking for the first error handler, and exiting
    * interruptible / uninterruptible regions.
    */
-  final def unwindStack(): Unit = {
+  private[this] final def unwindStack(): Unit = {
     var unwinding = true
 
     // Unwind the stack, looking for an error handler:
@@ -212,7 +211,7 @@ private[zio] final class FiberContext[E, A](
    *
    * @param io0 The `IO` to evaluate on the fiber.
    */
-  final def evaluateNow(io0: IO[E, _]): Unit = {
+  final def evaluateNow(io0: IO[E, Any]): Unit = {
     // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
     // it in `ObjectRef` and performance will plummet.
     var curZio: IO[E, Any] = io0
@@ -249,13 +248,8 @@ private[zio] final class FiberContext[E, A](
           if (tag == ZIO.Tags.Fail || !shouldInterrupt) {
             // Fiber does not need to be interrupted, but might need to yield:
             if (opcount == maxopcount) {
-              // Cannot capture `curZio` since it will be boxed into `ObjectRef`,
-              // which destroys performance. So put `curZio` into a temp val:
-              val tmpIo = curZio
-
-              curZio = ZIO.yieldNow *> tmpIo
-
-              opcount = 0
+              evaluateLater(curZio)
+              curZio = null
             } else {
               // Fiber is neither being interrupted nor needs to yield. Execute
               // the next instruction in the program:
@@ -431,9 +425,9 @@ private[zio] final class FiberContext[E, A](
                   } else ZIO.interrupt
 
                 case ZIO.Tags.Fork =>
-                  val zio = curZio.asInstanceOf[ZIO.Fork[Any, _, Any]]
+                  val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                  val value: FiberContext[_, Any] = fork(zio.value)
+                  val value: FiberContext[Any, Any] = fork(zio.value)
 
                   supervise(value)
 
@@ -483,8 +477,19 @@ private[zio] final class FiberContext[E, A](
                   )
                   curZio = push.bracket_(pop, zio.next)
 
-                case ZIO.Tags.SuspendWith =>
-                  val zio = curZio.asInstanceOf[ZIO.SuspendWith[Any, E, Any]]
+                case ZIO.Tags.EffectSuspendPartialWith =>
+                  val zio = curZio.asInstanceOf[ZIO.EffectSuspendPartialWith[Any, Any]]
+
+                  val k = zio.f
+                  if (traceExec && inTracingRegion) addTrace(k)
+
+                  curZio = try k(platform).asInstanceOf[ZIO[Any, E, Any]]
+                  catch {
+                    case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
+                  }
+
+                case ZIO.Tags.EffectSuspendTotalWith =>
+                  val zio = curZio.asInstanceOf[ZIO.EffectSuspendTotalWith[Any, E, Any]]
 
                   val k = zio.f
                   if (traceExec && inTracingRegion) addTrace(k)
@@ -497,7 +502,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.FiberRefNew =>
                   val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
 
-                  val fiberRef = new FiberRef[Any](zio.initialValue)
+                  val fiberRef = new FiberRef[Any](zio.initialValue, zio.combine)
                   fiberRefLocals.put(fiberRef, zio.initialValue)
 
                   curZio = nextInstr(fiberRef)
@@ -522,7 +527,7 @@ private[zio] final class FiberContext[E, A](
         }
       } catch {
         case _: InterruptedException =>
-          Thread.interrupted
+          Thread.interrupted()
           curZio = ZIO.interrupt
 
         // Catastrophic error handler. Any error thrown inside the interpreter is
@@ -552,13 +557,11 @@ private[zio] final class FiberContext[E, A](
 
   // We make a copy of the supervised fibers set as an array
   // to prevent mutations of the set from propagating to the caller.
-  private[this] final def getFibers: UIO[IndexedSeq[Fiber[_, _]]] =
+  private[this] final def getFibers: UIO[IndexedSeq[Fiber[Any, Any]]] =
     UIO {
       supervised.peek() match {
-        case SuperviseStatus.Unsupervised => Array.empty[Fiber[_, _]].toIndexedSeq
-        case SuperviseStatus.Supervised(set) =>
-          val arr = Array.ofDim[Fiber[_, _]](set.size)
-          set.toArray[Fiber[_, _]](arr).toIndexedSeq
+        case SuperviseStatus.Unsupervised  => Array.empty[Fiber[Any, Any]].toIndexedSeq
+        case s: SuperviseStatus.Supervised => s.fibers
       }
     }
 
@@ -571,7 +574,7 @@ private[zio] final class FiberContext[E, A](
 
     val childSupervised = supervised.peek() match {
       case SuperviseStatus.Unsupervised  => SuperviseStatus.Unsupervised
-      case SuperviseStatus.Supervised(_) => SuperviseStatus.Supervised(newWeakSet[Fiber[_, _]])
+      case SuperviseStatus.Supervised(_) => SuperviseStatus.Supervised(newWeakSet[Fiber[Any, Any]])
     }
 
     val tracingRegion = inTracingRegion
@@ -603,8 +606,10 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final val resumeAsync: IO[E, Any] => Unit =
-    zio => if (exitAsync()) evaluateLater(zio)
+  private[this] final def resumeAsync: IO[E, Any] => Unit = {
+    val neverRan = new AtomicBoolean(true)
+    zio => if (neverRan.getAndSet(false) && exitAsync()) evaluateLater(zio)
+  }
 
   final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     kill0(x => k(ZIO.done(x)))
@@ -616,13 +621,14 @@ private[zio] final class FiberContext[E, A](
 
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
-  final def inheritFiberRefs: UIO[Unit] = UIO.suspend {
+  final def inheritFiberRefs: UIO[Unit] = UIO.effectSuspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
       UIO.foreach_(locals) {
         case (fiberRef, value) =>
-          fiberRef.asInstanceOf[FiberRef[Any]].set(value)
+          val ref = fiberRef.asInstanceOf[FiberRef[Any]]
+          ref.update(old => ref.combine(old, value))
       }
   }
 
@@ -632,7 +638,7 @@ private[zio] final class FiberContext[E, A](
   private[this] final def changeSupervision(status: zio.SuperviseStatus): IO[E, Unit] = ZIO.effectTotal {
     status match {
       case zio.SuperviseStatus.Supervised =>
-        val set = newWeakSet[Fiber[_, _]]
+        val set = newWeakSet[Fiber[Any, Any]]
 
         supervised.push(SuperviseStatus.Supervised(set))
       case zio.SuperviseStatus.Unsupervised =>
@@ -641,7 +647,7 @@ private[zio] final class FiberContext[E, A](
 
   }
 
-  private[this] final def supervise(child: FiberContext[_, _]): Unit =
+  private[this] final def supervise(child: FiberContext[Any, Any]): Unit =
     supervised.peek() match {
       case SuperviseStatus.Unsupervised    =>
       case SuperviseStatus.Supervised(set) => set.add(child); ()
@@ -652,8 +658,8 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(_, observers) =>
-        val newState = Executing(FiberStatus.Suspended, observers)
+      case Executing(_, observers, interrupt) =>
+        val newState = Executing(FiberStatus.Suspended(interruptible), observers, interrupt)
 
         if (!state.compareAndSet(oldState, newState)) enterAsync()
         else if (shouldInterrupt) {
@@ -671,16 +677,15 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(FiberStatus.Suspended, observers) =>
-        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers)))
-          exitAsync()
+      case Executing(FiberStatus.Suspended(_), observers, interrupt) =>
+        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, interrupt))) exitAsync()
         else true
 
       case _ => false
     }
   }
 
-  private[this] final def exitSupervision: UIO[_] = ZIO.effectTotal(supervised.pop())
+  private[this] final def exitSupervision: UIO[Any] = ZIO.effectTotal(supervised.pop())
 
   @inline
   private[this] final def interruptible: Boolean = interruptStatus.peekOrElse(true)
@@ -714,7 +719,7 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]]) => // TODO: Dotty doesn't infer this properly
+      case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], _) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Done(v))) done(v)
         else {
           notifyObservers(v, observers)
@@ -727,8 +732,7 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def reportUnhandled(v: Exit[E, A]): Unit = v match {
     case Exit.Failure(cause) => platform.reportFailure(cause)
-
-    case _ =>
+    case _                   =>
   }
 
   @tailrec
@@ -739,28 +743,23 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(FiberStatus.Suspended, observers0) if interruptible =>
+      case Executing(FiberStatus.Suspended(true), observers0, false) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers))) kill0(k)
+        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, true))) kill0(k)
         else {
-          interrupted = true
-
           evaluateLater(ZIO.interrupt)
-
           None
         }
 
-      case Executing(status, observers0) =>
+      case Executing(status, observers0, _) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(status, observers))) kill0(k)
-        else {
-          interrupted = true
-          None
-        }
+        if (!state.compareAndSet(oldState, Executing(status, observers, true))) kill0(k)
+        else None
 
-      case Done(e) => Some(ZIO.succeed(e))
+      case Done(e) =>
+        Some(ZIO.succeed(e))
     }
   }
 
@@ -777,10 +776,10 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(status, observers0) =>
+      case Executing(status, observers0, interrupt) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(status, observers))) register0(k)
+        if (!state.compareAndSet(oldState, Executing(status, observers, interrupt))) register0(k)
         else null
 
       case Done(v) => v
@@ -813,22 +812,27 @@ private[zio] object FiberContext {
 
   sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
-    case object Running   extends FiberStatus
-    case object Suspended extends FiberStatus
+    case object Running                                extends FiberStatus
+    final case class Suspended(interruptible: Boolean) extends FiberStatus
   }
 
-  sealed trait FiberState[+E, +A] extends Serializable with Product
+  sealed abstract class FiberState[+E, +A] extends Serializable with Product {
+    def interrupt: Boolean
+  }
   object FiberState extends Serializable {
     final case class Executing[E, A](
       status: FiberStatus,
-      observers: List[Callback[Nothing, Exit[E, A]]]
+      observers: List[Callback[Nothing, Exit[E, A]]],
+      interrupt: Boolean
     ) extends FiberState[E, A]
-    final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A]
+    final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A] {
+      def interrupt = false
+    }
 
-    def Initial[E, A] = Executing[E, A](FiberStatus.Running, Nil)
+    def initial[E, A] = Executing[E, A](FiberStatus.Running, Nil, false)
   }
 
-  type FiberRefLocals = java.util.Map[FiberRef[_], Any]
+  type FiberRefLocals = java.util.Map[FiberRef[Any], Any]
 
   sealed abstract class SuperviseStatus extends Serializable with Product {
     def convert: zio.SuperviseStatus = this match {
@@ -837,7 +841,16 @@ private[zio] object FiberContext {
     }
   }
   object SuperviseStatus {
-    final case class Supervised(value: java.util.Set[Fiber[_, _]]) extends SuperviseStatus
-    case object Unsupervised                                       extends SuperviseStatus
+    final case class Supervised(value: java.util.Set[Fiber[Any, Any]]) extends SuperviseStatus {
+      def fibers: IndexedSeq[Fiber[Any, Any]] = {
+        val arr = Array.ofDim[Fiber[Any, Any]](value.size)
+        value
+          .toArray[Fiber[Any, Any]](arr)
+          .toIndexedSeq
+          // In WeakHashMap based sets elements can become null
+          .filter(_ != null)
+      }
+    }
+    case object Unsupervised extends SuperviseStatus
   }
 }

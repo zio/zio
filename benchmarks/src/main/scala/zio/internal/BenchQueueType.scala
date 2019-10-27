@@ -2,7 +2,7 @@ package zio.internal
 
 sealed abstract class BenchQueueType(val name: String) extends Product with Serializable
 
-object BenchQueueType {
+private[this] object BenchQueueType {
   def lookup(tpe: String): Option[BenchQueueType] = tpe match {
     case RingBufferPow2Type.name          => Some(RingBufferPow2Type)
     case RingBufferArbType.name           => Some(RingBufferArbType)
@@ -16,11 +16,11 @@ object BenchQueueType {
   }
 }
 
-case object RingBufferPow2Type          extends BenchQueueType("RingBufferPow2")
-case object RingBufferArbType           extends BenchQueueType("RingBufferArb")
-case object OneElementQueueType         extends BenchQueueType("OneElementQueue")
-case object OneElementQueueNoMetricType extends BenchQueueType("OneElementQueueNoMetric")
-case object LinkedQueueType             extends BenchQueueType("LinkedQueue")
-case object JucBlockingType             extends BenchQueueType("JucBlocking")
-case object JCToolsType                 extends BenchQueueType("JCTools")
-case object NotThreadSafeType           extends BenchQueueType("NotThreadSafe")
+private[this] case object RingBufferPow2Type          extends BenchQueueType("RingBufferPow2")
+private[this] case object RingBufferArbType           extends BenchQueueType("RingBufferArb")
+private[this] case object OneElementQueueType         extends BenchQueueType("OneElementQueue")
+private[this] case object OneElementQueueNoMetricType extends BenchQueueType("OneElementQueueNoMetric")
+private[this] case object LinkedQueueType             extends BenchQueueType("LinkedQueue")
+private[this] case object JucBlockingType             extends BenchQueueType("JucBlocking")
+private[this] case object JCToolsType                 extends BenchQueueType("JCTools")
+private[this] case object NotThreadSafeType           extends BenchQueueType("NotThreadSafe")

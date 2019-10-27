@@ -16,6 +16,9 @@
 
 package zio
 
+import zio.duration.Duration
+import zio.test.environment.TestEnvironment
+
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
  *
@@ -27,61 +30,147 @@ package zio
  *
  * {{{
  *  import zio.test._
- *  import zio.clock._
+ *  import zio.clock.nanoTime
+ *  import Assertion.isGreaterThan
  *
- *  class MyTest extends ZIOTestDefault[Throwable] {
- *    val tests = suite("clock") {
+ *  object MyTest extends DefaultRunnableSpec {
+ *    suite("clock") {
  *      testM("time is non-zero") {
- *        nanoTime.map(time => assert(time > 0, Predicate.isTrue))
+ *        assertM(nanoTime, isGreaterThan(0))
  *      }
  *    }
  *  }
  * }}}
  */
-package object test {
-  type PredicateResult = AssertResult[PredicateValue]
-  type TestResult      = AssertResult[FailureDetails]
-
-  type ExecutedSpec[-R, +E, +L] = ZSpec[R, E, (L, TestResult)]
-
-  type TaskSpec[+L] = ZSpec[Any, Throwable, L]
-  val TaskSpec = ZSpec
-
-  type RIOSpec[-R, +L] = ZSpec[R, Throwable, L]
-  val RIOSpec = ZSpec
-
-  type IOSpec[+E, +L] = ZSpec[Any, E, L]
-  val IOSpec = ZSpec
+package object test extends CheckVariants {
+  type AssertResult = BoolAlgebra[AssertionValue]
+  type TestResult   = BoolAlgebra[FailureDetails]
 
   /**
-   * Asserts the given value satisfies the given predicate.
+   * A `TestReporter[L, E, S]` is capable of reporting test results annotated
+   * with labels `L`, error type `E`, and success type `S`.
    */
-  final def assert[A](value: => A, predicate: Predicate[A]): TestResult =
-    predicate.run(value).map(fragment => FailureDetails.Predicate(fragment, PredicateValue(predicate, value)))
+  type TestReporter[-L, -E, -S] = (Duration, ExecutedSpec[L, E, S]) => URIO[TestLogger, Unit]
+
+  object TestReporter {
+
+    /**
+     * TestReporter that does nothing
+     */
+    final val silent: TestReporter[Any, Any, Any] = (_, _) => ZIO.unit
+  }
 
   /**
-   * Asserts the boolean value is false.
+   * A `TestExecutor[R, L, T, E, S]` is capable of executing specs containing
+   * tests of type `T`, annotated with labels of type `L`, that require an
+   * environment `R` and may fail with an `E` or succeed with a `S`.
    */
-  final def assertFalse(value: => Boolean): TestResult = assert(value, Predicate.isFalse)
+  type TestExecutor[+R, L, -T, E, +S] = (Spec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[L, E, S]]
 
   /**
-   * Asserts the boolean value is true.
+   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
+   * having no requirements on error or environment.
    */
-  final def assertTrue(value: => Boolean): TestResult = assert(value, Predicate.isTrue)
+  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any, Nothing, Any]
+
+  /**
+   * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
+   * and may fail with an `E` or succeed with a `S`.
+   */
+  type ZTest[-R, +E, +S] = ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+
+  /**
+   * A `ZSpec[R, E, L, S]` is the canonical spec for testing ZIO programs. The
+   * spec's test type is a ZIO effect that requires an `R`, might fail with an
+   * `E`, might succeed with an `S`, and whose nodes are annotated with labels
+   * `L`.
+   */
+  type ZSpec[-R, +E, +L, +S] = Spec[R, E, L, Either[TestFailure[Nothing], TestSuccess[S]]]
+
+  /**
+   * An `ExecutedSpec` is a spec that has been run to produce test results.
+   */
+  type ExecutedSpec[+L, +E, +S] = Spec[Any, Nothing, L, Either[TestFailure[E], TestSuccess[S]]]
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
+  final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
+    assertion.run(value).flatMap { fragment =>
+      def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
+        if (whole.assertion == failureDetails.assertion.head.assertion)
+          BoolAlgebra.success(failureDetails)
+        else {
+          val satisfied = whole.assertion.test(whole.value)
+          val fragment  = whole.assertion.run(whole.value)
+          val result    = if (satisfied) fragment else !fragment
+          result.flatMap { fragment =>
+            loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
+          }
+        }
+      loop(fragment, FailureDetails(::(AssertionValue(assertion, value), Nil)))
+    }
+
+  /**
+   * Asserts that the given test was completed.
+   */
+  final val assertCompletes: TestResult =
+    assert(true, Assertion.isTrue)
+
+  /**
+   * Checks the assertion holds for the given effectfully-computed value.
+   */
+  final def assertM[R, E, A](value: ZIO[R, E, A], assertion: Assertion[A]): ZIO[R, E, TestResult] =
+    value.map(assert(_, assertion))
+
+  /**
+   * Creates a failed test result with the specified runtime cause.
+   */
+  final def fail[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
+    ZIO.halt(cause)
+
+  /**
+   * Creates an ignored test result.
+   */
+  final val ignore: ZTest[Any, Nothing, Nothing] =
+    ZIO.succeed(Right(TestSuccess.Ignored))
+
+  /**
+   * Passes platform specific information to the specified function, which will
+   * use that information to create a test. If the platform is neither ScalaJS
+   * nor the JVM, an ignored test result will be returned.
+   */
+  final def platformSpecific[R, E, A, S](js: => A, jvm: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
+    if (TestPlatform.isJS) f(js)
+    else if (TestPlatform.isJVM) f(jvm)
+    else ignore
 
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = ZSpec.Suite(label, specs.toVector)
-
-  /**
-   * Builds a spec with a single effectful test.
-   */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = ZSpec.Test(label, assertion)
+  final def suite[R, E, L, T](label: L)(specs: Spec[R, E, L, T]*): Spec[R, E, L, T] =
+    Spec.suite(label, ZIO.succeed(specs.toVector), None)
 
   /**
    * Builds a spec with a single pure test.
    */
-  final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
-    testM(label)(ZIO.succeedLazy(assertion))
+  final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
+    testM(label)(ZIO.effectTotal(assertion))
+
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
+    Spec.test(
+      label,
+      assertion.map { result =>
+        result.failures match {
+          case None           => Right(TestSuccess.Succeeded(BoolAlgebra.unit))
+          case Some(failures) => Left(TestFailure.Assertion(failures))
+        }
+      }
+    )
+
+  val defaultTestRunner: TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any] =
+    TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
 }

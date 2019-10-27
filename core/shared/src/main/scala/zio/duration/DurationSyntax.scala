@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit._
 
 class DurationSyntax(n: Long) {
 
-  protected def asDuration(unit: TimeUnit): Duration = Duration(n, unit)
+  private[this] def asDuration(unit: TimeUnit): Duration = Duration(n, unit)
 
   final def nanoseconds = asDuration(NANOSECONDS)
   final def nanos       = nanoseconds

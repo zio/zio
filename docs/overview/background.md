@@ -46,7 +46,7 @@ val example1: Console[Unit] =
 )
 ```
 
-This immutable value doesn't do anything&mdash;it just _describes_ a program that prints out a message, asks for input, and prints out another message that depends on the input. 
+This immutable value doesn't do anything—it just _describes_ a program that prints out a message, asks for input, and prints out another message that depends on the input. 
 
 Although this program is just a model, we can translate the model into procedural effects quite simply using an _interpreter_, which recurses on the data structure, translating every instruction into the side-effect that it describes:
 

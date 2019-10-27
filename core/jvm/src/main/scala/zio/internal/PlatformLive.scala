@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import java.util.concurrent.{ Executor => _, _ }
 import java.util.{ Collections, WeakHashMap, Map => JMap }
 import zio.Cause
 import zio.internal.stacktracer.Tracer
@@ -25,13 +24,23 @@ import zio.internal.tracing.TracingConfig
 
 import scala.concurrent.ExecutionContext
 
-import scala.concurrent.ExecutionContext
-
 object PlatformLive {
   lazy val Default = makeDefault()
   lazy val Global  = fromExecutionContext(ExecutionContext.global)
 
-  final def makeDefault(yieldOpCount: Int = 2048): Platform = fromExecutor(ExecutorUtil.makeDefault(yieldOpCount))
+  /**
+   * A Runtime with settings suitable for benchmarks, specifically
+   * with Tracing & auto-yielding disabled.
+   *
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's
+   * an optional feature and it's not valid to compare the performance
+   * of ZIO with enabled Tracing with effect types _without_ a comparable
+   * feature.
+   * */
+  lazy val Benchmark = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
+
+  final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
+    fromExecutor(Executor.makeDefault(yieldOpCount))
 
   final def fromExecutor(executor0: Executor) =
     new Platform {
@@ -50,7 +59,7 @@ object PlatformLive {
         } catch { case _: Throwable => throw t }
       }
 
-      def reportFailure(cause: Cause[_]): Unit =
+      def reportFailure(cause: Cause[Any]): Unit =
         if (!cause.interrupted)
           System.err.println(cause.prettyPrint)
 
@@ -60,70 +69,7 @@ object PlatformLive {
     }
 
   final def fromExecutionContext(ec: ExecutionContext): Platform =
-    fromExecutor(Executor.fromExecutionContext(1024)(ec))
+    fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
 
-  object ExecutorUtil {
-    final def makeDefault(yieldOpCount: Int): Executor =
-      fromThreadPoolExecutor(_ => yieldOpCount) {
-        val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-        val maxPoolSize   = corePoolSize
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new LinkedBlockingQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-async", true)
-
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-        threadPool.allowCoreThreadTimeOut(true)
-
-        threadPool
-      }
-
-    final def fromThreadPoolExecutor(yieldOpCount0: ExecutionMetrics => Int)(
-      es: ThreadPoolExecutor
-    ): Executor =
-      new Executor {
-        private[this] def metrics0 = new ExecutionMetrics {
-          def concurrency: Int = es.getMaximumPoolSize()
-
-          def capacity: Int = {
-            val queue = es.getQueue()
-
-            val remaining = queue.remainingCapacity()
-
-            if (remaining == Int.MaxValue) remaining
-            else remaining + queue.size
-          }
-
-          def size: Int = es.getQueue().size
-
-          def workersCount: Int = es.getPoolSize()
-
-          def enqueuedCount: Long = es.getTaskCount()
-
-          def dequeuedCount: Long = enqueuedCount - size.toLong
-        }
-
-        def metrics = Some(metrics0)
-
-        def yieldOpCount = yieldOpCount0(metrics0)
-
-        def submit(runnable: Runnable): Boolean =
-          try {
-            es.execute(runnable)
-
-            true
-          } catch {
-            case _: RejectedExecutionException => false
-          }
-
-        def here = false
-      }
-  }
+  final val defaultYieldOpCount = 2048
 }

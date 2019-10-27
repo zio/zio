@@ -36,6 +36,8 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
 
   /**
    * Reads the value from the `Ref`.
+   *
+   * @return `UIO[A]` value from the `Ref`
    */
   final def get: UIO[A] = value.get
 
@@ -43,6 +45,12 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * Atomically modifies the `RefM` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
+   *
+   * @param f function which computes a return value for the modification
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @tparam B type of the `RefM`
+   * @return `ZIO[R, E, B]` modified value of the `RefM`
    */
   final def modify[R, E, B](f: A => ZIO[R, E, (B, A)]): ZIO[R, E, B] =
     for {
@@ -61,6 +69,13 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * a return value for the modification if the function is defined in the current value
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
+   *
+   * @param default default value to be returned if the partial function is not defined on the current value
+   * @param pf partial function to be computed on the current value if defined on the current value
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @tparam B type of the `RefM`
+   * @return `ZIO[R, E, B]` modified value of the `RefM`
    */
   final def modifySome[R, E, B](default: B)(pf: PartialFunction[A, ZIO[R, E, (B, A)]]): ZIO[R, E, B] =
     for {
@@ -81,18 +96,29 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
   /**
    * Writes a new value to the `Ref`, with a guarantee of immediate
    * consistency (at some cost to performance).
+   *
+   * @param a value to be written to the `RefM`
+   * @return `UIO[Unit]`
    */
   final def set(a: A): UIO[Unit] = value.set(a)
 
   /**
    * Writes a new value to the `Ref` without providing a guarantee of
    * immediate consistency.
+   *
+   * @param a value to be written to the `RefM`
+   * @return `UIO[Unit]`
    */
   final def setAsync(a: A): UIO[Unit] = value.setAsync(a)
 
   /**
    * Atomically modifies the `RefM` with the specified function, returning the
    * value immediately after modification.
+   *
+   * @param f function to atomically modify the `RefM`
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @return `ZIO[R, E, A]` modified value of the `RefM`
    */
   final def update[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
     modify(a => f(a).map(a => (a, a)))
@@ -100,6 +126,11 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
+   *
+   * @param pf partial function to atomically modify the `RefM`
+   * @tparam R environment of the effect
+   * @tparam E error type
+   * @return `ZIO[R, E, A]` modified value of the `RefM`
    */
   final def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
     modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
@@ -123,11 +154,17 @@ object RefM extends Serializable {
 
   /**
    * Creates a new `RefM` with the specified value.
+   *
+   * @param a value of the new `RefM`
+   * @param n requested capacity for the bounded queue
+   * @param onDefect function that handles defects
+   * @tparam A type of the value
+   * @return `UIO[RefM[A]]`
    */
   final def make[A](
     a: A,
     n: Int = 1000,
-    onDefect: Cause[_] => UIO[Unit] = _ => IO.unit
+    onDefect: Cause[Any] => UIO[Unit] = _ => IO.unit
   ): UIO[RefM[A]] =
     for {
       ref   <- Ref.make(a)

@@ -12,7 +12,7 @@ import zio.internal.impls._
 @Fork(1)
 @Threads(1)
 @State(Scope.Thread)
-class OneElementQueueSeqBenchmark {
+private[this] class OneElementQueueSeqBenchmark {
   type QueueElement = () => Int
 
   def mkEl(): QueueElement  = () => 1

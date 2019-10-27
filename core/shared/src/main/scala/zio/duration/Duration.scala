@@ -60,6 +60,8 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
 
   /** The `java.time.Duration` returned for an infinite Duration is technically "only" ~2x10^16 hours long (`Long.MaxValue` number of seconds) */
   def asJava: JavaDuration
+
+  def render: String
 }
 
 object Duration {
@@ -104,6 +106,16 @@ object Duration {
     override def asScala: ScalaDuration = ScalaFiniteDuration(nanos, TimeUnit.NANOSECONDS)
 
     override def asJava: JavaDuration = JavaDuration.ofNanos(nanos)
+
+    override def render: String =
+      toMillis match {
+        case 0                       => s"$nanos ns"
+        case millis if millis < 1000 => s"$millis ms"
+        case millis if millis < 60000 && millis % 1000 == 0 => s"${millis / 1000} s"
+        case millis if millis < 60000 => s"${millis / 1000} s ${millis % 1000} ms"
+        case millis if (millis % 60000) / 1000 == 0 => s"${millis / 60000} m"
+        case millis => s"${millis / 60000} m ${(millis % 60000) / 1000} s"
+      }
   }
 
   case object Infinity extends Duration {
@@ -124,6 +136,8 @@ object Duration {
     override def asScala: ScalaDuration = ScalaDuration.Inf
 
     override def asJava: JavaDuration = JavaDuration.ofSeconds(Long.MaxValue)
+
+    override def render: String = "Infinity"
   }
 
   final def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))

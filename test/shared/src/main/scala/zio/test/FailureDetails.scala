@@ -19,8 +19,4 @@ package zio.test
 /**
  * `FailureDetails` keeps track of details relevant to failures.
  */
-sealed trait FailureDetails
-object FailureDetails {
-  final case class Predicate(fragment: PredicateValue, whole: PredicateValue) extends FailureDetails
-  final case class Other(message: String)                                     extends FailureDetails
-}
+final case class FailureDetails(assertion: ::[AssertionValue], gen: Option[GenFailureDetails] = None)

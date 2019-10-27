@@ -19,75 +19,65 @@ package zio.stream
 import zio._
 
 private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] { self =>
-  import ZSink.Step
 
   override def contramap[C](f: C => A): SinkPure[E, A0, C, B] =
     new SinkPure[E, A0, C, B] {
       type State = self.State
-      val initialPure = self.initialPure
-      def stepPure(s: State, c: C) =
-        self.stepPure(s, f(c))
-      def extractPure(s: State) = self.extractPure(s)
+      val initialPure                  = self.initialPure
+      def stepPure(state: State, c: C) = self.stepPure(state, f(c))
+      def extractPure(state: State)    = self.extractPure(state)
+      def cont(state: State)           = self.cont(state)
     }
 
   override def dimap[C, D](f: C => A)(g: B => D): SinkPure[E, A0, C, D] =
     new SinkPure[E, A0, C, D] {
       type State = self.State
-      val initialPure = self.initialPure
-      def stepPure(s: State, c: C) =
-        self.stepPure(s, f(c))
-      def extractPure(s: State) = self.extractPure(s).map(g)
+      val initialPure                  = self.initialPure
+      def stepPure(state: State, c: C) = self.stepPure(state, f(c))
+      def extractPure(state: State)    = self.extractPure(state).map { case (b, leftover) => (g(b), leftover) }
+      def cont(state: State)           = self.cont(state)
     }
 
-  override def extract(s: State) = IO.fromEither(extractPure(s))
+  def extract(state: State) = IO.fromEither(extractPure(state))
 
-  def extractPure(s: State): Either[E, B]
+  def extractPure(state: State): Either[E, (B, Chunk[A0])]
 
-  override def filter[A1 <: A](f: A1 => Boolean): SinkPure[E, A0, A1, B] =
-    new SinkPure[E, A0, A1, B] {
-      type State = self.State
-      val initialPure = self.initialPure
+  def initial = IO.succeed(initialPure)
 
-      def stepPure(state: State, a: A1) =
-        if (f(a)) self.stepPure(state, a)
-        else Step.more(state)
-
-      def extractPure(state: State) = self.extractPure(state)
-    }
-
-  override def initial = IO.succeed(initialPure)
-
-  def initialPure: Step[State, Nothing]
+  def initialPure: State
 
   override def map[C](f: B => C): SinkPure[E, A0, A, C] =
     new SinkPure[E, A0, A, C] {
       type State = self.State
-      val initialPure              = self.initialPure
-      def stepPure(s: State, a: A) = self.stepPure(s, a)
-      def extractPure(s: State)    = self.extractPure(s).map(f)
+      val initialPure                  = self.initialPure
+      def stepPure(state: State, a: A) = self.stepPure(state, a)
+      def extractPure(state: State)    = self.extractPure(state).map { case (b, leftover) => (f(b), leftover) }
+      def cont(state: State)           = self.cont(state)
     }
 
   override def mapRemainder[A1](f: A0 => A1): SinkPure[E, A1, A, B] =
     new SinkPure[E, A1, A, B] {
       type State = self.State
-      val initialPure = self.initialPure
-      def stepPure(s: State, a: A) =
-        Step.map(self.stepPure(s, a))(f)
-      def extractPure(s: State) = self.extractPure(s)
+      val initialPure                  = self.initialPure
+      def stepPure(state: State, a: A) = self.stepPure(state, a)
+      def extractPure(state: State)    = self.extractPure(state).map { case (b, leftover) => (b, leftover.map(f)) }
+      def cont(state: State)           = self.cont(state)
     }
 
   override def step(s: State, a: A) = IO.succeed(stepPure(s, a))
 
-  def stepChunkPure[A1 <: A](s: State, as: Chunk[A1]): Step[State, A0] = {
+  final def stepChunkPure[A00 >: A0, A1 <: A](state: State, as: Chunk[A1])(
+    implicit ev: A1 =:= A00
+  ): (State, Chunk[A00]) = {
     val len = as.length
 
-    def loop(s: Step[State, A0], i: Int): Step[State, A0] =
-      if (i >= len) s
-      else if (Step.cont(s)) loop(stepPure(Step.state(s), as(i)), i + 1)
-      else s
+    def loop(state: State, i: Int): (State, Chunk[A00]) =
+      if (i >= len) (state, Chunk.empty)
+      else if (self.cont(state)) loop(stepPure(state, as(i)), i + 1)
+      else (state, as.map(ev).splitAt(i)._2)
 
-    loop(Step.more(s), 0)
+    loop(state, 0)
   }
 
-  def stepPure(s: State, a: A): Step[State, A0]
+  def stepPure(s: State, a: A): State
 }
