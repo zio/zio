@@ -1522,8 +1522,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
-  def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B] {
+  final def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
+    ZStream {
       for {
         state <- Ref.make(s1).toManaged_
         as    <- self.process
