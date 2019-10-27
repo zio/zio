@@ -65,6 +65,46 @@ object EnvironmentSpec
             _       <- TestSystem.setLineSeparator(",")
             lineSep <- system.lineSeparator
           } yield assert(lineSep, equalTo(","))
+        },
+        testM("mapTestClock maps the `TestClock` implementation in the test environment") {
+          for {
+            _               <- TestClock.setTime(1.millis)
+            testEnvironment <- ZIO.environment[TestEnvironment]
+            testClock       <- TestClock.makeTest(TestClock.DefaultData)
+            result <- clock
+                       .currentTime(TimeUnit.MILLISECONDS)
+                       .provide(testEnvironment.mapTestClock(_ => testClock))
+          } yield assert(result, equalTo(0L))
+        },
+        testM("mapTestConsole maps the `TestConsole` implementation in the test environment") {
+          for {
+            _               <- TestConsole.feedLines("Input 1", "Input 2")
+            testEnvironment <- ZIO.environment[TestEnvironment]
+            testConsole     <- TestConsole.makeTest(TestConsole.DefaultData)
+            result <- console.getStrLn
+                       .provide(testEnvironment.mapTestConsole(_ => testConsole))
+                       .run
+          } yield assert(result, fails(anything))
+        },
+        testM("mapTestRandom maps the `TestRandom` implementation in the test environment") {
+          for {
+            n               <- random.nextInt
+            _               <- TestRandom.feedInts(n)
+            testEnvironment <- ZIO.environment[TestEnvironment]
+            testRandom      <- TestRandom.makeTest(TestRandom.DefaultData)
+            result <- random.nextInt
+                       .provide(testEnvironment.mapTestRandom(_ => testRandom))
+          } yield assert(result, not(equalTo(n)))
+        },
+        testM("mapTestSystem maps the `TestSystem` implementation in the test environment") {
+          for {
+            _               <- TestSystem.putEnv("k1", "v1")
+            testEnvironment <- ZIO.environment[TestEnvironment]
+            testSystem      <- TestSystem.makeTest(TestSystem.DefaultData)
+            result <- system
+                       .env("k1")
+                       .provide(testEnvironment.mapTestSystem(_ => testSystem))
+          } yield assert(result, isNone)
         }
       )
     )
