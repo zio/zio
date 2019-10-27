@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
+import zio.{ Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration._
 import zio.clock.Clock
 import zio.system
