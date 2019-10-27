@@ -287,11 +287,11 @@ object ZScheduleSpec
         ),
         testM("`ensuring` should only call finalizer once.") {
           for {
-            ref <- Ref.make(0)
-            sched = Schedule.stop.ensuring(ref.update(_ + 1))
-            s <- sched.initial
-            _  <- sched.update((), s).flip
-            _  <- sched.update((), s).flip
+            ref    <- Ref.make(0)
+            sched  = Schedule.stop.ensuring(ref.update(_ + 1))
+            s      <- sched.initial
+            _      <- sched.update((), s).flip
+            _      <- sched.update((), s).flip
             result <- ref.get.map(assert(_, equalTo(1)))
           } yield result
         },
