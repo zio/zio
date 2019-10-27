@@ -1,7 +1,6 @@
 package zio.test
 
 import zio.test.TestUtils.{ report, scope }
-import zio.test.environment._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 

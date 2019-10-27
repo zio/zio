@@ -10,10 +10,10 @@ object RandomSpec
     extends ZIOBaseSpec(
       suite("RandomSpec")(
         testM("check clearBooleans")(checkClear(_.nextBoolean)(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
+        testM("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
         testM("check clearChars")(
           checkClear(_.nextPrintableChar)(_.feedChars(_: _*))(_.clearChars)(_.nextPrintableChar)
         ),
-        testM("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
         testM("check clearDoubles")(checkClear(_.nextDouble)(_.feedDoubles(_: _*))(_.clearDoubles)(_.nextDouble)),
         testM("check clearFloats")(checkClear(_.nextFloat)(_.feedFloats(_: _*))(_.clearFloats)(_.nextFloat)),
         testM("check clearInts")(checkClear(_.nextInt)(_.feedInts(_: _*))(_.clearInts)(_.nextInt)),
@@ -34,8 +34,8 @@ object RandomSpec
         testM("check nextGaussian")(forAllEqualGaussian),
         testM("check nextInt")(forAllEqual(_.nextInt)(_.nextInt())),
         testM("check nextLong")(forAllEqual(_.nextLong)(_.nextLong())),
-        testM("check nextString")(forAllEqualN(_.nextString(_))(_.nextString(_))),
         testM("check nextPrintableChar")(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar())),
+        testM("check nextString")(forAllEqualN(_.nextString(_))(_.nextString(_))),
         testM("bounded nextInt")(forAllEqualN(_.nextInt(_))(_.nextInt(_))),
         testM("bounded nextInt generates values within the bounds")(forAllBounded(_.nextInt)(_.nextInt(_))),
         testM("bounded nextLong generates values within the bounds")(forAllBounded(_.nextLong)(_.nextLong(_))),
