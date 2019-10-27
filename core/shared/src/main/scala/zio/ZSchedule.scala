@@ -354,14 +354,15 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * will be run. The `Schedule` may not initialize or the driver of the
    * schedule may not run to completion. However, if the `Schedule` ever
    * decides not to continue, then the finalizer will be run.
-   *
-   * Note that the finalizer will be run multiple times if the schedule tries
-   * to advance multiple times. Whatever is done in the finalizer should be idempotent.
    */
   final def ensuring(finalizer: UIO[_]): ZSchedule[R, A, B] =
-    updated(
-      update => (a: A, s: State) => update(a, s).tapError(_ => finalizer)
-    )
+    new ZSchedule[R, A, B] {
+      type State = (self.State, Ref[UIO[_]])
+      val initial = self.initial <*> Ref.make(finalizer)
+      val extract = (a: A, s: State) => self.extract(a, s._1)
+      val update = (a: A, s: State) =>
+        self.update(a, s._1).tapError(_ => s._2.modify(fin => (fin, ZIO.unit)).flatten).map((_, s._2))
+    }
 
   /**
    * Puts this schedule into the first element of a tuple, and passes along

@@ -285,6 +285,16 @@ object ZScheduleSpec
             } yield assert(v.isEmpty, equalTo(true)) && assert(finalizerV.isDefined, equalTo(true))
           }
         ),
+        testM("`ensuring` should only call finalizer once.") {
+          for {
+            ref <- Ref.make(0)
+            sched = Schedule.stop.ensuring(ref.update(_ + 1))
+            s <- sched.initial
+            _  <- sched.update((), s).flip
+            _  <- sched.update((), s).flip
+            result <- ref.get.map(assert(_, equalTo(1)))
+          } yield result
+        },
         testM("Retry type parameters should infer correctly") {
           def foo[O](v: O): ZIO[Any with Clock, Error, Either[Failure, Success[O]]] =
             ZIO.fromFuture { _ =>
