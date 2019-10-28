@@ -135,7 +135,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
     }
 
   override def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): StreamEffect[R, E, B] =
-    StreamEffect[R, E, B] {
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var state = s1

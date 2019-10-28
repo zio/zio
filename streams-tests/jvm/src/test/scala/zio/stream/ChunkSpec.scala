@@ -5,7 +5,7 @@ import zio.{ IO, UIO }
 import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test._
-import zio.test.Assertion.equalTo
+import zio.test.Assertion.{ equalTo, isLeft }
 import ChunkUtils._
 
 case class Value(i: Int) extends AnyVal
@@ -42,6 +42,17 @@ object ChunkSpec
             assert(c.fold(s0)(f), equalTo(c.toArray.foldLeft(s0)(f)))
           }
         },
+        test("mapAccum") {
+          assert(Chunk(1, 1, 1).mapAccum(0)((s, el) => (s + el, s + el)), equalTo((3, Chunk(1, 2, 3))))
+        },
+        suite("mapAccumM")(
+          testM("mapAccumM happy path") {
+            assertM(Chunk(1, 1, 1).mapAccumM(0)((s, el) => UIO.succeed((s + el, s + el))), equalTo((3, Chunk(1, 2, 3))))
+          },
+          testM("mapAccumM error") {
+            Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.fail("Ouch")).either.map(assert(_, isLeft(equalTo("Ouch"))))
+          }
+        ),
         testM("map") {
           val fn = Gen.function[Random with Sized, Int, String](stringGen)
           check(smallChunks(intGen), fn) { (c, f) =>
