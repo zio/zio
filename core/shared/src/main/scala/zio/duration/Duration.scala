@@ -109,6 +109,7 @@ object Duration {
 
     override def render: String =
       toMillis match {
+        case 0                       => s"$nanos ns"
         case millis if millis < 1000 => s"$millis ms"
         case millis if millis < 60000 && millis % 1000 == 0 => s"${millis / 1000} s"
         case millis if millis < 60000 => s"${millis / 1000} s ${millis % 1000} ms"

@@ -1,5 +1,5 @@
 ---
-id: about_contributor
+id: about_contributing
 title:  "ZIO Contributor Guidelines"
 ---
 
@@ -8,8 +8,6 @@ Thank you for your interest in contributing to ZIO, which is a small, zero-depen
 We welcome contributions from all people! You will learn about functional programming, and you will add your own unique touch to the ZIO project. We are happy to help you to get started and to hear your suggestions and answer your questions.
 
 _You too can contribute to ZIO, we believe in you!_
-
-Please read the [Contributor License Agreement](#ZIO-Contributor-License-Agreement) before continuing below.
 
 # Contributing
 
@@ -235,15 +233,15 @@ For patent claims including, without limitation, method, process, and apparatus 
 
 Based on the grant of rights in Sections 2.1 and 2.2, if We include Your Contribution in a Material, We may license the Contribution under any license, including copyleft, permissive, commercial, or proprietary licenses. As a condition on the exercise of this right, We agree to also license the Contribution under the terms of the license or licenses which We are using for the Material on the Submission Date.
 
-### 2.4 Moral Rights.
+### 2.4 Moral Rights
 
 If moral rights apply to the Contribution, to the maximum extent permitted by law, You waive and agree not to assert such moral rights against Us or our successors in interest, or any of our licensees, either direct or indirect.
 
-### 2.5 Our Rights.
+### 2.5 Our Rights
 
 You acknowledge that We are not obligated to use Your Contribution as part of the Material and may decide to include any Contribution We consider appropriate.
 
-### 2.6 Reservation of Rights.
+### 2.6 Reservation of Rights
 
 Any rights not expressly licensed under this section are expressly reserved by You.
 

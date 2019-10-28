@@ -32,8 +32,8 @@ object PlatformLive {
    * A Runtime with settings suitable for benchmarks, specifically
    * with Tracing & auto-yielding disabled.
    *
-   * Tracing adds a constant ~2x overhead on FlatMaps, however it's
-   * an optional feature and it's not valid to compare performance
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's
+   * an optional feature and it's not valid to compare the performance
    * of ZIO with enabled Tracing with effect types _without_ a comparable
    * feature.
    * */
@@ -59,7 +59,7 @@ object PlatformLive {
         } catch { case _: Throwable => throw t }
       }
 
-      def reportFailure(cause: Cause[_]): Unit =
+      def reportFailure(cause: Cause[Any]): Unit =
         if (!cause.interrupted)
           System.err.println(cause.prettyPrint)
 

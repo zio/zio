@@ -9,7 +9,7 @@ import scala.collection.immutable.Range
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class ArrayFillBenchmarks {
+class ArrayFillBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
