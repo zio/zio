@@ -77,6 +77,26 @@ object TestAspectSpec
             anything
           )
         ),
+        testM("flaky retries a test that fails") {
+          for {
+            ref <- Ref.make(0)
+            spec = testM("flaky test") {
+              assertM(ref.update(_ + 1), equalTo(100))
+            } @@ flaky
+            result <- succeeded(spec)
+            n      <- ref.get
+          } yield assert(result, isTrue) && assert(n, equalTo(100))
+        },
+        testM("flaky retries a test that dies") {
+          for {
+            ref <- Ref.make(0)
+            spec = testM("flaky test that dies") {
+              assertM(ref.update(_ + 1).filterOrDieMessage(_ >= 100)("die"), equalTo(100))
+            } @@ flaky
+            result <- succeeded(spec)
+            n      <- ref.get
+          } yield assert(result, isTrue) && assert(n, equalTo(100))
+        },
         test("ifEnv runs a test if environment variable satisfies assertion") {
           assert(true, isTrue)
         } @@ ifEnv("PATH", containsString("bin")) @@ success @@ jvmOnly,
