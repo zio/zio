@@ -1055,7 +1055,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Repeats are done in addition to the first execution so that
    * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
    */
-  final def repeat[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZIO[R1 with Clock, E, B] =
+  final def repeat[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZIO[R1, E, B] =
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
@@ -1066,7 +1066,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def repeatOrElse[R1 <: R, E2, B](
     schedule: ZSchedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  ): ZIO[R1 with Clock, E2, B] =
+  ): ZIO[R1, E2, B] =
     repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
 
   /**
@@ -1076,19 +1076,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def repeatOrElseEither[R1 <: R, B, E2, C](
     schedule: ZSchedule[R1, A, B],
-    orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
-  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
-    def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
-      self.foldM(
-        e => orElse(e, last.map(_())).map(Left(_)),
-        a =>
-          schedule.update(a, state).flatMap { step =>
-            if (!step.cont) ZIO.succeedRight(step.finish())
-            else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-          }
-      )
-
-    schedule.initial.flatMap(loop(None, _))
+    orElse: (E, Option[B]) => ZIO[R1, E2, C]
+  ): ZIO[R1, E2, Either[C, B]] = {
+    def loop(last: A, state: schedule.State): ZIO[R1, E2, Either[C, B]] =
+      schedule
+        .update(last, state)
+        .foldM(
+          _ => ZIO.succeedRight(schedule.extract(last, state)),
+          s =>
+            self.foldM(
+              e => orElse(e, Some(schedule.extract(last, state))).map(Left(_)),
+              a => loop(a, s)
+            )
+        )
+    self.foldM(
+      orElse(_, None).map(Left(_)),
+      a => schedule.initial.flatMap(loop(a, _))
+    )
   }
 
   /**
@@ -1098,9 +1102,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * "execute `io` and in case of failure, try again once".
    */
   @silent("never used")
-  final def retry[R1 <: R, E1 >: E, S](
-    policy: ZSchedule[R1, E1, S]
-  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E, A] =
+  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
     retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
 
   /**
@@ -1112,7 +1114,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
     policy: ZSchedule[R1, E1, S],
     orElse: (E, S) => ZIO[R1, E2, A2]
-  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E2, A2] =
+  )(implicit ev: CanFail[E]): ZIO[R1, E2, A2] =
     retryOrElseEither(policy, orElse).map(_.merge)
 
   /**
@@ -1124,18 +1126,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def retryOrElseEither[R1 <: R, E1 >: E, S, E2, B](
     policy: ZSchedule[R1, E1, S],
     orElse: (E, S) => ZIO[R1, E2, B]
-  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E2, Either[B, A]] = {
-    def loop(state: policy.State): ZIO[R1 with Clock, E2, Either[B, A]] =
+  )(implicit ev: CanFail[E]): ZIO[R1, E2, Either[B, A]] = {
+    def loop(state: policy.State): ZIO[R1, E2, Either[B, A]] =
       self.foldM(
         err =>
           policy
             .update(err, state)
-            .flatMap(
-              decision =>
-                if (decision.cont) clock.sleep(decision.delay) *> loop(decision.state)
-                else orElse(err, decision.finish()).map(Left(_))
+            .foldM(
+              _ => orElse(err, policy.extract(err, state)).map(Left(_)),
+              loop
             ),
-        succ => ZIO.succeedRight(succ)
+        ZIO.succeedRight
       )
 
     policy.initial.flatMap(loop)
