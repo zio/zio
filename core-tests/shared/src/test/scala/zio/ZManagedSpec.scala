@@ -689,11 +689,11 @@ object ZManagedSpec
                            for {
                              fiber        <- canceler.fork
                              _            <- latch.await
-                             interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds)).either
+                             interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds))
                              _            <- ref.set(false)
                            } yield interruption
                        }
-            } yield assert(result, isRight(isNone))
+            } yield assert(result, isNone)
           },
           testM("If completed, the canceler should cause the regular finalizer to not run") {
             for {
@@ -830,8 +830,8 @@ object ZManagedSpecUtil {
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live).either
-    } yield assert(interruption, isRight(equalTo(expected)))
+      interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live)
+    } yield assert(interruption, equalTo(expected))
 
   def testFinalizersPar[R, E](
     n: Int,

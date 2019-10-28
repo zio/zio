@@ -264,7 +264,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _ <- ZIO.unit
         _ <- ZIO.unit
       } yield t)
-        .foldM(
+        .foldCauseM(
           failure = _ => IO.fail(()),
           success = t =>
             IO.trace
