@@ -168,7 +168,7 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
         lazy val untilSuccess: ZIO[R, Nothing, Either[TestFailure[Nothing], TestSuccess[S]]] =
-          test.foldM(_ => untilSuccess, _.fold(_ => untilSuccess, s => ZIO.succeed(Right(s))))
+          test.foldCauseM(_ => untilSuccess, _.fold(_ => untilSuccess, s => ZIO.succeed(Right(s))))
 
         untilSuccess
       }
