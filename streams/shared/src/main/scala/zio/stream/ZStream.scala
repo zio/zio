@@ -2477,6 +2477,26 @@ object ZStream {
         case Take.Fail(e)  => halt(e)
         case Take.End      => end
       }
+
+    /**
+     * A managed [[Pull]] constructor that monitors the state of the wrapped [[Pull]].
+     * In case of error or stream end, it sets a guard that makes sure that any
+     * subsequent pulls always signal stream end. This allows the constructed stream
+     * to be safely pulled again after an error, a feature used by Stream sequencing
+     * combinators such as `flatMap`. This will allow for element level error handling
+     * combinators to be developed in the future.
+     */
+    private[stream] final def memoizeEnd[R, E, A](pull: ZManaged[R, E, Pull[R, E, A]]): ZManaged[R, E, Pull[R, E, A]] =
+      for {
+        as   <- pull
+        done <- Ref.make(false).toManaged_
+      } yield done.get.flatMap {
+        if (_) Pull.end
+        else
+          as.catchAllCause(
+            done.set(true) *> _.failureOrCause.fold(_.fold[Pull[R, E, A]](Pull.end)(Pull.fail), Pull.halt)
+          )
+      }
   }
 
   private[stream] sealed abstract class Structure[-R, +E, +A] {
