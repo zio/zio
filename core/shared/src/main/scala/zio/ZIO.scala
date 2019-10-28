@@ -25,7 +25,7 @@ import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 import zio.{ InterruptStatus => InterruptS }
-import zio.{ TracingStatus => TrasingS }
+import zio.{ TracingStatus => TracingS }
 
 import com.github.ghik.silencer.silent
 
@@ -2901,11 +2901,11 @@ object ZIO extends ZIOFunctions {
     override def tag = Tags.Trace
   }
 
-  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: TrasingS) extends ZIO[R, E, A] {
+  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: TracingS) extends ZIO[R, E, A] {
     override def tag = Tags.TracingStatus
   }
 
-  private[zio] final class CheckTracing[R, E, A](val k: TrasingS => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class CheckTracing[R, E, A](val k: TracingS => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.CheckTracing
   }
 }
