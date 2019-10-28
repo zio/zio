@@ -505,16 +505,15 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S]): ZManaged[R1 with Clock, E1, A] = {
-    def loop[B](zio: ZIO[R, E1, B], state: policy.State): ZIO[R1 with Clock, E1, (policy.State, B)] =
+  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S]): ZManaged[R1, E1, A] = {
+    def loop[B](zio: ZIO[R, E1, B], state: policy.State): ZIO[R1, E1, (policy.State, B)] =
       zio.foldM(
         err =>
           policy
             .update(err, state)
-            .flatMap(
-              decision =>
-                if (decision.cont) clock.sleep(decision.delay) *> loop(zio, decision.state)
-                else ZIO.fail(err)
+            .foldM(
+              _ => ZIO.fail(err),
+              loop(zio, _)
             ),
         succ => ZIO.succeed((state, succ))
       )
