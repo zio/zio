@@ -21,7 +21,7 @@ object BlockingSpec
           },
           testM("effectBlocking can be interrupted") {
             assertM(effectBlocking(Thread.sleep(50000)).timeout(Duration.Zero), isNone)
-          } @@ timeout(1.millis) @@ flaky, //todo fix in #1882 - shouldn't be flaky or require timeout
+          } @@ timeout(10.millis) @@ flaky, //todo fix in #1882 - shouldn't be flaky or require timeout
           testM("effectBlockingCancelable can be interrupted") {
             val release = new AtomicBoolean(false)
             val cancel  = UIO.effectTotal(release.set(true))
