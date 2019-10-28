@@ -1057,8 +1057,9 @@ object ZManaged {
     ZManaged(acquire.map(r => Reservation(IO.succeed(r), e => release(r, e))))
 
   /**
-   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
-   * effect will be performed interruptibly.
+   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with a release action.
+   * The acquire action will be performed interruptibly, while release
+   * will be performed uninterruptibly.
    */
   final def makeInterruptible[R, E, A](
     acquire: ZIO[R, E, A]
