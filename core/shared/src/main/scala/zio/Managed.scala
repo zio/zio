@@ -174,6 +174,12 @@ object Managed {
     ZManaged.makeExit(acquire)(release)
 
   /**
+   * See [[zio.ZManaged.makeInterruptible]]
+   */
+  final def makeInterruptible[R, E, A](acquire: IO[E, A])(release: A => UIO[Any]): Managed[E, A] =
+    ZManaged.makeInterruptible(acquire)(release)
+
+  /**
    * See [[zio.ZManaged.mergeAll]]
    */
   final def mergeAll[E, A, B](in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
