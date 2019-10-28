@@ -141,7 +141,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * they will be woken up (in FIFO order) if this action releases enough
    * of them.
    */
-  final def releaseN0(toRelease: Long): UIO[Unit] = {
+  final private def releaseN0(toRelease: Long): UIO[Unit] = {
 
     @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
       case Right(m) => acc -> Right(n + m)
