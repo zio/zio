@@ -613,7 +613,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self &&& ZIO.identity[R1]
 
   /**
-   * Runs the specified effect if this effect is interrupted.
+   * Runs the specified effect if this effect is externally interrupted.
    */
   final def onInterrupt[R1 <: R](cleanup: ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
     self.ensuring(
@@ -2622,7 +2622,7 @@ object ZIO extends ZIOFunctions {
     def apply[R1 <: R](release: A => ZIO[R1, Nothing, Any]): BracketRelease[R1, E, A] =
       new BracketRelease[R1, E, A](acquire, release)
   }
-  class BracketRelease[-R, +E, +A](acquire: ZIO[R, E, A], release: A => ZIO[R, Nothing, Any]) {
+  final class BracketRelease[-R, +E, +A](acquire: ZIO[R, E, A], release: A => ZIO[R, Nothing, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.bracket(acquire, release, use)
   }
@@ -2633,7 +2633,7 @@ object ZIO extends ZIOFunctions {
     ): BracketExitRelease[R1, E, E1, A, B] =
       new BracketExitRelease(acquire, release)
   }
-  class BracketExitRelease[-R, +E, E1, +A, B](
+  final class BracketExitRelease[-R, +E, E1, +A, B](
     acquire: ZIO[R, E, A],
     release: (A, Exit[E1, B]) => ZIO[R, Nothing, Any]
   ) {

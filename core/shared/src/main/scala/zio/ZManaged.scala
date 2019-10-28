@@ -406,14 +406,9 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged {
       Ref.make[Exit[Any, Any] => ZIO[R1, Nothing, Any]](_ => UIO.unit).map { finalizer =>
         Reservation(
-          acquire = ZIO.uninterruptibleMask { restore =>
-            for {
-              res   <- self.reserve
-              exitA <- restore(res.acquire).run
-              _     <- finalizer.set(exitU => res.release(exitU).ensuring(cleanup(exitA)))
-              a     <- ZIO.done(exitA)
-            } yield a
-          },
+          acquire = ZIO.bracketExit(self.reserve)(
+            (res, exitA: Exit[E, A]) => finalizer.set(exitU => res.release(exitU).ensuring(cleanup(exitA)))
+          )(_.acquire),
           release = e => finalizer.get.flatMap(f => f(e))
         )
       }
@@ -427,14 +422,9 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged {
       Ref.make[Exit[Any, Any] => ZIO[R1, Nothing, Any]](_ => UIO.unit).map { finalizer =>
         Reservation(
-          acquire = ZIO.uninterruptibleMask { restore =>
-            for {
-              res   <- self.reserve
-              exitA <- restore(res.acquire).run
-              _     <- finalizer.set(exitU => cleanup(exitA).ensuring(res.release(exitU)))
-              a     <- ZIO.done(exitA)
-            } yield a
-          },
+          acquire = ZIO.bracketExit(self.reserve)(
+            (res, exitA: Exit[E, A]) => finalizer.set(exitU => cleanup(exitA).ensuring(res.release(exitU)))
+          )(_.acquire),
           release = e => finalizer.get.flatMap(f => f(e))
         )
       }
@@ -1044,27 +1034,37 @@ object ZManaged {
   final val interrupt: ZManaged[Any, Nothing, Nothing] = halt(Cause.interrupt)
 
   /**
-   * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action.
+   * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action.
    * The acquire and release actions will be performed uninterruptibly.
    */
   final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any]): ZManaged[R, E, A] =
     ZManaged(acquire.map(r => Reservation(IO.succeed(r), _ => release(r))))
 
   /**
-   * Lifts a synchronous effect into `ZManaged[R, Throwable, R]` with a release action.
+   * Lifts a synchronous effect into `ZManaged[R, Throwable, A]` with a release action.
    * The acquire and release actions will be performed uninterruptibly.
    */
-  final def makeEffect[R, A](acquire: => A)(release: A => _): ZManaged[R, Throwable, A] =
+  final def makeEffect[R, A](acquire: => A)(release: A => Any): ZManaged[R, Throwable, A] =
     make(Task(acquire))(a => Task(release(a)).orDie)
 
   /**
-   * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action that handles `Exit`.
+   * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that handles `Exit`.
    * The acquire and release actions will be performed uninterruptibly.
    */
   final def makeExit[R, E, A](
     acquire: ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any]): ZManaged[R, E, A] =
     ZManaged(acquire.map(r => Reservation(IO.succeed(r), e => release(r, e))))
+
+  /**
+   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with a release action.
+   * The acquire action will be performed interruptibly, while release
+   * will be performed uninterruptibly.
+   */
+  final def makeInterruptible[R, E, A](
+    acquire: ZIO[R, E, A]
+  )(release: A => ZIO[R, Nothing, Any]): ZManaged[R, E, A] =
+    ZManaged.fromEffect(acquire).onExitFirst(_.foreach(release))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working sequentially.
