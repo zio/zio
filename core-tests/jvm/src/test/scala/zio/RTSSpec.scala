@@ -68,7 +68,7 @@ object RTSSpec
               bracketed = IO
                 .succeed(21)
                 .bracketExit(
-                  (r: Int, exit: Exit[_, _]) =>
+                  (r: Int, exit: Exit[Any, Any]) =>
                     if (exit.interrupted) exitLatch.succeed(r)
                     else IO.die(new Error("Unexpected case"))
                 )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))

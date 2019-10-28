@@ -17,29 +17,36 @@
 package zio.test.mock
 
 import zio.{ IO, Promise, Ref, ZIO }
+import zio.test.mock.Expectation.Call
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException }
 
 trait Mock {
 
-  def invoke[R0, E0, A0, In](method: Method[In, A0], input: In): ZIO[R0, E0, A0]
+  def invoke[R0, E0, A0, M0, I0](method: Method[M0, I0, A0], input: I0): ZIO[R0, E0, A0]
 
-  final def apply[R0, E0, A0](method: Method[Unit, A0]): ZIO[R0, E0, A0] =
+  final def apply[R0, E0, A0, M0](method: Method[M0, Unit, A0]): ZIO[R0, E0, A0] =
     invoke(method, ())
 
-  final def apply[R0, E0, A0, A](method: Method[A, A0], a: A): ZIO[R0, E0, A0] =
+  final def apply[R0, E0, A0, M0, A](method: Method[M0, A, A0], a: A): ZIO[R0, E0, A0] =
     invoke(method, a)
 
-  final def apply[R0, E0, A0, A, B](method: Method[(A, B), A0], a: A, b: B): ZIO[R0, E0, A0] =
+  final def apply[R0, E0, A0, M0, A, B](method: Method[M0, (A, B), A0], a: A, b: B): ZIO[R0, E0, A0] =
     invoke(method, (a, b))
 
-  final def apply[R0, E0, A0, A, B, C](method: Method[(A, B, C), A0], a: A, b: B, c: C): ZIO[R0, E0, A0] =
+  final def apply[R0, E0, A0, M0, A, B, C](method: Method[M0, (A, B, C), A0], a: A, b: B, c: C): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c))
 
-  final def apply[R0, E0, A0, A, B, C, D](method: Method[(A, B, C, D), A0], a: A, b: B, c: C, d: D): ZIO[R0, E0, A0] =
+  final def apply[R0, E0, A0, M0, A, B, C, D](
+    method: Method[M0, (A, B, C, D), A0],
+    a: A,
+    b: B,
+    c: C,
+    d: D
+  ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d))
 
-  final def apply[R0, E0, A0, A, B, C, D, E](
-    method: Method[(A, B, C, D, E), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E](
+    method: Method[M0, (A, B, C, D, E), A0],
     a: A,
     b: B,
     c: C,
@@ -48,8 +55,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F](
-    method: Method[(A, B, C, D, E, F), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F](
+    method: Method[M0, (A, B, C, D, E, F), A0],
     a: A,
     b: B,
     c: C,
@@ -59,8 +66,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G](
-    method: Method[(A, B, C, D, E, F, G), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G](
+    method: Method[M0, (A, B, C, D, E, F, G), A0],
     a: A,
     b: B,
     c: C,
@@ -71,8 +78,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H](
-    method: Method[(A, B, C, D, E, F, G, H), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H](
+    method: Method[M0, (A, B, C, D, E, F, G, H), A0],
     a: A,
     b: B,
     c: C,
@@ -84,8 +91,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I](
-    method: Method[(A, B, C, D, E, F, G, H, I), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I), A0],
     a: A,
     b: B,
     c: C,
@@ -98,8 +105,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J](
-    method: Method[(A, B, C, D, E, F, G, H, I, J), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J), A0],
     a: A,
     b: B,
     c: C,
@@ -113,8 +120,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K), A0],
     a: A,
     b: B,
     c: C,
@@ -129,8 +136,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L), A0],
     a: A,
     b: B,
     c: C,
@@ -146,8 +153,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M), A0],
     a: A,
     b: B,
     c: C,
@@ -164,8 +171,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N), A0],
     a: A,
     b: B,
     c: C,
@@ -183,8 +190,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), A0],
     a: A,
     b: B,
     c: C,
@@ -203,8 +210,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P), A0],
     a: A,
     b: B,
     c: C,
@@ -224,8 +231,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q), A0],
     a: A,
     b: B,
     c: C,
@@ -246,8 +253,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R), A0],
     a: A,
     b: B,
     c: C,
@@ -269,8 +276,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S), A0],
     a: A,
     b: B,
     c: C,
@@ -293,8 +300,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T), A0],
     a: A,
     b: B,
     c: C,
@@ -318,8 +325,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U), A0],
     a: A,
     b: B,
     c: C,
@@ -344,8 +351,8 @@ trait Mock {
   ): ZIO[R0, E0, A0] =
     invoke(method, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
 
-  final def apply[R0, E0, A0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](
-    method: Method[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V), A0],
+  final def apply[R0, E0, A0, M0, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](
+    method: Method[M0, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V), A0],
     a: A,
     b: B,
     c: C,
@@ -374,22 +381,24 @@ trait Mock {
 
 object Mock {
 
-  protected[mock] def make(mockedCallsRef: Ref[List[MockSpec.MockedCall[Any, Any, Any, Any]]]) =
+  protected[mock] def make(callsRef: Ref[List[Call[Any, Any, Any, Any]]]) =
     new Mock {
-      def invoke[R0, E0, A0, A](invokedMethod: Method[A, A0], args: A): ZIO[R0, E0, A0] =
+      def invoke[R0, E0, A0, M0, I0](invokedMethod: Method[M0, I0, A0], args: I0): ZIO[R0, E0, A0] =
         for {
           promise <- Promise.make[E0, A0]
-          _ <- mockedCallsRef
-                .modify[Option[MockSpec.MockedCall[Any, Any, Any, Any]]] {
+          _ <- callsRef
+                .modify[Option[Call[Any, Any, Any, Any]]] {
                   case (head :: tail) => Some(head) -> tail
                   case x              => None       -> x
                 }
                 .flatMap {
-                  case Some(MockSpec.MockedCall(expectation @ Expectation(method, assertion), returns)) =>
+                  case Some(Call(method, assertion, returns)) =>
                     if (invokedMethod != method)
-                      ZIO.die(InvalidMethodException(invokedMethod.asInstanceOf[Method[Any, Any]], expectation))
+                      ZIO.die(
+                        InvalidMethodException(invokedMethod.asInstanceOf[Method[Any, Any, Any]], method, assertion)
+                      )
                     else if (!assertion.test(args)) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
-                    else promise.complete(returns(args).asInstanceOf[IO[E0, A0]])
+                    else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
                   case None => ZIO.die(new IllegalStateException)
                 }
           output <- promise.await

@@ -41,6 +41,9 @@ object AssertionSpec
         test("exists must fail when all elements of iterable do not satisfy specified assertion") {
           assert(Seq(1, 42, 5), exists(equalTo(0)))
         } @@ failure,
+        test("exists must fail when iterable is empty") {
+          assert(Seq(), exists(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+        } @@ failure,
         test("fails must succeed when error value satisfy specified assertion") {
           assert(Exit.fail("Some Error"), fails(equalTo("Some Error")))
         },
@@ -59,6 +62,9 @@ object AssertionSpec
         test("forall must fail when one element of iterable do not satisfy specified assertion") {
           assert(Seq("a", "bb", "dddd"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
         } @@ failure,
+        test("forall must succeed when an iterable is empty") {
+          assert(Seq(), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+        },
         test("hasField must succeed when field value satisfy specified assertion") {
           assert(SampleUser("User", 23), hasField[SampleUser, Int]("age", _.age, isWithin(0, 99)))
         },

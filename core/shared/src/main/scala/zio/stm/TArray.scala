@@ -35,7 +35,7 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
       }
       .map(l => TArray(l.reverse.toArray))
 
-  /* Atomically folds [[TArray]] with pure function. */
+  /** Atomically folds [[TArray]] with pure function. */
   final def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
     if (array.isEmpty) STM.succeed(acc)
     else array.head.get.flatMap(a => new TArray(array.tail).fold(op(acc, a))(op))
@@ -81,9 +81,14 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
     if (0 <= index && index < array.size) array(index).update(fn)
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 
-  /** Atomically updates element in the array with given transactionall effect. */
+  /** Atomically updates element in the array with given transactional effect. */
   final def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, A] =
-    if (0 <= index && index < array.size) array(index).get.flatMap(fn)
+    if (0 <= index && index < array.size)
+      for {
+        currentVal <- array(index).get
+        newVal     <- fn(currentVal)
+        _          <- array(index).set(newVal)
+      } yield newVal
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 }
 

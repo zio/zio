@@ -19,7 +19,8 @@ Promises can be created using `Promise.make[E, A]`, which returns `UIO[Promise[E
 You can complete a `Promise[E, A]` in few different ways:
 * successfully with a value of type `A` using `succeed`
 * with `Exit[E, A]` using `done` - each `await` will get this exit propagated
-* with effect `IO[E, A]` using `complete` - first fiber that calls `complete` wins and sets effect that **will be executed by each `await`ing fiber**, so be careful when using `p.complete(someEffect)` and rather use `someEffect.flatMap(p.succeed)` unless executing `someEffect` by each `await`ing fiber is intent
++ with result of effect `IO[E, A]` using `complete` - the effect will be executed once and the result will be propagated to all waiting fibers
+* with effect `IO[E, A]` using `completeWith` - first fiber that calls `completeWith` wins and sets effect that **will be executed by each `await`ing fiber**, so be careful when using `p.completeWith(someEffect)` and rather use `p.complete(someEffect` unless executing `someEffect` by each `await`ing fiber is intent
 * simply fail with `E` using `fail`
 * simply defect with `Throwable` using `die`
 * fail or defect with `Cause[E]` using `halt`
@@ -34,10 +35,11 @@ val race: IO[String, Int] = for {
     p     <- Promise.make[String, Int]
     _     <- p.succeed(1).fork
     _     <- p.complete(ZIO.succeed(2)).fork
-    _     <- p.done(Exit.succeed(3)).fork
-    _     <- p.fail("4")
-    _     <- p.halt(Cause.die(new Error("5")))
-    _     <- p.die(new Error("6"))
+    _     <- p.completeWith(ZIO.succeed(3)).fork
+    _     <- p.done(Exit.succeed(4)).fork
+    _     <- p.fail("5")
+    _     <- p.halt(Cause.die(new Error("6")))
+    _     <- p.die(new Error("7"))
     _     <- p.interrupt.fork
     value <- p.await
   } yield value

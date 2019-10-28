@@ -35,7 +35,7 @@ object ZIOSpec
               release <- Ref.make(false)
               result <- ZIO.bracketExit(
                          IO.succeed(42),
-                         (_: Int, _: Exit[_, _]) => release.set(true),
+                         (_: Int, _: Exit[Any, Any]) => release.set(true),
                          (_: Int) => IO.succeed(0L)
                        )
               released <- release.get
@@ -160,8 +160,13 @@ object ZIOSpec
               f1     <- IO.fail("error1").fork
               f2     <- IO.fail("error2").fork
               errors <- f1.zip(f2).join.parallelErrors[String].flip
-            } yield assert(errors, equalTo(List("error1", "error2")))
-          }
+            } yield assert(
+              errors,
+              equalTo(List("error1", "error2")) ||
+                equalTo(List("error1")) ||
+                equalTo(List("error2"))
+            )
+          } @@ nonFlaky(100)
         ),
         suite("raceAll")(
           testM("returns first success") {
@@ -740,12 +745,12 @@ object ZIOSpec
             } yield assert(result, equalTo(42))
           },
           testM("supervising returns fiber refs") {
-            def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
+            def forkAwaitStart(ref: Ref[List[Fiber[Any, Any]]]) =
               withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
 
             val io =
               for {
-                ref <- Ref.make(List.empty[Fiber[_, _]])
+                ref <- Ref.make(List.empty[Fiber[Any, Any]])
                 f1  <- ZIO.children
                 _   <- forkAwaitStart(ref)
                 f2  <- ZIO.children
@@ -757,18 +762,18 @@ object ZIOSpec
           } @@ flaky,
           testM("supervising in unsupervised returns Nil") {
             for {
-              ref  <- Ref.make(Option.empty[Fiber[_, _]])
+              ref  <- Ref.make(Option.empty[Fiber[Any, Any]])
               _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
               fibs <- ZIO.children
             } yield assert(fibs, isEmpty)
           } @@ flaky,
           testM("supervise fibers") {
-            def makeChild(n: Int, fibers: Ref[List[Fiber[_, _]]]) =
+            def makeChild(n: Int, fibers: Ref[List[Fiber[Any, Any]]]) =
               (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork.tap(fiber => fibers.update(fiber :: _))
 
             val io =
               for {
-                fibers  <- Ref.make(List.empty[Fiber[_, _]])
+                fibers  <- Ref.make(List.empty[Fiber[Any, Any]])
                 counter <- Ref.make(0)
                 _ <- (makeChild(1, fibers) *> makeChild(2, fibers)).handleChildrenWith { fs =>
                       fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> counter.update(_ + 1).unit)
@@ -988,7 +993,9 @@ object ZIOSpec
               for {
                 promise <- Promise.make[Nothing, Unit]
                 fiber <- IO
-                          .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[_, _]) => IO.unit)(
+                          .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))(
+                            (_, _: Exit[Any, Any]) => IO.unit
+                          )(
                             _ => IO.unit: IO[Nothing, Unit]
                           )
                           .fork
@@ -1005,7 +1012,7 @@ object ZIOSpec
           },
           testM("bracketExit use is interruptible") {
             for {
-              fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
+              fiber <- IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => IO.unit)(_ => IO.never).fork
               res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
             } yield assert(res, equalTo(0))
           },
@@ -1026,7 +1033,7 @@ object ZIOSpec
             for {
               done <- Promise.make[Nothing, Unit]
               fiber <- withLatch { release =>
-                        IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => done.succeed(()))(
+                        IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
                             _ => release *> IO.never
                           )
                           .fork
@@ -1200,7 +1207,7 @@ object ZIOSpec
                 fiber1 <- latch1
                            .succeed(())
                            .bracketExit[Clock, Nothing, Unit](
-                             (_: Boolean, _: Exit[_, _]) => ZIO.unit,
+                             (_: Boolean, _: Exit[Any, Any]) => ZIO.unit,
                              (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
                            )
                            .uninterruptible
@@ -1290,12 +1297,12 @@ object ZIOSpec
             assertM(io, isTrue)
           } @@ flaky,
           testM("supervision inheritance") {
-            def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
+            def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[Any, Any]]]): UIO[Fiber[Nothing, A]] =
               withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
 
             val io =
               (for {
-                ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
+                ref  <- Ref.make[List[Fiber[Any, Any]]](Nil) // To make strong ref
                 _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
                 fibs <- ZIO.children
               } yield fibs.size == 1).supervised

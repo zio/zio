@@ -63,7 +63,7 @@ object SemaphoreSpec
               s <- Semaphore.make(n).tap(_.acquire)
               _ <- s.release.fork
               _ <- s.acquire
-            } yield assert((), equalTo(()))
+            } yield assertCompletes
           },
           /**
            * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)

@@ -555,6 +555,18 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
+   * Performs the specified effect for every element that is consumed by this sink.
+   */
+  final def tapInput[R1 <: R, E1 >: E, A1 <: A](f: A1 => ZIO[R1, E1, Unit]): ZSink[R1, E1, A0, A1, B] =
+    contramapM(a => f(a).as(a))
+
+  /**
+   * Performs the specified effect for every element that is produced by this sink.
+   */
+  final def tapOutput[R1 <: R, E1 >: E](f: B => ZIO[R1, E1, Unit]): ZSink[R1, E1, A0, A, B] =
+    mapM(b => f(b).as(b))
+
+  /**
    * Times the invocation of the sink
    */
   final def timed: ZSink[R with Clock, E, A0, A, (Duration, B)] =
@@ -724,7 +736,7 @@ object ZSink extends ZSinkPlatformSpecific {
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, E, A, A, Option[B]] =
+    final def ? : ZSink[R, Nothing, A, A, Option[B]] =
       new ZSink[R, Nothing, A, A, Option[B]] {
         type State = OptionalState
         sealed trait OptionalState
@@ -908,7 +920,7 @@ object ZSink extends ZSinkPlatformSpecific {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, E, A, A, Option[B]] = ?
+    final def optional: ZSink[R, Nothing, A, A, Option[B]] = ?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
@@ -980,7 +992,7 @@ object ZSink extends ZSinkPlatformSpecific {
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, E, A, A, Option[B]] = widen.?
+    final def ? : ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Takes a `Sink`, and lifts it to be chunked in its input. This
@@ -1018,7 +1030,7 @@ object ZSink extends ZSinkPlatformSpecific {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, E, A, A, Option[B]] = widen.?
+    final def optional: ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
@@ -1679,6 +1691,83 @@ object ZSink extends ZSinkPlatformSpecific {
     splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
 
   /**
+   * Splits strings on a delimiter.
+   */
+  final def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
+    new SinkPure[Nothing, String, String, Chunk[String]] {
+      type State = SplitOnState
+      case class SplitOnState(
+        // Index into the delimiter
+        delimiterPointer: Int,
+        // Index into the current frame
+        framePointer: Int,
+        // Signals when extraction of the delimiter is ongoing
+        cont: Boolean,
+        // Accumulated strings from previous pulls
+        leftover: String,
+        // Frames already collected
+        frames: Chunk[String]
+      )
+
+      def initialPure: State = SplitOnState(0, 0, true, "", Chunk.empty)
+
+      def extractPure(state: State): Either[Nothing, (Chunk[String], Chunk[String])] = {
+        val (frames, leftover) =
+          if (state.cont && !state.leftover.isEmpty)
+            state.frames + state.leftover -> Chunk.empty
+          else
+            state.frames -> Chunk.single(state.leftover)
+        Right(frames -> leftover)
+      }
+
+      def stepPure(s: State, a: String): State = {
+        val frame = s.leftover + a
+        val l     = delimiter.length
+        val m     = frame.length
+
+        var start = 0
+        var i     = s.delimiterPointer
+        var j     = s.framePointer
+
+        val buf = mutable.ArrayBuffer[String]()
+
+        while (j < m) {
+          while (i < l && j < m && delimiter(i) == frame(j)) {
+            i += 1
+            j += 1
+          }
+
+          if (i == l) {
+            // We've found a new frame, store it (_without_ the delimiter),
+            // reset the delimiter pointer and advance the start pointer
+            buf += frame.substring(start, j - l)
+            i = 0
+            start = j
+          } else if (j == m) {
+            // We've reached the end of the frame in the middle of the
+            // delimiter; hence, we keep the indices intact so we can
+            // start from where we left off in the next step
+          } else {
+            // We've found a character that does not match the delimiter,
+            // reset the delimiter pointer and advance the frame pointer
+            // until we find a character that matches, or reach the end
+            // of the frame
+            i = 0
+            while (j < m && frame(j) != delimiter(0)) j += 1
+          }
+        }
+
+        if (buf.isEmpty) SplitOnState(i, j, true, frame, s.frames)
+        else {
+          val frames = Chunk.fromArray(buf.toArray[String])
+          SplitOnState(0, j - start, i > 0, frame.drop(start), s.frames ++ frames)
+        }
+      }
+
+      def cont(state: State): Boolean = state.cont
+    }
+
+  /**
    * Creates a single-value sink from a value.
    */
   final def succeed[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
@@ -1819,24 +1908,6 @@ object ZSink extends ZSinkPlatformSpecific {
 
     ZManaged.fromEffect(sink)
   }
-
-  /**
-   * Decodes individual bytes into a String using UTF-8. Up to `bufferSize` bytes
-   * will be buffered by the sink.
-   *
-   * This sink uses the String constructor's behavior when handling malformed byte
-   * sequences.
-   */
-  def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): ZSink[Any, Nothing, Byte, Byte, String] =
-    foldUntil[List[Byte], Byte](Nil, bufferSize.toLong)((chunk, byte) => byte :: chunk).mapM { bytes =>
-      val chunk = Chunk.fromIterable(bytes.reverse)
-
-      for {
-        init   <- utf8DecodeChunk.initial
-        state  <- utf8DecodeChunk.step(init, chunk)
-        string <- utf8DecodeChunk.extract(state)
-      } yield string._1
-    }
 
   /**
    * Decodes chunks of bytes into a String.

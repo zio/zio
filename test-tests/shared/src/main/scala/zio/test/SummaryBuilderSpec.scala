@@ -37,14 +37,14 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
 
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(" + yellowThenCyan("equalTo(42)") + " || (isGreaterThan(5) && isLessThan(10)))")}\n"
     ),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && " + yellowThenCyan("isLessThan(10)") + "))")}\n"
-    ),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n")
+    )
   )
 
   val test4 = Spec.test("Failing test", fail(Cause.fail("Fail")))
