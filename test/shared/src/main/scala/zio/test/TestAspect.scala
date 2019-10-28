@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
+import zio.{ Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration._
 import zio.clock.Clock
 import zio.system
@@ -168,7 +168,7 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
         lazy val untilSuccess: ZIO[R, Nothing, Either[TestFailure[Nothing], TestSuccess[S]]] =
-          test.foldM(_ => untilSuccess, _.fold(_ => untilSuccess, s => ZIO.succeed(Right(s))))
+          test.foldCauseM(_ => untilSuccess, _.fold(_ => untilSuccess, s => ZIO.succeed(Right(s))))
 
         untilSuccess
       }
@@ -352,34 +352,32 @@ object TestAspect extends TimeoutVariants {
    */
   def retry[R0, E0, S0](
     schedule: ZSchedule[R0, TestFailure[E0], S0]
-  ): TestAspect[Nothing, R0 with Live[Clock], Nothing, E0, Nothing, S0] =
-    new TestAspect.PerTest[Nothing, R0 with Live[Clock], Nothing, E0, Nothing, S0] {
-      def perTest[R >: Nothing <: R0 with Live[Clock], E >: Nothing <: E0, S >: Nothing <: S0](
+  ): TestAspect[Nothing, Live[R0], Nothing, E0, Nothing, S0] =
+    new TestAspect.PerTest[Nothing, Live[R0], Nothing, E0, Nothing, S0] {
+      def perTest[R >: Nothing <: Live[R0], E >: Nothing <: E0, S >: Nothing <: S0](
         test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
-        def loop(state: schedule.State): ZIO[R with Live[Clock], E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        def loop(state: schedule.State): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
           test.foldCauseM(
             err =>
-              schedule
-                .update(TestFailure.Runtime(err), state)
-                .flatMap(
-                  decision =>
-                    if (decision.cont) Live.live(clock.sleep(decision.delay)) *> loop(decision.state)
-                    else ZIO.halt(err)
+              Live
+                .live(schedule.update(TestFailure.Runtime(err), state))
+                .foldM(
+                  _ => ZIO.halt(err),
+                  loop
                 ), {
               case Left(e) =>
-                schedule
-                  .update(e, state)
-                  .flatMap(
-                    decision =>
-                      if (decision.cont) Live.live(clock.sleep(decision.delay)) *> loop(decision.state)
-                      else ZIO.succeed(Left(e))
+                Live
+                  .live(schedule.update(e, state))
+                  .foldM(
+                    _ => ZIO.succeed(Left(e)),
+                    loop
                   )
               case Right(s) => ZIO.succeed(Right(s))
             }
           )
 
-        schedule.initial.flatMap(loop)
+        Live.live(schedule.initial).flatMap(loop)
       }
     }
 
