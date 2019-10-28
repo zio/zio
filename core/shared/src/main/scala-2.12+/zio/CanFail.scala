@@ -24,12 +24,12 @@ import scala.annotation.implicitAmbiguous
  */
 sealed trait CanFail[-E]
 
-object CanFail {
+object CanFail extends CanFail[Any] {
 
   implicit final def canFail[E]: CanFail[E] =
-    new CanFail[E] {}
+    CanFail
 
   @implicitAmbiguous("This operation only makes sense for effects that can fail.")
   implicit final val cannotFail: CanFail[Nothing] =
-    new CanFail[Nothing] {}
+    CanFail
 }

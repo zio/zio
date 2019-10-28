@@ -25,11 +25,11 @@ import scala.annotation.implicitNotFound
 @implicitNotFound("This operation only makes sense for effects that can fail.")
 sealed trait CanFail[-E]
 
-object CanFail {
+object CanFail extends CanFail[Any] {
 
   implicit final def canFail[E]: CanFail[E] =
-    new CanFail[E] {}
+    CanFail
 
   implicit final val cannotFail: CanFail[Nothing] =
-    new CanFail[Nothing] {}
+    CanFail
 }
