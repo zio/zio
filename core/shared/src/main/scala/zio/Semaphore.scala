@@ -78,26 +78,8 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * of them.
    */
   @deprecated("use withPermits", "1.0.0")
-  final def releaseN(toRelease: Long): UIO[Unit] = {
-
-    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
-      case Right(m) => acc -> Right(n + m)
-      case Left(q) =>
-        q.dequeueOption match {
-          case None => acc -> Right(n)
-          case Some(((p, m), q)) =>
-            if (n > m)
-              loop(n - m, Left(q), acc <* p.succeed(()))
-            else if (n == m)
-              (acc <* p.succeed(())) -> Left(q)
-            else
-              acc -> Left((p -> (m - n)) +: q)
-        }
-    }
-
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
-
-  }
+  final def releaseN(toRelease: Long): UIO[Unit] =
+    releaseN0(toRelease)
 
   /**
    * Acquires a permit, executes the action and releases the permit right after.
@@ -143,7 +125,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     if (n == 0)
       IO.succeed(Acquisition(IO.unit, IO.unit))
     else
-      assertNonNegative(n) *> Promise.make[Nothing, Unit].flatMap { p =>
+      Promise.make[Nothing, Unit].flatMap { p =>
         state.modify {
           case Right(m) if m >= n => Acquisition(IO.unit, releaseN0(n))  -> Right(m - n)
           case Right(m)           => Acquisition(p.await, restore(p, n)) -> Left(IQueue(p -> (n - m)))
@@ -159,7 +141,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * they will be woken up (in FIFO order) if this action releases enough
    * of them.
    */
-  final private def releaseN0(toRelease: Long): UIO[Unit] = {
+  final def releaseN0(toRelease: Long): UIO[Unit] = {
 
     @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
       case Right(m) => acc -> Right(n + m)
@@ -176,7 +158,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
         }
     }
 
-    IO.flatten(state.modify(loop(toRelease, _, IO.unit))).uninterruptible
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
 
   }
 
