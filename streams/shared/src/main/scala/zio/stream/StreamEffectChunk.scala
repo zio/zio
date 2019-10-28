@@ -133,9 +133,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
     }
 
   override final def flattenChunks: StreamEffect[R, E, A] =
-    StreamEffect[R, E, A] {
-      processChunk
-    }
+    StreamEffect(processChunk)
 
   override def take(n: Int): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
