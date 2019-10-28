@@ -953,7 +953,7 @@ object ZSchedule {
     identity[A].tapInput(f)
 
   /**
-   * A schedule that recurs forever, dumping input values to the specified
+   * A schedule that recurs forever, dumping output values to the specified
    * sink, and returning those same values unmodified.
    */
   final def tapOutput[R, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
