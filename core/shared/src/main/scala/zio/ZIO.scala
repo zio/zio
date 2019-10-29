@@ -27,8 +27,6 @@ import zio.internal.{ Executor, Platform }
 import zio.{ InterruptStatus => InterruptS }
 import zio.{ TracingStatus => TracingS }
 
-import com.github.ghik.silencer.silent
-
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
  * that models an effectful program. The effect requires an environment `R`,
@@ -107,7 +105,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Maps the error value of this effect to the specified constant value.
    */
-  @silent("never used")
   final def asError[E1](e1: => E1)(implicit ev: CanFail[E]): ZIO[R, E1, A] =
     mapError(new ZIO.ConstFn(() => e1))
 
@@ -115,7 +112,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  @silent("never used")
   final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZIO[R, E2, B] = mapError(f).map(g)
 
   /**
@@ -211,7 +207,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * openFile("config.json").catchAll(_ => IO.succeed(defaultConfig))
    * }}}
    */
-  @silent("never used")
   final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1])(implicit ev: CanFail[E]): ZIO[R1, E2, A1] =
     self.foldM[R1, E2, A1](h, new ZIO.SucceedFn(h))
 
@@ -236,7 +231,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * }
    * }}}
    */
-  @silent("never used")
   final def catchSome[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[E, ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E]): ZIO[R1, E1, A1] = {
@@ -302,7 +296,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * The error parameter of the returned `ZIO` is `Nothing`, since it is
    * guaranteed the `ZIO` effect does not model failure.
    */
-  @silent("never used")
   final def either(implicit ev: CanFail[E]): ZIO[R, Nothing, Either[E, A]] =
     self.foldM(ZIO.succeedLeft, ZIO.succeedRight)
 
@@ -336,7 +329,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
    */
-  @silent("never used")
   final def eventually(implicit ev: CanFail[E]): ZIO[R, Nothing, A] =
     self orElse eventually
 
@@ -402,7 +394,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * val parsed = readFile("foo.txt").flatMapError(error => logErrorToFile(error))
    * }}}
    */
-  @silent("never used")
   final def flatMapError[R1 <: R, E2](f: E => ZIO[R1, Nothing, E2])(implicit ev: CanFail[E]): ZIO[R1, E2, A] =
     flipWith(_ flatMap f)
 
@@ -432,7 +423,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * does not fail, but succeeds with the value returned by the left or right
    * function passed to `fold`.
    */
-  @silent("never used")
   final def fold[B](failure: E => B, success: A => B)(implicit ev: CanFail[E]): ZIO[R, Nothing, B] =
     foldM(new ZIO.MapFn(failure), new ZIO.MapFn(success))
 
@@ -459,7 +449,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it will depend on the `IO`s returned by the given continuations.
    */
-  @silent("never used")
   final def foldM[R1 <: R, E2, B](failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B])(
     implicit ev: CanFail[E]
   ): ZIO[R1, E2, B] =
@@ -576,7 +565,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * function. This can be used to lift a "smaller" error into a "larger"
    * error.
    */
-  @silent("never used")
   final def mapError[E2](f: E => E2)(implicit ev: CanFail[E]): ZIO[R, E2, A] =
     self.foldCauseM(new ZIO.MapErrorFn(f), new ZIO.SucceedFn(f))
 
@@ -664,7 +652,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Executes this effect, skipping the error but returning optionally the success.
    */
-  @silent("never used")
   final def option(implicit ev: CanFail[E]): ZIO[R, Nothing, Option[A]] =
     self.foldM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
@@ -678,7 +665,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Translates effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
-  @silent("never used")
   final def orDie[E1 >: E](implicit ev1: E1 <:< Throwable, ev2: CanFail[E]): ZIO[R, Nothing, A] =
     orDieWith(ev1)
 
@@ -686,7 +672,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Keeps none of the errors, and terminates the fiber with them, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  @silent("never used")
   final def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZIO[R, Nothing, A] =
     (self mapError f) catchAll (IO.die)
 
@@ -694,7 +679,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise executes the specified effect.
    */
-  @silent("never used")
   final def orElse[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1])(implicit ev: CanFail[E]): ZIO[R1, E2, A1] =
     tryOrElse(that, new ZIO.SucceedFn(() => that))
 
@@ -702,7 +686,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect that will produce the value of this effect, unless it
    * fails, in which case, it will produce the value of the specified effect.
    */
-  @silent("never used")
   final def orElseEither[R1 <: R, E2, B](that: => ZIO[R1, E2, B])(implicit ev: CanFail[E]): ZIO[R1, E2, Either[A, B]] =
     tryOrElse(that.map(Right(_)), ZIO.succeedLeft)
 
@@ -1012,7 +995,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
    */
-  @silent("never used")
   final def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZIO[R, E1, A] =
     refineOrDieWith(pf)(ev1)
 
@@ -1020,14 +1002,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Keeps some of the errors, and terminates the fiber with the rest, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  @silent("never used")
   final def refineOrDieWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable)(implicit ev: CanFail[E]): ZIO[R, E1, A] =
     self catchAll (err => (pf lift err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  @silent("never used")
   final def refineToOrDie[E1: ClassTag](implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZIO[R, E1, A] =
     refineOrDieWith { case e: E1 => e }(ev1)
 
@@ -1101,7 +1081,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  @silent("never used")
   final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
     retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
 
@@ -1110,7 +1089,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  @silent("never used")
   final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
     policy: ZSchedule[R1, E1, S],
     orElse: (E, S) => ZIO[R1, E2, A2]
@@ -1122,7 +1100,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  @silent("never used")
   final def retryOrElseEither[R1 <: R, E1 >: E, S, E2, B](
     policy: ZSchedule[R1, E1, S],
     orElse: (E, S) => ZIO[R1, E2, B]
@@ -1289,7 +1266,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * readFile("data.json").tapBoth(logError(_), logData(_))
    * }}}
    */
-  @silent("never used")
   final def tapBoth[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any], g: A => ZIO[R1, E1, Any])(
     implicit ev: CanFail[E]
   ): ZIO[R1, E1, A] =
@@ -1301,7 +1277,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * readFile("data.json").tapError(logError(_))
    * }}}
    */
-  @silent("never used")
   final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any])(implicit ev: CanFail[E]): ZIO[R1, E1, A] =
     self.foldCauseM(new ZIO.TapErrorRefailFn(f), ZIO.succeed)
 
