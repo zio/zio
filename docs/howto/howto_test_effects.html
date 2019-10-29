@@ -345,4 +345,39 @@ like in the code below:</p>
 </code></pre>
 <p>It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/howto/howto_use_module_pattern"><span class="arrow-prev">← </span><span>Use module pattern</span></a><a class="docs-next button" href="/docs/howto/howto_mock_services"><span>Mock services</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#how-zio-test-was-designed">How zio-test was designed</a></li><li><a href="#constructing-tests">Constructing tests</a><ul class="toc-headings"><li><a href="#assertions-creating-testresults">Assertions - creating TestResults</a></li><li><a href="#running-tests">Running tests</a></li></ul></li><li><a href="#using-test-environment">Using Test Environment</a><ul class="toc-headings"><li><a href="#testing-random">Testing Random</a></li><li><a href="#testing-clock">Testing Clock</a></li><li><a href="#testing-console">Testing Console</a></li><li><a href="#testing-system">Testing System</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/img/discord.png" width="120" height="60" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
+<h3><a class="anchor" aria-hidden="true" id="test-aspects"></a><a href="#test-aspects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Test Aspects</h3>
+<p>Test aspects are used to modify existing tests or even entire suites that you have already created. Test aspects are
+applied to a test or suite using the <code>@@</code> operator. This is an example test suite showing the use of aspects to modify
+test behaviour:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.duration._
+<span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">Assertion</span>._
+<span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">TestAspect</span>._
+<span class="hljs-keyword">import</span> zio.test._
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MySpec</span></span>
+    <span class="hljs-keyword">extends</span> <span class="hljs-type">DefaultRunnableSpec</span>(
+      suite(<span class="hljs-string">"A Suite"</span>)(
+        test(<span class="hljs-string">"A passing test"</span>) {
+          assert(<span class="hljs-literal">true</span>, isTrue)
+        },
+        test(<span class="hljs-string">"A passing test run for JVM only"</span>) {
+          assert(<span class="hljs-literal">true</span>, isTrue)
+        } @@ jvmOnly, <span class="hljs-comment">//@@ jvmOnly only runs tests on the JVM</span>
+        test(<span class="hljs-string">"A passing test run for JS only"</span>) {
+          assert(<span class="hljs-literal">true</span>, isTrue)
+        } @@ jsOnly, <span class="hljs-comment">//@@ jsOnly only runs tests on Scala.js</span>
+        test(<span class="hljs-string">"A passing test with a timeout"</span>) {
+          assert(<span class="hljs-literal">true</span>, isTrue)
+        } @@ timeout(<span class="hljs-number">10.</span>nanos), <span class="hljs-comment">//@@ timeout will fail a test that doesn't pass within the specified time</span>
+        test(<span class="hljs-string">"A failing test... that passes"</span>) {
+          assert(<span class="hljs-literal">true</span>, isFalse)
+        } @@ failure, <span class="hljs-comment">//@@ failure turns a failing test into a passing test</span>
+        test(<span class="hljs-string">"A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!"</span>) {
+          assert(<span class="hljs-literal">false</span>, isTrue)
+        } @@ jvmOnly           <span class="hljs-comment">// only run on the JVM</span>
+          @@ eventually        <span class="hljs-comment">//@@ eventually retries a test indefinitely until it succeeds</span>
+          @@ timeout(<span class="hljs-number">20.</span>nanos) <span class="hljs-comment">//it's a good idea to compose `eventually` with `timeout`, or the test may never end</span>
+      ) @@ timeout(<span class="hljs-number">60.</span>seconds)   <span class="hljs-comment">//apply a timeout to the whole suite</span>
+    )
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/howto/howto_use_module_pattern"><span class="arrow-prev">← </span><span>Use module pattern</span></a><a class="docs-next button" href="/docs/howto/howto_mock_services"><span>Mock services</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#how-zio-test-was-designed">How zio-test was designed</a></li><li><a href="#constructing-tests">Constructing tests</a><ul class="toc-headings"><li><a href="#assertions-creating-testresults">Assertions - creating TestResults</a></li><li><a href="#running-tests">Running tests</a></li></ul></li><li><a href="#using-test-environment">Using Test Environment</a><ul class="toc-headings"><li><a href="#testing-random">Testing Random</a></li><li><a href="#testing-clock">Testing Clock</a></li><li><a href="#testing-console">Testing Console</a></li><li><a href="#testing-system">Testing System</a></li><li><a href="#test-aspects">Test Aspects</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/img/discord.png" width="120" height="60" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>

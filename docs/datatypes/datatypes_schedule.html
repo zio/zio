@@ -90,32 +90,32 @@
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> upTo10 = <span class="hljs-type">Schedule</span>.recurs(<span class="hljs-number">10</span>)
 </code></pre>
 <p>A schedule that recurs every 10 milliseconds:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> spaced = <span class="hljs-type">Schedule</span>.spaced(<span class="hljs-number">10.</span>milliseconds)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> spaced = <span class="hljs-type">ZSchedule</span>.spaced(<span class="hljs-number">10.</span>milliseconds)
 </code></pre>
 <p>A schedule that recurs using exponential backoff:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> exponential = <span class="hljs-type">Schedule</span>.exponential(<span class="hljs-number">10.</span>milliseconds)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> exponential = <span class="hljs-type">ZSchedule</span>.exponential(<span class="hljs-number">10.</span>milliseconds)
 </code></pre>
 <p>A schedule that recurs using fibonacci backoff:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> fibonacci = <span class="hljs-type">Schedule</span>.fibonacci(<span class="hljs-number">10.</span>milliseconds)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> fibonacci = <span class="hljs-type">ZSchedule</span>.fibonacci(<span class="hljs-number">10.</span>milliseconds)
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="schedule-combinators"></a><a href="#schedule-combinators" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schedule Combinators</h2>
 <p>Applying random jitter to a schedule:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> jitteredExp = <span class="hljs-type">Schedule</span>.exponential(<span class="hljs-number">10.</span>milliseconds).jittered
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> jitteredExp = <span class="hljs-type">ZSchedule</span>.exponential(<span class="hljs-number">10.</span>milliseconds).jittered()
 </code></pre>
 <p>Modifies the delay of a schedule:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> boosted = <span class="hljs-type">Schedule</span>.spaced(<span class="hljs-number">1.</span>second).delayed(_ + <span class="hljs-number">100.</span>milliseconds)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> boosted = <span class="hljs-type">ZSchedule</span>.spaced(<span class="hljs-number">1.</span>second).delayed(_ =&gt; <span class="hljs-number">100.</span>milliseconds)
 </code></pre>
 <p>Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> sequential = <span class="hljs-type">Schedule</span>.recurs(<span class="hljs-number">10</span>) andThen <span class="hljs-type">Schedule</span>.spaced(<span class="hljs-number">1.</span>second)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> sequential = <span class="hljs-type">ZSchedule</span>.recurs(<span class="hljs-number">10</span>) andThen <span class="hljs-type">ZSchedule</span>.spaced(<span class="hljs-number">1.</span>second)
 </code></pre>
 <p>Combines two schedules through intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> expUpTo10 = <span class="hljs-type">Schedule</span>.exponential(<span class="hljs-number">1.</span>second) &amp;&amp; <span class="hljs-type">Schedule</span>.recurs(<span class="hljs-number">10</span>)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> expUpTo10 = <span class="hljs-type">ZSchedule</span>.exponential(<span class="hljs-number">1.</span>second) &amp;&amp; <span class="hljs-type">Schedule</span>.recurs(<span class="hljs-number">10</span>)
 </code></pre>
 <p>Combines two schedules through union, by recurring if either schedule wants to
 recur, using the minimum of the two delays between recurrences:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> expCapped = <span class="hljs-type">Schedule</span>.exponential(<span class="hljs-number">100.</span>milliseconds) || <span class="hljs-type">Schedule</span>.spaced(<span class="hljs-number">1.</span>second)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> expCapped = <span class="hljs-type">ZSchedule</span>.exponential(<span class="hljs-number">100.</span>milliseconds) || <span class="hljs-type">ZSchedule</span>.spaced(<span class="hljs-number">1.</span>second)
 </code></pre>
 <p>Stops retrying after a specified amount of time has elapsed:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> expMaxElapsed = <span class="hljs-type">Schedule</span>.exponential(<span class="hljs-number">10.</span>milliseconds) &amp;&amp; <span class="hljs-type">ZSchedule</span>.elapsed.whileOutput(_ &lt; <span class="hljs-number">30.</span>seconds)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> expMaxElapsed = <span class="hljs-type">ZSchedule</span>.exponential(<span class="hljs-number">10.</span>milliseconds) &amp;&amp; <span class="hljs-type">ZSchedule</span>.elapsed.whileOutput(_ &lt; <span class="hljs-number">30.</span>seconds)
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/datatypes/datatypes_ref"><span class="arrow-prev">← </span><span>Ref</span></a><a class="docs-next button" href="/docs/datatypes/datatypes_semaphore"><span>Semaphore</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#base-schedules">Base Schedules</a></li><li><a href="#schedule-combinators">Schedule Combinators</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/img/discord.png" width="120" height="60" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
