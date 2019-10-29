@@ -26,10 +26,9 @@ sealed trait CanFail[-E]
 
 object CanFail extends CanFail[Any] {
 
-  implicit final def canFail[E]: CanFail[E] =
-    CanFail
+  implicit final def canFail[E]: CanFail[E] = CanFail
 
   @implicitAmbiguous("This operation only makes sense for effects that can fail.")
-  implicit final val cannotFail: CanFail[Nothing] =
-    CanFail
+  implicit final val canFailAmbiguous1: CanFail[Nothing] = CanFail
+  implicit final val canFailAmbiguous2: CanFail[Nothing] = CanFail
 }
