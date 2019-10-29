@@ -1049,7 +1049,7 @@ object ZIOSpec
             for {
               cont <- Promise.make[Nothing, Unit]
               p1   <- Promise.make[Nothing, Boolean]
-              f1   <- (cont.succeed(()) *> IO.never).catchAllCause(IO.fail).ensuring(p1.succeed(true)).fork
+              f1   <- (cont.succeed(()) *> IO.never).ensuring(p1.succeed(true)).fork
               _    <- cont.await
               _    <- f1.interrupt
               res  <- p1.await

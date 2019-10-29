@@ -423,7 +423,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * does not fail, but succeeds with the value returned by the left or right
    * function passed to `fold`.
    */
-  final def fold[B](failure: E => B, success: A => B)(implicit ev: CanFail[E]): ZIO[R, Nothing, B] =
+  final def fold[B](failure: E => B, success: A => B): ZIO[R, Nothing, B] =
     foldM(new ZIO.MapFn(failure), new ZIO.MapFn(success))
 
   /**
@@ -449,9 +449,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it will depend on the `IO`s returned by the given continuations.
    */
-  final def foldM[R1 <: R, E2, B](failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B])(
-    implicit ev: CanFail[E]
-  ): ZIO[R1, E2, B] =
+  final def foldM[R1 <: R, E2, B](failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
     foldCauseM(new ZIO.FoldCauseMFailureFn(failure), success)
 
   /**
