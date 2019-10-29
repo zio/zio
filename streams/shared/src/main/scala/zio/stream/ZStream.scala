@@ -2789,7 +2789,7 @@ object ZStream {
    * The stream that always fails with `error`
    */
   final def fail[E](error: E): Stream[E, Nothing] =
-    halt(Cause.fail(error))
+    StreamEffect.fail[E](error)
 
   /**
    * Creates an empty stream that never fails and executes the finalizer when it ends.

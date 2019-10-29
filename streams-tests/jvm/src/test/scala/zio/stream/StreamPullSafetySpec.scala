@@ -12,6 +12,13 @@ object StreamPullSafetySpec
           Stream.empty.process
             .use(threePulls(_))
             .map(assert(_, equalTo(List(Left(None), Left(None), Left(None)))))
+        },
+        testM("Stream.fail is safe to pull again") {
+          Stream
+            .fail("Ouch")
+            .process
+            .use(threePulls(_))
+            .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
         }
       )
     )
