@@ -120,12 +120,6 @@ object Schedule {
     ZSchedule.identity
 
   /**
-   * See [[ZSchedule.logInput]]
-   */
-  final def logInput[A](f: A => UIO[Unit]): Schedule[A, A] =
-    ZSchedule.logInput(f)
-
-  /**
    * See [[ZSchedule.recurs]]
    */
   final def recurs(n: Int): Schedule[Any, Int] = ZSchedule.recurs(n)
@@ -144,6 +138,18 @@ object Schedule {
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Schedule[Any, A] =
     succeed(a)
+
+  /**
+   * See [[ZSchedule.tapInput]]
+   */
+  final def tapInput[A](f: A => UIO[Unit]): Schedule[A, A] =
+    ZSchedule.tapInput(f)
+
+  /**
+   * See [[ZSchedule.tapOutput]]
+   */
+  final def tapOutput[A](f: A => UIO[Unit]): Schedule[A, A] =
+    ZSchedule.tapOutput(f)
 
   /**
    * See [[ZSchedule.unfold]]
