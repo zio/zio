@@ -437,18 +437,6 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def left[C]: ZSchedule[R, Either[A, C], Either[B, C]] = self +++ ZSchedule.identity[C]
 
   /**
-   * Sends every input value to the specified sink.
-   */
-  final def logInput[R1 <: R, A1 <: A](f: A1 => ZIO[R1, Nothing, Unit]): ZSchedule[R1, A1, B] =
-    updated(update => (a, s) => f(a) *> update(a, s))
-
-  /**
-   * Sends every output value to the specified sink.
-   */
-  final def logOutput[R1 <: R](f: B => ZIO[R1, Nothing, Unit]): ZSchedule[R1, A, B] =
-    updated(update => (a, s) => update(a, s).flatMap(s1 => f(self.extract(a, s1)).as(s1)))
-
-  /**
    * Returns a new schedule that maps over the output of this one.
    */
   final def map[A1 <: A, C](f: B => C): ZSchedule[R, A1, C] =
@@ -563,6 +551,18 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * another value unchanged as the first element of the tuple.
    */
   final def second[C]: ZSchedule[R, (C, A), (C, B)] = ZSchedule.identity[C] *** self
+
+  /**
+   * Sends every input value to the specified sink.
+   */
+  final def tapInput[R1 <: R, A1 <: A](f: A1 => ZIO[R1, Nothing, Unit]): ZSchedule[R1, A1, B] =
+    updated(update => (a, s) => f(a) *> update(a, s))
+
+  /**
+   * Sends every output value to the specified sink.
+   */
+  final def tapOutput[R1 <: R](f: B => ZIO[R1, Nothing, Unit]): ZSchedule[R1, A, B] =
+    updated(update => (a, s) => update(a, s).flatMap(s1 => f(self.extract(a, s1)).as(s1)))
 
   /**
    * Returns a new schedule with the update function transformed by the
@@ -865,13 +865,6 @@ object ZSchedule {
     delayed(forever.map(i => base * (i + 1).doubleValue()))
 
   /**
-   * A schedule that recurs forever, dumping input values to the specified
-   * sink, and returning those same values unmodified.
-   */
-  final def logInput[R, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
-    identity[A].logInput(f)
-
-  /**
    * A schedule that waits forever when updating or initializing.
    */
   final val never: Schedule[Any, Nothing] =
@@ -951,6 +944,20 @@ object ZSchedule {
   @deprecated("use succeed", "1.0.0")
   final def succeedLazy[A](a: => A): Schedule[Any, A] =
     succeed(a)
+
+  /**
+   * A schedule that recurs forever, dumping input values to the specified
+   * sink, and returning those same values unmodified.
+   */
+  final def tapInput[R, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
+    identity[A].tapInput(f)
+
+  /**
+   * A schedule that recurs forever, dumping output values to the specified
+   * sink, and returning those same values unmodified.
+   */
+  final def tapOutput[R, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
+    identity[A].tapOutput(f)
 
   /**
    * A schedule that always recurs without delay, and computes the output
