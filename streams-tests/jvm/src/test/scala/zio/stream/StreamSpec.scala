@@ -1178,7 +1178,7 @@ object StreamSpec
 
             for {
               merge <- s1.mergeEither(s2).runCollect
-            } yield assert(merge, hasSameElements(List(Left(1), Left(2), Right(1), Right(2))))
+            } yield assert[List[Either[Int, Int]]](merge, hasSameElements(List(Left(1), Left(2), Right(1), Right(2))))
           },
           testM("mergeWith") {
             val s1 = Stream(1, 2)
