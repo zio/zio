@@ -77,7 +77,9 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    * Switches over to the stream produced by the provided function in case this one
    * fails with a typed error.
    */
-  final def catchAll[R1 <: R, E2, A1 >: A](f: E => ZStreamChunk[R1, E2, A1]): ZStreamChunk[R1, E2, A1] =
+  final def catchAll[R1 <: R, E2, A1 >: A](
+    f: E => ZStreamChunk[R1, E2, A1]
+  )(implicit ev: CanFail[E]): ZStreamChunk[R1, E2, A1] =
     self.catchAllCause(_.failureOrCause.fold(f, c => ZStreamChunk(ZStream.halt(c))))
 
   /**
@@ -201,7 +203,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    *
    * @note the stream will end as soon as the first error occurs.
    */
-  final def either: ZStreamChunk[R, Nothing, Either[E, A]] =
+  final def either(implicit ev: CanFail[E]): ZStreamChunk[R, Nothing, Either[E, A]] =
     self.map(Right(_)).catchAll(e => ZStreamChunk.succeed(Chunk.single(Left(e))))
 
   /**
@@ -405,7 +407,9 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    *
    * See also [[ZStream#catchAll]].
    */
-  final def orElse[R1 <: R, E2, A1 >: A](that: => ZStreamChunk[R1, E2, A1]): ZStreamChunk[R1, E2, A1] =
+  final def orElse[R1 <: R, E2, A1 >: A](
+    that: => ZStreamChunk[R1, E2, A1]
+  )(implicit ev: CanFail[E]): ZStreamChunk[R1, E2, A1] =
     self.catchAll(_ => that)
 
   final def process =
