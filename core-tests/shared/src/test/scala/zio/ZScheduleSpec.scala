@@ -116,10 +116,10 @@ object ZScheduleSpec
         ),
         suite("Retry on failure according to a provided strategy")(
           testM("retry 0 time for `once` when first time succeeds") {
-            def update(ref: Ref[Int]): ZIO[Any, String, Int] = ref.update(_ + 1)
+            import zio.CanFail.canFail
             for {
               ref <- Ref.make(0)
-              _   <- update(ref).retry(Schedule.once)
+              _   <- ref.update(_ + 1).retry(Schedule.once)
               i   <- ref.get
             } yield assert(i, equalTo(1))
           },

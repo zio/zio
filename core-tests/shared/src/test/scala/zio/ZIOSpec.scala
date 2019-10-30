@@ -181,15 +181,15 @@ object ZIOSpec
         ),
         suite("option")(
           testM("return success in Some") {
-            val zio: ZIO[Any, String, Int] = ZIO.succeed(11)
-            assertM(zio.option, equalTo(Some(11)))
+            import zio.CanFail.canFail
+            assertM(ZIO.succeed(11).option, equalTo(Some(11)))
           },
           testM("return failure as None") {
             assertM(ZIO.fail(123).option, equalTo(None))
           },
           testM("not catch throwable") {
-            val zio: ZIO[Any, String, Int] = ZIO.die(ExampleError)
-            assertM(zio.option.run, dies(equalTo(ExampleError)))
+            import zio.CanFail.canFail
+            assertM(ZIO.die(ExampleError).option.run, dies(equalTo(ExampleError)))
           },
           testM("catch throwable after sandboxing") {
             assertM(ZIO.die(ExampleError).sandbox.option, equalTo(None))
@@ -625,7 +625,8 @@ object ZIOSpec
             assertM(fib(1000), equalTo(expected))
           },
           testM("deep absolve/attempt is identity") {
-            val io = (0 until 1000).foldLeft[ZIO[Any, String, Int]](IO.succeed(42)) { (acc, _) =>
+            import zio.CanFail.canFail
+            val io = (0 until 1000).foldLeft(IO.succeed(42)) { (acc, _) =>
               IO.absolve(acc.either)
             }
 
@@ -1045,11 +1046,12 @@ object ZIOSpec
               r <- done.await.timeoutTo(42)(_ => 0)(60.second)
             } yield assert(r, equalTo(0))
           },
-          testM("redeem + ensuring + interrupt") {
+          testM("catchAll + ensuring + interrupt") {
+            import zio.CanFail.canFail
             for {
               cont <- Promise.make[Nothing, Unit]
               p1   <- Promise.make[Nothing, Boolean]
-              f1   <- (cont.succeed(()) *> IO.never).ensuring(p1.succeed(true)).fork
+              f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
               _    <- cont.await
               _    <- f1.interrupt
               res  <- p1.await
