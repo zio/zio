@@ -191,6 +191,7 @@ object ZManagedSpec
             } yield assert(values, equalTo(List(1, 1)))
           },
           testM("Runs onSuccess on success") {
+            import zio.CanFail.canFail
             for {
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
@@ -207,6 +208,7 @@ object ZManagedSpec
             } yield assert(values, equalTo(List(1, 2, 2, 1)))
           },
           testM("Invokes cleanups on interrupt - 1") {
+            import zio.CanFail.canFail
             for {
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
