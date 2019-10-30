@@ -575,7 +575,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Returns a stream whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  final def bimap[E2, B](f: E => E2, g: A => B): ZStream[R, E2, B] = mapError(f).map(g)
+  final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZStream[R, E2, B] =
+    mapError(f).map(g)
 
   /**
    * Fan out the stream, producing a list of streams that have the same elements as this stream.
@@ -691,7 +692,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Switches over to the stream produced by the provided function in case this one
    * fails with a typed error.
    */
-  final def catchAll[R1 <: R, E2, A1 >: A](f: E => ZStream[R1, E2, A1]): ZStream[R1, E2, A1] =
+  final def catchAll[R1 <: R, E2, A1 >: A](f: E => ZStream[R1, E2, A1])(implicit ev: CanFail[E]): ZStream[R1, E2, A1] =
     self.catchAllCause(_.failureOrCause.fold(f, ZStream.halt))
 
   /**
@@ -995,7 +996,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    *
    * @note the stream will end as soon as the first error occurs.
    */
-  final def either: ZStream[R, Nothing, Either[E, A]] =
+  final def either(implicit ev: CanFail[E]): ZStream[R, Nothing, Either[E, A]] =
     self.map(Right(_)).catchAll(e => ZStream(Left(e)))
 
   /**
@@ -1582,7 +1583,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Transforms the errors that possibly result from this stream.
    */
-  final def mapError[E1](f: E => E1): ZStream[R, E1, A] =
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZStream[R, E1, A] =
     ZStream(self.process.mapError(f).map(_.mapError(_.map(f))))
 
   /**
@@ -1700,7 +1701,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    *
    * See also [[ZStream#catchAll]].
    */
-  final def orElse[R1 <: R, E2, A1 >: A](that: => ZStream[R1, E2, A1]): ZStream[R1, E2, A1] =
+  final def orElse[R1 <: R, E2, A1 >: A](that: => ZStream[R1, E2, A1])(implicit ev: CanFail[E]): ZStream[R1, E2, A1] =
     self.catchAll(_ => that)
 
   /**
