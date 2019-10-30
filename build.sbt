@@ -151,8 +151,10 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
   .settings(
+    scalacOptions += "-language:experimental.macros",
     libraryDependencies ++= Seq(
-      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0",
+      "org.scala-lang"     % "scala-reflect"            % scalaVersion.value % "provided"
     )
   )
 

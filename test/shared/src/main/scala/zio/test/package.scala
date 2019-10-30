@@ -42,7 +42,7 @@ import zio.test.environment.TestEnvironment
  *  }
  * }}}
  */
-package object test extends CheckVariants {
+package object test extends AssertionVariants with CheckVariants {
   type AssertResult = BoolAlgebra[AssertionValue]
   type TestResult   = BoolAlgebra[FailureDetails]
 
