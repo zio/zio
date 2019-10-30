@@ -425,8 +425,8 @@ private[zio] final class FiberContext[E, A](
                     if (traceEffects && inTracingRegion) addTrace(k)
 
                     k(resumeAsync(epoch)) match {
-                      case Some(nextZio) => if (exitAsync(epoch)) nextZio else null
-                      case None          => null
+                      case Some(zio) => if (exitAsync(epoch)) zio else null
+                      case None      => null
                     }
                   } else ZIO.interrupt
 
