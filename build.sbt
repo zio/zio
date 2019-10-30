@@ -287,7 +287,7 @@ lazy val docs = project.module
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC4",
-      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
+      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC9",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.4-RC1",
