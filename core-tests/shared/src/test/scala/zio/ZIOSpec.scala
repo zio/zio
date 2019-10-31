@@ -174,7 +174,7 @@ object ZIOSpec
           },
           testM("returns last failure") {
             assertM(live(ZIO.sleep(100.millis) *> ZIO.fail(24)).raceAll(List(ZIO.fail(25))).flip, equalTo(24))
-          },
+          } @@ flaky,
           testM("returns success when it happens after failure") {
             assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* live(ZIO.sleep(100.millis)))), equalTo(24))
           }
