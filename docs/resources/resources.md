@@ -27,6 +27,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Talks
 
+- [Upgrade Your Future](https://www.youtube.com/watch?v=USgfku1h7Hw) by John De Goes (September 2019)
 - [One Monad to Rule Them All](https://www.youtube.com/watch?v=POUEz8XHMhE) by John De Goes (August 2019)
 - [Functional Concurrency in Scala with ZIO](https://www.youtube.com/watch?v=m5nas4Hndqo) by Itamar Ravid (June 2019)
 - [Error Management: Future vs ZIO](https://www.youtube.com/watch?v=mGxcaQs3JWI) by John De Goes and Kai (May 2019)
@@ -58,6 +59,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 - [Rudder](https://github.com/normation/rudder): an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Uses queues, brackets, interop with Java, and historical code. See [context and references](https://issues.rudder.io/issues/14870).
 - [ZIO AI Platform Backend](https://github.com/Clover-Group/zio_front): Clover Group AI Platform backend, which employs ZIO, Doobie, http4s and Kafka .
+- [Polynote](https://github.com/polynote/polynote): a new, polyglot notebook with first-class Scala support, Apache Spark integration, multi-language interoperability including Scala, Python, and SQL, as-you-type autocomplete, and more.
 
 ## Support
 

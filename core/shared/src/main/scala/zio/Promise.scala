@@ -163,7 +163,8 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   /**
-   * Completes immediately this promise and returns optionally it's result.
+   * Checks for completion of this Promise. Returns the result effect if this
+   * promise has already been completed or a `None` otherwise.
    */
   final def poll: UIO[Option[IO[E, A]]] =
     IO.effectTotal(state.get).flatMap {
@@ -236,7 +237,7 @@ object Promise {
     ref: Ref[A]
   )(
     acquire: (Promise[E, B], A) => (UIO[C], A)
-  )(release: (C, Promise[E, B]) => UIO[_]): IO[E, B] =
+  )(release: (C, Promise[E, B]) => UIO[Any]): IO[E, B] =
     for {
       pRef <- Ref.make[Option[(C, Promise[E, B])]](None)
       b <- (for {

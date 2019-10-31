@@ -139,8 +139,8 @@ object SerializableSpec
         testM("ZSchedule is serializable") {
           val schedule = Schedule.recurs(5)
           for {
-            out1 <- schedule.run(List(1, 2, 3, 4, 5))
-            out2 <- serializeAndDeserialize(schedule).run(List(1, 2, 3, 4, 5))
+            out1 <- ZIO.unit.repeat(schedule)
+            out2 <- ZIO.unit.repeat(serializeAndDeserialize(schedule))
           } yield assert(out2, equalTo(out1))
         },
         testM("Chunk.single is serializable") {
@@ -237,7 +237,7 @@ object SerializableSpec
     )
 
 object SerializableSpecHelpers {
-  def serializeAndBack[T](a: T): IO[_, T] =
+  def serializeAndBack[T](a: T): IO[Any, T] =
     for {
       obj       <- IO.effectTotal(serializeToBytes(a))
       returnObj <- IO.effectTotal(getObjFromBytes[T](obj))

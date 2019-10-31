@@ -19,7 +19,7 @@ package zio.test.sbt
 import sbt.testing._
 import zio.FunctionIO
 import zio.test.sbt.TestingSupport._
-import zio.test.{ Assertion, DefaultRunnableSpec, TestArgs, TestAspect, ZSpecSyntax }
+import zio.test.{ Assertion, DefaultRunnableSpec, TestArgs, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
 

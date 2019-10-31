@@ -16,9 +16,11 @@
 
 package zio.test
 
-import zio.{ clock, ZIO, ZManaged, ZSchedule }
+import zio.{ Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration._
 import zio.clock.Clock
+import zio.system
+import zio.system.System
 import zio.test.environment.Live
 
 /**
@@ -166,7 +168,7 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
         lazy val untilSuccess: ZIO[R, Nothing, Either[TestFailure[Nothing], TestSuccess[S]]] =
-          test.foldM(_ => untilSuccess, _.fold(_ => untilSuccess, s => ZIO.succeed(Right(s))))
+          test.foldCauseM(_ => untilSuccess, _.fold(_ => untilSuccess, s => ZIO.succeed(Right(s))))
 
         untilSuccess
       }
@@ -209,7 +211,7 @@ object TestAspect extends TimeoutVariants {
             case other                                        => Left(TestFailure.Assertion(assert(TestFailure.Runtime(other), p)))
           }, {
             case Left(e) => if (p.run(e).isSuccess) succeed else Left(TestFailure.Assertion(assert(e, p)))
-            case _       => Left(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
+            case _       => Left(TestFailure.Runtime(Cause.die(new RuntimeException("did not fail as expected"))))
           }
         )
       }
@@ -222,23 +224,6 @@ object TestAspect extends TimeoutVariants {
   val flaky: TestAspectPoly = eventually
 
   /**
-   * An aspect that repeats the test a specified number of times, ensuring it
-   * is stable ("non-flaky"). Stops at the first failure.
-   */
-  def nonFlaky(n0: Int): TestAspectPoly =
-    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
-        def repeat(n: Int): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-          if (n <= 1) test
-          else test.flatMap(_ => repeat(n - 1))
-
-        repeat(n0)
-      }
-    }
-
-  /**
    * An aspect that returns the tests unchanged
    */
   val identity: TestAspectPoly =
@@ -248,6 +233,58 @@ object TestAspect extends TimeoutVariants {
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] = spec
     }
+
+  /**
+   * An aspect that only runs a test if the specified environment variable
+   * satisfies the specified assertion.
+   */
+  def ifEnv(env: String, assertion: Assertion[String]): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[System], Nothing, Any, Nothing, Any] {
+      def perTest[R <: Live[System], E, S](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        Live.live(system.env(env)).orDie.flatMap { value =>
+          value
+            .filter(assertion.test)
+            .fold[ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]](ZIO.succeed(Right(TestSuccess.Ignored)))(
+              _ => test
+            )
+        }
+    }
+
+  /**
+   * As aspect that only runs a test if the specified environment variable is
+   * set.
+   */
+  def ifEnvSet(env: String): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
+    ifEnv(env, Assertion.anything)
+
+  /**
+   * An aspect that only runs a test if the specified Java property satisfies
+   * the specified assertion.
+   */
+  def ifProp(
+    prop: String,
+    assertion: Assertion[String]
+  ): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[System], Nothing, Any, Nothing, Any] {
+      def perTest[R <: Live[System], E, S](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        Live.live(system.property(prop)).orDie.flatMap { value =>
+          value
+            .filter(assertion.test)
+            .fold[ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]](ZIO.succeed(Right(TestSuccess.Ignored)))(
+              _ => test
+            )
+        }
+    }
+
+  /**
+   * As aspect that only runs a test if the specified Java property is set.
+   */
+  def ifPropSet(prop: String): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
+    ifProp(prop, Assertion.anything)
 
   /**
    * An aspect that marks tests as ignored.
@@ -283,6 +320,23 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * An aspect that repeats the test a specified number of times, ensuring it
+   * is stable ("non-flaky"). Stops at the first failure.
+   */
+  def nonFlaky(n0: Int): TestAspectPoly =
+    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
+        def repeat(n: Int): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+          if (n <= 1) test
+          else test.flatMap(_.fold(e => ZIO.succeed(Left(e)), _ => repeat(n - 1)))
+
+        repeat(n0)
+      }
+    }
+
+  /**
    * An aspect that executes the members of a suite in parallel.
    */
   val parallel: TestAspectPoly = executionStrategy(ExecutionStrategy.Parallel)
@@ -298,34 +352,32 @@ object TestAspect extends TimeoutVariants {
    */
   def retry[R0, E0, S0](
     schedule: ZSchedule[R0, TestFailure[E0], S0]
-  ): TestAspect[Nothing, R0 with Live[Clock], Nothing, E0, Nothing, S0] =
-    new TestAspect.PerTest[Nothing, R0 with Live[Clock], Nothing, E0, Nothing, S0] {
-      def perTest[R >: Nothing <: R0 with Live[Clock], E >: Nothing <: E0, S >: Nothing <: S0](
+  ): TestAspect[Nothing, Live[R0], Nothing, E0, Nothing, S0] =
+    new TestAspect.PerTest[Nothing, Live[R0], Nothing, E0, Nothing, S0] {
+      def perTest[R >: Nothing <: Live[R0], E >: Nothing <: E0, S >: Nothing <: S0](
         test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
       ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
-        def loop(state: schedule.State): ZIO[R with Live[Clock], E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        def loop(state: schedule.State): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
           test.foldCauseM(
             err =>
-              schedule
-                .update(TestFailure.Runtime(err), state)
-                .flatMap(
-                  decision =>
-                    if (decision.cont) Live.live(clock.sleep(decision.delay)) *> loop(decision.state)
-                    else ZIO.halt(err)
+              Live
+                .live(schedule.update(TestFailure.Runtime(err), state))
+                .foldM(
+                  _ => ZIO.halt(err),
+                  loop
                 ), {
               case Left(e) =>
-                schedule
-                  .update(e, state)
-                  .flatMap(
-                    decision =>
-                      if (decision.cont) Live.live(clock.sleep(decision.delay)) *> loop(decision.state)
-                      else ZIO.succeed(Left(e))
+                Live
+                  .live(schedule.update(e, state))
+                  .foldM(
+                    _ => ZIO.succeed(Left(e)),
+                    loop
                   )
               case Right(s) => ZIO.succeed(Right(s))
             }
           )
 
-        schedule.initial.flatMap(loop)
+        Live.live(schedule.initial).flatMap(loop)
       }
     }
 
@@ -333,6 +385,21 @@ object TestAspect extends TimeoutVariants {
    * An aspect that executes the members of a suite sequentially.
    */
   val sequential: TestAspectPoly = executionStrategy(ExecutionStrategy.Sequential)
+
+  /**
+   * An aspect that converts ignored tests into test failures.
+   */
+  val success: TestAspectPoly =
+    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test.map {
+          case Right(TestSuccess.Ignored) =>
+            Left(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
+          case x => x
+        }
+    }
 
   /**
    * An aspect that times out tests using the specified duration.

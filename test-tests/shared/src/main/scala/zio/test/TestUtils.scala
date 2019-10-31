@@ -3,7 +3,6 @@ package zio.test
 import scala.concurrent.{ ExecutionContext, Future }
 
 import zio.{ Schedule, UIO, ZIO }
-import zio.clock.Clock
 import zio.test.environment.TestEnvironment
 
 object TestUtils {
@@ -41,7 +40,7 @@ object TestUtils {
       .map(passed => if (passed) (passed, succeed(label)) else (passed, fail(label)))
       .handle { case _ => (false, fail(label)) }
 
-  final def nonFlaky[R, E](test: ZIO[R, E, Boolean]): ZIO[R with Clock, E, Boolean] =
+  final def nonFlaky[R, E](test: ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
     if (TestPlatform.isJS) test
     else test.repeat(Schedule.recurs(100) *> Schedule.identity[Boolean])
 
@@ -67,7 +66,10 @@ object TestUtils {
 
   final def succeeded[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
-    forAllTests(execSpec)(_.isRight)
+    forAllTests(execSpec) {
+      case Right(TestSuccess.Succeeded(_)) => true
+      case _                               => false
+    }
   }
 
   final def timeit[A](label: String)(async: Async[A]): Async[A] =

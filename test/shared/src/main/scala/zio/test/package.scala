@@ -96,9 +96,26 @@ package object test extends CheckVariants {
    * Checks the assertion holds for the given value.
    */
   final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
-    assertion.run(value).map { fragment =>
-      FailureDetails(fragment, AssertionValue(assertion, value))
+    assertion.run(value).flatMap { fragment =>
+      def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
+        if (whole.assertion == failureDetails.assertion.head.assertion)
+          BoolAlgebra.success(failureDetails)
+        else {
+          val satisfied = whole.assertion.test(whole.value)
+          val fragment  = whole.assertion.run(whole.value)
+          val result    = if (satisfied) fragment else !fragment
+          result.flatMap { fragment =>
+            loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
+          }
+        }
+      loop(fragment, FailureDetails(::(AssertionValue(assertion, value), Nil)))
     }
+
+  /**
+   * Asserts that the given test was completed.
+   */
+  final val assertCompletes: TestResult =
+    assert(true, Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
@@ -153,19 +170,6 @@ package object test extends CheckVariants {
         }
       }
     )
-
-  /**
-   * Adds syntax for adding aspects.
-   * {{{
-   * test("foo") { assert(42, equalTo(42)) } @@ ignore
-   * }}}
-   */
-  implicit class ZSpecSyntax[R, E, L, S](spec: ZSpec[R, E, L, S]) {
-    def @@[LowerR <: R, UpperR >: R, LowerE <: E, UpperE >: E, LowerS <: S, UpperS >: S](
-      aspect: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
-    ): ZSpec[R, E, L, S] =
-      aspect(spec)
-  }
 
   val defaultTestRunner: TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any] =
     TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
