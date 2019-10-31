@@ -378,6 +378,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val ex = new Exception("Died")
 
     unsafeRun {
+      import zio.CanFail.canFail
       for {
         plain <- (ZIO.die(ex) <> IO.unit).run
         both  <- (ZIO.halt(Cause.Both(interrupt, die(ex))) <> IO.unit).run

@@ -92,7 +92,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * Operator alias for `orElse`.
    */
-  final def <>[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+  final def <>[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1])(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
     orElse(that)
 
   /**
@@ -147,19 +147,23 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  final def bimap[E1, A1](f: E => E1, g: A => A1): ZManaged[R, E1, A1] =
+  final def bimap[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E]): ZManaged[R, E1, A1] =
     mapError(f).map(g)
 
   /**
    * Recovers from all errors.
    */
-  final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+  final def catchAll[R1 <: R, E2, A1 >: A](
+    h: E => ZManaged[R1, E2, A1]
+  )(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
     foldM(h, ZManaged.succeed)
 
   /**
    * Recovers from some or all of the error cases.
    */
-  final def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZManaged[R1, E1, A1]]): ZManaged[R1, E1, A1] =
+  final def catchSome[R1 <: R, E1 >: E, A1 >: A](
+    pf: PartialFunction[E, ZManaged[R1, E1, A1]]
+  )(implicit ev: CanFail[E]): ZManaged[R1, E1, A1] =
     foldM(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.fail), ZManaged.succeed)
 
   /**
@@ -183,7 +187,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail
    */
-  final def either: ZManaged[R, Nothing, Either[E, A]] =
+  final def either(implicit ev: CanFail[E]): ZManaged[R, Nothing, Either[E, A]] =
     fold(Left[E, A], Right[E, A])
 
   /**
@@ -245,7 +249,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * Effectfully map the error channel
    */
-  final def flatMapError[R1 <: R, E2](f: E => ZManaged[R1, Nothing, E2]): ZManaged[R1, E2, A] =
+  final def flatMapError[R1 <: R, E2](f: E => ZManaged[R1, Nothing, E2])(implicit ev: CanFail[E]): ZManaged[R1, E2, A] =
     flipWith(_.flatMap(f))
 
   /**
@@ -274,7 +278,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * does not fail, but succeeds with the value returned by the left or right
    * function passed to `fold`.
    */
-  final def fold[B](failure: E => B, success: A => B): ZManaged[R, Nothing, B] =
+  final def fold[B](failure: E => B, success: A => B)(implicit ev: CanFail[E]): ZManaged[R, Nothing, B] =
     foldM(failure.andThen(ZManaged.succeed), success.andThen(ZManaged.succeed))
 
   /**
@@ -293,7 +297,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   final def foldM[R1 <: R, E2, B](
     failure: E => ZManaged[R1, E2, B],
     success: A => ZManaged[R1, E2, B]
-  ): ZManaged[R1, E2, B] =
+  )(implicit ev: CanFail[E]): ZManaged[R1, E2, B] =
     ZManaged[R1, E2, B] {
       Ref.make[List[Exit[Any, Any] => ZIO[R1, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
@@ -389,7 +393,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * Returns an effect whose failure is mapped by the specified `f` function.
    */
-  final def mapError[E1](f: E => E1): ZManaged[R, E1, A] =
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
     ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
 
   /**
@@ -433,35 +437,37 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
    */
-  final def option: ZManaged[R, Nothing, Option[A]] =
+  final def option(implicit ev: CanFail[E]): ZManaged[R, Nothing, Option[A]] =
     fold(_ => None, Some(_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
-  final def orDie(implicit ev: E <:< Throwable): ZManaged[R, Nothing, A] =
-    orDieWith(ev)
+  final def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, Nothing, A] =
+    orDieWith(ev1)
 
   /**
    * Keeps none of the errors, and terminates the fiber with them, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  final def orDieWith(f: E => Throwable): ZManaged[R, Nothing, A] =
+  final def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A] =
     mapError(f).catchAll(ZManaged.die)
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise executes the specified effect.
    */
-  final def orElse[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+  final def orElse[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1])(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
     foldM(_ => that, ZManaged.succeed)
 
   /**
    * Returns an effect that will produce the value of this effect, unless it
    * fails, in which case, it will produce the value of the specified effect.
    */
-  final def orElseEither[R1 <: R, E2, B](that: => ZManaged[R1, E2, B]): ZManaged[R1, E2, Either[A, B]] =
+  final def orElseEither[R1 <: R, E2, B](
+    that: => ZManaged[R1, E2, B]
+  )(implicit ev: CanFail[E]): ZManaged[R1, E2, Either[A, B]] =
     foldM(_ => that.map(Right[A, B]), a => ZManaged.succeed(Left[A, B](a)))
 
   /**
@@ -481,20 +487,24 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  final def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZManaged[R, E1, A] =
-    refineOrDieWith(pf)(ev)
+  final def refineOrDie[E1](
+    pf: PartialFunction[E, E1]
+  )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
+    refineOrDieWith(pf)(ev1)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  final def refineToOrDie[E1: ClassTag](implicit ev: E <:< Throwable): ZManaged[R, E1, A] =
-    refineOrDieWith { case e: E1 => e }(ev)
+  final def refineToOrDie[E1: ClassTag](implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
+    refineOrDieWith { case e: E1 => e }(ev1)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  final def refineOrDieWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable): ZManaged[R, E1, A] =
+  final def refineOrDieWith[E1](
+    pf: PartialFunction[E, E1]
+  )(f: E => Throwable)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
     catchAll { e =>
       pf.lift(e).fold[ZManaged[R, E1, A]](ZManaged.die(f(e)))(ZManaged.fail)
     }
@@ -505,7 +515,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S]): ZManaged[R1, E1, A] = {
+  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] = {
     def loop[B](zio: ZIO[R, E1, B], state: policy.State): ZIO[R1, E1, (policy.State, B)] =
       zio.foldM(
         err =>

@@ -513,7 +513,7 @@ object StreamSpec
             val stream   = fib(20)
             val expected = 6765
 
-            assertM(stream.runCollect.either, isRight(equalTo(List(expected))))
+            assertM(stream.runCollect, equalTo(List(expected)))
           },
           testM("left identity")(checkM(Gen.anyInt, Gen.function(pureStreamOfInts)) { (x, f) =>
             for {
@@ -1093,8 +1093,8 @@ object StreamSpec
             val s = Stream.fromIterable(data)
 
             for {
-              l <- s.mapM(f).runCollect.either
-              r <- IO.foreach(data)(f).either
+              l <- s.mapM(f).runCollect
+              r <- IO.foreach(data)(f)
             } yield assert(l, equalTo(r))
           }
         },
@@ -1177,18 +1177,16 @@ object StreamSpec
             val s2 = Stream(1, 2)
 
             for {
-              merge <- s1.mergeEither(s2).runCollect.either
-              list  = merge.fold[List[Either[Int, Int]]](_ => Nil, identity)
-            } yield assert(list, hasSameElements[Either[Int, Int]](List(Left(1), Left(2), Right(1), Right(2))))
+              merge <- s1.mergeEither(s2).runCollect
+            } yield assert[List[Either[Int, Int]]](merge, hasSameElements(List(Left(1), Left(2), Right(1), Right(2))))
           },
           testM("mergeWith") {
             val s1 = Stream(1, 2)
             val s2 = Stream(1, 2)
 
             for {
-              merge <- s1.mergeWith(s2)(_.toString, _.toString).runCollect.either
-              list  = merge.fold[List[String]](_ => Nil, identity)
-            } yield assert(list, hasSameElements(List("1", "2", "1", "2")))
+              merge <- s1.mergeWith(s2)(_.toString, _.toString).runCollect
+            } yield assert(merge, hasSameElements(List("1", "2", "1", "2")))
           },
           testM("mergeWith short circuit") {
             val s1 = Stream(1, 2)
