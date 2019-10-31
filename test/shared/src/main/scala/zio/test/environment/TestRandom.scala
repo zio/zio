@@ -69,7 +69,7 @@ trait TestRandom extends Random {
   val random: TestRandom.Service[Any]
 }
 
-object TestRandom {
+object TestRandom extends Serializable {
 
   trait Service[R] extends Random.Service[R] {
     def clearBooleans: UIO[Unit]
