@@ -42,7 +42,7 @@ import zio.test.environment.TestEnvironment
  *  }
  * }}}
  */
-package object test extends CheckVariants {
+package object test extends AssertionVariants with CheckVariants {
   type AssertResult = BoolAlgebra[AssertionValue]
   type TestResult   = BoolAlgebra[FailureDetails]
 
@@ -110,6 +110,12 @@ package object test extends CheckVariants {
         }
       loop(fragment, FailureDetails(::(AssertionValue(assertion, value), Nil)))
     }
+
+  /**
+   * Asserts that the given test was completed.
+   */
+  final val assertCompletes: TestResult =
+    assert(true, Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.

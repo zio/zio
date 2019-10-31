@@ -121,7 +121,9 @@ object BuildHelper {
           "-Xignore-scala2-macros"
         )
       case Some((2, 13)) =>
-        std2xOptions ++ optimizerOptions(optimize)
+        Seq(
+          "-Ywarn-unused:params,-implicits"
+        ) ++ std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -134,6 +136,7 @@ object BuildHelper {
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit",
+          "-Ywarn-unused:params,-implicits",
           "-Xfuture",
           "-Xsource:2.13",
           "-Xmax-classfile-name",
@@ -182,14 +185,18 @@ object BuildHelper {
         case Some((2, x)) if x <= 11 =>
           Seq(
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11"))
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
           ).flatten
         case Some((2, x)) if x >= 12 =>
           Seq(
             Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
             Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
           ).flatten
         case _ =>
           if (isDotty.value)
@@ -197,7 +204,9 @@ object BuildHelper {
               Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
               Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-dotty")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-dotty"))
             ).flatten
           else
             Nil

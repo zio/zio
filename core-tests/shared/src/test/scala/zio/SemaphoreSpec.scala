@@ -63,7 +63,7 @@ object SemaphoreSpec
               s <- Semaphore.make(n).tap(_.acquire)
               _ <- s.release.fork
               _ <- s.acquire
-            } yield assert((), equalTo(()))
+            } yield assertCompletes
           },
           /**
            * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
@@ -72,7 +72,7 @@ object SemaphoreSpec
             val n = 1L
             for {
               s           <- Semaphore.make(n)
-              acquireFork <- s.acquireN(2).timeout(1.milli).either.fork
+              acquireFork <- s.acquireN(2).timeout(1.milli).fork
               _           <- TestClock.adjust(1.milli) *> acquireFork.join
               permitsFork <- (s.release *> clock.sleep(10.millis) *> s.available).fork
               permits     <- TestClock.adjust(10.millis) *> permitsFork.join
@@ -85,7 +85,7 @@ object SemaphoreSpec
             val n = 0L
             for {
               s           <- Semaphore.make(n)
-              acquireFork <- s.withPermit(s.release).timeout(1.milli).either.fork
+              acquireFork <- s.withPermit(s.release).timeout(1.milli).fork
               _           <- TestClock.adjust(1.milli) *> acquireFork.join
               permitsFork <- (s.release *> clock.sleep(10.millis) *> s.available).fork
               permits     <- TestClock.adjust(10.millis) *> permitsFork.join
@@ -94,7 +94,7 @@ object SemaphoreSpec
           testM("`withPermitManaged` does not leak fibers or permits upon cancellation") {
             for {
               s           <- Semaphore.make(0)
-              acquireFork <- s.withPermitManaged.use(_ => s.release).timeout(1.millisecond).either.fork
+              acquireFork <- s.withPermitManaged.use(_ => s.release).timeout(1.millisecond).fork
               _           <- TestClock.adjust(1.milli) *> acquireFork.join
               permitsFork <- (s.release *> clock.sleep(10.milliseconds) *> s.available).fork
               permits     <- TestClock.adjust(10.millis) *> permitsFork.join
