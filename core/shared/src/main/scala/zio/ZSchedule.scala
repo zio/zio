@@ -502,13 +502,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Provide all requirements to the schedule.
    */
-  final def provide(r: R): ZSchedule[Any, A, B] =
+  final def provide(r: R)(implicit ev: NeedsEnv[R]): ZSchedule[Any, A, B] =
     provideSome(_ => r)
 
   /**
    * Provide some of the requirements to the schedule.
    */
-  final def provideSome[R1](f: R1 => R): ZSchedule[R1, A, B] =
+  final def provideSome[R1](f: R1 => R)(implicit ev: NeedsEnv[R]): ZSchedule[R1, A, B] =
     new ZSchedule[R1, A, B] {
       type State = self.State
       val initial = self.initial.provideSome(f)

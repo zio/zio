@@ -417,7 +417,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Narrows the environment by partially building it with `f`
    */
-  final def provideSome[R1](f: R1 => R): ZSink[R1, E, A0, A, B] =
+  final def provideSome[R1](f: R1 => R)(implicit ev: NeedsEnv[R]): ZSink[R1, E, A0, A, B] =
     new ZSink[R1, E, A0, A, B] {
       type State = self.State
       val initial                  = self.initial.provideSome(f)

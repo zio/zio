@@ -16,20 +16,21 @@
 
 package zio
 
-import scala.annotation.implicitNotFound
+import scala.annotation.implicitAmbiguous
 
 /**
- * A value of type `CanFail[E]` provides implicit evidence that an effect with
- * error type `E` can fail, that is, that `E` is not equal to `Nothing`.
+ * A value of type `NeedsEnv[R]` provides implicit evidence that an effect with
+ * environment type `R` needs an environment, that is, that `R` is not equal to
+ * `Any`.
  */
-@implicitNotFound("This operation only makes sense for effects that can fail.")
-sealed trait CanFail[-E]
+sealed trait NeedsEnv[+R]
 
-object CanFail extends CanFail[Any] {
+object NeedsEnv extends NeedsEnv[Nothing] {
 
-  implicit final def canFail[E]: CanFail[E] = CanFail
+  implicit final def needsEnv[R]: NeedsEnv[R] = NeedsEnv
 
-  // Provide multiple ambiguous values so an implicit CanFail[Nothing] cannot be found.
-  implicit final val canFailAmbiguous1: CanFail[Nothing] = CanFail
-  implicit final val canFailAmbiguous2: CanFail[Nothing] = CanFail
+  // Provide multiple ambiguous values so an implicit NeedsEnv[Any] cannot be found.
+  @implicitAmbiguous("This operation only makes sense for effects that need an environment.")
+  implicit final val needsEnvAmbiguous1: NeedsEnv[Any] = NeedsEnv
+  implicit final val needsEnvAmbiguous2: NeedsEnv[Any] = NeedsEnv
 }
