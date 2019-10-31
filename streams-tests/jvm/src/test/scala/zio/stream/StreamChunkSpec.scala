@@ -141,6 +141,20 @@ object StreamChunkSpec
               .map(assert(_, equalTo(Left("Ouch"))))
           }
         ),
+        testM("StreamChunk.mapError") {
+          StreamChunk(Stream.fail("123"))
+            .mapError(_.toInt)
+            .run(Sink.drain)
+            .either
+            .map(assert(_, isLeft(equalTo(123))))
+        },
+        testM("StreamChunk.mapErrorCause") {
+          StreamChunk(Stream.halt(Cause.fail("123")))
+            .mapErrorCause(_.map(_.toInt))
+            .run(Sink.drain)
+            .either
+            .map(assert(_, isLeft(equalTo(123))))
+        },
         testM("StreamChunk.drop") {
           checkM(chunksOfStrings, intGen) { (s, n) =>
             for {
