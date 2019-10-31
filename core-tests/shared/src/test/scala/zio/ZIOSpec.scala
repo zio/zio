@@ -181,12 +181,14 @@ object ZIOSpec
         ),
         suite("option")(
           testM("return success in Some") {
+            import zio.CanFail.canFail
             assertM(ZIO.succeed(11).option, equalTo(Some(11)))
           },
           testM("return failure as None") {
             assertM(ZIO.fail(123).option, equalTo(None))
           },
           testM("not catch throwable") {
+            import zio.CanFail.canFail
             assertM(ZIO.die(ExampleError).option.run, dies(equalTo(ExampleError)))
           },
           testM("catch throwable after sandboxing") {
@@ -623,6 +625,7 @@ object ZIOSpec
             assertM(fib(1000), equalTo(expected))
           },
           testM("deep absolve/attempt is identity") {
+            import zio.CanFail.canFail
             val io = (0 until 1000).foldLeft(IO.succeed(42)) { (acc, _) =>
               IO.absolve(acc.either)
             }
@@ -833,15 +836,15 @@ object ZIOSpec
                 r <- pa.await zip pb.await
               } yield r
 
-            assertM(io.eventually, equalTo((1, 2)))
+            assertM(io, equalTo((1, 2)))
           } @@ ignore,
           testM("race of fail with success") {
             val io = IO.fail(42).race(IO.succeed(24)).either
             assertM(io, isRight(equalTo(24)))
           },
           testM("race of terminate with success") {
-            val io = IO.die(new Throwable {}).race(IO.succeed(24)).either
-            assertM(io, isRight(equalTo(24)))
+            val io = IO.die(new Throwable {}).race(IO.succeed(24))
+            assertM(io, equalTo(24))
           },
           testM("race of fail with fail") {
             val io = IO.fail(42).race(IO.fail(42)).either
@@ -870,7 +873,7 @@ object ZIOSpec
               winner = s.await *> IO.fromEither(Right(()))
               loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
               race   = winner raceAttempt loser
-              _      <- race.either
+              _      <- race
               b      <- effect.await
             } yield assert(b, equalTo(42))
           },
@@ -1043,7 +1046,8 @@ object ZIOSpec
               r <- done.await.timeoutTo(42)(_ => 0)(60.second)
             } yield assert(r, equalTo(0))
           },
-          testM("redeem + ensuring + interrupt") {
+          testM("catchAll + ensuring + interrupt") {
+            import zio.CanFail.canFail
             for {
               cont <- Promise.make[Nothing, Unit]
               p1   <- Promise.make[Nothing, Boolean]

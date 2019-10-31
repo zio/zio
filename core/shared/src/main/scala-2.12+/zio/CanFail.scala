@@ -1,6 +1,5 @@
 /*
  * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
- * Copyright 2013-2019 Miles Sabin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +16,19 @@
 
 package zio
 
-import scala.annotation.implicitNotFound
+import scala.annotation.implicitAmbiguous
 
 /**
- * Evidence type `A` is not equal to type `B`.
- *
- * Based on https://github.com/milessabin/shapeless.
+ * A value of type `CanFail[E]` provides implicit evidence that an effect with
+ * error type `E` can fail, that is, that `E` is not equal to `Nothing`.
  */
-@implicitNotFound("${A} must not be ${B}")
-trait =!=[A, B] extends Serializable
+sealed trait CanFail[-E]
 
-object =!= {
-  def unexpected: Nothing = sys.error("Unexpected invocation")
+object CanFail extends CanFail[Any] {
 
-  implicit def neq[A, B]: A =!= B    = new =!=[A, B] {}
-  implicit def neqAmbig1[A]: A =!= A = unexpected
-  implicit def neqAmbig2[A]: A =!= A = unexpected
+  implicit final def canFail[E]: CanFail[E] = CanFail
+
+  @implicitAmbiguous("This operation only makes sense for effects that can fail.")
+  implicit final val canFailAmbiguous1: CanFail[Nothing] = CanFail
+  implicit final val canFailAmbiguous2: CanFail[Nothing] = CanFail
 }

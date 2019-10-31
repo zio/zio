@@ -264,9 +264,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _ <- ZIO.unit
         _ <- ZIO.unit
       } yield t)
-        .foldM(
-          failure = _ => IO.fail(()),
-          success = t =>
+        .flatMap(
+          t =>
             IO.trace
               .map(tuple(t))
         )
