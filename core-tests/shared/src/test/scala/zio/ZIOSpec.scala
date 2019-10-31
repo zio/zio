@@ -246,6 +246,26 @@ object ZIOSpec
             assertM(ZIO.succeed(Left(2)).rightOrFailException.run, fails(Assertion.anything))
           }
         ),
+        suite("someOrFailException")(
+          suite("without another error type")(
+            testM("succeed something") {
+              assertM(ZIO.succeed(Option(3)).someOrFailException, equalTo(3))
+            },
+            testM("succeed nothing") {
+              assertM(ZIO.succeed(None: Option[Int]).someOrFailException.run, fails(Assertion.anything))
+            }
+          ),
+          suite("with throwable as base error type")(
+            testM("return something") {
+              assertM(Task(Option(3)).someOrFailException, equalTo(3))
+            }
+          ),
+          suite("with exception as base error type")(
+            testM("return something") {
+              assertM((ZIO.succeed(Option(3)): IO[Exception, Option[Int]]).someOrFailException, equalTo(3))
+            }
+          )
+        ),
         suite("RTS synchronous correctness")(
           testM("widen Nothing") {
             val op1 = IO.effectTotal[String]("1")
