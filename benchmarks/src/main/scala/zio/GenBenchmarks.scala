@@ -9,8 +9,8 @@ import zio.random.Random
 import zio.test.Gen
 
 @State(Scope.Thread)
-@BenchmarkMode(Array(Mode.Throughput))
-@OutputTimeUnit(TimeUnit.SECONDS)
+@BenchmarkMode(Array(Mode.AverageTime))
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
 class GenBenchmarks {
 
   @Param(Array("1000"))
@@ -18,7 +18,7 @@ class GenBenchmarks {
 
   @Benchmark
   def zioDouble: Gen[Random, Double] =
-    Gen.exponential
+    Gen.double(0, size)
 
   @Benchmark
   def zioIntListOfSizeN: Gen[Random, List[Int]] =
@@ -29,20 +29,20 @@ class GenBenchmarks {
     Gen.stringN(size)(Gen.anyChar)
 
   @Benchmark
-  def randomDouble: Double =
+  def scalaRandomDouble: Double =
     scala.util.Random.nextDouble()
 
   @Benchmark
-  def randomIntListOfSizeN: List[Int] =
+  def scalaRandomIntListOfSizeN: List[Int] =
     List.fill(size)(scala.util.Random.nextInt())
 
   @Benchmark
-  def randomStringOfSizeN: String =
+  def scalaRandomStringOfSizeN: String =
     scala.util.Random.alphanumeric.take(size).mkString
 
   @Benchmark
   def scalaCheckDouble: scalacheck.Gen[Double] =
-    scalacheck.Gen.choose(0, size.toDouble)
+    scalacheck.Gen.choose(0, size)
 
   @Benchmark
   def scalaCheckIntListOfSizeN: scalacheck.Gen[List[Int]] =
