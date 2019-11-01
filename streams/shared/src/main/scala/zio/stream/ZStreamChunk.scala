@@ -30,7 +30,7 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Serializable { self =>
   import ZStream.Pull
 
   /**
@@ -614,7 +614,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     self.mapAccum(0)((index, a) => (index + 1, (a, index)))
 }
 
-object ZStreamChunk {
+object ZStreamChunk extends Serializable {
 
   /**
    * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].
