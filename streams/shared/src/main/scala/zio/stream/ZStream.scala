@@ -2454,7 +2454,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     self zipRight that
 }
 
-object ZStream {
+object ZStream extends Serializable {
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes

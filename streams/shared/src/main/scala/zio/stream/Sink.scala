@@ -20,7 +20,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 
-object Sink {
+object Sink extends Serializable {
 
   /**
    * see [[ZSink.await]]
