@@ -305,6 +305,12 @@ object IO {
   final def fromFunction[A](f: Any => A): IO[Nothing, A] = ZIO.fromFunction(f)
 
   /**
+   * @see [[zio.ZIO.fromFunctionFuture]]
+   */
+  final def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFunctionFuture(f)
+
+  /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
   final def fromFunctionM[E, A](f: Any => IO[E, A]): IO[E, A] = ZIO.fromFunctionM(f)
