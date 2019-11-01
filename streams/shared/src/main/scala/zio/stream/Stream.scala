@@ -22,7 +22,7 @@ import zio._
 import zio.clock.Clock
 import zio.Cause
 
-object Stream {
+object Stream extends Serializable {
   import ZStream.Pull
 
   /**

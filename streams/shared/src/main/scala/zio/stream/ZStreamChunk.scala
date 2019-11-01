@@ -30,7 +30,7 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Serializable { self =>
   import ZStream.Pull
 
   /**
@@ -397,6 +397,18 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     mapM(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
 
   /**
+   * Transforms the errors that possibly result from this stream.
+   */
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZStreamChunk[R, E1, A] =
+    ZStreamChunk(chunks.mapError(f))
+
+  /**
+   * Transforms the errors that possibly result from this stream.
+   */
+  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZStreamChunk[R, E1, A] =
+    ZStreamChunk(chunks.mapErrorCause(f))
+
+  /**
    * Maps over elements of the stream with the specified effectful function.
    */
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
@@ -602,7 +614,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     self.mapAccum(0)((index, a) => (index + 1, (a, index)))
 }
 
-object ZStreamChunk {
+object ZStreamChunk extends Serializable {
 
   /**
    * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].

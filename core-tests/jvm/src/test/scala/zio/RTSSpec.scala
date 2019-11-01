@@ -7,7 +7,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ jvm, nonFlaky }
+import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
 
 object RTSSpec
     extends ZIOBaseSpec(
@@ -59,7 +59,7 @@ object RTSSpec
             } yield result == 42
 
           assertM(io, isTrue)
-        } @@ jvm(nonFlaky(100)),
+        } @@ flaky,
         testM("interruption of unending bracket") {
           val io =
             for {

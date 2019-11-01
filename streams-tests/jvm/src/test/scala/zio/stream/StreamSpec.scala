@@ -1088,6 +1088,22 @@ object StreamSpec
               .map(assert(_, equalTo(Left("Ouch"))))
           }
         ),
+        testM("Stream.mapError") {
+          Stream
+            .fail("123")
+            .mapError(_.toInt)
+            .runCollect
+            .either
+            .map(assert(_, isLeft(equalTo(123))))
+        },
+        testM("Stream.mapErrorCause") {
+          Stream
+            .halt(Cause.fail("123"))
+            .mapErrorCause(_.map(_.toInt))
+            .runCollect
+            .either
+            .map(assert(_, isLeft(equalTo(123))))
+        },
         testM("Stream.mapM") {
           checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(successes(Gen.anyByte))) { (data, f) =>
             val s = Stream.fromIterable(data)
