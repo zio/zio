@@ -10,7 +10,7 @@ import zio.test.Gen
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
-@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
 class GenBenchmarks {
 
   @Param(Array("1000"))
