@@ -2163,6 +2163,12 @@ private[zio] trait ZIOFunctions extends Serializable {
     environment[R].map(f)
 
   /**
+   * Lifts a function returning Future into an effect that requires the input to the function.
+   */
+  final def fromFunctionFuture[R, A](f: R => scala.concurrent.Future[A]): RIO[R, A] =
+    fromFunction(f).flatMap(a => fromFuture(_ => a))
+
+  /**
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */

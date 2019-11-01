@@ -29,7 +29,7 @@ import scala.collection.mutable
  *
  * Sinks form monads and combine in the usual ways.
  */
-trait ZSink[-R, +E, +A0, -A, +B] { self =>
+trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
   type State
 
@@ -728,7 +728,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     zip(that).map(f.tupled)
 }
 
-object ZSink extends ZSinkPlatformSpecific {
+object ZSink extends ZSinkPlatformSpecific with Serializable {
 
   implicit class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
 
