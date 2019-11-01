@@ -30,7 +30,7 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Serializable { self =>
   import ZStream.Pull
 
   /**
@@ -77,7 +77,9 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    * Switches over to the stream produced by the provided function in case this one
    * fails with a typed error.
    */
-  final def catchAll[R1 <: R, E2, A1 >: A](f: E => ZStreamChunk[R1, E2, A1]): ZStreamChunk[R1, E2, A1] =
+  final def catchAll[R1 <: R, E2, A1 >: A](
+    f: E => ZStreamChunk[R1, E2, A1]
+  )(implicit ev: CanFail[E]): ZStreamChunk[R1, E2, A1] =
     self.catchAllCause(_.failureOrCause.fold(f, c => ZStreamChunk(ZStream.halt(c))))
 
   /**
@@ -201,7 +203,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    *
    * @note the stream will end as soon as the first error occurs.
    */
-  final def either: ZStreamChunk[R, Nothing, Either[E, A]] =
+  final def either(implicit ev: CanFail[E]): ZStreamChunk[R, Nothing, Either[E, A]] =
     self.map(Right(_)).catchAll(e => ZStreamChunk.succeed(Chunk.single(Left(e))))
 
   /**
@@ -357,7 +359,14 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    * Statefully maps over the elements of this stream to produce new elements.
    */
   final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
-    ZStreamChunk(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
+    ZStreamChunk(chunks.mapAccum(s1)((s2, as) => as.mapAccum(s2)(f1)))
+
+  /**
+   * Statefully and effectfully maps over the elements of this stream to produce
+   * new elements.
+   */
+  final def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStreamChunk[R1, E1, B] =
+    ZStreamChunk(chunks.mapAccumM[R1, E1, S1, Chunk[B]](s1)((s2, as) => as.mapAccumM(s2)(f1)))
 
   /**
    * Maps each element to an iterable and flattens the iterables into the output of
@@ -388,6 +397,18 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     mapM(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
 
   /**
+   * Transforms the errors that possibly result from this stream.
+   */
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZStreamChunk[R, E1, A] =
+    ZStreamChunk(chunks.mapError(f))
+
+  /**
+   * Transforms the errors that possibly result from this stream.
+   */
+  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZStreamChunk[R, E1, A] =
+    ZStreamChunk(chunks.mapErrorCause(f))
+
+  /**
    * Maps over elements of the stream with the specified effectful function.
    */
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
@@ -398,7 +419,9 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    *
    * See also [[ZStream#catchAll]].
    */
-  final def orElse[R1 <: R, E2, A1 >: A](that: => ZStreamChunk[R1, E2, A1]): ZStreamChunk[R1, E2, A1] =
+  final def orElse[R1 <: R, E2, A1 >: A](
+    that: => ZStreamChunk[R1, E2, A1]
+  )(implicit ev: CanFail[E]): ZStreamChunk[R1, E2, A1] =
     self.catchAll(_ => that)
 
   final def process =
@@ -591,7 +614,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     self.mapAccum(0)((index, a) => (index + 1, (a, index)))
 }
 
-object ZStreamChunk {
+object ZStreamChunk extends Serializable {
 
   /**
    * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].

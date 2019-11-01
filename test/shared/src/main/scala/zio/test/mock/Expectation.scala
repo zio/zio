@@ -165,6 +165,11 @@ object Expectation {
   final def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
 
   /**
+   * Returns an expecation for no calls on module `M`.
+   */
+  final def nothing[M]: Expectation[M, Nothing, Nothing] = Empty
+
+  /**
    * Returns a return expecation to succeed with `Unit`.
    */
   final def unit: Succeed[Any, Unit] = value(())

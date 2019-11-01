@@ -250,6 +250,12 @@ object AssertionSpec
             Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"),
             hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
           )
+        } @@ failure,
+        test("assertCompiles must succeed when string is valid code") {
+          assertCompiles("1 + 1")
+        },
+        test("assertCompiles must fail when string is not valid Scala code") {
+          assertCompiles("1 ++ 1")
         } @@ failure
       )
     )

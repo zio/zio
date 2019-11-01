@@ -151,9 +151,12 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
   .settings(
-    libraryDependencies ++= Seq(
-      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
-    )
+    scalacOptions += "-language:experimental.macros",
+    libraryDependencies ++=
+      Seq("org.portable-scala" %%% "portable-scala-reflect" % "0.1.0") ++ {
+        if (isDotty.value) Seq()
+        else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
+      }
   )
 
 lazy val testJVM = test.jvm.settings(dottySettings)
@@ -292,11 +295,11 @@ lazy val docs = project.module
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
-      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC4",
+      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
+      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC6",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.4-RC1",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC1",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
       "dev.zio"             %% "zio-macros-access"           % "0.4.0",
       "dev.zio"             %% "zio-macros-mock"             % "0.4.0"

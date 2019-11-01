@@ -126,7 +126,7 @@ object StreamSpec
             val e = new RuntimeException("Boom")
             assertM(
               Stream(1, 1, 1, 1)
-                .aggregateWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
+                .aggregateWithinEither(ZSink.die(e), ZSchedule.spaced(30.minutes))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -140,7 +140,7 @@ object StreamSpec
 
             assertM(
               Stream(1, 1)
-                .aggregateWithinEither(sink, Schedule.spaced(30.minutes))
+                .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -156,7 +156,11 @@ object StreamSpec
                   (latch.succeed(()) *> UIO.never)
                     .onInterrupt(cancelled.set(true))
               }
-              fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
+              fiber <- Stream(1, 1, 2)
+                        .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .runCollect
+                        .untraced
+                        .fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -170,7 +174,11 @@ object StreamSpec
                 (latch.succeed(()) *> UIO.never)
                   .onInterrupt(cancelled.set(true))
               }
-              fiber  <- Stream(1, 1, 2).aggregateWithinEither(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
+              fiber <- Stream(1, 1, 2)
+                        .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .runCollect
+                        .untraced
+                        .fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -186,7 +194,7 @@ object StreamSpec
                       el :: acc
                     }
                     .map(_.reverse),
-                  Schedule.spaced(100.millis)
+                  ZSchedule.spaced(100.millis)
                 )
                 .collect {
                   case Right(v) => v
@@ -505,7 +513,7 @@ object StreamSpec
             val stream   = fib(20)
             val expected = 6765
 
-            assertM(stream.runCollect.either, isRight(equalTo(List(expected))))
+            assertM(stream.runCollect, equalTo(List(expected)))
           },
           testM("left identity")(checkM(Gen.anyInt, Gen.function(pureStreamOfInts)) { (x, f) =>
             for {
@@ -1017,14 +1025,23 @@ object StreamSpec
         testM("Stream.mapAccum") {
           assertM(Stream(1, 1, 1).mapAccum(0)((acc, el) => (acc + el, acc + el)).runCollect, equalTo(List(1, 2, 3)))
         },
-        testM("Stream.mapAccumM") {
-          assertM(
+        suite("Stream.mapAccumM")(
+          testM("mapAccumM happy path") {
+            assertM(
+              Stream(1, 1, 1)
+                .mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
+                .runCollect,
+              equalTo(List(1, 2, 3))
+            )
+          },
+          testM("mapAccumM error") {
             Stream(1, 1, 1)
-              .mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
-              .runCollect,
-            equalTo(List(1, 2, 3))
-          )
-        },
+              .mapAccumM(0)((_, _) => IO.fail("Ouch"))
+              .runCollect
+              .either
+              .map(assert(_, isLeft(equalTo("Ouch"))))
+          }
+        ),
         testM("Stream.mapConcat")(checkM(pureStreamOfBytes, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
           for {
             res1 <- s.mapConcat(f).runCollect
@@ -1071,13 +1088,29 @@ object StreamSpec
               .map(assert(_, equalTo(Left("Ouch"))))
           }
         ),
+        testM("Stream.mapError") {
+          Stream
+            .fail("123")
+            .mapError(_.toInt)
+            .runCollect
+            .either
+            .map(assert(_, isLeft(equalTo(123))))
+        },
+        testM("Stream.mapErrorCause") {
+          Stream
+            .halt(Cause.fail("123"))
+            .mapErrorCause(_.map(_.toInt))
+            .runCollect
+            .either
+            .map(assert(_, isLeft(equalTo(123))))
+        },
         testM("Stream.mapM") {
           checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(successes(Gen.anyByte))) { (data, f) =>
             val s = Stream.fromIterable(data)
 
             for {
-              l <- s.mapM(f).runCollect.either
-              r <- IO.foreach(data)(f).either
+              l <- s.mapM(f).runCollect
+              r <- IO.foreach(data)(f)
             } yield assert(l, equalTo(r))
           }
         },
@@ -1093,8 +1126,8 @@ object StreamSpec
         testM("Stream.repeatEffectWith")(
           (for {
             ref <- Ref.make[List[Int]](Nil)
-            _ <- Stream
-                  .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+            _ <- ZStream
+                  .repeatEffectWith(ref.update(1 :: _), ZSchedule.spaced(10.millis))
                   .take(2)
                   .run(Sink.drain)
             result <- ref.get
@@ -1160,18 +1193,16 @@ object StreamSpec
             val s2 = Stream(1, 2)
 
             for {
-              merge <- s1.mergeEither(s2).runCollect.either
-              list  = merge.fold[List[Either[Int, Int]]](_ => Nil, identity)
-            } yield assert(list, hasSameElements[Either[Int, Int]](List(Left(1), Left(2), Right(1), Right(2))))
+              merge <- s1.mergeEither(s2).runCollect
+            } yield assert[List[Either[Int, Int]]](merge, hasSameElements(List(Left(1), Left(2), Right(1), Right(2))))
           },
           testM("mergeWith") {
             val s1 = Stream(1, 2)
             val s2 = Stream(1, 2)
 
             for {
-              merge <- s1.mergeWith(s2)(_.toString, _.toString).runCollect.either
-              list  = merge.fold[List[String]](_ => Nil, identity)
-            } yield assert(list, hasSameElements(List("1", "2", "1", "2")))
+              merge <- s1.mergeWith(s2)(_.toString, _.toString).runCollect
+            } yield assert(merge, hasSameElements(List("1", "2", "1", "2")))
           },
           testM("mergeWith short circuit") {
             val s1 = Stream(1, 2)
@@ -1292,7 +1323,7 @@ object StreamSpec
               ref <- Ref.make[List[Int]](Nil)
               _ <- Stream
                     .fromEffect(ref.update(1 :: _))
-                    .repeat(Schedule.spaced(10.millis))
+                    .repeat(ZSchedule.spaced(10.millis))
                     .take(2)
                     .run(Sink.drain)
               result <- ref.get
@@ -1325,7 +1356,7 @@ object StreamSpec
               ref <- Ref.make[List[Int]](Nil)
               _ <- Stream
                     .fromEffect(ref.update(1 :: _))
-                    .repeatEither(Schedule.spaced(10.millis))
+                    .repeatEither(ZSchedule.spaced(10.millis))
                     .take(3) // take one schedule output
                     .run(Sink.drain)
               result <- ref.get

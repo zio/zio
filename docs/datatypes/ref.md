@@ -90,7 +90,7 @@ object S {
               case false => IO.fail(())
               case true  => IO.unit
             }
-        } <> P).either.unit
+        } <> P).unit
       }
     }
 }

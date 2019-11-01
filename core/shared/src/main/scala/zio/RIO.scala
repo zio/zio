@@ -330,6 +330,12 @@ object RIO {
     ZIO.fromFunction(f)
 
   /**
+   * @see See [[zio.ZIO.fromFunctionFuture]]
+   */
+  final def fromFunctionFuture[R, A](f: R => scala.concurrent.Future[A]): RIO[R, A] =
+    ZIO.fromFunctionFuture(f)
+
+  /**
    * @see See [[zio.ZIO.fromFunctionM]]
    */
   final def fromFunctionM[R, A](f: R => Task[A]): RIO[R, A] =

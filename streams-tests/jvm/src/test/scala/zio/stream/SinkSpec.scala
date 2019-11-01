@@ -668,6 +668,30 @@ object SinkSpec
               assertM(sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
             }
           ),
+          testM("tapInput") {
+            for {
+              ref <- Ref.make(0)
+              sink = ZSink
+                .fromFunction[Int, Int](_ * 2)
+                .tapInput((n: Int) => ref.update(_ + n).unit)
+              _      <- sinkIteration(sink, 1)
+              _      <- sinkIteration(sink, 2)
+              _      <- sinkIteration(sink, 3)
+              result <- ref.get
+            } yield assert(result, equalTo(6))
+          },
+          testM("tapOutput") {
+            for {
+              ref <- Ref.make(0)
+              sink = ZSink
+                .fromFunction[Int, Int](_ * 2)
+                .tapOutput(n => ref.update(_ + n).unit)
+              _      <- sinkIteration(sink, 1)
+              _      <- sinkIteration(sink, 2)
+              _      <- sinkIteration(sink, 3)
+              result <- ref.get
+            } yield assert(result, equalTo(12))
+          },
           suite("untilOutput")(
             testM("happy path") {
               val sink = ZSink.collectAllN[Int](3).untilOutput(_.sum > 3)

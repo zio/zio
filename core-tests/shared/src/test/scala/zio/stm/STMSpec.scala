@@ -5,6 +5,7 @@ import zio._
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import STMSpecUtil._
 
 object STMSpec
@@ -399,7 +400,7 @@ object STMSpec
             } yield assert(sum, equalTo(0) || equalTo(2))
 
             repeat(race, 100000)
-          }
+          } @@ flaky
         }
       )
     )
