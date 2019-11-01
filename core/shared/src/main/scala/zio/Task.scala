@@ -306,6 +306,12 @@ object Task {
   final def fromFunction[A](f: Any => A): Task[A] = ZIO.fromFunction(f)
 
   /**
+   * @see [[zio.ZIO.fromFunctionFuture]]
+   */
+  final def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFunctionFuture(f)
+
+  /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
   final def fromFunctionM[A](f: Any => Task[A]): Task[A] = ZIO.fromFunctionM(f)
