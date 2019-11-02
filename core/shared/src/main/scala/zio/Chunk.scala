@@ -16,7 +16,7 @@
 
 package zio
 
-import scala.reflect._
+import scala.reflect.{ classTag, ClassTag }
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -29,7 +29,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * The number of elements in the chunk.
    */
-  def length: Int
+  val length: Int
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
@@ -40,10 +40,21 @@ sealed trait Chunk[+A] { self =>
     else Chunk.Concat(self, that)
 
   /**
+   * Appends an element to the chunk
+   */
+  final def +[A1 >: A](a: A1): Chunk[A1] =
+    if (self.length == 0) Chunk.single(a)
+    else Chunk.Concat(self, Chunk.single(a))
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
-  def collect[B](p: PartialFunction[A, B]): Chunk[B] =
-    self.materialize.collect(p)
+  def collect[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(p)
+
+  /**
+   * Transforms all elements of the chunk for as long as the specified partial function is defined.
+   */
+  def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collectWhile(p)
 
   /**
    * Drops the first `n` elements of the chunk.
@@ -122,6 +133,40 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
+   * Filters this chunk by the specified effectful predicate, retaining all elements for
+   * which the predicate evaluates to true.
+   */
+  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = {
+    implicit val A: ClassTag[A] = Chunk.classTagOf(this)
+
+    val len                              = self.length
+    var dest: ZIO[R, E, (Array[A], Int)] = ZIO.succeed((Array.ofDim[A](len), 0))
+
+    var i = 0
+    while (i < len) {
+      val elem = self(i)
+
+      dest = dest.zipWith(f(elem)) {
+        case ((array, idx), res) =>
+          var resIdx = idx
+          if (res) {
+            array(idx) = elem
+            resIdx = idx + 1
+          }
+          (array, resIdx)
+      }
+
+      i += 1
+    }
+
+    dest.map {
+      case (array, arrLen) =>
+        if (arrLen == 0) Chunk.empty
+        else Chunk.Slice(Chunk.Arr(array), 0, arrLen)
+    }
+  }
+
+  /**
    * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
    */
   def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
@@ -175,7 +220,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Folds over the elements in this chunk from the left.
    */
-  def foldLeft[S](s0: S)(f: (S, A) => S): S = {
+  def fold[S](s0: S)(f: (S, A) => S): S = {
     val len = self.length
     var s   = s0
 
@@ -188,37 +233,13 @@ sealed trait Chunk[+A] { self =>
     s
   }
 
-  final def foldLeftLazy[S](z: S)(pred: S => Boolean)(f: (S, A) => S): S = {
-    val len = length
-    var s   = z
-    var i   = 0
-    while (i < len && pred(s)) {
-      s = f(s, self(i))
-      i += 1
-    }
-    s
-  }
-
   /**
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    foldLeft[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
+    fold[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
       s.flatMap(f(_, a))
     }
-
-  final def foldMLazy[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
-    val len = length
-
-    def loop(s: S, i: Int): ZIO[R, E, S] =
-      if (i >= len) IO.succeed(s)
-      else {
-        if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
-        else IO.succeed(s)
-      }
-
-    loop(z, 0)
-  }
 
   /**
    * Folds over the elements in this chunk from the right.
@@ -236,7 +257,40 @@ sealed trait Chunk[+A] { self =>
     s
   }
 
-  override final def hashCode: Int = toArray.toSeq.hashCode
+  /**
+   * Folds over the elements in this chunk from the left.
+   * Stops the fold early when the condition is not fulfilled.
+   */
+  final def foldWhile[S](s0: S)(pred: S => Boolean)(f: (S, A) => S): S = {
+    val len = length
+    var s   = s0
+
+    var i = 0
+    while (i < len && pred(s)) {
+      s = f(s, self(i))
+      i += 1
+    }
+
+    s
+  }
+
+  final def foldWhileM[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
+    val len = length
+
+    def loop(s: S, i: Int): ZIO[R, E, S] =
+      if (i >= len) IO.succeed(s)
+      else {
+        if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
+        else IO.succeed(s)
+      }
+
+    loop(z, 0)
+  }
+
+  override final def hashCode: Int = toArrayOption match {
+    case None        => Seq.empty[A].hashCode
+    case Some(array) => array.toSeq.hashCode
+  }
 
   /**
    * Determines if the chunk is empty.
@@ -305,7 +359,10 @@ sealed trait Chunk[+A] { self =>
    * Materializes a chunk into a chunk backed by an array. This method can
    * improve the performance of bulk operations.
    */
-  def materialize[A1 >: A]: Chunk[A1] = Chunk.Arr(toArray)
+  def materialize[A1 >: A]: Chunk[A1] = self.toArrayOption[A1] match {
+    case None        => Chunk.Empty
+    case Some(array) => Chunk.Arr(array)
+  }
 
   /**
    * Generates a readable string representation of this chunk using the
@@ -344,7 +401,12 @@ sealed trait Chunk[+A] { self =>
   /**
    * Determines if the chunk is not empty.
    */
-  final def notEmpty: Boolean = length > 0
+  final def nonEmpty: Boolean = length > 0
+
+  /**
+   * The number of elements in the chunk.
+   */
+  final val size: Int = length
 
   /**
    * Returns two splits of this chunk at the specified index.
@@ -383,11 +445,17 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
+   * A helper function that converts the chunk into an array if it is not empty.
+   */
+  private def toArrayOption[A1 >: A]: Option[Array[A1]] = self match {
+    case Chunk.Empty => None
+    case chunk       => Some(chunk.toArray(Chunk.classTagOf(self)))
+  }
+
+  /**
    * Converts the chunk into an array.
    */
-  def toArray[A1 >: A]: Array[A1] = {
-    implicit val A1: ClassTag[A1] = Chunk.classTagOf(self)
-
+  def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = {
     val dest = Array.ofDim[A1](self.length)
 
     self.toArray(0, dest)
@@ -396,19 +464,55 @@ sealed trait Chunk[+A] { self =>
   }
 
   def toSeq: Seq[A] = {
+    val c          = materialize
     val seqBuilder = Seq.newBuilder[A]
     var i          = 0
-    val len        = length
+    val len        = c.length
     seqBuilder.sizeHint(len)
     while (i < len) {
-      seqBuilder += apply(i)
+      seqBuilder += c(i)
       i += 1
     }
     seqBuilder.result()
   }
 
   override def toString: String =
-    toArray.mkString(s"${self.getClass.getSimpleName}(", ",", ")")
+    toArrayOption.fold(s"${self.getClass.getSimpleName}()")(_.mkString(s"${self.getClass.getSimpleName}(", ",", ")"))
+
+  /**
+   * Statefully and effectfully maps over the elements of this chunk to produce
+   * new elements.
+   */
+  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] = {
+    val len                             = self.length
+    var dest: ZIO[R, E, (S1, Array[B])] = UIO.succeed((s1, null.asInstanceOf[Array[B]]))
+
+    var i = 0
+    while (i < len) {
+      val j = i
+      dest = dest.flatMap {
+        case (state, array) =>
+          f1(state, self(j)).map {
+            case (state2, b) =>
+              val array2 = if (array == null) {
+                implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+                Array.ofDim[B](len)
+              } else array
+
+              array2(j) = b
+              (state2, array2)
+          }
+      }
+
+      i += 1
+    }
+
+    dest.map {
+      case (state, array) =>
+        if (array == null) (state, Chunk.empty)
+        else (state, Chunk.fromArray(array))
+    }
+  }
 
   /**
    * Effectfully maps the elements of this chunk.
@@ -443,10 +547,10 @@ sealed trait Chunk[+A] { self =>
   /**
    * Effectfully maps the elements of this chunk purely for the effects.
    */
-  final def mapM_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = {
-    val len               = self.length
-    var zio: ZIO[R, E, _] = ZIO.unit
-    var i                 = 0
+  final def mapM_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
+    val len                 = self.length
+    var zio: ZIO[R, E, Any] = ZIO.unit
+    var i                   = 0
 
     while (i < len) {
       val a = self(i)
@@ -467,7 +571,7 @@ sealed trait Chunk[+A] { self =>
    * Effectfully traverses the elements of this chunk purely for the effects.
    */
   @deprecated("use mapM_", "1.0.0")
-  final def traverse_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = mapM_(f)
+  final def traverse_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = mapM_(f)
 
   /**
    * Zips this chunk with the specified chunk using the specified combiner.
@@ -616,7 +720,7 @@ object Chunk {
   }
 
   private case class Arr[A](private val array: Array[A]) extends Chunk[A] {
-    implicit lazy val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
+    implicit val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
 
     override def collect[B](p: PartialFunction[A, B]): Chunk[B] = {
       val self = array
@@ -626,20 +730,46 @@ object Chunk {
       var i = 0
       var j = 0
       while (i < len) {
-        val a = self(i)
+        val b = p.applyOrElse(self(i), (_: A) => null.asInstanceOf[B])
 
-        if (p.isDefinedAt(a)) {
-          val b = p(a)
-
+        if (b != null) {
           if (dest == null) {
             implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-
             dest = Array.ofDim[B](len)
           }
 
           dest(j) = b
-
           j += 1
+        }
+
+        i += 1
+      }
+
+      if (dest == null) Chunk.Empty
+      else Chunk.Slice(Chunk.Arr(dest), 0, j)
+    }
+
+    override def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = {
+      val self = array
+      val len  = self.length
+      var dest = null.asInstanceOf[Array[B]]
+
+      var i    = 0
+      var j    = 0
+      var done = false
+      while (!done && i < len) {
+        val b = p.applyOrElse(self(i), (_: A) => null.asInstanceOf[B])
+
+        if (b != null) {
+          if (dest == null) {
+            implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+            dest = Array.ofDim[B](len)
+          }
+
+          dest(j) = b
+          j += 1
+        } else {
+          done = true
         }
 
         i += 1
@@ -725,7 +855,7 @@ object Chunk {
       }
     }
 
-    override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
+    override def fold[S](s0: S)(f: (S, A) => S): S = {
       val self = array
       val len  = self.length
       var s    = s0
@@ -794,9 +924,9 @@ object Chunk {
       take(i)
     }
 
-    override def toArray[A1 >: A]: Array[A1] = array.asInstanceOf[Array[A1]]
+    override def toArray[A1 >: A](implicit tag: ClassTag[A1]): Array[A1] = array.asInstanceOf[Array[A1]]
 
-    override def length: Int = array.length
+    override val length: Int = array.length
 
     override def apply(n: Int): A = array(n)
 
@@ -808,13 +938,13 @@ object Chunk {
 
   private case class Concat[A](l: Chunk[A], r: Chunk[A]) extends Chunk[A] {
     self =>
-    implicit lazy val classTag: ClassTag[A] =
+    implicit val classTag: ClassTag[A] =
       l match {
         case Empty => classTagOf(r)
         case _     => classTagOf(l)
       }
 
-    override def length: Int = l.length + r.length
+    override val length: Int = l.length + r.length
 
     override def apply(n: Int): A = if (n < l.length) l(n) else r(n - l.length)
 
@@ -830,24 +960,25 @@ object Chunk {
   }
 
   private case object Empty extends Chunk[Nothing] { self =>
-    override def length: Int = 0
+    override val length: Int = 0
 
     protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
+
+    override def collect[B](p: PartialFunction[Nothing, B]): Chunk[B] = Empty
+
+    override def collectWhile[B](p: PartialFunction[Nothing, B]): Chunk[B] = Empty
 
     protected[zio] def foreach(f: Nothing => Unit): Unit = ()
 
     protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
 
-    override def toArray[A1]: Array[A1] = {
-      implicit val A1: ClassTag[A1] = Chunk.classTagOf(self)
-      Array.empty
-    }
+    override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] = Array.empty
   }
 
   private case class Singleton[A](a: A) extends Chunk[A] {
-    implicit lazy val classTag: ClassTag[A] = Tags.fromValue(a)
+    implicit val classTag: ClassTag[A] = Tags.fromValue(a)
 
-    def length = 1
+    override val length = 1
 
     override def apply(n: Int): A =
       if (n == 0) a
@@ -860,11 +991,11 @@ object Chunk {
   }
 
   private case class Slice[A](private val chunk: Chunk[A], offset: Int, l: Int) extends Chunk[A] {
-    implicit lazy val classTag: ClassTag[A] = classTagOf(chunk)
+    implicit val classTag: ClassTag[A] = classTagOf(chunk)
 
     override def apply(n: Int): A = chunk.apply(offset + n)
 
-    override def length: Int = l
+    override val length: Int = l
 
     override def foreach(f: A => Unit): Unit = {
       var i = 0
@@ -888,9 +1019,9 @@ object Chunk {
   }
 
   private case class VectorChunk[A](private val vector: Vector[A]) extends Chunk[A] {
-    implicit lazy val classTag: ClassTag[A] = Tags.fromValue(vector(0))
+    implicit val classTag: ClassTag[A] = Tags.fromValue(vector(0))
 
-    final def length: Int = vector.length
+    override val length: Int = vector.length
 
     override def apply(n: Int): A = vector(n)
 
@@ -899,7 +1030,7 @@ object Chunk {
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
   }
 
-  private object Tags {
+  private[zio] object Tags {
     final def fromValue[A](a: A): ClassTag[A] =
       unbox(ClassTag(a.getClass))
 

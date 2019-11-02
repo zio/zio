@@ -3,11 +3,11 @@ package zio
 import zio.ZScheduleSpecUtil._
 import zio.clock.Clock
 import zio.duration._
-import zio.random.Random
-import zio.test.Assertion.equalTo
+import zio.test.Assertion._
 import zio.test.{ assert, assertM, suite, testM, TestResult }
 
 import scala.concurrent.Future
+import zio.test.environment.{ TestClock, TestRandom }
 
 object ZScheduleSpec
     extends ZIOBaseSpec(
@@ -24,14 +24,14 @@ object ZScheduleSpec
         suite("Repeat on success according to a provided strategy")(
           testM("for 'recurs(a negative number)' repeats 0 additional time") {
             // A repeat with a negative number of times should not repeat the action at all
-            checkRepeat(Schedule.recurs(-5), expected = 1)
+            checkRepeat(Schedule.recurs(-5), expected = 0)
           },
-          testM("for 'recurs(0)' does repeats 0 additional time") {
+          testM("for 'recurs(0)' does repeat 0 additional time") {
             // A repeat with 0 number of times should not repeat the action at all
-            checkRepeat(Schedule.recurs(0), expected = 1)
+            checkRepeat(Schedule.recurs(0), expected = 0)
           },
-          testM("for 'recurs(1)' does repeats 1 additional time") {
-            checkRepeat(Schedule.recurs(1), expected = 2)
+          testM("for 'recurs(1)' does repeat 1 additional time") {
+            checkRepeat(Schedule.recurs(1), expected = 1)
           },
           testM("for 'once' does repeats 1 additional time") {
             for {
@@ -41,7 +41,7 @@ object ZScheduleSpec
             } yield assert(res, equalTo(2))
           },
           testM("for 'recurs(a positive given number)' repeats that additional number of time") {
-            checkRepeat(Schedule.recurs(42), expected = 42 + 1)
+            checkRepeat(Schedule.recurs(42), expected = 42)
           },
           testM("for 'doWhile(cond)' repeats while the cond still holds") {
             def cond: Int => Boolean = _ < 10
@@ -72,15 +72,15 @@ object ZScheduleSpec
             checkRepeat(Schedule.collectWhile(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
           },
           testM("as long as the effectful condition f holds") {
-            def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
+            def cond = (x: Int) => IO.succeed(x > 10)
             checkRepeat(Schedule.collectWhileM(cond), expected = List(1))
           },
           testM("until the effectful condition f fails") {
-            def cond: Int => Boolean = _ < 10
+            def cond = (_: Int) < 10
             checkRepeat(Schedule.collectUntil(cond), expected = List(1))
           },
           testM("until the effectful condition f fails") {
-            def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
+            def cond = (x: Int) => IO.succeed(x > 10)
             checkRepeat(Schedule.collectUntilM(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11))
           }
         ),
@@ -88,7 +88,7 @@ object ZScheduleSpec
           val failed = (for {
             ref <- Ref.make(0)
             _   <- alwaysFail(ref).repeat(Schedule.recurs(42))
-          } yield ()).foldM(
+          } yield ()).foldM[Any, Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success at all")
           )
@@ -116,6 +116,7 @@ object ZScheduleSpec
         ),
         suite("Retry on failure according to a provided strategy")(
           testM("retry 0 time for `once` when first time succeeds") {
+            import zio.CanFail.canFail
             for {
               ref <- Ref.make(0)
               _   <- ref.update(_ + 1).retry(Schedule.once)
@@ -127,7 +128,7 @@ object ZScheduleSpec
               ref <- Ref.make(0)
               i   <- alwaysFail(ref).retry(Schedule.recurs(0))
             } yield i)
-              .foldM(
+              .foldM[Any, Int, String](
                 err => IO.succeed(err),
                 _ => IO.succeed("it should not be a success")
               )
@@ -148,57 +149,77 @@ object ZScheduleSpec
             val retried = (for {
               ref <- Ref.make(0)
               _   <- alwaysFail(ref).retry(Schedule.once)
-            } yield ()).foldM(
+            } yield ()).foldM[Any, Int, String](
               err => IO.succeed(err),
               _ => IO.succeed("A failure was expected")
             )
             assertM(retried, equalTo("Error: 2"))
           },
-          testM("for a given number of times") {
-            val retried  = retryCollect(IO.fail("Error"), Schedule.recurs(5))
-            val expected = (Left("Error"): Either[Any, Nothing], List(1, 2, 3, 4, 5, 6).map((Duration.Zero, _)))
-            assertM(retried, equalTo(expected))
-          },
           testM("for a given number of times with random jitter in (0, 1)") {
-            val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
-            val scheduled: UIO[List[(Duration, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
-            val expected                              = List(1, 2, 3, 4, 5).map((250.millis, _))
-            assertM(scheduled, equalTo(expected))
+            val schedule  = ZSchedule.spaced(500.millis).jittered(0, 1)
+            val scheduled = TestClock.setTime(Duration.Infinity) *> run(schedule >>> testElapsed)(List.fill(5)(()))
+            val expected  = List(0.millis, 250.millis, 500.millis, 750.millis, 1000.millis)
+            assertM(TestRandom.feedDoubles(0.5, 0.5, 0.5, 0.5, 0.5) *> scheduled, equalTo(expected))
           },
           testM("for a given number of times with random jitter in custom interval") {
-            val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
-            val scheduled: UIO[List[(Duration, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
-            val expected                              = List(1, 2, 3, 4, 5).map((1500.millis, _))
-            assertM(scheduled, equalTo(expected))
+            val schedule  = ZSchedule.spaced(500.millis).jittered(2, 4)
+            val scheduled = TestClock.setTime(Duration.Infinity) *> run(schedule >>> testElapsed)((List.fill(5)(())))
+            val expected  = List(0, 1500, 3000, 5000, 7000).map(_.millis)
+            assertM(TestRandom.feedDoubles(0.5, 0.5, 1, 1, 0.5) *> scheduled, equalTo(expected))
           },
           testM("fixed delay with error predicate") {
             var i = 0
-            val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
+            val io = IO.effectTotal(i += 1).flatMap[Any, String, Unit] { _ =>
               if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
             }
-            val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
-            val retried  = retryCollect(io, strategy)
-            val expected = (Left("GiveUpError"): Either[String, Unit], List(1, 2, 3, 4, 5).map((200.millis, _)))
-            assertM(retried, equalTo(expected))
+            val strategy = ZSchedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
+            val expected = (800.millis, "GiveUpError", 4)
+            val result   = io.retryOrElseEither(strategy, (e: String, r: Int) => TestClock.fiberTime.map((_, e, r)))
+            assertM(TestClock.setTime(Duration.Infinity) *> result, isLeft(equalTo(expected)))
           },
           testM("fibonacci delay") {
-            checkErrorWithPredicate(Schedule.fibonacci(100.millis), List(1, 1, 2, 3, 5))
+            assertM(
+              TestClock
+                .setTime(Duration.Infinity) *> run(ZSchedule.fibonacci(100.millis) >>> testElapsed)(List.fill(5)(())),
+              equalTo(List(0, 1, 2, 4, 7).map(i => (i * 100).millis))
+            )
           },
           testM("linear delay") {
-            checkErrorWithPredicate(Schedule.linear(100.millis), List(1, 2, 3, 4, 5))
+            assertM(
+              TestClock
+                .setTime(Duration.Infinity) *> run(ZSchedule.linear(100.millis) >>> testElapsed)(List.fill(5)(())),
+              equalTo(List(0, 1, 3, 6, 10).map(i => (i * 100).millis))
+            )
+          },
+          testM("modified linear delay") {
+            assertM(
+              TestClock.setTime(Duration.Infinity) *> run(ZSchedule.linear(100.millis).modifyDelay {
+                case (_, d) => ZIO.succeed(d * 2)
+              } >>> testElapsed)(List.fill(5)(())),
+              equalTo(List(0, 1, 3, 6, 10).map(i => (i * 200).millis))
+            )
           },
           testM("exponential delay with default factor") {
-            checkErrorWithPredicate(Schedule.exponential(100.millis), List(2, 4, 8, 16, 32))
+            assertM(
+              TestClock
+                .setTime(Duration.Infinity) *> run(ZSchedule.exponential(100.millis) >>> testElapsed)(List.fill(5)(())),
+              equalTo(List(0, 2, 6, 14, 30).map(i => (i * 100).millis))
+            )
           },
           testM("exponential delay with other factor") {
-            checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
+            assertM(
+              TestClock.setTime(Duration.Infinity) *> run(ZSchedule.exponential(100.millis, 3.0) >>> testElapsed)(
+                List.fill(5)(())
+              ),
+              equalTo(List(0, 3, 12, 39, 120).map(i => (i * 100).millis))
+            )
           }
         ),
         suite("Retry according to a provided strategy")(
           testM("for up to 10 times") {
-            var i                            = 0
-            val strategy: Schedule[Any, Int] = Schedule.recurs(10)
-            val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
+            var i        = 0
+            val strategy = Schedule.recurs(10)
+            val io = IO.effectTotal(i += 1).flatMap { _ =>
               if (i < 5) IO.fail("KeepTryingError") else IO.succeed(i)
             }
             assertM(io.retry(strategy), equalTo(5))
@@ -216,7 +237,7 @@ object ZScheduleSpec
               ref <- Ref.make(0)
               i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
             } yield i)
-              .foldM(
+              .foldM[Any, Int, String](
                 err => IO.succeed(err),
                 _ => IO.succeed("it should not be a success")
               )
@@ -224,9 +245,9 @@ object ZScheduleSpec
           },
           testM("if fallback succeed - retryOrElseEither") {
             for {
-              ref                           <- Ref.make(0)
-              o                             <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioSucceed)
-              expected: Either[String, Int] = Left("OrElse")
+              ref      <- Ref.make(0)
+              o        <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioSucceed)
+              expected = Left("OrElse")
             } yield assert(o, equalTo(expected))
           },
           testM("if fallback failed - retryOrElseEither") {
@@ -234,7 +255,7 @@ object ZScheduleSpec
               ref <- Ref.make(0)
               i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
             } yield i)
-              .foldM(
+              .foldM[Any, Int, String](
                 err => IO.succeed(err),
                 _ => IO.succeed("it should not be a success")
               )
@@ -250,9 +271,9 @@ object ZScheduleSpec
           },
           testM("retry exactly one time for `once` when second time succeeds - retryOrElse0") {
             for {
-              ref                            <- Ref.make(0)
-              o                              <- failOn0(ref).retryOrElseEither(Schedule.once, ioFail)
-              expected: Either[Nothing, Int] = Right(2)
+              ref      <- Ref.make(0)
+              o        <- failOn0(ref).retryOrElseEither(Schedule.once, ioFail)
+              expected = Right(2)
             } yield assert(o, equalTo(expected))
           }
         ),
@@ -265,6 +286,16 @@ object ZScheduleSpec
             } yield assert(v.isEmpty, equalTo(true)) && assert(finalizerV.isDefined, equalTo(true))
           }
         ),
+        testM("`ensuring` should only call finalizer once.") {
+          for {
+            ref    <- Ref.make(0)
+            sched  = Schedule.stop.ensuring(ref.update(_ + 1))
+            s      <- sched.initial
+            _      <- sched.update((), s).flip
+            _      <- sched.update((), s).flip
+            result <- ref.get.map(assert(_, equalTo(1)))
+          } yield result
+        },
         testM("Retry type parameters should infer correctly") {
           def foo[O](v: O): ZIO[Any with Clock, Error, Either[Failure, Success[O]]] =
             ZIO.fromFuture { _ =>
@@ -273,13 +304,23 @@ object ZScheduleSpec
                 _ => ZIO.fail(Error("Some error")),
                 ok => ZIO.succeed(Right(Success(ok)))
               )
-              .retry(Schedule.spaced(2.seconds) && Schedule.recurs(1))
+              .retry(ZSchedule.spaced(2.seconds) && Schedule.recurs(1))
               .catchAll(
                 error => ZIO.succeed(Left(Failure(error.message)))
               )
 
-          val expected: Either[Failure, Success[String]] = Right(Success("Ok"))
+          val expected: Either[zio.ZScheduleSpecUtil.Failure, zio.ZScheduleSpecUtil.Success[String]] =
+            Right(Success("Ok"))
           assertM(foo("Ok"), equalTo(expected))
+        },
+        testM("either should not wait if neither schedule wants to continue") {
+          assertM(
+            TestClock
+              .setTime(Duration.Infinity) *> run(
+              (Schedule.stop || (ZSchedule.spaced(2.seconds) && Schedule.stop)) >>> testElapsed
+            )(List.fill(5)(())),
+            equalTo(List(Duration.Zero))
+          )
         }
       )
     )
@@ -293,6 +334,25 @@ object ZScheduleSpecUtil {
       ref <- Ref.make(0)
       res <- ref.update(_ + 1).repeat(schedule)
     } yield res
+
+  /**
+   * Run a schedule using the provided input and collect all outputs
+   */
+  def run[R, A, B](
+    sched: ZSchedule[R, A, B]
+  )(xs: Iterable[A]): ZIO[R, Nothing, List[B]] = {
+    def loop(xs: List[A], state: sched.State, acc: List[B]): ZIO[R, Nothing, List[B]] = xs match {
+      case Nil => ZIO.succeed(acc)
+      case x :: xs =>
+        sched
+          .update(x, state)
+          .foldM(
+            _ => ZIO.succeed(sched.extract(x, state) :: acc),
+            s => loop(xs, s, sched.extract(x, state) :: acc)
+          )
+    }
+    sched.initial.flatMap(loop(xs.toList, _, Nil)).map(_.reverse)
+  }
 
   def checkRepeat[B](schedule: Schedule[Int, B], expected: B): ZIO[Any with Clock, Nothing, TestResult] =
     assertM(repeat(schedule), equalTo(expected))
@@ -318,70 +378,15 @@ object ZScheduleSpecUtil {
       x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
     } yield x
 
-  def retryCollect[R, E, A, E1 >: E, S](
-    io: IO[E, A],
-    retry: ZSchedule[R, E1, S]
-  ): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] = {
-
-    type State = retry.State
-
-    def loop(state: State, ss: List[(Duration, S)]): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] =
-      io.foldM(
-        err =>
-          retry
-            .update(err, state)
-            .flatMap(
-              step =>
-                if (!step.cont) IO.succeed((Left(err), (step.delay, step.finish()) :: ss))
-                else loop(step.state, (step.delay, step.finish()) :: ss)
-            ),
-        suc => IO.succeed((Right(suc), ss))
-      )
-
-    retry.initial.flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
-  }
-
-  def checkErrorWithPredicate(
-    schedule: Schedule[Any, Duration],
-    expectedSteps: List[Int]
-  ): ZIO[Any, Nothing, TestResult] = {
-    var i = 0
-    val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
-      if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
-    }
-    val strategy = schedule.whileInput[String](_ == "KeepTryingError")
-    val expected =
-      (Left("GiveUpError"): Either[String, Unit], expectedSteps.map(i => ((i * 100).millis, (i * 100).millis)))
-    assertM(retryCollect(io, strategy), equalTo(expected))
-  }
-
-  object TestRandom extends Random {
-    object random extends Random.Service[Any] {
-      val nextBoolean: UIO[Boolean] = UIO.succeed(false)
-      def nextBytes(length: Int): UIO[Chunk[Byte]] =
-        UIO.succeed(Chunk.empty)
-      val nextDouble: UIO[Double] =
-        UIO.succeed(0.5)
-      val nextFloat: UIO[Float] =
-        UIO.succeed(0.5f)
-      val nextGaussian: UIO[Double] =
-        UIO.succeed(0.5)
-      def nextInt(n: Int): UIO[Int] =
-        UIO.succeed(n - 1)
-      val nextInt: UIO[Int] =
-        UIO.succeed(0)
-      val nextLong: UIO[Long] =
-        UIO.succeed(0L)
-      def nextLong(n: Long): UIO[Long] =
-        UIO.succeed(0L)
-      val nextPrintableChar: UIO[Char] =
-        UIO.succeed('A')
-      def nextString(length: Int): UIO[String] =
-        UIO.succeed("")
-      def shuffle[A](list: List[A]): UIO[List[A]] =
-        UIO.succeed(list.reverse)
-    }
-  }
+  /**
+   * A schedule that tracks how much time has elapsed using TestClock#fiberTime
+   */
+  val testElapsed =
+    ZSchedule[TestClock, Duration, Any, Duration](
+      ZIO.succeed(Duration.Zero),
+      { case _            => TestClock.fiberTime },
+      { case (_, elapsed) => elapsed }
+    )
 
   case class Error(message: String) extends Exception
   case class Failure(message: String)

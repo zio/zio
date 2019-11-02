@@ -6,7 +6,7 @@ import zio.Exit.Failure
 import zio.test._
 import zio.test.Assertion._
 import zio.test.Gen
-import zio.test.mock._
+import zio.test.environment._
 
 object ZManagedSpec
     extends ZIOBaseSpec(
@@ -57,33 +57,52 @@ object ZManagedSpec
           testM("Invokes with the failure of the use") {
             val ex = new RuntimeException("Use died")
 
-            def res(exits: Ref[List[Exit[_, _]]]) =
+            def res(exits: Ref[List[Exit[Any, Any]]]) =
               for {
                 _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
                 _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
               } yield ()
 
             for {
-              exits  <- Ref.make[List[Exit[_, _]]](Nil)
+              exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
               _      <- res(exits).use_(ZIO.die(ex)).run
               result <- exits.get
-            } yield assert(result, equalTo(List[Exit[_, _]](Exit.Failure(Cause.Die(ex)), Exit.Failure(Cause.Die(ex)))))
+            } yield assert(
+              result,
+              equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex)), Exit.Failure(Cause.Die(ex))))
+            )
           },
           testM("Invokes with the failure of the subsequent acquire") {
             val useEx     = new RuntimeException("Use died")
             val acquireEx = new RuntimeException("Acquire died")
 
-            def res(exits: Ref[List[Exit[_, _]]]) =
+            def res(exits: Ref[List[Exit[Any, Any]]]) =
               for {
                 _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
                 _ <- ZManaged.makeExit(ZIO.die(acquireEx))((_, e) => exits.update(e :: _))
               } yield ()
 
             for {
-              exits  <- Ref.make[List[Exit[_, _]]](Nil)
+              exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
               _      <- res(exits).use_(ZIO.die(useEx)).run
               result <- exits.get
-            } yield assert(result, equalTo(List[Exit[_, _]](Exit.Failure(Cause.Die(acquireEx)))))
+            } yield assert(result, equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx)))))
+          }
+        ),
+        suite("fromEffect")(
+          testM("Performed interruptibly") {
+            assertM(
+              ZManaged.fromEffect(ZIO.checkInterruptible(ZIO.succeed)).use(ZIO.succeed),
+              equalTo(InterruptStatus.interruptible)
+            )
+          }
+        ),
+        suite("fromEffectUninterruptible")(
+          testM("Performed uninterruptibly") {
+            assertM(
+              ZManaged.fromEffectUninterruptible(ZIO.checkInterruptible(ZIO.succeed)).use(ZIO.succeed),
+              equalTo(InterruptStatus.uninterruptible)
+            )
           }
         ),
         suite("ensuring")(
@@ -172,6 +191,7 @@ object ZManagedSpec
             } yield assert(values, equalTo(List(1, 1)))
           },
           testM("Runs onSuccess on success") {
+            import zio.CanFail.canFail
             for {
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
@@ -188,6 +208,7 @@ object ZManagedSpec
             } yield assert(values, equalTo(List(1, 2, 2, 1)))
           },
           testM("Invokes cleanups on interrupt - 1") {
+            import zio.CanFail.canFail
             for {
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
@@ -591,17 +612,17 @@ object ZManagedSpec
               case (duration, _) =>
                 ZIO.succeed(assert(duration.toNanos, isGreaterThanEqualTo(40.milliseconds.toNanos)))
             }
-            def awaitSleeps(n: Int): ZIO[MockClock, Nothing, Unit] =
-              MockClock.sleeps.flatMap {
+            def awaitSleeps(n: Int): ZIO[TestClock, Nothing, Unit] =
+              TestClock.sleeps.flatMap {
                 case x if x.length >= n => ZIO.unit
                 case _                  => ZIO.sleep(20.milliseconds).provide(zio.clock.Clock.Live) *> awaitSleeps(n)
               }
             for {
               f      <- test.fork
               _      <- awaitSleeps(1)
-              _      <- MockClock.adjust(20.milliseconds)
+              _      <- TestClock.adjust(20.milliseconds)
               _      <- awaitSleeps(1)
-              _      <- MockClock.adjust(20.milliseconds)
+              _      <- TestClock.adjust(20.milliseconds)
               result <- f.join
             } yield result
           }
@@ -670,11 +691,11 @@ object ZManagedSpec
                            for {
                              fiber        <- canceler.fork
                              _            <- latch.await
-                             interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds)).either
+                             interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds))
                              _            <- ref.set(false)
                            } yield interruption
                        }
-            } yield assert(result, isRight(isNone))
+            } yield assert(result, isNone)
           },
           testM("If completed, the canceler should cause the regular finalizer to not run") {
             for {
@@ -731,7 +752,7 @@ object ZManagedSpec
               second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
               _      <- first.zipPar(second).use_(ZIO.unit)
             } yield ()).run
-              .map(assert[Exit[Unit, Unit]](_, equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.Interrupt)))))
+              .map(assert(_, equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.Interrupt)))))
           },
           testM("Run finalizers if one reservation fails") {
             for {
@@ -766,6 +787,26 @@ object ZManagedSpec
               test.use[Any, Nothing, TestResult](result => ZIO.succeed(result))
             }
           }
+        ),
+        suite("switchable")(
+          testM("runs the right finalizer on interruption") {
+            for {
+              effects <- Ref.make(List[String]())
+              latch   <- Promise.make[Nothing, Unit]
+              fib <- ZManaged
+                      .switchable[Any, Nothing, Unit]
+                      .use { switch =>
+                        switch(ZManaged.finalizer(effects.update("First" :: _))) *>
+                          switch(ZManaged.finalizer(effects.update("Second" :: _))) *>
+                          latch.succeed(()) *>
+                          ZIO.never
+                      }
+                      .fork
+              _      <- latch.await
+              _      <- fib.interrupt
+              result <- effects.get
+            } yield assert(result, equalTo(List("Second", "First")))
+          }
         )
       )
     )
@@ -791,12 +832,12 @@ object ZManagedSpecUtil {
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live).either
-    } yield assert(interruption, isRight(equalTo(expected)))
+      interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live)
+    } yield assert(interruption, equalTo(expected))
 
   def testFinalizersPar[R, E](
     n: Int,
-    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, _]
+    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, Any]
   ) =
     for {
       releases <- Ref.make[Int](0)
@@ -808,7 +849,7 @@ object ZManagedSpecUtil {
 
   def testAcquirePar[R, E](
     n: Int,
-    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, _]
+    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, Any]
   ) =
     for {
       effects      <- Ref.make(0)

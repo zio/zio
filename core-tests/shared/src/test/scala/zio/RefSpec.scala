@@ -30,7 +30,7 @@ object RefSpec
           for {
             ref   <- Ref.make[State](Active)
             value <- ref.updateSome { case Closed => Changed }
-          } yield assert(value, equalTo[State](Active))
+          } yield assert(value, equalTo(Active))
         },
         testM("updateSome twice") {
           for {
@@ -40,7 +40,7 @@ object RefSpec
                        case Active  => Changed
                        case Changed => Closed
                      }
-          } yield assert(value1, equalTo[State](Changed)) && assert(value2, equalTo[State](Closed))
+          } yield assert(value1, equalTo(Changed)) && assert(value2, equalTo(Closed))
         },
         testM("modify") {
           for {

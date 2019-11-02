@@ -41,7 +41,7 @@ object Tracer {
       }
     }
 
-  final type TracerCache = ConcurrentHashMap[Class[_], ZTraceElement]
+  private[this] final type TracerCache = ConcurrentHashMap[Class[_], ZTraceElement]
   private[this] lazy val globalMutableSharedTracerCache = new TracerCache(10000)
 
   lazy val Empty = new Tracer {

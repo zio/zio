@@ -4,13 +4,13 @@ scala_211: &scala_211
   SCALA_VERSION: 2.11.12
 
 scala_212: &scala_212
-  SCALA_VERSION: 2.12.9
+  SCALA_VERSION: 2.12.10
 
 scala_213: &scala_213
-  SCALA_VERSION: 2.13.0
+  SCALA_VERSION: 2.13.1
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.19.1-bin-20190904-beba63a-NIGHTLY
+  SCALA_VERSION: 0.19.0-RC1
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -55,6 +55,14 @@ load_cache: &load_cache
   - restore_cache:
       key: sbt-cache-v2
 
+clean_cache: &clean_cache
+  - run:
+      name: Clean unwanted files from cache
+      command: |
+        rm -fv $HOME/.ivy2/.sbt.ivy.lock
+        find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+        find $HOME/.sbt        -name "*.lock"               -print -delete
+
 save_cache: &save_cache
   - save_cache:
       key: sbt-cache-v2
@@ -85,15 +93,6 @@ install_nodejs: &install_nodejs
         nvm use
         node -v
 
-compile: &compile
-  steps:
-    - checkout
-    - <<: *load_cache
-    - run:
-        name: Compile code
-        command: ./sbt ++${SCALA_VERSION}! compileJVM
-    - <<: *save_cache
-
 lint: &lint
   steps:
     - checkout
@@ -101,6 +100,7 @@ lint: &lint
     - run:
         name: Lint code
         command: ./sbt ++${SCALA_VERSION}! check
+    - <<: *clean_cache
     - <<: *save_cache
 
 mdoc: &mdoc
@@ -112,6 +112,7 @@ mdoc: &mdoc
         command: |
           ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
           ./sbt ++${SCALA_VERSION}! mdoc
+    - <<: *clean_cache
     - <<: *save_cache
 
 testJVM: &testJVM
@@ -121,7 +122,20 @@ testJVM: &testJVM
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJVM
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM
+    - <<: *clean_cache
+    - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
+
+testJVMDotty: &testJVMDotty
+  steps:
+    - checkout
+    - <<: *load_cache
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMDotty
+    - <<: *clean_cache
     - <<: *save_cache
 
 testJS: &testJS
@@ -132,8 +146,11 @@ testJS: &testJS
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJS
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
+    - <<: *clean_cache
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/js/target/test-reports
 
 release: &release
   steps:
@@ -180,6 +197,7 @@ microsite: &microsite
             node -v
             ./sbt docs/docusaurusCreateSite
             ./sbt docs/docusaurusPublishGhpages
+      - <<: *clean_cache
       - <<: *save_cache
 
 jobs:
@@ -188,13 +206,6 @@ jobs:
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
-      - <<: *jdk_8
-
-  compile_dotty:
-    <<: *compile
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_dotty
       - <<: *jdk_8
 
   mdoc:
@@ -229,7 +240,7 @@ jobs:
       - <<: *jdk_8
 
   test_dotty_jdk8_jvm:
-    <<: *testJVM
+    <<: *testJVMDotty
     <<: *machine_ubuntu
     <<: *machine_resource
     environment:
@@ -286,12 +297,6 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - compile_dotty:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - mdoc:
           requires:
             - lint
@@ -316,12 +321,12 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-#      - test_dotty_jdk8_jvm:
-#          requires:
-#            - lint
-#          filters:
-#            tags:
-#              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - test_dotty_jdk8_jvm:
+         requires:
+           - lint
+         filters:
+           tags:
+             only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - test_212_jdk11_jvm:
           requires:
             - lint

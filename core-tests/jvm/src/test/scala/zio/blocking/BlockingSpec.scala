@@ -2,11 +2,12 @@ package zio.blocking
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-import zio.duration.Duration
-import zio.{ UIO, ZIOBaseSpec }
-import BlockingSpecUtil._
-import zio.test._
+import zio.blocking.BlockingSpecUtil._
+import zio.duration._
 import zio.test.Assertion._
+import zio.test.TestAspect.ignore
+import zio.test._
+import zio.{ UIO, ZIOBaseSpec }
 
 object BlockingSpec
     extends ZIOBaseSpec(
@@ -20,7 +21,7 @@ object BlockingSpec
           },
           testM("effectBlocking can be interrupted") {
             assertM(effectBlocking(Thread.sleep(50000)).timeout(Duration.Zero), isNone)
-          },
+          } @@ ignore,
           testM("effectBlockingCancelable can be interrupted") {
             val release = new AtomicBoolean(false)
             val cancel  = UIO.effectTotal(release.set(true))

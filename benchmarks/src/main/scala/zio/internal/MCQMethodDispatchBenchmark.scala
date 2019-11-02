@@ -16,7 +16,7 @@ import org.openjdk.jmh.annotations._
 @Fork(1)
 @Threads(1)
 @State(Scope.Thread)
-class RingBufferMethodDispatchBenchmark {
+private[this] class RingBufferMethodDispatchBenchmark {
   type QueueElement = () => Int
 
   def mkEl(): QueueElement  = () => 1
