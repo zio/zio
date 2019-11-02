@@ -129,7 +129,7 @@ sealed trait Chunk[+A] { self =>
     }
 
     if (j == 0) Chunk.Empty
-    else Chunk.Slice(Chunk.Arr(dest), 0, j)
+    else Chunk.Slice(Chunk.fromArray(dest), 0, j)
   }
 
   /**
@@ -162,7 +162,7 @@ sealed trait Chunk[+A] { self =>
     dest.map {
       case (array, arrLen) =>
         if (arrLen == 0) Chunk.empty
-        else Chunk.Slice(Chunk.Arr(array), 0, arrLen)
+        else Chunk.Slice(Chunk.fromArray(array), 0, arrLen)
     }
   }
 
@@ -213,7 +213,7 @@ sealed trait Chunk[+A] { self =>
         n += chunk.length
       }
 
-      Chunk.Arr(dest)
+      Chunk.fromArray(dest)
     }
   }
 
@@ -319,7 +319,7 @@ sealed trait Chunk[+A] { self =>
       i = i + 1
     }
 
-    if (dest != null) Chunk.Arr(dest)
+    if (dest != null) Chunk.fromArray(dest)
     else Chunk.Empty
   }
 
@@ -352,7 +352,7 @@ sealed trait Chunk[+A] { self =>
 
     s ->
       (if (dest == null) Chunk.empty
-       else Chunk.Arr(dest))
+       else Chunk.fromArray(dest))
   }
 
   /**
@@ -361,7 +361,7 @@ sealed trait Chunk[+A] { self =>
    */
   def materialize[A1 >: A]: Chunk[A1] = self.toArrayOption[A1] match {
     case None        => Chunk.Empty
-    case Some(array) => Chunk.Arr(array)
+    case Some(array) => Chunk.fromArray(array)
   }
 
   /**
@@ -597,7 +597,7 @@ sealed trait Chunk[+A] { self =>
         i = i + 1
       }
 
-      Chunk.Arr(dest)
+      Chunk.fromArray(dest)
     }
   }
 
@@ -626,7 +626,7 @@ sealed trait Chunk[+A] { self =>
 
       }
 
-      Chunk.Arr(dest)
+      Chunk.fromArray(dest)
 
     }
   }
@@ -652,7 +652,7 @@ sealed trait Chunk[+A] { self =>
       i += 1
     }
 
-    Chunk.Arr(dest)
+    Chunk.fromArray(dest)
   }
 
   protected[zio] def apply(n: Int): A
@@ -677,7 +677,47 @@ object Chunk {
   /**
    * Returns a chunk backed by an array.
    */
-  final def fromArray[A](array: Array[A]): Chunk[A] = Arr(array)
+  final def fromArray[A](array: Array[A]): Chunk[A] = RefArr(array)
+
+  /**
+   * Returns a chunk backed by an array.
+   */
+  final def fromArray(array: Array[Boolean]): Chunk[Boolean] = BooleanArr(array)
+
+  /**
+   * Returns a chunk backed by an array.
+   */
+  final def fromArray(array: Array[Byte]): Chunk[Byte] = ByteArr(array)
+
+  /**
+   * Returns a chunk backed by an array.
+   */
+  final def fromArray(array: Array[Char]): Chunk[Char] = CharArr(array)
+
+  /**
+   * Returns a chunk backed by an array.
+   */
+  final def fromArray(array: Array[Double]): Chunk[Double] = DoubleArr(array)
+
+  /**
+   * Returns a chunk backed by an array.
+   */
+  final def fromArray(array: Array[Float]): Chunk[Float] = FloatArr(array)
+
+  /**
+   * Returns a chunk backed by an array.
+   */
+  final def fromArray(array: Array[Int]): Chunk[Int] = IntArr(array)
+
+  /**
+   * Returns a chunk backed by an array.
+   */
+  final def fromArray(array: Array[Long]): Chunk[Long] = LongArr(array)
+
+  /**
+   * Returns a chunk backed by an array.
+   */
+  final def fromArray(array: Array[Short]): Chunk[Short] = ShortArr(array)
 
   /**
    * Returns a chunk backed by an iterable.
@@ -799,7 +839,9 @@ object Chunk {
     case x: VectorChunk[A] => x.classTag
   }
 
-  private case class Arr[A](private val array: Array[A]) extends Chunk[A] {
+  private sealed trait Arr[A] extends Chunk[A] {
+    val array: Array[A]
+
     implicit val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
 
     override def collect[B](p: PartialFunction[A, B]): Chunk[B] = {
@@ -826,7 +868,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.Arr(dest), 0, j)
+      else Chunk.Slice(Chunk.fromArray(dest), 0, j)
     }
 
     override def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = {
@@ -856,7 +898,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.Arr(dest), 0, j)
+      else Chunk.Slice(Chunk.fromArray(dest), 0, j)
     }
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
@@ -890,7 +932,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.Arr(dest), 0, j)
+      else Chunk.Slice(Chunk.fromArray(dest), 0, j)
     }
 
     override def flatMap[B](f: A => Chunk[B]): Chunk[B] = {
@@ -931,7 +973,7 @@ object Chunk {
           n += chunk.length
         }
 
-        Arr(dest)
+        Chunk.fromArray(dest)
       }
     }
 
@@ -983,7 +1025,7 @@ object Chunk {
         i = i + 1
       }
 
-      if (dest != null) Chunk.Arr(dest)
+      if (dest != null) Chunk.fromArray(dest)
       else Chunk.Empty
     }
 
@@ -1008,12 +1050,62 @@ object Chunk {
 
     override val length: Int = array.length
 
+    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
+      Array.copy(array, 0, dest, n, length)
+  }
+
+  private case class RefArr[A](override val array: Array[A]) extends Arr[A] {
     override def apply(n: Int): A = array(n)
 
     override def foreach(f: A => Unit): Unit = array.foreach(f)
+  }
 
-    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
-      Array.copy(array, 0, dest, n, length)
+  private case class BooleanArr(override val array: Array[Boolean]) extends Arr[Boolean] {
+    override def apply(n: Int): Boolean = array(n)
+
+    override def foreach(f: Boolean => Unit): Unit = array.foreach(f)
+  }
+
+  private case class ByteArr(override val array: Array[Byte]) extends Arr[Byte] {
+    override def apply(n: Int): Byte = array(n)
+
+    override def foreach(f: Byte => Unit): Unit = array.foreach(f)
+  }
+
+  private case class CharArr(override val array: Array[Char]) extends Arr[Char] {
+    override def apply(n: Int): Char = array(n)
+
+    override def foreach(f: Char => Unit): Unit = array.foreach(f)
+  }
+
+  private case class DoubleArr(override val array: Array[Double]) extends Arr[Double] {
+    override def apply(n: Int): Double = array(n)
+
+    override def foreach(f: Double => Unit): Unit = array.foreach(f)
+  }
+
+  private case class FloatArr(override val array: Array[Float]) extends Arr[Float] {
+    override def apply(n: Int): Float = array(n)
+
+    override def foreach(f: Float => Unit): Unit = array.foreach(f)
+  }
+
+  private case class IntArr(override val array: Array[Int]) extends Arr[Int] {
+    override def apply(n: Int): Int = array(n)
+
+    override def foreach(f: Int => Unit): Unit = array.foreach(f)
+  }
+
+  private case class LongArr(override val array: Array[Long]) extends Arr[Long] {
+    override def apply(n: Int): Long = array(n)
+
+    override def foreach(f: Long => Unit): Unit = array.foreach(f)
+  }
+
+  private case class ShortArr(override val array: Array[Short]) extends Arr[Short] {
+    override def apply(n: Int): Short = array(n)
+
+    override def foreach(f: Short => Unit): Unit = array.foreach(f)
   }
 
   private case class Concat[A](l: Chunk[A], r: Chunk[A]) extends Chunk[A] {
