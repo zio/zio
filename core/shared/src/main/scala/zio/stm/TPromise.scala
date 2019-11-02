@@ -44,5 +44,5 @@ class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVa
 
 object TPromise {
   final def apply[E, A]: STM[Nothing, TPromise[E, A]] =
-    TRef.make[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
+    TRef[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
 }
