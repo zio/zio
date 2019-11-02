@@ -474,14 +474,14 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Provides the `ZManaged` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
-  final def provide(r: R): ZManaged[Any, E, A] =
+  final def provide(r: R)(implicit ev: NeedsEnv[R]): ZManaged[Any, E, A] =
     provideSome(_ => r)
 
   /**
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
-  final def provideSome[R0](f: R0 => R): ZManaged[R0, E, A] =
+  final def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
     ZManaged(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), e => r.release(e).provideSome(f))))
 
   /**

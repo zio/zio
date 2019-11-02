@@ -707,20 +707,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Provides the `ZIO` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
-  final def provide(r: R): IO[E, A] = ZIO.provide(r)(self)
+  final def provide(r: R)(implicit ev: NeedsEnv[R]): IO[E, A] = ZIO.provide(r)(self)
 
   /**
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
-  final def provideM[E1 >: E](r: ZIO[Any, E1, R]): ZIO[Any, E1, A] =
+  final def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): ZIO[Any, E1, A] =
     r.flatMap(self.provide)
 
   /**
    * Uses the given Managed[E1, R] to the environment required to run this effect,
    * leaving no outstanding environments and returning IO[E1, A]
    */
-  final def provideManaged[E1 >: E](r0: Managed[E1, R]): IO[E1, A] = provideSomeManaged(r0)
+  final def provideManaged[E1 >: E](r0: Managed[E1, R])(implicit ev: NeedsEnv[R]): IO[E1, A] = provideSomeManaged(r0)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -739,7 +739,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * )
    * }}}
    */
-  final def provideSome[R0](f: R0 => R): ZIO[R0, E, A] =
+  final def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZIO[R0, E, A] =
     ZIO.accessM(r0 => self.provide(f(r0)))
 
   /**
@@ -754,14 +754,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * effect.provideSomeM(r0)
    * }}}
    */
-  final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R]): ZIO[R0, E1, A] =
+  final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
     r0.flatMap(self.provide)
 
   /**
    * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
-  final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R]): ZIO[R0, E1, A] = r0.use(self.provide)
+  final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZIO[R0, E1, A] =
+    r0.use(self.provide)
 
   final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
     self.flatMap(that.provide)
