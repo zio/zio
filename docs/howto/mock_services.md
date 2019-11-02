@@ -231,7 +231,7 @@ import zio.test._
 import zio.test.Assertion._
 
 val event = new AccountEvent {}
-val app = AccountObserver.>.processEvent(event)
+val app: ZIO[AccountObserver, Nothing, Unit] = AccountObserver.>.processEvent(event)
 val mockEnv: Managed[Nothing, MockConsole] = (
   MockSpec.expectIn(MockConsole.Service.putStrLn)(equalTo(s"Got $event")) *>
   MockSpec.expectOut(MockConsole.Service.getStrLn)("42") *>

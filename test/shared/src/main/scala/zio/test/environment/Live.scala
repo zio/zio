@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ IO, UIO, ZIO }
+import zio.{ IO, NeedsEnv, UIO, ZIO }
 
 /**
  * The `Live` trait provides access to the "live" environment from within the
@@ -51,7 +51,7 @@ object Live {
   /**
    * Provides an effect with the "live" environment.
    */
-  def live[R, E, A](zio: ZIO[R, E, A]): ZIO[Live[R], E, A] =
+  def live[R, E, A](zio: ZIO[R, E, A])(implicit ev: NeedsEnv[R]): ZIO[Live[R], E, A] =
     ZIO.accessM[Live[R]](_.live.provide(zio))
 
   /**
@@ -88,6 +88,8 @@ object Live {
    * while ensuring that the effect itself is provided with the test
    * environment.
    */
-  def withLive[R, R1, E, E1, A, B](zio: ZIO[R, E, A])(f: IO[E, A] => ZIO[R1, E1, B]): ZIO[R with Live[R1], E1, B] =
+  def withLive[R, R1, E, E1, A, B](
+    zio: ZIO[R, E, A]
+  )(f: IO[E, A] => ZIO[R1, E1, B])(implicit ev: NeedsEnv[R1]): ZIO[R with Live[R1], E1, B] =
     ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))
 }
