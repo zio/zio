@@ -17,26 +17,26 @@
 package zio.stm
 
 /**
-  * Transactional set implemented on top of [[TMap]].
-  */
+ * Transactional set implemented on top of [[TMap]].
+ */
 class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
 
   /**
-    * Tests whether or not set contains an element.
-    */
+   * Tests whether or not set contains an element.
+   */
   final def contains(a: A): STM[Nothing, Boolean] =
     tmap.contains(a)
 
   /**
-    * Removes element from set.
-    */
+   * Removes element from set.
+   */
   final def delete(a: A): STM[Nothing, Unit] =
     tmap.delete(a)
 
   /**
-    * Atomically transforms the set into the difference of itself and the
-    * provided set.
-    */
+   * Atomically transforms the set into the difference of itself and the
+   * provided set.
+   */
   final def diff(other: TSet[A]): STM[Nothing, Unit] =
     other.toList
       .map(_.toSet)
@@ -45,27 +45,27 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
       }
 
   /**
-    * Atomically folds using pure function.
-    */
+   * Atomically folds using pure function.
+   */
   final def fold[B](zero: B)(op: (B, A) => B): STM[Nothing, B] =
     tmap.fold(zero)((acc, kv) => op(acc, kv._1))
 
   /**
-    * Atomically folds using effectful function.
-    */
+   * Atomically folds using effectful function.
+   */
   final def foldM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
     tmap.foldM(zero)((acc, kv) => op(acc, kv._1))
 
   /**
-    * Atomically performs side-effect for each element in set.
-    */
+   * Atomically performs side-effect for each element in set.
+   */
   final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
     foldM(())((_, a) => f(a))
 
   /**
-    * Atomically transforms the set into the intersection of itself and the
-    * provided set.
-    */
+   * Atomically transforms the set into the intersection of itself and the
+   * provided set.
+   */
   final def intersect(other: TSet[A]): STM[Nothing, Unit] =
     other.toList
       .map(_.toSet)
@@ -74,72 +74,70 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
       }
 
   /**
-    * Stores new element in the set.
-    */
+   * Stores new element in the set.
+   */
   final def put(a: A): STM[Nothing, Unit] =
     tmap.put(a, ())
 
   /**
-    * Removes elements matching predicate.
-    */
+   * Removes elements matching predicate.
+   */
   final def removeIf(p: A => Boolean): STM[Nothing, Unit] =
     tmap.removeIf((k, _) => p(k))
 
   /**
-    * Retains elements matching predicate.
-    */
+   * Retains elements matching predicate.
+   */
   final def retainIf(p: A => Boolean): STM[Nothing, Unit] =
     tmap.retainIf((k, _) => p(k))
 
   /**
-    * Returns the set's cardinality.
-    */
+   * Returns the set's cardinality.
+   */
   final def size: STM[Nothing, Int] = toList.map(_.size)
 
   /**
-    * Collects all elements into a list.
-    */
+   * Collects all elements into a list.
+   */
   final def toList: STM[Nothing, List[A]] = tmap.keys
 
   /**
-    * Atomically updates all elements using pure function.
-    */
+   * Atomically updates all elements using pure function.
+   */
   final def transform(f: A => A): STM[Nothing, Unit] =
     tmap.transform((k, v) => f(k) -> v)
 
   /**
-    * Atomically updates all elements using effectful function.
-    */
+   * Atomically updates all elements using effectful function.
+   */
   final def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
     tmap.transformM((k, v) => f(k).map(_ -> v))
 
   /**
-    * Atomically transforms the set into the union of itself and the provided
-    * set.
-    */
+   * Atomically transforms the set into the union of itself and the provided
+   * set.
+   */
   final def union(other: TSet[A]): STM[Nothing, Unit] =
-    other.toList
-      .flatMap { vals =>
-        STM.collectAll(vals.map(put))
-      }
-      .map(_ => ())
+    other.toList.flatMap { vals =>
+      STM.collectAll(vals.map(put))
+    }.map(_ => ())
 }
 
 object TSet {
 
   /**
-    * Makes a new `TSet` that is initialized with specified values.
-    */
+   * Makes a new `TSet` that is initialized with specified values.
+   */
   final def apply[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
 
   /**
-    * Makes an empty `TSet`.
-    */
+   * Makes an empty `TSet`.
+   */
   final def empty[A]: STM[Nothing, TSet[A]] = fromIterable(Nil)
 
   /**
-    * Makes a new `TSet` initialized with provided iterable.
-    */
+   * Makes a new `TSet` initialized with provided iterable.
+   */
   final def fromIterable[A](data: Iterable[A]): STM[Nothing, TSet[A]] =
     TMap.fromIterable(data.map((_, ()))).map(new TSet(_))
 }
