@@ -1394,6 +1394,23 @@ object ZIOSpec
                 assert(result.prettyPrint, equalTo(c.prettyPrint))
             }
           }
+        ),
+        suite("withFilter")(
+          testM("tuple value is extracted correctly from task") {
+            for {
+              (i, j, k) <- Task((1, 2, 3))
+            } yield assert((i, j, k), equalTo((1, 2, 3)))
+          },
+          testM("condition in for-comprehension syntax works correctly for task") {
+            for {
+              n <- Task(3) if n > 0
+            } yield assert(n, equalTo(3))
+          },
+          testM("unsatisfied condition should fail with NoSuchElementException") {
+            (for {
+              n <- Task(3) if n > 10
+            } yield n).either.map(r => assert(r, isLeft(isSubtype[NoSuchElementException](anything))))
+          }
         )
       )
     )
