@@ -4,11 +4,10 @@ import zio.LatchOps._
 import zio.ZIOSpecHelper._
 import zio.clock.Clock
 import zio.duration._
-import zio.test._
+import zio.test.{ test => pureTest, _ }
 import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, ignore, jvm, nonFlaky }
-
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
@@ -1407,9 +1406,33 @@ object ZIOSpec
             } yield assert(n, equalTo(3))
           },
           testM("unsatisfied condition should fail with NoSuchElementException") {
-            (for {
-              n <- Task(3) if n > 10
-            } yield n).either.map(r => assert(r, isLeft(isSubtype[NoSuchElementException](anything))))
+            val task =
+              for {
+                n <- Task(3) if n > 10
+              } yield n
+            assertM(task.run, fails(isSubtype[NoSuchElementException](anything)))
+          },
+          pureTest("withFilter doesn't compile with UIO") {
+            !assertCompiles {
+              """
+                |import zio._
+                |
+                |for {
+                |  n <- UIO(3) if n > 0
+                |} yield n
+                """.stripMargin
+            }
+          },
+          pureTest("withFilter doesn't compile with IO that fails with type other than Throwable") {
+            !assertCompiles {
+              """
+                |import zio._
+                |val io: IO[String, Int] = IO.succeed(1)
+                |for {
+                |  n <- io if n > 0
+                |} yield n
+              """.stripMargin
+            }
           }
         )
       )

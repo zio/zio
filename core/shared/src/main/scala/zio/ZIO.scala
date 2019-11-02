@@ -1469,11 +1469,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    *  } yield ()
    */
   final def withFilter[E1 >: E](
-    f: A => Boolean
+    predicate: A => Boolean
   )(implicit ev1: NoSuchElementException <:< E1, ev2: CanFail[E]): ZIO[R, E1, A] =
     self.flatMap { a =>
-      if (f(a)) ZIO.succeed(a)
-      else ZIO.fail(new NoSuchElementException)
+      if (predicate(a)) ZIO.succeed(a)
+      else ZIO.fail(new NoSuchElementException("The value doesn't satisfy the predicate"))
     }
 
   /**
