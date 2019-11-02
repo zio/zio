@@ -964,7 +964,7 @@ object SinkSpec
             testM("foldWeighted") {
               assertM(
                 Stream[Long](1, 5, 2, 3)
-                  .transduce(
+                  .aggregate(
                     Sink.foldWeighted[Long, List[Long]](List())(_ * 2, 12)((acc, el) => el :: acc).map(_.reverse)
                   )
                   .runCollect,
@@ -974,7 +974,7 @@ object SinkSpec
             testM("foldWeightedDecompose") {
               assertM(
                 Stream(1, 5, 1)
-                  .transduce(
+                  .aggregate(
                     Sink
                       .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4, (i: Int) => Chunk(i - 1, 1)) {
                         (acc, el) =>
@@ -989,7 +989,7 @@ object SinkSpec
             testM("foldWeightedM") {
               assertM(
                 Stream[Long](1, 5, 2, 3)
-                  .transduce(
+                  .aggregate(
                     Sink
                       .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)(
                         (acc, el) => UIO.succeed(el :: acc)
@@ -1003,7 +1003,7 @@ object SinkSpec
             testM("foldWeightedDecomposeM") {
               assertM(
                 Stream(1, 5, 1)
-                  .transduce(
+                  .aggregate(
                     Sink
                       .foldWeightedDecomposeM(List[Int]())(
                         (i: Int) => UIO.succeed(i.toLong),
@@ -1021,7 +1021,7 @@ object SinkSpec
             testM("foldUntil") {
               assertM(
                 Stream[Long](1, 1, 1, 1, 1, 1)
-                  .transduce(Sink.foldUntil(0L, 3)(_ + (_: Long)))
+                  .aggregate(Sink.foldUntil(0L, 3)(_ + (_: Long)))
                   .runCollect,
                 equalTo(List(3L, 3L))
               )
@@ -1029,7 +1029,7 @@ object SinkSpec
             testM("foldUntilM") {
               assertM(
                 Stream[Long](1, 1, 1, 1, 1, 1)
-                  .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
+                  .aggregate(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
                   .runCollect,
                 equalTo(List(3L, 3L))
               )
@@ -1037,7 +1037,7 @@ object SinkSpec
             testM("fromFunction") {
               assertM(
                 Stream(1, 2, 3, 4, 5)
-                  .transduce(Sink.fromFunction[Int, String](_.toString))
+                  .aggregate(Sink.fromFunction[Int, String](_.toString))
                   .runCollect,
                 equalTo(List("1", "2", "3", "4", "5"))
               )
@@ -1087,10 +1087,10 @@ object SinkSpec
                 equalTo("bc")
               )
             },
-            testM("transduces") {
+            testM("aggregates") {
               assertM(
                 Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
-                  .transduce(ZSink.splitLines)
+                  .aggregate(ZSink.splitLines)
                   .runCollect,
                 equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
               )
@@ -1098,7 +1098,7 @@ object SinkSpec
             testM("single newline edgecase") {
               assertM(
                 Stream("\n")
-                  .transduce(ZSink.splitLines)
+                  .aggregate(ZSink.splitLines)
                   .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List(""))
@@ -1107,7 +1107,7 @@ object SinkSpec
             testM("no newlines in data") {
               assertM(
                 Stream("abc", "abc", "abc")
-                  .transduce(ZSink.splitLines)
+                  .aggregate(ZSink.splitLines)
                   .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abcabcabc"))
@@ -1116,7 +1116,7 @@ object SinkSpec
             testM("\\r\\n on the boundary") {
               assertM(
                 Stream("abc\r", "\nabc")
-                  .transduce(ZSink.splitLines)
+                  .aggregate(ZSink.splitLines)
                   .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abc", "abc"))
@@ -1160,10 +1160,10 @@ object SinkSpec
                 equalTo("bc")
               )
             },
-            testM("transduces") {
+            testM("aggregates") {
               assertM(
                 Stream("abc", "delimiter", "bc", "delimiter", "bcd", "bcd")
-                  .transduce(ZSink.splitOn("delimiter"))
+                  .aggregate(ZSink.splitOn("delimiter"))
                   .runCollect,
                 equalTo(List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd")))
               )
@@ -1171,7 +1171,7 @@ object SinkSpec
             testM("single newline edgecase") {
               assertM(
                 Stream("test")
-                  .transduce(ZSink.splitOn("test"))
+                  .aggregate(ZSink.splitOn("test"))
                   .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List(""))
@@ -1180,7 +1180,7 @@ object SinkSpec
             testM("no delimiter in data") {
               assertM(
                 Stream("abc", "abc", "abc")
-                  .transduce(ZSink.splitOn("hello"))
+                  .aggregate(ZSink.splitOn("hello"))
                   .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abcabcabc"))
@@ -1189,7 +1189,7 @@ object SinkSpec
             testM("delimiter on the boundary") {
               assertM(
                 Stream("abc<", ">abc")
-                  .transduce(ZSink.splitOn("<>"))
+                  .aggregate(ZSink.splitOn("<>"))
                   .mapConcatChunk(identity)
                   .runCollect,
                 equalTo(List("abc", "abc"))
@@ -1345,7 +1345,7 @@ object SinkSpec
             testM("regular strings")(checkM(Gen.anyString) { s =>
               assertM(
                 Stream(Chunk.fromArray(s.getBytes("UTF-8")))
-                  .transduce(ZSink.utf8DecodeChunk)
+                  .aggregate(ZSink.utf8DecodeChunk)
                   .runCollect
                   .map(_.mkString),
                 equalTo(s)

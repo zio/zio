@@ -1436,7 +1436,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @param chunkSize size of the chunk
    */
   def grouped(chunkSize: Long): ZStream[R, E, List[A]] =
-    transduce(ZSink.collectAllN[A](chunkSize))
+    aggregate(ZSink.collectAllN[A](chunkSize))
 
   /**
    * Interleaves this stream and the specified stream deterministically by
@@ -2148,7 +2148,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R1, E1, Long]
   ): ZStream[R1 with Clock, E1, A] =
-    transduceManaged(ZSink.throttleEnforceM(units, duration, burst)(costFn)).collect { case Some(a) => a }
+    aggregateManaged(ZSink.throttleEnforceM(units, duration, burst)(costFn)).collect { case Some(a) => a }
 
   /**
    * Delays elements of type A according to the given bandwidth parameters using the token bucket
@@ -2169,7 +2169,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R1, E1, Long]
   ): ZStream[R1 with Clock, E1, A] =
-    transduceManaged(ZSink.throttleShapeM(units, duration, burst)(costFn))
+    aggregateManaged(ZSink.throttleShapeM(units, duration, burst)(costFn))
 
   /**
    * Interrupts the stream if it does not produce a value after d duration.
@@ -2205,10 +2205,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     } yield queue
 
   /**
-   * Applies a transducer to the stream, converting elements of type `A` into elements of type `C`, with a
+   * Applies an aggregator to the stream, converting elements of type `A` into elements of type `C`, with a
    * managed resource of type `D` available.
    */
-  final def transduceManaged[R1 <: R, E1 >: E, A1 >: A, B](
+  final def aggregateManaged[R1 <: R, E1 >: E, A1 >: A, B](
     managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
   ): ZStream[R1, E1, B] =
     ZStream[R1, E1, B] {
@@ -2271,11 +2271,11 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
-   * Applies a transducer to the stream, which converts one or more elements
+   * Applies an aggregator to the stream, which converts one or more elements
    * of type `A` into elements of type `C`.
    */
-  def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
-    transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
+  def aggregate[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+    aggregateManaged[R1, E1, A1, C](ZManaged.succeed(sink))
 
   /**
    * Filters any 'None'.
