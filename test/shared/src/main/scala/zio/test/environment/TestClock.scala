@@ -99,7 +99,7 @@ trait TestClock extends Clock with Scheduler {
   val scheduler: TestClock.Service[Any]
 }
 
-object TestClock {
+object TestClock extends Serializable {
 
   trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] {
     def adjust(duration: Duration): UIO[Unit]

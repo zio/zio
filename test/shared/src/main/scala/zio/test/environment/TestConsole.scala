@@ -60,7 +60,7 @@ trait TestConsole extends Console {
   val console: TestConsole.Service[Any]
 }
 
-object TestConsole {
+object TestConsole extends Serializable {
 
   trait Service[R] extends Console.Service[R] {
     def feedLines(lines: String*): UIO[Unit]
