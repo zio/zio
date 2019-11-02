@@ -40,9 +40,7 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   final def diff(other: TSet[A]): STM[Nothing, Unit] =
     other.toList
       .map(_.toSet)
-      .flatMap { vals =>
-        removeIf(vals.contains)
-      }
+      .flatMap(vals => removeIf(vals.contains))
 
   /**
    * Atomically folds using pure function.
