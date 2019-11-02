@@ -15,7 +15,8 @@ import zio.test.Assertion.{
   isLeft,
   isRight,
   isTrue,
-  isUnit
+  isUnit,
+  isNonEmptyString
 }
 import scala.{ Stream => _ }
 import Exit.Success
@@ -386,17 +387,49 @@ object StreamSpec
             case Right(n) => n
           }.runCollect, equalTo(List(2)))
         },
+        suite("Stream.collectM")(
+        testM("collectM") {
+          assertM(Stream(Left(1), Right(2), Left(3)).collectM[Any, Throwable, Int] {
+            case Right(n) => ZIO(n * 2)
+          }.runCollect, equalTo(List(4)))
+        },
+        testM("collectM fails") {
+          assertM(Stream(Left(1), Right(2), Left(3)).collectM[Any, String, Int] {
+            case Right(_) => ZIO.fail("Ouch")
+          }.runDrain.either, isLeft(isNonEmptyString))
+        }),
         suite("Stream.collectWhile")(
           testM("collectWhile") {
             assertM(
-              Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) => v }.runCollect,
-              equalTo(List(1, 2, 3))
+              Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile {
+                case Some(v) => v
+              }.runCollect, equalTo(List(1, 2, 3))
             )
           },
           testM("collectWhile short circuits") {
             assertM((Stream(Option(1)) ++ Stream.fail("Ouch")).collectWhile {
               case None => 1
             }.runDrain.either, isRight(isUnit))
+          }
+        ),
+        suite("Stream.collectWhileM")(
+          testM("collectWhileM") {
+            assertM(
+              Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileM[Any, Throwable, Int] {
+                case Some(v) => ZIO(v * 2)
+              }.runCollect, equalTo(List(2, 4, 6))
+            )
+          },
+          testM("collectWhileM short circuits") {
+            assertM((Stream(Option(1)) ++ Stream.fail("Ouch")).collectWhileM[Any, String, Int] {
+              case None => ZIO.succeed(1)
+            }.runDrain.either, isRight(isUnit))
+          },
+          testM("collectWhileM fails") {
+            assertM(
+              Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileM[Any, String, Int] {
+              case Some(_) => ZIO.fail("Ouch")
+            }.runDrain.either, isLeft(isNonEmptyString))
           }
         ),
         suite("Stream.concat")(
