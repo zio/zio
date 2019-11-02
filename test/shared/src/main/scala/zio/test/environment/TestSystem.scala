@@ -41,7 +41,7 @@ trait TestSystem extends System {
   val system: TestSystem.Service[Any]
 }
 
-object TestSystem {
+object TestSystem extends Serializable {
 
   trait Service[R] extends System.Service[R] {
     def putEnv(name: String, value: String): UIO[Unit]
