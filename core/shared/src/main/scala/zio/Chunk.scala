@@ -129,7 +129,7 @@ sealed trait Chunk[+A] { self =>
     }
 
     if (j == 0) Chunk.Empty
-    else Chunk.Slice(Chunk.fromArray(dest), 0, j)
+    else Chunk.Slice(Chunk.Arr(dest), 0, j)
   }
 
   /**
@@ -162,7 +162,7 @@ sealed trait Chunk[+A] { self =>
     dest.map {
       case (array, arrLen) =>
         if (arrLen == 0) Chunk.empty
-        else Chunk.Slice(Chunk.fromArray(array), 0, arrLen)
+        else Chunk.Slice(Chunk.Arr(array), 0, arrLen)
     }
   }
 
@@ -213,7 +213,7 @@ sealed trait Chunk[+A] { self =>
         n += chunk.length
       }
 
-      Chunk.fromArray(dest)
+      Chunk.Arr(dest)
     }
   }
 
@@ -319,7 +319,7 @@ sealed trait Chunk[+A] { self =>
       i = i + 1
     }
 
-    if (dest != null) Chunk.fromArray(dest)
+    if (dest != null) Chunk.Arr(dest)
     else Chunk.Empty
   }
 
@@ -352,7 +352,7 @@ sealed trait Chunk[+A] { self =>
 
     s ->
       (if (dest == null) Chunk.empty
-       else Chunk.fromArray(dest))
+       else Chunk.Arr(dest))
   }
 
   /**
@@ -361,7 +361,7 @@ sealed trait Chunk[+A] { self =>
    */
   def materialize[A1 >: A]: Chunk[A1] = self.toArrayOption[A1] match {
     case None        => Chunk.Empty
-    case Some(array) => Chunk.fromArray(array)
+    case Some(array) => Chunk.Arr(array)
   }
 
   /**
@@ -510,7 +510,7 @@ sealed trait Chunk[+A] { self =>
     dest.map {
       case (state, array) =>
         if (array == null) (state, Chunk.empty)
-        else (state, Chunk.fromArray(array))
+        else (state, Chunk.Arr(array))
     }
   }
 
@@ -540,7 +540,7 @@ sealed trait Chunk[+A] { self =>
     array.map(
       array =>
         if (array == null) Chunk.empty
-        else Chunk.fromArray(array)
+        else Chunk.Arr(array)
     )
   }
 
@@ -597,7 +597,7 @@ sealed trait Chunk[+A] { self =>
         i = i + 1
       }
 
-      Chunk.fromArray(dest)
+      Chunk.Arr(dest)
     }
   }
 
@@ -626,8 +626,7 @@ sealed trait Chunk[+A] { self =>
 
       }
 
-      Chunk.fromArray(dest)
-
+      Chunk.Arr(dest)
     }
   }
 
@@ -652,7 +651,7 @@ sealed trait Chunk[+A] { self =>
       i += 1
     }
 
-    Chunk.fromArray(dest)
+    Chunk.Arr(dest)
   }
 
   protected[zio] def apply(n: Int): A
@@ -677,47 +676,7 @@ object Chunk {
   /**
    * Returns a chunk backed by an array.
    */
-  final def fromArray[A](array: Array[A]): Chunk[A] = RefArr(array)
-
-  /**
-   * Returns a chunk backed by an array.
-   */
-  final def fromArray(array: Array[Boolean]): Chunk[Boolean] = BooleanArr(array)
-
-  /**
-   * Returns a chunk backed by an array.
-   */
-  final def fromArray(array: Array[Byte]): Chunk[Byte] = ByteArr(array)
-
-  /**
-   * Returns a chunk backed by an array.
-   */
-  final def fromArray(array: Array[Char]): Chunk[Char] = CharArr(array)
-
-  /**
-   * Returns a chunk backed by an array.
-   */
-  final def fromArray(array: Array[Double]): Chunk[Double] = DoubleArr(array)
-
-  /**
-   * Returns a chunk backed by an array.
-   */
-  final def fromArray(array: Array[Float]): Chunk[Float] = FloatArr(array)
-
-  /**
-   * Returns a chunk backed by an array.
-   */
-  final def fromArray(array: Array[Int]): Chunk[Int] = IntArr(array)
-
-  /**
-   * Returns a chunk backed by an array.
-   */
-  final def fromArray(array: Array[Long]): Chunk[Long] = LongArr(array)
-
-  /**
-   * Returns a chunk backed by an array.
-   */
-  final def fromArray(array: Array[Short]): Chunk[Short] = ShortArr(array)
+  final def fromArray[A](array: Array[A]): Chunk[A] = Arr(array)
 
   /**
    * Returns a chunk backed by an iterable.
@@ -733,99 +692,19 @@ object Chunk {
 
           implicit val A: ClassTag[A] = Tags.fromValue(first)
 
-          fromArray(it.toArray)
+          Arr(it.toArray)
       }
     }
 
   /**
    * Returns a singleton chunk, eagerly evaluated.
    */
-  final def single[A](a: A): Chunk[A] = RefSingleton(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def single(a: Boolean): Chunk[Boolean] = BooleanSingleton(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def single(a: Byte): Chunk[Byte] = ByteSingleton(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def single(a: Char): Chunk[Char] = CharSingleton(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def single(a: Double): Chunk[Double] = DoubleSingleton(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def single(a: Float): Chunk[Float] = FloatSingleton(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def single(a: Int): Chunk[Int] = IntSingleton(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def single(a: Long): Chunk[Long] = LongSingleton(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def single(a: Short): Chunk[Short] = ShortSingleton(a)
+  final def single[A](a: A): Chunk[A] = Singleton(a)
 
   /**
    * Alias for [[Chunk.single]].
    */
   final def succeed[A](a: A): Chunk[A] = single(a)
-
-  /**
-   * Alias for [[Chunk.single]].
-   */
-  final def succeed(a: Boolean): Chunk[Boolean] = single(a)
-
-  /**
-   * Alias for [[Chunk.single]].
-   */
-  final def succeed(a: Byte): Chunk[Byte] = single(a)
-
-  /**
-   * Alias for [[Chunk.single]].
-   */
-  final def succeed(a: Char): Chunk[Char] = single(a)
-
-  /**
-   * Alias for [[Chunk.single]].
-   */
-  final def succeed(a: Double): Chunk[Double] = single(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def succeed(a: Float): Chunk[Float] = single(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def succeed(a: Int): Chunk[Int] = single(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def succeed(a: Long): Chunk[Long] = single(a)
-
-  /**
-   * Returns a singleton chunk, eagerly evaluated.
-   */
-  final def succeed(a: Short): Chunk[Short] = single(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
@@ -868,7 +747,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.fromArray(dest), 0, j)
+      else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
     override def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = {
@@ -898,7 +777,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.fromArray(dest), 0, j)
+      else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
@@ -932,7 +811,7 @@ object Chunk {
       }
 
       if (dest == null) Chunk.Empty
-      else Chunk.Slice(Chunk.fromArray(dest), 0, j)
+      else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
     override def flatMap[B](f: A => Chunk[B]): Chunk[B] = {
@@ -973,7 +852,7 @@ object Chunk {
           n += chunk.length
         }
 
-        Chunk.fromArray(dest)
+        Chunk.Arr(dest)
       }
     }
 
@@ -1025,7 +904,7 @@ object Chunk {
         i = i + 1
       }
 
-      if (dest != null) Chunk.fromArray(dest)
+      if (dest != null) Chunk.Arr(dest)
       else Chunk.Empty
     }
 
@@ -1052,6 +931,23 @@ object Chunk {
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       Array.copy(array, 0, dest, n, length)
+  }
+
+  private object Arr {
+    def apply[A](array: Array[A]): Arr[A] = {
+      val clss = array.getClass().getComponentType()
+      val res =
+        if (clss == java.lang.Boolean.TYPE) BooleanArr(array.asInstanceOf[Array[Boolean]])
+        else if (clss == java.lang.Byte.TYPE) ByteArr(array.asInstanceOf[Array[Byte]])
+        else if (clss == java.lang.Character.TYPE) CharArr(array.asInstanceOf[Array[Char]])
+        else if (clss == java.lang.Double.TYPE) DoubleArr(array.asInstanceOf[Array[Double]])
+        else if (clss == java.lang.Float.TYPE) FloatArr(array.asInstanceOf[Array[Float]])
+        else if (clss == java.lang.Integer.TYPE) IntArr(array.asInstanceOf[Array[Int]])
+        else if (clss == java.lang.Long.TYPE) LongArr(array.asInstanceOf[Array[Long]])
+        else if (clss == java.lang.Short.TYPE) ShortArr(array.asInstanceOf[Array[Short]])
+        else RefArr(array)
+      res.asInstanceOf[Arr[A]]
+    }
   }
 
   private case class RefArr[A](override val array: Array[A]) extends Arr[A] {
@@ -1159,6 +1055,35 @@ object Chunk {
   }
 
   private object Singleton {
+    def apply[A](a: A): Singleton[A] = {
+      val clss = a.getClass()
+      val res =
+        if (clss == java.lang.Boolean.TYPE) BooleanSingleton(a.asInstanceOf[Boolean])
+        else if (clss == java.lang.Byte.TYPE) ByteSingleton(a.asInstanceOf[Byte])
+        else if (clss == java.lang.Character.TYPE) CharSingleton(a.asInstanceOf[Char])
+        else if (clss == java.lang.Double.TYPE) DoubleSingleton(a.asInstanceOf[Double])
+        else if (clss == java.lang.Float.TYPE) FloatSingleton(a.asInstanceOf[Float])
+        else if (clss == java.lang.Integer.TYPE) IntSingleton(a.asInstanceOf[Int])
+        else if (clss == java.lang.Long.TYPE) LongSingleton(a.asInstanceOf[Long])
+        else if (clss == java.lang.Short.TYPE) ShortSingleton(a.asInstanceOf[Short])
+        else RefSingleton(a)
+      res.asInstanceOf[Singleton[A]]
+    }
+
+    def apply[A](array: Array[A]): Arr[A] = {
+      val clss = array.getClass().getComponentType()
+      val res =
+        if (clss == java.lang.Boolean.TYPE) BooleanArr(array.asInstanceOf[Array[Boolean]])
+        else if (clss == java.lang.Byte.TYPE) ByteArr(array.asInstanceOf[Array[Byte]])
+        else if (clss == java.lang.Character.TYPE) CharArr(array.asInstanceOf[Array[Char]])
+        else if (clss == java.lang.Double.TYPE) DoubleArr(array.asInstanceOf[Array[Double]])
+        else if (clss == java.lang.Float.TYPE) FloatArr(array.asInstanceOf[Array[Float]])
+        else if (clss == java.lang.Integer.TYPE) IntArr(array.asInstanceOf[Array[Int]])
+        else if (clss == java.lang.Long.TYPE) LongArr(array.asInstanceOf[Array[Long]])
+        else if (clss == java.lang.Short.TYPE) ShortArr(array.asInstanceOf[Array[Short]])
+      res.asInstanceOf[Arr[A]]
+    }
+
     def unapply[A](singleton: Singleton[A]): Option[A] = Some(singleton.a)
   }
 
