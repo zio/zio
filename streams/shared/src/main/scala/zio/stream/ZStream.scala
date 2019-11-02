@@ -1910,6 +1910,22 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
+   * Returns the first element of the stream.
+   */
+  def head: ZIO[R, E, Option[A]] = take(1).runCollect.map(_.headOption)
+
+  /**
+   * Runs the stream returning the first element and discarding all elements thereafter.
+   */
+  def first: ZIO[R, E, Option[A]] =
+    run(ZSink.foldLeft[A, Option[A]](None) { case (s, a) => if (s.isDefined) s else Some(a) })
+
+  /**
+   * Runs the stream returning the last element and discarding all earlier elements.
+   */
+  def last: ZIO[R, E, Option[A]] = run(ZSink.foldLeft[A, Option[A]](None) { case (_, a) => Some(a) })
+
+  /**
    * Runs the stream and collects all of its elements in a list.
    *
    * Equivalent to `run(Sink.collectAll[A])`.
