@@ -38,10 +38,9 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   final def diff(other: TSet[A]): STM[Nothing, Unit] =
-    for {
-      vals <- other.toList.map(_.toSet)
-      _    <- removeIf(vals.contains)
-    } yield ()
+    other.toList
+      .map(_.toSet)
+      .flatMap(vals => removeIf(vals.contains))
 
   /**
    * Atomically folds using pure function.
@@ -66,10 +65,9 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   final def intersect(other: TSet[A]): STM[Nothing, Unit] =
-    for {
-      vals <- other.toList.map(_.toSet)
-      _    <- retainIf(vals.contains)
-    } yield ()
+    other.toList
+      .map(_.toSet)
+      .flatMap(vals => retainIf(vals.contains))
 
   /**
    * Stores new element in the set.
@@ -116,10 +114,9 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * set.
    */
   final def union(other: TSet[A]): STM[Nothing, Unit] =
-    for {
-      vals <- other.toList
-      _    <- STM.collectAll(vals.map(put))
-    } yield ()
+    other.toList
+      .flatMap(vals => STM.collectAll(vals.map(put)))
+      .unit
 }
 
 object TSet {

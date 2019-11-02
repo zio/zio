@@ -30,7 +30,7 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
     this
       .foldM(List.empty[TRef[B]]) {
         case (acc, a) =>
-          if (pf.isDefinedAt(a)) TRef.make(pf(a)).map(tref => tref :: acc)
+          if (pf.isDefinedAt(a)) TRef(pf(a)).map(tref => tref :: acc)
           else STM.succeed(acc)
       }
       .map(l => TArray(l.reverse.toArray))
@@ -44,11 +44,9 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
   final def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
     if (array.isEmpty) STM.succeed(acc)
     else
-      for {
-        a    <- array.head.get
-        acc2 <- op(acc, a)
-        res  <- new TArray(array.tail).foldM(acc2)(op)
-      } yield res
+      array.head.get.flatMap { a =>
+        op(acc, a).flatMap(acc2 => new TArray(array.tail).foldM(acc2)(op))
+      }
 
   /** Atomically performs side-effect for each item in array */
   final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
@@ -60,7 +58,7 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
 
   /** Creates [[TArray]] of new [[TRef]]s, mapped with transactional effect. */
   final def mapM[E, B](f: A => STM[E, B]): STM[E, TArray[B]] =
-    STM.foreach(array)(_.get.flatMap(f).flatMap(b => TRef.make(b))).map(l => new TArray(l.toArray))
+    STM.foreach(array)(_.get.flatMap(f).flatMap(b => TRef(b))).map(l => new TArray(l.toArray))
 
   /** Atomically updates all [[TRef]]s inside this array using pure function. */
   final def transform(f: A => A): STM[Nothing, Unit] =
@@ -84,12 +82,11 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
   /** Atomically updates element in the array with given transactional effect. */
   final def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, A] =
     if (0 <= index && index < array.size)
-      for {
-        currentVal <- array(index).get
-        newVal     <- fn(currentVal)
-        _          <- array(index).set(newVal)
-      } yield newVal
-    else STM.die(new ArrayIndexOutOfBoundsException(index))
+      array(index).get.flatMap { currentVal =>
+        fn(currentVal).flatMap { newVal =>
+          array(index).set(newVal).as(newVal)
+        }
+      } else STM.die(new ArrayIndexOutOfBoundsException(index))
 }
 
 object TArray {
