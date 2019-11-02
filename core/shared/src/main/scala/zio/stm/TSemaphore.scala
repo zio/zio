@@ -45,6 +45,6 @@ class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
 }
 
 object TSemaphore {
-  final def make(n: Long): STM[Nothing, TSemaphore] =
-    TRef.make(n).map(v => new TSemaphore(v))
+  final def apply(n: Long): STM[Nothing, TSemaphore] =
+    TRef(n).map(v => new TSemaphore(v))
 }

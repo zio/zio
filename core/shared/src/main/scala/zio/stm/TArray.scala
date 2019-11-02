@@ -30,7 +30,7 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
     this
       .foldM(List.empty[TRef[B]]) {
         case (acc, a) =>
-          if (pf.isDefinedAt(a)) TRef.make(pf(a)).map(tref => tref :: acc)
+          if (pf.isDefinedAt(a)) TRef(pf(a)).map(tref => tref :: acc)
           else STM.succeed(acc)
       }
       .map(l => TArray(l.reverse.toArray))
@@ -60,7 +60,7 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
 
   /** Creates [[TArray]] of new [[TRef]]s, mapped with transactional effect. */
   final def mapM[E, B](f: A => STM[E, B]): STM[E, TArray[B]] =
-    STM.foreach(array)(_.get.flatMap(f).flatMap(b => TRef.make(b))).map(l => new TArray(l.toArray))
+    STM.foreach(array)(_.get.flatMap(f).flatMap(b => TRef(b))).map(l => new TArray(l.toArray))
 
   /** Atomically updates all [[TRef]]s inside this array using pure function. */
   final def transform(f: A => A): STM[Nothing, Unit] =

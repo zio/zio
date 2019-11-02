@@ -103,6 +103,17 @@ class TMap[K, V] private (
     toList.map(_.map(_._1))
 
   /**
+   * If the key `k` is not already associated with a value, stores the provided
+   * value, otherwise merge the existing value with the new one using function `f`
+   * and store the result
+   */
+  final def merge(k: K, v: V)(f: (V, V) => V): STM[Nothing, V] =
+    get(k).flatMap(_.fold(put(k, v).as(v)) { v0 =>
+      val v1 = f(v0, v)
+      put(k, v1).as(v1)
+    })
+
+  /**
    * Stores new binding into the map.
    */
   final def put(k: K, v: V): STM[Nothing, Unit] = {
@@ -237,10 +248,10 @@ object TMap {
       buckets(idx) = kv :: buckets(idx)
     }
 
-    STM.collectAll(buckets.map(b => TRef.make(b))).flatMap { tChains =>
-      TRef.make(TArray(tChains.toArray)).flatMap { tBuckets =>
-        TRef.make(capacity).flatMap { tCapacity =>
-          TRef.make(uniqueItems.size).map { tSize =>
+    STM.collectAll(buckets.map(TRef(_))).flatMap { tChains =>
+      TRef(TArray(tChains.toArray)).flatMap { tBuckets =>
+        TRef(capacity).flatMap { tCapacity =>
+          TRef(uniqueItems.size).map { tSize =>
             new TMap(tBuckets, tCapacity, tSize)
           }
         }
