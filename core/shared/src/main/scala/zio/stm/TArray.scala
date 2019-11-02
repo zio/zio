@@ -84,7 +84,7 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
     if (0 <= index && index < array.size)
       array(index).get.flatMap { currentVal =>
         fn(currentVal).flatMap { newVal =>
-          array(index).set(newVal) as newVal
+          array(index).set(newVal).map(_ => newVal)
         }
       } else STM.die(new ArrayIndexOutOfBoundsException(index))
 }
