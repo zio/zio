@@ -212,7 +212,7 @@ class TMap[K, V] private (
     tBuckets.get.flatMap { buckets =>
       tCapacity.get.flatMap { capacity =>
         buckets.transform(_ => Nil).zipRight {
-          val updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
+          val updates = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
           STM.collectAll(updates)
         }
       }
