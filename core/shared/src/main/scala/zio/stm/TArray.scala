@@ -33,7 +33,7 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
           if (pf.isDefinedAt(a)) TRef.make(pf(a)).map(tref => tref :: acc)
           else STM.succeed(acc)
       }
-      .map(l => TArray(l.reverse.toArray))
+      .map(l => new TArray(l.reverse.toArray))
 
   /** Atomically folds [[TArray]] with pure function. */
   final def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
@@ -94,6 +94,19 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
 
 object TArray {
 
-  final def apply[A](array: Array[TRef[A]]): TArray[A] = new TArray(array)
+  /**
+   * Makes a new `TArray` that is initialized with specified values.
+   */
+  final def apply[A](data: A*): STM[Nothing, TArray[A]] = fromIterable(data)
 
+  /**
+   * Makes an empty `TArray`.
+   */
+  final def empty[A]: STM[Nothing, TArray[A]] = fromIterable(Nil)
+
+  /**
+   * Makes a new `TArray` initialized with provided iterable.
+   */
+  final def fromIterable[A](data: Iterable[A]): STM[Nothing, TArray[A]] =
+    STM.foreach(data)(TRef.make(_)).map(list => new TArray(list.toArray))
 }
