@@ -4,11 +4,10 @@ import zio.LatchOps._
 import zio.ZIOSpecHelper._
 import zio.clock.Clock
 import zio.duration._
-import zio.test._
+import zio.test.{ test => pureTest, _ }
 import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, ignore, jvm, nonFlaky }
-
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
@@ -1392,6 +1391,47 @@ object ZIOSpec
                 result <- cause(ZIO.halt(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)
               } yield assert(result, equalTo(c)) &&
                 assert(result.prettyPrint, equalTo(c.prettyPrint))
+            }
+          }
+        ),
+        suite("withFilter")(
+          testM("tuple value is extracted correctly from task") {
+            for {
+              (i, j, k) <- Task((1, 2, 3))
+            } yield assert((i, j, k), equalTo((1, 2, 3)))
+          },
+          testM("condition in for-comprehension syntax works correctly for task") {
+            for {
+              n <- Task(3) if n > 0
+            } yield assert(n, equalTo(3))
+          },
+          testM("unsatisfied condition should fail with NoSuchElementException") {
+            val task =
+              for {
+                n <- Task(3) if n > 10
+              } yield n
+            assertM(task.run, fails(isSubtype[NoSuchElementException](anything)))
+          },
+          pureTest("withFilter doesn't compile with UIO") {
+            !assertCompiles {
+              """
+                |import zio._
+                |
+                |for {
+                |  n <- UIO(3) if n > 0
+                |} yield n
+                """.stripMargin
+            }
+          },
+          pureTest("withFilter doesn't compile with IO that fails with type other than Throwable") {
+            !assertCompiles {
+              """
+                |import zio._
+                |val io: IO[String, Int] = IO.succeed(1)
+                |for {
+                |  n <- io if n > 0
+                |} yield n
+              """.stripMargin
             }
           }
         )
