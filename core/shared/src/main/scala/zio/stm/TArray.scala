@@ -26,7 +26,6 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
     if (0 <= index && index < array.length) array(index).get
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 
-
   /** Atomically folds [[TArray]] with pure function. */
   final def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
     if (array.isEmpty) STM.succeed(acc)
