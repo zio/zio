@@ -68,7 +68,7 @@ sealed trait Chunk[+A] { self =>
       self match {
         case Chunk.Slice(c, o, l)           => Chunk.Slice(c, o + n, l - n)
         case _: Chunk.Singleton[_] if n > 0 => Chunk.empty
-        case c: Chunk.Singleton[_]          => c
+        case c: Chunk.Singleton[_]          => c.asInstanceOf[Chunk[A]] // Dotty doesn't infer this properly
         case Chunk.Empty                    => Chunk.empty
         case _                              => Chunk.Slice(self, n, len - n)
       }
@@ -426,7 +426,7 @@ sealed trait Chunk[+A] { self =>
         case Chunk.Slice(c, o, l) =>
           if (n >= l) this
           else Chunk.Slice(c, o, n)
-        case c: Chunk.Singleton[_] => c
+        case c: Chunk.Singleton[_] => c.asInstanceOf[Chunk[A]] // Dotty doesn't infer this properly
         case _                     => Chunk.Slice(self, 0, n)
       }
 
