@@ -1694,7 +1694,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * `\r\n` and `\n`.
    */
   final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
-    splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
+    splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single(_))
 
   /**
    * Splits strings on a delimiter.

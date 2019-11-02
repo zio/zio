@@ -684,7 +684,7 @@ object Chunk {
    */
   final def fromIterable[A](it: Iterable[A]): Chunk[A] =
     if (it.size <= 0) Empty
-    else if (it.size == 1) Singleton(it.head)
+    else if (it.size == 1) single(it.head)
     else {
       it match {
         case l: Vector[A] => VectorChunk(l)
@@ -700,12 +700,92 @@ object Chunk {
   /**
    * Returns a singleton chunk, eagerly evaluated.
    */
-  final def single[A](a: A): Chunk[A] = Singleton(a)
+  final def single[A](a: A): Chunk[A] = RefSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Boolean): Chunk[Boolean] = BooleanSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Byte): Chunk[Byte] = ByteSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Char): Chunk[Char] = CharSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Double): Chunk[Double] = DoubleSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Float): Chunk[Float] = FloatSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Int): Chunk[Int] = IntSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Long): Chunk[Long] = LongSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Short): Chunk[Short] = ShortSingleton(a)
 
   /**
    * Alias for [[Chunk.single]].
    */
   final def succeed[A](a: A): Chunk[A] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Boolean): Chunk[Boolean] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Byte): Chunk[Byte] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Char): Chunk[Char] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Double): Chunk[Double] = single(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def succeed(a: Float): Chunk[Float] = single(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def succeed(a: Int): Chunk[Int] = single(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def succeed(a: Long): Chunk[Long] = single(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def succeed(a: Short): Chunk[Short] = single(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
@@ -975,19 +1055,91 @@ object Chunk {
     override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] = Array.empty
   }
 
-  private case class Singleton[A](a: A) extends Chunk[A] {
+  private sealed trait Singleton[A] extends Chunk[A] {
+    val a: A
+
     implicit val classTag: ClassTag[A] = Tags.fromValue(a)
 
-    override val length = 1
+    override val length: Int = 1
 
+    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
+      dest(n) = a
+  }
+
+  private object Singleton {
+    def unapply[A](singleton: Singleton[A]): Option[A] = Some(singleton.a)
+  }
+
+  private case class RefSingleton[A](override val a: A) extends Singleton[A] {
     override def apply(n: Int): A =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
 
     override def foreach(f: A => Unit): Unit = f(a)
+  }
 
-    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
-      dest(n) = a
+  private case class BooleanSingleton(override val a: Boolean) extends Singleton[Boolean] {
+    override def apply(n: Int): Boolean =
+      if (n == 0) a
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
+
+    override def foreach(f: Boolean => Unit): Unit = f(a)
+  }
+
+  private case class ByteSingleton(override val a: Byte) extends Singleton[Byte] {
+    override def apply(n: Int): Byte =
+      if (n == 0) a
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
+
+    override def foreach(f: Byte => Unit): Unit = f(a)
+  }
+
+  private case class CharSingleton(override val a: Char) extends Singleton[Char] {
+    override def apply(n: Int): Char =
+      if (n == 0) a
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
+
+    override def foreach(f: Char => Unit): Unit = f(a)
+  }
+
+  private case class DoubleSingleton(override val a: Double) extends Singleton[Double] {
+    override def apply(n: Int): Double =
+      if (n == 0) a
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
+
+    override def foreach(f: Double => Unit): Unit = f(a)
+  }
+
+  private case class FloatSingleton(override val a: Float) extends Singleton[Float] {
+    override def apply(n: Int): Float =
+      if (n == 0) a
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
+
+    override def foreach(f: Float => Unit): Unit = f(a)
+  }
+
+  private case class IntSingleton(override val a: Int) extends Singleton[Int] {
+    override def apply(n: Int): Int =
+      if (n == 0) a
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
+
+    override def foreach(f: Int => Unit): Unit = f(a)
+  }
+
+  private case class LongSingleton(override val a: Long) extends Singleton[Long] {
+    override def apply(n: Int): Long =
+      if (n == 0) a
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
+
+    override def foreach(f: Long => Unit): Unit = f(a)
+  }
+
+  private case class ShortSingleton(override val a: Short) extends Singleton[Short] {
+    override def apply(n: Int): Short =
+      if (n == 0) a
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
+
+    override def foreach(f: Short => Unit): Unit = f(a)
   }
 
   private case class Slice[A](private val chunk: Chunk[A], offset: Int, l: Int) extends Chunk[A] {
