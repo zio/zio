@@ -33,7 +33,7 @@ class QueueParallelBenchmark {
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](totalSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
-    zioTQ = unsafeRun(TQueue.make(totalSize).commit)
+    zioTQ = unsafeRun(TQueue(totalSize).commit)
     monixQ = monix.catnap.ConcurrentQueue.bounded[MTask, Int](totalSize).runSyncUnsafe()
   }
 
