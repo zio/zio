@@ -105,11 +105,11 @@ object StreamSpec
             )
           }
         ),
-        suite("Stream.aggregateWithinEither")(
-          testM("aggregateWithinEither") {
+        suite("Stream.aggregateAsyncWithinEither")(
+          testM("aggregateAsyncWithinEither") {
             for {
               result <- Stream(1, 1, 1, 1, 2)
-                         .aggregateWithinEither(
+                         .aggregateAsyncWithinEither(
                            Sink
                              .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
                                if (el == 1) ((el :: acc._1, true), Chunk.empty)
@@ -126,7 +126,7 @@ object StreamSpec
             val e = new RuntimeException("Boom")
             assertM(
               Stream(1, 1, 1, 1)
-                .aggregateWithinEither(ZSink.die(e), ZSchedule.spaced(30.minutes))
+                .aggregateAsyncWithinEither(ZSink.die(e), ZSchedule.spaced(30.minutes))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -140,7 +140,7 @@ object StreamSpec
 
             assertM(
               Stream(1, 1)
-                .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
+                .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -157,7 +157,7 @@ object StreamSpec
                     .onInterrupt(cancelled.set(true))
               }
               fiber <- Stream(1, 1, 2)
-                        .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
                         .runCollect
                         .untraced
                         .fork
@@ -175,7 +175,7 @@ object StreamSpec
                   .onInterrupt(cancelled.set(true))
               }
               fiber <- Stream(1, 1, 2)
-                        .aggregateWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
                         .runCollect
                         .untraced
                         .fork
@@ -184,11 +184,11 @@ object StreamSpec
               result <- cancelled.get
             } yield assert(result, isTrue)
           },
-          testM("aggregateWithinEitherLeftoverHandling") {
+          testM("aggregateAsyncWithinEitherLeftoverHandling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
               Stream(data: _*)
-                .aggregateWithinEither(
+                .aggregateAsyncWithinEither(
                   Sink
                     .foldWeighted(List[Int]())((i: Int) => i.toLong, 4) { (acc, el) =>
                       el :: acc
@@ -205,11 +205,11 @@ object StreamSpec
             )
           }
         ),
-        suite("Stream.aggregateWithin")(
-          testM("aggregateWithin") {
+        suite("Stream.aggregateAsyncWithin")(
+          testM("aggregateAsyncWithin") {
             for {
               result <- Stream(1, 1, 1, 1, 2)
-                         .aggregateWithin(
+                         .aggregateAsyncWithin(
                            Sink
                              .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
                                if (el == 1) ((el :: acc._1, true), Chunk.empty)

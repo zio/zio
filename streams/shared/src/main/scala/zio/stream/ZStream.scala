@@ -266,7 +266,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @tparam C type of the value produced by the given schedule
    * @return `ZStream[R1 with Clock, E1, Either[C, B]]`
    */
-  final def aggregateWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
+  final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
     schedule: ZSchedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E1, Either[C, B]] = {
@@ -548,7 +548,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   }
 
   /**
-   * Uses `aggregateWithinEither` but only returns the `Right` results.
+   * Uses `aggregateAsyncWithin` but only returns the `Right` results.
    *
    * @param sink used for the aggregation
    * @param schedule signalling for when to stop the aggregation
@@ -559,10 +559,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @tparam C type of the value produced by the given schedule
    * @return `ZStream[R1 with Clock, E1, B]`
    */
-  final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
+  final def aggregateAsyncWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
     schedule: ZSchedule[R1, Option[B], C]
-  ): ZStream[R1 with Clock, E1, B] = aggregateWithinEither(sink, schedule).collect {
+  ): ZStream[R1 with Clock, E1, B] = aggregateAsyncWithinEither(sink, schedule).collect {
     case Right(v) => v
   }
 
