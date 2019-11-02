@@ -1460,6 +1460,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.whenM(b)(self)
 
   /**
+   * Enables to check conditions in the value produced by ZIO
+   * If the condition is not satisfied, it fails with None
+   * this provide the syntax sugar in for-comprehension:
+   * for {
+   *   (i, j) <- io1
+   *   positive <- io2 if positive > 0
+   *  } yield ()
+   */
+  def withFilter(f: A => Boolean): ZIO[R, Option[E], A] =
+    self.foldM(
+      e => ZIO.fail(Some(e)),
+      a =>
+        if (f(a)) ZIO.succeed(a)
+        else ZIO.fail(None)
+    )
+
+  /**
    * A named alias for `&&&` or `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
