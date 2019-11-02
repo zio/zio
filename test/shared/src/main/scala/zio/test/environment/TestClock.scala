@@ -104,6 +104,7 @@ object TestClock extends Serializable {
   trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] {
     def adjust(duration: Duration): UIO[Unit]
     def fiberTime: UIO[Duration]
+    def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
     def setTime(duration: Duration): UIO[Unit]
     def setTimeZone(zone: ZoneId): UIO[Unit]
     def sleeps: UIO[List[Duration]]
@@ -135,7 +136,7 @@ object TestClock extends Serializable {
      * Returns the current clock time as an `OffsetDateTime`.
      */
     final def currentDateTime: UIO[OffsetDateTime] =
-      clockState.get.map(data => offset(data.currentTimeMillis, data.timeZone))
+      clockState.get.map(data => toDateTime(data.currentTimeMillis, data.timeZone))
 
     /**
      * Returns the current clock time in the specified time unit.
@@ -165,13 +166,21 @@ object TestClock extends Serializable {
     /**
      * Returns the current clock time in nanoseconds.
      */
-    final val nanoTime: IO[Nothing, Long] =
+    final val nanoTime: UIO[Long] =
       clockState.get.map(_.nanoTime)
 
     /**
-     * Sets the current clock time to the specified time. Any effects that
-     * were scheduled to occur on or before the new time will immediately
-     * be run.
+     * Sets the current clock time to the specified `OffsetDateTime`. Any
+     * effets that were scheduled to occur on or before the new time will
+     * immediately be run.
+     */
+    final def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
+      setTime(fromDateTime(dateTime))
+
+    /**
+     * Sets the current clock time to the specified time in terms of duration
+     * since the epoch. Any effects that were scheduled to occur on or before
+     * the new time will immediately be run.
      */
     final def setTime(duration: Duration): UIO[Unit] =
       clockState.modify { data =>
@@ -323,8 +332,16 @@ object TestClock extends Serializable {
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
-   * to the specified time, running any actions scheduled for on or before the
-   * new time.
+   * to the specified `OffsetDateTime`, running any actions scheduled for on or
+   * before the new time.
+   */
+  def setDateTime(dateTime: OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
+    ZIO.accessM(_.clock.setDateTime(dateTime))
+
+  /**
+   * Accesses a `TestClock` instance in the environment and sets the clock time
+   * to the specified time in terms of duration since the epoch, running any
+   * actions scheduled for on or before the new time.
    */
   def setTime(duration: Duration): ZIO[TestClock, Nothing, Unit] =
     ZIO.accessM(_.clock.setTime(duration))
@@ -375,6 +392,9 @@ object TestClock extends Serializable {
       FiberData(first.nanoTime max last.nanoTime)
   }
 
-  private def offset(millis: Long, timeZone: ZoneId): OffsetDateTime =
+  private def toDateTime(millis: Long, timeZone: ZoneId): OffsetDateTime =
     OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), timeZone)
+
+  private def fromDateTime(dateTime: OffsetDateTime): Duration =
+    Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
 }
