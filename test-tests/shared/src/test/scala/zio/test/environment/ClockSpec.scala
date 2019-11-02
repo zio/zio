@@ -1,6 +1,6 @@
 package zio.test.environment
 
-import java.time.ZoneId
+import java.time._
 import java.util.concurrent.TimeUnit
 
 import zio._
@@ -87,6 +87,13 @@ object ClockSpec
         },
         testM("adjust does not produce sleeps") {
           adjust(1.millis) *> assertM(sleeps, isEmpty)
+        },
+        testM("setDateTime correctly sets currentDateTime") {
+          for {
+            expected <- UIO.effectTotal(OffsetDateTime.now(ZoneId.of("UTC+9")))
+            _        <- setDateTime(expected)
+            actual   <- clock.currentDateTime
+          } yield assert(actual.toInstant.toEpochMilli, equalTo(expected.toInstant.toEpochMilli))
         },
         testM("setTime correctly sets nanotime") {
           for {
