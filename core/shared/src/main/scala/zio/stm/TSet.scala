@@ -69,9 +69,7 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   final def intersect(other: TSet[A]): STM[Nothing, Unit] =
     other.toList
       .map(_.toSet)
-      .flatMap { vals =>
-        retainIf(vals.contains)
-      }
+      .flatMap(vals => retainIf(vals.contains))
 
   /**
    * Stores new element in the set.
@@ -118,9 +116,9 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * set.
    */
   final def union(other: TSet[A]): STM[Nothing, Unit] =
-    other.toList.flatMap { vals =>
-      STM.collectAll(vals.map(put))
-    }.map(_ => ())
+    other.toList
+      .flatMap(vals => STM.collectAll(vals.map(put)))
+      .unit
 }
 
 object TSet {
