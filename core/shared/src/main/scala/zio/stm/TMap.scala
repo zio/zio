@@ -247,10 +247,10 @@ object TMap {
     }
 
     for {
-      tChains   <- STM.collectAll(buckets.map(b => TRef.make(b)))
-      tBuckets  <- TRef.make(TArray(tChains.toArray))
-      tCapacity <- TRef.make(capacity)
-      tSize     <- TRef.make(uniqueItems.size)
+      tChains   <- STM.collectAll(buckets.map(b => TRef(b)))
+      tBuckets  <- TRef(TArray(tChains.toArray))
+      tCapacity <- TRef(capacity)
+      tSize     <- TRef(uniqueItems.size)
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
