@@ -26,7 +26,7 @@ import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
 import zio.test.mock.MockException.UnmetExpectationsException
 
 /**
- * A `Expectation[-M, +E, +A]` is an immutable data structure that represents
+ * An `Expectation[-M, +E, +A]` is an immutable data structure that represents
  * expectations on module `M` capabilities.
  *
  * This structure is a monad, because we need the sequential composability and
@@ -52,7 +52,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
   /**
    * Returns an expectation that models the execution of this expectation,
    * followed by passing of its value to the specified continuation function `k`,
-   * followed by the expecation that it returns.
+   * followed by the expectation that it returns.
    *
    * {{
    * val mockClock = (MockClock.sleep(equalTo(1.second)) returns unit).flatMap(_ => MockClock.nanoTime returns value(5L))
@@ -145,47 +145,47 @@ sealed trait Expectation[-M, +E, +A] { self =>
 object Expectation {
 
   /**
-   * Returns a return expecation to fail with `E`.
+   * Returns a return expectation to fail with `E`.
    */
   final def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
 
   /**
-   * Maps the input arguments `I` to a return expecation to fail with `E`.
+   * Maps the input arguments `I` to a return expectation to fail with `E`.
    */
   final def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
 
   /**
-   * Effectfully maps the input arguments `I` to a return expecation to fail with `E`.
+   * Effectfully maps the input arguments `I` to a return expectation to fail with `E`.
    */
   final def failureM[I, E](f: I => IO[E, Nothing]): Fail[I, E] = Fail(f)
 
   /**
-   * Returns a return expecation to compute forever.
+   * Returns a return expectation to compute forever.
    */
   final def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
 
   /**
-   * Returns an expecation for no calls on module `M`.
+   * Returns an expectation for no calls on module `M`.
    */
   final def nothing[M]: Expectation[M, Nothing, Nothing] = Empty
 
   /**
-   * Returns a return expecation to succeed with `Unit`.
+   * Returns a return expectation to succeed with `Unit`.
    */
   final def unit: Succeed[Any, Unit] = value(())
 
   /**
-   * Returns a return expecation to succeed with `A`.
+   * Returns a return expectation to succeed with `A`.
    */
   final def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
 
   /**
-   * Maps the input arguments `I` to a return expecation to succeed with `A`.
+   * Maps the input arguments `I` to a return expectation to succeed with `A`.
    */
   final def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
 
   /**
-   * Effectfully maps the input arguments `I` to a return expecation to succeed with `A`.
+   * Effectfully maps the input arguments `I` to a return expectation to succeed with `A`.
    */
   final def valueM[I, A](f: I => IO[Nothing, A]): Succeed[I, A] = Succeed(f)
 
