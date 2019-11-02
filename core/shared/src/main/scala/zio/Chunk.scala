@@ -683,7 +683,6 @@ object Chunk {
    */
   final def fromIterable[A](it: Iterable[A]): Chunk[A] =
     if (it.size <= 0) Empty
-    else if (it.size == 1) single(it.head)
     else {
       it match {
         case l: Vector[A] => VectorChunk(l)
@@ -699,12 +698,92 @@ object Chunk {
   /**
    * Returns a singleton chunk, eagerly evaluated.
    */
-  final def single[A](a: A): Chunk[A] = Singleton(a)
+  final def single[A](a: A): Chunk[A] = RefSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Boolean): Chunk[Boolean] = BooleanSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Byte): Chunk[Byte] = ByteSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Char): Chunk[Char] = CharSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Double): Chunk[Double] = DoubleSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Float): Chunk[Float] = FloatSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Int): Chunk[Int] = IntSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Long): Chunk[Long] = LongSingleton(a)
+
+  /**
+   * Returns a singleton chunk, eagerly evaluated.
+   */
+  final def single(a: Short): Chunk[Short] = ShortSingleton(a)
 
   /**
    * Alias for [[Chunk.single]].
    */
   final def succeed[A](a: A): Chunk[A] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Boolean): Chunk[Boolean] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Byte): Chunk[Byte] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Char): Chunk[Char] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Double): Chunk[Double] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Float): Chunk[Float] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Int): Chunk[Int] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Long): Chunk[Long] = single(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed(a: Short): Chunk[Short] = single(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
@@ -1055,35 +1134,6 @@ object Chunk {
   }
 
   private object Singleton {
-    def apply[A](a: A): Singleton[A] = {
-      val clss = a.getClass()
-      val res =
-        if (clss == java.lang.Boolean.TYPE) BooleanSingleton(a.asInstanceOf[Boolean])
-        else if (clss == java.lang.Byte.TYPE) ByteSingleton(a.asInstanceOf[Byte])
-        else if (clss == java.lang.Character.TYPE) CharSingleton(a.asInstanceOf[Char])
-        else if (clss == java.lang.Double.TYPE) DoubleSingleton(a.asInstanceOf[Double])
-        else if (clss == java.lang.Float.TYPE) FloatSingleton(a.asInstanceOf[Float])
-        else if (clss == java.lang.Integer.TYPE) IntSingleton(a.asInstanceOf[Int])
-        else if (clss == java.lang.Long.TYPE) LongSingleton(a.asInstanceOf[Long])
-        else if (clss == java.lang.Short.TYPE) ShortSingleton(a.asInstanceOf[Short])
-        else RefSingleton(a)
-      res.asInstanceOf[Singleton[A]]
-    }
-
-    def apply[A](array: Array[A]): Arr[A] = {
-      val clss = array.getClass().getComponentType()
-      val res =
-        if (clss == java.lang.Boolean.TYPE) BooleanArr(array.asInstanceOf[Array[Boolean]])
-        else if (clss == java.lang.Byte.TYPE) ByteArr(array.asInstanceOf[Array[Byte]])
-        else if (clss == java.lang.Character.TYPE) CharArr(array.asInstanceOf[Array[Char]])
-        else if (clss == java.lang.Double.TYPE) DoubleArr(array.asInstanceOf[Array[Double]])
-        else if (clss == java.lang.Float.TYPE) FloatArr(array.asInstanceOf[Array[Float]])
-        else if (clss == java.lang.Integer.TYPE) IntArr(array.asInstanceOf[Array[Int]])
-        else if (clss == java.lang.Long.TYPE) LongArr(array.asInstanceOf[Array[Long]])
-        else if (clss == java.lang.Short.TYPE) ShortArr(array.asInstanceOf[Array[Short]])
-      res.asInstanceOf[Arr[A]]
-    }
-
     def unapply[A](singleton: Singleton[A]): Option[A] = Some(singleton.a)
   }
 
