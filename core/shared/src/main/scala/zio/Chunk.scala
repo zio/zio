@@ -66,11 +66,11 @@ sealed trait Chunk[+A] { self =>
     else if (n >= len) Chunk.empty
     else
       self match {
-        case Chunk.Slice(c, o, l)        => Chunk.Slice(c, o + n, l - n)
-        case Chunk.Singleton(_) if n > 0 => Chunk.empty
-        case c @ Chunk.Singleton(_)      => c
-        case Chunk.Empty                 => Chunk.empty
-        case _                           => Chunk.Slice(self, n, len - n)
+        case Chunk.Slice(c, o, l)           => Chunk.Slice(c, o + n, l - n)
+        case _: Chunk.Singleton[_] if n > 0 => Chunk.empty
+        case c: Chunk.Singleton[_]          => c
+        case Chunk.Empty                    => Chunk.empty
+        case _                              => Chunk.Slice(self, n, len - n)
       }
   }
 
@@ -426,8 +426,8 @@ sealed trait Chunk[+A] { self =>
         case Chunk.Slice(c, o, l) =>
           if (n >= l) this
           else Chunk.Slice(c, o, n)
-        case c @ Chunk.Singleton(_) => c
-        case _                      => Chunk.Slice(self, 0, n)
+        case c: Chunk.Singleton[_] => c
+        case _                     => Chunk.Slice(self, 0, n)
       }
 
   /**
@@ -1131,10 +1131,6 @@ object Chunk {
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
       dest(n) = a
-  }
-
-  private object Singleton {
-    def unapply[A](singleton: Singleton[A]): Option[A] = Some(singleton.a)
   }
 
   private case class RefSingleton[A](override val a: A) extends Singleton[A] {
