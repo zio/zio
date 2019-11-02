@@ -548,7 +548,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   }
 
   /**
-   * Uses `aggregateAsyncWithin` but only returns the `Right` results.
+   * Uses `aggregateAsyncWithinEither` but only returns the `Right` results.
    *
    * @param sink used for the aggregation
    * @param schedule signalling for when to stop the aggregation
