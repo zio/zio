@@ -24,10 +24,10 @@ import StreamUtils._
 object StreamSpec
     extends ZIOBaseSpec(
       suite("StreamSpec")(
-        suite("Stream.aggregate")(
-          testM("aggregate") {
+        suite("Stream.aggregateAsync")(
+          testM("aggregateAsync") {
             Stream(1, 1, 1, 1)
-              .aggregate(ZSink.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc).map(_.reverse))
+              .aggregateAsync(ZSink.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc).map(_.reverse))
               .runCollect
               .map { result =>
                 assert(result.flatten, equalTo(List(1, 1, 1, 1))) &&
@@ -38,7 +38,7 @@ object StreamSpec
             val e = new RuntimeException("Boom")
             assertM(
               Stream(1, 1, 1, 1)
-                .aggregate(ZSink.die(e))
+                .aggregateAsync(ZSink.die(e))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -52,7 +52,7 @@ object StreamSpec
 
             assertM(
               Stream(1, 1)
-                .aggregate(sink)
+                .aggregateAsync(sink)
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -68,7 +68,7 @@ object StreamSpec
                   (latch.succeed(()) *> UIO.never)
                     .onInterrupt(cancelled.set(true))
               }
-              fiber  <- Stream(1, 1, 2).aggregate(sink).runCollect.untraced.fork
+              fiber  <- Stream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -82,7 +82,7 @@ object StreamSpec
                 (latch.succeed(()) *> UIO.never)
                   .onInterrupt(cancelled.set(true))
               }
-              fiber  <- Stream(1, 1, 2).aggregate(sink).runCollect.untraced.fork
+              fiber  <- Stream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -92,7 +92,7 @@ object StreamSpec
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
               Stream(data: _*)
-                .aggregate(
+                .aggregateAsync(
                   Sink
                     .foldWeighted(List[Int]())((i: Int) => i.toLong, 4) { (acc, el) =>
                       el :: acc
