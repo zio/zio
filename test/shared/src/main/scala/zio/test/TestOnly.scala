@@ -3,9 +3,36 @@ package zio.test
 import zio.test.Spec.{ SuiteCase, TestCase }
 import zio.{ Cause, ZIO }
 
+/**
+ * Provides extension methods for ZSpec to temporary limit a suite to running only specific label(s).<br>
+ * Example:
+ * {{{
+ *   import zio.test.TestOnly._
+ *   suite("suite")(
+ *     test("test1") {
+ *       assert(1, equalTo(1))
+ *     },
+ *     test("test2") {
+ *       assert(1, equalTo(1))
+ *     }
+ *   ).onlyWith("test2")
+ * }}}
+ * Tests that don't match the filter will be ignored.<br>
+ * If no matching labels are found, the test will fail.
+ */
 object TestOnly {
   implicit class SpecOps[R, E, L, S](spec: ZSpec[R, E, L, S]) {
+
+    /**
+     * ignores all tests that don't exactly match the given label.<br>
+     * If no matching labels are found, the test will fail.
+     */
     def onlyWith(label: L): ZSpec[R, E, L, S] = only(_ == label)
+
+    /**
+     * ignores all tests with labels not satisfying the give predicate.<br>
+     * If no matching labels are found, the test will fail.
+     */
     def only(p: L => Boolean): ZSpec[R, E, L, S] =
       process(spec, hasLabel(spec, p), p)
 
