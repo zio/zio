@@ -1,11 +1,10 @@
-package zio.stm
+package zio
+package stm
 
-import zio.{ UIO, ZIO }
-import zio._
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect._
+import zio.test.TestAspect.nonFlaky
 import STMSpecUtil._
 
 object STMSpec
@@ -384,7 +383,7 @@ object STMSpec
             } yield assert(result, equalTo(2 -> 2))
           }
         ),
-        suite("STM issue 1587") {
+        suite("STM issue 2073") {
           testM("read only STM shouldn't return partial state of concurrent read-write STM") {
             for {
               r0       <- TRef.makeCommit(0)
@@ -396,7 +395,7 @@ object STMSpec
           } @@ nonFlaky(100000)
         }
       ),
-      List(TestAspect.timeout(30.minutes))
+      List(TestAspect.timeout(10.minutes))
     )
 
 object STMSpecUtil {
