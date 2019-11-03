@@ -47,8 +47,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   "single effectTotal for-comprehension" >> singleEffectTotalForComp
   "single suspendWith for-comprehension" >> singleSuspendWithForComp
 
-  private def show(trace: ZTrace): Unit   = if (debug) println(trace.prettyPrint)
-  private def show(cause: Cause[_]): Unit = if (debug) println(cause.prettyPrint)
+  private def show(trace: ZTrace): Unit     = if (debug) println(trace.prettyPrint)
+  private def show(cause: Cause[Any]): Unit = if (debug) println(cause.prettyPrint)
 
   private def mentionsMethod(method: String, trace: ZTraceElement): Boolean =
     trace match {
@@ -80,8 +80,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mentionedMethod(method: String): Matcher[List[ZTraceElement]] = mentionMethod(method)
 
-  private implicit final class CauseMust[R >: Environment](io: ZIO[R, _, _]) {
-    def causeMust(check: Cause[_] => Result): Result =
+  private implicit final class CauseMust[R >: ZEnv](io: ZIO[R, Any, Any]) {
+    def causeMust(check: Cause[Any] => Result): Result =
       unsafeRunSync(io).fold[Result](
         cause => {
           show(cause)
@@ -264,9 +264,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _ <- ZIO.unit
         _ <- ZIO.unit
       } yield t)
-        .foldM(
-          failure = _ => IO.fail(()),
-          success = t =>
+        .flatMap(
+          t =>
             IO.trace
               .map(tuple(t))
         )
@@ -308,7 +307,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     uploadUsers(List(new User)) causeMust { cause =>
       (cause.traces.head.stackTrace must have size 2) and
         (cause.traces.head.stackTrace.head must mentionMethod("uploadUsers")) and
-        (cause.traces(1).stackTrace must beEmpty) and
+        (cause.traces(1).stackTrace must have size 1) and
         (cause.traces(1).executionTrace must have size 1) and
         (cause.traces(1).executionTrace.head must mentionMethod("uploadTo")) and
         (cause.traces(1).parentTrace must not be empty) and

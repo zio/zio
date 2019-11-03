@@ -25,7 +25,7 @@ import zio.internal.MutableConcurrentQueue;
  * NOTE: these classes need to be implemented in Java, because:
  *   1) `head` and `tail` need to be naked protected or public fields
  *   in order to be accessible by `AtomicLongFieldUpdater`.
- *   2) there doesnt' seems to be a way to expose naked public or
+ *   2) there doesn't seems to be a way to expose naked public or
  *   protected fields in Scala is it generates accessor methods for
  *   those.
  *

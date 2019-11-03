@@ -31,8 +31,24 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
   final def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zip(that)
 
-  final def filter(f: A => Boolean): Gen[R, A] =
-    flatMap(a => if (f(a)) Gen.const(a) else Gen.empty)
+  /**
+   * Filters the values produced by this generator, discarding any values that
+   * do not meet the specified predicate. Using `filter` can reduce test
+   * performance, especially if many values must be discarded. It is
+   * recommended to use combinators such as `map` and `flatMap` to create
+   * generators of the desired values instead.
+   *
+   * {{{
+   * val evens: Gen[Random, Int] = Gen.anyInt.map(_ * 2)
+   * }}}
+   */
+  final def filter(f: A => Boolean): Gen[R, A] = Gen {
+    sample.flatMap { sample =>
+      if (f(sample.value)) sample.filter(f) else ZStream.empty
+    }
+  }
+
+  final def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
 
   final def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = Gen {
     self.sample.flatMap { sample =>
@@ -42,8 +58,26 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     }
   }
 
+  final def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B]): Gen[R1, B] =
+    flatMap(ev)
+
   final def map[B](f: A => B): Gen[R, B] =
     Gen(sample.map(_.map(f)))
+
+  /**
+   * Maps an effectual function over a generator.
+   */
+  final def mapM[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
+    Gen(sample.mapM(_.traverse(f)))
+
+  /**
+   * Discards the shrinker for this generator and applies a new shrinker by
+   * mapping each value to a sample using the specified function. This is
+   * useful when the process to shrink a value is simpler than the process used
+   * to generate it.
+   */
+  final def reshrink[R1 <: R, B](f: A => Sample[R1, B]): Gen[R1, B] =
+    Gen(sample.map(sample => f(sample.value)))
 
   final def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.flatMap(a => that.map(b => (a, b)))
@@ -52,7 +86,7 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     self.zip(that).map(f.tupled)
 }
 
-object Gen {
+object Gen extends GenZIO with FunctionVariants {
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
@@ -109,6 +143,18 @@ object Gen {
     }
 
   /**
+   * A generator of strings. Shrinks towards the empty string.
+   */
+  final def anyString: Gen[Random with Sized, String] =
+    Gen.string(Gen.anyUnicodeChar)
+
+  /**
+   * A generator of Unicode characters. Shrinks toward '0'.
+   */
+  final val anyUnicodeChar: Gen[Random, Char] =
+    Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
+
+  /**
    * A generator of booleans. Shrinks toward 'false'.
    */
   final val boolean: Gen[Random, Boolean] =
@@ -160,6 +206,13 @@ object Gen {
     Gen(Stream.empty)
 
   /**
+   * A generator of exponentially distributed doubles with mean `1`.
+   * The shrinker will shrink toward `0`.
+   */
+  final val exponential: Gen[Random, Double] =
+    uniform.map(n => -math.log(1 - n))
+
+  /**
    * Constructs a generator from an effect that constructs a value.
    */
   final def fromEffect[R, A](effect: ZIO[R, Nothing, A]): Gen[R, A] =
@@ -176,7 +229,7 @@ object Gen {
    */
   final def fromIterable[R, A](
     as: Iterable[A],
-    shrinker: (A => ZStream[R, Nothing, A]) = (_: A) => ZStream.empty
+    shrinker: (A => ZStream[R, Nothing, A]) = defaultShrinker
   ): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
 
@@ -212,14 +265,34 @@ object Gen {
         .map(Sample.shrinkIntegral(min))
     }
 
+  /**
+   * A sized generator that uses a uniform distribution of size values. A large
+   * number of larger sizes will be generated.
+   */
+  final def large[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
+    size.flatMap(max => int(min, max)).flatMap(f)
+
   final def listOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    sized(n => int(0, n max 0)).flatMap(listOfN(_)(g))
+    small(listOfN(_)(g))
 
   final def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
-    sized(n => int(1, n max 1)).flatMap(listOfN(_)(g))
+    small(listOfN(_)(g), 1)
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+
+  /**
+   * A sized generator that uses an exponential distribution of size values.
+   * The majority of sizes will be towards the lower end of the range but some
+   * larger sizes will be generated as well.
+   */
+  final def medium[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+    val gen = for {
+      max <- size
+      n   <- exponential
+    } yield clamp(math.round(n * max / 10.0).toInt, min, max)
+    gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
+  }
 
   /**
    * A constant generator of the empty value.
@@ -237,6 +310,26 @@ object Gen {
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
 
   /**
+   * Constructs a generator of partial functions from `A` to `B` given a
+   * generator of `B` values. Two `A` values will be considered to be equal,
+   * and thus will be guaranteed to generate the same `B` value or both be
+   * outside the partial functon's domain, if they have the same `hashCode`.
+   */
+  final def partialFunction[R <: Random, A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
+    partialFunctionWith(gen)(_.hashCode)
+
+  /**
+   * Constructs a generator of partial functions from `A` to `B` given a
+   * generator of `B` values and a hashing function for `A` values. Two `A`
+   * values will be considered to be equal, and thus will be guaranteed to
+   * generate the same `B` value or both be outside the partial function's
+   * domain, if they have have the same hash. This is useful when `A` does not
+   * implement `hashCode` in a way that is constent with equality.
+   */
+  final def partialFunctionWith[R <: Random, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
+    functionWith(option(gen))(hash).map(Function.unlift)
+
+  /**
    * A generator of printable characters. Shrinks toward '!'.
    */
   final val printableChar: Gen[Random, Char] =
@@ -249,7 +342,7 @@ object Gen {
   final def short(min: Short, max: Short): Gen[Random, Short] =
     integral(min, max)
 
-  final val size: Gen[Sized, Int] =
+  final def size: Gen[Sized, Int] =
     Gen.fromEffect(Sized.size)
 
   /**
@@ -257,6 +350,19 @@ object Gen {
    */
   final def sized[R <: Sized, A](f: Int => Gen[R, A]): Gen[R, A] =
     size.flatMap(f)
+
+  /**
+   * A sized generator that uses an exponential distribution of size values.
+   * The values generated will be strongly concentrated towards the lower end
+   * of the range but a few larger values will still be generated.
+   */
+  final def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+    val gen = for {
+      max <- size
+      n   <- exponential
+    } yield clamp(math.round(n * max / 25.0).toInt, min, max)
+    gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
+  }
 
   final def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
@@ -269,6 +375,19 @@ object Gen {
 
   final def stringN[R <: Random](n: Int)(char: Gen[R, Char]): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
+
+  /**
+   * Lazily constructs a generator. This is useful to avoid infinite recursion
+   * when creating generators that refer to themselves.
+   */
+  final def suspend[R, A](gen: => Gen[R, A]): Gen[R, A] =
+    fromEffect(ZIO.effectTotal(gen)).flatten
+
+  /**
+   * A generator of throwables.
+   */
+  final val throwable: Gen[Random, Throwable] =
+    Gen.const(new Throwable)
 
   /**
    * A generator of uniformly distributed doubles between [0, 1].
@@ -302,4 +421,15 @@ object Gen {
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
+
+  /**
+   * Restricts an integer to the specified range.
+   */
+  private final def clamp(n: Int, min: Int, max: Int): Int =
+    if (n < min) min
+    else if (n > max) max
+    else n
+
+  private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
+    _ => ZStream.empty
 }

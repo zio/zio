@@ -16,41 +16,44 @@
 
 package zio.stream
 
+import java.io.{ IOException, InputStream }
+
 import zio._
 
-private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A])
-    extends ZStream[Any, E, A](
-      processEffect.map { thunk =>
-        UIO.effectTotal {
-          try UIO.succeed(thunk())
-          catch {
-            case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
-            case StreamEffect.End        => IO.fail(None)
-          }
-        }.flatten
-      }
+private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E, () => A])
+    extends ZStream[R, E, A](
+      ZStream.Structure.Iterator(
+        processEffect.map { thunk =>
+          UIO.effectTotal {
+            try UIO.succeed(thunk())
+            catch {
+              case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
+              case StreamEffect.End        => IO.fail(None)
+            }
+          }.flatten
+        }
+      )
     ) { self =>
 
-  override def collect[B](pf: PartialFunction[A, B]): StreamEffect[E, B] =
-    StreamEffect[E, B] {
+  override def collect[B](pf: PartialFunction[A, B]): StreamEffect[R, E, B] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
           {
-            var ob: Option[B]                        = None
-            val pfOpt: PartialFunction[A, Option[B]] = pf.andThen(Some(_))
+            var b = null.asInstanceOf[B]
 
-            while (ob.isEmpty) {
-              ob = pfOpt.applyOrElse(thunk(), (_: A) => None)
+            while (b == null) {
+              b = pf.applyOrElse(thunk(), (_: A) => null.asInstanceOf[B])
             }
 
-            ob.get
+            b
           }
         }
       }
     }
 
-  override def collectWhile[B](pred: PartialFunction[A, B]): StreamEffect[E, B] =
-    StreamEffect[E, B] {
+  override def collectWhile[B](pred: PartialFunction[A, B]): StreamEffect[R, E, B] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var done = false
@@ -63,8 +66,8 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       }
     }
 
-  override def dropWhile(pred: A => Boolean): StreamEffect[E, A] =
-    StreamEffect[E, A] {
+  override def dropWhile(pred: A => Boolean): StreamEffect[R, E, A] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var drop = true
@@ -84,8 +87,8 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       }
     }
 
-  override def filter(pred: A => Boolean): StreamEffect[E, A] =
-    StreamEffect[E, A] {
+  override def filter(pred: A => Boolean): StreamEffect[R, E, A] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           @annotation.tailrec
@@ -99,31 +102,31 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       }
     }
 
-  final def foldLazyPure[S](s: S)(cont: S => Boolean)(f: (S, A) => S): Managed[E, S] =
+  final override def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
     processEffect.flatMap { thunk =>
       def fold(): Either[E, S] = {
-        var state            = s
-        var done             = false
-        var error: Option[E] = None
+        var state = s
+        var done  = false
+        var error = null.asInstanceOf[E]
 
-        while (!done && error.isEmpty && cont(state)) {
+        while (!done && error == null && cont(state)) {
           try {
             val a = thunk()
             state = f(state, a)
           } catch {
-            case StreamEffect.Failure(e) => error = Some(e.asInstanceOf[E])
+            case StreamEffect.Failure(e) => error = e.asInstanceOf[E]
             case StreamEffect.End        => done = true
           }
         }
 
-        error.fold[Either[E, S]](Right(state))(Left(_))
+        if (error == null) Right(state) else Left(error)
       }
 
       Managed.effectTotal(Managed.fromEither(fold())).flatten
     }
 
-  override def map[B](f0: A => B): StreamEffect[E, B] =
-    StreamEffect[E, B] {
+  override def map[B](f0: A => B): StreamEffect[R, E, B] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
           f0(thunk())
@@ -131,8 +134,8 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       }
     }
 
-  override def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): StreamEffect[E, B] =
-    StreamEffect[E, B] {
+  override def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): StreamEffect[R, E, B] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var state = s1
@@ -146,8 +149,8 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       }
     }
 
-  override def mapConcat[B](f: A => Chunk[B]): StreamEffect[E, B] =
-    StreamEffect[E, B] {
+  override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffect[R, E, B] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var chunk: Chunk[B] = Chunk.empty
@@ -166,20 +169,18 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       }
     }
 
-  override def run[R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R, E1, A0, A1, B]): ZIO[R, E1, B] =
+  override def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
     sink match {
       case sink: SinkPure[E1, A0, A1, B] =>
-        foldLazyPure[ZSink.Step[sink.State, A0]](sink.initialPure)(ZSink.Step.cont) { (s, a) =>
-          sink.stepPure(ZSink.Step.state(s), a)
-        }.use[Any, E1, B] { step =>
-          ZIO.fromEither(sink.extractPure(ZSink.Step.state(step)))
+        foldWhileManaged(sink.initialPure)(sink.cont)(sink.stepPure).use[R1, E1, B] { state =>
+          ZIO.fromEither(sink.extractPure(state).map(_._1))
         }
 
-      case sink: ZSink[R, E1, A0, A1, B] => super.run(sink)
+      case sink: ZSink[R1, E1, A0, A1, B] => super.run(sink)
     }
 
-  override def take(n: Int): StreamEffect[E, A] =
-    StreamEffect[E, A] {
+  override def take(n: Int): StreamEffect[R, E, A] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
           var counter = 0
@@ -195,8 +196,28 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       }
     }
 
-  override def takeWhile(pred: A => Boolean): StreamEffect[E, A] =
-    StreamEffect[E, A] {
+  override def takeUntil(pred: A => Boolean): StreamEffect[R, E, A] =
+    StreamEffect {
+      self.processEffect.flatMap { thunk =>
+        Managed.effectTotal {
+          var keepTaking = true
+
+          () => {
+            if (!keepTaking) StreamEffect.end
+            else {
+              val a = thunk()
+              if (pred(a)) {
+                keepTaking = false
+              }
+              a
+            }
+          }
+        }
+      }
+    }
+
+  override def takeWhile(pred: A => Boolean): StreamEffect[R, E, A] =
+    StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
           {
@@ -208,60 +229,77 @@ private[stream] class StreamEffect[+E, +A](val processEffect: Managed[E, () => A
       }
     }
 
-  override def transduce[R, E1 >: E, A1 >: A, B](
-    sink: ZSink[R, E1, A1, A1, B]
-  ): ZStream[R, E1, B] =
+  override def aggregate[R1 <: R, E1 >: E, A1 >: A, B](
+    sink: ZSink[R1, E1, A1, A1, B]
+  ): ZStream[R1, E1, B] =
     sink match {
       case sink: SinkPure[E1, A1, A1, B] =>
-        StreamEffect[E1, B] {
-          import ZSink.Step
-
+        StreamEffect {
           self.processEffect.flatMap { thunk =>
             Managed.effectTotal {
-              var step: Step[sink.State, A1] = sink.initialPure
-              var needsExtractOnEnd          = false
-              var done                       = false
+              var done                 = false
+              var leftovers: Chunk[A1] = Chunk.empty
 
               () => {
-                if (done) {
-                  StreamEffect.end
-                } else {
-                  while (!done && Step.cont(step)) {
-                    try {
+                def go(state: sink.State, dirty: Boolean): B =
+                  if (!dirty) {
+                    if (done) StreamEffect.end
+                    else if (leftovers.nonEmpty) {
+                      val (newState, newLeftovers) = sink.stepChunkPure(state, leftovers)
+                      leftovers = newLeftovers
+                      go(newState, true)
+                    } else {
                       val a = thunk()
-                      step = sink.stepPure(Step.state(step), a)
-                      needsExtractOnEnd = true
-                    } catch {
-                      case StreamEffect.End =>
-                        done = true
+                      go(sink.stepPure(state, a), true)
+                    }
+                  } else {
+                    if (done || !sink.cont(state)) {
+                      sink.extractPure(state) match {
+                        case Left(e) => StreamEffect.fail(e)
+                        case Right((b, newLeftovers)) =>
+                          leftovers = leftovers ++ newLeftovers
+                          b
+                      }
+                    } else {
+                      try go(sink.stepPure(state, thunk()), true)
+                      catch {
+                        case StreamEffect.End =>
+                          done = true
+                          sink.extractPure(state) match {
+                            case Left(e) => StreamEffect.fail(e)
+                            case Right((b, newLeftovers)) =>
+                              leftovers = leftovers ++ newLeftovers
+                              b
+                          }
+                      }
                     }
                   }
 
-                  if (done) {
-                    if (needsExtractOnEnd)
-                      sink.extractPure(Step.state(step)) match {
-                        case Left(e)  => StreamEffect.fail(e)
-                        case Right(b) => b
-                      } else StreamEffect.end
-                  } else {
-                    sink.extractPure(Step.state(step)) match {
-                      case Left(e) => StreamEffect.fail(e)
-                      case Right(b) =>
-                        val leftover     = Step.leftover(step)
-                        val newInit      = sink.initialPure
-                        val leftoverStep = sink.stepChunkPure(Step.state(newInit), leftover)
-                        step = leftoverStep
-                        needsExtractOnEnd = !leftover.isEmpty
-                        b
-                    }
-                  }
-                }
+                go(sink.initialPure, false)
               }
             }
           }
         }
-      case sink: ZSink[R, E1, A1, A1, B] => super.transduce(sink)
+
+      case sink: ZSink[R1, E1, A1, A1, B] => super.aggregate(sink)
     }
+
+  override final def toInputStream(
+    implicit ev0: E <:< Throwable,
+    ev1: A <:< Byte
+  ): ZManaged[R, E, java.io.InputStream] =
+    for {
+      pull <- processEffect
+      javaStream = new java.io.InputStream {
+        override def read(): Int =
+          try {
+            pull().toInt
+          } catch {
+            case StreamEffect.End        => -1
+            case StreamEffect.Failure(e) => throw e.asInstanceOf[E]
+          }
+      }
+    } yield javaStream
 }
 
 private[stream] object StreamEffect extends Serializable {
@@ -274,22 +312,44 @@ private[stream] object StreamEffect extends Serializable {
     override def fillInStackTrace() = this
   }
 
+  final def memoizeEnd[R, E, A](pull: ZManaged[R, E, () => A]): ZManaged[R, E, () => A] =
+    pull.flatMap { thunk =>
+      ZManaged.effectTotal {
+        var done = false
+
+        () => {
+          if (done) end
+          else {
+            try thunk()
+            catch {
+              case t: Throwable =>
+                done = true
+                throw t
+            }
+          }
+        }
+      }
+    }
+
   def end[A]: A = throw End
 
   def fail[E, A](e: E): A = throw Failure(e)
 
-  final val empty: StreamEffect[Nothing, Nothing] =
-    StreamEffect[Nothing, Nothing] {
+  final val empty: StreamEffect[Any, Nothing, Nothing] =
+    StreamEffect {
       Managed.effectTotal { () =>
         end
       }
     }
 
-  final def apply[E, A](pull: Managed[E, () => A]): StreamEffect[E, A] =
-    new StreamEffect[E, A](pull)
+  final def apply[R, E, A](pull: ZManaged[R, E, () => A]): StreamEffect[R, E, A] =
+    new StreamEffect(pull)
 
-  final def fromChunk[@specialized A](c: Chunk[A]): StreamEffect[Nothing, A] =
-    StreamEffect[Nothing, A] {
+  final def fail[E](e: E): StreamEffect[Any, E, Nothing] =
+    StreamEffect(memoizeEnd(Managed.effectTotal(() => fail(e))))
+
+  final def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
       Managed.effectTotal {
         var index = 0
         val len   = c.length
@@ -305,8 +365,8 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromIterable[A](as: Iterable[A]): StreamEffect[Nothing, A] =
-    StreamEffect[Nothing, A] {
+  final def fromIterable[A](as: Iterable[A]): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
       Managed.effectTotal {
         val thunk = as.iterator
 
@@ -314,8 +374,54 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Nothing, A] =
-    StreamEffect[Nothing, A] {
+  final def fromIterator[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): StreamEffect[R, E, A] =
+    StreamEffect {
+      iterator.flatMap { iterator =>
+        Managed.effectTotal { () =>
+          if (iterator.hasNext) iterator.next() else end
+        }
+      }
+    }
+
+  final def fromInputStream(
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): StreamEffectChunk[Any, IOException, Byte] =
+    StreamEffectChunk {
+      StreamEffect {
+        Managed.effectTotal {
+          def pull(): Chunk[Byte] = {
+            val buf = Array.ofDim[Byte](chunkSize)
+            try {
+              val bytesRead = is.read(buf)
+              if (bytesRead < 0) end
+              else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
+              else Chunk.fromArray(buf)
+            } catch {
+              case e: IOException => fail(e)
+            }
+          }
+
+          () => pull()
+        }
+      }
+    }
+
+  final def iterate[A](a: A)(f: A => A): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
+      Managed.effectTotal {
+        var state = a
+
+        () => {
+          val out = state
+          state = f(state)
+          out
+        }
+      }
+    }
+
+  final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
       Managed.effectTotal {
         var state = s
 
@@ -330,8 +436,8 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def succeed[A](a: A): StreamEffect[Nothing, A] =
-    StreamEffect[Nothing, A] {
+  final def succeed[A](a: A): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
       Managed.effectTotal {
         var done = false
 

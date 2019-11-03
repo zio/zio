@@ -1,8 +1,8 @@
 ![ZIO Logo](./ZIO.png)
 
-| CI | Coverage | Release | Issues | Scaladex |
-| --- | --- | --- | --- | --- |
-| [![Build Status][Badge-Circle]][Link-Circle] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladex-page]][Link-Scaladex-page]
+| CI | Coverage | Release | Issues | Scaladex | Discord |
+| --- | --- | --- | --- | --- | --- |
+| [![Build Status][Badge-Circle]][Link-Circle] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord]
 
 # Welcome to ZIO
 
@@ -22,7 +22,7 @@ Powered by highly-scalable, non-blocking fibers that never waste or leak resourc
 To learn more about ZIO, see the following references:
 
  - [Homepage](https://zio.dev/)
- - [Contributor's Guide](CONTRIBUTING.md)
+ - [Contributor's Guide](./docs/about/contributing.md)
  - [License](LICENSE)
  - [Issues](https://github.com/zio/zio/issues)
  - [Pull Requests](https://github.com/zio/zio/pulls)
@@ -45,6 +45,18 @@ To learn more about ZIO, see the following references:
 
 ---
 
+## Code of Conduct
+
+See the [Code of Conduct](./docs/about/code_of_conduct.md)
+
+---
+
+## Support
+
+Come chat with us on [![Badge-Discord]][Link-Discord].
+
+---
+
 ### Legal
 
 Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reserved.
@@ -57,12 +69,14 @@ Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reser
 [Link-Circle]: https://circleci.com/gh/zio/zio "circleci"
 [Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
 [Link-SeptimalMind]: https://7mind.io "Septimal Mind"
+[Link-Discord]: https://discord.gg/2ccFBr4 "Discord"
 
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
 [Badge-Circle]: https://circleci.com/gh/zio/zio.svg?style=svg "circleci"
+[Badge-Discord]: https://img.shields.io/discord/629491597070827530?logo=discord "chat on discord"
 
 [Image-SoftwareMill]: ./website/static/img/softwaremill.svg "SoftwareMill"
 [Image-SeptimalMind]: ./website/static/img/septimal_mind.svg "Septimal Mind"

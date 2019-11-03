@@ -137,15 +137,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Converts the failure channel into an `Either`.
    */
-  final def either: STM[Nothing, Either[E, A]] =
-    new STM(
-      journal =>
-        self.exec(journal) match {
-          case TRez.Fail(e)    => TRez.Succeed(Left(e))
-          case TRez.Succeed(a) => TRez.Succeed(Right(a))
-          case TRez.Retry      => TRez.Retry
-        }
-    )
+  final def either: STM[Nothing, Either[E, A]] = fold(Left(_), Right(_))
 
   /**
    * Filters the value produced by this effect, retrying the transaction until
@@ -238,8 +230,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Converts the failure channel into an `Option`.
    */
-  final def option: STM[Nothing, Option[A]] =
-    fold[Option[A]](_ => None, Some(_))
+  final def option: STM[Nothing, Option[A]] = fold(_ => None, Some(_))
 
   /**
    * Tries this effect first, and if it fails, tries the other effect.
@@ -558,6 +549,10 @@ object STM {
                 Sync(globalLock) {
                   if (isValid(journal)) commitJournal(journal) else loop = true
                 }
+              } else {
+                Sync(globalLock) {
+                  if (isInvalid(journal)) loop = true
+                }
               }
 
             case _ =>
@@ -584,7 +579,7 @@ object STM {
     object TRez {
       final case class Fail[A](value: A)    extends TRez[A, Nothing]
       final case class Succeed[B](value: B) extends TRez[Nothing, B]
-      final case object Retry               extends TRez[Nothing, Nothing]
+      case object Retry                     extends TRez[Nothing, Nothing]
     }
 
     abstract class Entry { self =>

@@ -344,6 +344,10 @@ object Queue {
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
    * the underlying [[zio.internal.impls.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
   final def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
@@ -355,6 +359,10 @@ object Queue {
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
    * the underlying [[zio.internal.impls.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
   final def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
@@ -367,12 +375,19 @@ object Queue {
    * @note when possible use only power of 2 capacities; this will
    * provide better performance by utilising an optimised version of
    * the underlying [[zio.internal.impls.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
   final def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
 
   /**
    * Makes a new unbounded queue.
+   *
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
   final def unbounded[A]: UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))

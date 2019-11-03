@@ -3,9 +3,16 @@ id: datatypes_sink
 title:  "Sink"
 ---
 
-A `Sink[E, A0, A, B]` is used to consume elements produced by `stream`
-with `E` error in case of failure, `A0` remainder, `A` input elements and
-`B` result type. `Sink` is passed as `stream.run` argument:
+A `Sink[E, A0, A, B]` is used to consume elements produced by a stream.
+You can think of this sink as a function that will consume a variable 
+amount of `A` elements (could be 0, 1, or many!), might fail with an
+error of type `E`, and will eventually yield a value of type `B`.
+
+The `A0` parameter describes the sink's *leftover* type. Sinks might
+not consume all their inputs, and unconsumed elements are returned as
+chunks of `A0` values.
+
+A `Sink` is passed to `ZStream#run` as an argument:
 
 ```scala mdoc:silent
 import zio._
@@ -72,25 +79,26 @@ Basic fold accumulation of received elements:
 Sink.foldLeft[Int, Int](0)(_ + _)
 ```
 
-Fold where each fold step has to be described in sink `Step` API.
-A `foldLeft` uses `Step.more` in its implementation:
+A fold with control over continuation and the remainder produced by the sink. 
+`foldLeft` is implemented as a fold that always continues and produces no remainder.
 
 ```scala mdoc:silent
-Sink.fold[Nothing, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
+Sink.fold(0)(_ => true)((acc, n: Int) => (acc + n, Chunk.empty))
 ```
 
 Mapping over the received input elements:
 
 ```scala mdoc:silent
-Sink.fromFunction[Int, Int](_ * 2).collectAll[Int, Int]
+Sink.fromFunction[Int, Int](_ * 2).collectAll
 ```
 
 `pull1` fails with given type in case of empty stream, otherwise continues with provided sink:
 
 ```scala mdoc:silent
 Sink
-  .pull1[String, Int, Int, Int](IO.fail("Empty stream, no value to pull"))(init => Sink
-  .fold(init)((acc, e) => ZSink.Step.more(acc + e)))
+  .pull1[String, Int, Int, Int](IO.fail("Empty stream, no value to pull")) { init =>
+    Sink.foldLeft[Int, Int](init)(_ + _)
+  }
 ```
 
 `read1` tries to read head element from stream,
@@ -106,19 +114,18 @@ Sink.read1[String, Int] {
 ## Transforming sinks
 
 Having created the sink, we can transform it with provided operations.
-One of them already appeared in previous section - `collectAll` in `read1`.
+One of them already appeared in previous section - `collectAll` in `pull1`.
 
 Sink that after collecting input - filters it:
 
 ```scala mdoc:silent
-Sink.collectAll[Int].filter[Int](_ > 100)
+Sink.collectAll[Int].filter(_ > 100)
 ```
 
 Running two sinks in parallel and returning the one that completed earlier:
 
 ```scala mdoc:silent
-Sink.fold[Int, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
-  .race(Sink.identity[Int])
+Sink.foldLeft[Int, Int](0)(_ + _).race(Sink.identity[Int])
 ```
 
 For transforming given input into some sink we can use `contramap` which

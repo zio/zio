@@ -17,85 +17,29 @@
 package zio.test.mock
 
 import java.io.IOException
-import java.io.EOFException
 
-import zio.console._
-import zio._
+import zio.{ IO, UIO }
+import zio.console.Console
 
 trait MockConsole extends Console {
+
   val console: MockConsole.Service[Any]
 }
 
 object MockConsole {
 
-  trait Service[R] extends Console.Service[R] {
-    def feedLines(lines: String*): UIO[Unit]
-    def output: UIO[Vector[String]]
-    def clearInput: UIO[Unit]
-    def clearOutput: UIO[Unit]
-  }
+  trait Service[R] extends Console.Service[R]
 
-  case class Mock(consoleState: Ref[MockConsole.Data]) extends MockConsole.Service[Any] {
+  object putStr   extends Method[MockConsole, String, Unit]
+  object putStrLn extends Method[MockConsole, String, Unit]
+  object getStrLn extends Method[MockConsole, Unit, String]
 
-    override def putStr(line: String): UIO[Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output :+ line)
-      }.unit
-
-    override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output :+ s"$line\n")
-      }.unit
-
-    val getStrLn: ZIO[Any, IOException, String] = {
-      for {
-        input <- consoleState.get.flatMap(
-                  d =>
-                    IO.fromOption(d.input.headOption)
-                      .mapError(_ => new EOFException("There is no more input left to read"))
-                )
-        _ <- consoleState.update { data =>
-              Data(data.input.tail, data.output)
-            }
-      } yield input
-    }
-
-    def feedLines(lines: String*): UIO[Unit] =
-      consoleState.update(data => data.copy(input = lines.toList ::: data.input)).unit
-
-    val output: UIO[Vector[String]] =
-      consoleState.get.map(_.output)
-
-    val clearInput: UIO[Unit] =
-      consoleState.update(data => data.copy(input = List.empty)).unit
-
-    val clearOutput: UIO[Unit] =
-      consoleState.update(data => data.copy(output = Vector.empty)).unit
-  }
-
-  def make(data: Data): UIO[MockConsole] =
-    makeMock(data).map { mock =>
-      new MockConsole {
-        val console = mock
+  implicit val mockable: Mockable[MockConsole] = (mock: Mock) =>
+    new MockConsole {
+      val console = new Service[Any] {
+        def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
+        def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
+        val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
       }
     }
-
-  def makeMock(data: Data): UIO[Mock] =
-    Ref.make(data).map(Mock(_))
-
-  def feedLines(lines: String*): ZIO[MockConsole, Nothing, Unit] =
-    ZIO.accessM(_.console.feedLines(lines: _*))
-
-  val output: ZIO[MockConsole, Nothing, Vector[String]] =
-    ZIO.accessM(_.console.output)
-
-  val clearInput: ZIO[MockConsole, Nothing, Unit] =
-    ZIO.accessM(_.console.clearInput)
-
-  val clearOutput: ZIO[MockConsole, Nothing, Unit] =
-    ZIO.accessM(_.console.clearOutput)
-
-  val DefaultData: Data = Data(Nil, Vector())
-
-  case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
 }

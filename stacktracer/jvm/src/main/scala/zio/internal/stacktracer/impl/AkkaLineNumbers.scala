@@ -190,7 +190,7 @@ object AkkaLineNumbers {
     Option(r).map((_, name, None))
   }
 
-  def getStreamForLambda(l: AnyRef): Option[(InputStream, String, Some[String])] =
+  private[this] def getStreamForLambda(l: AnyRef): Option[(InputStream, String, Some[String])] =
     try {
       val c            = l.getClass
       val writeReplace = c.getDeclaredMethod("writeReplace")

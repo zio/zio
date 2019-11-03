@@ -9,14 +9,14 @@
       "overview/overview_basic_concurrency",
       "overview/overview_testing_effects",
       "overview/overview_running_effects",
-      "overview/overview_background"
+      "overview/overview_background",
+      "overview/overview_performance"
     ]
   },
   "datatypes-sidebar": {
     "Data Types": [
       "datatypes/datatypes_index",
       "datatypes/datatypes_fiber",
-      "datatypes/datatypes_fiberlocal",
       "datatypes/datatypes_fiberref",
       "datatypes/datatypes_io",
       "datatypes/datatypes_managed",
@@ -51,16 +51,18 @@
       "usecases/usecases_parallelism",
       "usecases/usecases_queuing",
       "usecases/usecases_scheduling",
-      "usecases/usecases_streaming"
+      "usecases/usecases_streaming",
+      "usecases/usecases_testing"
     ]
   },
-  "advanced-sidebar": {
-    "Advanced": [
-      "advanced/advanced_index",
-      "advanced/advanced_error_model",
-      "advanced/advanced_performance",
-      "advanced/advanced_rts",
-      "advanced/advanced_system"
+  "howto-sidebar": {
+    "How to": [
+      "howto/howto_index",
+      "howto/howto_use_module_pattern",
+      "howto/howto_test_effects",
+      "howto/howto_mock_services",
+      "howto/howto_handle_errors",
+      "howto/howto_access_system_information"
     ]
   },
   "resources-sidebar": {
@@ -72,5 +74,12 @@
     "Ecosystem": [
       "ecosystem/ecosystem"
     ]
+  },
+  "about-sidebar": {
+      "About": [
+          "about/about_index",
+          "about/about_contributing",
+          "about/about_coc"
+      ]
   }
 }

@@ -16,66 +16,98 @@
 
 package zio.test
 
+import scala.annotation.tailrec
+import scala.{ Console => SConsole }
+
+import zio.duration.Duration
+import zio.test.mock.{ Method, MockException }
+import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.{ Cause, ZIO }
-import scala.{ Console => SConsole }
-import zio.duration.Duration
+import zio.{ Cause, UIO, URIO, ZIO }
 
 object DefaultTestReporter {
 
-  def render(executedSpec: ExecutedSpec[String]): Seq[RenderedResult] = {
-    def loop(executedSpec: ExecutedSpec[String], depth: Int): Seq[RenderedResult] =
+  def render[E, S](executedSpec: ExecutedSpec[String, E, S]): UIO[Seq[RenderedResult]] = {
+    def loop(executedSpec: ExecutedSpec[String, E, S], depth: Int): UIO[Seq[RenderedResult]] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(label, executedSpecs, _) =>
-          val hasFailures = executedSpecs.exists(_.exists {
-            case Spec.TestCase(_, test) => test.failure; case _ => false
-          })
-          val status        = if (hasFailures) Failed else Passed
-          val renderedLabel = if (hasFailures) renderFailureLabel(label, depth) else renderSuccessLabel(label, depth)
-          rendered(Suite, label, status, depth, renderedLabel) +: executedSpecs.flatMap(loop(_, depth + tabSize))
+          for {
+            specs <- executedSpecs
+            failures <- UIO.foreach(specs)(_.exists {
+                         case Spec.TestCase(_, test) => test.map(_.isLeft);
+                         case _                      => UIO.succeed(false)
+                       })
+            hasFailures = failures.exists(identity)
+            status      = if (hasFailures) Failed else Passed
+            renderedLabel = if (specs.isEmpty) ""
+            else if (hasFailures) renderFailureLabel(label, depth)
+            else renderSuccessLabel(label, depth)
+            rest <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
+          } yield rendered(Suite, label, status, depth, renderedLabel) +: rest
         case Spec.TestCase(label, result) =>
-          Seq(result match {
-            case AssertResult.Success =>
-              rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
-            case AssertResult.Failure(details) =>
-              rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-            case AssertResult.Ignore => rendered(Test, label, Ignored, depth)
-          })
+          result.map {
+            case Right(TestSuccess.Succeeded(_)) =>
+              Seq(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
+            case Right(TestSuccess.Ignored) =>
+              Seq(rendered(Test, label, Ignored, depth))
+            case Left(TestFailure.Assertion(result)) =>
+              Seq(
+                result.fold(
+                  details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
+                )(_ && _, _ || _, !_)
+              )
+            case Left(TestFailure.Runtime(cause)) =>
+              Seq(
+                rendered(
+                  Test,
+                  label,
+                  Failed,
+                  depth,
+                  (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth))): _*
+                )
+              )
+          }
       }
     loop(executedSpec, 0)
   }
 
-  def apply[L](): TestReporter[L] = { (duration: Duration, executedSpec: ExecutedSpec[L]) =>
-    ZIO
-      .foreach(render(executedSpec.mapLabel(_.toString))) { res =>
-        ZIO.foreach(res.rendered)(TestLogger.logLine)
-      } *> logStats(duration, executedSpec)
+  def apply[E, S](): TestReporter[String, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[String, E, S]) =>
+    for {
+      res <- render(executedSpec.mapLabel(_.toString))
+      _   <- ZIO.foreach(res.flatMap(_.rendered))(TestLogger.logLine)
+      _   <- logStats(duration, executedSpec)
+    } yield ()
   }
 
-  private def logStats[L](duration: Duration, executedSpec: ExecutedSpec[L]) = {
-    def loop(executedSpec: ExecutedSpec[String]): (Int, Int, Int) =
+  private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]): URIO[TestLogger, Unit] = {
+    def loop(executedSpec: ExecutedSpec[String, E, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
-          executedSpecs.map(loop).foldLeft((0, 0, 0)) {
+          for {
+            specs <- executedSpecs
+            stats <- UIO.foreach(specs)(loop)
+          } yield stats.foldLeft((0, 0, 0)) {
             case ((x1, x2, x3), (y1, y2, y3)) => (x1 + y1, x2 + y2, x3 + y3)
           }
         case Spec.TestCase(_, result) =>
-          result match {
-            case AssertResult.Success    => (1, 0, 0)
-            case AssertResult.Ignore     => (0, 1, 0)
-            case AssertResult.Failure(_) => (0, 0, 1)
+          result.map {
+            case Left(_)                         => (0, 0, 1)
+            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
+            case Right(TestSuccess.Ignored)      => (0, 1, 0)
           }
       }
-    val (success, ignore, failure) = loop(executedSpec.mapLabel(_.toString))
-    val total                      = success + ignore + failure
-    val seconds                    = duration.toMillis / 1000
-    TestLogger.logLine(
-      cyan(
-        s"Ran $total test${if (total == 1) "" else "s"} in $seconds second${if (seconds == 1) "" else "s"}: $success succeeded, $ignore ignored, $failure failed"
-      )
-    )
+    for {
+      stats                      <- loop(executedSpec.mapLabel(_.toString))
+      (success, ignore, failure) = stats
+      total                      = success + ignore + failure
+      _ <- TestLogger.logLine(
+            cyan(
+              s"Ran $total test${if (total == 1) "" else "s"} in ${duration.render}: $success succeeded, $ignore ignored, $failure failed"
+            )
+          )
+    } yield ()
   }
 
   private def renderSuccessLabel(label: String, offset: Int) =
@@ -87,33 +119,90 @@ object DefaultTestReporter {
   private def renderFailureLabel(label: String, offset: Int) =
     withOffset(offset)(red("- " + label))
 
-  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] = failureDetails match {
-    case FailureDetails.Assertion(fragment, whole) => renderAssertion(fragment, whole, offset)
-    case FailureDetails.Runtime(cause)             => Seq(renderCause(cause, offset))
-  }
+  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] =
+    failureDetails match {
+      case FailureDetails(assertionFailureDetails, genFailureDetails) =>
+        renderGenFailureDetails(genFailureDetails, offset) ++
+          renderAssertionFailureDetails(assertionFailureDetails, offset)
+    }
 
-  private def renderAssertion(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
-    if (whole.assertion == fragment.assertion)
-      Seq(renderFragment(fragment, offset))
-    else
-      Seq(renderWhole(fragment, whole, offset), renderFragment(fragment, offset))
+  private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Seq[String] =
+    failureDetails match {
+      case Some(details) =>
+        val shrinked = details.shrinkedInput.toString
+        val initial  = details.initialInput.toString
+        val renderShrinked = withOffset(offset + tabSize)(
+          s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: ${red(shrinked)}"
+        )
+        if (initial == shrinked) Seq(renderShrinked)
+        else Seq(renderShrinked, withOffset(offset + tabSize)(s"Original input before shrinking was: ${red(initial)}"))
+      case None => Seq()
+    }
+
+  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Seq[String] = {
+    @tailrec
+    def loop(failureDetails: List[AssertionValue], rendered: Seq[String]): Seq[String] =
+      failureDetails match {
+        case fragment :: whole :: failureDetails =>
+          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
+        case _ =>
+          rendered
+      }
+    Seq(renderFragment(failureDetails.head, offset)) ++ loop(failureDetails, Seq())
+  }
 
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(whole.value.toString) +
-        " did not satisfy " +
+        renderSatisfied(whole) +
         highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
     }
 
   private def renderFragment(fragment: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
       blue(fragment.value.toString) +
-        " did not satisfy " +
+        renderSatisfied(fragment) +
         cyan(fragment.assertion.toString)
     }
 
+  private def renderSatisfied(fragment: AssertionValue): String =
+    if (fragment.assertion.test(fragment.value)) " satisfied "
+    else " did not satisfy "
+
   private def renderCause(cause: Cause[Any], offset: Int): String =
-    cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+    cause.dieOption match {
+      case Some(TestTimeoutException(message)) => message
+      case Some(exception: MockException) =>
+        renderMockException(exception).split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+      case _ => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+    }
+
+  private def renderMockException(exception: MockException): String =
+    exception match {
+      case InvalidArgumentsException(method, args, assertion) =>
+        renderTestFailure(s"$method called with invalid arguments", assert(args, assertion))
+
+      case InvalidMethodException(method, expectedMethod, assertion) =>
+        List(
+          red(s"- invalid call to $method"),
+          renderExpectation(expectedMethod, assertion, tabSize)
+        ).mkString("\n")
+
+      case UnmetExpectationsException(expectations) =>
+        (red(s"- unmet expectations") :: expectations.map {
+          case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
+        }).mkString("\n")
+    }
+
+  private def renderTestFailure(label: String, testResult: TestResult): String =
+    testResult.failures.fold("")(
+      _.fold(
+        details => rendered(Test, label, Failed, 0, renderFailure(label, 0, details): _*)
+      )(_ && _, _ || _, !_).rendered.mkString("\n")
+    )
+
+  private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[A], offset: Int): String =
+    withOffset(offset)(s"expected $method with arguments ${cyan(assertion.toString)}")
 
   private def withOffset(n: Int)(s: String): String =
     " " * n + s
@@ -163,4 +252,31 @@ object RenderedResult {
   }
 }
 
-case class RenderedResult(caseType: CaseType, label: String, status: Status, offset: Int, rendered: Seq[String])
+case class RenderedResult(caseType: CaseType, label: String, status: Status, offset: Int, rendered: Seq[String]) {
+  self =>
+
+  def &&(that: RenderedResult): RenderedResult =
+    (self.status, that.status) match {
+      case (Ignored, _)     => that
+      case (_, Ignored)     => self
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
+      case (Passed, _)      => that
+      case (_, Passed)      => self
+    }
+
+  def ||(that: RenderedResult): RenderedResult =
+    (self.status, that.status) match {
+      case (Ignored, _)     => that
+      case (_, Ignored)     => self
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
+      case (Passed, _)      => self
+      case (_, Passed)      => that
+    }
+
+  def unary_! : RenderedResult =
+    self.status match {
+      case Ignored => self
+      case Failed  => self.copy(status = Passed)
+      case Passed  => self.copy(status = Failed)
+    }
+}

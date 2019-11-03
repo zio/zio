@@ -3,223 +3,341 @@ package zio.duration
 import java.time.{ Duration => JavaDuration }
 import java.util.concurrent.TimeUnit
 
-import org.specs2.Specification
+import zio.ZIOBaseSpec
+import zio.test._
+import zio.test.Assertion._
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 
-class DurationSpec extends Specification {
-
-  def is = "DurationSpec".title ^ s2"""
-        Make a Duration from positive nanos and check that:
-          The Duration is Finite                                               $pos1
-          Copy with a negative nanos returns Zero                              $pos2
-          Multiplying with a negative factor returns Zero                      $pos3
-          Its stdlib representation is correct                                 $pos4
-          Its JDK representation is correct                                    $pos5
-          It identifies as "zero"                                              $pos6
-          Creating it with a j.u.c.TimeUnit is identical                       $pos7
-          It knows its length in ns                                            $pos8
-          It knows its length in ms                                            $pos9
-          max(1 ns, 2 ns) is 2 ns                                              $pos10
-          min(1 ns, 2 ns) is 1 ns                                              $pos11
-          max(2 ns, 1 ns) is 2 ns                                              $pos12
-          min(2 ns, 1 ns) is 1 ns                                              $pos13
-          10 ns + 20 ns = 30 ns                                                $pos14
-          10 ns * NaN = Infinity                                               $pos15
-          10 ns compared to Infinity is -1                                     $pos16
-          10 ns compared to 10 ns is 0                                         $pos17
-          + with positive overflow results in Infinity                         $pos18
-          * with negative duration results in zero                             $pos19
-          * with overflow to positive results in Infinity                      $pos20
-          * with overflow to negative results in Infinity                      $pos21
-          Folding picks up the correct value                                   $pos22
-
-        Make a Duration from negative nanos and check that:
-          The Duration is Zero                                                 $neg1
-
-        Take Infinity and check that:
-          It returns -1 milliseconds                                           $inf1
-          It returns -1 nanoseconds                                            $inf2
-          Infinity + Infinity = Infinity                                       $inf3
-          Infinity + 1 ns = Infinity                                           $inf4
-          1 ns + Infinity = Infinity                                           $inf5
-          Infinity * 10 = Infinity                                             $inf6
-          Infinity compared to Infinity is 0                                   $inf7
-          Infinity compared to 1 ns is 1                                       $inf8
-          Infinity is not zero                                                 $inf9
-          It converts into the infinite s.c.d.Duration                         $inf10
-          It converts into a Long.MaxValue second-long JDK Duration            $inf11
-          Folding picks up the correct value                                   $inf12
-          Infinity * -10 = Zero                                                $inf13
-
-        Make a Scala stdlib s.c.d.Duration and check that:
-          A negative s.c.d.Duration converts to Zero                           $dur1
-          The infinite s.c.d.Duration converts to Infinity                     $dur2
-          A positive s.c.d.Duration converts to a Finite                       $dur3
-
-        Make a Java stdlib j.t.Duration and check that:
-          A negative j.t.Duration converts to Zero                                $jdur1
-          A Long.MaxValue second j.t.Duration converts to Infinity                $jdur2
-          A nano-adjusted Long.MaxValue second j.t.Duration converts to Infinity  $jdur3
-          A j.t.Duration constructed from Infinity converts to Infinity           $jdur4
-          A Long.MaxValue - 1 second j.t.Duration converts to Infinity            $jdur5
-          A +ve j.t.Duration whose nano conversion overflows converts to Infinity $jdur6
-          A -ve j.t.Duration whose nano conversion overflows converts to Zero     $jdur7
-          A positive j.t.Duration converts to a Finite                            $jdur8
-
-        Check multiplication with finite durations:
-          Zero multiplied with zero                                            $mul0
-          Zero multiplied with one                                             $mul1
-          One second multiplied with 60                                        $mul2
-     """
-
-  def pos1 =
-    Duration.fromNanos(1) must haveClass[Duration.Finite]
-
-  def pos2 =
-    Duration.fromNanos(1).asInstanceOf[Duration.Finite].copy(-1) must_=== Duration.Zero
-
-  def pos3 =
-    Duration.fromNanos(1) * -1.0 must_=== Duration.Zero
-
-  def pos4 =
-    Duration.fromNanos(1234L).asScala must_=== ScalaFiniteDuration(1234L, TimeUnit.NANOSECONDS)
-
-  def pos5 =
-    Duration.fromNanos(2345L).asJava must_=== JavaDuration.ofNanos(2345L)
-
-  def pos6 =
-    Duration.fromNanos(0L).isZero must_=== true
-
-  def pos7 =
-    Duration(12L, TimeUnit.NANOSECONDS) must_=== Duration.fromNanos(12L)
-
-  def pos8 =
-    Duration.fromNanos(123L).toNanos must_=== 123L
-
-  def pos9 =
-    Duration.fromNanos(123000000L).toMillis must_=== 123L
-
-  def pos10 =
-    Duration.fromNanos(1L).max(Duration.fromNanos(2L)) must_=== Duration.fromNanos(2L)
-
-  def pos11 =
-    Duration.fromNanos(1L).min(Duration.fromNanos(2L)) must_=== Duration.fromNanos(1L)
-
-  def pos12 =
-    Duration.fromNanos(2L).max(Duration.fromNanos(1L)) must_=== Duration.fromNanos(2L)
-
-  def pos13 =
-    Duration.fromNanos(2L).min(Duration.fromNanos(1L)) must_=== Duration.fromNanos(1L)
-
-  def pos14 =
-    Duration.fromNanos(10L) + Duration.fromNanos(20L) must_=== Duration.fromNanos(30L)
-
-  def pos15 =
-    Duration.fromNanos(10L) * Double.NaN must_=== Duration.Infinity
-
-  def pos16 =
-    Duration.fromNanos(10L) compare Duration.Infinity must_=== -1
-
-  def pos17 =
-    Duration.fromNanos(10L) compare Duration.fromNanos(10L) must_=== 0
-
-  def pos18 =
-    Duration.fromNanos(Long.MaxValue - 1) + Duration.fromNanos(42) must_=== Duration.Infinity
-
-  def pos19 =
-    Duration.fromNanos(42) * -7 must_=== Duration.Zero
-
-  def pos20 =
-    Duration.fromNanos(Long.MaxValue) * 3 must_=== Duration.Infinity
-
-  def pos21 =
-    Duration.fromNanos(Long.MaxValue) * 2 must_=== Duration.Infinity
-
-  def pos22 =
-    Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite") must_=== "Finite"
-
-  def neg1 =
-    Duration.fromNanos(-1) must_=== Duration.Zero
-
-  def inf1 =
-    Duration.Infinity.toMillis must_=== Long.MaxValue / 1000000
-
-  def inf2 =
-    Duration.Infinity.toNanos must_=== Long.MaxValue
-
-  def inf3 =
-    Duration.Infinity + Duration.Infinity must_=== Duration.Infinity
-
-  def inf4 =
-    Duration.Infinity + Duration.fromNanos(1L) must_=== Duration.Infinity
-
-  def inf5 =
-    Duration.fromNanos(1L) + Duration.Infinity must_=== Duration.Infinity
-
-  def inf6 =
-    Duration.Infinity * 10.0 must_=== Duration.Infinity
-
-  def inf7 =
-    Duration.Infinity compare Duration.Infinity must_=== 0
-
-  def inf8 =
-    Duration.Infinity compare Duration.fromNanos(1L) must_=== 1
-
-  def inf9 =
-    Duration.Infinity.isZero must_=== false
-
-  def inf10 =
-    Duration.Infinity.asScala must_=== ScalaDuration.Inf
-
-  def inf11 =
-    Duration.Infinity.asJava must_=== JavaDuration.ofSeconds(Long.MaxValue)
-
-  def inf12 =
-    Duration.Infinity.fold("Infinity", _ => "Finite") must_=== "Infinity"
-
-  def inf13 =
-    Duration.Infinity * -10 must_=== Duration.Zero
-
-  def dur1 =
-    Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)) must_=== Duration.Zero
-
-  def dur2 =
-    Duration.fromScala(ScalaDuration.Inf) must_=== Duration.Infinity
-
-  def dur3 =
-    Duration.fromScala(ScalaDuration(1L, TimeUnit.NANOSECONDS)) must_=== Duration.fromNanos(1L)
-
-  def jdur1 =
-    Duration.fromJava(JavaDuration.ofNanos(-1L)) must_=== Duration.Zero
-
-  def jdur2 =
-    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue)) must_=== Duration.Infinity
-
-  def jdur3 =
-    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue, 1L)) must_=== Duration.Infinity
-
-  def jdur4 =
-    Duration.fromJava(Duration.Infinity.asJava) must_=== Duration.Infinity
-
-  def jdur5 =
-    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue - 1)) must_=== Duration.Infinity
-
-  def jdur6 =
-    Duration.fromJava(JavaDuration.ofNanos(Long.MaxValue).plus(JavaDuration.ofNanos(1L))) must_=== Duration.Infinity
-
-  def jdur7 =
-    Duration.fromJava(JavaDuration.ofNanos(Long.MinValue).minus(JavaDuration.ofNanos(1L))) must_=== Duration.Zero
-
-  def jdur8 =
-    Duration.fromJava(JavaDuration.ofNanos(1L)) must_=== Duration.fromNanos(1L)
-
-  def mul0 =
-    Duration.Zero * 0 must_=== Duration.Zero
-
-  def mul1 =
-    Duration.Zero * 1 must_=== Duration.Zero
-
-  def mul2 =
-    Duration(1, TimeUnit.SECONDS) * 60 must_=== Duration(1, TimeUnit.MINUTES)
-}
+object DurationSpec
+    extends ZIOBaseSpec(
+      suite("DurationSpec")(
+        suite("Make a Duration from positive nanos and check that: ")(
+          test("The Duration is Finite") {
+            assert(Duration.fromNanos(1), isSubtype[Duration.Finite](Assertion.anything))
+          },
+          test("Copy with a negative nanos returns Zero") {
+            assert(Duration.fromNanos(1).asInstanceOf[Duration.Finite].copy(-1), equalTo(Duration.Zero))
+          },
+          test("Multiplying with a negative factor returns Zero") {
+            assert(Duration.fromNanos(1) * -1.0, equalTo(Duration.Zero: Duration))
+          },
+          test("Its stdlib representation is correct") {
+            val duration: ScalaDuration = Duration.fromNanos(1234L).asScala
+            val expected: ScalaDuration = ScalaFiniteDuration(1234L, TimeUnit.NANOSECONDS)
+            assert(duration, equalTo(expected))
+          },
+          test("Its JDK representation is correct") {
+            assert(Duration.fromNanos(2345L).asJava, equalTo(JavaDuration.ofNanos(2345L)))
+          },
+          test("It identifies as 'zero'") {
+            assert(Duration.fromNanos(0L).isZero, equalTo(true))
+          },
+          test("Creating it with a j.u.c.TimeUnit is identical") {
+            assert(Duration(12L, TimeUnit.NANOSECONDS), equalTo(Duration.fromNanos(12L)))
+          },
+          test("It knows its length in ns") {
+            assert(Duration.fromNanos(123L).toNanos, equalTo(123L))
+          },
+          test("It knows its length in ms") {
+            assert(Duration.fromNanos(123000000L).toMillis, equalTo(123L))
+          },
+          test("max(1 ns, 2 ns) is 2 ns") {
+            assert(Duration.fromNanos(1L).max(Duration.fromNanos(2L)), equalTo(Duration.fromNanos(2L)))
+          },
+          test("min(1 ns, 2 ns) is 1 ns") {
+            assert(Duration.fromNanos(1L).min(Duration.fromNanos(2L)), equalTo(Duration.fromNanos(1L)))
+          },
+          test("max(2 ns, 1 ns) is 2 ns") {
+            assert(Duration.fromNanos(2L).max(Duration.fromNanos(1L)), equalTo(Duration.fromNanos(2L)))
+          },
+          test("min(2 ns, 1 ns) is 1 ns") {
+            assert(Duration.fromNanos(2L).min(Duration.fromNanos(1L)), equalTo(Duration.fromNanos(1L)))
+          },
+          test("10 ns + 20 ns = 30 ns") {
+            assert(Duration.fromNanos(10L) + Duration.fromNanos(20L), equalTo(Duration.fromNanos(30L)))
+          },
+          test("10 ns * NaN = Infinity") {
+            assert(Duration.fromNanos(10L) * Double.NaN, equalTo(Duration.Infinity: Duration))
+          },
+          test("10 ns compared to Infinity is -1") {
+            assert(Duration.fromNanos(10L) compare Duration.Infinity, equalTo(-1))
+          },
+          test("10 ns compared to 10 ns is 0") {
+            assert(Duration.fromNanos(10L) compare Duration.fromNanos(10L), equalTo(0))
+          },
+          test("+ with positive overflow results in Infinity") {
+            assert(Duration.fromNanos(Long.MaxValue - 1) + Duration.fromNanos(42), equalTo(Duration.Infinity: Duration))
+          },
+          test("* with negative duration results in zero") {
+            assert(Duration.fromNanos(42) * -7, equalTo(Duration.Zero: Duration))
+          },
+          test("* with overflow to positive results in Infinity") {
+            assert(Duration.fromNanos(Long.MaxValue) * 3, equalTo(Duration.Infinity: Duration))
+          },
+          test("* with overflow to negative results in Infinity") {
+            assert(Duration.fromNanos(Long.MaxValue) * 2, equalTo(Duration.Infinity: Duration))
+          },
+          test("Folding picks up the correct value") {
+            assert(Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite"), equalTo("Finite"))
+          }
+        ),
+        suite("Make a Duration from negative nanos and check that:")(
+          test("The Duration is Zero ") {
+            assert(Duration.fromNanos(-1), equalTo(Duration.Zero: Duration))
+          }
+        ),
+        suite("Take Infinity and check that: ")(
+          test("toMillis returns Long.MaxValue nanoseconds in milliseconds") {
+            assert(Duration.Infinity.toMillis, equalTo(Long.MaxValue / 1000000))
+          },
+          test("toNanos returns Long.MaxValue nanoseconds") {
+            assert(Duration.Infinity.toNanos, equalTo(Long.MaxValue))
+          },
+          test("Infinity + Infinity = Infinity") {
+            assert(Duration.Infinity + Duration.Infinity, equalTo(Duration.Infinity: Duration))
+          },
+          test("Infinity + 1 ns = Infinity") {
+            assert(Duration.Infinity + Duration.fromNanos(1L), equalTo(Duration.Infinity: Duration))
+          },
+          test("1 ns + Infinity = Infinity") {
+            assert(Duration.fromNanos(1L) + Duration.Infinity, equalTo(Duration.Infinity: Duration))
+          },
+          test("Infinity * 10 = Infinity") {
+            assert(Duration.Infinity * 10.0, equalTo(Duration.Infinity: Duration))
+          },
+          test("Infinity compared to Infinity is 0") {
+            assert(Duration.Infinity compare Duration.Infinity, equalTo(0))
+          },
+          test("Infinity compared to 1 ns is 1") {
+            assert(Duration.Infinity compare Duration.fromNanos(1L), equalTo(1))
+          },
+          test("Infinity is not zero") {
+            assert(Duration.Infinity.isZero, equalTo(false))
+          },
+          test("It converts into the infinite s.c.d.Duration") {
+            assert(Duration.Infinity.asScala, equalTo(ScalaDuration.Inf: ScalaDuration))
+          },
+          test("It converts into a Long.MaxValue second-long JDK Duration") {
+            assert(Duration.Infinity.asJava, equalTo(JavaDuration.ofSeconds(Long.MaxValue)))
+          },
+          test("Folding picks up the correct value") {
+            assert(Duration.Infinity.fold("Infinity", _ => "Finite"), equalTo("Infinity"))
+          },
+          test("Infinity * -10 = Zero") {
+            assert(Duration.Infinity * -10, equalTo(Duration.Zero: Duration))
+          }
+        ),
+        suite("Make a Scala stdlib s.c.d.Duration and check that: ")(
+          test("A negative s.c.d.Duration converts to Zero") {
+            assert(Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)), equalTo(Duration.Zero: Duration))
+          },
+          test("The infinite s.c.d.Duration converts to Infinity") {
+            assert(Duration.fromScala(ScalaDuration.Inf), equalTo(Duration.Infinity: Duration))
+          },
+          test("A positive s.c.d.Duration converts to a Finite") {
+            assert(Duration.fromScala(ScalaDuration(1L, TimeUnit.NANOSECONDS)), equalTo(Duration.fromNanos(1L)))
+          }
+        ),
+        suite("Make a Java stdlib j.t.Duration and check that: ")(
+          test("A negative j.t.Duration converts to Zero") {
+            assert(Duration.fromJava(JavaDuration.ofNanos(-1L)), equalTo(Duration.Zero: Duration))
+          },
+          test("A Long.MaxValue second j.t.Duration converts to Infinity") {
+            assert(Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue)), equalTo(Duration.Infinity: Duration))
+          },
+          test(
+            "A nano-adjusted Long.MaxValue second j.t.Duration converts to Infinity"
+          ) {
+            assert(Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue, 1L)), equalTo(Duration.Infinity: Duration))
+          },
+          test(
+            "A j.t.Duration constructed from Infinity converts to Infinity"
+          ) {
+            assert(Duration.fromJava(Duration.Infinity.asJava), equalTo(Duration.Infinity: Duration))
+          },
+          test(
+            "A Long.MaxValue - 1 second j.t.Duration converts to Infinity"
+          ) {
+            assert(Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue - 1)), equalTo(Duration.Infinity: Duration))
+          },
+          test(
+            "A +ve j.t.Duration whose nano conversion overflows converts to Infinity"
+          ) {
+            assert(
+              Duration.fromJava(JavaDuration.ofNanos(Long.MaxValue).plus(JavaDuration.ofNanos(1L))),
+              equalTo(Duration.Infinity: Duration)
+            )
+          },
+          test(
+            "A -ve j.t.Duration whose nano conversion overflows converts to Zero"
+          ) {
+            assert(
+              Duration.fromJava(JavaDuration.ofNanos(Long.MinValue).minus(JavaDuration.ofNanos(1L))),
+              equalTo(Duration.Zero: Duration)
+            )
+          },
+          test("A positive j.t.Duration converts to a Finite") {
+            assert(Duration.fromJava(JavaDuration.ofNanos(1L)), equalTo(Duration.fromNanos(1L)))
+          }
+        ),
+        suite("Check multiplication with finite durations: ")(
+          test("Zero multiplied with zero") {
+            assert(Duration.Zero * 0, equalTo(Duration.Zero: Duration))
+          },
+          test("Zero multiplied with one") {
+            assert(Duration.Zero * 1, equalTo(Duration.Zero: Duration))
+          },
+          test("One second multiplied with 60") {
+            assert(Duration(1, TimeUnit.SECONDS) * 60, equalTo(Duration(1, TimeUnit.MINUTES)))
+          }
+        ),
+        suite("Render duration:")(
+          test(" 0 ns") {
+            assert(Duration(0, TimeUnit.NANOSECONDS).render, equalTo("0 ns"))
+          },
+          test(" < 1 ms") {
+            assert(Duration(23456, TimeUnit.NANOSECONDS).render, equalTo("23456 ns"))
+          },
+          test(" 1 ms") {
+            assert(Duration(1, TimeUnit.MILLISECONDS).render, equalTo("1 ms"))
+          },
+          test(" 1 s") {
+            assert(Duration(1, TimeUnit.SECONDS).render, equalTo("1 s"))
+          },
+          test(" 2 s 500 ms") {
+            assert(Duration(2500, TimeUnit.MILLISECONDS).render, equalTo("2 s 500 ms"))
+          },
+          test(" 1 min") {
+            assert(Duration(1, TimeUnit.MINUTES).render, equalTo("1 m"))
+          },
+          test(" 2 min 30 s") {
+            assert(Duration(150, TimeUnit.SECONDS).render, equalTo("2 m 30 s"))
+          }
+        ),
+        suite("Long:")(
+          test("1L.nano         = fromNanos(1L)") {
+            assert(1L.nano, equalTo(Duration.fromNanos(1L)))
+          },
+          test("2L.nanos        = fromNanos(2L)") {
+            assert(2L.nanos, equalTo(Duration.fromNanos(2L)))
+          },
+          test("1L.nanosecond   = fromNanos(1L)") {
+            assert(1L.nanosecond, equalTo(Duration.fromNanos(1L)))
+          },
+          test("2L.nanoseconds  = fromNanos(2L)") {
+            assert(2L.nanoseconds, equalTo(Duration.fromNanos(2L)))
+          },
+          test("1L.micro        = fromNanos(1000L)") {
+            assert(1L.micro, equalTo(Duration.fromNanos(1000L)))
+          },
+          test("2L.micros       = fromNanos(2000L)") {
+            assert(2L.micros, equalTo(Duration.fromNanos(2000L)))
+          },
+          test("1L.microsecond  = fromNanos(1000L)") {
+            assert(1L.microsecond, equalTo(Duration.fromNanos(1000L)))
+          },
+          test("2L.microseconds = fromNanos(2000L)") {
+            assert(2L.microseconds, equalTo(Duration.fromNanos(2000L)))
+          },
+          test("1L.milli        = fromNanos(1000000L)") {
+            assert(1L.milli, equalTo(Duration.fromNanos(1000000L)))
+          },
+          test("2L.millis       = fromNanos(2000000L)") {
+            assert(2L.millis, equalTo(Duration.fromNanos(2000000L)))
+          },
+          test("1L.millisecond  = fromNanos(1000000L)") {
+            assert(1L.millisecond, equalTo(Duration.fromNanos(1000000L)))
+          },
+          test("2L.milliseconds = fromNanos(2000000L)") {
+            assert(2L.milliseconds, equalTo(Duration.fromNanos(2000000L)))
+          },
+          test("1L.second       = fromNanos(1000000000L)") {
+            assert(1L.second, equalTo(Duration.fromNanos(1000000000L)))
+          },
+          test("2L.seconds      = fromNanos(2000000000L)") {
+            assert(2L.seconds, equalTo(Duration.fromNanos(2000000000L)))
+          },
+          test("1L.minute       = fromNanos(60000000000L)") {
+            assert(1L.minute, equalTo(Duration.fromNanos(60000000000L)))
+          },
+          test("2L.minutes      = fromNanos(120000000000L)") {
+            assert(2L.minutes, equalTo(Duration.fromNanos(120000000000L)))
+          },
+          test("1L.hour         = fromNanos(3600000000000L)") {
+            assert(1L.hour, equalTo(Duration.fromNanos(3600000000000L)))
+          },
+          test("2L.hours        = fromNanos(7200000000000L)") {
+            assert(2L.hours, equalTo(Duration.fromNanos(7200000000000L)))
+          },
+          test("1L.day          = fromNanos(86400000000000L)") {
+            assert(1L.day, equalTo(Duration.fromNanos(86400000000000L)))
+          },
+          test("2L.days         = fromNanos(172800000000000L)") {
+            assert(2L.days, equalTo(Duration.fromNanos(172800000000000L)))
+          }
+        ),
+        suite("Int:")(
+          test("1.nano         = fromNanos(1L)") {
+            assert(1.nano, equalTo(Duration.fromNanos(1L)))
+          },
+          test("2.nanos        = fromNanos(2L)") {
+            assert(2.nanos, equalTo(Duration.fromNanos(2L)))
+          },
+          test("1.nanosecond   = fromNanos(1L)") {
+            assert(1.nanosecond, equalTo(Duration.fromNanos(1L)))
+          },
+          test("2.nanoseconds  = fromNanos(2L)") {
+            assert(2.nanos, equalTo(Duration.fromNanos(2L)))
+          },
+          test("1.micro        = fromNanos(1000L)") {
+            assert(1.micro, equalTo(Duration.fromNanos(1000L)))
+          },
+          test("2.micros       = fromNanos(2000L)") {
+            assert(2.micros, equalTo(Duration.fromNanos(2000L)))
+          },
+          test("1.microsecond  = fromNanos(1000L)") {
+            assert(1.microsecond, equalTo(Duration.fromNanos(1000L)))
+          },
+          test("2.microseconds = fromNanos(2000L)") {
+            assert(2.microseconds, equalTo(Duration.fromNanos(2000L)))
+          },
+          test("1.milli        = fromNanos(1000000L)") {
+            assert(1.milli, equalTo(Duration.fromNanos(1000000L)))
+          },
+          test("2.millis       = fromNanos(2000000L)") {
+            assert(2.millis, equalTo(Duration.fromNanos(2000000L)))
+          },
+          test("1.millisecond  = fromNanos(1000000L)") {
+            assert(1.millisecond, equalTo(Duration.fromNanos(1000000L)))
+          },
+          test("2.milliseconds = fromNanos(2000000L)") {
+            assert(2.milliseconds, equalTo(Duration.fromNanos(2000000L)))
+          },
+          test("1.second       = fromNanos(1000000000L)") {
+            assert(1.second, equalTo(Duration.fromNanos(1000000000L)))
+          },
+          test("2.seconds      = fromNanos(2000000000L)") {
+            assert(2.seconds, equalTo(Duration.fromNanos(2000000000L)))
+          },
+          test("1.minute       = fromNanos(60000000000L)") {
+            assert(1.minute, equalTo(Duration.fromNanos(60000000000L)))
+          },
+          test("2.minutes      = fromNanos(120000000000L)") {
+            assert(2.minutes, equalTo(Duration.fromNanos(120000000000L)))
+          },
+          test("1.hour         = fromNanos(3600000000000L)") {
+            assert(1.hour, equalTo(Duration.fromNanos(3600000000000L)))
+          },
+          test("2.hours        = fromNanos(7200000000000L)") {
+            assert(2.hours, equalTo(Duration.fromNanos(7200000000000L)))
+          },
+          test("1.day          = fromNanos(86400000000000L)") {
+            assert(1.day, equalTo(Duration.fromNanos(86400000000000L)))
+          },
+          test("2.days         = fromNanos(76800000000000L)") {
+            assert(2.days, equalTo(Duration.fromNanos(172800000000000L)))
+          }
+        )
+      )
+    )

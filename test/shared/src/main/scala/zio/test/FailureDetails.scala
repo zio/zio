@@ -16,13 +16,7 @@
 
 package zio.test
 
-import zio.Cause
-
 /**
  * `FailureDetails` keeps track of details relevant to failures.
  */
-sealed trait FailureDetails
-object FailureDetails {
-  final case class Assertion(fragment: AssertionValue, whole: AssertionValue) extends FailureDetails
-  final case class Runtime(cause: Cause[Any])                                 extends FailureDetails
-}
+final case class FailureDetails(assertion: ::[AssertionValue], gen: Option[GenFailureDetails] = None)

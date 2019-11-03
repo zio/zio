@@ -17,8 +17,9 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.FunctionIO
 import zio.test.sbt.TestingSupport._
-import zio.test.{ Assertion, DefaultRunnableSpec, TestAspect }
+import zio.test.{ Assertion, DefaultRunnableSpec, TestArgs, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -30,7 +31,9 @@ object ZTestFrameworkSpec {
   def tests = Seq(
     test("should return correct fingerprints")(testFingerprints()),
     test("should report events")(testReportEvents()),
-    test("should log messages")(testLogMessages())
+    test("should log messages")(testLogMessages()),
+    test("should test only selected test")(testTestSelection()),
+    test("should return summary when done")(testSummary())
   )
 
   def testFingerprints() = {
@@ -63,22 +66,65 @@ object ZTestFrameworkSpec {
       messages =>
         assertEquals(
           "logged messages",
-          messages.toList,
+          messages.toList.dropRight(1),
           List(
             s"info: ${red("- some suite")}",
             s"info:   ${red("- failing test")}",
             s"info:     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-            s"info:   ${green("+")} passing test",
-            s"info: ${cyan("Ran 3 tests in 0 seconds: 1 succeeded, 1 ignored, 1 failed")}"
+            s"info:   ${green("+")} passing test"
           )
         )
       )
   }
 
-  private def loadAndExecute(fqn: String, eventHandler: EventHandler = _ => (), loggers: Seq[Logger] = Nil) = {
+  def testTestSelection() = {
+    val loggers = Seq(new MockLogger)
+
+    loadAndExecute(failingSpecFQN, loggers = loggers, testArgs = Array("-t", "passing test"))
+
+    loggers.map(_.messages) foreach (
+      messages =>
+        assertEquals(
+          "logged messages",
+          messages.toList.dropRight(1),
+          List(
+            s"info: ${green("+")} some suite",
+            s"info:   ${green("+")} passing test"
+          )
+        )
+      )
+  }
+
+  def testSummary() = {
+    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
+    val task = runner
+      .tasks(Array(taskDef))
+      .map(task => {
+        val zTestTask = task.asInstanceOf[BaseTestTask]
+        new ZTestTask(
+          zTestTask.taskDef,
+          zTestTask.testClassLoader,
+          FunctionIO.succeed("foo") >>> zTestTask.sendSummary,
+          TestArgs.empty
+        )
+      })
+      .head
+
+    task.execute(_ => (), Array.empty)
+
+    assertEquals("done contains summary", runner.done(), "foo\nDone")
+  }
+
+  private def loadAndExecute(
+    fqn: String,
+    eventHandler: EventHandler = _ => (),
+    loggers: Seq[Logger] = Nil,
+    testArgs: Array[String] = Array.empty
+  ) = {
     val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array())
     val task = new ZTestFramework()
-      .runner(Array(), Array(), getClass.getClassLoader)
+      .runner(testArgs, Array(), getClass.getClassLoader)
       .tasks(Array(taskDef))
       .head
 
