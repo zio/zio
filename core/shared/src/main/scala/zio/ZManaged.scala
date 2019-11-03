@@ -169,12 +169,32 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     foldM(h, ZManaged.succeed)
 
   /**
+   * Recovers from all errors with provided Cause.
+   *
+   * {{{
+   * managed.catchAllCause(_ => ZManaged.succeed(defaultConfig))
+   * }}}
+   *
+   * @see [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can recover from defects
+   */
+  final def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+    self.foldCauseM[R1, E2, A1](h, ZManaged.succeed)
+
+  /**
    * Recovers from some or all of the error cases.
    */
   final def catchSome[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[E, ZManaged[R1, E1, A1]]
   )(implicit ev: CanFail[E]): ZManaged[R1, E1, A1] =
     foldM(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.fail), ZManaged.succeed)
+
+  /**
+   * Recovers from some or all of the error Causes.
+   */
+  final def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
+    pf: PartialFunction[Cause[E], ZManaged[R1, E1, A1]]
+  ): ZManaged[R1, E1, A1] =
+    foldCauseM(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.halt), ZManaged.succeed)
 
   /**
    * Executes the second effect and then provides its output as an environment to this effect
