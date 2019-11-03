@@ -556,6 +556,16 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   final def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
 
   /**
+   * Returns an effect that semantically runs the effect on a fiber,
+   * producing an [[zio.Exit]] for the completion value of the fiber.
+   */
+  final def run: ZManaged[R, Nothing, Exit[E, A]] =
+    foldCauseM(
+      cause => ZManaged.succeed(Exit.halt(cause)),
+      succ => ZManaged.succeed(Exit.succeed(succ))
+    )
+
+  /**
    * Exposes the full cause of failure of this effect.
    */
   final def sandbox: ZManaged[R, Cause[E], A] =
