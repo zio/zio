@@ -24,7 +24,7 @@ import scala.reflect.{ classTag, ClassTag }
  * to the underlying elements, and they become lazy on operations that would be
  * costly with arrays, such as repeated concatenation.
  */
-sealed trait Chunk[+A] { self =>
+sealed trait Chunk[+A] extends Serializable { self =>
 
   /**
    * The number of elements in the chunk.
