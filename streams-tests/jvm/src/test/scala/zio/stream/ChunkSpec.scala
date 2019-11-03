@@ -1,10 +1,11 @@
 package zio.stream
 
 import zio.Chunk
+import zio.{ IO, UIO }
 import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test._
-import zio.test.Assertion.equalTo
+import zio.test.Assertion.{ equalTo, isLeft }
 import ChunkUtils._
 
 case class Value(i: Int) extends AnyVal
@@ -37,17 +38,35 @@ object ChunkSpec
           }
         },
         testM("foldLeft") {
-          val fn = Gen.function[Random with Sized, (String, Int), String](stringGen)
-          check(stringGen, fn, smallChunks(intGen)) { (s0, f, c) =>
-            assert(c.foldLeft(s0)(Function.untupled(f)), equalTo(c.toArray.foldLeft(s0)(Function.untupled(f))))
+          check(stringGen, Gen.function2(stringGen), smallChunks(intGen)) { (s0, f, c) =>
+            assert(c.fold(s0)(f), equalTo(c.toArray.foldLeft(s0)(f)))
           }
         },
+        test("mapAccum") {
+          assert(Chunk(1, 1, 1).mapAccum(0)((s, el) => (s + el, s + el)), equalTo((3, Chunk(1, 2, 3))))
+        },
+        suite("mapAccumM")(
+          testM("mapAccumM happy path") {
+            assertM(Chunk(1, 1, 1).mapAccumM(0)((s, el) => UIO.succeed((s + el, s + el))), equalTo((3, Chunk(1, 2, 3))))
+          },
+          testM("mapAccumM error") {
+            Chunk(1, 1, 1).mapAccumM(0)((_, _) => IO.fail("Ouch")).either.map(assert(_, isLeft(equalTo("Ouch"))))
+          }
+        ),
         testM("map") {
           val fn = Gen.function[Random with Sized, Int, String](stringGen)
           check(smallChunks(intGen), fn) { (c, f) =>
             assert(c.map(f).toSeq, equalTo(c.toSeq.map(f)))
           }
         },
+        suite("mapM")(
+          testM("mapM happy path")(checkM(mediumChunks(stringGen), Gen.function(Gen.boolean)) { (chunk, f) =>
+            chunk.mapM(s => UIO.succeed(f(s))).map(assert(_, equalTo(chunk.map(f))))
+          }),
+          testM("mapM error") {
+            Chunk(1, 2, 3).mapM(_ => IO.fail("Ouch")).either.map(assert(_, equalTo(Left("Ouch"))))
+          }
+        ),
         testM("flatMap") {
           val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
           check(smallChunks(intGen), fn) { (c, f) =>
@@ -60,6 +79,14 @@ object ChunkSpec
             assert(chunk.filter(p).toSeq, equalTo(chunk.toSeq.filter(p)))
           }
         },
+        suite("filterM")(
+          testM("filterM happy path")(checkM(mediumChunks(stringGen), Gen.function(Gen.boolean)) { (chunk, p) =>
+            chunk.filterM(s => UIO.succeed(p(s))).map(assert(_, equalTo(chunk.filter(p))))
+          }),
+          testM("filterM error") {
+            Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_, equalTo(Left("Ouch"))))
+          }
+        ),
         testM("drop chunk") {
           check(largeChunks(intGen), intGen) { (chunk, n) =>
             assert(chunk.drop(n).toSeq, equalTo(chunk.toSeq.drop(n)))
@@ -103,6 +130,21 @@ object ChunkSpec
         },
         test("collect for empty Chunk") {
           assert(Chunk.empty.collect { case _ => 1 } == Chunk.empty, Assertion.isTrue)
+        },
+        testM("collect chunk") {
+          val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
+          check(mediumChunks(intGen), pfGen) { (c, pf) =>
+            assert(c.collect(pf).toSeq, equalTo(c.toSeq.collect(pf)))
+          }
+        },
+        test("collectWhile for empty Chunk") {
+          assert(Chunk.empty.collectWhile { case _ => 1 } == Chunk.empty, Assertion.isTrue)
+        },
+        testM("collectWhile chunk") {
+          val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
+          check(mediumChunks(intGen), pfGen) { (c, pf) =>
+            assert(c.collectWhile(pf).toSeq, equalTo(c.toSeq.takeWhile(pf.isDefinedAt).map(pf.apply)))
+          }
         },
         testM("foreach") {
           check(mediumChunks(intGen)) { c =>
@@ -169,7 +211,7 @@ object ChunkSpec
           assert(Chunk.empty ++ Chunk.fromArray(Array(1, 2, 3)), equalTo(Chunk(1, 2, 3)))
         },
         test("filterConstFalseResultsInEmptyChunk") {
-          assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo[Chunk[Int]](Chunk.empty))
+          assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo(Chunk.empty))
         },
         test("def testzipAllWith") {
           assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 4))) &&

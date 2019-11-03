@@ -108,6 +108,13 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
+   * Applies the function `f` to the successful result of the `Exit` and
+   * returns the result in a new `Exit`.
+   */
+  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
+    fold(c => ZIO.succeed(halt(c)), a => f(a).run)
+
+  /**
    * Retrieves the `A` if succeeded, or else returns the specified default `A`.
    */
   final def getOrElse[A1 >: A](orElse: Cause[E] => A1): A1 = self match {
@@ -166,6 +173,12 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
     case Success(value) => Right(value)
     case Failure(cause) => Left(FiberFailure(cause))
   }
+
+  /**
+   * Alias for [[Exit.foreach]]
+   */
+  final def traverse[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
+    foreach(f)
 
   /**
    * Discards the value.

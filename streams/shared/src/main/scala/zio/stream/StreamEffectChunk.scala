@@ -21,6 +21,30 @@ import zio._
 private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamEffect[R, E, Chunk[A]])
     extends ZStreamChunk[R, E, A](chunks) { self =>
 
+  override def collectWhile[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
+    StreamEffectChunk {
+      StreamEffect {
+        self.chunks.processEffect.flatMap { thunk =>
+          ZManaged.effectTotal {
+            var done = false
+
+            def pull(): Chunk[B] =
+              if (done) StreamEffect.end
+              else {
+                val chunk     = thunk()
+                val remaining = chunk.collectWhile(p)
+                if (remaining.length < chunk.length) {
+                  done = true
+                }
+                remaining
+              }
+
+            () => pull()
+          }
+        }
+      }
+    }
+
   override def drop(n: Int): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
       StreamEffect {
@@ -47,7 +71,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
 
   override def dropWhile(pred: A => Boolean): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
-      StreamEffect[R, E, Chunk[A]] {
+      StreamEffect {
         self.chunks.processEffect.flatMap { thunk =>
           Managed.effectTotal {
             var keepDropping = true
@@ -76,13 +100,13 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def filter(pred: A => Boolean): StreamEffectChunk[R, E, A] =
     StreamEffectChunk(chunks.map(_.filter(pred)))
 
-  final def foldLazyPure[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] =
-    chunks.foldLazyPure(s)(cont) { (s, as) =>
-      as.foldLeftLazy(s)(cont)(f)
+  final override def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
+    chunks.foldWhileManaged(s)(cont) { (s, as) =>
+      as.foldWhile(s)(cont)(f)
     }
 
-  override def foldLeft[S](s: S)(f: (S, A) => S): ZIO[R, E, S] =
-    foldLazyPure(s)(_ => true)(f).use(UIO.succeed)
+  override def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
+    foldWhileManaged(s)(_ => true)(f).use(UIO.succeed)
 
   override def map[B](f: A => B): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.map(f)))
@@ -90,19 +114,26 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.flatMap(f)))
 
-  final def processChunk: ZManaged[R, E, () => A] =
+  private final def processChunk: ZManaged[R, E, () => A] =
     chunks.processEffect.flatMap { thunk =>
-      var counter         = 0
-      var chunk: Chunk[A] = Chunk.empty
-      def pull(): A = {
-        while (counter >= chunk.length) {
-          chunk = thunk()
-          counter = 0
+      Managed.effectTotal {
+        var counter         = 0
+        var chunk: Chunk[A] = Chunk.empty
+        def pull(): A = {
+          while (counter >= chunk.length) {
+            chunk = thunk()
+            counter = 0
+          }
+          val elem = chunk(counter)
+          counter += 1
+          elem
         }
-        chunk(counter)
+        () => pull()
       }
-      ZManaged.fromEffect(ZIO.succeed(() => pull()))
     }
+
+  override final def flattenChunks: StreamEffect[R, E, A] =
+    StreamEffect(processChunk)
 
   override def take(n: Int): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
@@ -126,6 +157,30 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
       }
     }
 
+  override def takeUntil(pred: A => Boolean): StreamEffectChunk[R, E, A] =
+    StreamEffectChunk {
+      StreamEffect {
+        self.chunks.processEffect.flatMap { thunk =>
+          Managed.effectTotal {
+            var keepTaking = true
+
+            () => {
+              if (!keepTaking) StreamEffect.end
+              else {
+                val chunk = thunk()
+                val taken = chunk.takeWhile(!pred(_))
+                val last  = chunk.drop(taken.length).take(1)
+                if (last.nonEmpty) {
+                  keepTaking = false
+                }
+                taken ++ last
+              }
+            }
+          }
+        }
+      }
+    }
+
   override def takeWhile(pred: A => Boolean): StreamEffectChunk[R, E, A] =
     StreamEffectChunk {
       StreamEffect {
@@ -133,18 +188,17 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
           Managed.effectTotal {
             var done = false
 
-            def pull(): Chunk[A] =
+            () => {
               if (done) StreamEffect.end
               else {
-                val chunk     = thunk()
-                val remaining = chunk.takeWhile(pred)
-                if (remaining.length < chunk.length) {
+                val chunk = thunk()
+                val taken = chunk.takeWhile(pred)
+                if (taken.length < chunk.length) {
                   done = true
                 }
-                remaining
+                taken
               }
-
-            () => pull()
+            }
           }
         }
       }
@@ -155,20 +209,12 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
     ev1: A <:< Byte
   ): ZManaged[R, E, java.io.InputStream] =
     for {
-      thunk <- chunks.processEffect
+      pull <- processChunk
       javaStream = {
         new java.io.InputStream {
-          var counter            = 0
-          var chunk: Chunk[Byte] = Chunk.empty
           override def read(): Int =
             try {
-              while (counter >= chunk.length) {
-                chunk = thunk().asInstanceOf[Chunk[Byte]]
-                counter = 0
-              }
-              val item = chunk(counter).toInt
-              counter += 1
-              item
+              pull().toInt
             } catch {
               case StreamEffect.End        => -1
               case StreamEffect.Failure(e) => throw e.asInstanceOf[E]

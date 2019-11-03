@@ -48,7 +48,7 @@ object RIO {
    */
   final def bracket[R, A, B](
     acquire: RIO[R, A],
-    release: A => ZIO[R, Nothing, _],
+    release: A => ZIO[R, Nothing, Any],
     use: A => RIO[R, B]
   ): RIO[R, B] = ZIO.bracket(acquire, release, use)
 
@@ -63,7 +63,7 @@ object RIO {
    */
   final def bracketExit[R, A, B](
     acquire: RIO[R, A],
-    release: (A, Exit[Throwable, B]) => ZIO[R, Nothing, _],
+    release: (A, Exit[Throwable, B]) => ZIO[R, Nothing, Any],
     use: A => RIO[R, B]
   ): RIO[R, B] =
     ZIO.bracketExit(acquire, release, use)
@@ -89,7 +89,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.children]]
    */
-  final def children: UIO[IndexedSeq[Fiber[_, _]]] = ZIO.children
+  final def children: UIO[Set[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see See [[zio.ZIO.collectAll]]
@@ -191,7 +191,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
    */
-  final def effectAsyncM[R, A](register: (RIO[R, A] => Unit) => RIO[R, _]): RIO[R, A] =
+  final def effectAsyncM[R, A](register: (RIO[R, A] => Unit) => RIO[R, Any]): RIO[R, A] =
     ZIO.effectAsyncM(register)
 
   /**
@@ -278,19 +278,19 @@ object RIO {
   /**
    * @see See [[zio.ZIO.foreach_]]
    */
-  final def foreach_[R, A](as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
+  final def foreach_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachPar_]]
    */
-  final def foreachPar_[R, A, B](as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
+  final def foreachPar_[R, A, B](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[R, A, B](n: Int)(as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
+  final def foreachParN_[R, A, B](n: Int)(as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -328,6 +328,12 @@ object RIO {
    */
   final def fromFunction[R, A](f: R => A): URIO[R, A] =
     ZIO.fromFunction(f)
+
+  /**
+   * @see See [[zio.ZIO.fromFunctionFuture]]
+   */
+  final def fromFunctionFuture[R, A](f: R => scala.concurrent.Future[A]): RIO[R, A] =
+    ZIO.fromFunctionFuture(f)
 
   /**
    * @see See [[zio.ZIO.fromFunctionM]]
@@ -555,13 +561,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.traverse_]]
    */
-  final def traverse_[R, A](as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
+  final def traverse_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.traverse_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar_]]
    */
-  final def traversePar_[R, A](as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
+  final def traversePar_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.traversePar_(as)(f)
 
   /**
@@ -569,7 +575,7 @@ object RIO {
    */
   final def traverseParN_[R, A](
     n: Int
-  )(as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
+  )(as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.traverseParN_(n)(as)(f)
 
   /**
@@ -602,25 +608,25 @@ object RIO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  final def when[R](b: Boolean)(rio: RIO[R, _]): RIO[R, Unit] =
+  final def when[R](b: Boolean)(rio: RIO[R, Any]): RIO[R, Unit] =
     ZIO.when(b)(rio)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenCaseM]]
    */
-  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  final def whenM[R](b: RIO[R, Boolean])(rio: RIO[R, _]): RIO[R, Unit] =
+  final def whenM[R](b: RIO[R, Boolean])(rio: RIO[R, Any]): RIO[R, Unit] =
     ZIO.whenM(b)(rio)
 
   /**

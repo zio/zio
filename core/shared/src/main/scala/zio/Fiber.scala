@@ -139,7 +139,7 @@ trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def await: UIO[Exit[E1, C]] =
-        self.await.zipWith(that.await)(_.zipWith(_)(f, _ && _))
+        self.await.flatMap(IO.done).zipWithPar(that.await.flatMap(IO.done))(f).run
 
       def poll: UIO[Option[Exit[E1, C]]] =
         self.poll.zipWith(that.poll) {
@@ -185,7 +185,7 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E1, B]` combined fiber
    */
   final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
-    (self zip that).map(_._2)
+    zipWith(that)((_, b) => b)
 
   /**
    * Named alias for `*>`.
@@ -207,7 +207,7 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E1, A]` combined fiber
    */
   final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
-    zip(that).map(_._1)
+    zipWith(that)((a, _) => a)
 
   /**
    * Named alias for `<*`.
@@ -239,11 +239,21 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E, B]` mapped fiber
    */
   final def map[B](f: A => B): Fiber[E, B] =
-    new Fiber[E, B] {
-      def await: UIO[Exit[E, B]]                    = self.await.map(_.map(f))
-      def poll: UIO[Option[Exit[E, B]]]             = self.poll.map(_.map(_.map(f)))
-      def interruptAs(id: FiberId): UIO[Exit[E, B]] = self.interruptAs(id).map(_.map(f))
-      def inheritFiberRefs: UIO[Unit]               = self.inheritFiberRefs
+    mapM(f andThen UIO.succeed)
+
+  /**
+   * Effectually maps over the value the fiber computes.
+   */
+  def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber[E1, B] =
+    new Fiber[E1, B] {
+      def await: UIO[Exit[E1, B]] =
+        self.await.flatMap(_.foreach(f))
+      def inheritFiberRefs: UIO[Unit] =
+        self.inheritFiberRefs
+      def interruptAs(id: FiberId): UIO[Exit[E1, B]] =
+        self.interruptAs(id).flatMap(_.foreach(f))
+      def poll: UIO[Option[Exit[E1, B]]] =
+        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
     }
 
   @deprecated("use as", "1.0.0")
@@ -279,7 +289,7 @@ trait Fiber[+E, +A] { self =>
    * @param ev implicit witness that E is a subtype of Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFuture(implicit ev: E <:< Throwable): UIO[Future[A]] =
+  final def toFuture(implicit ev: E <:< Throwable): UIO[CancelableFuture[E, A]] =
     toFutureWith(ev)
 
   /**
@@ -289,17 +299,20 @@ trait Fiber[+E, +A] { self =>
    * @param f function to the error into a Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFutureWith(f: E => Throwable): UIO[Future[A]] =
+  final def toFutureWith(f: E => Throwable): UIO[CancelableFuture[E, A]] =
     UIO.effectTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
 
-      UIO.effectTotal(p.future) <* self.await
+      ZIO.runtime[Any].map { runtime =>
+        new CancelableFuture[E, A](p.future) {
+          def cancel: Future[Exit[E, A]] = runtime.unsafeRunToFuture(interrupt)
+        }
+      } <* self.await
         .flatMap[Any, Nothing, p.type](_.foldM[Any, Nothing, p.type](failure, success))
         .fork
-
     }.flatten
 
   /**
@@ -414,7 +427,7 @@ object Fiber {
    * @param fs `Iterable` of fibers to be interrupted
    * @return `UIO[Unit]`
    */
-  final def interruptAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
+  final def interruptAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
     ZIO.descriptor.flatMap(d => fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(d.id)))
 
   /**
@@ -423,8 +436,8 @@ object Fiber {
    * @param fs `Iterable` of fibers to be awaited
    * @return `UIO[Unit]`
    */
-  final def awaitAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
+  final def awaitAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+    fs.foldLeft[Fiber[Any, Any]](Fiber.unit)(_ *> _).await.unit
 
   /**
    * Joins all fibers, awaiting their _successful_ completion.
@@ -434,8 +447,8 @@ object Fiber {
    * @param fs `Iterable` of fibers to be joined
    * @return `UIO[Unit]`
    */
-  final def joinAll[E](fs: Iterable[Fiber[E, _]]): IO[E, Unit] =
-    fs.foldLeft[IO[E, Unit]](IO.unit)((io, f) => io *> f.join.unit).refailWithTrace
+  final def joinAll[E](fs: Iterable[Fiber[E, Any]]): IO[E, Unit] =
+    fs.foldLeft[Fiber[E, Any]](Fiber.unit)(_ *> _).join.unit.refailWithTrace
 
   /**
    * Collects all fibers into a single fiber producing an in-order list of the

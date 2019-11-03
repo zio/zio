@@ -13,6 +13,10 @@ println(s"""libraryDependencies += "dev.zio" %%% "zio" % "${zio.BuildInfo.versio
 println(s"""```""")
 ```
 
+Java Time API which is not a part of ScalaJS. You might have to add dependecy that provides `java.time` package to
+avoid linker errors when using `Clock`. ZIO uses [scala-java-time](https://github.com/cquiroz/scala-java-time) for
+running it's test.
+
 ## Example
 
 Your main function can extend `App` as follows.
@@ -25,13 +29,13 @@ import zio.{App, IO}
 
 object MyApp extends App {
 
-  def run(args: List[String]): IO[Nothing, Unit] =
+  def run(args: List[String]): IO[Nothing, Int] =
     for {
-      p <- IO.defer(document.createElement("p"))
-      t <- IO.defer(document.createTextNode("Hello World"))
-      _ <- IO.defer(p.appendChild(t))
-      _ <- IO.defer(document.body.appendChild(p))
-    } yield ()
+      p <- IO.effectSuspendTotal(document.createElement("p"))
+      t <- IO.effectSuspendTotal(document.createTextNode("Hello World"))
+      _ <- IO.effectSuspendTotal(p.appendChild(t))
+      _ <- IO.effectSuspendTotal(document.body.appendChild(p))
+    } yield 0
 }
 
 ```

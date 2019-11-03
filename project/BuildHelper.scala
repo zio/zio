@@ -9,8 +9,7 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.2" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.2"  % "provided")
+  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.2" % "test")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -21,7 +20,6 @@ object BuildHelper {
   )
 
   private val std2xOptions = Seq(
-    "-Xfatal-warnings",
     "-language:higherKinds",
     "-language:existentials",
     "-explaintypes",
@@ -29,7 +27,7 @@ object BuildHelper {
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard"
-  )
+  ) ++ customOptions
 
   private def optimizerOptions(optimize: Boolean) =
     if (optimize)
@@ -38,6 +36,16 @@ object BuildHelper {
         "-opt-inline-from:zio.internal.**"
       )
     else Nil
+
+  private def propertyFlag(property: String, default: Boolean) =
+    sys.props.get(property).map(_.toBoolean).getOrElse(default)
+
+  private def customOptions =
+    if (propertyFlag("fatal.warnings", false)) {
+      Seq("-Xfatal-warnings")
+    } else {
+      Nil
+    }
 
   def buildInfoSettings(packageName: String) =
     Seq(
@@ -48,7 +56,7 @@ object BuildHelper {
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.19.0-RC1",
+    crossScalaVersions += "0.20.0-RC1",
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")
@@ -72,7 +80,7 @@ object BuildHelper {
        |import zio.duration._
        |object replRTS extends DefaultRuntime {}
        |import replRTS._
-       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -83,7 +91,7 @@ object BuildHelper {
        |import zio.stream._
        |object replRTS extends DefaultRuntime {}
        |import replRTS._
-       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -113,7 +121,9 @@ object BuildHelper {
           "-Xignore-scala2-macros"
         )
       case Some((2, 13)) =>
-        std2xOptions ++ optimizerOptions(optimize)
+        Seq(
+          "-Ywarn-unused:params,-implicits"
+        ) ++ std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -126,6 +136,7 @@ object BuildHelper {
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit",
+          "-Ywarn-unused:params,-implicits",
           "-Xfuture",
           "-Xsource:2.13",
           "-Xmax-classfile-name",
@@ -152,15 +163,18 @@ object BuildHelper {
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.9", "2.13.0", "2.11.12"),
+    crossScalaVersions := Seq("2.12.10", "2.13.1", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
-    libraryDependencies ++= compileOnlyDeps ++ testDeps,
+    libraryDependencies ++= testDeps,
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq()
+        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.4.4" % Provided)
       else
-        Seq(compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.2"))
+        Seq(
+          "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,
+          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full)
+        )
     },
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
@@ -171,14 +185,18 @@ object BuildHelper {
         case Some((2, x)) if x <= 11 =>
           Seq(
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11"))
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
           ).flatten
         case Some((2, x)) if x >= 12 =>
           Seq(
             Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
             Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
           ).flatten
         case _ =>
           if (isDotty.value)
@@ -186,7 +204,9 @@ object BuildHelper {
               Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
               Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-dotty")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-dotty"))
             ).flatten
           else
             Nil
@@ -210,6 +230,45 @@ object BuildHelper {
       }
     }
   )
+
+  def macroSettings = Seq(
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 13)) => Seq("-Ymacro-annotations")
+        case _             => Seq.empty
+      }
+    },
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 12 =>
+          Seq(compilerPlugin(("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)))
+        case _ => Seq.empty
+      }
+    }
+  )
+
+  def welcomeMessage = onLoadMessage := {
+    import scala.Console
+
+    def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
+
+    def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
+
+    s"""|${header(" ________ ___")}
+        |${header("|__  /_ _/ _ \\")}
+        |${header("  / / | | | | |")}
+        |${header(" / /_ | | |_| |")}
+        |${header(s"/____|___\\___/   ${version.value}")}
+        |
+        |Useful sbt tasks:
+        |${item("fmt")} - Formats source files using scalafmt
+        |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
+        |${item("testJVM")} - Runs all JVM tests
+        |${item("testJS")} - Runs all ScalaJS tests
+        |${item("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")} - Only runs tests with matching term
+        |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
+      """.stripMargin
+  }
 
   implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))

@@ -22,6 +22,41 @@ import zio.random.Random
 trait GenZIO {
 
   /**
+   * A generator of `Cause` values
+   */
+  final def causes[R <: Random with Sized, E](e: Gen[R, E], t: Gen[R, Throwable]): Gen[R, Cause[E]] = {
+    val failure        = e.map(Cause.fail)
+    val die            = t.map(Cause.die)
+    val interrupt      = Gen.const(Cause.interrupt)
+    def traced(n: Int) = Gen.suspend(causesN(n - 1).map(Cause.Traced(_, ZTrace(0, Nil, Nil, None))))
+    def meta(n: Int)   = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
+
+    def sequential(n: Int) = Gen.suspend {
+      for {
+        i <- Gen.int(1, n - 1)
+        l <- causesN(i)
+        r <- causesN(n - i)
+      } yield Cause.Then(l, r)
+    }
+
+    def parallel(n: Int) = Gen.suspend {
+      for {
+        i <- Gen.int(1, n - 1)
+        l <- causesN(i)
+        r <- causesN(n - i)
+      } yield Cause.Both(l, r)
+    }
+
+    def causesN(n: Int): Gen[R, Cause[E]] = Gen.suspend {
+      if (n == 1) Gen.oneOf(failure, die, interrupt)
+      else if (n == 2) Gen.oneOf(traced(n), meta(n))
+      else Gen.oneOf(traced(n), meta(n), sequential(n), parallel(n))
+    }
+
+    Gen.small(causesN, 1)
+  }
+
+  /**
    * A generator of effects that are the result of chaining the specified
    * effect with itself a random number of times.
    */

@@ -81,7 +81,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.finalizer]]
    */
-  final def finalizer(f: IO[Nothing, _]): Managed[Nothing, Unit] =
+  final def finalizer(f: IO[Nothing, Any]): Managed[Nothing, Unit] =
     ZManaged.finalizer(f)
 
   /**
@@ -99,7 +99,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.foreach_]]
    */
-  final def foreach_[E, A](as: Iterable[A])(f: A => Managed[E, _]): Managed[E, Unit] =
+  final def foreach_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.foreach_(as)(f)
 
   /**
@@ -111,7 +111,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.foreachPar_]]
    */
-  final def foreachPar_[E, A](as: Iterable[A])(f: A => Managed[E, _]): Managed[E, Unit] =
+  final def foreachPar_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.foreachPar_(as)(f)
 
   /**
@@ -158,20 +158,26 @@ object Managed {
   /**
    * See [[zio.ZManaged.make]]
    */
-  final def make[E, A](acquire: IO[E, A])(release: A => UIO[_]): Managed[E, A] =
+  final def make[E, A](acquire: IO[E, A])(release: A => UIO[Any]): Managed[E, A] =
     ZManaged.make(acquire)(release)
 
   /**
    * See [[zio.ZManaged.makeEffect]]
    */
-  final def makeEffect[A](acquire: => A)(release: A => _): Managed[Throwable, A] =
+  final def makeEffect[A](acquire: => A)(release: A => Any): Managed[Throwable, A] =
     ZManaged.makeEffect(acquire)(release)
 
   /**
    * See [[zio.ZManaged.makeExit]]
    */
-  final def makeExit[E, A](acquire: IO[E, A])(release: (A, Exit[_, _]) => UIO[_]): Managed[E, A] =
+  final def makeExit[E, A](acquire: IO[E, A])(release: (A, Exit[Any, Any]) => UIO[Any]): Managed[E, A] =
     ZManaged.makeExit(acquire)(release)
+
+  /**
+   * See [[zio.ZManaged.makeInterruptible]]
+   */
+  final def makeInterruptible[R, E, A](acquire: IO[E, A])(release: A => UIO[Any]): Managed[E, A] =
+    ZManaged.makeInterruptible(acquire)(release)
 
   /**
    * See [[zio.ZManaged.mergeAll]]
@@ -277,7 +283,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.traverse_]]
    */
-  final def traverse_[E, A](as: Iterable[A])(f: A => Managed[E, _]): Managed[E, Unit] =
+  final def traverse_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverse_(as)(f)
 
   /**
@@ -289,7 +295,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.traversePar_]]
    */
-  final def traversePar_[E, A](as: Iterable[A])(f: A => Managed[E, _]): Managed[E, Unit] =
+  final def traversePar_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traversePar_(as)(f)
 
   /**
@@ -303,11 +309,6 @@ object Managed {
    */
   final def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverseParN_(n)(as)(f)
-
-  /**
-   * See [[zio.ZManaged]]
-   */
-  final def unapply[E, A](v: Managed[E, A]) = ZManaged.unapply(v)
 
   /**
    * See [[zio.ZManaged.unit]]
@@ -329,25 +330,27 @@ object Managed {
   /**
    * See [[zio.ZManaged.when]]
    */
-  final def when[E](b: Boolean)(managed: Managed[E, _]): Managed[E, Unit] =
+  final def when[E](b: Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
     ZManaged.when(b)(managed)
 
   /**
    * See [[zio.ZManaged.whenCase]]
    */
-  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
     ZManaged.whenCase(a)(pf)
 
   /**
    * See [[zio.ZManaged.whenCaseM]]
    */
-  final def whenCaseM[R, E, A](a: ZManaged[R, E, A])(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+  final def whenCaseM[R, E, A](
+    a: ZManaged[R, E, A]
+  )(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
     ZManaged.whenCaseM(a)(pf)
 
   /**
    * See [[zio.ZManaged.whenM]]
    */
-  final def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, _]): Managed[E, Unit] =
+  final def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, Any]): Managed[E, Unit] =
     ZManaged.whenM(b)(managed)
 
 }

@@ -23,19 +23,10 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
 
   /** Extracts value from ref in array. */
   final def apply(index: Int): STM[Nothing, A] =
-    if (0 <= index && index < array.size) array(index).get
+    if (0 <= index && index < array.length) array(index).get
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 
-  final def collect[B](pf: PartialFunction[A, B]): STM[Nothing, TArray[B]] =
-    this
-      .foldM(List.empty[TRef[B]]) {
-        case (acc, a) =>
-          if (pf.isDefinedAt(a)) TRef.make(pf(a)).map(tref => tref :: acc)
-          else STM.succeed(acc)
-      }
-      .map(l => TArray(l.reverse.toArray))
-
-  /* Atomically folds [[TArray]] with pure function. */
+  /** Atomically folds [[TArray]] with pure function. */
   final def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
     if (array.isEmpty) STM.succeed(acc)
     else array.head.get.flatMap(a => new TArray(array.tail).fold(op(acc, a))(op))
@@ -44,33 +35,23 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
   final def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
     if (array.isEmpty) STM.succeed(acc)
     else
-      for {
-        a    <- array.head.get
-        acc2 <- op(acc, a)
-        res  <- new TArray(array.tail).foldM(acc2)(op)
-      } yield res
+      array.head.get.flatMap { a =>
+        op(acc, a).flatMap(acc2 => new TArray(array.tail).foldM(acc2)(op))
+      }
 
   /** Atomically performs side-effect for each item in array */
   final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
     this.foldM(())((_, a) => f(a))
 
-  /** Creates [[TArray]] of new [[TRef]]s, mapped with pure function. */
-  final def map[B](f: A => B): STM[Nothing, TArray[B]] =
-    this.mapM(f andThen STM.succeed)
-
-  /** Creates [[TArray]] of new [[TRef]]s, mapped with transactional effect. */
-  final def mapM[E, B](f: A => STM[E, B]): STM[E, TArray[B]] =
-    STM.foreach(array)(_.get.flatMap(f).flatMap(b => TRef.make(b))).map(l => new TArray(l.toArray))
-
   /** Atomically updates all [[TRef]]s inside this array using pure function. */
   final def transform(f: A => A): STM[Nothing, Unit] =
-    (0 to array.size - 1).foldLeft(STM.succeed(())) {
+    array.indices.foldLeft(STM.succeed(())) {
       case (tx, idx) => array(idx).update(f) *> tx
     }
 
   /** Atomically updates all elements using transactional effect. */
   final def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
-    (0 to array.size - 1).foldLeft[STM[E, Unit]](STM.succeed(())) {
+    array.indices.foldLeft[STM[E, Unit]](STM.succeed(())) {
       case (tx, idx) =>
         val ref = array(idx)
         ref.get.flatMap(f).flatMap(a => ref.set(a)).flatMap(_ => tx)
@@ -78,13 +59,17 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
 
   /** Updates element in the array with given function. */
   final def update(index: Int, fn: A => A): STM[Nothing, A] =
-    if (0 <= index && index < array.size) array(index).update(fn)
+    if (0 <= index && index < array.length) array(index).update(fn)
     else STM.die(new ArrayIndexOutOfBoundsException(index))
 
-  /** Atomically updates element in the array with given transactionall effect. */
+  /** Atomically updates element in the array with given transactional effect. */
   final def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, A] =
-    if (0 <= index && index < array.size) array(index).get.flatMap(fn)
-    else STM.die(new ArrayIndexOutOfBoundsException(index))
+    if (0 <= index && index < array.length)
+      array(index).get.flatMap { currentVal =>
+        fn(currentVal).flatMap { newVal =>
+          array(index).set(newVal).as(newVal)
+        }
+      } else STM.die(new ArrayIndexOutOfBoundsException(index))
 }
 
 object TArray {

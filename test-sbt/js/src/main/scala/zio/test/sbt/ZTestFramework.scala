@@ -24,7 +24,7 @@ final class ZTestFramework extends Framework {
   val fingerprints: Array[Fingerprint] = Array(RunnableSpecFingerprint)
 
   override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): Runner =
-    new ZTestRunner(args, remoteArgs, testClassLoader, "master")
+    new ZMasterTestRunner(args, remoteArgs, testClassLoader)
 
   override def slaveRunner(
     args: Array[String],
@@ -32,6 +32,6 @@ final class ZTestFramework extends Framework {
     testClassLoader: ClassLoader,
     send: String => Unit
   ): Runner =
-    new ZTestRunner(args, remoteArgs, testClassLoader, "slave")
+    new ZSlaveTestRunner(args, remoteArgs, testClassLoader, SendSummary.fromSend(send))
 
 }
