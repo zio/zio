@@ -139,6 +139,24 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged.absolve(ev(self))
 
   /**
+   * Attempts to convert defects into a failure, throwing away all information
+   * about the cause of the failure.
+   */
+  final def absorb(implicit ev: E <:< Throwable): ZManaged[R, Throwable, A] =
+    absorbWith(ev)
+
+  /**
+   * Attempts to convert defects into a failure, throwing away all information
+   * about the cause of the failure.
+   */
+  final def absorbWith(f: E => Throwable): ZManaged[R, Throwable, A] =
+    self.sandbox
+      .foldM(
+        cause => ZManaged.fail(cause.squashWith(f)),
+        ZManaged.succeed
+      )
+
+  /**
    * Executes the this effect and then provides its output as an environment to the second effect
    */
   final def andThen[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] = self >>> that
@@ -646,24 +664,6 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    */
   final def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     reserve.bracketExit((r, e: Exit[Any, Any]) => r.release(e), _.acquire.flatMap(f))
-
-  /**
-   * Attempts to convert defects into a failure, throwing away all information
-   * about the cause of the failure.
-   */
-  final def absorb(implicit ev: E <:< Throwable): ZManaged[R, Throwable, A] =
-    absorbWith(ev)
-
-  /**
-   * Attempts to convert defects into a failure, throwing away all information
-   * about the cause of the failure.
-   */
-  final def absorbWith(f: E => Throwable): ZManaged[R, Throwable, A] =
-    self.sandbox
-      .foldM(
-        cause => ZManaged.fail(cause.squashWith(f)),
-        ZManaged.succeed
-      )
 
   /**
    *  Run an effect while acquiring the resource before and releasing it after.
