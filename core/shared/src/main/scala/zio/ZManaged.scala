@@ -160,7 +160,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Recovers from all errors with provided Cause.
    *
    * {{{
-   * managed.catchAllCause(_ => IO.succeed(defaultConfig))
+   * managed.catchAllCause(_ => ZManaged.succeed(defaultConfig))
    * }}}
    *
    * @see [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can recover from defects
