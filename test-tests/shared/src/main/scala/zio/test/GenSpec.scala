@@ -52,6 +52,8 @@ object GenSpec extends AsyncBaseSpec {
     label(listOf1ShrinksToSingletonList, "listOf1 shrinks to singleton list"),
     label(listOfNGeneratesListsOfCorrectSize, "listOfN generates lists of correct size"),
     label(listOfNShrinksElements, "listOfN shrinks elements"),
+    label(longGeneratesValuesInRange, "long generates values in range"),
+    label(longShrinksToBottomOfRange, "long shrinks to bottom of range"),
     label(mapMMapsAnEffectualFunctionOverAGenerator, "mapMMapsAnEffectualFunctionOverAGenerator"),
     label(mediumGeneratesSizesInRange, "medium generates sizes in range"),
     label(none, "none generates the constant empty value"),
@@ -265,6 +267,18 @@ object GenSpec extends AsyncBaseSpec {
 
   def listOfNShrinksElements: Future[Boolean] =
     checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-10))
+
+  def longGeneratesValuesInRange: Future[Boolean] = {
+    val min = -775050485969923566L
+    val max = 2826409893363053690L
+    checkSample(Gen.long(min, max))(_.forall(n => min <= n && n <= max))
+  }
+
+  def longShrinksToBottomOfRange: Future[Boolean] = {
+    val min = -8649088475068069159L
+    val max = 7907688119669724678L
+    checkShrink(Gen.long(min, max))(min)
+  }
 
   def mapMMapsAnEffectualFunctionOverAGenerator: Future[Boolean] = {
     val gen = Gen.int(1, 6).mapM(n => ZIO.succeed(n + 6))
