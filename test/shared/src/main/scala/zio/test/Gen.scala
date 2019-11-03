@@ -18,7 +18,7 @@ package zio.test
 
 import scala.collection.immutable.SortedMap
 
-import zio.{ UIO, ZIO }
+import zio.{ Schedule, UIO, ZIO }
 import zio.random._
 import zio.stream.{ Stream, ZStream }
 
@@ -280,6 +280,19 @@ object Gen extends GenZIO with FunctionVariants {
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+
+  /**
+   * A generator of long values in the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   */
+  final def long(min: Long, max: Long): Gen[Random, Long] =
+    Gen.fromEffectSample {
+      val difference = max - min + 1
+      val effect =
+        if (difference > 0) nextLong(difference).map(min + _)
+        else nextLong.repeat(Schedule.doUntil(n => min <= n && n <= max))
+      effect.map(Sample.shrinkIntegral(min))
+    }
 
   /**
    * A sized generator that uses an exponential distribution of size values.
