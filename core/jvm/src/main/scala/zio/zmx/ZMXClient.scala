@@ -30,6 +30,6 @@ object ZMXClient {
     val response: String = ZMXCommands.ByteBufferToString(buffer)
     buffer.clear()
     println(s"Response from server: $response")
-    return response
+    response
   }
 }

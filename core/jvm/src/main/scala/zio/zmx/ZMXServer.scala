@@ -47,7 +47,7 @@ object ZMXServer {
     buffer.flip
     client.write(ZMXCommands.StringToByteBuffer(s"Server received: $received"))
     buffer.clear
-    return true
+    true
   }
 
   def apply(config: ZMXConfig, selector: Selector, zmxSocket: ServerSocketChannel, zmxAddress: InetSocketAddress): Unit = {
