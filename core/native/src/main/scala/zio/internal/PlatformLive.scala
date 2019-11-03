@@ -18,8 +18,8 @@ package zio.internal
 
 import java.util.{ HashMap, Map => JMap }
 
-import scala.scalanative.loop.EventLoop
 import scala.concurrent.ExecutionContext
+import scala.scalanative.loop.EventLoop
 import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig

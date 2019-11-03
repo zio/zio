@@ -36,7 +36,12 @@ object GenSpec extends DefaultRuntime {
     label(fromIterableConstructsDeterministicGenerators, "fromIterable constructs deterministic generators"),
     label(intGeneratesValuesInRange, "int generates values in range"),
     label(intShrinksToBottomOfRange, "int shrinks to bottom of range"),
-    label(listOfShrinksToSmallestLength, "listOf shrinks to smallest length"),
+    label(listOfGeneratesSizesInRange, "listOf generates sizes in range"),
+    label(listOfShrinksToEmptyList, "listOf shrinks to empty list"),
+    label(listOf1GeneratesNonEmptyLists, "listOf1 generates nonempty lists"),
+    label(listOf1ShrinksToSingletonList, "listOf1 shrinks to singleton list"),
+    label(listOfNGeneratesListsOfCorrectSize, "listOfN generates lists of correct size"),
+    label(listOfNShrinksElements, "listOfN shrinks elements"),
     label(none, "none generates the constant empty value"),
     label(optionOfGeneratesOptionalValues, "optionOf generates optional values"),
     label(optionOfShrinksToNone, "optionOf shrinks to None"),
@@ -44,12 +49,24 @@ object GenSpec extends DefaultRuntime {
     label(printableCharShrinksToBottomOfRange, "printableChar shrinks to bottom of range"),
     label(shortGeneratesValuesInRange, "short generates values in range"),
     label(shortShrinksToBottomOfRange, "short shrinks to bottom of range"),
+    label(sizeCanBeModifiedLocally, "size can be modified locally"),
+    label(sizedAccessesSizeInEnvironment, "sized accesses size in environment"),
     label(someShrinksToSmallestValue, "some shrinks to smallest value"),
-    label(stringShrinksToSmallestString, "string shrinks to smallest string"),
+    label(stringGeneratesSizesInRange, "string generates sizes in range"),
+    label(stringShrinksToEmptyString, "string shrinks to empty string"),
+    label(string1GeneratesNonEmptyStrings, "string1 generates nonempty strings"),
+    label(string1ShrinksToSingleCharacter, "string1 shrinks to single character"),
+    label(stringNGeneratesStringsOfCorrectSize, "stringN generates strings of correct size"),
+    label(stringNShrinksCharacters, "stringN shrinks characters"),
     label(uniformGeneratesValuesInRange, "uniform generates values between 0 and 1"),
     label(uniformShrinksToZero, "uniform shrinks to zero"),
     label(unit, "unit generates the constant unit value"),
-    label(vectorOfShrinksToSmallestLength, "vectorOf shrinks to smallest length"),
+    label(vectorOfGeneratesSizesInRange, "vectorOf generates sizes in range"),
+    label(vectorOfShrinksToEmptyVector, "vectorOf shrinks to empty vector"),
+    label(vectorOf1GeneratesNonEmptyVectors, "vectorOf1 generates nonempty vectors"),
+    label(vectorOf1ShrinksToSingletonVector, "vectorOf1 shrinks to singleton vector"),
+    label(vectorOfNGeneratesVectorsOfCorrectSize, "vectorOfN generates vectors of correct size"),
+    label(vectorOfNShrinksElements, "vectorOfN shrinks elements"),
     label(weightedGeneratesWeightedDistribution, "weighted generates weighted distribution"),
     label(zipShrinksCorrectly, "zip shrinks correctly"),
     label(zipWithShrinksCorrectly, "zipWith shrinks correctly"),
@@ -154,11 +171,26 @@ object GenSpec extends DefaultRuntime {
   def intShrinksToBottomOfRange: Future[Boolean] =
     checkShrink(smallInt)(-10)
 
-  def listOfShrinksToSmallestLength: Future[Boolean] = {
-    val gen = Gen.sized(0, 100)(Gen.listOf(smallInt))
-    val io  = shrinks(gen).map(_.reverse.head == List.empty)
-    unsafeRunToFuture(io)
-  }
+  def listOfGeneratesSizesInRange: Future[Boolean] =
+    checkSample(Gen.listOf(smallInt))(_.forall { as =>
+      val n = as.length
+      0 <= n && n <= 100
+    })
+
+  def listOfShrinksToEmptyList: Future[Boolean] =
+    checkShrink(Gen.listOf(smallInt))(Nil)
+
+  def listOf1GeneratesNonEmptyLists: Future[Boolean] =
+    checkSample(Gen.listOf1(smallInt), size = 0)(_.forall(_.nonEmpty))
+
+  def listOf1ShrinksToSingletonList: Future[Boolean] =
+    checkShrink(Gen.listOf1(smallInt))(List(-10))
+
+  def listOfNGeneratesListsOfCorrectSize: Future[Boolean] =
+    checkSample(Gen.listOfN(10)(smallInt))(_.forall(_.length == 10))
+
+  def listOfNShrinksElements: Future[Boolean] =
+    checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-10))
 
   def none: Future[Boolean] =
     checkSample(Gen.none)(_.forall(_ == None))
@@ -181,14 +213,41 @@ object GenSpec extends DefaultRuntime {
   def shortShrinksToBottomOfRange: Future[Boolean] =
     checkShrink(Gen.short(5, 10))(5)
 
+  def sizeCanBeModifiedLocally: Future[Boolean] = {
+    val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
+    val result = for {
+      x <- Sized.withSize(200)(getSize)
+      y <- getSize
+    } yield x == 2 * y
+    unsafeRunToFuture(provideSize(result)(100))
+  }
+
+  def sizedAccessesSizeInEnvironment: Future[Boolean] =
+    checkSample(Gen.sized(Gen.const(_)), size = 50)(_.forall(_ == 50))
+
   def someShrinksToSmallestValue: Future[Boolean] =
     checkShrink(Gen.some(smallInt))(Some(-10))
 
-  def stringShrinksToSmallestString: Future[Boolean] = {
-    val gen = Gen.sized(3, 3)(Gen.string(Gen.char(65, 90)))
-    val io  = shrinks(gen).map(_.reverse.head == "AAA")
-    unsafeRunToFuture(io)
-  }
+  def stringGeneratesSizesInRange: Future[Boolean] =
+    checkSample(Gen.string(Gen.printableChar))(_.forall { as =>
+      val n = as.length
+      0 <= n && n <= 100
+    })
+
+  def stringShrinksToEmptyString: Future[Boolean] =
+    checkShrink(Gen.string(Gen.printableChar))("")
+
+  def string1GeneratesNonEmptyStrings: Future[Boolean] =
+    checkSample(Gen.string1(Gen.printableChar), size = 0)(_.forall(_.nonEmpty))
+
+  def string1ShrinksToSingleCharacter: Future[Boolean] =
+    checkShrink(Gen.string1(Gen.printableChar))("!")
+
+  def stringNGeneratesStringsOfCorrectSize: Future[Boolean] =
+    checkSample(Gen.stringN(10)(Gen.printableChar))(_.forall(_.length == 10))
+
+  def stringNShrinksCharacters: Future[Boolean] =
+    checkShrink(Gen.stringN(10)(Gen.printableChar))("!!!!!!!!!!")
 
   def uniformGeneratesValuesInRange: Future[Boolean] =
     checkSample(Gen.uniform)(_.forall(n => 0.0 <= n && n < 1.0))
@@ -199,11 +258,26 @@ object GenSpec extends DefaultRuntime {
   def unit: Future[Boolean] =
     checkSample(Gen.unit)(_.forall(_ => true))
 
-  def vectorOfShrinksToSmallestLength: Future[Boolean] = {
-    val gen = Gen.sized(2, 64)(Gen.vectorOf(Gen.uniform))
-    val io  = shrinks(gen).map(_.reverse.head == Vector(0.0, 0.0))
-    unsafeRunToFuture(io)
-  }
+  def vectorOfGeneratesSizesInRange: Future[Boolean] =
+    checkSample(Gen.vectorOf(smallInt))(_.forall { as =>
+      val n = as.length
+      0 <= n && n <= 100
+    })
+
+  def vectorOfShrinksToEmptyVector: Future[Boolean] =
+    checkShrink(Gen.vectorOf(smallInt))(Vector.empty)
+
+  def vectorOf1GeneratesNonEmptyVectors: Future[Boolean] =
+    checkSample(Gen.vectorOf1(smallInt), size = 0)(_.forall(_.nonEmpty))
+
+  def vectorOf1ShrinksToSingletonVector: Future[Boolean] =
+    checkShrink(Gen.vectorOf1(smallInt))(Vector(-10))
+
+  def vectorOfNGeneratesVectorsOfCorrectSize: Future[Boolean] =
+    checkSample(Gen.vectorOfN(10)(smallInt))(_.forall(_.length == 10))
+
+  def vectorOfNShrinksElements: Future[Boolean] =
+    checkShrink(Gen.vectorOfN(10)(smallInt))(Vector.fill(10)(-10))
 
   def weightedGeneratesWeightedDistribution: Future[Boolean] = {
     val weighted = Gen.weighted((Gen.const(true), 10), (Gen.const(false), 90))
@@ -218,16 +292,16 @@ object GenSpec extends DefaultRuntime {
 
   def testBogusReverseProperty: Future[Boolean] = {
     val gen = for {
-      as <- Gen.sized(0, 100)(Gen.listOf(Gen.anyInt))
-      bs <- Gen.sized(0, 100)(Gen.listOf(Gen.anyInt))
+      as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+      bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     } yield (as, bs)
-    val predicate = Predicate.predicate[(List[Int], List[Int])]("") {
+    val assertion = Assertion.assertion[(List[Int], List[Int])]("") {
       case (as, bs) =>
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
-        if (p) Assertion.success else Assertion.Failure(())
+        if (p) AssertResult.success else AssertResult.Failure(())
     }
-    val test = checkSome(100)(gen)(predicate).map {
-      case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
+    val test = checkSome(100)(gen)(assertion).map {
+      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
         fragment.value.toString == "(List(0),List(1))" ||
           fragment.value.toString == "(List(1),List(0))" ||
           fragment.value.toString == "(List(0),List(-1))" ||
@@ -238,10 +312,10 @@ object GenSpec extends DefaultRuntime {
   }
 
   def testShrinkingNonEmptyList: Future[Boolean] = {
-    val gen       = Gen.sized(1, 100)(Gen.listOf(Gen.anyInt))
-    val predicate = Predicate.predicate[List[Int]]("")(_ => Assertion.Failure(()))
-    val test = checkSome(100)(gen)(predicate).map {
-      case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
+    val gen       = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+    val assertion = Assertion.assertion[List[Int]]("")(_ => AssertResult.Failure(()))
+    val test = checkSome(100)(gen)(assertion).map {
+      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
         fragment.value.toString == "List(0)"
       case _ => false
     }
@@ -250,12 +324,12 @@ object GenSpec extends DefaultRuntime {
 
   def testBogusEvenProperty: Future[Boolean] = {
     val gen = Gen.int(0, 100)
-    val predicate = Predicate.predicate[Int]("") { n =>
+    val assertion = Assertion.assertion[Int]("") { n =>
       val p = n % 2 == 0
-      if (p) Assertion.Success else Assertion.Failure(())
+      if (p) AssertResult.Success else AssertResult.Failure(())
     }
-    val test = checkSome(100)(gen)(predicate).map {
-      case Assertion.Failure(FailureDetails.Predicate(fragment, _)) =>
+    val test = checkSome(100)(gen)(assertion).map {
+      case AssertResult.Failure(FailureDetails.Assertion(fragment, _)) =>
         fragment.value.toString == "1"
       case _ => false
     }
@@ -265,26 +339,26 @@ object GenSpec extends DefaultRuntime {
   def checkEqual[A](left: Gen[Random, A], right: Gen[Random, A]): Future[Boolean] =
     unsafeRunToFuture(equal(left, right))
 
-  def checkSample[A](gen: Gen[Random, A])(f: List[A] => Boolean): Future[Boolean] =
-    unsafeRunToFuture(sample(gen).map(f))
+  def checkSample[A](gen: Gen[Random with Sized, A], size: Int = 100)(f: List[A] => Boolean): Future[Boolean] =
+    unsafeRunToFuture(provideSize(sample(gen).map(f))(size))
 
   def checkFinite[A](gen: Gen[Random, A])(f: List[A] => Boolean): Future[Boolean] =
     unsafeRunToFuture(gen.sample.map(_.value).runCollect.map(f))
 
-  def checkShrink[A](gen: Gen[Random, A])(a: A): Future[Boolean] =
-    unsafeRunToFuture(alwaysShrinksTo(gen)(a: A))
+  def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): Future[Boolean] =
+    unsafeRunToFuture(provideSize(alwaysShrinksTo(gen)(a: A))(100))
 
-  def sample[A](gen: Gen[Random, A]): ZIO[Random, Nothing, List[A]] =
+  def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.map(_.value).forever.take(100).runCollect
 
-  def alwaysShrinksTo[A](gen: Gen[Random, A])(a: A): ZIO[Random, Nothing, Boolean] =
+  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): ZIO[R, Nothing, Boolean] =
     ZIO.collectAll(List.fill(100)(shrinksTo(gen))).map(_.forall(_ == a))
 
-  def shrinksTo[A](gen: Gen[Random, A]): ZIO[Random, Nothing, A] =
+  def shrinksTo[R, A](gen: Gen[R, A]): ZIO[R, Nothing, A] =
     shrinks(gen).map(_.reverse.head)
 
-  def shrinks[A](gen: Gen[Random, A]): ZIO[Random, Nothing, List[A]] =
-    gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(100).runCollect
+  def shrinks[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
+    gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runCollect
 
   def equal[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
@@ -313,4 +387,14 @@ object GenSpec extends DefaultRuntime {
     val tail = sample.shrink.mapM(showTree(_, offset + 2)).runCollect.map(_.mkString("\n"))
     tail.map(head + _)
   }
+
+  def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
+    Sized.makeService(n).flatMap { service =>
+      zio.provideSome[Random] { r =>
+        new Random with Sized {
+          val random = r.random
+          val sized  = service
+        }
+      }
+    }
 }

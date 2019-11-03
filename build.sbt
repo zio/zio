@@ -78,22 +78,24 @@ lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
 
 lazy val coreNative = core.native
-.settings(scalaVersion := "2.11.12")
-.settings(skip in Test := true)
-.settings(skip in doc := true)
-.settings(sources in (Compile, doc) := Seq.empty)
-.settings(
-  libraryDependencies ++= Seq(
-    "dev.whaling" %%% "native-loop-core" % "0.1.1",
-    "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
+      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+    )
   )
-)
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
   .dependsOn(core)
   .dependsOn(test % "test->test;compile->compile")
   .settings(stdSettings("core-tests"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner % "test->test;compile->compile")
   .settings(buildInfoSettings)
   .settings(publishArtifact in (Test, packageBin) := true)
   .settings(
@@ -175,7 +177,6 @@ lazy val stacktracerNative = stacktracer.native
   .settings(scalaVersion := "2.11.12")
   .settings(skip in Test := true)
   .settings(skip in doc := true)
-  
   lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
@@ -184,7 +185,7 @@ lazy val stacktracerNative = stacktracer.native
       "org.scala-lang"     % "scala-reflect"            % scalaVersion.value,
       "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
     ),
-    mainClass in (Test, run) := Some("zio.test.sbt.ZTestFrameworkSpec")
+    mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
   .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.28"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
@@ -222,14 +223,14 @@ lazy val benchmarks = project.module
         "co.fs2"                   %% "fs2-core"        % "1.1.0-M1",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.24",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.25",
         "io.monix"                 %% "monix"           % "3.0.0-RC2",
         "io.projectreactor"        % "reactor-core"     % "3.2.11.RELEASE",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.11",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.12",
         "org.ow2.asm"              % "asm"              % "7.1",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.typelevel"            %% "cats-effect"     % "2.0.0-RC1"
+        "org.typelevel"            %% "cats-effect"     % "2.0.0-RC2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
@@ -261,13 +262,13 @@ lazy val docs = project.module
       "com.github.ghik"     %% "silencer-lib"                % "1.4.2" % "provided",
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples"    % "1.0.2" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC2",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC3",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC4",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC3",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC3",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.0-RC1",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC1"
     )
   )

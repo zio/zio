@@ -1,8 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
-import zio.test.RenderedResult.CaseType
-import zio.test.{ AbstractRunnableSpec, DefaultTestReporter, RenderedResult, TestReporter }
+import zio.clock.Clock
+import zio.test.{ AbstractRunnableSpec, TestLogger }
 import zio.{ Runtime, ZIO }
 
 abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) extends Task {
@@ -16,37 +16,12 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
       .asInstanceOf[AbstractRunnableSpec]
   }
 
-  protected def run(eventHandler: EventHandler, loggers: Array[Logger]) = {
-
-    def logResult[R, E](result: RenderedResult): zio.Task[Unit] =
-      ZIO
-        .sequence[Any, Throwable, Unit](
-          for {
-            log  <- loggers.toSeq
-            line <- result.rendered
-          } yield ZIO.effect(log.info(line))
-        )
-        .unit
-
-    def reportResults(results: Seq[RenderedResult]) =
-      ZIO.foreach(results) { result =>
-        logResult(result) *> {
-          result.caseType match {
-            case CaseType.Test =>
-              ZIO.effect(
-                eventHandler.handle(ZTestEvent.from(result, taskDef.fullyQualifiedName, taskDef.fingerprint))
-              )
-            case CaseType.Suite => ZIO.unit
-          }
-        }
-      }
-
+  protected def run(eventHandler: EventHandler, loggers: Array[Logger]) =
     for {
-      result   <- spec.runWith(TestReporter.silent)
-      rendered = DefaultTestReporter.render(result.mapLabel(_.toString))
-      _        <- reportResults(rendered)
+      res    <- spec.run.provide(new SbtTestLogger(loggers) with Clock.Live)
+      events = ZTestEvent.from(res, taskDef.fullyQualifiedName, taskDef.fingerprint)
+      _      <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
-  }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     Runtime((), spec.platform).unsafeRun(run(eventHandler, loggers))
@@ -54,4 +29,12 @@ abstract class BaseTestTask(val taskDef: TaskDef, testClassLoader: ClassLoader) 
   }
 
   override def tags(): Array[String] = Array.empty
+}
+
+class SbtTestLogger(loggers: Array[Logger]) extends TestLogger {
+  override def testLogger: TestLogger.Service = (line: String) => {
+    ZIO
+      .effect(loggers.foreach(_.info(line)))
+      .catchAll(_ => ZIO.unit)
+  }
 }

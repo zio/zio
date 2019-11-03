@@ -1,6 +1,6 @@
 package zio.stream
 
-import org.scalacheck.Arbitrary
+import org.scalacheck.{ Arbitrary, Gen }
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import zio._
@@ -91,6 +91,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
       init error      $filterMInitError
       step error      $filterMStepError
       extractError    $filterMExtractError
+
+    keyed
+      happy path    $keyedHappyPath
+      init error    $keyedInitError
+      step error    $keyedStepError
+      extract error $keyedExtractError
 
     map
       happy path    $mapHappyPath
@@ -221,6 +227,16 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     fromFunction $fromFunction
 
     fromOutputStream $fromOutputStream
+
+    pull1 $pull1
+
+    splitLines
+      preserves data          $splitLines
+      handles leftovers       $splitLinesLeftovers
+      transduces              $splitLinesTransduce
+      single newline edgecase $splitLinesEdgecase
+      no newlines in data     $splitLinesNoNewlines
+      \r\n on the boundary    $splitLinesBoundary
 
     throttleEnforce $throttleEnforce
       with burst    $throttleEnforceWithBurst
@@ -557,6 +573,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
+  private def keyedHappyPath = {
+    val sink = ZSink.identity[Int].keyed((_: Int) + 1)
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Map(2 -> 1)))
+  }
+
+  private def keyedInitError = {
+    val sink = initErrorSink.keyed((_: Int) + 1)
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def keyedStepError = {
+    val sink = stepErrorSink.keyed((_: Int) + 1)
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def keyedExtractError = {
+    val sink = extractErrorSink.keyed((_: Int) + 1)
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
   private def mapHappyPath = {
     val sink = ZSink.identity[Int].map(_.toString)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== "1"))
@@ -700,6 +736,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
   private def orElseExtractErrorBoth = {
     val sink = extractErrorSink orElse extractErrorSink
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
+  }
+
+  private def pull1 = unsafeRun {
+    val stream = Stream.fromIterable(List(1))
+    val sink   = Sink.pull1(IO.succeed(None: Option[Int]))((i: Int) => Sink.succeed(Some(i): Option[Int]))
+
+    stream.run(sink).map(_ must_=== Some(1))
   }
 
   private def raceBothLeft = {
@@ -1202,6 +1245,74 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     }
   }
 
+  private def splitLines =
+    prop { (lines: List[String]) =>
+      val data = lines.mkString("\n")
+
+      unsafeRun {
+        for {
+          initial      <- ZSink.splitLines.initial.map(Step.state(_))
+          middle       <- ZSink.splitLines.step(initial, data)
+          result       <- ZSink.splitLines.extract(Step.state(middle))
+          sinkLeftover = Step.leftover(middle)
+        } yield ((result ++ sinkLeftover).toArray[String].mkString("\n") must_=== lines.mkString("\n"))
+      }
+    }.setGen(
+      Gen
+        .listOf(Gen.asciiStr.map(_.filterNot(c => c == '\n' || c == '\r')))
+        .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
+    )
+
+  private def splitLinesLeftovers = unsafeRun {
+    for {
+      initial      <- ZSink.splitLines.initial.map(Step.state(_))
+      middle       <- ZSink.splitLines.step(initial, "abc\nbc")
+      result       <- ZSink.splitLines.extract(Step.state(middle))
+      sinkLeftover = Step.leftover(middle)
+    } yield (result.toArray[String].mkString("\n") must_=== "abc") and (sinkLeftover
+      .toArray[String]
+      .mkString must_=== "bc")
+  }
+
+  private def splitLinesTransduce = unsafeRun {
+    Stream("abc", "\n", "bc", "\n", "bcd", "bcd")
+      .transduce(ZSink.splitLines)
+      .runCollect
+      .map {
+        _ must_=== List(Chunk("abc"), Chunk("bc"), Chunk("bcdbcd"))
+      }
+  }
+
+  private def splitLinesEdgecase = unsafeRun {
+    Stream("\n")
+      .transduce(ZSink.splitLines)
+      .mapConcat(identity)
+      .runCollect
+      .map {
+        _ must_=== List("")
+      }
+  }
+
+  private def splitLinesNoNewlines = unsafeRun {
+    Stream("abc", "abc", "abc")
+      .transduce(ZSink.splitLines)
+      .mapConcat(identity)
+      .runCollect
+      .map {
+        _ must_=== List("abcabcabc")
+      }
+  }
+
+  private def splitLinesBoundary = unsafeRun {
+    Stream("abc\r", "\nabc")
+      .transduce(ZSink.splitLines)
+      .mapConcat(identity)
+      .runCollect
+      .map {
+        _ must_=== List("abc", "abc")
+      }
+  }
+
   private def throttleEnforce = {
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
@@ -1332,9 +1443,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
         step1 <- sink.step(Step.state(init1), 1)
         res1  <- sink.extract(Step.state(step1))
         init2 <- sink.initial
+        _     <- MockClock.adjust(2.seconds)
         step2 <- sink.step(Step.state(init2), 2)
         res2  <- sink.extract(Step.state(step2))
         init3 <- sink.initial
+        _     <- MockClock.adjust(4.seconds)
         _     <- clock.sleep(4.seconds)
         step3 <- sink.step(Step.state(init3), 3)
         res3  <- sink.extract(Step.state(step3))
@@ -1348,7 +1461,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
                   .use(sinkTest)
                   .provide(clock)
                   .fork
-        _    <- clock.clock.adjust(6.seconds)
         test <- fiber.join
       } yield test
     }

@@ -1,10 +1,12 @@
 package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
-
 import zio._
+import scala.{ Console => SConsole }
+import zio.clock.Clock
 import zio.test.mock._
 import zio.test.TestUtils.label
+import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 
 object DefaultTestReporterSpec extends DefaultRuntime {
 
@@ -15,34 +17,34 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     label(reportSuite1, "correctly reports successful test suite"),
     label(reportSuite2, "correctly reports failed test suite"),
     label(reportSuites, "correctly reports multiple test suites"),
-    label(simplePredicate, "correctly reports failure of simple predicate")
+    label(simpleAssertion, "correctly reports failure of simple assertion")
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
     zio.test.test(label)(assertion)
 
   val test1 = makeTest("Addition works fine") {
-    assert(1 + 1, Predicate.equals(2))
+    assert(1 + 1, equalTo(2))
   }
 
   val test1Expected = expectedSuccess("Addition works fine")
 
   val test2 = makeTest("Subtraction works fine") {
-    assert(1 - 1, Predicate.equals(0))
+    assert(1 - 1, equalTo(0))
   }
 
   val test2Expected = expectedSuccess("Subtraction works fine")
 
   val test3 = makeTest("Value falls within range") {
-    assert(52, Predicate.equals(42) || (Predicate.isGreaterThan(5) && Predicate.isLessThan(10)))
+    assert(52, equalTo(42) || (isGreaterThan(5) && isLessThan(10)))
   }
 
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
     withOffset(2)(
-      s"${blue("52")} did not satisfy ${cyan("(equals(42) || (" + yellow("isGreaterThan(5)") + " && isLessThan(10)))")}\n"
+      s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && " + yellowThenCyan("isLessThan(10)") + "))")}\n"
     ),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isGreaterThan(5)")}\n")
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n")
   )
 
   val test4 = makeTest("Failing test") {
@@ -58,12 +60,12 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   )
 
   val test5 = makeTest("Addition works fine") {
-    assert(1 + 1, Predicate.equals(3))
+    assert(1 + 1, equalTo(3))
   }
 
   val test5Expected = Vector(
     expectedFailure("Addition works fine"),
-    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equals(3)")}\n")
+    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n")
   )
 
   val suite1 = suite("Suite1")(test1, test2)
@@ -82,31 +84,39 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     withOffset(2)(test2Expected)
   ) ++ test3Expected.map(withOffset(2)(_))
 
+  def reportStats(success: Int, ignore: Int, failure: Int) = {
+    val total = success + ignore + failure
+    cyan(
+      s"Ran $total test${if (total == 1) "" else "s"} in 0 seconds: $success succeeded, $ignore ignored, $failure failed"
+    ) + "\n"
+  }
+
   def reportSuccess =
-    check(test1, Vector(test1Expected))
+    check(test1, Vector(test1Expected, reportStats(1, 0, 0)))
 
   def reportFailure =
-    check(test3, test3Expected)
+    check(test3, test3Expected :+ reportStats(0, 0, 1))
 
   def reportError =
-    check(test4, test4Expected)
+    check(test4, test4Expected :+ reportStats(0, 0, 1))
 
   def reportSuite1 =
-    check(suite1, suite1Expected)
+    check(suite1, suite1Expected :+ reportStats(2, 0, 0))
 
   def reportSuite2 =
-    check(suite2, suite2Expected)
+    check(suite2, suite2Expected :+ reportStats(2, 0, 1))
 
   def reportSuites =
     check(
       suite("Suite3")(suite1, test3),
-      Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected.map(withOffset(2))
+      Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected
+        .map(withOffset(2)) :+ reportStats(2, 0, 1)
     )
 
-  def simplePredicate =
+  def simpleAssertion =
     check(
       test5,
-      test5Expected
+      test5Expected :+ reportStats(0, 0, 1)
     )
 
   def expectedSuccess(label: String): String =
@@ -119,24 +129,32 @@ object DefaultTestReporterSpec extends DefaultRuntime {
     " " * n + s
 
   def green(s: String): String =
-    Console.GREEN + s + Console.RESET
+    SConsole.GREEN + s + SConsole.RESET
 
   def red(s: String): String =
-    Console.RED + s + Console.RESET
+    SConsole.RED + s + SConsole.RESET
 
   def blue(s: String): String =
-    Console.BLUE + s + Console.RESET
+    SConsole.BLUE + s + SConsole.RESET
 
   def cyan(s: String): String =
-    Console.CYAN + s + Console.RESET
+    SConsole.CYAN + s + SConsole.RESET
 
-  def yellow(s: String): String =
-    Console.YELLOW + s + Console.RESET
+  def yellowThenCyan(s: String): String =
+    SConsole.YELLOW + s + SConsole.CYAN
 
   def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(mockEnvironmentManaged) { r =>
       val zio = for {
-        _      <- MockTestRunner(r).run(spec)
+        _ <- MockTestRunner(r)
+              .run(spec)
+              .provideSomeM(for {
+                logSvc   <- TestLogger.fromConsoleM
+                clockSvc <- MockClock.make(MockClock.DefaultData)
+              } yield new TestLogger with Clock {
+                override def testLogger: TestLogger.Service = logSvc.testLogger
+                override val clock: Clock.Service[Any]      = clockSvc.clock
+              })
         output <- MockConsole.output
       } yield output == expected
       zio.provide(r)
@@ -148,6 +166,6 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   def MockTestRunner(mockEnvironment: MockEnvironment) =
     TestRunner[String, ZTest[MockEnvironment, Any]](
       executor = TestExecutor.managed(Managed.succeed(mockEnvironment)),
-      reporter = DefaultTestReporter(mockEnvironment)
+      reporter = DefaultTestReporter()
     )
 }

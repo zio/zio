@@ -6,7 +6,7 @@ import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import zio._
 import zio.duration._
-import zio.QueueSpec.waitForSize
+import zio.ZQueueSpecUtil.waitForSize
 
 class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
@@ -36,10 +36,23 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     no acquisition when short circuiting $bracketNoAcquisition
     releases when there are defects      $bracketWithDefects
 
+  Stream.broadcast
+    Values       $broadcastValues
+    Errors       $broadcastErrors
+    BackPressure $broadcastBackPressure
+    Unsubscribe  $broadcastUnsubscribe
+
   Stream.buffer
     buffer the Stream                      $bufferStream
     buffer the Stream with Error           $bufferStreamError
     fast producer progress independently   $bufferFastProducerSlowConsumer
+
+  Stream.catchAllCause
+    recovery from errors                 $catchAllCauseErrors
+    recovery from defects                $catchAllCauseDefects
+    happy path                           $catchAllCauseHappyPath
+    executes finalizers                  $catchAllCauseFinalizers
+    failures on the scope                $catchAllCauseScopeErrors
 
   Stream.collect            $collect
   Stream.collectWhile
@@ -128,6 +141,12 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   Stream.fromIterable       $fromIterable
   Stream.fromQueue          $fromQueue
 
+  Stream.groupBy
+    values                                                $groupByValues
+    first                                                 $groupByFirst
+    filter                                                $groupByFilter
+    outer errors                                          $groupByErrorsOuter
+
   Stream interleaving
     interleave              $interleave
     interleaveWith          $interleaveWith
@@ -143,6 +162,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   Stream.mapMPar
     foreachParN equivalence  $mapMPar
+    order when n = 1         $mapMParOrder
     interruption propagation $mapMParInterruptionPropagation
     guarantee ordering       $mapMParGuaranteeOrdering
 
@@ -152,6 +172,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     mergeWith                     $mergeWith
     mergeWith short circuit       $mergeWithShortCircuit
     mergeWith prioritizes failure $mergeWithPrioritizesFailure
+
+  Stream.partitionEither
+    values        $partitionEitherValues
+    errors        $partitionEitherErrors
+    backpressure  $partitionEitherBackPressure
 
   Stream.peel               $peel
   Stream.range              $range
@@ -176,6 +201,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     takeWhile short circuits $takeWhileShortCircuits
 
   Stream.tap                $tap
+
+  Stream.timeout
+    succeed                 $timeoutSucceed
+    should interrupt stream $timeoutInterrupt
 
   Stream.throttleEnforce
     free elements                   $throttleEnforceFreeElements
@@ -393,6 +422,69 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     } yield released must_=== true
   }
 
+  private def broadcastValues =
+    unsafeRun {
+      Stream.range(0, 5).broadcast(2, 12).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            out1     <- s1.runCollect
+            out2     <- s2.runCollect
+            expected = List(0, 1, 2, 3, 4, 5)
+          } yield (out1 must_=== expected) && (out2 must_=== expected)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def broadcastErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).broadcast(2, 12).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            out1     <- s1.runCollect.either
+            out2     <- s2.runCollect.either
+            expected = Left("Boom")
+          } yield (out1 must_=== expected) && (out2 must_=== expected)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
+  private def broadcastBackPressure =
+    unsafeRun {
+      Stream
+        .range(0, 5)
+        .broadcast(2, 2)
+        .use {
+          case s1 :: s2 :: Nil =>
+            for {
+              ref       <- Ref.make[List[Int]](Nil)
+              latch1    <- Promise.make[Nothing, Unit]
+              fib       <- s1.tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2)).runDrain.fork
+              _         <- latch1.await
+              snapshot1 <- ref.get
+              _         <- s2.runDrain
+              _         <- fib.await
+              snapshot2 <- ref.get
+            } yield (snapshot1 must_=== List(2, 1, 0)) && (snapshot2 must_=== List(5, 4, 3, 2, 1, 0))
+          case _ =>
+            ZIO.fail("Wrong number of streams produced")
+        }
+    }
+
+  private def broadcastUnsubscribe =
+    flaky {
+      Stream.range(0, 5).broadcast(2, 2).use {
+        case s1 :: s2 :: Nil =>
+          for {
+            _    <- s1.process.use_(ZIO.unit).ignore
+            out2 <- s2.runCollect
+          } yield out2 must_=== List(0, 1, 2, 3, 4, 5)
+        case _ =>
+          ZIO.fail("Wrong number of streams produced")
+      }
+    }
+
   private def bufferStream = prop { list: List[Int] =>
     unsafeRunSync(
       Stream
@@ -426,6 +518,49 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
             }
       } yield l.reverse must_=== (1 to 4).toList
     )
+
+  private def catchAllCauseErrors =
+    unsafeRun {
+      val s1 = Stream(1, 2) ++ Stream.fail("Boom")
+      val s2 = Stream(3, 4)
+
+      s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2, 3, 4))
+    }
+
+  private def catchAllCauseDefects =
+    unsafeRun {
+      val s1 = Stream(1, 2) ++ Stream.dieMessage("Boom")
+      val s2 = Stream(3, 4)
+
+      s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2, 3, 4))
+    }
+
+  private def catchAllCauseHappyPath =
+    unsafeRun {
+      val s1 = Stream(1, 2)
+      val s2 = Stream(3, 4)
+
+      s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2))
+    }
+
+  private def catchAllCauseFinalizers =
+    unsafeRun {
+      for {
+        fins   <- Ref.make(List[String]())
+        s1     = (Stream(1, 2) ++ Stream.fail("Boom")).ensuring(fins.update("s1" :: _))
+        s2     = (Stream(3, 4) ++ Stream.fail("Boom")).ensuring(fins.update("s2" :: _))
+        _      <- s1.catchAllCause(_ => s2).runCollect.run
+        result <- fins.get
+      } yield result must_=== List("s2", "s1")
+    }
+
+  private def catchAllCauseScopeErrors =
+    unsafeRun {
+      val s1 = Stream(1, 2) ++ ZStream(ZManaged.fail("Boom"))
+      val s2 = Stream(3, 4)
+
+      s1.catchAllCause(_ => s2).runCollect.map(_ must_=== List(1, 2, 3, 4))
+    }
 
   private def collect = unsafeRun {
     Stream(Left(1), Right(2), Left(3)).collect {
@@ -1031,6 +1166,63 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     result must_=== Success(c.toSeq.toList)
   }
 
+  private def groupByValues =
+    unsafeRun {
+      val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+      Stream
+        .fromIterable(words)
+        .groupByKey(identity, 8192) {
+          case (k, s) =>
+            s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
+              .take(1)
+              .map((k -> _))
+        }
+        .runCollect
+        .map(_.toMap must_=== (0 to 100).map((_.toString -> 1000)).toMap)
+    }
+
+  private def groupByFirst =
+    unsafeRun {
+      val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+      Stream
+        .fromIterable(words)
+        .groupByKey(identity, 1050)
+        .first(2) {
+          case (k, s) =>
+            s.transduce(Sink.foldLeft[String, Int](0) { case (acc: Int, _: String) => acc + 1 })
+              .take(1)
+              .map((k -> _))
+        }
+        .runCollect
+        .map(_.toMap must_=== (0 to 1).map((_.toString -> 1000)).toMap)
+    }
+
+  private def groupByFilter =
+    unsafeRun {
+      val words = List.fill(1000)(0 to 100).flatten
+      Stream
+        .fromIterable(words)
+        .groupByKey(identity, 1050)
+        .filter(_ <= 5) {
+          case (k, s) =>
+            s.transduce(Sink.foldLeft[Int, Int](0) { case (acc, _) => acc + 1 })
+              .take(1)
+              .map((k -> _))
+        }
+        .runCollect
+        .map(_.toMap must_=== (0 to 5).map((_ -> 1000)).toMap)
+    }
+
+  private def groupByErrorsOuter =
+    unsafeRun {
+      val words = List("abc", "test", "test", "foo")
+      (Stream.fromIterable(words) ++ Stream.fail("Boom"))
+        .groupByKey(identity) { case (_, s) => s.drain }
+        .runCollect
+        .either
+        .map(_ must_=== Left("Boom"))
+    }
+
   private def map =
     prop { (s: Stream[String, Byte], f: Byte => Int) =>
       unsafeRunSync(s.map(f).runCollect) must_=== unsafeRunSync(s.runCollect.map(_.map(f)))
@@ -1081,6 +1273,15 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       }
     }
   }
+
+  private def mapMParOrder =
+    nonFlaky {
+      for {
+        queue  <- Queue.unbounded[Int]
+        _      <- Stream.range(0, 9).mapMPar(1)(queue.offer).runDrain
+        result <- queue.takeAll
+      } yield result must_== result.sorted
+    }
 
   private def mapMParInterruptionPropagation = unsafeRun {
     for {
@@ -1163,6 +1364,64 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       .either
       .map(_ must_=== Left("Ouch"))
   }
+
+  private def partitionEitherValues =
+    unsafeRun {
+      Stream
+        .range(0, 5)
+        .partitionEither { i =>
+          if (i % 2 == 0) ZIO.succeed(Left(i))
+          else ZIO.succeed(Right(i))
+        }
+        .use {
+          case (s1, s2) =>
+            for {
+              out1 <- s1.runCollect
+              out2 <- s2.runCollect
+            } yield (out1 must_=== List(0, 2, 4)) && (out2 must_=== List(1, 3, 5))
+        }
+    }
+
+  private def partitionEitherErrors =
+    unsafeRun {
+      (Stream.range(0, 1) ++ Stream.fail("Boom")).partitionEither { i =>
+        if (i % 2 == 0) ZIO.succeed(Left(i))
+        else ZIO.succeed(Right(i))
+      }.use {
+        case (s1, s2) =>
+          for {
+            out1 <- s1.runCollect.either
+            out2 <- s2.runCollect.either
+          } yield (out1 must_=== Left("Boom")) && (out2 must_=== Left("Boom"))
+      }
+    }
+
+  private def partitionEitherBackPressure =
+    unsafeRun {
+      Stream
+        .range(0, 5)
+        .partitionEither({ i =>
+          if (i % 2 == 0) ZIO.succeed(Left(i))
+          else ZIO.succeed(Right(i))
+        }, 1)
+        .use {
+          case (s1, s2) =>
+            for {
+              ref       <- Ref.make[List[Int]](Nil)
+              latch1    <- Promise.make[Nothing, Unit]
+              fib       <- s1.tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2)).runDrain.fork
+              _         <- latch1.await
+              snapshot1 <- ref.get
+              other     <- s2.runCollect
+              _         <- fib.await
+              snapshot2 <- ref.get
+            } yield (snapshot1 must_=== List(2, 0)) && (snapshot2 must_=== List(4, 2, 0)) && (other must_=== List(
+              1,
+              3,
+              5
+            ))
+        }
+    }
 
   private def peel = unsafeRun {
     val s      = Stream('1', '2', ',', '3', '4')
@@ -1354,6 +1613,26 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       .take(2)
       .runCollect must_=== List(1, 2)
   }
+
+  private def timeoutSucceed =
+    unsafeRun {
+      Stream
+        .succeed(1)
+        .timeout(Duration.Infinity)
+        .runCollect
+        .map(_ must_=== List(1))
+    }
+
+  private def timeoutInterrupt =
+    unsafeRun {
+      Stream
+        .range(0, 5)
+        .tap(_ => ZIO.sleep(Duration.Infinity))
+        .timeout(Duration.Zero)
+        .runDrain
+        .ignore
+        .map(_ => true must_=== true)
+    }
 
   private def toQueue = prop { c: Chunk[Int] =>
     val s = Stream.fromChunk(c)

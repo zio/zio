@@ -43,4 +43,7 @@ abstract class TestRuntime(implicit ee: org.specs2.concurrent.ExecutionEnv)
       case (acc, _) =>
         acc and unsafeRun(v)
     }
+
+  def unsafeRunWith[R, E, A](r: UIO[R])(zio: ZIO[R, E, A]): A =
+    unsafeRun(r.flatMap[Any, E, A](zio.provide))
 }

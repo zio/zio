@@ -110,7 +110,7 @@ object Sink {
   /**
    * see [[ZSink.foldLeft]]
    */
-  final def foldLeft[A0, A, S](z: S)(f: (S, A) => S): Sink[Nothing, A0, A, S] =
+  final def foldLeft[A, S](z: S)(f: (S, A) => S): Sink[Nothing, Nothing, A, S] =
     ZSink.foldLeft(z)(f)
 
   /**
@@ -195,6 +195,16 @@ object Sink {
    */
   final def read1[E, A](e: Option[A] => E)(p: A => Boolean): Sink[E, A, A, A] =
     ZSink.read1(e)(p)
+
+  /**
+   * see [[ZSink.splitLines]]
+   */
+  final val splitLines: Sink[Nothing, String, String, Chunk[String]] = ZSink.splitLines
+
+  /**
+   * see [[ZSink.splitLinesChunk]]
+   */
+  final val splitLinesChunk: Sink[Nothing, Chunk[String], Chunk[String], Chunk[String]] = ZSink.splitLinesChunk
 
   /**
    * see [[ZSink.succeed]]

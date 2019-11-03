@@ -8,6 +8,7 @@ import scala.collection.mutable
 import scala.util.Try
 import zio.Cause.{ die, fail, interrupt, Both }
 import zio.duration._
+import zio.test.mock.MockClock
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -36,6 +37,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Create a non-empty list of Ints:
       `IO.foldLeft` with a failing step function returns a failed IO. $t11
    Check done lifts exit result into IO. $testDone
+   Check `catchSomeCause` catches matching cause $testCatchSomeCauseMatch
+   Check `catchSomeCause` halts if cause doesn't match $testCatchSomeCauseNoMatch
    Check `when` executes correct branch only. $testWhen
    Check `whenM` executes condition effect and correct branch. $testWhenM
    Check `whenCase` executes correct branch only. $testWhenCase
@@ -193,6 +196,20 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRunSync(IO.done(failed)) must_=== Exit.fail(error)
   }
 
+  private def testCatchSomeCauseMatch =
+    unsafeRun {
+      ZIO.interrupt.catchSomeCause {
+        case c if (c.interrupted) => ZIO.succeed(true)
+      }.sandbox.map(_ must_=== true)
+    }
+
+  private def testCatchSomeCauseNoMatch =
+    unsafeRun {
+      ZIO.interrupt.catchSomeCause {
+        case c if (!c.interrupted) => ZIO.succeed(true)
+      }.sandbox.either.map(_ must_=== Left(Cause.interrupt))
+    }
+
   def testWhen =
     unsafeRun(
       for {
@@ -307,15 +324,17 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
   }
 
-  def testCached = flaky {
+  def testCached = unsafeRunWith(MockClock.make(MockClock.DefaultData)) {
     def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
     for {
       ref   <- Ref.make(0)
-      cache <- incrementAndGet(ref).cached(100.milliseconds)
+      cache <- incrementAndGet(ref).cached(60.minutes)
       a     <- cache
+      _     <- MockClock.adjust(59.minutes)
       b     <- cache
-      _     <- clock.sleep(100.milliseconds)
+      _     <- MockClock.adjust(1.minute)
       c     <- cache
+      _     <- MockClock.adjust(59.minutes)
       d     <- cache
     } yield (a must_=== b) and (b must_!== c) and (c must_=== d)
   }

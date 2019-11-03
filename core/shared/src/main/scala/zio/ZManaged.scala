@@ -397,6 +397,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
 
   /**
+   * Returns an effect whose full failure is mapped by the specified `f` function.
+   */
+  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
+    ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
+
+  /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
    * the existing finalizers.
    */
@@ -791,7 +797,7 @@ object ZManaged {
    * specified text message. This method can be used for terminating a fiber
    * because a defect has been detected in the code.
    */
-  final def dieMessage(message: String): ZManaged[Any, Throwable, Nothing] = die(new RuntimeException(message))
+  final def dieMessage(message: String): ZManaged[Any, Nothing, Nothing] = die(new RuntimeException(message))
 
   /**
    * Returns an effect from a [[zio.Exit]] value.
@@ -831,6 +837,24 @@ object ZManaged {
    */
   final def finalizerExit[R](f: Exit[_, _] => ZIO[R, Nothing, Any]): ZManaged[R, Nothing, Unit] =
     ZManaged.reserve(Reservation(ZIO.unit, f))
+
+  /**
+   * Creates an effect that executes a finalizer stored in a [[Ref]]. The `Ref`
+   * is yielded as the result of the effect, allowing for control flows that require
+   * mutating finalizers.
+   */
+  final def finalizerRef[R](
+    initial: Exit[_, _] => ZIO[R, Nothing, Any]
+  ): ZManaged[R, Nothing, Ref[Exit[_, _] => ZIO[R, Nothing, Any]]] =
+    ZManaged {
+      for {
+        ref <- Ref.make(initial)
+        reservation = Reservation(
+          acquire = ZIO.succeed(ref),
+          release = e => ref.get.flatMap(_.apply(e))
+        )
+      } yield reservation
+    }
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -948,7 +972,7 @@ object ZManaged {
    * Lifts an `Either` into a `ZManaged` value.
    */
   final def fromEither[E, A](v: => Either[E, A]): ZManaged[Any, E, A] =
-    succeed(v).flatMap(_.fold(fail, succeed))
+    effectTotal(v).flatMap(_.fold(fail, succeed))
 
   /**
    * Lifts a function `R => A` into a `ZManaged[R, Nothing, A]`.
@@ -1189,7 +1213,7 @@ object ZManaged {
    * Returns a lazily constructed Managed.
    */
   final def suspend[R, E, A](zManaged: => ZManaged[R, E, A]): ZManaged[R, E, A] =
-    flatten(succeed(zManaged))
+    flatten(effectTotal(zManaged))
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.

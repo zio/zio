@@ -19,7 +19,8 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-import scala.language.postfixOps
+
+import scala.collection.mutable
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -407,6 +408,22 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   final def filterNotM[E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R, E1, A0, A1, B] =
     filterM(a => f(a).map(!_))
 
+  final def keyed[A1 <: A, K](f: A1 => K): ZSink[R, E, (K, A0), A1, Map[K, B]] =
+    new ZSink[R, E, (K, A0), A1, Map[K, B]] {
+      type State = Map[K, self.State]
+
+      val initial: ZIO[R, E, Step[State, Nothing]] =
+        self.initial.map(Step.leftMap(_)(default => Map[K, self.State]().withDefaultValue(default)))
+
+      def step(state: State, a: A1): ZIO[R, E, Step[State, (K, A0)]] = {
+        val k = f(a)
+        self.step(state(k), a).map(Step.bimap(_)(s1 => state + (k -> s1), b => (k, b)))
+      }
+
+      def extract(state: State): ZIO[R, E, Map[K, B]] =
+        ZIO.foreach(state.toList)(s => self.extract(s._2).map((s._1 -> _))).map(_.toMap)
+    }
+
   /**
    * Maps the value produced by this sink.
    */
@@ -469,7 +486,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * A named alias for `?`.
    */
-  final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self ?
+  final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self.?
 
   /**
    * Runs both sinks in parallel on the same input. If the left one succeeds,
@@ -769,6 +786,30 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
           case rights @ (Right(_), Right(_))  => Step.more(rights.asInstanceOf[State])
         }
       }
+    }
+
+  /**
+   * Times the invocation of the sink
+   */
+  final def timed: ZSink[R with Clock, E, A0, A, (Duration, B)] =
+    new ZSink[R with Clock, E, A0, A, (Duration, B)] {
+      type State = (Long, Long, self.State)
+      val initial = for {
+        step <- self.initial
+        t    <- zio.clock.nanoTime
+      } yield Step.leftMap(step)((t, 0L, _))
+
+      def step(state: State, a: A): ZIO[R with Clock, E, Step[State, A0]] = state match {
+        case (t, total, st) =>
+          for {
+            step <- self
+                     .step(st, a)
+            now <- zio.clock.nanoTime
+            t1  = now - t
+          } yield Step.leftMap(step)((now, total + t1, _))
+      }
+
+      def extract(s: State) = self.extract(s._3).map((Duration.fromNanos(s._2), _))
     }
 
   /**
@@ -1089,12 +1130,12 @@ object ZSink extends ZSinkPlatformSpecific {
   /**
    * Creates a sink by folding over a structure of type `S`.
    */
-  final def foldLeft[A0, A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, A0, A, S] =
-    new SinkPure[Nothing, A0, A, S] {
+  final def foldLeft[A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, Nothing, A, S] =
+    new SinkPure[Nothing, Nothing, A, S] {
       type State = S
-      val initialPure                           = Step.more(z)
-      def stepPure(s: S, a: A): Step[S, A0]     = Step.more(f(s, a))
-      def extractPure(s: S): Either[Nothing, S] = Right(s)
+      val initialPure                            = Step.more(z)
+      def stepPure(s: S, a: A): Step[S, Nothing] = Step.more(f(s, a))
+      def extractPure(s: S): Either[Nothing, S]  = Right(s)
     }
 
   /**
@@ -1254,7 +1295,7 @@ object ZSink extends ZSinkPlatformSpecific {
         case None =>
           val sink = input(a)
 
-          sink.initial.map(state => Step.more(Some((sink, state))))
+          sink.initial.map(state => Step.more(Some((sink, Step.state(state)))))
 
         case Some((sink, state)) =>
           sink.step(state.asInstanceOf[sink.State], a).map(Step.leftMap(_)(state => Some(sink -> state)))
@@ -1292,6 +1333,78 @@ object ZSink extends ZSinkPlatformSpecific {
           case Left(e)        => Left(e)
         }
     }
+
+  /**
+   * Splits strings on newlines. Handles both `\r\n` and `\n`.
+   */
+  final val splitLines: ZSink[Any, Nothing, String, String, Chunk[String]] =
+    new SinkPure[Nothing, String, String, Chunk[String]] {
+      type State = (Chunk[String], Option[String], Boolean)
+
+      override val initialPure: Step[State, Nothing] = Step.more((Chunk.empty, None, false))
+
+      override def stepPure(s: State, a: String): Step[State, String] = {
+        val accumulatedLines = s._1
+        val concat           = s._2.getOrElse("") + a
+        val wasSplitCRLF     = s._3
+
+        if (concat.isEmpty) Step.more(s)
+        else {
+          val buf = mutable.ArrayBuffer[String]()
+
+          var i =
+            // If we had a split CRLF, we start reading from the last character of the
+            // leftover (which was the '\r')
+            if (wasSplitCRLF) s._2.map(_.length).getOrElse(1) - 1
+            // Otherwise we just skip over the entire previous leftover as it doesn't
+            // contain a newline.
+            else s._2.map(_.length).getOrElse(0)
+
+          var sliceStart = 0
+          var splitCRLF  = false
+
+          while (i < concat.length) {
+            if (concat(i) == '\n') {
+              buf += concat.substring(sliceStart, i)
+              i += 1
+              sliceStart = i
+            } else if (concat(i) == '\r' && (i + 1 < concat.length) && (concat(i + 1) == '\n')) {
+              buf += concat.substring(sliceStart, i)
+              i += 2
+              sliceStart = i
+            } else if (concat(i) == '\r' && (i == concat.length - 1)) {
+              splitCRLF = true
+              i += 1
+            } else {
+              i += 1
+            }
+          }
+
+          if (buf.isEmpty) Step.more((accumulatedLines, Some(concat), splitCRLF))
+          else {
+            val newLines = Chunk.fromArray(buf.toArray[String])
+            val leftover = concat.substring(sliceStart, concat.length)
+
+            if (splitCRLF) Step.more((accumulatedLines ++ newLines, Some(leftover), splitCRLF))
+            else
+              Step.done(
+                (accumulatedLines ++ newLines, None, splitCRLF),
+                if (leftover.nonEmpty) Chunk.single(leftover) else Chunk.empty
+              )
+          }
+        }
+      }
+
+      override def extractPure(s: State): Either[Nothing, Chunk[String]] =
+        Right(s._1 ++ s._2.map(Chunk.single(_)).getOrElse(Chunk.empty))
+    }
+
+  /**
+   * Merges chunks of strings and splits them on newlines. Handles both
+   * `\r\n` and `\n`.
+   */
+  final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
+    splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
 
   /**
    * Creates a single-value sink from a value.

@@ -16,20 +16,25 @@
 
 package zio.test.mock
 
-import zio._
+import zio.{ DefaultRuntime, Managed }
 import zio.scheduler.Scheduler
+import zio.test.Sized
 
 case class MockEnvironment(
   clock: MockClock.Mock,
   console: MockConsole.Mock,
+  live: Live.Service[DefaultRuntime#Environment],
   random: MockRandom.Mock,
   scheduler: MockClock.Mock,
+  sized: Sized.Service[Any],
   system: MockSystem.Mock
-) extends MockClock
+) extends Live[DefaultRuntime#Environment]
+    with MockClock
     with MockConsole
     with MockRandom
-    with Scheduler
     with MockSystem
+    with Scheduler
+    with Sized
 
 object MockEnvironment {
 
@@ -38,8 +43,10 @@ object MockEnvironment {
       for {
         clock   <- MockClock.makeMock(MockClock.DefaultData)
         console <- MockConsole.makeMock(MockConsole.DefaultData)
+        live    <- Live.makeService(new DefaultRuntime {}.Environment)
         random  <- MockRandom.makeMock(MockRandom.DefaultData)
+        size    <- Sized.makeService(100)
         system  <- MockSystem.makeMock(MockSystem.DefaultData)
-      } yield new MockEnvironment(clock, console, random, clock, system)
+      } yield new MockEnvironment(clock, console, live, random, clock, size, system)
     }
 }

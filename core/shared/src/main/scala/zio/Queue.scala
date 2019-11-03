@@ -77,7 +77,7 @@ object Queue {
       p.unsafeDone(IO.succeed(a))
 
     sealed trait Strategy[A] {
-      def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean]
+      def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A], checkShutdownState: UIO[Unit]): UIO[Boolean]
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit
 
@@ -87,7 +87,11 @@ object Queue {
     }
 
     case class Sliding[A]() extends Strategy[A] {
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = {
+      final def handleSurplus(
+        as: List[A],
+        queue: MutableConcurrentQueue[A],
+        checkShutdownState: UIO[Unit]
+      ): UIO[Boolean] = {
         @tailrec
         def unsafeSlidingOffer(as: List[A]): Unit =
           as match {
@@ -111,7 +115,11 @@ object Queue {
 
     case class Dropping[A]() extends Strategy[A] {
       // do nothing, drop the surplus
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = IO.succeed(false)
+      final def handleSurplus(
+        as: List[A],
+        queue: MutableConcurrentQueue[A],
+        checkShutdownState: UIO[Unit]
+      ): UIO[Boolean] = IO.succeed(false)
 
       final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
 
@@ -131,7 +139,11 @@ object Queue {
         ()
       }
 
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] =
+      final def handleSurplus(
+        as: List[A],
+        queue: MutableConcurrentQueue[A],
+        checkShutdownState: UIO[Unit]
+      ): UIO[Boolean] =
         UIO.effectSuspendTotal {
           @tailrec
           def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
@@ -150,7 +162,7 @@ object Queue {
             _ <- (IO.effectTotal {
                   unsafeOffer(as, p)
                   unsafeOnQueueEmptySpace(queue)
-                } *> p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
+                } *> checkShutdownState *> p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
           } yield true
         }
 
@@ -251,7 +263,7 @@ object Queue {
                                 }
                       res <- if (surplus.isEmpty) IO.succeed(true)
                             else
-                              strategy.handleSurplus(surplus, queue) <*
+                              strategy.handleSurplus(surplus, queue, checkShutdownState) <*
                                 IO.effectTotal(unsafeCompleteTakers())
                     } yield res
                   } else IO.succeed(true)
@@ -292,7 +304,7 @@ object Queue {
                   a <- (IO.effectTotal {
                         takers.offer(p)
                         unsafeCompleteTakers()
-                      } *> p.await).onInterrupt(removeTaker(p))
+                      } *> checkShutdownState *> p.await).onInterrupt(removeTaker(p))
                 } yield a
         } yield a
       }

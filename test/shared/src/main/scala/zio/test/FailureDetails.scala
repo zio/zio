@@ -23,6 +23,6 @@ import zio.Cause
  */
 sealed trait FailureDetails
 object FailureDetails {
-  final case class Predicate(fragment: PredicateValue, whole: PredicateValue) extends FailureDetails
+  final case class Assertion(fragment: AssertionValue, whole: AssertionValue) extends FailureDetails
   final case class Runtime(cause: Cause[Any])                                 extends FailureDetails
 }

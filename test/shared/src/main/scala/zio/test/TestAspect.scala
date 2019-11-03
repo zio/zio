@@ -16,10 +16,12 @@
 
 package zio.test
 
-import zio.{ Cause, ZIO, ZManaged, ZSchedule }
+import java.util.concurrent.TimeoutException
+
+import zio.{ clock, Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration.Duration
 import zio.clock.Clock
-import java.util.concurrent.TimeoutException
+import zio.test.mock.Live
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -166,7 +168,7 @@ object TestAspect {
   val ignore: TestAspectPoly =
     new TestAspect.PerTest[Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
-        ZIO.succeed(Assertion.Ignore)
+        ZIO.succeed(AssertResult.Ignore)
     }
 
   /**
@@ -183,12 +185,26 @@ object TestAspect {
   /**
    * An aspect that retries failed tests according to a schedule.
    */
-  def retry[R0, E0](schedule: ZSchedule[R0, E0, Any]): TestAspect[Nothing, R0 with Clock, Nothing, E0] =
-    new TestAspect.PerTest[Nothing, R0 with Clock, Nothing, E0] {
-      def perTest[R >: Nothing <: R0 with Clock, E >: Nothing <: E0](
+  def retry[R0, E0](schedule: ZSchedule[R0, E0, Any]): TestAspect[Nothing, R0 with Live[Clock], Nothing, E0] =
+    new TestAspect.PerTest[Nothing, R0 with Live[Clock], Nothing, E0] {
+      def perTest[R >: Nothing <: R0 with Live[Clock], E >: Nothing <: E0](
         test: ZIO[R, E, TestResult]
-      ): ZIO[R, E, TestResult] =
-        test.retry(schedule: ZSchedule[R0, E0, Any])
+      ): ZIO[R, E, TestResult] = {
+        def loop(state: schedule.State): ZIO[R with Live[Clock], E, TestResult] =
+          test.foldM(
+            err =>
+              schedule
+                .update(err, state)
+                .flatMap(
+                  decision =>
+                    if (decision.cont) Live.live(clock.sleep(decision.delay)) *> loop(decision.state)
+                    else ZIO.fail(err)
+                ),
+            succ => ZIO.succeed(succ)
+          )
+
+        schedule.initial.flatMap(loop)
+      }
     }
 
   /**
@@ -199,12 +215,14 @@ object TestAspect {
   /**
    * An aspect that times out tests using the specified duration.
    */
-  def timeout(duration: Duration): TestAspect[Nothing, Clock, Nothing, Any] =
-    new TestAspect.PerTest[Nothing, Clock, Nothing, Any] {
-      def perTest[R >: Nothing <: Clock, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
-        test.timeout(duration).map {
+  def timeout(duration: Duration): TestAspect[Nothing, Live[Clock], Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[Clock], Nothing, Any] {
+      def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any](
+        test: ZIO[R, E, TestResult]
+      ): ZIO[R, E, TestResult] =
+        Live.withLive(test)(_.timeout(duration)).map {
           case None =>
-            Assertion
+            AssertResult
               .failure(FailureDetails.Runtime(Cause.fail(new TimeoutException(s"Timeout of ${duration} exceeded"))))
           case Some(v) => v
         }
@@ -222,5 +240,4 @@ object TestAspect {
         case Spec.TestCase(label, test)  => Spec.TestCase(label, if (predicate(label)) perTest(test) else test)
       }
   }
-
 }
