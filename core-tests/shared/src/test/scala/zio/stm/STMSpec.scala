@@ -8,7 +8,7 @@ import zio.test.TestAspect.nonFlaky
 import STMSpecUtil._
 
 object STMSpec
-    extends DefaultRunnableSpec(
+    extends ZIOBaseSpec(
       suite("STMSpec")(
         suite("Using `STM.atomically` to perform different computations and call:")(
           testM("`STM.succeed` to make a successful computation and check the value") {
@@ -392,10 +392,9 @@ object STMSpec
               _        <- r0.update(_ + 1).flatMap(_ => r1.update(_ + 1)).commit
               sum      <- sumFiber.join
             } yield assert(sum, equalTo(0) || equalTo(2))
-          } @@ nonFlaky(100000)
+          } @@ nonFlaky(5000)
         }
-      ),
-      List(TestAspect.timeout(10.minutes))
+      )
     )
 
 object STMSpecUtil {
