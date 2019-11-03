@@ -376,7 +376,7 @@ object StreamSpec
           testM("error") {
             (Stream(1, 2, 3, 4, 5) ++ Stream.fail("broken"))
               .chunkN(3)
-              .catchAll(_ => Stream(Chunk(6)))
+              .catchAll(_ => ZStreamChunk.succeed(Chunk(6)))
               .runCollect
               .map(assert(_, equalTo(List(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6)))))
           }
