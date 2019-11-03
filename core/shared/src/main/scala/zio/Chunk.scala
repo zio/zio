@@ -797,9 +797,7 @@ object Chunk {
     case x: VectorChunk[A] => x.classTag
   }
 
-  private sealed trait Arr[A] extends Chunk[A] {
-    val array: Array[A]
-
+  private sealed abstract class Arr[A](val array: Array[A]) extends Chunk[A] {
     implicit val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
 
     override def collect[B](p: PartialFunction[A, B]): Chunk[B] = {
@@ -1029,55 +1027,55 @@ object Chunk {
     }
   }
 
-  private case class RefArr[A](override val array: Array[A]) extends Arr[A] {
+  private case class RefArr[A](override val array: Array[A]) extends Arr[A](array) {
     override def apply(n: Int): A = array(n)
 
     override def foreach(f: A => Unit): Unit = array.foreach(f)
   }
 
-  private case class BooleanArr(override val array: Array[Boolean]) extends Arr[Boolean] {
+  private case class BooleanArr(override val array: Array[Boolean]) extends Arr[Boolean](array) {
     override def apply(n: Int): Boolean = array(n)
 
     override def foreach(f: Boolean => Unit): Unit = array.foreach(f)
   }
 
-  private case class ByteArr(override val array: Array[Byte]) extends Arr[Byte] {
+  private case class ByteArr(override val array: Array[Byte]) extends Arr[Byte](array) {
     override def apply(n: Int): Byte = array(n)
 
     override def foreach(f: Byte => Unit): Unit = array.foreach(f)
   }
 
-  private case class CharArr(override val array: Array[Char]) extends Arr[Char] {
+  private case class CharArr(override val array: Array[Char]) extends Arr[Char](array) {
     override def apply(n: Int): Char = array(n)
 
     override def foreach(f: Char => Unit): Unit = array.foreach(f)
   }
 
-  private case class DoubleArr(override val array: Array[Double]) extends Arr[Double] {
+  private case class DoubleArr(override val array: Array[Double]) extends Arr[Double](array) {
     override def apply(n: Int): Double = array(n)
 
     override def foreach(f: Double => Unit): Unit = array.foreach(f)
   }
 
-  private case class FloatArr(override val array: Array[Float]) extends Arr[Float] {
+  private case class FloatArr(override val array: Array[Float]) extends Arr[Float](array) {
     override def apply(n: Int): Float = array(n)
 
     override def foreach(f: Float => Unit): Unit = array.foreach(f)
   }
 
-  private case class IntArr(override val array: Array[Int]) extends Arr[Int] {
+  private case class IntArr(override val array: Array[Int]) extends Arr[Int](array) {
     override def apply(n: Int): Int = array(n)
 
     override def foreach(f: Int => Unit): Unit = array.foreach(f)
   }
 
-  private case class LongArr(override val array: Array[Long]) extends Arr[Long] {
+  private case class LongArr(override val array: Array[Long]) extends Arr[Long](array) {
     override def apply(n: Int): Long = array(n)
 
     override def foreach(f: Long => Unit): Unit = array.foreach(f)
   }
 
-  private case class ShortArr(override val array: Array[Short]) extends Arr[Short] {
+  private case class ShortArr(override val array: Array[Short]) extends Arr[Short](array) {
     override def apply(n: Int): Short = array(n)
 
     override def foreach(f: Short => Unit): Unit = array.foreach(f)
@@ -1122,9 +1120,7 @@ object Chunk {
     override def toArray[A1](implicit tag: ClassTag[A1]): Array[A1] = Array.empty
   }
 
-  private sealed trait Singleton[A] extends Chunk[A] {
-    val a: A
-
+  private sealed abstract class Singleton[A](a: A) extends Chunk[A] {
     implicit val classTag: ClassTag[A] = Tags.fromValue(a)
 
     override val length: Int = 1
@@ -1133,7 +1129,7 @@ object Chunk {
       dest(n) = a
   }
 
-  private case class RefSingleton[A](override val a: A) extends Singleton[A] {
+  private case class RefSingleton[A](a: A) extends Singleton[A](a) {
     override def apply(n: Int): A =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
@@ -1141,7 +1137,7 @@ object Chunk {
     override def foreach(f: A => Unit): Unit = f(a)
   }
 
-  private case class BooleanSingleton(override val a: Boolean) extends Singleton[Boolean] {
+  private case class BooleanSingleton(a: Boolean) extends Singleton[Boolean](a) {
     override def apply(n: Int): Boolean =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
@@ -1149,7 +1145,7 @@ object Chunk {
     override def foreach(f: Boolean => Unit): Unit = f(a)
   }
 
-  private case class ByteSingleton(override val a: Byte) extends Singleton[Byte] {
+  private case class ByteSingleton(a: Byte) extends Singleton[Byte](a) {
     override def apply(n: Int): Byte =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
@@ -1157,7 +1153,7 @@ object Chunk {
     override def foreach(f: Byte => Unit): Unit = f(a)
   }
 
-  private case class CharSingleton(override val a: Char) extends Singleton[Char] {
+  private case class CharSingleton(a: Char) extends Singleton[Char](a) {
     override def apply(n: Int): Char =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
@@ -1165,7 +1161,7 @@ object Chunk {
     override def foreach(f: Char => Unit): Unit = f(a)
   }
 
-  private case class DoubleSingleton(override val a: Double) extends Singleton[Double] {
+  private case class DoubleSingleton(a: Double) extends Singleton[Double](a) {
     override def apply(n: Int): Double =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
@@ -1173,7 +1169,7 @@ object Chunk {
     override def foreach(f: Double => Unit): Unit = f(a)
   }
 
-  private case class FloatSingleton(override val a: Float) extends Singleton[Float] {
+  private case class FloatSingleton(a: Float) extends Singleton[Float](a) {
     override def apply(n: Int): Float =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
@@ -1181,7 +1177,7 @@ object Chunk {
     override def foreach(f: Float => Unit): Unit = f(a)
   }
 
-  private case class IntSingleton(override val a: Int) extends Singleton[Int] {
+  private case class IntSingleton(a: Int) extends Singleton[Int](a) {
     override def apply(n: Int): Int =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
@@ -1189,7 +1185,7 @@ object Chunk {
     override def foreach(f: Int => Unit): Unit = f(a)
   }
 
-  private case class LongSingleton(override val a: Long) extends Singleton[Long] {
+  private case class LongSingleton(a: Long) extends Singleton[Long](a) {
     override def apply(n: Int): Long =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
@@ -1197,7 +1193,7 @@ object Chunk {
     override def foreach(f: Long => Unit): Unit = f(a)
   }
 
-  private case class ShortSingleton(override val a: Short) extends Singleton[Short] {
+  private case class ShortSingleton(a: Short) extends Singleton[Short](a) {
     override def apply(n: Int): Short =
       if (n == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
