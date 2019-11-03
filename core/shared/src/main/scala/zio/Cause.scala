@@ -51,14 +51,12 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
   /**
    * Determines if the `Cause` contains a non-recoverable error.
    */
-  final def died: Boolean =
-    fold(false) { case (acc, Die(_)) => acc || true }
+  final def died: Boolean = fold(false) { case (acc, _ : Die) => acc || true }
 
   /**
    * Determines if the `Cause` contains a recoverable failure `E`.
    */
-  final def failed: Boolean =
-    fold(false) { case (acc, Fail(_)) => acc || true }
+  final def failed: Boolean = fold(false) { case (acc, _ : Fail[_]) => acc || true }
 
   /**
    * Retrieve the first checked error on the `Left` if available,
@@ -97,7 +95,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Determines if the `Cause` contains an interruption.
    */
   final def interrupted: Boolean =
-    fold(false) { case (acc, Interrupt(_)) => acc || true }
+    fold(false) { case (acc, _ : Interrupt) => acc || true }
 
   /**
    * Returns a set of interruptors, fibers that interrupted the fiber described
@@ -112,8 +110,11 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Determines if the `Cause` is empty.
    */
   final def isEmpty: Boolean =
-    (self eq Empty) || fold(false) {
-      case (acc, Empty) => acc || true
+    (self eq Empty) || fold(true) {
+      case (acc, _ : Empty.type) => acc
+      case (_, Die(_)) => false 
+      case (_, Fail(_)) => false 
+      case (_, Interrupt(_)) => false 
     }
 
   /**
@@ -389,7 +390,7 @@ object Cause extends Serializable {
       case other: Cause[_]   => eq(other) || sym(assoc)(other, self) || sym(dist)(self, other)
       case _                 => false
     }
-    override final def hashCode: Int = flatten(self).hashCode
+    override final def hashCode: Int = flattenSeq(self).hashCode
 
     private def eq(that: Cause[_]): Boolean = (self, that) match {
       case (tl: Then[_], tr: Then[_]) => tl.left == tr.left && tl.right == tr.right
@@ -418,7 +419,7 @@ object Cause extends Serializable {
       case other: Cause[_]   => eq(other) || sym(assoc)(self, other) || comm(other)
       case _                 => false
     }
-    override final def hashCode: Int = flatten(self).hashCode
+    override final def hashCode: Int = flattenSet(self).hashCode
 
     private def eq(that: Cause[_]) = (self, that) match {
       case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right
@@ -437,10 +438,15 @@ object Cause extends Serializable {
   private[Cause] def sym(f: (Cause[_], Cause[_]) => Boolean): (Cause[_], Cause[_]) => Boolean =
     (l, r) => f(l, r) || f(r, l)
 
-  private[Cause] def flatten(c: Cause[_]): Set[Cause[_]] = c match {
-    case Then(left, right) => flatten(left) ++ flatten(right)
-    case Both(left, right) => flatten(left) ++ flatten(right)
-    case Traced(cause, _)  => flatten(cause)
+  private[Cause] def flattenSeq(c: Cause[_]): Vector[Cause[_]] = c match {
+    case Then(left, right) => flattenSeq(left) ++ flattenSeq(right)
+    case Traced(cause, _)  => flattenSeq(cause)
+    case o                 => Vector(o)
+  }
+
+  private[Cause] def flattenSet(c: Cause[_]): Set[Cause[_]] = c match {    
+    case Both(left, right) => flattenSet(left) ++ flattenSet(right)
+    case Traced(cause, _)  => flattenSet(cause)
     case o                 => Set(o)
   }
 }

@@ -142,6 +142,15 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
+   * Maps over the cause type.
+   */
+  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): Exit[E1, A] =
+    self match {
+      case e @ Success(_) => e
+      case Failure(c)     => Failure(f(c))
+    }
+
+  /**
    * Determines if the result is a success.
    */
   final def succeeded: Boolean = self match {
@@ -162,6 +171,11 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
    * Discards the value.
    */
   final def unit: Exit[E, Unit] = as(())
+
+  /**
+   * Returns an untraced exit value.
+   */
+  final def untraced: Exit[E, A] = mapErrorCause(_.untraced)
 
   /**
    * Named alias for `<*>`.

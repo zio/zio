@@ -76,7 +76,7 @@ trait Fiber[+E, +A] { self =>
    * @return `UIO[Exit, E, A]]`
    */
   final def interrupt: UIO[Exit[E, A]] =
-    ZIO.descriptor.flatMap(d => interrupt(d.id))
+    ZIO.descriptor.flatMap(d => interruptAs(d.id))
 
   /**
    * Interrupts the fiber as if interrupted from the specified fiber. If the
@@ -85,7 +85,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `UIO[Exit, E, A]]`
    */
-  def interrupt(fiberId: FiberId): UIO[Exit[E, A]]
+  def interruptAs(fiberId: FiberId): UIO[Exit[E, A]]
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
@@ -117,8 +117,8 @@ trait Fiber[+E, +A] { self =>
       def poll: UIO[Option[Exit[E1, A1]]] =
         self.poll.zipWith(that.poll)(_ orElse _)
 
-      def interrupt(id: FiberId): UIO[Exit[E1, A1]] =
-        self.interrupt(id) *> that.interrupt(id)
+      def interruptAs(id: FiberId): UIO[Exit[E1, A1]] =
+        self.interruptAs(id) *> that.interruptAs(id)
 
       def inheritFiberRefs: UIO[Unit] =
         that.inheritFiberRefs *> self.inheritFiberRefs
@@ -147,7 +147,8 @@ trait Fiber[+E, +A] { self =>
           case _                    => None
         }
 
-      def interrupt(id: FiberId): UIO[Exit[E1, C]] = self.interrupt(id).zipWith(that.interrupt)(_.zipWith(_)(f, _ && _))
+      def interruptAs(id: FiberId): UIO[Exit[E1, C]] =
+        self.interruptAs(id).zipWith(that.interruptAs(id))(_.zipWith(_)(f, _ && _))
 
       def inheritFiberRefs: UIO[Unit] = that.inheritFiberRefs *> self.inheritFiberRefs
     }
@@ -239,10 +240,10 @@ trait Fiber[+E, +A] { self =>
    */
   final def map[B](f: A => B): Fiber[E, B] =
     new Fiber[E, B] {
-      def await: UIO[Exit[E, B]]                  = self.await.map(_.map(f))
-      def poll: UIO[Option[Exit[E, B]]]           = self.poll.map(_.map(_.map(f)))
-      def interrupt(id: FiberId): UIO[Exit[E, B]] = self.interrupt(id).map(_.map(f))
-      def inheritFiberRefs: UIO[Unit]             = self.inheritFiberRefs
+      def await: UIO[Exit[E, B]]                    = self.await.map(_.map(f))
+      def poll: UIO[Option[Exit[E, B]]]             = self.poll.map(_.map(_.map(f)))
+      def interruptAs(id: FiberId): UIO[Exit[E, B]] = self.interruptAs(id).map(_.map(f))
+      def inheritFiberRefs: UIO[Unit]               = self.inheritFiberRefs
     }
 
   @deprecated("use as", "1.0.0")
@@ -338,10 +339,10 @@ object Fiber {
    */
   final val never: Fiber[Nothing, Nothing] =
     new Fiber[Nothing, Nothing] {
-      def await: UIO[Exit[Nothing, Nothing]]                  = IO.never
-      def poll: UIO[Option[Exit[Nothing, Nothing]]]           = IO.succeed(None)
-      def interrupt(id: FiberId): UIO[Exit[Nothing, Nothing]] = IO.never
-      def inheritFiberRefs: UIO[Unit]                         = IO.unit
+      def await: UIO[Exit[Nothing, Nothing]]                    = IO.never
+      def poll: UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeed(None)
+      def interruptAs(id: FiberId): UIO[Exit[Nothing, Nothing]] = IO.never
+      def inheritFiberRefs: UIO[Unit]                           = IO.unit
     }
 
   /**
@@ -354,10 +355,10 @@ object Fiber {
    */
   final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
-      def await: UIO[Exit[E, A]]                  = IO.succeed(exit)
-      def poll: UIO[Option[Exit[E, A]]]           = IO.succeed(Some(exit))
-      def interrupt(id: FiberId): UIO[Exit[E, A]] = IO.succeed(exit)
-      def inheritFiberRefs: UIO[Unit]             = IO.unit
+      def await: UIO[Exit[E, A]]                    = IO.succeed(exit)
+      def poll: UIO[Option[Exit[E, A]]]             = IO.succeed(Some(exit))
+      def interruptAs(id: FiberId): UIO[Exit[E, A]] = IO.succeed(exit)
+      def inheritFiberRefs: UIO[Unit]               = IO.unit
 
     }
 
@@ -414,7 +415,7 @@ object Fiber {
    * @return `UIO[Unit]`
    */
   final def interruptAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    ZIO.descriptor.flatMap(d => fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt(d.id)))
+    ZIO.descriptor.flatMap(d => fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(d.id)))
 
   /**
    * Awaits on all fibers to be completed, successfully or not.
@@ -460,7 +461,7 @@ object Fiber {
 
       def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
 
-      def interrupt(id: FiberId): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      def interruptAs(id: FiberId): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
       def inheritFiberRefs: UIO[Unit] = IO.unit
 

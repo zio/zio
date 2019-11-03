@@ -928,17 +928,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * composed effect will fail with some error.
    */
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
-    raceWith(that)(
-      (exit, right) =>
-        exit.foldM[Any, E1, Either[A, B]](
-          _ => right.join.map(Right(_)),
-          a => ZIO.succeedLeft(a) <* right.interrupt
-        ),
-      (exit, left) =>
-        exit.foldM[Any, E1, Either[A, B]](
-          _ => left.join.map(Left(_)),
-          b => ZIO.succeedRight(b) <* left.interrupt
-        )
+    ZIO.descriptor.map(_.id).flatMap(parentFiberId => 
+      raceWith(that)(
+        (exit, right) =>
+          exit.foldM[Any, E1, Either[A, B]](
+            _ => right.join.map(Right(_)),
+            a => ZIO.succeedLeft(a) <* right.interruptAs(parentFiberId)
+          ),
+        (exit, left) =>
+          exit.foldM[Any, E1, Either[A, B]](
+            _ => left.join.map(Left(_)),
+            b => ZIO.succeedRight(b) <* left.interruptAs(parentFiberId)
+          )
+      )
     ).refailWithTrace
 
   /**
@@ -1514,17 +1516,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * either side fails, then the other side will be interrupted.
    */
   final def zipWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] = {
-    def coordinate[A, B](f: (A, B) => C)(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
+    def coordinate[A, B](fiberId: FiberId, f: (A, B) => C)(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
       winner match {
         case Exit.Success(a) => loser.join.map(f(a, _))
         case Exit.Failure(cause) =>
-          loser.interrupt.flatMap {
+          loser.interruptAs(fiberId).flatMap {
             case Exit.Success(_)          => ZIO.halt(cause)
             case Exit.Failure(loserCause) => ZIO.halt(cause && loserCause)
           }
       }
     val g = (b: B, a: A) => f(a, b)
-    (self raceWith that)(coordinate(f), coordinate(g))
+    ZIO.descriptor.map(_.id).flatMap(parentFiberId => 
+      (self raceWith that)(coordinate(parentFiberId, f), coordinate(parentFiberId, g))
+    )
   }
 
   /**

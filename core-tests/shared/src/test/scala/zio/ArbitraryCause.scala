@@ -7,7 +7,8 @@ object ArbitraryCause {
   implicit def arbCause[T](implicit arbT: Arbitrary[T]): Arbitrary[Cause[T]] =
     Arbitrary {
       Gen.oneOf(
-        Arbitrary.arbitrary[Long].map(Cause.interrupt),
+        Gen.const(Cause.empty),
+        Arbitrary.arbitrary[FiberId].map(Cause.interrupt),
         Arbitrary.arbitrary[String].map(s => Cause.die(new RuntimeException(s))),
         arbT.arbitrary.map(Cause.fail),
         Gen.lzy {

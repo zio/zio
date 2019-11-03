@@ -752,7 +752,7 @@ object ZManagedSpec
                 second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
                 _      <- first.zipPar(second).use_(ZIO.unit)
               } yield ()).run
-                .map(assert[Exit[Unit, Unit]](_, equalTo(Exit.Failure(Cause.fail(()) && Cause.interrupt(selfId)))))
+                .map(exit => assert[Exit[Unit, Unit]](exit.untraced, equalTo(Exit.Failure(Cause.fail(()) && Cause.interrupt(selfId)))))
             }
           },
           testM("Run finalizers if one reservation fails") {
@@ -835,7 +835,7 @@ object ZManagedSpecUtil {
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
       interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live).either
-    } yield assert(interruption, isRight(equalTo(expected(selfId))))
+    } yield assert(interruption.map(_.map(_.untraced)), isRight(equalTo(expected(selfId))))
 
   def testFinalizersPar[R, E](
     n: Int,

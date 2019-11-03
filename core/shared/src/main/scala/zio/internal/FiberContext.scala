@@ -517,7 +517,7 @@ private[zio] final class FiberContext[E, A](
             }
           } else {
             // Fiber was interrupted
-            curZio = ZIO.interrupt
+            curZio = ZIO.halt(state.get.interrupted)
           }
 
           opcount = opcount + 1
@@ -601,7 +601,7 @@ private[zio] final class FiberContext[E, A](
     zio => if (neverRan.getAndSet(false) && exitAsync()) evaluateLater(zio)
   }
 
-  final def interrupt(fiberId: FiberId): UIO[Exit[E, A]] = kill0(fiberId)
+  final def interruptAs(fiberId: FiberId): UIO[Exit[E, A]] = kill0(fiberId)
 
   final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
@@ -659,7 +659,7 @@ private[zio] final class FiberContext[E, A](
     val _ = daemonStatus.popOrElse(false)
   }
 
-  private final def propagateAncestorInterruption(): Unit = {
+   final def propagateAncestorInterruption(): Unit = {
     var fiber = self: FiberContext[_, _]
 
     while (fiber ne null) {
@@ -683,7 +683,6 @@ private[zio] final class FiberContext[E, A](
   private[this] final def shouldInterrupt(): Boolean =
     isInterrupted() && isInterruptible()
 
-  @inline
   @tailrec
   private[this] final def addInterruptor(cause: Cause[Nothing]): Unit =
     if (!cause.isEmpty) {
@@ -700,6 +699,7 @@ private[zio] final class FiberContext[E, A](
         case _ =>
       }
     }
+
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
     if (!stack.isEmpty) {
