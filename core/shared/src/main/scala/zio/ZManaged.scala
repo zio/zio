@@ -39,7 +39,7 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-final class ZManaged[-R, +E, +A] private (val reserve: ZIO[R, E, Reservation[R, E, A]]) { self =>
+final class ZManaged[-R, +E, +A] private (val reserve: ZIO[R, E, Reservation[R, E, A]]) extends Serializable { self =>
 
   /**
    * Symbolic alias for zip.
