@@ -1034,6 +1034,20 @@ object StreamSpec
             equalTo(List(List(1, 2), List(3, 4)))
           )
         ),
+        suite("Stream.runHead")(
+          testM("nonempty stream")(
+            assertM(
+              Stream(1, 2, 3, 4).runHead,
+              equalTo(Some(1))
+            )
+          ),
+          testM("empty stream")(
+            assertM(
+              Stream.empty.runHead,
+              equalTo(None)
+            )
+          )
+        ),
         suite("Stream interleaving")(
           testM("interleave") {
             val s1 = Stream(2, 3)
@@ -1079,6 +1093,20 @@ object StreamSpec
         ),
         testM("Stream.iterate")(
           assertM(Stream.iterate(1)(_ + 1).take(10).runCollect, equalTo((1 to 10).toList))
+        ),
+        suite("Stream.runLast")(
+          testM("nonempty stream")(
+            assertM(
+              Stream(1, 2, 3, 4).runLast,
+              equalTo(Some(4))
+            )
+          ),
+          testM("empty stream")(
+            assertM(
+              Stream.empty.runLast,
+              equalTo(None)
+            )
+          )
         ),
         testM("Stream.map")(checkM(pureStreamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
           for {
