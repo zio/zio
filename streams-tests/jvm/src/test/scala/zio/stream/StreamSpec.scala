@@ -13,6 +13,7 @@ import zio.test.Assertion.{
   isFalse,
   isGreaterThan,
   isLeft,
+  isNonEmptyString,
   isRight,
   isTrue,
   isUnit
@@ -362,21 +363,25 @@ object StreamSpec
             assertM(Stream.empty.chunkN(1).runCollect, equalTo(Nil))
           },
           testM("non-positive chunk size") {
-            assertM(Stream(1, 2, 3).chunkN(0).runCollect, equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
+            assertM(Stream(1, 2, 3).chunkN(0).chunks.runCollect, equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
           },
           testM("full last chunk") {
             assertM(
-              Stream(1, 2, 3, 4, 5, 6).chunkN(2).runCollect,
+              Stream(1, 2, 3, 4, 5, 6).chunkN(2).chunks.runCollect,
               equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6)))
             )
           },
           testM("non-full last chunk") {
-            assertM(Stream(1, 2, 3, 4, 5).chunkN(2).runCollect, equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
+            assertM(
+              Stream(1, 2, 3, 4, 5).chunkN(2).chunks.runCollect,
+              equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5)))
+            )
           },
           testM("error") {
             (Stream(1, 2, 3, 4, 5) ++ Stream.fail("broken"))
               .chunkN(3)
-              .catchAll(_ => Stream(Chunk(6)))
+              .catchAll(_ => ZStreamChunk.succeed(Chunk(6)))
+              .chunks
               .runCollect
               .map(assert(_, equalTo(List(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6)))))
           }
@@ -386,10 +391,35 @@ object StreamSpec
             case Right(n) => n
           }.runCollect, equalTo(List(2)))
         },
+        suite("Stream.collectM")(
+          testM("collectM") {
+            assertM(
+              Stream(Left(1), Right(2), Left(3))
+                .collectM[Any, Throwable, Int] {
+                  case Right(n) => ZIO(n * 2)
+                }
+                .runCollect,
+              equalTo(List(4))
+            )
+          },
+          testM("collectM fails") {
+            assertM(
+              Stream(Left(1), Right(2), Left(3))
+                .collectM[Any, String, Int] {
+                  case Right(_) => ZIO.fail("Ouch")
+                }
+                .runDrain
+                .either,
+              isLeft(isNonEmptyString)
+            )
+          }
+        ),
         suite("Stream.collectWhile")(
           testM("collectWhile") {
             assertM(
-              Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) => v }.runCollect,
+              Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile {
+                case Some(v) => v
+              }.runCollect,
               equalTo(List(1, 2, 3))
             )
           },
@@ -397,6 +427,40 @@ object StreamSpec
             assertM((Stream(Option(1)) ++ Stream.fail("Ouch")).collectWhile {
               case None => 1
             }.runDrain.either, isRight(isUnit))
+          }
+        ),
+        suite("Stream.collectWhileM")(
+          testM("collectWhileM") {
+            assertM(
+              Stream(Some(1), Some(2), Some(3), None, Some(4))
+                .collectWhileM[Any, Throwable, Int] {
+                  case Some(v) => ZIO(v * 2)
+                }
+                .runCollect,
+              equalTo(List(2, 4, 6))
+            )
+          },
+          testM("collectWhileM short circuits") {
+            assertM(
+              (Stream(Option(1)) ++ Stream.fail("Ouch"))
+                .collectWhileM[Any, String, Int] {
+                  case None => ZIO.succeed(1)
+                }
+                .runDrain
+                .either,
+              isRight(isUnit)
+            )
+          },
+          testM("collectWhileM fails") {
+            assertM(
+              Stream(Some(1), Some(2), Some(3), None, Some(4))
+                .collectWhileM[Any, String, Int] {
+                  case Some(_) => ZIO.fail("Ouch")
+                }
+                .runDrain
+                .either,
+              isLeft(isNonEmptyString)
+            )
           }
         ),
         suite("Stream.concat")(
