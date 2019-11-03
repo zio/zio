@@ -148,9 +148,15 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
-   * waiting on the value of the promise.
+   * waiting on the value of the promise as by the fiber calling this method.
    */
-  final def interrupt: UIO[Boolean] = completeWith(IO.interrupt)
+  final def interrupt: UIO[Boolean] = ZIO.fiberId.flatMap(id => completeWith(IO.interruptAs(id)))
+
+  /**
+   * Completes the promise with interruption. This will interrupt all fibers
+   * waiting on the value of the promise as by the specified fiber.
+   */
+  final def interruptAs(fiberId: FiberId): UIO[Boolean] = completeWith(IO.interruptAs(fiberId))
 
   /**
    * Checks for completion of this Promise. Produces true if this promise has

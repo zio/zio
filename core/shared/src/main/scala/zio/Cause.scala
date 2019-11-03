@@ -225,6 +225,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         val sw = new StringWriter()
         val pw = new PrintWriter(sw)
         e.printStackTrace(pw)
+        e.printStackTrace()
+        pw.flush()
         lines(sw.toString)
       }
     }
@@ -427,6 +429,7 @@ object Cause extends Serializable {
     override final def equals(that: Any): Boolean = that match {
       case _: Empty.type     => true
       case traced: Traced[_] => this == traced.cause
+      case meta: Meta[_]     => this == meta.cause
       case _                 => false
     }
   }
@@ -531,7 +534,7 @@ object Cause extends Serializable {
       case other: Cause[_]   => eq(other) || sym(assoc)(other, self) || sym(dist)(self, other)
       case _                 => false
     }
-    override final def hashCode: Int = Cause.flattenSeq(self).hashCode
+    override final def hashCode: Int = Cause.flattenSet(self).hashCode // This should call flattenSeq
 
     private def eq(that: Cause[Any]): Boolean = (self, that) match {
       case (tl: Then[_], tr: Then[_]) => tl.left == tr.left && tl.right == tr.right
@@ -612,6 +615,7 @@ object Cause extends Serializable {
 
   private[Cause] def flattenSet(c: Cause[_]): Set[Cause[_]] = c match {
     case Both(left, right) => flattenSet(left) ++ flattenSet(right)
+    case Then(left, right) => flattenSet(left) ++ flattenSet(right) // TODO: This is incorrect
     case Traced(cause, _)  => flattenSet(cause)
     case o                 => Set(o)
   }

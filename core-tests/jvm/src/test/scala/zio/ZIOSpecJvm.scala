@@ -212,7 +212,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   private def testCatchSomeCauseNoMatch =
     unsafeRun {
-      ZIO.descriptor.map(_.id).flatMap { selfId =>
+      ZIO.fiberId.flatMap { selfId =>
         ZIO.interrupt.catchSomeCause {
           case c if (!c.interrupted) => ZIO.succeed(true)
         }.sandbox.either.map(_ must_=== Left(Cause.interrupt(selfId)))

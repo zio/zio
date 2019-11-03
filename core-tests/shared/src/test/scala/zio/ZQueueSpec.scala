@@ -372,17 +372,17 @@ object ZQueueSpec
         },
         testM("shutdown with take fiber") {
           for {
-            selfId <- ZIO.descriptor.map(_.id)
+            selfId <- ZIO.fiberId
             queue  <- Queue.bounded[Int](3)
             f      <- queue.take.fork
             _      <- waitForSize(queue, -1)
             _      <- queue.shutdown
             res    <- f.join.sandbox.either
-          } yield assert(res, isLeft(equalTo(Cause.interrupt(selfId))))
+          } yield assert(res.left.map(_.untraced), isLeft(equalTo(Cause.interrupt(selfId))))
         },
         testM("shutdown with offer fiber") {
           for {
-            selfId <- ZIO.descriptor.map(_.id)
+            selfId <- ZIO.fiberId
             queue  <- Queue.bounded[Int](2)
             _      <- queue.offer(1)
             _      <- queue.offer(1)
@@ -394,7 +394,7 @@ object ZQueueSpec
         },
         testM("shutdown with offer") {
           for {
-            selfId <- ZIO.descriptor.map(_.id)
+            selfId <- ZIO.fiberId
             queue  <- Queue.bounded[Int](1)
             _      <- queue.shutdown
             res    <- queue.offer(1).sandbox.either
@@ -402,7 +402,7 @@ object ZQueueSpec
         },
         testM("shutdown with take") {
           for {
-            selfId <- ZIO.descriptor.map(_.id)
+            selfId <- ZIO.fiberId
             queue  <- Queue.bounded[Int](1)
             _      <- queue.shutdown
             res    <- queue.take.sandbox.either
@@ -410,7 +410,7 @@ object ZQueueSpec
         },
         testM("shutdown with takeAll") {
           for {
-            selfId <- ZIO.descriptor.map(_.id)
+            selfId <- ZIO.fiberId
             queue  <- Queue.bounded[Int](1)
             _      <- queue.shutdown
             res    <- queue.takeAll.sandbox.either
@@ -418,7 +418,7 @@ object ZQueueSpec
         },
         testM("shutdown with takeUpTo") {
           for {
-            selfId <- ZIO.descriptor.map(_.id)
+            selfId <- ZIO.fiberId
             queue  <- Queue.bounded[Int](1)
             _      <- queue.shutdown
             res    <- queue.takeUpTo(1).sandbox.either
@@ -426,7 +426,7 @@ object ZQueueSpec
         },
         testM("shutdown with size") {
           for {
-            selfId <- ZIO.descriptor.map(_.id)
+            selfId <- ZIO.fiberId
             queue  <- Queue.bounded[Int](1)
             _      <- queue.shutdown
             res    <- queue.size.sandbox.either

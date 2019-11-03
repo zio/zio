@@ -1176,8 +1176,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             e
           )
         case None =>
-          (finalizer.get.flatMap(_(Exit.succeed(()))) *> finalizer
-            .set(_ => UIO.unit)).uninterruptible *> pullOuter *> go(as, finalizer, currPull)
+          (finalizer.get.flatMap(_(Exit.succeed(()))) *>
+            finalizer.set(_ => UIO.unit)).uninterruptible *>
+            pullOuter *>
+            go(as, finalizer, currPull)
       }
     }
 

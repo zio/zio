@@ -2057,6 +2057,11 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def fail[E](error: E): IO[E, Nothing] = haltWith(trace => Cause.Traced(Cause.Fail(error), trace()))
 
   /**
+   * Returns the `FiberId` of the fiber executing the effect that calls this method.
+   */
+  final val fiberId: UIO[FiberId] = ZIO.descriptor.map(_.id)
+
+  /**
    * Returns an effect that races this effect with all the specified effects,
    * yielding the value of the first effect to succeed with a value.
    * Losers of the race will be interrupted immediately

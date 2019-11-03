@@ -263,7 +263,7 @@ object STMSpec
             },
             testM("interrupt the fiber and observe it, it should be resumed with Interrupted Cause") {
               for {
-                selfId  <- ZIO.descriptor.map(_.id)
+                selfId  <- ZIO.fiberId
                 v       <- TRef.makeCommit(1)
                 f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
                 _       <- f.interrupt

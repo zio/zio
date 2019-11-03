@@ -749,7 +749,7 @@ object ZManagedSpec
             } yield assert(r, equalTo(1))
           },
           testM("Does not swallow acquisition if one acquisition fails") {
-            ZIO.descriptor.map(_.id).flatMap { selfId =>
+            ZIO.fiberId.flatMap { selfId =>
               (for {
                 latch  <- Promise.make[Nothing, Unit]
                 first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))

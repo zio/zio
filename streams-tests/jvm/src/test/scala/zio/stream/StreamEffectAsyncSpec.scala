@@ -167,7 +167,7 @@ object StreamEffectAsyncSpec
           },
           testM("effectAsyncInterrupt back pressure") {
             for {
-              selfId  <- ZIO.descriptor.map(_.id)
+              selfId  <- ZIO.fiberId
               refCnt  <- Ref.make(0)
               refDone <- Ref.make[Boolean](false)
               stream = ZStream.effectAsyncInterrupt[Any, Throwable, Int](

@@ -815,7 +815,7 @@ object ZIOSpec
               } yield value
 
             assertM(io.provide(Clock.Live), equalTo(2))
-          },
+          } @@ nonFlaky(100),
           testM("race of fail with success") {
             val io = IO.fail(42).race(IO.succeed(24)).either
             assertM(io, isRight(equalTo(24)))
@@ -1091,7 +1091,7 @@ object ZIOSpec
           },
           testM("sandbox of interruptible") {
             for {
-              selfId    <- ZIO.descriptor.map(_.id)
+              selfId    <- ZIO.fiberId
               recovered <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
               fiber <- withLatch { release =>
                         (release *> ZIO.never.interruptible).sandbox.either
