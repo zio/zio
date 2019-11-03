@@ -1644,13 +1644,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Maps over elements of the stream with the specified effectful function,
    * partitioned by `p` executing invocations of `f` concurrently on up
-   * to `n` partitions. Transformed elements may be reordered but the order within
+   * to `buffer` partitions. Transformed elements may be reordered but the order within
    * a partition is maintained.
    */
   final def mapMPartitioned[R1 <: R, E1 >: E, B, K](
-    n: Int
-  )(p: A => K, f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
-    groupByKey(p, n).apply { case (_, s) => s.mapM(f) }
+    keyBy: A => K,
+    buffer: Int
+  )(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
+    groupByKey(keyBy, buffer).apply { case (_, s) => s.mapM(f) }
 
   /**
    * Merges this stream and the specified stream together.
