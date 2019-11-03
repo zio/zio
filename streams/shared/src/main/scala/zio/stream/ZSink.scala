@@ -1417,7 +1417,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * example:
    * {{{
    * Stream(1, 5, 1)
-   *  .transduce(
+   *  .aggregate(
    *    Sink
    *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
    *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
