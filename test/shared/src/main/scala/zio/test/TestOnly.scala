@@ -5,7 +5,7 @@ import zio.{ Cause, ZIO }
 
 object TestOnly {
   implicit class SpecOps[R, E, L, S](spec: ZSpec[R, E, L, S]) {
-    def only(label: L): ZSpec[R, E, L, S] = only(_ == label)
+    def onlyWith(label: L): ZSpec[R, E, L, S] = only(_ == label)
     def only(p: L => Boolean): ZSpec[R, E, L, S] =
       process(spec, hasLabel(spec, p), p)
 
