@@ -3,9 +3,8 @@ package zio
 import zio.Cause.Interrupt
 import zio.duration._
 import zio.Exit.Failure
-import zio.test._
+import zio.test.{ Gen, testM, _ }
 import zio.test.Assertion._
-import zio.test.Gen
 import zio.test.environment._
 
 object ZManagedSpec
@@ -806,6 +805,43 @@ object ZManagedSpec
               _      <- fib.interrupt
               result <- effects.get
             } yield assert(result, equalTo(List("Second", "First")))
+          }
+        ),
+        suite("catch")(
+          testM("catchAllCause") {
+            val zm: ZManaged[Any, String, String] =
+              for {
+                _ <- ZManaged.succeed("foo")
+                f <- ZManaged.fail("Uh oh!")
+              } yield f
+
+            val errorToVal = zm.catchAllCause(c => ZManaged.succeed(c.failureOption.getOrElse(c.toString)))
+            assertM(errorToVal.use(ZIO.succeed), equalTo("Uh oh!"))
+          },
+          testM("catchAllSomeCause transforms cause if matched") {
+            val zm: ZManaged[Any, String, String] =
+              for {
+                _ <- ZManaged.succeed("foo")
+                f <- ZManaged.fail("Uh oh!")
+              } yield f
+
+            val errorToVal = zm.catchSomeCause {
+              case Cause.Fail("Uh oh!") => ZManaged.succeed("matched")
+            }
+            assertM(errorToVal.use(ZIO.succeed), equalTo("matched"))
+          },
+          testM("catchAllSomeCause keeps the failure cause if not matched") {
+            val zm: ZManaged[Any, String, String] =
+              for {
+                _ <- ZManaged.succeed("foo")
+                f <- ZManaged.fail("Uh oh!")
+              } yield f
+
+            val errorToVal = zm.catchSomeCause {
+              case Cause.Fail("not matched") => ZManaged.succeed("matched")
+            }
+            val executed = errorToVal.use[Any, String, String](ZIO.succeed).run
+            assertM(executed, fails(equalTo("Uh oh!")))
           }
         )
       )
