@@ -22,11 +22,9 @@ import scala.collection.immutable.{ Queue => ScalaQueue }
 
 class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   final def offer(a: A): STM[Nothing, Unit] =
-    for {
-      q <- ref.get
-      _ <- STM.check(q.length < capacity)
-      _ <- ref.update(_ enqueue a)
-    } yield ()
+    (ref.get
+      .flatMap(q => STM.check(q.length < capacity))
+      *> ref.update(_ enqueue a)).unit
 
   // TODO: Scala doesn't allow Iterable???
   @silent("enqueueAll")
@@ -38,26 +36,24 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   final def size: STM[Nothing, Int] = ref.get.map(_.length)
 
   final def take: STM[Nothing, A] =
-    for {
-      q <- ref.get
-      a <- q.dequeueOption match {
-            case Some((a, as)) =>
-              ref.set(as) *> STM.succeed(a)
-            case _ => STM.retry
-          }
-    } yield a
+    ref.get.flatMap { q =>
+      q.dequeueOption match {
+        case Some((a, as)) =>
+          ref.set(as) *> STM.succeed(a)
+        case _ => STM.retry
+      }
+    }
 
   final def takeAll: STM[Nothing, List[A]] =
     ref.modify(q => (q.toList, ScalaQueue.empty[A]))
 
   final def takeUpTo(max: Int): STM[Nothing, List[A]] =
-    for {
-      q               <- ref.get
-      (first, second) = q.splitAt(max)
-      _               <- ref.set(second)
-    } yield first.toList
+    ref.get
+      .map(_.splitAt(max))
+      .flatMap(split => ref.set(split._2) *> STM.succeed(split._1))
+      .map(_.toList)
 }
 object TQueue {
-  final def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
-    TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
+  final def apply[A](capacity: Int): STM[Nothing, TQueue[A]] =
+    TRef(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 }

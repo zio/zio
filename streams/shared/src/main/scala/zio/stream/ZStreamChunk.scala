@@ -496,6 +496,17 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     chunks.run(sink)
 
   /**
+   * Runs the stream and collects all of its elements in a list.
+   *
+   * Equivalent to `run(Sink.collectAll[A])`.
+   */
+  final def runCollect: ZIO[R, E, List[A]] =
+    for {
+      chunks <- chunks.runCollect
+      list   <- ZIO.succeed(chunks.flatMap(_.toSeq))
+    } yield list
+
+  /**
    * Takes the specified number of elements from this stream.
    */
   def take(n: Int): ZStreamChunk[R, E, A] =
