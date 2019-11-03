@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,15 @@
 
 package zio.test
 
-import scala.compiletime.testing.typeChecks
-
-trait AssertionVariants {
+object TestVersion {
+  
+  /**
+   * Returns whether the current Scala version is Dotty.
+   */
+  val isDotty: Boolean = true
 
   /**
-   * Makes a new assertion that requires the specified string to be valid Scala
-   * code.
+   * Returns whether the current Scala version is Scala 2.
    */
-  inline final def assertCompiles(inline code: String): TestResult =
-    assert(
-      if (typeChecks(code)) None else Some(errorMessage),
-      Assertion.isNone
-    )
-
-  private val errorMessage =
-    "Reporting of compilation error messages on Dotty is not currently supported due to instability of the underlying APIs."
+  val isScala2: Boolean = false
 }

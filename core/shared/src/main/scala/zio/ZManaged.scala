@@ -39,7 +39,12 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) { self =>
+final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, E, A]]) extends Serializable { self =>
+
+  /**
+   * Gives access to wrapped [[Reservation]].
+   */
+  final def reserve: ZIO[R, E, Reservation[R, E, A]] = reservation
 
   /**
    * Symbolic alias for zip.
@@ -139,6 +144,11 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged.absolve(ev(self))
 
   /**
+   * Replaces the error value (if any) by the value provided.
+   */
+  final def asError[E1](e1: E1): ZManaged[R, E1, A] = mapError(_ => e1)
+
+  /**
    * Executes the this effect and then provides its output as an environment to the second effect
    */
   final def andThen[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] = self >>> that
@@ -159,12 +169,32 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     foldM(h, ZManaged.succeed)
 
   /**
+   * Recovers from all errors with provided Cause.
+   *
+   * {{{
+   * managed.catchAllCause(_ => ZManaged.succeed(defaultConfig))
+   * }}}
+   *
+   * @see [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can recover from defects
+   */
+  final def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+    self.foldCauseM[R1, E2, A1](h, ZManaged.succeed)
+
+  /**
    * Recovers from some or all of the error cases.
    */
   final def catchSome[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[E, ZManaged[R1, E1, A1]]
   )(implicit ev: CanFail[E]): ZManaged[R1, E1, A1] =
     foldM(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.fail), ZManaged.succeed)
+
+  /**
+   * Recovers from some or all of the error Causes.
+   */
+  final def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
+    pf: PartialFunction[Cause[E], ZManaged[R1, E1, A1]]
+  ): ZManaged[R1, E1, A1] =
+    foldCauseM(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.halt), ZManaged.succeed)
 
   /**
    * Executes the second effect and then provides its output as an environment to this effect
@@ -775,6 +805,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
 }
 
 object ZManaged {
+
+  /**
+   * Creates new [[ZManaged]] from wrapped [[Reservation]].
+   */
+  final def apply[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
+    new ZManaged(reservation)
 
   /**
    * Returns an effectful function that extracts out the first element of a

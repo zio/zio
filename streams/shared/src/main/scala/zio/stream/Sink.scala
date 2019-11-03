@@ -192,6 +192,12 @@ object Sink extends Serializable {
     ZSink.fromFunction(f)
 
   /**
+   * see [[ZSink.fromFunctionM]]
+   */
+  final def fromFunctionM[E, A, B](f: A => ZIO[Any, E, B]): Sink[Option[E], Nothing, A, B] =
+    ZSink.fromFunctionM(f)
+
+  /**
    * see [[ZSink.halt]]
    */
   final def halt[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =

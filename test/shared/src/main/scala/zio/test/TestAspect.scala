@@ -92,6 +92,28 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS] { self =>
 object TestAspect extends TimeoutVariants {
 
   /**
+   * An aspect that returns the tests unchanged
+   */
+  val identity: TestAspectPoly =
+    new TestAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] = spec
+    }
+
+  /**
+   * An aspect that marks tests as ignored.
+   */
+  val ignore: TestAspectPoly =
+    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        ZIO.succeed(Right(TestSuccess.Ignored))
+    }
+
+  /**
    * Constructs an aspect that runs the specified effect after every test.
    */
   def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any, Nothing, Any] =
@@ -160,6 +182,20 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that applies the specified aspect on Dotty.
+   */
+  def dotty[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
+    if (TestVersion.isDotty) that else identity
+
+  /**
+   * An aspect that only runs tests on Dotty.
+   */
+  val dottyOnly: TestAspectPoly =
+    if (TestVersion.isDotty) identity else ignore
+
+  /**
    * An aspect that retries a test until success, without limit.
    */
   val eventually: TestAspectPoly =
@@ -224,17 +260,6 @@ object TestAspect extends TimeoutVariants {
   val flaky: TestAspectPoly = eventually
 
   /**
-   * An aspect that returns the tests unchanged
-   */
-  val identity: TestAspectPoly =
-    new TestAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
-        predicate: L => Boolean,
-        spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] = spec
-    }
-
-  /**
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
@@ -287,16 +312,8 @@ object TestAspect extends TimeoutVariants {
     ifProp(prop, Assertion.anything)
 
   /**
-   * An aspect that marks tests as ignored.
+   * An aspect that applies the specified aspect on ScalaJS.
    */
-  val ignore: TestAspectPoly =
-    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-        ZIO.succeed(Right(TestSuccess.Ignored))
-    }
-
   def js[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
     that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
   ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
@@ -308,6 +325,9 @@ object TestAspect extends TimeoutVariants {
   val jsOnly: TestAspectPoly =
     if (TestPlatform.isJS) identity else ignore
 
+  /**
+   * An aspect that applies the specified aspect on the JVM.
+   */
   def jvm[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
     that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
   ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
@@ -385,6 +405,20 @@ object TestAspect extends TimeoutVariants {
    * An aspect that executes the members of a suite sequentially.
    */
   val sequential: TestAspectPoly = executionStrategy(ExecutionStrategy.Sequential)
+
+  /**
+   * An aspect that applies the specified aspect on Scala 2.
+   */
+  def scala2[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
+    if (TestVersion.isScala2) that else identity
+
+  /**
+   * An aspect that only runs tests on Scala 2.
+   */
+  val scala2Only: TestAspectPoly =
+    if (TestVersion.isScala2) identity else ignore
 
   /**
    * An aspect that converts ignored tests into test failures.

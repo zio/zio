@@ -496,8 +496,15 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * for every decision of this schedule. This can be used to create schedules
    * that log failures, decisions, or computed values.
    */
-  final def onDecision[A1 <: A](f: (A1, self.State) => UIO[Unit]): ZSchedule[R, A1, B] =
-    updated(update => (a, s) => update(a, s).tap(step => f(a, step)))
+  final def onDecision[A1 <: A, R1 <: R](f: (A1, Option[self.State]) => URIO[R1, Any]): ZSchedule[R1, A1, B] =
+    updated(
+      update =>
+        (a, s) =>
+          update(a, s).tapBoth(
+            _ => f(a, None),
+            state => f(a, Some(state))
+          )
+    )
 
   /**
    * Provide all requirements to the schedule.

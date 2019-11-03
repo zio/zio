@@ -7,6 +7,7 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Functional dependency injection in Scala using ZIO environments](https://blog.jdriven.com/2019/10/functional-dependency-injection-in-scala-using-zio-environments/) by Chiel van de Steeg (October 2019)
 - [Making ZIO, Akka and Slick play together nicely](https://scalac.io/making-zio-akka-slick-play-together-nicely-part-1-zio-and-slick/) by Jakub Czuchnowski (August 2019)
 - [Wrapping impure code with ZIO](https://medium.com/@ghostdogpr/wrapping-impure-code-with-zio-9265c219e2e) by Pierre Ricadat (July 2019)
 - [Combining ZIO and Akka to enable distributed FP in Scala](https://medium.com/@ghostdogpr/combining-zio-and-akka-to-enable-distributed-fp-in-scala-61ffb81e3283) by Pierre Ricadat (July 2019)
@@ -20,6 +21,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [Hacker News API Part 5](http://justinhj.github.io/2019/04/07/hacker-news-api-5.html) by Justin Heyes-Jones (April 2019)
 - [Testing Incrementally with ZIO Environment](http://degoes.net/articles/testable-zio) by John De Goes (March 2019)
 - [Beautiful, Simple, Testable Functional Effects for Scala](http://degoes.net/articles/zio-environment) (introducing ZIO Environment) by John De Goes (February 2019)
+- [Thread Pool Best Practices with ZIO](http://degoes.net/articles/zio-threads) by John De Goes (January 2019)
 - [Building the Hangman Game using ScalaZ ZIO](https://abhsrivastava.github.io/2018/11/03/Hangman-Game-Using-ZIO/) by Abhishek Srivastava (November 2018)
 - [Elevator Control System using ZIO](https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58) by Wiem Zine Elabadine (September 2018)
 - [Scalaz 8 IO vs Akka (typed) Actors vs Monix (part 1)](https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1) + [part 2](https://blog.softwaremill.com/akka-vs-zio-vs-monix-part-2-communication-9ce7261aa08c) + [part 3](https://blog.softwaremill.com/supervision-error-handling-in-zio-akka-and-monix-part-3-series-summary-abe75f964c2a) by Adam Warski (June 2018)
