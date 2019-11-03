@@ -1420,7 +1420,7 @@ object ZIOSpec
                 |for {
                 |  n <- UIO(3) if n > 0
                 |} yield n
-                """.stripMargin
+                """
             }
           },
           pureTest("withFilter doesn't compile with IO that fails with type other than Throwable") {
@@ -1431,7 +1431,7 @@ object ZIOSpec
                 |for {
                 |  n <- io if n > 0
                 |} yield n
-              """.stripMargin
+              """
             }
           }
         )

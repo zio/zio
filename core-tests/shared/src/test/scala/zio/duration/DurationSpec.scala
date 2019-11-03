@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import zio.ZIOBaseSpec
 import zio.test._
 import zio.test.Assertion._
+import zio.test.TestAspect.scala2Only
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 
@@ -59,7 +60,7 @@ object DurationSpec
           },
           test("10 ns * NaN = Infinity") {
             assert(Duration.fromNanos(10L) * Double.NaN, equalTo(Duration.Infinity: Duration))
-          },
+          } @@ scala2Only,
           test("10 ns compared to Infinity is -1") {
             assert(Duration.fromNanos(10L) compare Duration.Infinity, equalTo(-1))
           },

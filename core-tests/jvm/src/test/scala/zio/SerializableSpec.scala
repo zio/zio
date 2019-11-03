@@ -8,6 +8,8 @@ import zio.random.Random
 import zio.test.Assertion._
 import zio.test.{ test => testSync, _ }
 
+import zio.test.TestAspect.scala2Only
+
 object SerializableSpec
     extends ZIOBaseSpec(
       suite("SerializableSpec")(
@@ -142,7 +144,7 @@ object SerializableSpec
             out1 <- ZIO.unit.repeat(schedule)
             out2 <- ZIO.unit.repeat(serializeAndDeserialize(schedule))
           } yield assert(out2, equalTo(out1))
-        },
+        } @@ scala2Only,
         testM("Chunk.single is serializable") {
           val chunk = Chunk.single(1)
           for {
@@ -172,7 +174,7 @@ object SerializableSpec
           for {
             deserialized <- serializeAndBack(chunk)
           } yield assert(deserialized, equalTo(chunk))
-        },
+        } @@ scala2Only,
         testM("Chunk.fromIterable is serializable") {
           val chunk = Chunk.fromIterable(Vector(1, 2, 3))
           for {
