@@ -512,8 +512,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns a new effect that, on exit of this effect, invokes the specified
    * handler with all forked (non-daemon) children of this effect.
    */
-  final def handleChildrenWith[R1 <: R, E1 >: E, B](f: Set[Fiber[Any, Any]] => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.descriptor.flatMap(d => f(d.children))
+  final def handleChildrenWith[R1 <: R, E1 >: E](f: Set[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E1, A] =
+    self.ensuring(ZIO.descriptor.flatMap(d => f(d.children)))
 
   /**
    * Returns a successful effect with the head of the list if the list is

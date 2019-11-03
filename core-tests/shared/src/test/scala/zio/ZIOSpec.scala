@@ -794,29 +794,28 @@ object ZIOSpec
               result <- release.await
             } yield assert(result, equalTo(42))
           },
-          testM("supervising in unsupervised returns Nil") {
+          testM("daemon fiber is unsupervised") {
             for {
               ref  <- Ref.make(Option.empty[Fiber[Any, Any]])
-              _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
+              _    <- withLatch(release => (release *> UIO.never).fork.daemon.tap(fiber => ref.set(Some(fiber))))
               fibs <- ZIO.children
             } yield assert(fibs, isEmpty)
-          } @@ flaky,
+          },
           testM("supervise fibers") {
-            def makeChild(n: Int, fibers: Ref[List[Fiber[Any, Any]]]) =
-              (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork.tap(fiber => fibers.update(fiber :: _))
+            def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
+              (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork
 
             val io =
               for {
-                fibers  <- Ref.make(List.empty[Fiber[Any, Any]])
                 counter <- Ref.make(0)
-                _ <- (makeChild(1, fibers) *> makeChild(2, fibers)).handleChildrenWith { fs =>
-                      fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> counter.update(_ + 1).unit)
+                _ <- (makeChild(1) *> makeChild(2)).handleChildrenWith { fs =>
+                      fs.foldLeft(IO.unit)((acc, f) => acc *> f.join.ignore *> counter.update(_ + 1).unit)
                     }
                 value <- counter.get
               } yield value
 
             assertM(io.provide(Clock.Live), equalTo(2))
-          } @@ flaky,
+          },
           testM("race of fail with success") {
             val io = IO.fail(42).race(IO.succeed(24)).either
             assertM(io, isRight(equalTo(24)))
