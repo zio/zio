@@ -167,6 +167,7 @@ object StreamEffectAsyncSpec
           },
           testM("effectAsyncInterrupt back pressure") {
             for {
+              selfId  <- ZIO.descriptor.map(_.id)
               refCnt  <- Ref.make(0)
               refDone <- Ref.make[Boolean](false)
               stream = ZStream.effectAsyncInterrupt[Any, Throwable, Int](
@@ -184,7 +185,7 @@ object StreamEffectAsyncSpec
               _      <- waitForValue(refCnt.get, 7)
               isDone <- refDone.get
               exit   <- run.interrupt
-            } yield assert(isDone, isFalse) && assert(exit.untraced, equalTo(Failure(Cause.Interrupt)))
+            } yield assert(isDone, isFalse) && assert(exit.untraced, equalTo(Failure(Cause.interrupt(selfId))))
           }
         )
       )

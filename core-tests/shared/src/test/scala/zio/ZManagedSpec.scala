@@ -833,7 +833,6 @@ object ZManagedSpecUtil {
     expected: FiberId => Option[Exit[Nothing, Unit]]
   ) =
     for {
-      selfId             <- ZIO.descriptor.map(_.id)
       never              <- Promise.make[Nothing, Unit]
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork

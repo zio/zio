@@ -27,7 +27,7 @@ trait GenZIO {
   final def causes[R <: Random with Sized, E](e: Gen[R, E], t: Gen[R, Throwable]): Gen[R, Cause[E]] = {
     val failure        = e.map(Cause.fail)
     val die            = t.map(Cause.die)
-    val interrupt      = Gen.const(Cause.interrupt)
+    val interrupt      = Gen.anyLong.map(Cause.interrupt)
     def traced(n: Int) = Gen.suspend(causesN(n - 1).map(Cause.Traced(_, ZTrace(0, Nil, Nil, None))))
     def meta(n: Int)   = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
 
