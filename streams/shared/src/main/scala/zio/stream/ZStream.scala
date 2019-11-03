@@ -69,6 +69,13 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     concat(other)
 
   /**
+   * Applies an aggregator to the stream, which converts one or more elements
+   * of type `A` into elements of type `C`.
+   */
+  def aggregate[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+    aggregateManaged[R1, E1, A1, C](ZManaged.succeed(sink))
+
+  /**
    * Aggregates elements of this stream using the provided sink for as long
    * as the downstream operators on the stream are busy.
    *
@@ -565,6 +572,72 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   ): ZStream[R1 with Clock, E1, B] = aggregateAsyncWithinEither(sink, schedule).collect {
     case Right(v) => v
   }
+
+  /**
+   * Applies an aggregator to the stream, converting elements of type `A` into elements of type `C`, with a
+   * managed resource of type `D` available.
+   */
+  final def aggregateManaged[R1 <: R, E1 >: E, A1 >: A, B](
+    managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
+  ): ZStream[R1, E1, B] =
+    ZStream[R1, E1, B] {
+      for {
+        as           <- self.process
+        sink         <- managedSink.map(_.mapError(Some(_)))
+        doneRef      <- Ref.make(false).toManaged_
+        leftoversRef <- Ref.make[Chunk[A1]](Chunk.empty).toManaged_
+        pull = {
+          def go(s: sink.State, dirty: Boolean): Pull[R1, E1, B] =
+            if (!dirty) {
+              leftoversRef.get.flatMap { leftovers =>
+                doneRef.get.flatMap { done =>
+                  if (done)
+                    Pull.end
+                  else if (leftovers.nonEmpty)
+                    sink.stepChunk(s, leftovers).flatMap {
+                      case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
+                    } else
+                    as flatMap { a =>
+                      sink
+                        .step(s, a)
+                        .flatMap(s => go(s, true))
+                    }
+                }
+              }
+            } else {
+              doneRef.get.flatMap { done =>
+                if (done || !sink.cont(s))
+                  sink.extract(s).flatMap {
+                    case (b, leftovers) =>
+                      leftoversRef
+                        .update(_ ++ leftovers)
+                        .when(leftovers.nonEmpty)
+                        .as(b)
+                  } else
+                  as.foldM(
+                    {
+                      case e @ Some(_) => ZIO.fail(e)
+                      case None =>
+                        doneRef.set(true) *>
+                          sink.extract(s).flatMap {
+                            case (b, leftovers) =>
+                              leftoversRef
+                                .update(_ ++ leftovers)
+                                .when(leftovers.nonEmpty)
+                                .as(b)
+                          }
+                    },
+                    sink
+                      .step(s, _)
+                      .flatMap(s => go(s, true))
+                  )
+              }
+            }
+
+          sink.initial.flatMap(s => go(s, false))
+        }
+      } yield pull
+    }
 
   /**
    * Maps the success values of this stream to the specified constant value.
@@ -2205,77 +2278,17 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     } yield queue
 
   /**
-   * Applies an aggregator to the stream, converting elements of type `A` into elements of type `C`, with a
-   * managed resource of type `D` available.
+   * Alias for `aggregateManaged`
    */
-  final def aggregateManaged[R1 <: R, E1 >: E, A1 >: A, B](
+  final def transduceManaged[R1 <: R, E1 >: E, A1 >: A, B](
     managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
-  ): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B] {
-      for {
-        as           <- self.process
-        sink         <- managedSink.map(_.mapError(Some(_)))
-        doneRef      <- Ref.make(false).toManaged_
-        leftoversRef <- Ref.make[Chunk[A1]](Chunk.empty).toManaged_
-        pull = {
-          def go(s: sink.State, dirty: Boolean): Pull[R1, E1, B] =
-            if (!dirty) {
-              leftoversRef.get.flatMap { leftovers =>
-                doneRef.get.flatMap { done =>
-                  if (done)
-                    Pull.end
-                  else if (leftovers.nonEmpty)
-                    sink.stepChunk(s, leftovers).flatMap {
-                      case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
-                    } else
-                    as flatMap { a =>
-                      sink
-                        .step(s, a)
-                        .flatMap(s => go(s, true))
-                    }
-                }
-              }
-            } else {
-              doneRef.get.flatMap { done =>
-                if (done || !sink.cont(s))
-                  sink.extract(s).flatMap {
-                    case (b, leftovers) =>
-                      leftoversRef
-                        .update(_ ++ leftovers)
-                        .when(leftovers.nonEmpty)
-                        .as(b)
-                  } else
-                  as.foldM(
-                    {
-                      case e @ Some(_) => ZIO.fail(e)
-                      case None =>
-                        doneRef.set(true) *>
-                          sink.extract(s).flatMap {
-                            case (b, leftovers) =>
-                              leftoversRef
-                                .update(_ ++ leftovers)
-                                .when(leftovers.nonEmpty)
-                                .as(b)
-                          }
-                    },
-                    sink
-                      .step(s, _)
-                      .flatMap(s => go(s, true))
-                  )
-              }
-            }
-
-          sink.initial.flatMap(s => go(s, false))
-        }
-      } yield pull
-    }
+  ): ZStream[R1, E1, B] = aggregateManaged(managedSink)
 
   /**
-   * Applies an aggregator to the stream, which converts one or more elements
-   * of type `A` into elements of type `C`.
+   * Alias for `aggregate`.
    */
-  def aggregate[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
-    aggregateManaged[R1, E1, A1, C](ZManaged.succeed(sink))
+  def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+    aggregate[R1, E1, A1, C](sink)
 
   /**
    * Filters any 'None'.
