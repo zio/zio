@@ -51,12 +51,12 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
   /**
    * Determines if the `Cause` contains a non-recoverable error.
    */
-  final def died: Boolean = fold(false) { case (acc, _ : Die) => acc || true }
+  final def died: Boolean = fold(false) { case (acc, _: Die) => acc || true }
 
   /**
    * Determines if the `Cause` contains a recoverable failure `E`.
    */
-  final def failed: Boolean = fold(false) { case (acc, _ : Fail[_]) => acc || true }
+  final def failed: Boolean = fold(false) { case (acc, _: Fail[_]) => acc || true }
 
   /**
    * Retrieve the first checked error on the `Left` if available,
@@ -95,7 +95,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Determines if the `Cause` contains an interruption.
    */
   final def interrupted: Boolean =
-    fold(false) { case (acc, _ : Interrupt) => acc || true }
+    fold(false) { case (acc, _: Interrupt) => acc || true }
 
   /**
    * Returns a set of interruptors, fibers that interrupted the fiber described
@@ -111,10 +111,10 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def isEmpty: Boolean =
     (self eq Empty) || fold(true) {
-      case (acc, _ : Empty.type) => acc
-      case (_, Die(_)) => false 
-      case (_, Fail(_)) => false 
-      case (_, Interrupt(_)) => false 
+      case (acc, _: Empty.type) => acc
+      case (_, Die(_))          => false
+      case (_, Fail(_))         => false
+      case (_, Interrupt(_))    => false
     }
 
   /**
@@ -444,7 +444,7 @@ object Cause extends Serializable {
     case o                 => Vector(o)
   }
 
-  private[Cause] def flattenSet(c: Cause[_]): Set[Cause[_]] = c match {    
+  private[Cause] def flattenSet(c: Cause[_]): Set[Cause[_]] = c match {
     case Both(left, right) => flattenSet(left) ++ flattenSet(right)
     case Traced(cause, _)  => flattenSet(cause)
     case o                 => Set(o)

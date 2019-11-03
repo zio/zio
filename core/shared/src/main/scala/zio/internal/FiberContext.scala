@@ -659,7 +659,7 @@ private[zio] final class FiberContext[E, A](
     val _ = daemonStatus.popOrElse(false)
   }
 
-   final def propagateAncestorInterruption(): Unit = {
+  final def propagateAncestorInterruption(): Unit = {
     var fiber = self: FiberContext[_, _]
 
     while (fiber ne null) {

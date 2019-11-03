@@ -752,7 +752,13 @@ object ZManagedSpec
                 second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
                 _      <- first.zipPar(second).use_(ZIO.unit)
               } yield ()).run
-                .map(exit => assert[Exit[Unit, Unit]](exit.untraced, equalTo(Exit.Failure(Cause.fail(()) && Cause.interrupt(selfId)))))
+                .map(
+                  exit =>
+                    assert[Exit[Unit, Unit]](
+                      exit.untraced,
+                      equalTo(Exit.Failure(Cause.fail(()) && Cause.interrupt(selfId)))
+                    )
+                )
             }
           },
           testM("Run finalizers if one reservation fails") {

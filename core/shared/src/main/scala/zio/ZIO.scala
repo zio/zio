@@ -928,20 +928,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * composed effect will fail with some error.
    */
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
-    ZIO.descriptor.map(_.id).flatMap(parentFiberId => 
-      raceWith(that)(
-        (exit, right) =>
-          exit.foldM[Any, E1, Either[A, B]](
-            _ => right.join.map(Right(_)),
-            a => ZIO.succeedLeft(a) <* right.interruptAs(parentFiberId)
-          ),
-        (exit, left) =>
-          exit.foldM[Any, E1, Either[A, B]](
-            _ => left.join.map(Left(_)),
-            b => ZIO.succeedRight(b) <* left.interruptAs(parentFiberId)
+    ZIO.descriptor
+      .map(_.id)
+      .flatMap(
+        parentFiberId =>
+          raceWith(that)(
+            (exit, right) =>
+              exit.foldM[Any, E1, Either[A, B]](
+                _ => right.join.map(Right(_)),
+                a => ZIO.succeedLeft(a) <* right.interruptAs(parentFiberId)
+              ),
+            (exit, left) =>
+              exit.foldM[Any, E1, Either[A, B]](
+                _ => left.join.map(Left(_)),
+                b => ZIO.succeedRight(b) <* left.interruptAs(parentFiberId)
+              )
           )
       )
-    ).refailWithTrace
+      .refailWithTrace
 
   /**
    * Returns an effect that races this effect with the specified effect, calling
@@ -1526,9 +1530,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           }
       }
     val g = (b: B, a: A) => f(a, b)
-    ZIO.descriptor.map(_.id).flatMap(parentFiberId => 
-      (self raceWith that)(coordinate(parentFiberId, f), coordinate(parentFiberId, g))
-    )
+    ZIO.descriptor
+      .map(_.id)
+      .flatMap(parentFiberId => (self raceWith that)(coordinate(parentFiberId, f), coordinate(parentFiberId, g)))
   }
 
   /**
