@@ -1496,6 +1496,12 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     identity.map(f)
 
   /**
+   * Creates a sink that effectfully transforms incoming values.
+   */
+  final def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, Option[E], Nothing, A, B] =
+    identity.mapError(_ => None).mapM(f(_).mapError(Some(_)))
+
+  /**
    * Creates a sink halting with a specified cause.
    */
   final def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
