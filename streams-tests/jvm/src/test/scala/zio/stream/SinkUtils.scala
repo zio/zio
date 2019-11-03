@@ -90,8 +90,8 @@ trait SinkUtils {
         rem2 <- s.run(sink2.zipRight(ZSink.collectAll[A]))
         rem  <- s.run(sink1.zipPar(sink2).zipRight(ZSink.collectAll[A]))
       } yield {
-        val (_, shorter) = if (rem1.length <= rem2.length) (rem2, rem1) else (rem1, rem2)
-        // assert(longer, equalTo(rem))
+        val (longer, shorter) = if (rem1.length <= rem2.length) (rem2, rem1) else (rem1, rem2)
+        assert(longer)(equalTo(rem))
         assert(rem.endsWith(shorter))(isTrue)
       }
       maybeProp.catchAll(_ => UIO.succeedNow(assert(true)(isTrue)))
