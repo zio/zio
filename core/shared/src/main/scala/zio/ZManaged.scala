@@ -157,6 +157,18 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     foldM(h, ZManaged.succeed)
 
   /**
+   * Recovers from all errors with provided Cause.
+   *
+   * {{{
+   * managed.catchAllCause(_ => IO.succeed(defaultConfig))
+   * }}}
+   *
+   * @see [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can recover from defects
+   */
+  final def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+    self.foldCauseM[R1, E2, A1](h, ZManaged.succeed)
+
+  /**
    * Recovers from some or all of the error cases.
    */
   final def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZManaged[R1, E1, A1]]): ZManaged[R1, E1, A1] =

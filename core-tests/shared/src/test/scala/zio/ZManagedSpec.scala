@@ -3,9 +3,8 @@ package zio
 import zio.Cause.Interrupt
 import zio.duration._
 import zio.Exit.Failure
-import zio.test._
+import zio.test.{ Gen, testM, _ }
 import zio.test.Assertion._
-import zio.test.Gen
 import zio.test.environment._
 
 object ZManagedSpec
@@ -804,6 +803,18 @@ object ZManagedSpec
               _      <- fib.interrupt
               result <- effects.get
             } yield assert(result, equalTo(List("Second", "First")))
+          }
+        ),
+        suite("catch")(
+          testM("catchAllCause") {
+            val zm: ZManaged[Any, String, String] =
+              for {
+                _ <- ZManaged.succeed("foo")
+                f <- ZManaged.fail("Uh oh!")
+              } yield f
+
+            val errorToVal = zm.catchAllCause(c => ZManaged.succeed(c.failureOption.getOrElse(c.toString)))
+            assertM(errorToVal.use(ZIO.succeed), equalTo("Uh oh!"))
           }
         )
       )
