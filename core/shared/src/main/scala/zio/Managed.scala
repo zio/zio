@@ -311,11 +311,6 @@ object Managed {
     ZManaged.traverseParN_(n)(as)(f)
 
   /**
-   * See [[zio.ZManaged]]
-   */
-  final def unapply[E, A](v: Managed[E, A]) = ZManaged.unapply(v)
-
-  /**
    * See [[zio.ZManaged.unit]]
    */
   final val unit: Managed[Nothing, Unit] = ZManaged.unit

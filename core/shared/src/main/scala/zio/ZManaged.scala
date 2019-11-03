@@ -39,7 +39,12 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-final class ZManaged[-R, +E, +A] private (val reserve: ZIO[R, E, Reservation[R, E, A]]) extends Serializable { self =>
+final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, E, A]]) extends Serializable { self =>
+
+  /**
+   * Gives access to wrapped [[Reservation]].
+   */
+  final def reserve: ZIO[R, E, Reservation[R, E, A]] = reservation
 
   /**
    * Symbolic alias for zip.
@@ -781,12 +786,6 @@ object ZManaged {
    */
   final def apply[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
     new ZManaged(reservation)
-
-  /**
-   * Extracts [[Reservation]] from within.
-   */
-  final def unapply[E, A](v: Managed[E, A]): Option[ZIO[Any, E, Reservation[Any, E, A]]] =
-    Some(v.reserve)
 
   /**
    * Returns an effectful function that extracts out the first element of a
