@@ -363,21 +363,25 @@ object StreamSpec
             assertM(Stream.empty.chunkN(1).runCollect, equalTo(Nil))
           },
           testM("non-positive chunk size") {
-            assertM(Stream(1, 2, 3).chunkN(0).runCollect, equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
+            assertM(Stream(1, 2, 3).chunkN(0).chunks.runCollect, equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
           },
           testM("full last chunk") {
             assertM(
-              Stream(1, 2, 3, 4, 5, 6).chunkN(2).runCollect,
+              Stream(1, 2, 3, 4, 5, 6).chunkN(2).chunks.runCollect,
               equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6)))
             )
           },
           testM("non-full last chunk") {
-            assertM(Stream(1, 2, 3, 4, 5).chunkN(2).runCollect, equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
+            assertM(
+              Stream(1, 2, 3, 4, 5).chunkN(2).chunks.runCollect,
+              equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5)))
+            )
           },
           testM("error") {
             (Stream(1, 2, 3, 4, 5) ++ Stream.fail("broken"))
               .chunkN(3)
-              .catchAll(_ => Stream(Chunk(6)))
+              .catchAll(_ => ZStreamChunk.succeed(Chunk(6)))
+              .chunks
               .runCollect
               .map(assert(_, equalTo(List(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6)))))
           }
