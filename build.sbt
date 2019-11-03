@@ -88,10 +88,6 @@ lazy val coreNative = core.native
     "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
   )
 )
-.settings(
-  Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "main" / "scala",
-  Test    / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "test" / "scala"  
-)
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
@@ -179,10 +175,6 @@ lazy val stacktracerNative = stacktracer.native
   .settings(scalaVersion := "2.11.12")
   .settings(skip in Test := true)
   .settings(skip in doc := true)
-  .settings(
-    Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "main" / "scala",
-    Test    / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "js" / "src" / "test" / "scala"  
-  )
   
   lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
