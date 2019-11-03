@@ -1041,6 +1041,14 @@ object SinkSpec
                   .runCollect,
                 equalTo(List("1", "2", "3", "4", "5"))
               )
+            },
+            testM("fromFunctionM") {
+              assertM(
+                Stream("1", "2", "3", "4", "5")
+                  .transduce(Sink.fromFunctionM[Throwable, String, Int](s => Task(s.toInt)))
+                  .runCollect,
+                equalTo(List(1, 2, 3, 4, 5))
+              )
             }
           ),
           testM("fromOutputStream") {
