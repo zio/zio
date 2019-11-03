@@ -165,7 +165,7 @@ object ZIOSpec
                 equalTo(List("error1")) ||
                 equalTo(List("error2"))
             )
-          } @@ nonFlaky(100)
+          } @@ nonFlaky
         ),
         suite("raceAll")(
           testM("returns first success") {
@@ -946,7 +946,7 @@ object ZIOSpec
           testM("par regression") {
             val io = IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
             assertM(io, isTrue)
-          } @@ jvm(nonFlaky(100)),
+          } @@ jvm(nonFlaky),
           testM("par of now values") {
             def countdown(n: Int): UIO[Int] =
               if (n == 0) IO.succeed(0)
@@ -1238,7 +1238,7 @@ object ZIOSpec
               } yield exit.interrupted == true || finished == true
 
             assertM(io, isTrue)
-          } @@ jvm(nonFlaky(100)),
+          } @@ jvm(nonFlaky),
           testM("bracket use inherits interrupt status") {
             val io =
               for {
@@ -1343,7 +1343,7 @@ object ZIOSpec
               } yield v.contains(exec)
 
             assertM(io, isTrue)
-          } @@ jvm(nonFlaky(100)),
+          } @@ jvm(nonFlaky),
           testM("supervision is heritable") {
             val io =
               for {
