@@ -91,16 +91,12 @@ object SerializableSpec
           val cause = Cause.traced(Cause.fail("test"), ZTrace(0L, List.empty, List.empty, None))
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
-        testSync("Cause.interrupt is serializable") {
-          val cause = Cause.interrupt
-          assert(serializeAndDeserialize(cause), equalTo(cause))
-        },
         testSync("Cause.&& is serializable") {
-          val cause = Cause.fail("test") && Cause.interrupt
+          val cause = Cause.fail("test") && Cause.fail("Another test")
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
         testSync("Cause.++ is serializable") {
-          val cause = Cause.fail("test") ++ Cause.interrupt
+          val cause = Cause.fail("test") ++ Cause.fail("Another test")
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
         testSync("Exit.succeed is serializable") {
@@ -116,7 +112,7 @@ object SerializableSpec
           assert(serializeAndDeserialize(exit), equalTo(exit))
         },
         testSync("FiberFailure is serializable") {
-          val failure = FiberFailure(Cause.interrupt)
+          val failure = FiberFailure(Cause.fail("Uh oh"))
           assert(serializeAndDeserialize(failure), equalTo(failure))
         },
         testSync("InterruptStatus.interruptible is serializable") {

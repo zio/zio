@@ -340,9 +340,12 @@ private[zio] final class FiberContext[E, A](
 
                   if (stack.isEmpty) {
                     // Error not caught, stack is empty:
-                    val cause =
-                      if (isInterrupted() && !cause0.interrupted) cause0 ++ Cause.interrupt
-                      else cause0
+                    val cause = {
+                      // Add interruption information into the cause, if it's not already there:
+                      val interrupted = state.get.interrupted
+
+                      if (!cause0.contains(interrupted)) cause0 ++ interrupted else cause0
+                    }
 
                     curZio = done(Exit.halt(cause))
                   } else {
@@ -542,7 +545,7 @@ private[zio] final class FiberContext[E, A](
   private[this] final def getDescriptor(): Fiber.Descriptor =
     Fiber.Descriptor(
       fiberId,
-      isInterrupted(),
+      state.get.interrupted.interruptors,
       InterruptStatus.fromBoolean(isInterruptible()),
       children.get.asInstanceOf[Set[Fiber[Any, Any]]],
       executor
@@ -598,7 +601,7 @@ private[zio] final class FiberContext[E, A](
     zio => if (neverRan.getAndSet(false) && exitAsync()) evaluateLater(zio)
   }
 
-  final def interrupt: UIO[Exit[E, A]] = kill0
+  final def interrupt(fiberId: FiberId): UIO[Exit[E, A]] = kill0(fiberId)
 
   final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
@@ -656,24 +659,47 @@ private[zio] final class FiberContext[E, A](
     val _ = daemonStatus.popOrElse(false)
   }
 
-  @inline
-  private final def isInterrupted(): Boolean = {
-    var fiber  = self: FiberContext[_, _]
-    var result = false
+  private final def propagateAncestorInterruption(): Unit = {
+    var fiber = self: FiberContext[_, _]
 
-    while (!result && (fiber ne null)) {
-      if (fiber.state.get.interrupted) result = true
+    while (fiber ne null) {
+      addInterruptor(fiber.state.get.interrupted)
+
       fiber = fiber.parentFiber
     }
-    result
+  }
+
+  @inline
+  private final def isInterrupted(): Boolean = {
+    propagateAncestorInterruption()
+
+    !state.get.interrupted.isEmpty
   }
 
   @inline
   private[this] final def isInterruptible(): Boolean = interruptStatus.peekOrElse(true)
 
   @inline
-  private[this] final def shouldInterrupt(): Boolean = isInterrupted() && isInterruptible()
+  private[this] final def shouldInterrupt(): Boolean =
+    isInterrupted() && isInterruptible()
 
+  @inline
+  @tailrec
+  private[this] final def addInterruptor(cause: Cause[Nothing]): Unit =
+    if (!cause.isEmpty) {
+      val oldState = state.get
+
+      oldState match {
+        case Executing(status, observers, interrupted) =>
+          val newInterrupted = if (!interrupted.contains(cause)) interrupted ++ cause else interrupted
+
+          val newState = Executing(status, observers, newInterrupted)
+
+          if (!state.compareAndSet(oldState, newState)) addInterruptor(cause)
+
+        case _ =>
+      }
+    }
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
     if (!stack.isEmpty) {
@@ -715,18 +741,22 @@ private[zio] final class FiberContext[E, A](
     case _                   =>
   }
 
-  private[this] final def kill0: UIO[Exit[E, A]] = {
+  private[this] final def kill0(fiberId: FiberId): UIO[Exit[E, A]] = {
     @tailrec
     def setInterruptedLoop(): Unit = {
       val oldState = state.get
 
       oldState match {
-        case Executing(FiberStatus.Suspended(true), observers, false) =>
-          if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers, true))) setInterruptedLoop()
-          else evaluateLater(ZIO.interrupt)
+        case Executing(FiberStatus.Suspended(true), observers, interrupted) =>
+          if (!state.compareAndSet(
+                oldState,
+                Executing(FiberStatus.Running, observers, interrupted ++ Cause.interrupt(fiberId))
+              )) setInterruptedLoop()
+          else evaluateLater(ZIO.interruptAs(fiberId))
 
-        case Executing(status, observers, _) =>
-          if (!state.compareAndSet(oldState, Executing(status, observers, true))) setInterruptedLoop()
+        case Executing(status, observers, interrupted) =>
+          if (!state.compareAndSet(oldState, Executing(status, observers, interrupted ++ Cause.interrupt(fiberId))))
+            setInterruptedLoop()
 
         case _ =>
       }
@@ -734,7 +764,7 @@ private[zio] final class FiberContext[E, A](
 
     val setInterrupt = UIO(setInterruptedLoop())
 
-    val interruptChildren = 
+    val interruptChildren =
       UIO.effectSuspendTotal(children.get.foldLeft[UIO[Any]](UIO.unit) {
         case (acc, child) => acc.flatMap(_ => child.interrupt)
       })
@@ -812,8 +842,6 @@ private[zio] final class FiberContext[E, A](
 private[zio] object FiberContext {
   val fiberCounter = new AtomicLong(0)
 
-  final class InterruptFlag(val fiberId: FiberId, val interrupted: AtomicBoolean)
-
   sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
     case object Running                                extends FiberStatus
@@ -821,19 +849,19 @@ private[zio] object FiberContext {
   }
 
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
-    def interrupted: Boolean
+    def interrupted: Cause[Nothing]
   }
   object FiberState extends Serializable {
     final case class Executing[E, A](
       status: FiberStatus,
       observers: List[Callback[Nothing, Exit[E, A]]],
-      interrupted: Boolean
+      interrupted: Cause[Nothing]
     ) extends FiberState[E, A]
     final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A] {
-      def interrupted = false
+      def interrupted = Cause.empty
     }
 
-    def initial[E, A] = Executing[E, A](FiberStatus.Running, Nil, false)
+    def initial[E, A] = Executing[E, A](FiberStatus.Running, Nil, Cause.empty)
   }
 
   type FiberRefLocals = java.util.Map[FiberRef[_], Any]

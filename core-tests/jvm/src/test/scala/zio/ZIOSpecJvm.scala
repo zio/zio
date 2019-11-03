@@ -6,7 +6,7 @@ import org.specs2.execute.Result
 
 import scala.collection.mutable
 import scala.util.Try
-import zio.Cause.{ die, fail, interrupt, Both }
+import zio.Cause.{ die, fail, interrupt }
 import zio.duration._
 import zio.syntax._
 import zio.test.mock.MockClock
@@ -214,14 +214,15 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private val exampleError = new Error("something went wrong")
 
   def testDone = {
+    val fiberId                       = 123L
     val error                         = exampleError
     val completed                     = Exit.succeed(1)
-    val interrupted: Exit[Error, Int] = Exit.interrupt
+    val interrupted: Exit[Error, Int] = Exit.interrupt(fiberId)
     val terminated: Exit[Error, Int]  = Exit.die(error)
     val failed: Exit[Error, Int]      = Exit.fail(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRunSync(IO.done(interrupted)) must_=== Exit.interrupt
+    unsafeRunSync(IO.done(interrupted)) must_=== Exit.interrupt(fiberId)
     unsafeRunSync(IO.done(terminated)) must_=== Exit.die(error)
     unsafeRunSync(IO.done(failed)) must_=== Exit.fail(error)
   }
@@ -235,9 +236,11 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   private def testCatchSomeCauseNoMatch =
     unsafeRun {
-      ZIO.interrupt.catchSomeCause {
-        case c if (!c.interrupted) => ZIO.succeed(true)
-      }.sandbox.either.map(_ must_=== Left(Cause.interrupt))
+      ZIO.descriptor.map(_.id).flatMap { selfId =>
+        ZIO.interrupt.catchSomeCause {
+          case c if (!c.interrupted) => ZIO.succeed(true)
+        }.sandbox.either.map(_ must_=== Left(Cause.interrupt(selfId)))
+      }
     }
 
   def testWhen =
@@ -381,7 +384,10 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def testZipParInterupt = {
     val io = ZIO.interrupt.zipPar(IO.interrupt)
-    unsafeRunSync(io) must_=== Exit.Failure(Both(interrupt, interrupt))
+    unsafeRunSync(io) match {
+      case Exit.Failure(cause) => cause.interruptors.size must_=== 2
+      case _                   => false must_=== true
+    }
   }
 
   def testZipParSucceed = {
@@ -393,10 +399,11 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val ex = new Exception("Died")
 
     unsafeRun {
+      val fiberId = 123L
       for {
         plain <- (ZIO.die(ex) <> IO.unit).run
-        both  <- (ZIO.halt(Cause.Both(interrupt, die(ex))) <> IO.unit).run
-        thn   <- (ZIO.halt(Cause.Then(interrupt, die(ex))) <> IO.unit).run
+        both  <- (ZIO.halt(Cause.Both(interrupt(fiberId), die(ex))) <> IO.unit).run
+        thn   <- (ZIO.halt(Cause.Then(interrupt(fiberId), die(ex))) <> IO.unit).run
         fail  <- (ZIO.fail(ex) <> IO.unit).run
       } yield (plain must_=== Exit.die(ex))
         .and(both must_=== Exit.die(ex))

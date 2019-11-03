@@ -727,7 +727,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     val io = for {
       p1  <- Promise.make[Nothing, Boolean]
       c   <- Promise.make[Nothing, Unit]
-      f1  <- (c.succeed(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupted))).fork
+      f1  <- (c.succeed(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interruptors.nonEmpty))).fork
       _   <- c.await
       _   <- f1.interrupt
       res <- p1.await
@@ -758,7 +758,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
         cont1 <- Promise.make[Nothing, Unit]
         cont2 <- Promise.make[Nothing, Unit]
         make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never.interruptible).onInterrupt(ref.update(_ + 1))
-        raced <- (make(cont1).uninterruptible race (make(cont2)).uninterruptible).fork
+        raced <- (make(cont1).uninterruptible race make(cont2).uninterruptible).fork
         _     <- cont1.await *> cont2.await
         _     <- raced.interrupt
         count <- ref.get
@@ -833,6 +833,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testSandboxOfInterruptible =
     unsafeRun(for {
+      selfId    <- ZIO.descriptor.map(_.id)
       recovered <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
       fiber <- withLatch { release =>
                 (release *> ZIO.never.interruptible).sandbox.either
@@ -842,10 +843,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
               }
       _     <- fiber.interrupt
       value <- recovered.get
-    } yield value must_=== Some(Left(Cause.interrupt)))
+    } yield value must_=== Some(Left(Cause.interrupt(selfId))))
 
   def testRunOfInterruptible =
     unsafeRun(for {
+      selfId    <- ZIO.descriptor.map(_.id)
       recovered <- Ref.make[Option[Exit[Nothing, Any]]](None)
       fiber <- withLatch { release =>
                 (release *> ZIO.never.interruptible).run
@@ -855,7 +857,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
               }
       _     <- fiber.interrupt
       value <- recovered.get
-    } yield value must_=== Some(Exit.Failure(Cause.interrupt)))
+    } yield value must_=== Some(Exit.Failure(Cause.interrupt(selfId))))
 
   def testAlternatingInterruptibility =
     unsafeRun(for {
@@ -1098,23 +1100,23 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     unsafeRun(io) must_=== 42
   }
 
-  def testBracketUseIsInterruptible = {
-    val io =
+  def testBracketUseIsInterruptible =
+    unsafeRun {
       for {
-        fiber <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
-        res   <- fiber.interrupt
-      } yield res
-    unsafeRun(io) must_=== Exit.interrupt
-  }
+        selfId <- ZIO.descriptor.map(_.id)
+        fiber  <- IO.unit.bracket(_ => IO.unit)(_ => IO.never).fork
+        res    <- fiber.interrupt
+      } yield res must_=== Exit.interrupt(selfId)
+    }
 
-  def testBracketAcquireCanBeMadeInterruptible = {
-    val io =
+  def testBracketAcquireCanBeMadeInterruptible =
+    unsafeRun {
       for {
-        fiber <- IO.bracket(IO.interruptible(IO.never: UIO[Int]))(_ => IO.unit)(_ => IO.unit).fork
-        res   <- fiber.interrupt
-      } yield res
-    unsafeRun(io) must_=== Exit.interrupt
-  }
+        selfId <- ZIO.descriptor.map(_.id)
+        fiber  <- IO.bracket(IO.interruptible(IO.never: UIO[Int]))(_ => IO.unit)(_ => IO.unit).fork
+        res    <- fiber.interrupt
+      } yield res must_=== Exit.interrupt(selfId)
+    }
 
   def testBracket0UseIsInterruptible = {
     val io =
@@ -1294,13 +1296,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
 
   def testBlockingIOIsEffectBlocking = unsafeRun(
     for {
-      done  <- Ref.make(false)
-      start <- IO.succeed(internal.OneShot.make[Unit])
-      fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }.ensuring(done.set(true)).fork
-      _     <- IO.succeed(start.get())
-      res   <- fiber.interrupt
-      value <- done.get
-    } yield (res, value) must_=== ((Exit.interrupt, true))
+      selfId <- ZIO.descriptor.map(_.id)
+      done   <- Ref.make(false)
+      start  <- IO.succeed(internal.OneShot.make[Unit])
+      fiber  <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }.ensuring(done.set(true)).fork
+      _      <- IO.succeed(start.get())
+      res    <- fiber.interrupt
+      value  <- done.get
+    } yield (res, value) must_=== ((Exit.interrupt(selfId), true))
   )
 
   def testInterruptSyncForever = unsafeRun(

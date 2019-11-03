@@ -496,6 +496,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.mapError(e => ev(e).getOrElse(default))
 
   /**
+   * Returns a new effect that, on exit of this effect, invokes the specified
+   * handler with all forked (non-daemon) children of this effect.
+   */
+  final def handleChildrenWith[R1 <: R, E1 >: E, B](f: Set[Fiber[Any, Any]] => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    ZIO.descriptor.flatMap(d => f(d.children))
+
+  /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
@@ -637,7 +644,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def onInterrupt[R1 <: R](cleanup: ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
     self.ensuring(
-      ZIO.descriptorWith(descriptor => if (descriptor.interrupted) cleanup else ZIO.unit)
+      ZIO.descriptorWith(descriptor => if (descriptor.interruptors.nonEmpty) cleanup else ZIO.unit)
     )
 
   final def onLeft[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] =
@@ -967,21 +974,26 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       done     <- Promise.make[E2, C]
       raceDone <- Ref.make[Boolean](false)
       inherit  <- Ref.make(None: Option[Boolean])
-      c <- ZIO.uninterruptibleMask(restore => 
-      for {
-              left   <- self.interruptible.fork
-              right  <- that.interruptible.fork
-              left2  <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork.daemon
-              right2 <- right.await.flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done)).fork.daemon
+      c <- ZIO.uninterruptibleMask(
+            restore =>
+              for {
+                left  <- self.interruptible.fork
+                right <- that.interruptible.fork
+                left2 <- left.await.flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done)).fork.daemon
+                right2 <- right.await
+                           .flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done))
+                           .fork
+                           .daemon
 
-              inheritFiberRefs = inherit.get.flatMap {
-                case None        => ZIO.unit
-                case Some(true)  => left2.inheritFiberRefs
-                case Some(false) => right2.inheritFiberRefs
-              }
+                inheritFiberRefs = inherit.get.flatMap {
+                  case None        => ZIO.unit
+                  case Some(true)  => left2.inheritFiberRefs
+                  case Some(false) => right2.inheritFiberRefs
+                }
 
-              c <- restore(done.await <* inheritFiberRefs)
-            } yield c)
+                c <- restore(done.await <* inheritFiberRefs)
+              } yield c
+          )
     } yield c
   }
 
@@ -1614,7 +1626,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * so, performs self-interruption
    */
   final def allowInterrupt: UIO[Unit] =
-    descriptorWith(d => if (d.interrupted) interrupt else unit)
+    descriptorWith(d => if (d.interruptors.nonEmpty) interrupt else ZIO.unit)
 
   /**
    *  Returns an effect with the value on the right part.
@@ -2205,9 +2217,17 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def identity[R]: ZIO[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn[R])
 
   /**
-   * Returns an effect that is interrupted.
+   * Returns an effect that is interrupted as if by the fiber calling this
+   * method.
    */
-  final val interrupt: UIO[Nothing] = haltWith(trace => Cause.Traced(Cause.Interrupt, trace()))
+  final val interrupt: UIO[Nothing] =
+    ZIO.descriptor.flatMap(d => interruptAs(d.id))
+
+  /**
+   * Returns an effect that is interrupted as if by the specified fiber.
+   */
+  final def interruptAs(fiberId: FiberId): UIO[Nothing] =
+    haltWith(trace => Cause.Traced(Cause.interrupt(fiberId), trace()))
 
   /**
    * Prefix form of `ZIO#interruptible`.

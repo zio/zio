@@ -344,6 +344,11 @@ object IO {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
+   * @see See [[zio.ZIO.interruptAs]]
+   */
+  final def interruptAs(fiberId: FiberId): UIO[Nothing] = ZIO.interruptAs(fiberId)
+
+  /**
    * @see See [[zio.ZIO.interruptible]]
    */
   final def interruptible[E, A](io: IO[E, A]): IO[E, A] =

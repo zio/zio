@@ -213,7 +213,7 @@ object Exit extends Serializable {
   final case class Success[A](value: A)            extends Exit[Nothing, A]
   final case class Failure[E](cause: zio.Cause[E]) extends Exit[E, Nothing]
 
-  final val interrupt: Exit[Nothing, Nothing] = halt(zio.Cause.interrupt)
+  final def interrupt(id: FiberId): Exit[Nothing, Nothing] = halt(zio.Cause.interrupt(id))
 
   final def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>

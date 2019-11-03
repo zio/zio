@@ -57,9 +57,11 @@ object FiberSpec
         ),
         suite("`Fiber.join` on interrupted Fiber")(
           testM("is inner interruption") {
+            val fiberId = 123L
+
             for {
-              exit <- Fiber.interrupt.join.run
-            } yield assert(exit, equalTo(Exit.interrupt))
+              exit <- Fiber.interruptAs(fiberId).join.run
+            } yield assert(exit, equalTo(Exit.interrupt(fiberId)))
           }
         )
       )

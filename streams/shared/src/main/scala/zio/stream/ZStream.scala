@@ -1456,8 +1456,10 @@ class ZStream[-R, +E, +A](val process: ZManaged[R, E, Pull[R, E, A]]) extends Se
                 latch <- Promise.make[Nothing, Unit]
                 p     <- Promise.make[E1, B]
                 _     <- out.offer(Pull.fromPromise(p))
-                _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
-                _     <- latch.await
+                _ <- ((UIO(println("Before race"))) *> (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await) *> UIO(
+                      println("After race")
+                    )).fork
+                _ <- latch.await
               } yield ()
             }.foldCauseM(
                 c => (interruptWorkers.succeed(()) *> out.offer(Pull.halt(c))).unit.toManaged_,
@@ -2286,8 +2288,9 @@ object ZStream {
 
     def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
       c match {
+        case Cause.Empty                => Some(Cause.Empty)
         case Cause.Traced(cause, trace) => sequenceCauseOption(cause).map(Cause.Traced(_, trace))
-        case Cause.Interrupt            => Some(Cause.Interrupt)
+        case Cause.Interrupt(fiberId)   => Some(Cause.Interrupt(fiberId))
         case d @ Cause.Die(_)           => Some(d)
         case Cause.Fail(Some(e))        => Some(Cause.Fail(e))
         case Cause.Fail(None)           => None
