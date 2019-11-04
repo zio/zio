@@ -1434,6 +1434,40 @@ object ZIOSpec
               """.stripMargin
             }
           }
+        ),
+        suite("doWhile")(
+          testM("doWhile repeats while condition is true") {
+            for {
+              in     <- Ref.make(10)
+              out    <- Ref.make(0)
+              _      <- (in.update(_ - 1) <* out.update(_ + 1)).doWhile(_ >= 0)
+              result <- out.get
+            } yield assert(result, equalTo(11))
+          },
+          testM("doWhile always evaluates effect once") {
+            for {
+              ref    <- Ref.make(0)
+              _      <- ref.update(_ + 1).doWhile(_ => false)
+              result <- ref.get
+            } yield assert(result, equalTo(1))
+          }
+        ),
+        suite("doUntil")(
+          testM("doUntil repeats until condition is true") {
+            for {
+              in     <- Ref.make(10)
+              out    <- Ref.make(0)
+              _      <- (in.update(_ - 1) <* out.update(_ + 1)).doUntil(_ == 0)
+              result <- out.get
+            } yield assert(result, equalTo(10))
+          },
+          testM("doUntil always evaluates effect once") {
+            for {
+              ref    <- Ref.make(0)
+              _      <- ref.update(_ + 1).doUntil(_ => true)
+              result <- ref.get
+            } yield assert(result, equalTo(1))
+          }
         )
       )
     )
