@@ -197,10 +197,9 @@ object TestAspect extends TimeoutVariants {
     new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
-      ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         test.eventually
     }
-  }
 
   /**
    * An aspect that sets suites to the specified execution strategy, but only
