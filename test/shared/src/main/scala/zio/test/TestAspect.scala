@@ -211,6 +211,30 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that runs tests on all versions except Dotty.
+   */
+  val exceptDotty: TestAspectPoly =
+    if (TestVersion.isDotty) ignore else identity
+
+  /**
+   * An aspect that runs tests on all platforms except ScalaJS.
+   */
+  val exceptJS: TestAspectPoly =
+    if (TestPlatform.isJS) ignore else identity
+
+  /**
+   * An aspect that runs tests on all platforms except the JVM.
+   */
+  val exceptJVM: TestAspectPoly =
+    if (TestPlatform.isJVM) ignore else identity
+
+  /**
+   * An aspect that runs tests on all versions except Scala2.
+   */
+  val exceptScala2: TestAspectPoly =
+    if (TestVersion.isScala2) ignore else identity
+
+  /**
    * An aspect that sets suites to the specified execution strategy, but only
    * if their current strategy is inherited (undefined).
    */
