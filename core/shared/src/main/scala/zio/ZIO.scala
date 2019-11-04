@@ -287,6 +287,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     clock.sleep(duration) *> self
 
   /**
+   * Repeats this effect until its result satisfies the specified predicate.
+   */
+  final def doUntil(f: A => Boolean): ZIO[R, E, A] =
+    repeat(Schedule.doUntil(f))
+
+  /**
+   * Repeats this effect while its result satisfies the specified predicate.
+   */
+  final def doWhile(f: A => Boolean): ZIO[R, E, A] =
+    repeat(Schedule.doWhile(f))
+
+  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail, because the failure case has
    * been exposed as part of the `Either` success case.
