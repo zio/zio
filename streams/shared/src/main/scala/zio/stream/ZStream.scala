@@ -1060,7 +1060,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                       id    <- nextIndex
                       queue <- Queue.bounded[Take[E1, A1]](1)
                       _     <- queue.offer(endTake)
-                      _     <- ignored.update(_ + 1)
+                      _     <- ignored.update(_ + id)
                       _     <- queuesRef.update(_ + (id -> queue))
                     } yield (id, queue)
                   }
