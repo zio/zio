@@ -74,6 +74,19 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
 
 object TArray {
 
-  final def apply[A](array: Array[TRef[A]]): TArray[A] = new TArray(array)
+  /**
+   * Makes a new `TArray` that is initialized with specified values.
+   */
+  final def apply[A](data: A*): STM[Nothing, TArray[A]] = fromIterable(data)
 
+  /**
+   * Makes an empty `TArray`.
+   */
+  final def empty[A]: STM[Nothing, TArray[A]] = fromIterable(Nil)
+
+  /**
+   * Makes a new `TArray` initialized with provided iterable.
+   */
+  final def fromIterable[A](data: Iterable[A]): STM[Nothing, TArray[A]] =
+    STM.foreach(data)(TRef(_)).map(list => new TArray(list.toArray))
 }
