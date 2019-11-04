@@ -23,7 +23,7 @@ object ClockSpec
             _     <- latch.await
           } yield assertCompletes
         } @@ after(setTime(0.hours))
-          @@ nonFlaky(100),
+          @@ nonFlaky,
         testM("sleep delays effect until time is adjusted") {
           for {
             ref    <- Ref.make(true)
@@ -32,7 +32,7 @@ object ClockSpec
             result <- ref.get
           } yield assert(result, isTrue)
         } @@ after(setTime(0.hours))
-          @@ nonFlaky(100),
+          @@ nonFlaky,
         testM("sleep correctly handles multiple sleeps") {
           for {
             latch1 <- Promise.make[Nothing, Unit]
@@ -47,7 +47,7 @@ object ClockSpec
             result <- ref.get
           } yield assert(result, equalTo("Hello, World!"))
         } @@ after(setTime(0.hours))
-          @@ nonFlaky(100),
+          @@ nonFlaky,
         testM("sleep correctly handles new set time") {
           for {
             latch <- Promise.make[Nothing, Unit]
@@ -56,14 +56,14 @@ object ClockSpec
             _     <- latch.await
           } yield assertCompletes
         } @@ after(setTime(0.hours))
-          @@ nonFlaky(100),
+          @@ nonFlaky,
         testM("sleep does sleep instantly when sleep duration less than or equal to clock time") {
           for {
             latch <- Promise.make[Nothing, Unit]
             _     <- (adjust(10.hours) *> latch.succeed(())).fork
             _     <- latch.await *> sleep(10.hours)
           } yield assertCompletes
-        } @@ nonFlaky(100),
+        } @@ nonFlaky,
         testM("adjust correctly advances nanotime") {
           for {
             time1 <- nanoTime
@@ -134,7 +134,7 @@ object ClockSpec
             result <- fiber.join
           } yield result == None
           assertM(example, isTrue)
-        } @@ nonFlaky(100),
+        } @@ nonFlaky,
         testM("recurrence example from TestClock documentation works correctly") {
           val example = for {
             q <- Queue.unbounded[Unit]
@@ -156,6 +156,6 @@ object ClockSpec
             result   <- fiberTime
             expected <- clock.currentTime(TimeUnit.MILLISECONDS)
           } yield assert(result.toMillis, equalTo(expected))
-        } @@ nonFlaky(100)
+        } @@ nonFlaky
       )
     )
