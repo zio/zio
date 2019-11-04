@@ -648,7 +648,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Returns a stream whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZStream[R, E2, B] =
+  final def bimap[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E]): ZStream[R, E1, A1] =
     mapError(f).map(g)
 
   /**
@@ -656,10 +656,21 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * The driver streamer will only ever advance of the maximumLag values before the
    * slowest downstream stream.
    */
-  final def broadcast[E1 >: E, A1 >: A](n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, A]]] =
-    for {
-      queues <- self.broadcastedQueues(n, maximumLag)
-    } yield queues.map(q => ZStream.fromQueueWithShutdown(q).unTake)
+  final def broadcast(n: Int, maximumLag: Int): ZManaged[R, Nothing, List[Stream[E, A]]] =
+    self
+      .broadcastedQueues(n, maximumLag)
+      .map(_.map(ZStream.fromQueueWithShutdown(_).unTake))
+
+  /**
+   * Fan out the stream, producing a dynamic number of streams that have the same elements as this stream.
+   * The driver streamer will only ever advance of the maximumLag values before the
+   * slowest downstream stream.
+   */
+  final def broadcastDynamic(
+    maximumLag: Int
+  ): ZManaged[R, Nothing, UIO[Stream[E, A]]] =
+    distributedWithDynamic[E, A](maximumLag, _ => ZIO.succeed(_ => true), _ => ZIO.unit).map(_.map(_._2))
+      .map(_.map(ZStream.fromQueueWithShutdown(_).unTake))
 
   /**
    * Converts the stream to a managed list of queues. Every value will be replicated to every queue with the
@@ -667,8 +678,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * The downstream queues will be provided with elements in the same order they are returned, so
    * the fastest queue might have seen up to (maximumLag + 1) elements more than the slowest queue if it
    * has a lower index than the slowest queue.
-   * During the finalizer the driver will wait for all queues to shutdown in order to signal completion.
-   * After the managed value is used, the queues will never again produce values and should be discarded.
+   *
+   * Queues can unsubscribe from upstream by shutting down.
    */
   final def broadcastedQueues[E1 >: E, A1 >: A](
     n: Int,
@@ -676,6 +687,22 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   ): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] = {
     val decider = ZIO.succeed((_: Int) => true)
     distributedWith(n, maximumLag, _ => decider)
+  }
+
+  /**
+   * Converts the stream to a managed dynamic amount of queues. Every value will be replicated to every queue with the
+   * slowest queue being allowed to buffer maximumLag elements before the driver is backpressured.
+   * The downstream queues will be provided with elements in the same order they are returned, so
+   * the fastest queue might have seen up to (maximumLag + 1) elements more than the slowest queue if it
+   * has a lower index than the slowest queue.
+   *
+   * Queues can unsubscribe from upstream by shutting down.
+   */
+  final def broadcastedQueuesDynamic[E1 >: E, A1 >: A](
+    maximumLag: Int
+  ): ZManaged[R, Nothing, UIO[Queue[Take[E1, A1]]]] = {
+    val decider = ZIO.succeed((_: Int) => true)
+    distributedWithDynamic[E1, A1](maximumLag, _ => decider, _ => ZIO.unit).map(_.map(_._2))
   }
 
   /**
@@ -962,7 +989,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     decide: A => UIO[Int => Boolean]
   ): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] =
     Promise.make[Nothing, A => UIO[Int => Boolean]].toManaged_.flatMap { prom =>
-      distributedDynamicWith[E1, A1](maximumLag, (a: A) => prom.await.flatMap(_(a)), _ => ZIO.unit).flatMap { next =>
+      distributedWithDynamic[E1, A1](maximumLag, (a: A) => prom.await.flatMap(_(a)), _ => ZIO.unit).flatMap { next =>
         (ZIO.collectAll(List.fill(n)(next.map(_._2))) <* prom.succeed(decide)).toManaged_
       }
     }
@@ -976,10 +1003,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Downstream users can also shutdown queues manually. In this case the driver will
    * continue but no longer backpressure on them.
    */
-  final def distributedDynamicWith[E1 >: E, A1 >: A](
+  final def distributedWithDynamic[E1 >: E, A1 >: A](
     maximumLag: Int,
     decide: A => UIO[Int => Boolean],
-    done: Take[E1, Nothing] => UIO[Any] = (_: Any) => UIO.unit
+    done: Take[E, Nothing] => UIO[Any] = (_: Any) => UIO.unit
   ): ZManaged[R, Nothing, UIO[(Int, Queue[Take[E1, A1]])]] =
     Ref
       .make[Vector[Queue[Take[E1, A1]]]](Vector())
@@ -989,8 +1016,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           for {
             queues <- queues.get
             _ <- ZIO.foreach_(queues) { q =>
+                  // we ignore all downstream queues that were shut down
                   q.offer(a).catchSomeCause { case c if (c.interrupted) => ZIO.unit }
-                // we don't care if downstream queues shut down
                 }
           } yield ()
 
@@ -1460,7 +1487,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         ref  <- Ref.make[Map[K, Int]](Map()).toManaged_
         add <- self
                 .mapM(f)
-                .distributedDynamicWith(
+                .distributedWithDynamic(
                   buffer,
                   (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
                   out.offer
