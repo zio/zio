@@ -326,6 +326,25 @@ object Assertion {
       assertion.test(actual.size)
     }
 
+  final def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasFirst")(param(assertion))(assertion) { actual =>
+      actual.headOption
+    }
+
+  final def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasLast")(param(assertion))(assertion) { actual =>
+      actual.lastOption
+    }
+
+  final def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
+    Assertion.assertionRec("hasAt")(param(assertion))(assertion) { actual =>
+      if (pos >= 0 && pos < actual.size) {
+        Some(actual.apply(pos))
+      } else {
+        None
+      }
+    }
+
   /**
    * Makes a new assertion that requires the sum type be a specified term.
    *
