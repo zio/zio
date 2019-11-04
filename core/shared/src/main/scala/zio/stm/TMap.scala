@@ -248,8 +248,8 @@ object TMap {
       buckets(idx) = kv :: buckets(idx)
     }
 
-    STM.collectAll(buckets.map(TRef(_))).flatMap { tChains =>
-      TRef(TArray(tChains.toArray)).flatMap { tBuckets =>
+    TArray.fromIterable(buckets).flatMap { tChains =>
+      TRef(tChains).flatMap { tBuckets =>
         TRef(capacity).flatMap { tCapacity =>
           TRef(uniqueItems.size).map { tSize =>
             new TMap(tBuckets, tCapacity, tSize)
