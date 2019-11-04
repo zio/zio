@@ -106,10 +106,9 @@ private[zio] object StackBool {
 
   def fromIterable(it: Iterable[Boolean]): StackBool = {
     val stack = StackBool()
-    it.foldRight(stack) {
-      (b, stack) =>
-        stack.push(b)
-        stack
+    it.foldRight(stack) { (b, stack) =>
+      stack.push(b)
+      stack
     }
   }
 
