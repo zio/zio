@@ -340,6 +340,13 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * An aspect that repeats the test a default number of times, ensuring it is
+   * stable ("non-flaky"). Stops at the first failure.
+   */
+  val nonFlaky: TestAspectPoly =
+    nonFlaky(100)
+
+  /**
    * An aspect that repeats the test a specified number of times, ensuring it
    * is stable ("non-flaky"). Stops at the first failure.
    */
