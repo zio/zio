@@ -37,7 +37,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1, S0, S1, S >: S0 <: S1](
     aspect: TestAspect[R0, R1, E0, E1, S0, S1]
   )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess[S]): ZSpec[R1, E2, L, S] =
-    aspect(self.bimap(ev1, ev2))
+    aspect(self.asInstanceOf[ZSpec[R1, E2, L, S]])
 
   /**
    * Returns a new spec with remapped errors and tests.
