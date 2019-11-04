@@ -198,12 +198,9 @@ object TestAspect extends TimeoutVariants {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
-        lazy val untilSuccess: ZIO[R, Nothing, TestSuccess[S]] =
-          test.foldM(_ => untilSuccess, ZIO.succeed(_))
-
-        untilSuccess
-      }
+        test.eventually
     }
+  }
 
   /**
    * An aspect that sets suites to the specified execution strategy, but only
