@@ -842,7 +842,51 @@ object ZManagedSpec
             }
             val executed = errorToVal.use[Any, String, String](ZIO.succeed).run
             assertM(executed, fails(equalTo("Uh oh!")))
-          }
+          },
+          suite("collect")(
+            testM("happy path") {
+              val collect = Managed
+                .succeed(0)
+                .collect("Value must be zero!")({ case x @ 0 => x })
+                .use[Any, String, Int](ZIO.succeed)
+
+              assertM(collect, equalTo(0))
+            },
+            testM("error path") {
+              Managed
+                .succeed(1)
+                .collect("Value must be zero!")({ case x @ 0 => x })
+                .use[Any, String, Int](ZIO.succeed)
+                .either
+                .map(assert(_, isLeft(equalTo("Value must be zero!"))))
+            }
+          ),
+          suite("collectM")(
+            testM("happy path") {
+              val collect = Managed
+                .succeed(0)
+                .collectM("Value must be zero!")({ case x @ 0 => Managed.succeed(x) })
+                .use[Any, String, Int](ZIO.succeed)
+
+              assertM(collect, equalTo(0))
+            },
+            testM("error path - predicate fails") {
+              Managed
+                .succeed(1)
+                .collectM("Value must be zero!")({ case x @ 0 => Managed.succeed(x) })
+                .use[Any, String, Int](ZIO.succeed)
+                .either
+                .map(assert(_, isLeft(equalTo("Value must be zero!"))))
+            },
+            testM("error path - pf fails") {
+              Managed
+                .succeed(0)
+                .collectM[Any, String, Int]("Value must be zero!")({ case x @ 0 => Managed.fail("Ouch") })
+                .use(ZIO.succeed)
+                .either
+                .map(assert(_, isLeft(equalTo("Ouch"))))
+            }
+          )
         )
       )
     )
