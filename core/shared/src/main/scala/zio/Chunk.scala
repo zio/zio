@@ -16,6 +16,7 @@
 
 package zio
 
+import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
 
 /**
@@ -471,17 +472,31 @@ sealed trait Chunk[+A] { self =>
     dest
   }
 
-  def toSeq: Seq[A] = {
-    val c          = materialize
-    val seqBuilder = Seq.newBuilder[A]
-    var i          = 0
-    val len        = c.length
-    seqBuilder.sizeHint(len)
+  private final def fromBuilder[A1 >: A, B[_]](builder: Builder[A1, B[A1]]): B[A1] = {
+    val c   = materialize
+    var i   = 0
+    val len = c.length
+    builder.sizeHint(len)
     while (i < len) {
-      seqBuilder += c(i)
+      builder += c(i)
       i += 1
     }
-    seqBuilder.result()
+    builder.result()
+  }
+
+  def toSeq: Seq[A] = {
+    val seqBuilder = Seq.newBuilder[A]
+    fromBuilder(seqBuilder)
+  }
+
+  def toList: List[A] = {
+    val listBuilder = List.newBuilder[A]
+    fromBuilder(listBuilder)
+  }
+
+  def toVector: Vector[A] = {
+    val vectorBuilder = Vector.newBuilder[A]
+    fromBuilder(vectorBuilder)
   }
 
   override def toString: String =
@@ -757,8 +772,37 @@ object Chunk {
       else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
-    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      ZIO.sequence(array.collect(pf)).map(Chunk.fromIterable(_))
+    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
+      val self                      = array
+      val len                       = self.length
+      val orElse                    = (_: A) => UIO.succeed(null.asInstanceOf[B])
+      var dest: ZIO[R, E, Array[B]] = UIO.succeed(null.asInstanceOf[Array[B]])
+
+      var i = 0
+      var j = 0
+      while (i < len) {
+        dest = dest.zipWith(pf.applyOrElse(self(i), orElse)) { (array, b) =>
+          var tmp = array
+          if (b != null) {
+            if (tmp == null) {
+              implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+              tmp = Array.ofDim[B](len)
+            }
+            tmp(j) = b
+            j += 1
+          }
+          tmp
+        }
+
+        i += 1
+      }
+
+      dest.map(
+        array =>
+          if (array == null) Chunk.empty
+          else Chunk.Slice(Chunk.Arr(array), 0, j)
+      )
+    }
 
     override def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val self = array
@@ -790,8 +834,40 @@ object Chunk {
       else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
-    override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      ZIO.sequence(array.takeWhile(pf.isDefinedAt).collect(pf)).map(Chunk.fromIterable(_))
+    override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
+      val self                      = array
+      val len                       = self.length
+      var dest: ZIO[R, E, Array[B]] = UIO.succeed(null.asInstanceOf[Array[B]])
+
+      var i    = 0
+      var j    = 0
+      var done = false
+      val orElse = (_: A) =>
+        UIO.succeed { done = true } *> UIO.succeed(null.asInstanceOf[B])
+
+      while (!done && i < len) {
+        dest = dest.zipWith(pf.applyOrElse(self(i), orElse)) { (array, b) =>
+          var tmp = array
+          if (b != null) {
+            if (tmp == null) {
+              implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+              tmp = Array.ofDim[B](len)
+            }
+            tmp(j) = b
+            j += 1
+          }
+          tmp
+        }
+
+        i += 1
+      }
+
+      dest.map(
+        array =>
+          if (array == null) Chunk.empty
+          else Chunk.Slice(Chunk.Arr(array), 0, j)
+      )
+    }
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
       val self = array

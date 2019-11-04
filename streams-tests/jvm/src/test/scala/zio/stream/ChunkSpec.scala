@@ -145,8 +145,8 @@ object ChunkSpec
             val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[String]](Gen.successes(stringGen))
             checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
               for {
-                result   <- c.collectM(pf).map(_.toSeq)
-                expected <- UIO.sequence(c.toSeq.collect(pf))
+                result   <- c.collectM(pf).map(_.toList)
+                expected <- UIO.sequence(c.toList.collect(pf))
               } yield assert(result, equalTo(expected))
             }
           },
@@ -173,8 +173,8 @@ object ChunkSpec
             val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[String]](Gen.successes(stringGen))
             checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
               for {
-                result   <- c.collectWhileM(pf).map(_.toSeq)
-                expected <- UIO.sequence(c.toSeq.takeWhile(pf.isDefinedAt).map(pf.apply))
+                result   <- c.collectWhileM(pf).map(_.toList)
+                expected <- UIO.sequence(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply))
               } yield assert(result, equalTo(expected))
             }
           },
