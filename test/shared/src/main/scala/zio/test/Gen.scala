@@ -18,7 +18,7 @@ package zio.test
 
 import scala.collection.immutable.SortedMap
 
-import zio.{ Schedule, UIO, ZIO }
+import zio.{ UIO, ZIO }
 import zio.random._
 import zio.stream.{ Stream, ZStream }
 
@@ -290,7 +290,7 @@ object Gen extends GenZIO with FunctionVariants {
       val difference = max - min + 1
       val effect =
         if (difference > 0) nextLong(difference).map(min + _)
-        else nextLong.repeat(Schedule.doUntil(n => min <= n && n <= max))
+        else nextLong.doUntil(n => min <= n && n <= max)
       effect.map(Sample.shrinkIntegral(min))
     }
 
