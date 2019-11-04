@@ -669,7 +669,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def broadcastDynamic(
     maximumLag: Int
   ): ZManaged[R, Nothing, UIO[Stream[E, A]]] =
-    distributedWithDynamic[E, A](maximumLag, _ => ZIO.succeed(_ => true), _ => ZIO.unit).map(_.map(_._2))
+    distributedWithDynamic[E, A](maximumLag, _ => ZIO.succeed(_ => true), _ => ZIO.unit)
+      .map(_.map(_._2))
       .map(_.map(ZStream.fromQueueWithShutdown(_).unTake))
 
   /**
@@ -997,8 +998,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * More powerful version of `ZStream#distributedWith`. This returns a function that will produce
    * new queues and corresponding indices.
-   * You can also provide a function that will be executed after the final events are enqueued in all queues
-   * but before the queues are actually shutdown.
+   * You can also provide a function that will be executed after the final events are enqueued in all queues.
    * Shutdown of the queues is handled by the driver.
    * Downstream users can also shutdown queues manually. In this case the driver will
    * continue but no longer backpressure on them.
@@ -1008,46 +1008,77 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     decide: A => UIO[Int => Boolean],
     done: Take[E, Nothing] => UIO[Any] = (_: Any) => UIO.unit
   ): ZManaged[R, Nothing, UIO[(Int, Queue[Take[E1, A1]])]] =
-    Ref
-      .make[Vector[Queue[Take[E1, A1]]]](Vector())
-      .toManaged(_.get.flatMap(qs => ZIO.foreach(qs)(_.shutdown)))
-      .flatMap { queues =>
-        val broadcast = (a: Take[E1, Nothing]) =>
-          for {
-            queues <- queues.get
-            _ <- ZIO.foreach_(queues) { q =>
-                  // we ignore all downstream queues that were shut down
-                  q.offer(a).catchSomeCause { case c if (c.interrupted) => ZIO.unit }
-                }
-          } yield ()
-
+    for {
+      queuesRef <- Ref
+                    .make[Map[Int, Queue[Take[E1, A1]]]](Map())
+                    .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
+      indexRef  <- Ref.make(-1).toManaged_
+      nextIndex = indexRef.update(_ + 1)
+      add <- {
         val offer = (a: A) =>
           for {
-            decider <- decide(a)
-            queues  <- queues.get
-            _ <- ZIO.foreach_(queues.zipWithIndex.collect { case (q, id) if decider(id) => q }) { q =>
-                  q.offer(Take.Value(a)).catchSomeCause { case c if (c.interrupted) => ZIO.unit }
-                }
+            shouldProcess <- decide(a)
+            queues        <- queuesRef.get
+            _ <- ZIO
+                  .foldLeft(queues)(List[Int]()) {
+                    case (acc, (id, queue)) =>
+                      if (shouldProcess(id)) {
+                        queue
+                          .offer(Take.Value(a))
+                          .foldCauseM(
+                            {
+                              // we ignore all downstream queues that were shut down and remove them later
+                              case Cause.Interrupt => ZIO.succeed(id :: acc)
+                              case c               => ZIO.halt(c)
+                            },
+                            _ => ZIO.succeed(acc)
+                          )
+                      } else ZIO.succeed(acc)
+                  }
+                  .flatMap(ids => if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit)
           } yield ()
 
         for {
-          add <- Ref
-                  .make[UIO[(Int, Queue[Take[E1, A1]])]] {
-                    Queue
-                      .bounded[Take[E1, A1]](maximumLag)
-                      .flatMap(q => queues.modify(old => ((old.length, q), old :+ q)))
-                      .uninterruptible
+          newQueue <- Ref
+                       .make[UIO[(Int, Queue[Take[E1, A1]])]] {
+                         for {
+                           id    <- nextIndex
+                           queue <- Queue.bounded[Take[E1, A1]](maximumLag)
+                           _     <- queuesRef.update(_ + (id -> queue))
+                         } yield (id, queue)
+                       }
+                       .toManaged_
+          finalize = (endTake: Take[E, Nothing]) =>
+            for {
+              ignored <- Ref.make[Set[Int]](Set())
+              _ <- newQueue.set {
+                    for {
+                      id    <- nextIndex
+                      queue <- Queue.bounded[Take[E1, A1]](1)
+                      _     <- queue.offer(endTake)
+                      _     <- ignored.update(_ + 1)
+                      _     <- queuesRef.update(_ + (id -> queue))
+                    } yield (id, queue)
                   }
-                  .toManaged_
+              queues     <- queuesRef.get
+              toFinalize <- ignored.get.map(ids => queues.filterKeys(!ids.contains(_)).map(_._2))
+              _ <- ZIO.foreach(toFinalize) { queue =>
+                    queue.offer(endTake).catchSomeCause {
+                      case Cause.Interrupt => ZIO.unit
+                    }
+                  }
+              _ <- done(endTake)
+            } yield ()
           _ <- self
                 .foreachManaged(offer)
                 .foldCauseM(
-                  cause => (broadcast(Take.Fail(cause)) *> done(Take.Fail(cause))).toManaged_,
-                  _ => (broadcast(Take.End) *> done(Take.End)).toManaged_
+                  cause => finalize(Take.Fail(cause)).toManaged_,
+                  _ => finalize(Take.End).toManaged_
                 )
                 .fork
-        } yield add.get.flatten
+        } yield newQueue.get.flatten
       }
+    } yield add
 
   /**
    * Converts this stream to a stream that executes its effects but emits no
