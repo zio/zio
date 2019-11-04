@@ -1015,6 +1015,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       indexRef  <- Ref.make(-1).toManaged_
       nextIndex = indexRef.update(_ + 1)
       add <- {
+        @silent("deprecated")
+        def filterKeys[A, B](map: Map[A, B])(f: A => Boolean) =
+          map.filterKeys(f)
+
         val offer = (a: A) =>
           for {
             shouldProcess <- decide(a)
@@ -1061,7 +1065,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                     } yield (id, queue)
                   }
               queues     <- queuesRef.get
-              toFinalize <- ignored.get.map(ids => queues.filterKeys(!ids.contains(_)).map(_._2))
+              toFinalize <- ignored.get.map(ids => filterKeys(queues)(!ids.contains(_)).map(_._2))
               _ <- ZIO.foreach(toFinalize) { queue =>
                     queue.offer(endTake).catchSomeCause {
                       case Cause.Interrupt => ZIO.unit
