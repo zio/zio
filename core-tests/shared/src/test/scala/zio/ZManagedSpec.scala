@@ -212,7 +212,7 @@ object ZManagedSpec
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
               program = res(1).flatMap(_ => ZManaged.interrupt).foldM(_ => res(2), _ => res(3))
-              values  <- program.use_(ZIO.unit).ignore *> effects.get
+              values  <- program.use_(ZIO.unit).sandbox.ignore *> effects.get
             } yield assert(values, equalTo(List(1, 1)))
           },
           testM("Invokes cleanups on interrupt - 2") {
@@ -220,7 +220,7 @@ object ZManagedSpec
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
               program = res(1).flatMap(_ => ZManaged.fail(())).foldM(_ => res(2), _ => res(3))
-              values  <- program.use_(ZIO.interrupt).ignore *> effects.get
+              values  <- program.use_(ZIO.interrupt).sandbox.ignore *> effects.get
             } yield assert(values, equalTo(List(1, 2, 2, 1)))
           },
           testM("Invokes cleanups on interrupt - 3") {
@@ -228,7 +228,7 @@ object ZManagedSpec
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
               program = res(1).flatMap(_ => ZManaged.fail(())).foldM(_ => res(2) *> ZManaged.interrupt, _ => res(3))
-              values  <- program.use_(ZIO.unit).ignore *> effects.get
+              values  <- program.use_(ZIO.unit).sandbox.ignore *> effects.get
             } yield assert(values, equalTo(List(1, 2, 2, 1)))
           }
         ),

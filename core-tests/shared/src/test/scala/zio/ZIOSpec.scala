@@ -119,6 +119,17 @@ object ZIOSpec
             assertM(ZIO.fail("Fail").head.either, isLeft(isSome(equalTo("Fail"))))
           }
         ),
+        suite("ignore")(
+          testM("return success as Unit") {
+            assertM(ZIO.succeed(11).ignore, equalTo(()))
+          },
+          testM("return failure as Unit") {
+            assertM(ZIO.fail(123).ignore, equalTo(()))
+          },
+          testM("not catch throwable") {
+            assertM(ZIO.die(ExampleError).ignore.run, dies(equalTo(ExampleError)))
+          }
+        ),
         suite("left")(
           testM("on Left value") {
             assertM(ZIO.succeed(Left("Left")).left, equalTo("Left"))
