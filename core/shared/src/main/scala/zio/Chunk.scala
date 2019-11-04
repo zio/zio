@@ -49,12 +49,20 @@ sealed trait Chunk[+A] { self =>
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
-  def collect[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(p)
+  def collect[B](pf: PartialFunction[A, B]): Chunk[B] = self.materialize.collect(pf)
+
+  /**
+   * Returns a filtered, mapped subset of the elements of this chunk based on a .
+   */
+  def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = self.materialize.collectM(pf)
 
   /**
    * Transforms all elements of the chunk for as long as the specified partial function is defined.
    */
-  def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = self.materialize.collectWhile(p)
+  def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = self.materialize.collectWhile(pf)
+
+  def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+    self.materialize.collectWhileM(pf)
 
   /**
    * Drops the first `n` elements of the chunk.
@@ -749,6 +757,9 @@ object Chunk {
       else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
 
+    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+      ZIO.sequence(array.collect(pf)).map(Chunk.fromIterable(_))
+
     override def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = {
       val self = array
       val len  = self.length
@@ -778,6 +789,9 @@ object Chunk {
       if (dest == null) Chunk.Empty
       else Chunk.Slice(Chunk.Arr(dest), 0, j)
     }
+
+    override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+      ZIO.sequence(array.takeWhile(pf.isDefinedAt).collect(pf)).map(Chunk.fromIterable(_))
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
       val self = array
@@ -966,7 +980,12 @@ object Chunk {
 
     override def collect[B](p: PartialFunction[Nothing, B]): Chunk[B] = Empty
 
+    override def collectM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = UIO.succeed(Empty)
+
     override def collectWhile[B](p: PartialFunction[Nothing, B]): Chunk[B] = Empty
+
+    override def collectWhileM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
+      UIO.succeed(Empty)
 
     protected[zio] def foreach(f: Nothing => Unit): Unit = ()
 
