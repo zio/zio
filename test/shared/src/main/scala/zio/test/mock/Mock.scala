@@ -16,7 +16,8 @@
 
 package zio.test.mock
 
-import zio.{ IO, Promise, Ref, ZIO }
+import zio.test.Assertion
+import zio.{ IO, Promise, Ref, UIO, ZIO }
 import zio.test.mock.Expectation.Call
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException }
 
@@ -381,6 +382,35 @@ trait Mock {
 
 object Mock {
 
+  type AMethod  = Method[Any, Any, Any]
+  type AReturns = Any => UIO[Any]
+
+  protected[mock] def makeSpy(values: Map[AMethod, AReturns]): UIO[(Mock, Ref[List[PerformedCall[Any]]])] = {
+    val invocationsIO: UIO[Ref[List[PerformedCall[Any]]]] = Ref.make(List.empty[PerformedCall[Any]])
+
+    for {
+      invocations <- invocationsIO
+    } yield {
+      val mock = new Mock {
+        override def invoke[R0, E0, A0, M0, I0](method: Method[M0, I0, A0], input: I0): ZIO[R0, E0, A0] = {
+          val aMethod = method.asInstanceOf[AMethod]
+          values.get(aMethod) match {
+            case Some(returns) =>
+              for {
+                result <- returns.apply(input).map(_.asInstanceOf[A0])
+                _      <- invocations.update(list => PerformedCall(aMethod, input, result) :: list)
+              } yield result
+
+            case None =>
+              ZIO.die(
+                InvalidMethodException(aMethod, method, Assertion.anything)
+              )
+          }
+        }
+      }
+      (mock, invocations)
+    }
+  }
   protected[mock] def make(callsRef: Ref[List[Call[Any, Any, Any, Any]]]) =
     new Mock {
       def invoke[R0, E0, A0, M0, I0](invokedMethod: Method[M0, I0, A0], args: I0): ZIO[R0, E0, A0] =

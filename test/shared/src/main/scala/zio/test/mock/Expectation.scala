@@ -17,13 +17,35 @@
 package zio.test.mock
 
 import scala.language.implicitConversions
-
 import com.github.ghik.silencer.silent
 import zio.{ IO, Managed, Ref, UIO, ZIO }
 import zio.test.Assertion
 import zio.test.mock.Expectation.{ AnyCall, Call, Empty, FlatMap, Next, State }
+import zio.test.mock.Mock.{ AMethod, AReturns }
 import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
 import zio.test.mock.MockException.UnmetExpectationsException
+
+case class PerformedCall[M](
+  method: Method[M, Any, Any],
+  in: Any,
+  out: Any
+)
+
+object Spy {
+  def apply[M](ref: Ref[List[PerformedCall[M]]]): Spy[M] = new Spy[M] {
+    override def allCalls: UIO[List[PerformedCall[M]]] = ref.get
+  }
+}
+
+trait Spy[M] {
+  def allCalls: UIO[List[PerformedCall[M]]]
+  def allCalls[I, O](method: Method[M, I, O]): UIO[List[(I, O)]] = {
+    val _method = method.asInstanceOf[Method[M, Any, Any]]
+    allCalls.map(_.collect {
+      case PerformedCall(m, i, o) if _method == m => (i, o).asInstanceOf[(I, O)]
+    })
+  }
+}
 
 /**
  * An `Expectation[-M, +E, +A]` is an immutable data structure that represents
@@ -60,6 +82,35 @@ sealed trait Expectation[-M, +E, +A] { self =>
    */
   final def flatMap[M1 <: M, E1 >: E, B](k: A => Expectation[M1, E1, B]): Expectation[M1, E1, B] =
     FlatMap(self, k)
+
+  /**
+   * Converts this Expectation to ZManaged mock environment.
+   */
+  final def spy[M1 <: M](implicit mockable: Mockable[M1]): UIO[(M1, Spy[M1])] = {
+
+    def step(state: Map[AMethod, AReturns], expectation: Expectation[M, E, Any]): Map[AMethod, AReturns] =
+      expectation match {
+        case Expectation.Empty =>
+          Map.empty
+        case Call(method, assertion, returns) =>
+          state + ((method.asInstanceOf[AMethod], returns.asInstanceOf[AReturns]))
+        case FlatMap(current, next) =>
+          step(Map.empty, current) ++
+            step(Map.empty, next.asInstanceOf[Any => Expectation[M, E, Any]].apply(null)) ++
+            state
+
+      }
+
+    val callMap: Map[AMethod, AReturns] = step(Map.empty, self)
+
+    for {
+      result      <- Mock.makeSpy(callMap)
+      (mock, ref) = result
+    } yield {
+      (mockable.environment(mock), Spy(ref.asInstanceOf[Ref[List[PerformedCall[M1]]]]))
+    }
+
+  }
 
   /**
    * Converts this Expectation to ZManaged mock environment.
