@@ -249,7 +249,7 @@ object TMap {
     }
 
     TArray.fromIterable(buckets).flatMap { tChains =>
-      TRef(TArray(tChains.toArray)).flatMap { tBuckets =>
+      TRef(tChains).flatMap { tBuckets =>
         TRef(capacity).flatMap { tCapacity =>
           TRef(uniqueItems.size).map { tSize =>
             new TMap(tBuckets, tCapacity, tSize)

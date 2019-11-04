@@ -88,5 +88,5 @@ object TArray {
    * Makes a new `TArray` initialized with provided iterable.
    */
   final def fromIterable[A](data: Iterable[A]): STM[Nothing, TArray[A]] =
-    STM.foreach(data)(TRef.make(_)).map(list => new TArray(list.toArray))
+    STM.foreach(data)(TRef(_)).map(list => new TArray(list.toArray))
 }
