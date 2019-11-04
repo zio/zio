@@ -1502,12 +1502,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       }
 
     val g = (b: B, a: A) => f(a, b)
-    (self raceWith that)(coordinate(f, true), coordinate(g, false)).fork.flatMap { f =>
-      f.await.flatMap { exit =>
-        if (exit.succeeded) f.inheritFiberRefs *> ZIO.done(exit)
-        else ZIO.done(exit)
-      }
-    }
+    (self raceWith that)(coordinate(f, true), coordinate(g, false))
   }
 
   /**

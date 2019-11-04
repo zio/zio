@@ -104,10 +104,13 @@ private[zio] object StackBool {
     stack
   }
 
-  def apply(bools: List[Boolean]): StackBool = {
+  def fromIterable(it: Iterable[Boolean]): StackBool = {
     val stack = StackBool()
-    bools.reverse.foreach(stack.push)
-    stack
+    it.foldRight(stack) {
+      (b, stack) =>
+        stack.push(b)
+        stack
+    }
   }
 
   private class Entry(val next: Entry) {

@@ -255,7 +255,7 @@ private[zio] final class FiberContext[E, A](
             complete(right, left, race.rightWins, rightRegister, raceIndicator, cb)
         }
       }
-      .onInterrupt(left.interrupt *> right.interrupt)
+      .onInterrupt(left.interrupt.flatMap(_ => right.interrupt))
   }
 
   /**
