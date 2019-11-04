@@ -121,14 +121,12 @@ object ZIOSpec
         ),
         suite("ignore")(
           testM("return success as Unit") {
-            import zio.CanFail.canFail
             assertM(ZIO.succeed(11).ignore, equalTo(()))
           },
           testM("return failure as Unit") {
             assertM(ZIO.fail(123).ignore, equalTo(()))
           },
           testM("not catch throwable") {
-            import zio.CanFail.canFail
             assertM(ZIO.die(ExampleError).ignore.run, dies(equalTo(ExampleError)))
           }
         ),
