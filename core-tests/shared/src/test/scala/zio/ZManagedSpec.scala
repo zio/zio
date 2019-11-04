@@ -10,6 +10,16 @@ import zio.test.environment._
 object ZManagedSpec
     extends ZIOBaseSpec(
       suite("ZManaged")(
+        suite("allocated")(
+          testM("runs finalizer on interruption") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+              _      <- res.allocated.run.ignore
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          }
+        ),
         suite("make")(
           testM("Invokes cleanups in reverse order of acquisition.") {
             for {
