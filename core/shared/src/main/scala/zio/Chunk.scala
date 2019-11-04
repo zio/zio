@@ -730,7 +730,7 @@ object Chunk {
   private case class Arr[A](private val array: Array[A]) extends Chunk[A] {
     implicit val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
 
-    override def collect[B](p: PartialFunction[A, B]): Chunk[B] = {
+    override def collect[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val self = array
       val len  = self.length
       var dest = null.asInstanceOf[Array[B]]
@@ -738,7 +738,7 @@ object Chunk {
       var i = 0
       var j = 0
       while (i < len) {
-        val b = p.applyOrElse(self(i), (_: A) => null.asInstanceOf[B])
+        val b = pf.applyOrElse(self(i), (_: A) => null.asInstanceOf[B])
 
         if (b != null) {
           if (dest == null) {
@@ -760,7 +760,7 @@ object Chunk {
     override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
       ZIO.sequence(array.collect(pf)).map(Chunk.fromIterable(_))
 
-    override def collectWhile[B](p: PartialFunction[A, B]): Chunk[B] = {
+    override def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val self = array
       val len  = self.length
       var dest = null.asInstanceOf[Array[B]]
@@ -769,7 +769,7 @@ object Chunk {
       var j    = 0
       var done = false
       while (!done && i < len) {
-        val b = p.applyOrElse(self(i), (_: A) => null.asInstanceOf[B])
+        val b = pf.applyOrElse(self(i), (_: A) => null.asInstanceOf[B])
 
         if (b != null) {
           if (dest == null) {
@@ -978,11 +978,11 @@ object Chunk {
 
     protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
-    override def collect[B](p: PartialFunction[Nothing, B]): Chunk[B] = Empty
+    override def collect[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
 
     override def collectM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = UIO.succeed(Empty)
 
-    override def collectWhile[B](p: PartialFunction[Nothing, B]): Chunk[B] = Empty
+    override def collectWhile[B](pf: PartialFunction[Nothing, B]): Chunk[B] = Empty
 
     override def collectWhileM[R, E, B](pf: PartialFunction[Nothing, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
       UIO.succeed(Empty)
