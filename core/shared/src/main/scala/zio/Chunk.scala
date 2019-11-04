@@ -839,11 +839,10 @@ object Chunk {
       val len                       = self.length
       var dest: ZIO[R, E, Array[B]] = UIO.succeed(null.asInstanceOf[Array[B]])
 
-      var i    = 0
-      var j    = 0
-      var done = false
-      val orElse = (_: A) =>
-        UIO.succeed { done = true } *> UIO.succeed(null.asInstanceOf[B])
+      var i      = 0
+      var j      = 0
+      var done   = false
+      val orElse = (_: A) => UIO.succeed { done = true } *> UIO.succeed(null.asInstanceOf[B])
 
       while (!done && i < len) {
         dest = dest.zipWith(pf.applyOrElse(self(i), orElse)) { (array, b) =>
