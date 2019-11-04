@@ -1594,6 +1594,7 @@ object StreamSpec
                 .tap(_ => ZIO.sleep(Duration.Infinity))
                 .timeout(Duration.Zero)
                 .runDrain
+                .sandbox
                 .ignore
                 .map(_ => true),
               isTrue
