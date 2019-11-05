@@ -833,12 +833,13 @@ object ZManagedSpecUtil {
     expected: FiberId => Option[Exit[Nothing, Unit]]
   ) =
     for {
+      fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
       interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live)
-    } yield assert(interruption, equalTo(expected))
+    } yield assert(interruption.map(_.untraced), equalTo(expected(fiberId)))
 
   def testFinalizersPar[R, E](
     n: Int,
