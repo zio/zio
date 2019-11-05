@@ -843,6 +843,24 @@ object ZManagedSpec
             val executed = errorToVal.use[Any, String, String](ZIO.succeed).run
             assertM(executed, fails(equalTo("Uh oh!")))
           }
+        ),
+        suite("collect")(
+          testM("collectM maps value, if PF matched") {
+            val managed = ZManaged.succeed[Any, Int](42).collectM("Oh No!") {
+              case 42 => ZManaged.succeed(84)
+            }
+            val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed)
+
+            assertM(effect, equalTo(84))
+          },
+          testM("collectM produces given error, if PF not matched") {
+            val managed = ZManaged.succeed[Any, Int](42).collectM("Oh No!") {
+              case 43 => ZManaged.succeed(84)
+            }
+            val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed)
+
+            assertM(effect.run, fails(equalTo("Oh No!")))
+          }
         )
       )
     )
