@@ -251,7 +251,11 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * runs it repeatedly until it eventually succeeds.
    */
   final def eventually(implicit ev: CanFail[E]): ZManaged[R, Nothing, A] =
-    self orElse eventually
+    ZManaged {
+      reserve.eventually.map { r =>
+        Reservation(r.acquire.eventually, r.release)
+      }
+    }
 
   /**
    * Zips this effect with its environment
