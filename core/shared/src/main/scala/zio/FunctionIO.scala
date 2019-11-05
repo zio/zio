@@ -20,8 +20,8 @@ package zio
  * A `FunctionIO[E, A, B]` is an effectful function from `A` to `B`, which might
  * fail with an `E`.
  *
- * This is the moral equivalent of `A => IO[E, B]`, and, indeed, `FunctionIO`
- * extends this function type, and can be used in the same way.
+ * This is the moral equivalent of `A => IO[E, B]`, which can be obtained with
+ * `run`.
  *
  * The main advantage to using `FunctionIO` is that it provides you a means of
  * importing an impure function `A => B` into `FunctionIO[E, A, B]`, without
@@ -48,38 +48,39 @@ package zio
  * Given the following two `FunctionIO`:
  *
  * {{{
- * val readLine = FunctionIO.impureVoid((_ : Unit) => scala.Console.readLine())
- * val printLine = FunctionIO.impureVoid((line: String) => println(line))
+ * val diceThrow = FunctionIO.effectTotal((_: Unit) => scala.util.Random.nextInt(6) + 1)
+ * val printLine = FunctionIO.effectTotal((line: String) => println(line))
  * }}}
  *
  * Then the following two programs are equivalent:
  *
  * {{{
  * // Program 1
- * val program1: UIO[Unit] =
+ * val program1: Task[Unit] =
  *   for {
- *     name <- getStrLn
- *     _    <- putStrLn("Hello, " + name)
- *   } yield ())
+ *     dice <- IO(scala.util.Random.nextInt(6) + 1)
+ *     _    <- IO(println("Dice roll: " + dice))
+ *   } yield ()
  *
  * // Program 2
- * val program2: UIO[Unit] = (readLine >>> FunctionIO.fromFunction("Hello, " + _) >>> printLine)(())
+ * val program2: Task[Unit] =
+ *   (diceThrow >>> FunctionIO.effectTotal("Dice roll: " + _.toString) >>> printLine).run(())*
  * }}}
  *
  * Similarly, the following two programs are equivalent:
  *
  * {{{
  * // Program 1
- * val program1: UIO[Unit] =
- *   for {
- *     line1 <- getStrLn
- *     line2 <- getStrLn
- *     _     <- putStrLn("You wrote: " + line1 + ", " + line2)
- *   } yield ())
+ * val program1: Task[Unit] =
+ * for {
+ *   dice1 <- IO(scala.util.Random.nextInt(6) + 1)
+ *   dice2 <- IO(scala.util.Random.nextInt(6) + 1)
+ *   _     <- IO(println("Two dice: " + dice1 + ", " + dice2))
+ * } yield ()
  *
  * // Program 2
- * val program2: UIO[Unit] =
- *   (readLine.zipWith(readLine)("You wrote: " + _ + ", " + _) >>> printLine)(())
+ * val program2: Task[Unit] =
+ *   (diceThrow.zipWith(diceThrow)("Two dice: " + _ + ", " + _) >>> printLine).run(())
  * }}}
  *
  * In both of these examples, the `FunctionIO` program is faster because it is

@@ -1417,7 +1417,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    * example:
    * {{{
    * Stream(1, 5, 1)
-   *  .transduce(
+   *  .aggregate(
    *    Sink
    *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
    *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
@@ -1494,6 +1494,12 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
    */
   final def fromFunction[A, B](f: A => B): ZSink[Any, Unit, Nothing, A, B] =
     identity.map(f)
+
+  /**
+   * Creates a sink that effectfully transforms incoming values.
+   */
+  final def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, Option[E], Nothing, A, B] =
+    identity.mapError(_ => None).mapM(f(_).mapError(Some(_)))
 
   /**
    * Creates a sink halting with a specified cause.

@@ -171,6 +171,16 @@ package object test extends AssertionVariants with CheckVariants {
       }
     )
 
+  /**
+   * Passes version specific information to the specified function, which will
+   * use that information to create a test. If the version is neither Dotty nor
+   * Scala 2, an ignored test result will be returned.
+   */
+  final def versionSpecific[R, E, A, S](dotty: => A, scala2: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
+    if (TestVersion.isDotty) f(dotty)
+    else if (TestVersion.isScala2) f(scala2)
+    else ignore
+
   val defaultTestRunner: TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any] =
     TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
 }
