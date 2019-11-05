@@ -23,14 +23,11 @@ class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVa
     }.flatten
 
   final def done(v: Either[E, A]): STM[Nothing, Boolean] =
-    for {
-      value <- ref.get
-      change <- value match {
-                 case Some(_) => STM.succeed(false)
-                 case None =>
-                   ref.set(Some(v)) *> STM.succeed(true)
-               }
-    } yield change
+    ref.get.flatMap {
+      case Some(_) => STM.succeed(false)
+      case None =>
+        ref.set(Some(v)) *> STM.succeed(true)
+    }
 
   final def fail(e: E): STM[Nothing, Boolean] =
     done(Left(e))
@@ -46,6 +43,6 @@ class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVa
 }
 
 object TPromise {
-  final def make[E, A]: STM[Nothing, TPromise[E, A]] =
-    TRef.make[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
+  final def apply[E, A]: STM[Nothing, TPromise[E, A]] =
+    TRef[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
 }

@@ -69,6 +69,13 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     concat(other)
 
   /**
+   * Applies an aggregator to the stream, which converts one or more elements
+   * of type `A` into elements of type `C`.
+   */
+  def aggregate[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+    aggregateManaged[R1, E1, A1, C](ZManaged.succeed(sink))
+
+  /**
    * Aggregates elements of this stream using the provided sink for as long
    * as the downstream operators on the stream are busy.
    *
@@ -80,7 +87,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Any sink can be used here, but see [[Sink.foldWeightedM]] and [[Sink.foldUntilM]] for
    * sinks that cover the common usecases.
    */
-  final def aggregate[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, A1, A1, B]): ZStream[R1, E1, B] = {
+  final def aggregateAsync[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, A1, A1, B]): ZStream[R1, E1, B] = {
     /*
      * How this works:
      *
@@ -266,7 +273,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @tparam C type of the value produced by the given schedule
    * @return `ZStream[R1 with Clock, E1, Either[C, B]]`
    */
-  final def aggregateWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
+  final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
     schedule: ZSchedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E1, Either[C, B]] = {
@@ -548,7 +555,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   }
 
   /**
-   * Uses `aggregateWithinEither` but only returns the `Right` results.
+   * Uses `aggregateAsyncWithinEither` but only returns the `Right` results.
    *
    * @param sink used for the aggregation
    * @param schedule signalling for when to stop the aggregation
@@ -559,12 +566,78 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @tparam C type of the value produced by the given schedule
    * @return `ZStream[R1 with Clock, E1, B]`
    */
-  final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
+  final def aggregateAsyncWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
     schedule: ZSchedule[R1, Option[B], C]
-  ): ZStream[R1 with Clock, E1, B] = aggregateWithinEither(sink, schedule).collect {
+  ): ZStream[R1 with Clock, E1, B] = aggregateAsyncWithinEither(sink, schedule).collect {
     case Right(v) => v
   }
+
+  /**
+   * Applies an aggregator to the stream, converting elements of type `A` into elements of type `C`, with a
+   * managed resource of type `D` available.
+   */
+  final def aggregateManaged[R1 <: R, E1 >: E, A1 >: A, B](
+    managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
+  ): ZStream[R1, E1, B] =
+    ZStream[R1, E1, B] {
+      for {
+        as           <- self.process
+        sink         <- managedSink.map(_.mapError(Some(_)))
+        doneRef      <- Ref.make(false).toManaged_
+        leftoversRef <- Ref.make[Chunk[A1]](Chunk.empty).toManaged_
+        pull = {
+          def go(s: sink.State, dirty: Boolean): Pull[R1, E1, B] =
+            if (!dirty) {
+              leftoversRef.get.flatMap { leftovers =>
+                doneRef.get.flatMap { done =>
+                  if (done)
+                    Pull.end
+                  else if (leftovers.nonEmpty)
+                    sink.stepChunk(s, leftovers).flatMap {
+                      case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
+                    } else
+                    as flatMap { a =>
+                      sink
+                        .step(s, a)
+                        .flatMap(s => go(s, true))
+                    }
+                }
+              }
+            } else {
+              doneRef.get.flatMap { done =>
+                if (done || !sink.cont(s))
+                  sink.extract(s).flatMap {
+                    case (b, leftovers) =>
+                      leftoversRef
+                        .update(_ ++ leftovers)
+                        .when(leftovers.nonEmpty)
+                        .as(b)
+                  } else
+                  as.foldM(
+                    {
+                      case e @ Some(_) => ZIO.fail(e)
+                      case None =>
+                        doneRef.set(true) *>
+                          sink.extract(s).flatMap {
+                            case (b, leftovers) =>
+                              leftoversRef
+                                .update(_ ++ leftovers)
+                                .when(leftovers.nonEmpty)
+                                .as(b)
+                          }
+                    },
+                    sink
+                      .step(s, _)
+                      .flatMap(s => go(s, true))
+                  )
+              }
+            }
+
+          sink.initial.flatMap(s => go(s, false))
+        }
+      } yield pull
+    }
 
   /**
    * Maps the success values of this stream to the specified constant value.
@@ -761,40 +834,42 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Chunks the stream with specifed chunkSize
    * @param chunkSize size of the chunk
    */
-  def chunkN(chunkSize: Int): ZStream[R, E, Chunk[A]] =
-    ZStream {
-      self.process.mapM { as =>
-        Ref.make[Option[Option[E]]](None).flatMap { stateRef =>
-          def loop(acc: Array[A], i: Int): Pull[R, E, Chunk[A]] =
-            as.foldM(
-              success = { a =>
-                acc(i) = a
-                val i1 = i + 1
-                if (i1 >= chunkSize) Pull.emit(Chunk.fromArray(acc)) else loop(acc, i1)
-              },
-              failure = { e =>
-                stateRef.set(Some(e)) *> Pull.emit(Chunk.fromArray(acc).take(i))
-              }
-            )
-          def first: Pull[R, E, Chunk[A]] =
-            as.foldM(
-              success = { a =>
-                if (chunkSize <= 1) {
-                  Pull.emit(Chunk.single(a))
-                } else {
-                  val acc = Array.ofDim(chunkSize)(Chunk.Tags.fromValue(a))
-                  acc(0) = a
-                  loop(acc, 1)
+  def chunkN(chunkSize: Int): ZStreamChunk[R, E, A] =
+    ZStreamChunk {
+      ZStream {
+        self.process.mapM { as =>
+          Ref.make[Option[Option[E]]](None).flatMap { stateRef =>
+            def loop(acc: Array[A], i: Int): Pull[R, E, Chunk[A]] =
+              as.foldM(
+                success = { a =>
+                  acc(i) = a
+                  val i1 = i + 1
+                  if (i1 >= chunkSize) Pull.emit(Chunk.fromArray(acc)) else loop(acc, i1)
+                },
+                failure = { e =>
+                  stateRef.set(Some(e)) *> Pull.emit(Chunk.fromArray(acc).take(i))
                 }
-              },
-              failure = { e =>
-                stateRef.set(Some(e)) *> ZIO.fail(e)
+              )
+            def first: Pull[R, E, Chunk[A]] =
+              as.foldM(
+                success = { a =>
+                  if (chunkSize <= 1) {
+                    Pull.emit(Chunk.single(a))
+                  } else {
+                    val acc = Array.ofDim(chunkSize)(Chunk.Tags.fromValue(a))
+                    acc(0) = a
+                    loop(acc, 1)
+                  }
+                },
+                failure = { e =>
+                  stateRef.set(Some(e)) *> ZIO.fail(e)
+                }
+              )
+            IO.succeed {
+              stateRef.get.flatMap {
+                case None    => first
+                case Some(e) => ZIO.fail(e)
               }
-            )
-          IO.succeed {
-            stateRef.get.flatMap {
-              case None    => first
-              case Some(e) => ZIO.fail(e)
             }
           }
         }
@@ -805,27 +880,35 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Performs a filter and map in a single step.
    */
   def collect[B](pf: PartialFunction[A, B]): ZStream[R, E, B] =
-    ZStream[R, E, B] {
+    collectM(pf.andThen(ZIO.succeed(_)))
+
+  final def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZIO[R1, E1, B]]): ZStream[R1, E1, B] =
+    ZStream[R1, E1, B] {
       self.process.map { as =>
-        val pfIO: PartialFunction[A, Pull[R, E, B]] = pf.andThen(Pull.emit(_))
-        def pull: Pull[R, E, B] =
+        val pfIO: PartialFunction[A, Pull[R1, E1, B]] = pf.andThen(Pull.fromEffect(_))
+
+        def pull: Pull[R1, E1, B] =
           as.flatMap { a =>
             pfIO.applyOrElse(a, (_: A) => pull)
           }
 
         pull
+
       }
     }
 
   /**
    * Transforms all elements of the stream for as long as the specified partial function is defined.
    */
-  def collectWhile[B](pred: PartialFunction[A, B]): ZStream[R, E, B] =
-    ZStream[R, E, B] {
+  def collectWhile[B](pf: PartialFunction[A, B]): ZStream[R, E, B] =
+    collectWhileM(pf.andThen(ZIO.succeed(_)))
+
+  final def collectWhileM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZIO[R1, E1, B]]): ZStream[R1, E1, B] =
+    ZStream[R1, E1, B] {
       for {
         as   <- self.process
         done <- Ref.make(false).toManaged_
-        pfIO = pred.andThen(Pull.emit(_))
+        pfIO = pf.andThen(Pull.fromEffect(_))
         pull = for {
           alreadyDone <- done.get
           result <- if (alreadyDone) Pull.end
@@ -1436,7 +1519,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @param chunkSize size of the chunk
    */
   def grouped(chunkSize: Long): ZStream[R, E, List[A]] =
-    transduce(ZSink.collectAllN[A](chunkSize))
+    aggregate(ZSink.collectAllN[A](chunkSize))
 
   /**
    * Interleaves this stream and the specified stream deterministically by
@@ -1910,6 +1993,16 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   /**
+   * Runs the stream returning the first element of the stream. Later elements will not be consumed / have effects run
+   */
+  def runHead: ZIO[R, E, Option[A]] = take(1).runCollect.map(_.headOption)
+
+  /**
+   * Runs the stream returning the last element and discarding all earlier elements.
+   */
+  def runLast: ZIO[R, E, Option[A]] = run(ZSink.foldLeft[A, Option[A]](None) { case (_, a) => Some(a) })
+
+  /**
    * Runs the stream and collects all of its elements in a list.
    *
    * Equivalent to `run(Sink.collectAll[A])`.
@@ -2148,7 +2241,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R1, E1, Long]
   ): ZStream[R1 with Clock, E1, A] =
-    transduceManaged(ZSink.throttleEnforceM(units, duration, burst)(costFn)).collect { case Some(a) => a }
+    aggregateManaged(ZSink.throttleEnforceM(units, duration, burst)(costFn)).collect { case Some(a) => a }
 
   /**
    * Delays elements of type A according to the given bandwidth parameters using the token bucket
@@ -2169,7 +2262,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R1, E1, Long]
   ): ZStream[R1 with Clock, E1, A] =
-    transduceManaged(ZSink.throttleShapeM(units, duration, burst)(costFn))
+    aggregateManaged(ZSink.throttleShapeM(units, duration, burst)(costFn))
 
   /**
    * Interrupts the stream if it does not produce a value after d duration.
@@ -2205,77 +2298,17 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     } yield queue
 
   /**
-   * Applies a transducer to the stream, converting elements of type `A` into elements of type `C`, with a
-   * managed resource of type `D` available.
+   * Alias for `aggregateManaged`
    */
   final def transduceManaged[R1 <: R, E1 >: E, A1 >: A, B](
     managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
-  ): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B] {
-      for {
-        as           <- self.process
-        sink         <- managedSink.map(_.mapError(Some(_)))
-        doneRef      <- Ref.make(false).toManaged_
-        leftoversRef <- Ref.make[Chunk[A1]](Chunk.empty).toManaged_
-        pull = {
-          def go(s: sink.State, dirty: Boolean): Pull[R1, E1, B] =
-            if (!dirty) {
-              leftoversRef.get.flatMap { leftovers =>
-                doneRef.get.flatMap { done =>
-                  if (done)
-                    Pull.end
-                  else if (leftovers.nonEmpty)
-                    sink.stepChunk(s, leftovers).flatMap {
-                      case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
-                    } else
-                    as flatMap { a =>
-                      sink
-                        .step(s, a)
-                        .flatMap(s => go(s, true))
-                    }
-                }
-              }
-            } else {
-              doneRef.get.flatMap { done =>
-                if (done || !sink.cont(s))
-                  sink.extract(s).flatMap {
-                    case (b, leftovers) =>
-                      leftoversRef
-                        .update(_ ++ leftovers)
-                        .when(leftovers.nonEmpty)
-                        .as(b)
-                  } else
-                  as.foldM(
-                    {
-                      case e @ Some(_) => ZIO.fail(e)
-                      case None =>
-                        doneRef.set(true) *>
-                          sink.extract(s).flatMap {
-                            case (b, leftovers) =>
-                              leftoversRef
-                                .update(_ ++ leftovers)
-                                .when(leftovers.nonEmpty)
-                                .as(b)
-                          }
-                    },
-                    sink
-                      .step(s, _)
-                      .flatMap(s => go(s, true))
-                  )
-              }
-            }
-
-          sink.initial.flatMap(s => go(s, false))
-        }
-      } yield pull
-    }
+  ): ZStream[R1, E1, B] = aggregateManaged(managedSink)
 
   /**
-   * Applies a transducer to the stream, which converts one or more elements
-   * of type `A` into elements of type `C`.
+   * Alias for `aggregate`.
    */
   def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
-    transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
+    aggregate[R1, E1, A1, C](sink)
 
   /**
    * Filters any 'None'.
@@ -2463,14 +2496,15 @@ object ZStream extends Serializable {
   type Pull[-R, +E, +A] = ZIO[R, Option[E], A]
 
   object Pull {
-    val end: Pull[Any, Nothing, Nothing]                     = IO.fail(None)
-    def emit[A](a: A): Pull[Any, Nothing, A]                 = UIO.succeed(a)
-    def fail[E](e: E): Pull[Any, E, Nothing]                 = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): Pull[Any, E, Nothing]          = IO.halt(c.map(Some(_)))
-    def die(t: Throwable): Pull[Any, Nothing, Nothing]       = UIO.die(t)
-    def dieMessage(m: String): Pull[Any, Nothing, Nothing]   = UIO.dieMessage(m)
-    def done[E, A](e: Exit[E, A]): Pull[Any, E, A]           = IO.done(e.mapError(Some(_)))
-    def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A] = p.await.mapError(Some(_))
+    val end: Pull[Any, Nothing, Nothing]                         = IO.fail(None)
+    def emit[A](a: A): Pull[Any, Nothing, A]                     = UIO.succeed(a)
+    def fail[E](e: E): Pull[Any, E, Nothing]                     = IO.fail(Some(e))
+    def halt[E](c: Cause[E]): Pull[Any, E, Nothing]              = IO.halt(c.map(Some(_)))
+    def die(t: Throwable): Pull[Any, Nothing, Nothing]           = UIO.die(t)
+    def dieMessage(m: String): Pull[Any, Nothing, Nothing]       = UIO.dieMessage(m)
+    def done[E, A](e: Exit[E, A]): Pull[Any, E, A]               = IO.done(e.mapError(Some(_)))
+    def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A]     = p.await.mapError(Some(_))
+    def fromEffect[R, E, A](effect: ZIO[R, E, A]): Pull[R, E, A] = effect.mapError(Some(_))
 
     def fromTake[E, A](take: Take[E, A]): Pull[Any, E, A] =
       take match {

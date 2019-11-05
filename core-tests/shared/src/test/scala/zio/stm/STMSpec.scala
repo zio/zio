@@ -1,15 +1,14 @@
-package zio.stm
+package zio
+package stm
 
-import zio.{ UIO, ZIO }
-import zio._
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect._
+import zio.test.TestAspect.nonFlaky
 import STMSpecUtil._
 
 object STMSpec
-    extends DefaultRunnableSpec(
+    extends ZIOBaseSpec(
       suite("STMSpec")(
         suite("Using `STM.atomically` to perform different computations and call:")(
           testM("`STM.succeed` to make a successful computation and check the value") {
@@ -67,13 +66,13 @@ object STMSpec
         suite("Make a new `TRef` and")(
           testM("get its initial value") {
             (for {
-              intVar <- TRef.make(14)
+              intVar <- TRef(14)
               v      <- intVar.get
             } yield assert(v, equalTo(14))).commit
           },
           testM("set a new value") {
             (for {
-              intVar <- TRef.make(14)
+              intVar <- TRef(14)
               _      <- intVar.set(42)
               v      <- intVar.get
             } yield assert(v, equalTo(42))).commit
@@ -94,7 +93,7 @@ object STMSpec
             for {
               tVars <- STM
                         .atomically(
-                          TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
+                          TRef(10000) <*> TRef(0) <*> TRef(0)
                         )
               tvar1 <*> tvar2 <*> tvar3 = tVars
               fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
@@ -303,7 +302,7 @@ object STMSpec
           "Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values"
         ) {
           for {
-            it    <- UIO((1 to 100).map(TRef.make(_)))
+            it    <- UIO((1 to 100).map(TRef(_)))
             tvars <- STM.collectAll(it).commit
             res   <- UIO.collectAllPar(tvars.map(_.get.commit))
           } yield assert(res, equalTo((1 to 100).toList))
@@ -374,7 +373,7 @@ object STMSpec
           },
           testM("local reset, not global") {
             for {
-              ref <- TRef.make(0).commit
+              ref <- TRef(0).commit
               result <- STM.atomically(for {
                          _       <- ref.set(2)
                          newVal1 <- ref.get
@@ -384,7 +383,7 @@ object STMSpec
             } yield assert(result, equalTo(2 -> 2))
           }
         ),
-        suite("STM issue 1587") {
+        suite("STM issue 2073") {
           testM("read only STM shouldn't return partial state of concurrent read-write STM") {
             for {
               r0       <- TRef.makeCommit(0)
@@ -393,10 +392,9 @@ object STMSpec
               _        <- r0.update(_ + 1).flatMap(_ => r1.update(_ + 1)).commit
               sum      <- sumFiber.join
             } yield assert(sum, equalTo(0) || equalTo(2))
-          } @@ nonFlaky(100000)
+          } @@ nonFlaky(5000)
         }
-      ),
-      List(TestAspect.timeout(30.minutes))
+      )
     )
 
 object STMSpecUtil {
