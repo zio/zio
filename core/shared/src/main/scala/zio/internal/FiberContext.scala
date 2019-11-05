@@ -772,7 +772,7 @@ private[zio] final class FiberContext[E, A](
 
     val interruptChildren =
       UIO.effectSuspendTotal(children.get.foldLeft[UIO[Any]](UIO.unit) {
-        case (acc, child) => acc.flatMap(_ => child.interrupt)
+        case (acc, child) => acc.flatMap(_ => child.interruptAs(fiberId))
       })
 
     setInterrupt *> await <* interruptChildren

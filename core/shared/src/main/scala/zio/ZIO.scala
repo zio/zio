@@ -2303,8 +2303,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Returns an effect that is interrupted as if by the fiber calling this
    * method.
    */
-  final val interrupt: UIO[Nothing] =
-    ZIO.descriptor.flatMap(d => interruptAs(d.id))
+  final val interrupt: UIO[Nothing] = ZIO.fiberId >>= ZIO.interruptAs
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
