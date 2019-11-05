@@ -38,6 +38,18 @@ object TestAspectSpec
           val result = if (TestVersion.isDotty) succeeded(spec) else ignored(spec)
           assertM(result, isTrue)
         },
+        test("exceptDotty runs tests on all versions except Dotty") {
+          assert(TestVersion.isDotty, isFalse)
+        } @@ exceptDotty,
+        test("exceptJS runs tests on all platforms except ScalaJS") {
+          assert(TestPlatform.isJS, isFalse)
+        } @@ exceptJS,
+        test("exceptJVM runs tests on all platforms except the JVM") {
+          assert(TestPlatform.isJVM, isFalse)
+        } @@ exceptJVM,
+        test("exceptScala2 runs tests on all versions except Scala 2") {
+          assert(TestVersion.isScala2, isFalse)
+        } @@ exceptScala2,
         testM("js applies test aspect only on ScalaJS") {
           for {
             ref    <- Ref.make(false)
