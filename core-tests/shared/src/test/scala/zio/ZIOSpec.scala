@@ -106,7 +106,7 @@ object ZIOSpec
               fiber  <- ZIO.forkAll(List(ZIO.die(boom)))
               result <- fiber.join.sandbox.flip
             } yield assert(result, equalTo(Cause.die(boom)))
-          }
+          } @@ flaky
         ),
         suite("head")(
           testM("on non empty list") {
