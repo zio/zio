@@ -3,8 +3,8 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.TestAspect.failure
 import zio.test.TestUtils.execute
-import zio.test.{check => Check, checkM => CheckM}
-import zio.{Chunk, Ref, ZIO, random}
+import zio.test.{ check => Check, checkM => CheckM }
+import zio.{ random, Chunk, Ref, ZIO }
 
 object CheckSpec
     extends ZIOBaseSpec(
