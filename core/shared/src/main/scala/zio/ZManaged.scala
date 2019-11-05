@@ -579,6 +579,15 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     }
 
   /**
+   * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
+   * errors and defects alike.
+   */
+  final def sandboxWith[R1 <: R, E2, B](
+    f: ZManaged[R1, Cause[E], A] => ZManaged[R1, Cause[E2], B]
+  ): ZManaged[R1, E2, B] =
+    ZManaged.unsandbox(f(self.sandbox))
+
+  /**
    * Zips this effect with its environment
    */
   final def second[R1 <: R, A1 >: A]: ZManaged[R1, E, (R1, A1)] = ZManaged.identity[R1] &&& self
