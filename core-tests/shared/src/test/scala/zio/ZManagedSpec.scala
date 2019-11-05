@@ -164,6 +164,20 @@ object ZManagedSpec
             } yield assert(result, equalTo(List("Ensured")))
           }
         ),
+        testM("eventually") {
+          def acquire(ref: Ref[Int]) =
+            for {
+              v <- ref.get
+              r <- if (v < 10) ref.update(_ + 1) *> IO.fail("Ouch")
+                  else UIO.succeed(v)
+            } yield r
+
+          for {
+            ref <- Ref.make(0)
+            _   <- ZManaged.make(acquire(ref))(_ => UIO.unit).eventually.use(_ => UIO.unit)
+            r   <- ref.get
+          } yield assert(r, equalTo(10))
+        },
         suite("flatMap")(
           testM("All finalizers run even when finalizers have defects") {
             for {

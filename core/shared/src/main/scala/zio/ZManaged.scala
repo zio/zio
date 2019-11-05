@@ -247,6 +247,13 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     }
 
   /**
+   * Returns a ZManaged that ignores errors raised by the acquire effect and
+   * runs it repeatedly until it eventually succeeds.
+   */
+  final def eventually(implicit ev: CanFail[E]): ZManaged[R, Nothing, A] =
+    self orElse eventually
+
+  /**
    * Zips this effect with its environment
    */
   final def first[R1 <: R, A1 >: A]: ZManaged[R1, E, (A1, R1)] = self &&& ZManaged.identity
