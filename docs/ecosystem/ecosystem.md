@@ -20,17 +20,18 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
 
 - [cakeless](https://github.com/itkpi/cakeless): Better reader monad for deeply-nested cakes
+- [caliban](https://github.com/ghostdogpr/caliban): Functional GraphQL backend in Scala
 - [distage](https://github.com/7mind/izumi): Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
-- [logstage](https://github.com/7mind/izumi): Automatic structural logs from Scala string interpolations
+- [elastic4s](https://github.com/sksamuel/elastic4s): Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
 - [idealingua](https://github.com/7mind/izumi): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
+- [logstage](https://github.com/7mind/izumi): Automatic structural logs from Scala string interpolations
 - [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
+- [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
+- [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 - [zio-saga](https://github.com/VladKopanev/zio-saga): Purely functional transaction management with Saga pattern
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
-- [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
-- [zio-email](https://github.com/funcit/zio-email): Purely functional email client
-- [elastic4s](https://github.com/sksamuel/elastic4s): Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
 
 
 ## ZIO Interoperability Libraries
