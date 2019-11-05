@@ -113,6 +113,17 @@ object ChunkSpec
             assert(c.toArray.toSeq, equalTo(c.toSeq))
           }
         },
+        test("non-homogeneous element type") {
+          trait Animal
+          trait Cat extends Animal
+          trait Dog extends Animal 
+
+          val vector   = Vector(new Cat{},new Dog{},new Animal{})
+          val actual   = Chunk.fromIterable(vector).map(identity)
+          val expected = Chunk.fromArray(vector.toArray)
+
+          assert(actual, equalTo(expected))
+        },
         test("toArray for an empty Chunk of type String") {
           assert(Chunk.empty.toArray[String], equalTo(Array.empty[String]))
         },

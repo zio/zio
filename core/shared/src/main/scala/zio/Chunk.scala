@@ -1043,7 +1043,7 @@ object Chunk {
       else if (isFloat(c)) FloatClass.asInstanceOf[ClassTag[A]]
       else if (isDouble(c)) DoubleClass.asInstanceOf[ClassTag[A]]
       else if (isChar(c)) CharClass.asInstanceOf[ClassTag[A]]
-      else c
+      else classTag[AnyRef].asInstanceOf[ClassTag[A]] // TODO: Find a better way
 
     private final def isBoolean(c: ClassTag[_]): Boolean =
       c == BooleanClass || c == BooleanClassBox
