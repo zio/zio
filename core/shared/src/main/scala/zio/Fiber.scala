@@ -75,7 +75,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `UIO[Exit, E, A]]`
    */
-  final def interrupt: UIO[Exit[E, A]] = 
+  final def interrupt: UIO[Exit[E, A]] =
     ZIO.fiberId >>= self.interruptAs
 
   /**

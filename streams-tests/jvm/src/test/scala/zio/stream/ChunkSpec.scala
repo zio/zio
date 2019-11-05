@@ -116,9 +116,9 @@ object ChunkSpec
         test("non-homogeneous element type") {
           trait Animal
           trait Cat extends Animal
-          trait Dog extends Animal 
+          trait Dog extends Animal
 
-          val vector   = Vector(new Cat{},new Dog{},new Animal{})
+          val vector   = Vector(new Cat {}, new Dog {}, new Animal {})
           val actual   = Chunk.fromIterable(vector).map(identity)
           val expected = Chunk.fromArray(vector.toArray)
 

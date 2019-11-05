@@ -1711,8 +1711,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 latch <- Promise.make[Nothing, Unit]
                 p     <- Promise.make[E1, B]
                 _     <- out.offer(Pull.fromPromise(p))
-                _ <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
-                _ <- latch.await
+                _     <- (permits.withPermit(latch.succeed(()) *> f(a).to(p)) race interruptWorkers.await).fork
+                _     <- latch.await
               } yield ()
             }.foldCauseM(
                 c => (interruptWorkers.succeed(()) *> out.offer(Pull.halt(c))).unit.toManaged_,
@@ -2747,7 +2747,7 @@ object ZStream extends Serializable {
                               )
                             } catch {
                               case FiberFailure(Cause.Interrupt(_)) =>
-                              case t : Throwable => t.printStackTrace()
+                              case t: Throwable                     => t.printStackTrace()
                             }
                         )
                       ).toManaged_
