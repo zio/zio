@@ -838,7 +838,7 @@ object ZManagedSpecUtil {
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live)
+      interruption       <- managedFiber.interruptAs(fiberId).timeout(5.seconds).provide(zio.clock.Clock.Live)
     } yield assert(interruption.map(_.untraced), equalTo(expected(fiberId)))
 
   def testFinalizersPar[R, E](
