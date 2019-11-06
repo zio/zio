@@ -842,7 +842,10 @@ object Chunk {
       var i      = 0
       var j      = 0
       var done   = false
-      val orElse = (_: A) => UIO.succeed { done = true } *> UIO.succeed(null.asInstanceOf[B])
+      val orElse = (_: A) =>  {
+        done = true
+        UIO.succeed(null.asInstanceOf[B])
+      }
 
       while (!done && i < len) {
         dest = dest.zipWith(pf.applyOrElse(self(i), orElse)) { (array, b) =>
