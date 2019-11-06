@@ -293,6 +293,15 @@ object Assertion {
       BoolAlgebra.success
     )
 
+  final def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
+    Assertion.assertionRec("hasAt")(param(assertion))(assertion) { actual =>
+      if (pos >= 0 && pos < actual.size) {
+        Some(actual.apply(pos))
+      } else {
+        None
+      }
+    }
+
   /**
    * Makes a new assertion that focuses in on a field in a case class.
    *
@@ -303,6 +312,16 @@ object Assertion {
   final def hasField[A, B](name: String, proj: A => B, assertion: Assertion[B]): Assertion[A] =
     Assertion.assertionRec("hasField")(param(quoted(name)), param(field(name)), param(assertion))(assertion) { actual =>
       Some(proj(actual))
+    }
+
+  final def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasFirst")(param(assertion))(assertion) { actual =>
+      actual.headOption
+    }
+
+  final def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasLast")(param(assertion))(assertion) { actual =>
+      actual.lastOption
     }
 
   /**
@@ -324,25 +343,6 @@ object Assertion {
   final def hasSize[A](assertion: Assertion[Int]): Assertion[Iterable[A]] =
     Assertion.assertion("hasSize")(param(assertion)) { actual =>
       assertion.test(actual.size)
-    }
-
-  final def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("hasFirst")(param(assertion))(assertion) { actual =>
-      actual.headOption
-    }
-
-  final def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("hasLast")(param(assertion))(assertion) { actual =>
-      actual.lastOption
-    }
-
-  final def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
-    Assertion.assertionRec("hasAt")(param(assertion))(assertion) { actual =>
-      if (pos >= 0 && pos < actual.size) {
-        Some(actual.apply(pos))
-      } else {
-        None
-      }
     }
 
   /**
