@@ -24,9 +24,9 @@ private[test] object Macros {
     import c.universe._
     try {
       c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))
-      c.Expr(q"assert(true, Assertion.isTrue)")
+      c.Expr(q"assert(None, Assertion.isNone)")
     } catch {
-      case _: Throwable => c.Expr(q"assert(false, Assertion.isTrue)")
+      case e: Throwable => c.Expr(q"assert(Some(${e.getMessage}), Assertion.isNone)")
     }
   }
 }

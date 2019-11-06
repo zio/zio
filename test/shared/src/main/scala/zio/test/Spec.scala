@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Cause, Managed, ZIO }
+import zio.{ Cause, Managed, NeedsEnv, ZIO }
 
 import Spec._
 
@@ -212,7 +212,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * Uses the specified `Managed` to provide each test in this spec with its
    * required environment.
    */
-  final def provideManaged[E1 >: E](managed: Managed[E1, R]): Spec[Any, E1, L, T] =
+  final def provideManaged[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] =
     transform[Any, E1, L, T] {
       case SuiteCase(label, specs, exec) => SuiteCase(label, specs.provideManaged(managed), exec)
       case TestCase(label, test)         => TestCase(label, test.provideManaged(managed))
@@ -224,7 +224,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * act of creating the environment is expensive and should only be performed
    * once.
    */
-  final def provideManagedShared[E1 >: E](managed: Managed[E1, R]): Spec[Any, E1, L, T] = {
+  final def provideManagedShared[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] = {
     def loop(r: R)(spec: Spec[R, E, L, T]): ZIO[Any, E, Spec[Any, E, L, T]] =
       spec.caseValue match {
         case SuiteCase(label, specs, exec) =>

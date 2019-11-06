@@ -118,6 +118,16 @@ object TMapSpec
           }
         ),
         suite("transformations")(
+          testM("merge") {
+            val tx =
+              for {
+                tmap <- TMap("a" -> 1)
+                a    <- tmap.merge("a", 2)(_ + _)
+                b    <- tmap.merge("b", 2)(_ + _)
+              } yield (a, b)
+
+            assertM(tx.commit, equalTo((3, 2)))
+          },
           testM("retainIf") {
             val tx =
               for {

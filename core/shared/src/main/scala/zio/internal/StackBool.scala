@@ -96,12 +96,20 @@ private[zio] final class StackBool private () {
 private[zio] object StackBool {
   def apply(): StackBool = new StackBool
 
-  def apply(bools: Boolean*): StackBool = {
+  def apply(bool: Boolean): StackBool = {
     val stack = StackBool()
 
-    bools.reverse.foreach(stack.push(_))
+    stack.push(bool)
 
     stack
+  }
+
+  def fromIterable(it: Iterable[Boolean]): StackBool = {
+    val stack = StackBool()
+    it.foldRight(stack) { (b, stack) =>
+      stack.push(b)
+      stack
+    }
   }
 
   private class Entry(val next: Entry) {
