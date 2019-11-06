@@ -282,6 +282,19 @@ object Gen extends GenZIO with FunctionVariants {
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
 
   /**
+   * A generator of long values in the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   */
+  final def long(min: Long, max: Long): Gen[Random, Long] =
+    Gen.fromEffectSample {
+      val difference = max - min + 1
+      val effect =
+        if (difference > 0) nextLong(difference).map(min + _)
+        else nextLong.doUntil(n => min <= n && n <= max)
+      effect.map(Sample.shrinkIntegral(min))
+    }
+
+  /**
    * A sized generator that uses an exponential distribution of size values.
    * The majority of sizes will be towards the lower end of the range but some
    * larger sizes will be generated as well.

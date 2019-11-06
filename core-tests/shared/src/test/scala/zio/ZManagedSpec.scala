@@ -3,9 +3,8 @@ package zio
 import zio.Cause.Interrupt
 import zio.duration._
 import zio.Exit.Failure
-import zio.test._
+import zio.test.{ Gen, testM, _ }
 import zio.test.Assertion._
-import zio.test.Gen
 import zio.test.environment._
 
 object ZManagedSpec
@@ -168,6 +167,20 @@ object ZManagedSpec
             } yield assert(result, equalTo(List("Ensured")))
           }
         ),
+        testM("eventually") {
+          def acquire(ref: Ref[Int]) =
+            for {
+              v <- ref.get
+              r <- if (v < 10) ref.update(_ + 1) *> IO.fail("Ouch")
+                  else UIO.succeed(v)
+            } yield r
+
+          for {
+            ref <- Ref.make(0)
+            _   <- ZManaged.make(acquire(ref))(_ => UIO.unit).eventually.use(_ => UIO.unit)
+            r   <- ref.get
+          } yield assert(r, equalTo(10))
+        },
         suite("flatMap")(
           testM("All finalizers run even when finalizers have defects") {
             for {
@@ -216,7 +229,7 @@ object ZManagedSpec
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
               program = res(1).flatMap(_ => ZManaged.interrupt).foldM(_ => res(2), _ => res(3))
-              values  <- program.use_(ZIO.unit).ignore *> effects.get
+              values  <- program.use_(ZIO.unit).sandbox.ignore *> effects.get
             } yield assert(values, equalTo(List(1, 1)))
           },
           testM("Invokes cleanups on interrupt - 2") {
@@ -224,7 +237,7 @@ object ZManagedSpec
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
               program = res(1).flatMap(_ => ZManaged.fail(())).foldM(_ => res(2), _ => res(3))
-              values  <- program.use_(ZIO.interrupt).ignore *> effects.get
+              values  <- program.use_(ZIO.interrupt).sandbox.ignore *> effects.get
             } yield assert(values, equalTo(List(1, 2, 2, 1)))
           },
           testM("Invokes cleanups on interrupt - 3") {
@@ -232,7 +245,7 @@ object ZManagedSpec
               effects <- Ref.make[List[Int]](Nil)
               res     = (x: Int) => Managed.make(effects.update(x :: _).unit)(_ => effects.update(x :: _))
               program = res(1).flatMap(_ => ZManaged.fail(())).foldM(_ => res(2) *> ZManaged.interrupt, _ => res(3))
-              values  <- program.use_(ZIO.unit).ignore *> effects.get
+              values  <- program.use_(ZIO.unit).sandbox.ignore *> effects.get
             } yield assert(values, equalTo(List(1, 2, 2, 1)))
           }
         ),
@@ -811,6 +824,61 @@ object ZManagedSpec
               _      <- fib.interrupt
               result <- effects.get
             } yield assert(result, equalTo(List("Second", "First")))
+          }
+        ),
+        suite("catch")(
+          testM("catchAllCause") {
+            val zm: ZManaged[Any, String, String] =
+              for {
+                _ <- ZManaged.succeed("foo")
+                f <- ZManaged.fail("Uh oh!")
+              } yield f
+
+            val errorToVal = zm.catchAllCause(c => ZManaged.succeed(c.failureOption.getOrElse(c.toString)))
+            assertM(errorToVal.use(ZIO.succeed), equalTo("Uh oh!"))
+          },
+          testM("catchAllSomeCause transforms cause if matched") {
+            val zm: ZManaged[Any, String, String] =
+              for {
+                _ <- ZManaged.succeed("foo")
+                f <- ZManaged.fail("Uh oh!")
+              } yield f
+
+            val errorToVal = zm.catchSomeCause {
+              case Cause.Fail("Uh oh!") => ZManaged.succeed("matched")
+            }
+            assertM(errorToVal.use(ZIO.succeed), equalTo("matched"))
+          },
+          testM("catchAllSomeCause keeps the failure cause if not matched") {
+            val zm: ZManaged[Any, String, String] =
+              for {
+                _ <- ZManaged.succeed("foo")
+                f <- ZManaged.fail("Uh oh!")
+              } yield f
+
+            val errorToVal = zm.catchSomeCause {
+              case Cause.Fail("not matched") => ZManaged.succeed("matched")
+            }
+            val executed = errorToVal.use[Any, String, String](ZIO.succeed).run
+            assertM(executed, fails(equalTo("Uh oh!")))
+          }
+        ),
+        suite("collect")(
+          testM("collectM maps value, if PF matched") {
+            val managed = ZManaged.succeed[Any, Int](42).collectM("Oh No!") {
+              case 42 => ZManaged.succeed(84)
+            }
+            val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed)
+
+            assertM(effect, equalTo(84))
+          },
+          testM("collectM produces given error, if PF not matched") {
+            val managed = ZManaged.succeed[Any, Int](42).collectM("Oh No!") {
+              case 43 => ZManaged.succeed(84)
+            }
+            val effect: ZIO[Any, String, Int] = managed.use(ZIO.succeed)
+
+            assertM(effect.run, fails(equalTo("Oh No!")))
           }
         )
       )

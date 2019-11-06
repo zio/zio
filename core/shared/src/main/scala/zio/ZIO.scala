@@ -302,6 +302,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     clock.sleep(duration) *> self
 
   /**
+   * Repeats this effect until its result satisfies the specified predicate.
+   */
+  final def doUntil(f: A => Boolean): ZIO[R, E, A] =
+    repeat(Schedule.doUntil(f))
+
+  /**
+   * Repeats this effect while its result satisfies the specified predicate.
+   */
+  final def doWhile(f: A => Boolean): ZIO[R, E, A] =
+    repeat(Schedule.doWhile(f))
+
+  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail, because the failure case has
    * been exposed as part of the `Either` success case.
@@ -528,7 +540,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  final def ignore: URIO[R, Unit] = self.foldCauseM(_ => ZIO.unit, _ => ZIO.unit)
+  final def ignore: URIO[R, Unit] = self.foldM(_ => ZIO.unit, _ => ZIO.unit)
 
   /**
    * Performs this effect interruptibly. Because this is the default, this
@@ -965,60 +977,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect that races this effect with the specified effect, calling
    * the specified finisher as soon as one result or the other has been computed.
    */
-  final def raceWith[R1 <: R, E1, E2, B, C](
-    that: ZIO[R1, E1, B]
-  )(
+  final def raceWith[R1 <: R, E1, E2, B, C](that: ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
     rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
-  ): ZIO[R1, E2, C] = {
-    def arbiter[E0, E1, A, B](
-      f: (Exit[E0, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-      winner: Fiber[E0, A],
-      loser: Fiber[E1, B],
-      leftWins: Boolean,
-      raceDone: Ref[Boolean],
-      inherit: Ref[Option[Boolean]],
-      done: Promise[E2, C]
-    )(res: Exit[E0, A]): URIO[R1, Any] = {
-
-      val handleRes =
-        winner.poll.flatMap {
-          case Some(Exit.Success(_)) => winner.inheritFiberRefs
-          case _                     => ZIO.unit
-        } *> (f(res, loser) <* inherit.set(Some(leftWins))).to(done)
-
-      ZIO.flatten(raceDone.modify(b => (if (b) ZIO.unit else handleRes) -> true))
-    }
-
-    for {
-      done     <- Promise.make[E2, C]
-      raceDone <- Ref.make[Boolean](false)
-      inherit  <- Ref.make(None: Option[Boolean])
-      c <- ZIO.uninterruptibleMask(
-            restore =>
-              for {
-                left  <- self.interruptible.forkInternal
-                right <- that.interruptible.forkInternal
-                left2 <- left.await
-                          .flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done))
-                          .forkInternal
-                          .daemon
-                right2 <- right.await
-                           .flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done))
-                           .forkInternal
-                           .daemon
-
-                inheritFiberRefs = inherit.get.flatMap {
-                  case None        => ZIO.unit
-                  case Some(true)  => left2.inheritFiberRefs
-                  case Some(false) => right2.inheritFiberRefs
-                }
-
-                c <- restore(done.await <* inheritFiberRefs)
-              } yield c
-          )
-    } yield c
-  }
+  ): ZIO[R1, E2, C] =
+    new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
+      self,
+      that,
+      leftDone,
+      rightDone
+    )
 
   /**
    * Attach a wrapping trace pointing to this location in case of error.
@@ -1571,7 +1539,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * in parallel, combining their results with the specified `f` function. If
    * either side fails, then the other side will be interrupted.
    */
-  final def zipWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] = {
+  final def zipWithPar[R1 <: R, E1 >: E, B, C](
+    that: ZIO[R1, E1, B]
+  )(f: (A, B) => C): ZIO[R1, E1, C] = {
     def coordinate[A, B](
       fiberId: FiberId,
       f: (A, B) => C,
@@ -1587,12 +1557,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               else ZIO.halt(loserCause && cause)
           }
       }
+
     val g = (b: B, a: A) => f(a, b)
-    ZIO.descriptor
-      .map(_.id)
-      .flatMap(
-        parentFiberId => (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false))
-      )
+    ZIO.fiberId.flatMap(
+      parentFiberId =>
+        (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).fork.flatMap {
+          f =>
+            f.await.flatMap { exit =>
+              if (exit.succeeded) f.inheritFiberRefs *> ZIO.done(exit)
+              else ZIO.done(exit)
+            }
+        }
+    )
   }
 
   /**
@@ -2820,6 +2796,7 @@ object ZIO extends ZIOFunctions {
     final val TracingStatus            = 21
     final val CheckTracing             = 22
     final val EffectSuspendTotalWith   = 23
+    final val RaceWith                 = 24
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2934,5 +2911,14 @@ object ZIO extends ZIOFunctions {
 
   private[zio] final class CheckTracing[R, E, A](val k: TracingS => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.CheckTracing
+  }
+
+  private[zio] final class RaceWith[R, EL, ER, E, A, B, C](
+    val left: ZIO[R, EL, A],
+    val right: ZIO[R, ER, B],
+    val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
+    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C]
+  ) extends ZIO[R, E, C] {
+    override def tag: Int = Tags.RaceWith
   }
 }

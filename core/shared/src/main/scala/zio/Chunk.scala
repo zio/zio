@@ -196,7 +196,6 @@ sealed trait Chunk[+A] { self =>
 
       i += 1
     }
-    chunks = chunks.reverse
 
     if (B0 == null) Chunk.empty
     else {
@@ -205,12 +204,11 @@ sealed trait Chunk[+A] { self =>
       val dest: Array[B] = Array.ofDim(total)
 
       val it = chunks.iterator
-      var n  = 0
+      var n  = total
       while (it.hasNext) {
         val chunk = it.next
-
+        n -= chunk.length
         chunk.toArray(n, dest)
-        n += chunk.length
       }
 
       Chunk.Arr(dest)
@@ -834,7 +832,6 @@ object Chunk {
 
         i += 1
       }
-      chunks = chunks.reverse
 
       if (B0 == null) Chunk.empty
       else {
@@ -843,12 +840,11 @@ object Chunk {
         val dest: Array[B] = Array.ofDim(total)
 
         val it = chunks.iterator
-        var n  = 0
+        var n  = total
         while (it.hasNext) {
           val chunk = it.next
-
+          n -= chunk.length
           chunk.toArray(n, dest)
-          n += chunk.length
         }
 
         Arr(dest)

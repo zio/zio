@@ -106,7 +106,7 @@ object ZIOSpec
               fiber  <- ZIO.forkAll(List(ZIO.die(boom)))
               result <- fiber.join.sandbox.flip
             } yield assert(result, equalTo(Cause.die(boom)))
-          }
+          } @@ flaky
         ),
         suite("head")(
           testM("on non empty list") {
@@ -117,6 +117,17 @@ object ZIOSpec
           },
           testM("on failure") {
             assertM(ZIO.fail("Fail").head.either, isLeft(isSome(equalTo("Fail"))))
+          }
+        ),
+        suite("ignore")(
+          testM("return success as Unit") {
+            assertM(ZIO.succeed(11).ignore, equalTo(()))
+          },
+          testM("return failure as Unit") {
+            assertM(ZIO.fail(123).ignore, equalTo(()))
+          },
+          testM("not catch throwable") {
+            assertM(ZIO.die(ExampleError).ignore.run, dies(equalTo(ExampleError)))
           }
         ),
         suite("left")(
@@ -165,7 +176,7 @@ object ZIOSpec
                 equalTo(List("error1")) ||
                 equalTo(List("error2"))
             )
-          } @@ nonFlaky(100)
+          } @@ nonFlaky
         ),
         suite("raceAll")(
           testM("returns first success") {
@@ -869,7 +880,7 @@ object ZIOSpec
           testM("par regression") {
             val io = IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ == 3)
             assertM(io, isTrue)
-          } @@ jvm(nonFlaky(100)),
+          } @@ jvm(nonFlaky),
           testM("par of now values") {
             def countdown(n: Int): UIO[Int] =
               if (n == 0) IO.succeed(0)
@@ -1164,7 +1175,7 @@ object ZIOSpec
               } yield exit.interrupted == true || finished == true
 
             assertM(io, isTrue)
-          } @@ jvm(nonFlaky(100)),
+          } @@ jvm(nonFlaky),
           testM("bracket use inherits interrupt status") {
             val io =
               for {
@@ -1335,6 +1346,40 @@ object ZIOSpec
                 |} yield n
               """.stripMargin
             }
+          }
+        ),
+        suite("doWhile")(
+          testM("doWhile repeats while condition is true") {
+            for {
+              in     <- Ref.make(10)
+              out    <- Ref.make(0)
+              _      <- (in.update(_ - 1) <* out.update(_ + 1)).doWhile(_ >= 0)
+              result <- out.get
+            } yield assert(result, equalTo(11))
+          },
+          testM("doWhile always evaluates effect once") {
+            for {
+              ref    <- Ref.make(0)
+              _      <- ref.update(_ + 1).doWhile(_ => false)
+              result <- ref.get
+            } yield assert(result, equalTo(1))
+          }
+        ),
+        suite("doUntil")(
+          testM("doUntil repeats until condition is true") {
+            for {
+              in     <- Ref.make(10)
+              out    <- Ref.make(0)
+              _      <- (in.update(_ - 1) <* out.update(_ + 1)).doUntil(_ == 0)
+              result <- out.get
+            } yield assert(result, equalTo(10))
+          },
+          testM("doUntil always evaluates effect once") {
+            for {
+              ref    <- Ref.make(0)
+              _      <- ref.update(_ + 1).doUntil(_ => true)
+              result <- ref.get
+            } yield assert(result, equalTo(1))
           }
         )
       )

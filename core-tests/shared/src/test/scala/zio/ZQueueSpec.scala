@@ -723,7 +723,7 @@ object ZQueueSpec
             _ <- q.shutdown
             _ <- f.await
           } yield assertCompletes
-        } @@ jvm(nonFlaky(100)),
+        } @@ jvm(nonFlaky),
         testM("shutdown race condition with take") {
           for {
             q <- Queue.bounded[Int](2)
@@ -733,7 +733,7 @@ object ZQueueSpec
             _ <- q.shutdown
             _ <- f.await
           } yield assertCompletes
-        } @@ jvm(nonFlaky(100))
+        } @@ jvm(nonFlaky)
       )
     )
 
