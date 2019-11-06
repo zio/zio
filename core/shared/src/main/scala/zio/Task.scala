@@ -214,6 +214,11 @@ object Task {
   final def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
 
   /**
+   * @see [[zio.ZIO.fiberId]]
+   */
+  final val fiberId: UIO[FiberId] = ZIO.fiberId
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   final def firstSuccessOf[A](

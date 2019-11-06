@@ -210,6 +210,11 @@ object URIO {
   final def environment[R]: ZIO[R, Nothing, R] = ZIO.environment
 
   /**
+   * @see [[zio.ZIO.fiberId]]
+   */
+  final val fiberId: UIO[FiberId] = ZIO.fiberId
+
+  /**
    * @see [[zio.ZIO.firstSuccessOf]]
    */
   final def firstSuccessOf[R, A](

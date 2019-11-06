@@ -188,6 +188,11 @@ object UIO {
   final def effectSuspendTotalWith[A](p: Platform => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(p)
 
   /**
+   * @see [[zio.ZIO.fiberId]]
+   */
+  final val fiberId: UIO[FiberId] = ZIO.fiberId
+
+  /**
    * @see [[zio.ZIO.firstSuccessOf]]
    */
   final def firstSuccessOf[A](uio: UIO[A], rest: Iterable[UIO[A]]): UIO[A] = ZIO.firstSuccessOf(uio, rest)

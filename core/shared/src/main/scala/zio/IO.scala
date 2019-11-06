@@ -214,6 +214,11 @@ object IO {
   final def fail[E](error: E): IO[E, Nothing] = ZIO.fail(error)
 
   /**
+   * @see [[zio.ZIO.fiberId]]
+   */
+  final val fiberId: UIO[FiberId] = ZIO.fiberId
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   final def firstSuccessOf[E, A](
