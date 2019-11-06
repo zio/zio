@@ -739,7 +739,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * interrupted, and if completed will cause the regular finalizer to not run.
    */
   final def withEarlyRelease: ZManaged[R, E, (URIO[R, Any], A)] =
-    ZManaged.fromEffect(ZIO.descriptor).flatMap(d => withEarlyReleaseExit(Exit.interrupt(d.id)))
+    ZManaged.fiberId.flatMap(fiberId => withEarlyReleaseExit(Exit.interrupt(fiberId)))
 
   /**
    * A more powerful version of `withEarlyRelease` that allows specifying an
@@ -924,6 +924,11 @@ object ZManaged {
     halt(Cause.fail(error))
 
   /**
+   * Returns an effect that succeeds with the `FiberId` of the caller.
+   */
+  final val fiberId: ZManaged[Any, Nothing, FiberId] = ZManaged.fromEffect(ZIO.fiberId)
+
+  /**
    * Creates an effect that only executes the provided finalizer as its
    * release action.
    */
@@ -1104,10 +1109,17 @@ object ZManaged {
   final def identity[R]: ZManaged[R, Nothing, R] = fromFunction(scala.Predef.identity)
 
   /**
-   * Returns an effect that is interrupted.
+   * Returns an effect that is interrupted as if by the fiber calling this
+   * method.
    */
   final val interrupt: ZManaged[Any, Nothing, Nothing] =
     ZManaged.fromEffect(ZIO.descriptor).flatMap(d => halt(Cause.interrupt(d.id)))
+
+  /**
+   * Returns an effect that is interrupted as if by the specified fiber.
+   */
+  final def interruptAs(fiberId: FiberId): ZManaged[Any, Nothing, Nothing] =
+    halt(Cause.interrupt(fiberId))
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action.
@@ -1380,14 +1392,14 @@ object ZManaged {
    */
   final def switchable[R, E, A]: ZManaged[R, Nothing, ZManaged[R, E, A] => ZIO[R, E, A]] =
     for {
-      descriptor   <- ZManaged.fromEffect(ZIO.descriptor)
+      fiberId      <- ZManaged.fiberId
       finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
       switch = { (newResource: ZManaged[R, E, A]) =>
         ZIO.uninterruptibleMask { restore =>
           for {
             _ <- finalizerRef
                   .modify(f => (f, _ => UIO.unit))
-                  .flatMap(f => f(Exit.interrupt(descriptor.id)))
+                  .flatMap(f => f(Exit.interrupt(fiberId)))
             reservation <- newResource.reserve
             _           <- finalizerRef.set(reservation.release)
             a           <- restore(reservation.acquire)
