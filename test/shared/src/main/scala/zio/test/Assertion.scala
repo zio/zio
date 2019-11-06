@@ -295,7 +295,7 @@ object Assertion {
 
   /**
    * Makes a new assertion that requires a sequence to contain an element
-   * satysfying the given assertion on the given position
+   * satisfying the given assertion on the given position
    */
   final def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
     Assertion.assertionRec("hasAt")(param(assertion))(assertion) { actual =>
@@ -320,7 +320,7 @@ object Assertion {
 
   /**
    * Makes a new assertion that requires an iterable to contain the first
-   * element satysfying the given assertion
+   * element satisfying the given assertion
    */
   final def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRec("hasFirst")(param(assertion))(assertion) { actual =>
@@ -329,7 +329,7 @@ object Assertion {
 
   /**
    * Makes a new assertion that requires an iterable to contain the last
-   * element satysfying the given assertion
+   * element satisfying the given assertion
    */
   final def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRec("hasLast")(param(assertion))(assertion) { actual =>
