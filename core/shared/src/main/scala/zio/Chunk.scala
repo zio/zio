@@ -839,10 +839,10 @@ object Chunk {
       val len                       = self.length
       var dest: ZIO[R, E, Array[B]] = UIO.succeed(null.asInstanceOf[Array[B]])
 
-      var i      = 0
-      var j      = 0
-      var done   = false
-      val orElse = (_: A) =>  {
+      var i    = 0
+      var j    = 0
+      var done = false
+      val orElse = (_: A) => {
         done = true
         UIO.succeed(null.asInstanceOf[B])
       }
