@@ -18,6 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
+import zio.Cause
 import zio.Exit
 import zio.test.Assertion._
 import zio.test.Assertion.Render._
@@ -223,6 +224,13 @@ object Assertion {
     Assertion.assertion("contains")(param(element))(_.exists(_ == element))
 
   /**
+   * Makes a new assertion that requires a `Cause` contain the specified
+   * cause.
+   */
+  final def containsCause[E](cause: Cause[E]): Assertion[Cause[E]] =
+    Assertion.assertion("containsCause")(param(cause))(_.contains(cause))
+
+  /**
    * Makes a new assertion that requires a substring to be present.
    */
   final def containsString(element: String): Assertion[String] =
@@ -273,6 +281,16 @@ object Assertion {
   final def fails[E](assertion: Assertion[E]): Assertion[Exit[E, Any]] =
     Assertion.assertionRec("fails")(param(assertion))(assertion) {
       case Exit.Failure(cause) => cause.failures.headOption
+      case _                   => None
+    }
+
+  /**
+   * Makes a new assertion that requires an exit value to fail with a cause
+   * that meets the specified assertion.
+   */
+  final def failsCause[E](assertion: Assertion[Cause[E]]): Assertion[Exit[E, Any]] =
+    Assertion.assertionRec("failsCause")(param(assertion))(assertion) {
+      case Exit.Failure(cause) => Some(cause)
       case _                   => None
     }
 
