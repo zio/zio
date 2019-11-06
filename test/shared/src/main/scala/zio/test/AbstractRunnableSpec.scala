@@ -30,7 +30,7 @@ abstract class AbstractRunnableSpec {
   type Success
 
   def runner: TestRunner[Environment, Label, Test, Failure, Success]
-  def spec: Spec[Environment, Failure, Label, Test]
+  def spec: ZSpec[Environment, Failure, Label, Test]
 
   /**
    * Returns an effect that executes the spec, producing the results of the execution.

@@ -108,9 +108,9 @@ object TestAspect extends TimeoutVariants {
   val ignore: TestAspectPoly =
     new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-        ZIO.succeed(Right(TestSuccess.Ignored))
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        ZIO.succeed(TestSuccess.Ignored)
     }
 
   /**
@@ -119,9 +119,9 @@ object TestAspect extends TimeoutVariants {
   def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any, Nothing, Any] {
       def perTest[R >: Nothing <: R0, E >: E0 <: Any, S](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-        test <* effect
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        test <* effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause)))
     }
 
   /**
@@ -130,25 +130,24 @@ object TestAspect extends TimeoutVariants {
   def around[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]) =
     new TestAspect.PerTest[Nothing, R0, E0, Any, Nothing, Any] {
       def perTest[R >: Nothing <: R0, E >: E0 <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-        ZManaged.make(before)(_ => after).use(_ => test)
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        ZManaged
+          .make(before)(_ => after)
+          .catchAllCause(c => ZManaged.fail(TestFailure.Runtime(c)))
+          .use(_ => test)
     }
 
   /**
    * Constructs an aspect that evaluates every test inside the context of the managed function.
    */
   def aroundTest[R0, E0, S0](
-    managed: ZManaged[
-      R0,
-      E0,
-      Either[TestFailure[Nothing], TestSuccess[S0]] => ZIO[R0, E0, Either[TestFailure[Nothing], TestSuccess[S0]]]
-    ]
+    managed: ZManaged[R0, TestFailure[E0], TestSuccess[S0] => ZIO[R0, TestFailure[E0], TestSuccess[S0]]]
   ) =
     new TestAspect.PerTest[Nothing, R0, E0, Any, S0, S0] {
       def perTest[R >: Nothing <: R0, E >: E0 <: Any, S >: S0 <: S0](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         managed.use(f => test.flatMap(f))
     }
 
@@ -157,16 +156,12 @@ object TestAspect extends TimeoutVariants {
    * environment and error type.
    */
   def aspect[R0, E0, S0](
-    f: ZIO[R0, E0, Either[TestFailure[Nothing], TestSuccess[S0]]] => ZIO[
-      R0,
-      E0,
-      Either[TestFailure[Nothing], TestSuccess[S0]]
-    ]
+    f: ZIO[R0, TestFailure[E0], TestSuccess[S0]] => ZIO[R0, TestFailure[E0], TestSuccess[S0]]
   ): TestAspect[R0, R0, E0, E0, S0, S0] =
     new TestAspect.PerTest[R0, R0, E0, E0, S0, S0] {
       def perTest[R >: R0 <: R0, E >: E0 <: E0, S >: S0 <: S0](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         f(test)
     }
 
@@ -176,8 +171,8 @@ object TestAspect extends TimeoutVariants {
   def before[R0, E0, S0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any, S0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any, S0, Any] {
       def perTest[R >: Nothing <: R0, E >: E0 <: Any, S >: S0 <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         effect *> test
     }
 
@@ -201,13 +196,9 @@ object TestAspect extends TimeoutVariants {
   val eventually: TestAspectPoly =
     new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
-        lazy val untilSuccess: ZIO[R, Nothing, Either[TestFailure[Nothing], TestSuccess[S]]] =
-          test.foldCauseM(_ => untilSuccess, _.fold(_ => untilSuccess, s => ZIO.succeed(Right(s))))
-
-        untilSuccess
-      }
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        test.eventually
     }
 
   /**
@@ -243,7 +234,7 @@ object TestAspect extends TimeoutVariants {
       def some[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any, L](
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
-      ): ZSpec[R, E, L, S] = spec.transform[R, E, L, Either[TestFailure[Nothing], TestSuccess[S]]] {
+      ): ZSpec[R, E, L, S] = spec.transform[R, TestFailure[E], L, TestSuccess[S]] {
         case Spec.SuiteCase(label, specs, None) if (predicate(label)) => Spec.SuiteCase(label, specs, Some(exec))
         case c                                                        => c
       }
@@ -262,17 +253,18 @@ object TestAspect extends TimeoutVariants {
   def failure[E0](p: Assertion[TestFailure[E0]]): PerTest[Nothing, Any, Nothing, E0, Unit, Unit] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0, Unit, Unit] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: E0, S >: Unit <: Unit](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
-        lazy val succeed = Right(TestSuccess.Succeeded(BoolAlgebra.unit))
-        test.foldCause(
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
+        lazy val succeed = ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+        test.foldM(
           {
-            case c if p.run(TestFailure.Runtime(c)).isSuccess => succeed
-            case other                                        => Left(TestFailure.Assertion(assert(TestFailure.Runtime(other), p)))
-          }, {
-            case Left(e) => if (p.run(e).isSuccess) succeed else Left(TestFailure.Assertion(assert(e, p)))
-            case _       => Left(TestFailure.Runtime(Cause.die(new RuntimeException("did not fail as expected"))))
-          }
+            case testFailure if p.run(testFailure).isSuccess => succeed
+            case other =>
+              ZIO.fail(
+                TestFailure.Assertion(assert(other, p))
+              )
+          },
+          _ => ZIO.fail(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
         )
       }
     }
@@ -290,12 +282,12 @@ object TestAspect extends TimeoutVariants {
   def ifEnv(env: String, assertion: Assertion[String]): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, Live[System], Nothing, Any, Nothing, Any] {
       def perTest[R <: Live[System], E, S](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         Live.live(system.env(env)).orDie.flatMap { value =>
           value
             .filter(assertion.test)
-            .fold[ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]](ZIO.succeed(Right(TestSuccess.Ignored)))(
+            .fold[ZIO[R, TestFailure[E], TestSuccess[S]]](ZIO.succeed(TestSuccess.Ignored))(
               _ => test
             )
         }
@@ -318,12 +310,12 @@ object TestAspect extends TimeoutVariants {
   ): TestAspect[Nothing, Live[System], Nothing, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, Live[System], Nothing, Any, Nothing, Any] {
       def perTest[R <: Live[System], E, S](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         Live.live(system.property(prop)).orDie.flatMap { value =>
           value
             .filter(assertion.test)
-            .fold[ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]](ZIO.succeed(Right(TestSuccess.Ignored)))(
+            .fold[ZIO[R, TestFailure[E], TestSuccess[S]]](ZIO.succeed(TestSuccess.Ignored))(
               _ => test
             )
         }
@@ -377,11 +369,11 @@ object TestAspect extends TimeoutVariants {
   def nonFlaky(n0: Int): TestAspectPoly =
     new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
-        def repeat(n: Int): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
+        def repeat(n: Int): ZIO[R, TestFailure[E], TestSuccess[S]] =
           if (n <= 1) test
-          else test.flatMap(_.fold(e => ZIO.succeed(Left(e)), _ => repeat(n - 1)))
+          else test.flatMap(_ => repeat(n - 1))
 
         repeat(n0)
       }
@@ -403,33 +395,12 @@ object TestAspect extends TimeoutVariants {
    */
   def retry[R0, E0, S0](
     schedule: ZSchedule[R0, TestFailure[E0], S0]
-  ): TestAspect[Nothing, Live[R0], Nothing, E0, Nothing, S0] =
-    new TestAspect.PerTest[Nothing, Live[R0], Nothing, E0, Nothing, S0] {
-      def perTest[R >: Nothing <: Live[R0], E >: Nothing <: E0, S >: Nothing <: S0](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
-        def loop(state: schedule.State): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-          test.foldCauseM(
-            err =>
-              Live
-                .live(schedule.update(TestFailure.Runtime(err), state))
-                .foldM(
-                  _ => ZIO.halt(err),
-                  loop
-                ), {
-              case Left(e) =>
-                Live
-                  .live(schedule.update(e, state))
-                  .foldM(
-                    _ => ZIO.succeed(Left(e)),
-                    loop
-                  )
-              case Right(s) => ZIO.succeed(Right(s))
-            }
-          )
-
-        Live.live(schedule.initial).flatMap(loop)
-      }
+  ): TestAspect[Nothing, R0, Nothing, E0, Nothing, S0] =
+    new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, S0] {
+      def perTest[R >: Nothing <: R0, E >: Nothing <: E0, S >: Nothing <: S0](
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        test.retry(schedule)
     }
 
   /**
@@ -457,12 +428,12 @@ object TestAspect extends TimeoutVariants {
   val success: TestAspectPoly =
     new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
-        test.map {
-          case Right(TestSuccess.Ignored) =>
-            Left(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
-          case x => x
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        test.flatMap {
+          case TestSuccess.Ignored =>
+            ZIO.fail(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
+          case x => ZIO.succeed(x)
         }
     }
 
@@ -477,8 +448,8 @@ object TestAspect extends TimeoutVariants {
   ): TestAspect[Nothing, Live[Clock], Nothing, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, Live[Clock], Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] = {
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
         def timeoutFailure =
           TestTimeoutException(s"Timeout of ${duration.render} exceeded.")
         def interruptionTimeoutFailure = {
@@ -490,8 +461,8 @@ object TestAspect extends TimeoutVariants {
           .withLive(test)(_.either.timeoutFork(duration).flatMap {
             case Left(fiber) =>
               fiber.join.raceWith(ZIO.sleep(interruptDuration))(
-                (_, fiber) => fiber.interrupt *> ZIO.die(timeoutFailure),
-                (_, _) => ZIO.die(interruptionTimeoutFailure)
+                (_, fiber) => fiber.interrupt *> ZIO.fail(TestFailure.Runtime(Cause.die(timeoutFailure))),
+                (_, _) => ZIO.fail(TestFailure.Runtime(Cause.die(interruptionTimeoutFailure)))
               )
             case Right(result) => result.fold(ZIO.fail, ZIO.succeed)
           })
@@ -501,14 +472,14 @@ object TestAspect extends TimeoutVariants {
   trait PerTest[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS]
       extends TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] {
     def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS](
-      test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-    ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+      test: ZIO[R, TestFailure[E], TestSuccess[S]]
+    ): ZIO[R, TestFailure[E], TestSuccess[S]]
 
     final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS, L](
       predicate: L => Boolean,
       spec: ZSpec[R, E, L, S]
     ): ZSpec[R, E, L, S] =
-      spec.transform[R, E, L, Either[TestFailure[Nothing], TestSuccess[S]]] {
+      spec.transform[R, TestFailure[E], L, TestSuccess[S]] {
         case c @ Spec.SuiteCase(_, _, _) => c
         case Spec.TestCase(label, test) =>
           Spec.TestCase(label, if (predicate(label)) perTest(test) else test)
