@@ -20,13 +20,12 @@ class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
   final def acquire: STM[Nothing, Unit] = acquireN(1L)
 
   final def acquireN(n: Long): STM[Nothing, Unit] =
-    assertNonNegative(n).flatMap { _ =>
-      permits.get.flatMap { value =>
-        STM.check(value >= n).flatMap { _ =>
-          permits.set(value - n)
-        }
-      }
-    }
+    for {
+      _     <- assertNonNegative(n)
+      value <- permits.get
+      _     <- STM.check(value >= n)
+      _     <- permits.set(value - n)
+    } yield ()
 
   final def available: STM[Nothing, Long] = permits.get
 
@@ -45,6 +44,6 @@ class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
 }
 
 object TSemaphore {
-  final def apply(n: Long): STM[Nothing, TSemaphore] =
-    TRef(n).map(v => new TSemaphore(v))
+  final def make(n: Long): STM[Nothing, TSemaphore] =
+    TRef.make(n).map(v => new TSemaphore(v))
 }

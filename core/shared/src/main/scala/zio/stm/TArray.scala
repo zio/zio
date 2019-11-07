@@ -65,11 +65,12 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
   /** Atomically updates element in the array with given transactional effect. */
   final def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, A] =
     if (0 <= index && index < array.length)
-      array(index).get.flatMap { currentVal =>
-        fn(currentVal).flatMap { newVal =>
-          array(index).set(newVal).as(newVal)
-        }
-      } else STM.die(new ArrayIndexOutOfBoundsException(index))
+      for {
+        currentVal <- array(index).get
+        newVal     <- fn(currentVal)
+        _          <- array(index).set(newVal)
+      } yield newVal
+    else STM.die(new ArrayIndexOutOfBoundsException(index))
 }
 
 object TArray {
@@ -77,7 +78,7 @@ object TArray {
   /**
    * Makes a new `TArray` that is initialized with specified values.
    */
-  final def apply[A](data: A*): STM[Nothing, TArray[A]] = fromIterable(data)
+  final def make[A](data: A*): STM[Nothing, TArray[A]] = fromIterable(data)
 
   /**
    * Makes an empty `TArray`.
@@ -88,5 +89,5 @@ object TArray {
    * Makes a new `TArray` initialized with provided iterable.
    */
   final def fromIterable[A](data: Iterable[A]): STM[Nothing, TArray[A]] =
-    STM.foreach(data)(TRef(_)).map(list => new TArray(list.toArray))
+    STM.foreach(data)(TRef.make(_)).map(list => new TArray(list.toArray))
 }
