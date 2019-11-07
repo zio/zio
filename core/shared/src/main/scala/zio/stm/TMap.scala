@@ -238,9 +238,9 @@ object TMap {
 
     for {
       tChains   <- TArray.fromIterable(buckets)
-      tBuckets  <- TRef(tChains)
-      tCapacity <- TRef(capacity)
-      tSize     <- TRef(uniqueItems.size)
+      tBuckets  <- TRef.make(tChains)
+      tCapacity <- TRef.make(capacity)
+      tSize     <- TRef.make(uniqueItems.size)
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 

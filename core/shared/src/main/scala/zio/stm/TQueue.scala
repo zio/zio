@@ -55,5 +55,5 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 }
 object TQueue {
   final def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
-    TRef(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
+    TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 }
