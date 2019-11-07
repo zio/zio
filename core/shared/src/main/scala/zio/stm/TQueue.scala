@@ -54,6 +54,6 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       .map(_.toList)
 }
 object TQueue {
-  final def apply[A](capacity: Int): STM[Nothing, TQueue[A]] =
+  final def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
     TRef(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 }
