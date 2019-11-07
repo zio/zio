@@ -374,7 +374,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a specified number of times, ensuring it
    * is stable ("non-flaky"). Stops at the first failure.
    */
-  def nonFlaky(n0: Int): TestAspectPoly =
+  def nonFlaky(n: Int): TestAspectPoly =
     new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
@@ -383,8 +383,29 @@ object TestAspect extends TimeoutVariants {
           if (n <= 1) test
           else test.flatMap(_ => repeat(n - 1))
 
-        repeat(n0)
+        repeat(n)
       }
+    }
+
+  /**
+   * An aspect that runs the test a default number of times in parallel,
+   * ensuring it is stable ("non-flaky"). Stops at the first failure. This can
+   * be useful for testing effects during periods of high contention.
+   */
+  val nonFlakyPar: TestAspectPoly =
+    nonFlakyPar(100)
+
+  /**
+   * An aspect that runs the test a specified number of times in parallel,
+   * ensuring it is stable ("non-flaky"). Stops at the first failure. This can
+   * be useful for testing effects during periods of high contention.
+   */
+  def nonFlakyPar(n: Int): TestAspectPoly =
+    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        ZIO.collectAllPar(ZIO.replicate(n)(test)).map(_.head)
     }
 
   /**
@@ -394,7 +415,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that executes the members of a suite in parallel, up to the
-   * specified number of concurent fibers.
+   * specified number of concurrent fibers.
    */
   def parallelN(n: Int): TestAspectPoly = executionStrategy(ExecutionStrategy.ParallelN(n))
 
