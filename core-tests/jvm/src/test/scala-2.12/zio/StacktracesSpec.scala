@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
     with mutable.SpecificationLike {
-  override val DefaultTimeout: SDuration = SDuration(20, TimeUnit.SECONDS)
+  override val DefaultTimeout: SDuration = SDuration(60, TimeUnit.SECONDS)
 
   // Using mutable Spec here to easily run individual tests from Intellij to inspect result traces
 
