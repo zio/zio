@@ -70,7 +70,7 @@ object TArraySpec
         suite("foreach")(
           testM("side-effect is transactional") {
             for {
-              ref    <- TRef(0).commit
+              ref    <- TRef.make(0).commit
               tArray <- makeTArray(n)(1).commit
               _      <- tArray.foreach(a => ref.update(_ + a).unit).commit.fork
               value  <- ref.get.commit
