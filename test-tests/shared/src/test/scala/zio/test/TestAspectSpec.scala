@@ -5,7 +5,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestAspectSpecUtil._
 import zio.test.TestUtils._
-import zio.{ Cause, Ref, ZIO }
+import zio.{ Cause, Promise, Ref, ZIO }
 
 import scala.reflect.ClassTag
 
@@ -154,6 +154,21 @@ object TestAspectSpec
           val spec   = test("JVM-only")(assert(TestPlatform.isJVM, isTrue)) @@ jvmOnly
           val result = if (TestPlatform.isJVM) succeeded(spec) else ignored(spec)
           assertM(result, isTrue)
+        },
+        testM("nonFlakyPar runs a test a specified number of times in parallel") {
+          for {
+            ref <- Ref.make(0)
+            p   <- Promise.make[Nothing, Unit]
+            spec = testM("test") {
+              for {
+                n <- ref.update(_ + 1)
+                _ <- p.succeed(()).when(n > 1)
+                _ <- p.await
+              } yield assertCompletes
+            } @@ TestAspect.nonFlakyPar
+            _ <- execute(spec)
+            n <- ref.get
+          } yield assert(n, equalTo(100))
         },
         testM("scala2 applies test aspect only on Scala 2") {
           for {
