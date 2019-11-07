@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import org.scalacheck
-import zio.random.Random
 import zio.test.Gen
 import IOBenchmarks._
 
@@ -20,11 +19,9 @@ class GenBenchmarks {
   def zioDouble: Double =
     unsafeRun(Gen.uniform.sample.map(_.value).runHead.get)
 
-
   @Benchmark
   def zioIntListOfSizeN: List[Int] =
     unsafeRun(Gen.listOfN(size)(Gen.anyInt).sample.map(_.value).runHead.get)
-
 
   @Benchmark
   def zioStringOfSizeN: String =
