@@ -86,7 +86,7 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     self.zip(that).map(f.tupled)
 }
 
-object Gen extends GenZIO with FunctionVariants {
+object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
