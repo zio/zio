@@ -3,7 +3,8 @@ package zio.test
 import zio.Exit
 import zio.test.Assertion._
 import zio.test.AssertionSpecHelper._
-import zio.test.TestAspect.failure
+import zio.test.BoolAlgebra.Value
+import zio.test.TestAspect._
 
 object AssertionSpec
     extends ZIOBaseSpec(
@@ -70,6 +71,36 @@ object AssertionSpec
         },
         test("hasSize must succeed when iterable size is equal to specified assertion") {
           assert(Seq(1, 2, 3), hasSize(equalTo(3)))
+        },
+        test("hasFirst must fail when an iterable is empty") {
+          assert(Seq(), hasFirst(anything))
+        } @@ failure,
+        test("hasFirst must succeed when a head is equal to a specific assertion") {
+          assert(Seq(1, 2, 3), hasFirst(equalTo(1)))
+        },
+        test("hasFirst must fail when a head is not equal to a specific assertion") {
+          assert(Seq(1, 2, 3), hasFirst(equalTo(100)))
+        } @@ failure,
+        test("hasLast must fail when an iterable is empty") {
+          assert(Seq(), hasLast(anything))
+        } @@ failure,
+        test("hasLast must succeed when a last is equal to a specific assertion") {
+          assert(Seq(1, 2, 3), hasLast(equalTo(3)))
+        },
+        test("hasLast must fail when a last is not equal to specific assertion") {
+          assert(Seq(1, 2, 3), hasLast(equalTo(100)))
+        } @@ failure,
+        test("hasAt must fail when an index is outside of a sequence range") {
+          assert(Seq(1, 2, 3), hasAt(-1)(anything))
+        } @@ failure,
+        test("hasAt must fail when an index is outside of a sequence range 2") {
+          assert(Seq(1, 2, 3), hasAt(3)(anything))
+        } @@ failure,
+        test("hasAt must fail when a value is not equal to a specific assertion") {
+          assert(Seq(1, 2, 3), hasAt(1)(equalTo(1)))
+        } @@ failure,
+        test("hasAt must succeed when a value is equal to a specific assertion") {
+          assert(Seq(1, 2, 3), hasAt(1)(equalTo(2)))
         },
         test("isCase must fail when unapply fails (returns None)") {
           assert(42, isCase[Int, String](termName = "term", _ => None, equalTo("number: 42")))
@@ -250,7 +281,22 @@ object AssertionSpec
             Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"),
             hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
           )
-        } @@ failure
+        } @@ failure,
+        test("assertCompiles must succeed when string is valid code") {
+          assertCompiles("1 + 1")
+        },
+        test("assertCompiles must fail when string is not valid Scala code") {
+          assertCompiles("1 ++ 1")
+        } @@ failure,
+        test("assertCompiles must report error messages on Scala 2") {
+          assert(
+            assertCompiles("1 ++ 1").failures match {
+              case Some(Value(failure)) => Some(failure.assertion.head.value)
+              case _                    => None
+            },
+            isSome(equalTo(Some("value ++ is not a member of Int")))
+          )
+        } @@ scala2Only
       )
     )
 
@@ -265,5 +311,4 @@ object AssertionSpecHelper {
   val ageGreaterThan20 = hasField[SampleUser, Int]("age", _.age, isGreaterThan(20))
 
   val someException = new RuntimeException("Boom!")
-
 }

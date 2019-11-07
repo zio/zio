@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Cause, Managed, ZIO }
+import zio._
 
 import Spec._
 
@@ -34,10 +34,19 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * test("foo") { assert(42, equalTo(42)) } @@ ignore
    * }}}
    */
-  final def @@[R0 <: R1, R1 <: R, E0 >: E, E1 >: E0, S0 <: S, S, S1 >: S](aspect: TestAspect[R0, R1, E0, E1, S0, S1])(
-    implicit ev: T <:< Either[TestFailure[Nothing], TestSuccess[S]]
-  ): Spec[R1, E0, L, Either[TestFailure[Nothing], TestSuccess[S]]] =
-    aspect(mapTest(ev))
+  final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1, S0, S1, S >: S0 <: S1](
+    aspect: TestAspect[R0, R1, E0, E1, S0, S1]
+  )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess[S]): ZSpec[R1, E2, L, S] =
+    aspect(self.asInstanceOf[ZSpec[R1, E2, L, S]])
+
+  /**
+   * Returns a new spec with remapped errors and tests.
+   */
+  final def bimap[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E]): Spec[R, E1, L, T1] =
+    transform[R, E1, L, T1] {
+      case SuiteCase(label, specs, exec) => SuiteCase(label, specs.mapError(f), exec)
+      case TestCase(label, test)         => TestCase(label, test.bimap(f, g))
+    }
 
   /**
    * Returns a new spec with the suite labels distinguished by `Left`, and the
@@ -191,6 +200,15 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     foreachExec(ExecutionStrategy.ParallelN(n))(failure, success)
 
   /**
+   * Returns a new spec with remapped errors.
+   */
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): Spec[R, E1, L, T] =
+    transform[R, E1, L, T] {
+      case SuiteCase(label, specs, exec) => SuiteCase(label, specs.mapError(f), exec)
+      case TestCase(label, test)         => TestCase(label, test.mapError(f))
+    }
+
+  /**
    * Returns a new spec with remapped labels.
    */
   final def mapLabel[L1](f: L => L1): Spec[R, E, L1, T] =
@@ -212,7 +230,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * Uses the specified `Managed` to provide each test in this spec with its
    * required environment.
    */
-  final def provideManaged[E1 >: E](managed: Managed[E1, R]): Spec[Any, E1, L, T] =
+  final def provideManaged[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] =
     transform[Any, E1, L, T] {
       case SuiteCase(label, specs, exec) => SuiteCase(label, specs.provideManaged(managed), exec)
       case TestCase(label, test)         => TestCase(label, test.provideManaged(managed))
@@ -224,7 +242,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    * act of creating the environment is expensive and should only be performed
    * once.
    */
-  final def provideManagedShared[E1 >: E](managed: Managed[E1, R]): Spec[Any, E1, L, T] = {
+  final def provideManagedShared[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] = {
     def loop(r: R)(spec: Spec[R, E, L, T]): ZIO[Any, E, Spec[Any, E, L, T]] =
       spec.caseValue match {
         case SuiteCase(label, specs, exec) =>

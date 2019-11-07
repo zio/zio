@@ -43,9 +43,6 @@ object SemaphoreSpec
               _ <- s.withPermit(IO.unit)
             } yield assertCompletes
           },
-          /**
-           * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
-           */
           testM("`withPermit` doesn't leak permits upon failure") {
             val n = 1L
             for {
@@ -54,15 +51,12 @@ object SemaphoreSpec
               permits <- s.available
             } yield assert(permits, equalTo(1L))
           },
-          /**
-           * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
-           */
           testM("`withPermit` does not leak fibers or permits upon cancellation") {
             val n = 1L
             for {
               s       <- Semaphore.make(n)
               fiber   <- s.withPermit(IO.never).fork
-              _       <- fiber.interrupt.either
+              _       <- fiber.interrupt
               permits <- s.available
             } yield assert(permits, equalTo(1L))
           },
@@ -70,7 +64,7 @@ object SemaphoreSpec
             for {
               s       <- Semaphore.make(1L)
               fiber   <- s.withPermitManaged.use(_ => IO.never).fork
-              _       <- fiber.interrupt.either
+              _       <- fiber.interrupt
               permits <- s.available
             } yield assert(permits, equalTo(1L))
           }

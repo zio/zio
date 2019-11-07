@@ -88,7 +88,7 @@ case class TestEnvironment(
   val scheduler = clock
 }
 
-object TestEnvironment {
+object TestEnvironment extends Serializable {
 
   val Value: Managed[Nothing, TestEnvironment] =
     Managed.fromEffect {
