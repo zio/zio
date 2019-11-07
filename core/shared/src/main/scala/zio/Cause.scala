@@ -225,8 +225,6 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         val sw = new StringWriter()
         val pw = new PrintWriter(sw)
         e.printStackTrace(pw)
-        e.printStackTrace()
-        pw.flush()
         lines(sw.toString)
       }
     }

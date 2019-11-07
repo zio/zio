@@ -121,88 +121,84 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       }
 
     def produce(stateVar: Ref[State], permits: Semaphore, a: A1): ZIO[R1, E1, Boolean] =
-      withStateVar(stateVar, permits) { s =>
-        (s match {
-          case State.Empty(state, notifyConsumer) =>
-            for {
-              notifyProducer <- Promise.make[Nothing, Unit]
-              step           <- sink.step(state, a)
-              result <- if (sink.cont(step))
-                         UIO.succeed(
-                           // Notify the consumer so they won't busy wait
-                           (notifyConsumer.succeed(()).as(true), State.BatchMiddle(step, notifyProducer))
+      withStateVar(stateVar, permits) {
+        case State.Empty(state, notifyConsumer) =>
+          for {
+            notifyProducer <- Promise.make[Nothing, Unit]
+            step           <- sink.step(state, a)
+            result <- if (sink.cont(step))
+                       UIO.succeed(
+                         // Notify the consumer so they won't busy wait
+                         (notifyConsumer.succeed(()).as(true), State.BatchMiddle(step, notifyProducer))
+                       )
+                     else
+                       UIO.succeed(
+                         (
+                           // Notify the consumer, wait for them to take the aggregate so we know
+                           // it's time to progress, and process the leftovers
+                           notifyConsumer.succeed(()) *> notifyProducer.await.as(true),
+                           State.BatchEnd(step, notifyProducer)
                          )
-                       else
-                         UIO.succeed(
-                           (
-                             // Notify the consumer, wait for them to take the aggregate so we know
-                             // it's time to progress, and process the leftovers
-                             notifyConsumer.succeed(()) *> notifyProducer.await.as(true),
-                             State.BatchEnd(step, notifyProducer)
-                           )
-                         )
-            } yield result
+                       )
+          } yield result
 
-          case State.Leftovers(state, leftovers, notifyConsumer) =>
-            UIO.succeed(
-              (
-                (leftovers ++ Chunk.single(a)).foldWhileM(true)(identity)((_, a) => produce(stateVar, permits, a)),
-                State.Empty(state, notifyConsumer)
-              )
+        case State.Leftovers(state, leftovers, notifyConsumer) =>
+          UIO.succeed(
+            (
+              (leftovers ++ Chunk.single(a)).foldWhileM(true)(identity)((_, a) => produce(stateVar, permits, a)),
+              State.Empty(state, notifyConsumer)
             )
+          )
 
-          case State.BatchMiddle(state, notifyProducer) =>
-            // The logic here is the same as the Empty state, except we don't need
-            // to notify the consumer on the transition
-            for {
-              step <- sink.step(state, a)
-              result <- if (sink.cont(step))
-                         UIO.succeed((UIO.succeed(true), State.BatchMiddle(step, notifyProducer)))
-                       else
-                         UIO.succeed((notifyProducer.await.as(true), State.BatchEnd(step, notifyProducer)))
-            } yield result
+        case State.BatchMiddle(state, notifyProducer) =>
+          // The logic here is the same as the Empty state, except we don't need
+          // to notify the consumer on the transition
+          for {
+            step <- sink.step(state, a)
+            result <- if (sink.cont(step))
+                       UIO.succeed((UIO.succeed(true), State.BatchMiddle(step, notifyProducer)))
+                     else
+                       UIO.succeed((notifyProducer.await.as(true), State.BatchEnd(step, notifyProducer)))
+          } yield result
 
-          // The producer shouldn't actually see these states, but we still use sane
-          // transitions here anyway.
-          case s @ State.BatchEnd(_, batchTaken) => UIO.succeed((batchTaken.await.as(true), s))
-          case State.Error(e)                    => ZIO.halt(e)
-          case State.End                         => UIO.succeed((UIO.succeed(true), State.End))
-        })
+        // The producer shouldn't actually see these states, but we still use sane
+        // transitions here anyway.
+        case s @ State.BatchEnd(_, batchTaken) => UIO.succeed((batchTaken.await.as(true), s))
+        case State.Error(e)                    => ZIO.halt(e)
+        case State.End                         => UIO.succeed((UIO.succeed(true), State.End))
       }.flatten
 
     // This function is used in an unfold, so `None` means stop consuming
     def consume(stateVar: Ref[State], permits: Semaphore): ZIO[R1, Option[E1], Chunk[B]] =
-      withStateVar(stateVar, permits) { s =>
-        s match {
-          // If the state is empty, wait for a notification from the producer
-          case s @ State.Empty(_, notify) => UIO.succeed((notify.await.as(Chunk.empty), s))
+      withStateVar(stateVar, permits) {
+        // If the state is empty, wait for a notification from the producer
+        case s @ State.Empty(_, notify) => UIO.succeed((notify.await.as(Chunk.empty), s))
 
-          case s @ State.Leftovers(_, _, notify) => UIO.succeed((notify.await.as(Chunk.empty), s))
+        case s @ State.Leftovers(_, _, notify) => UIO.succeed((notify.await.as(Chunk.empty), s))
 
-          case State.BatchMiddle(state, notifyProducer) =>
-            (for {
-              initial        <- sink.initial
-              notifyConsumer <- Promise.make[Nothing, Unit]
-              extractResult  <- sink.extract(state)
-              (b, leftovers) = extractResult
-              nextState = if (leftovers.isEmpty) State.Empty(initial, notifyConsumer)
-              else State.Leftovers(initial, leftovers, notifyConsumer)
-              // Inform the producer that we took the batch, extract the sink and emit the data
-            } yield (notifyProducer.succeed(()).as(Chunk.single(b)), nextState)).mapError(Some(_))
+        case State.BatchMiddle(state, notifyProducer) =>
+          (for {
+            initial        <- sink.initial
+            notifyConsumer <- Promise.make[Nothing, Unit]
+            extractResult  <- sink.extract(state)
+            (b, leftovers) = extractResult
+            nextState = if (leftovers.isEmpty) State.Empty(initial, notifyConsumer)
+            else State.Leftovers(initial, leftovers, notifyConsumer)
+            // Inform the producer that we took the batch, extract the sink and emit the data
+          } yield (notifyProducer.succeed(()).as(Chunk.single(b)), nextState)).mapError(Some(_))
 
-          case State.BatchEnd(state, notifyProducer) =>
-            (for {
-              initial        <- sink.initial
-              notifyConsumer <- Promise.make[Nothing, Unit]
-              extractResult  <- sink.extract(state)
-              (b, leftovers) = extractResult
-              nextState = if (leftovers.isEmpty) State.Empty(initial, notifyConsumer)
-              else State.Leftovers(initial, leftovers, notifyConsumer)
-            } yield (notifyProducer.succeed(()).as(Chunk.single(b)), nextState)).mapError(Some(_))
+        case State.BatchEnd(state, notifyProducer) =>
+          (for {
+            initial        <- sink.initial
+            notifyConsumer <- Promise.make[Nothing, Unit]
+            extractResult  <- sink.extract(state)
+            (b, leftovers) = extractResult
+            nextState = if (leftovers.isEmpty) State.Empty(initial, notifyConsumer)
+            else State.Leftovers(initial, leftovers, notifyConsumer)
+          } yield (notifyProducer.succeed(()).as(Chunk.single(b)), nextState)).mapError(Some(_))
 
-          case e @ State.Error(cause) => ZIO.succeed((ZIO.halt(cause.map(Some(_))), e))
-          case State.End              => ZIO.succeed((ZIO.fail(None), State.End))
-        }
+        case e @ State.Error(cause) => ZIO.succeed((ZIO.halt(cause.map(Some(_))), e))
+        case State.End              => ZIO.succeed((ZIO.fail(None), State.End))
       }.flatten
 
     def drainAndSet(stateVar: Ref[State], permits: Semaphore, s: State): ZIO[R1, E1, Unit] =
@@ -541,6 +537,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
     ZStream[R1 with Clock, E1, Either[C, B]] {
       for {
+        fiberId   <- ZManaged.fiberId
         initSink  <- sink.initial.toManaged_
         initAwait <- Promise.make[Nothing, Unit].toManaged_
         permits   <- Semaphore.make(1).toManaged_
@@ -553,7 +550,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                      )
                      .fork
         bs <- consumerStream(stateVar, permits).process
-               .ensuringFirst(producer.interrupt.fork)
+               .ensuringFirst(producer.interruptAs(fiberId).fork)
       } yield bs
     }
   }
