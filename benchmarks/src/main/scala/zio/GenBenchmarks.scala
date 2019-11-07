@@ -2,11 +2,11 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import hedgehog.core.GenT
 import org.openjdk.jmh.annotations._
 import org.scalacheck
 import zio.random.Random
 import zio.test.Gen
+import IOBenchmarks._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -17,65 +17,41 @@ class GenBenchmarks {
   var size: Int = _
 
   @Benchmark
-  def zioDouble: Gen[Random, Double] =
-    Gen.double(0, size)
+  def zioDouble: Double =
+    unsafeRun(Gen.uniform.sample.map(_.value).runHead.get)
+
 
   @Benchmark
-  def zioIntListOfSizeN: Gen[Random, List[Int]] =
-    Gen.listOfN(size)(Gen.anyInt)
+  def zioIntListOfSizeN: List[Int] =
+    unsafeRun(Gen.listOfN(size)(Gen.anyInt).sample.map(_.value).runHead.get)
+
 
   @Benchmark
-  def zioStringOfSizeN: Gen[Random, String] =
-    Gen.stringN(size)(Gen.anyChar)
+  def zioStringOfSizeN: String =
+    unsafeRun(Gen.stringN(size)(Gen.anyChar).sample.map(_.value).runHead.get)
 
   @Benchmark
-  def scalaRandomDouble: Double =
-    scala.util.Random.nextDouble()
+  def scalaCheckDouble: Double =
+    scalacheck.Gen.choose(0.0, 1.0).sample.get
 
   @Benchmark
-  def scalaRandomIntListOfSizeN: List[Int] =
-    List.fill(size)(scala.util.Random.nextInt())
+  def scalaCheckIntListOfSizeN: List[Int] =
+    scalacheck.Gen.listOfN(size, scalacheck.Gen.choose(Int.MinValue, Int.MaxValue)).sample.get
 
   @Benchmark
-  def scalaRandomStringOfSizeN: String =
-    scala.util.Random.alphanumeric.take(size).mkString
+  def scalaCheckStringOfSizeN: String =
+    scalacheck.Gen.listOfN(size, scalacheck.Gen.alphaChar).map(_.mkString).sample.get
 
   @Benchmark
-  def scalaCheckDouble: scalacheck.Gen[Double] =
-    scalacheck.Gen.choose(0, size)
+  def nyayaDouble: Double =
+    nyaya.gen.Gen.double.sample
 
   @Benchmark
-  def scalaCheckIntListOfSizeN: scalacheck.Gen[List[Int]] =
-    scalacheck.Gen.listOfN(size, scalacheck.Gen.choose(0, size))
+  def nyayaIntListOfSizeN: List[Int] =
+    nyaya.gen.Gen.int.list(0 to size).sample
 
   @Benchmark
-  def scalaCheckStringOfSizeN: scalacheck.Gen[String] =
-    scalacheck.Gen.listOfN(size, scalacheck.Gen.alphaChar).map(_.mkString)
-
-  @Benchmark
-  def hedgehogDouble: GenT[Double] =
-    hedgehog.Gen.double(hedgehog.Range.constant(0, size))
-
-  @Benchmark
-  def hedgehogIntListOfSizeN: GenT[List[Int]] = {
-    val range = hedgehog.Range.constant(0, size)
-    hedgehog.Gen.int(range).list(range)
-  }
-
-  @Benchmark
-  def hedgehogStringOfSizeN: GenT[String] =
-    hedgehog.Gen.string(hedgehog.Gen.alpha, hedgehog.Range.constant(0, size))
-
-  @Benchmark
-  def nyayaDouble: nyaya.gen.Gen[Double] =
-    nyaya.gen.Gen.double
-
-  @Benchmark
-  def nyayaIntListOfSizeN: nyaya.gen.Gen[List[Int]] =
-    nyaya.gen.Gen.int.list(0 to size)
-
-  @Benchmark
-  def nyayaStringOfSizeN: nyaya.gen.Gen[String] =
-    nyaya.gen.Gen.string(0 to size)
+  def nyayaStringOfSizeN: String =
+    nyaya.gen.Gen.string(0 to size).sample
 
 }
