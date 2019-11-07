@@ -6,10 +6,28 @@ import zio.Exit.Failure
 import zio.test.{ Gen, testM, _ }
 import zio.test.Assertion._
 import zio.test.environment._
+import ZManagedSpecUtil._
 
 object ZManagedSpec
     extends ZIOBaseSpec(
       suite("ZManaged")(
+        suite("absorbWith")(
+          testM("on fail") {
+            assertM(
+              ZManagedExampleError.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed).run,
+              fails(equalTo(ExampleError))
+            )
+          },
+          testM("on die") {
+            assertM(
+              ZManagedExampleDie.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed).run,
+              fails(equalTo(ExampleError))
+            )
+          },
+          testM("on success") {
+            assertM(ZIO.succeed(1).absorbWith(_ => ExampleError), equalTo(1))
+          }
+        ),
         suite("preallocate")(
           testM("runs finalizer on interruption") {
             for {
@@ -916,6 +934,12 @@ object ZManagedSpec
     )
 
 object ZManagedSpecUtil {
+  val ExampleError = new Throwable("Oh noes!")
+
+  val ZManagedExampleError: ZManaged[Any, Throwable, Int] = ZManaged.fail[Throwable](ExampleError)
+
+  val ZManagedExampleDie: ZManaged[Any, Throwable, Int] = ZManaged.effectTotal(throw ExampleError)
+
   def countDownLatch(n: Int): UIO[UIO[Unit]] =
     Ref.make(n).map { counter =>
       counter.update(_ - 1) *> {

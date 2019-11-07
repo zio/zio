@@ -139,6 +139,24 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged.absolve(ev(self))
 
   /**
+   * Attempts to convert defects into a failure, throwing away all information
+   * about the cause of the failure.
+   */
+  final def absorb(implicit ev: E <:< Throwable): ZManaged[R, Throwable, A] =
+    absorbWith(ev)
+
+  /**
+   * Attempts to convert defects into a failure, throwing away all information
+   * about the cause of the failure.
+   */
+  final def absorbWith(f: E => Throwable): ZManaged[R, Throwable, A] =
+    self.sandbox
+      .foldM(
+        cause => ZManaged.fail(cause.squashWith(f)),
+        ZManaged.succeed
+      )
+
+  /**
    * Replaces the error value (if any) by the value provided.
    */
   final def asError[E1](e1: E1): ZManaged[R, E1, A] = mapError(_ => e1)
@@ -605,6 +623,16 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   }
 
   final def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
+
+  /**
+   * Returns an effect that semantically runs the effect on a fiber,
+   * producing an [[zio.Exit]] for the completion value of the fiber.
+   */
+  final def run: ZManaged[R, Nothing, Exit[E, A]] =
+    foldCauseM(
+      cause => ZManaged.succeed(Exit.halt(cause)),
+      succ => ZManaged.succeed(Exit.succeed(succ))
+    )
 
   /**
    * Exposes the full cause of failure of this effect.
