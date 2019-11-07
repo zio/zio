@@ -270,10 +270,11 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that retries a test until success, without limit, for use with
-   * flaky tests.
+   * An aspect that retries a test until success, with a limit specified by the
+   * test framework, for use with flaky tests.
    */
-  val flaky: TestAspectPoly = eventually
+  val flaky: TestAspectPoly =
+    retry(ZSchedule.recurs(100))
 
   /**
    * An aspect that only runs a test if the specified environment variable

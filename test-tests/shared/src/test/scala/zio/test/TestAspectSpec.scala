@@ -50,6 +50,9 @@ object TestAspectSpec
         test("exceptScala2 runs tests on all versions except Scala 2") {
           assert(TestVersion.isScala2, isFalse)
         } @@ exceptScala2,
+        test("flaky retries a test with a limit") {
+          assert(true, isFalse)
+        } @@ flaky @@ failure,
         testM("js applies test aspect only on ScalaJS") {
           for {
             ref    <- Ref.make(false)
