@@ -77,7 +77,7 @@ object TArray {
   /**
    * Makes a new `TArray` that is initialized with specified values.
    */
-  final def apply[A](data: A*): STM[Nothing, TArray[A]] = fromIterable(data)
+  final def make[A](data: A*): STM[Nothing, TArray[A]] = fromIterable(data)
 
   /**
    * Makes an empty `TArray`.
