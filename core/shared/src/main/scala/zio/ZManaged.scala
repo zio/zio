@@ -42,11 +42,6 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
 final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, E, A]]) extends Serializable { self =>
 
   /**
-   * Gives access to wrapped [[Reservation]].
-   */
-  final def reserve: ZIO[R, E, Reservation[R, E, A]] = reservation
-
-  /**
    * Symbolic alias for zip.
    */
   final def &&&[R1 <: R, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R1, E1, (A, B)] =
@@ -528,6 +523,18 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     foldM(_ => that.map(Right[A, B]), a => ZManaged.succeed(Left[A, B](a)))
 
   /**
+   * Preallocates the managed resource, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
+   */
+  final def preallocate: ZIO[R, E, Managed[Nothing, A]] =
+    ZIO.uninterruptibleMask { restore =>
+      for {
+        env      <- ZIO.environment[R]
+        res      <- reserve
+        resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
+      } yield ZManaged.make(ZIO.succeed(resource))(_ => res.release(Exit.Success(resource)).provide(env))
+    }
+
+  /**
    * Provides the `ZManaged` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
@@ -540,6 +547,11 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   final def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
     ZManaged(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), e => r.release(e).provideSome(f))))
+
+  /**
+   * Gives access to wrapped [[Reservation]].
+   */
+  final def reserve: ZIO[R, E, Reservation[R, E, A]] = reservation
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
