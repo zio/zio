@@ -768,7 +768,7 @@ object StreamSpec
               _ <- Stream(1, 2, 3, 4)
                     .flatMapParSwitch(1) { i =>
                       if (i > 3) Stream.bracket(UIO.unit)(_ => lastExecuted.set(true)).flatMap(_ => Stream.empty)
-                      else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+                      else Stream.managed(semaphore.withPermitManaged).flatMap(_ => Stream.never)
                     }
                     .runDrain
               result <- semaphore.withPermit(lastExecuted.get)
@@ -782,7 +782,7 @@ object StreamSpec
                     .flatMapParSwitch(4) { i =>
                       if (i > 8)
                         Stream.bracket(UIO.unit)(_ => lastExecuted.update(_ + 1)).flatMap(_ => Stream.empty)
-                      else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+                      else Stream.managed(semaphore.withPermitManaged).flatMap(_ => Stream.never)
                     }
                     .runDrain
               result <- semaphore.withPermits(4)(lastExecuted.get)
