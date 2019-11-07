@@ -14,6 +14,17 @@ import scala.util.{ Failure, Success }
 object ZIOSpec
     extends ZIOBaseSpec(
       suite("ZIO")(
+        suite("absorbWith")(
+          testM("on fail") {
+            assertM(TaskExampleError.absorbWith(identity).run, fails(equalTo(ExampleError)))
+          },
+          testM("on die") {
+            assertM(TaskExampleDie.absorbWith(identity).run, fails(equalTo(ExampleError)))
+          },
+          testM("on success") {
+            assertM(ZIO.succeed(1).absorbWith(_ => ExampleError), equalTo(1))
+          }
+        ),
         suite("bracket")(
           testM("bracket happy path") {
             for {
@@ -1490,6 +1501,8 @@ object ZIOSpecHelper {
   val InterruptCause3 = new Throwable("Oh noes 3!")
 
   val TaskExampleError: Task[Int] = IO.fail[Throwable](ExampleError)
+
+  val TaskExampleDie: Task[Int] = IO.effectTotal(throw ExampleError)
 
   def asyncExampleError[A]: Task[A] =
     IO.effectAsync[Throwable, A](_(IO.fail(ExampleError)))
