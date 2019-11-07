@@ -139,18 +139,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged.absolve(ev(self))
 
   /**
-   * Preallocates the managed resource, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
-   */
-  final def allocated: ZIO[R, E, Managed[Nothing, A]] =
-    ZIO.uninterruptibleMask { restore =>
-      for {
-        env      <- ZIO.environment[R]
-        res      <- reserve
-        resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
-      } yield ZManaged.make(ZIO.succeed(resource))(_ => res.release(Exit.Success(resource)).provide(env))
-    }
-
-  /**
    * Replaces the error value (if any) by the value provided.
    */
   final def asError[E1](e1: E1): ZManaged[R, E1, A] = mapError(_ => e1)
@@ -506,6 +494,18 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     that: => ZManaged[R1, E2, B]
   )(implicit ev: CanFail[E]): ZManaged[R1, E2, Either[A, B]] =
     foldM(_ => that.map(Right[A, B]), a => ZManaged.succeed(Left[A, B](a)))
+
+  /**
+   * Preallocates the managed resource, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
+   */
+  final def preallocate: ZIO[R, E, Managed[Nothing, A]] =
+    ZIO.uninterruptibleMask { restore =>
+      for {
+        env      <- ZIO.environment[R]
+        res      <- reserve
+        resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
+      } yield ZManaged.make(ZIO.succeed(resource))(_ => res.release(Exit.Success(resource)).provide(env))
+    }
 
   /**
    * Provides the `ZManaged` effect with its required environment, which eliminates
