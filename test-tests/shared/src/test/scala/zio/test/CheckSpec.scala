@@ -83,6 +83,13 @@ object CheckSpec
             val sorted   = assert(nss.zip(nss.tail).exists { case (a, b) => a > b }, isFalse)
             nonEmpty ==> sorted
           }
+        },
+        testM("checkM effect type is correctly inferred") {
+          CheckM(Gen.unit) { _ =>
+            for {
+              _ <- random.nextInt
+            } yield assertCompletes
+          }
         }
       )
     )
