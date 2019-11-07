@@ -16,13 +16,13 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import com.github.ghik.silencer.silent
+import zio._
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
-import zio._
 
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
@@ -205,6 +205,58 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] final def executor: Executor = executors.peekOrElse(platform.executor)
+
+  @inline private[this] final def raceWithImpl[R, EL, ER, E, A, B, C](
+    race: ZIO.RaceWith[R, EL, ER, E, A, B, C]
+  ): ZIO[R, E, C] = {
+    @inline def complete[E0, E1, A, B](
+      winner: Fiber[E0, A],
+      loser: Fiber[E1, B],
+      cont: (Exit[E0, A], Fiber[E1, B]) => ZIO[R, E, C],
+      winnerExit: Exit[E0, A],
+      ab: AtomicBoolean,
+      cb: ZIO[R, E, C] => Unit
+    ): Unit =
+      if (ab.compareAndSet(true, false)) {
+        winnerExit match {
+          case exit: Exit.Success[_] =>
+            cb(winner.inheritFiberRefs.flatMap(_ => cont(exit, loser)))
+          case exit: Exit.Failure[_] =>
+            cb(cont(exit, loser))
+        }
+      }
+
+    val raceIndicator = new AtomicBoolean(true)
+
+    val left  = fork[EL, A](race.left.interruptible.asInstanceOf[IO[EL, A]])
+    val right = fork[ER, B](race.right.interruptible.asInstanceOf[IO[ER, B]])
+
+    supervise(left)
+    supervise(right)
+
+    ZIO
+      .effectAsync[R, E, C] { cb =>
+        val leftRegister = left.register0 {
+          case exit0: Exit.Success[Exit[EL, A]] =>
+            complete[EL, ER, A, B](left, right, race.leftWins, exit0.value, raceIndicator, cb)
+          case exit: Exit.Failure[_] => complete(left, right, race.leftWins, exit, raceIndicator, cb)
+        }
+
+        if (leftRegister ne null)
+          complete(left, right, race.leftWins, leftRegister, raceIndicator, cb)
+        else {
+          val rightRegister = right.register0 {
+            case exit0: Exit.Success[Exit[_, _]] =>
+              complete(right, left, race.rightWins, exit0.value, raceIndicator, cb)
+            case exit: Exit.Failure[_] => complete(right, left, race.rightWins, exit, raceIndicator, cb)
+          }
+
+          if (rightRegister ne null)
+            complete(right, left, race.rightWins, rightRegister, raceIndicator, cb)
+        }
+      }
+      .onInterrupt(left.interrupt.flatMap(_ => right.interrupt))
+  }
 
   /**
    * The main interpreter loop for `IO` actions. For purely synchronous actions,
@@ -522,6 +574,9 @@ private[zio] final class FiberContext[E, A](
 
                   curZio = nextInstr(result)
 
+                case ZIO.Tags.RaceWith =>
+                  val zio = curZio.asInstanceOf[ZIO.RaceWith[Any, Any, Any, Any, Any, Any, Any]]
+                  curZio = raceWithImpl(zio).asInstanceOf[IO[E, Any]]
               }
             }
           } else {
@@ -652,7 +707,7 @@ private[zio] final class FiberContext[E, A](
 
   }
 
-  private[this] final def supervise(child: FiberContext[Any, Any]): Unit =
+  private[this] final def supervise[E, A](child: FiberContext[E, A]): Unit =
     supervised.peek() match {
       case SuperviseStatus.Unsupervised    =>
       case SuperviseStatus.Supervised(set) => set.add(child); ()
@@ -777,7 +832,7 @@ private[zio] final class FiberContext[E, A](
     }
 
   @tailrec
-  private[this] final def register0(k: Callback[Nothing, Exit[E, A]]): Exit[E, A] = {
+  private final def register0(k: Callback[Nothing, Exit[E, A]]): Exit[E, A] = {
     val oldState = state.get
 
     oldState match {
@@ -811,6 +866,7 @@ private[zio] final class FiberContext[E, A](
           .submitOrThrow(() => k(result))
     )
   }
+
 }
 private[zio] object FiberContext {
   val fiberCounter = new AtomicLong(0)

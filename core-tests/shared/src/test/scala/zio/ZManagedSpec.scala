@@ -28,6 +28,42 @@ object ZManagedSpec
             assertM(ZIO.succeed(1).absorbWith(_ => ExampleError), equalTo(1))
           }
         ),
+        suite("preallocate")(
+          testM("runs finalizer on interruption") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.run.ignore
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("runs finalizer on interruption") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.run.ignore
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("runs finalizer when resource closes") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.flatMap(_.use_(ZIO.unit))
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("propagates failures in acquire") {
+            for {
+              exit <- ZManaged.fromEffect(ZIO.fail("boom")).preallocate.either
+            } yield assert(exit, isLeft(equalTo("boom")))
+          },
+          testM("propagates failures in reserve") {
+            for {
+              exit <- ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit).preallocate.either
+            } yield assert(exit, isLeft(equalTo("boom")))
+          }
+        ),
         suite("make")(
           testM("Invokes cleanups in reverse order of acquisition.") {
             for {
@@ -182,6 +218,20 @@ object ZManagedSpec
             } yield assert(result, equalTo(List("Ensured")))
           }
         ),
+        testM("eventually") {
+          def acquire(ref: Ref[Int]) =
+            for {
+              v <- ref.get
+              r <- if (v < 10) ref.update(_ + 1) *> IO.fail("Ouch")
+                  else UIO.succeed(v)
+            } yield r
+
+          for {
+            ref <- Ref.make(0)
+            _   <- ZManaged.make(acquire(ref))(_ => UIO.unit).eventually.use(_ => UIO.unit)
+            r   <- ref.get
+          } yield assert(r, equalTo(10))
+        },
         suite("flatMap")(
           testM("All finalizers run even when finalizers have defects") {
             for {
