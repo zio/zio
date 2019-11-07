@@ -7,7 +7,7 @@ import zio.test.environment.TestEnvironment
 
 object TestUtils {
 
-  final def execute[L, E, S](spec: ZSpec[TestEnvironment, E, L, S]): UIO[ExecutedSpec[L, E, S]] =
+  final def execute[L, E, S](spec: ZSpec[TestEnvironment, E, L, S]): UIO[ExecutedSpec[E, L, S]] =
     TestExecutor.managed(environment.testEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
 
   final def failed[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] =
@@ -19,8 +19,8 @@ object TestUtils {
       case _                                => false
     }
 
-  final def forAllTests[L, E, S](
-    execSpec: UIO[ExecutedSpec[L, E, S]]
+  final def forAllTests[E, L, S](
+    execSpec: UIO[ExecutedSpec[E, L, S]]
   )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
     execSpec.flatMap { results =>
       results.forall { case Spec.TestCase(_, test) => test.map(f); case _ => ZIO.succeed(true) }

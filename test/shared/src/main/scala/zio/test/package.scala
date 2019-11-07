@@ -47,10 +47,10 @@ package object test extends AssertionVariants with CheckVariants {
   type TestResult   = BoolAlgebra[FailureDetails]
 
   /**
-   * A `TestReporter[L, E, S]` is capable of reporting test results annotated
+   * A `TestReporter[E, L, S]` is capable of reporting test results annotated
    * with labels `L`, error type `E`, and success type `S`.
    */
-  type TestReporter[-L, -E, -S] = (Duration, ExecutedSpec[L, E, S]) => URIO[TestLogger, Unit]
+  type TestReporter[-E, -L, -S] = (Duration, ExecutedSpec[E, L, S]) => URIO[TestLogger, Unit]
 
   object TestReporter {
 
@@ -61,11 +61,11 @@ package object test extends AssertionVariants with CheckVariants {
   }
 
   /**
-   * A `TestExecutor[R, L, T, E, S]` is capable of executing specs containing
+   * A `TestExecutor[R, E, L, T, S]` is capable of executing specs containing
    * tests of type `T`, annotated with labels of type `L`, that require an
    * environment `R` and may fail with an `E` or succeed with a `S`.
    */
-  type TestExecutor[+R, L, -T, E, +S] = (ZSpec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[L, E, S]]
+  type TestExecutor[+R, E, L, -T, +S] = (ZSpec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[E, L, S]]
 
   /**
    * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
@@ -90,7 +90,7 @@ package object test extends AssertionVariants with CheckVariants {
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+L, +E, +S] = Spec[Any, Nothing, L, Either[TestFailure[E], TestSuccess[S]]]
+  type ExecutedSpec[+E, +L, +S] = Spec[Any, Nothing, L, Either[TestFailure[E], TestSuccess[S]]]
 
   /**
    * Checks the assertion holds for the given value.
@@ -183,6 +183,6 @@ package object test extends AssertionVariants with CheckVariants {
     else if (TestVersion.isScala2) f(scala2)
     else ignore
 
-  val defaultTestRunner: TestRunner[TestEnvironment, String, Any, Any, Any] =
+  val defaultTestRunner: TestRunner[TestEnvironment, Any, String, Any, Any] =
     TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
 }
