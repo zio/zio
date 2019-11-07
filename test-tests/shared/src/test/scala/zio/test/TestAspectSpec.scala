@@ -50,35 +50,6 @@ object TestAspectSpec
         test("exceptScala2 runs tests on all versions except Scala 2") {
           assert(TestVersion.isScala2, isFalse)
         } @@ exceptScala2,
-        test("flaky retries a test with a limit") {
-          assert(true, isFalse)
-        } @@ flaky @@ failure,
-        testM("js applies test aspect only on ScalaJS") {
-          for {
-            ref    <- Ref.make(false)
-            spec   = test("test")(assert(true, isTrue)) @@ js(after(ref.set(true)))
-            _      <- execute(spec)
-            result <- ref.get
-          } yield if (TestPlatform.isJS) assert(result, isTrue) else assert(result, isFalse)
-        },
-        testM("jsOnly runs tests only on ScalaJS") {
-          val spec   = test("Javascript-only")(assert(TestPlatform.isJS, isTrue)) @@ jsOnly
-          val result = if (TestPlatform.isJS) succeeded(spec) else ignored(spec)
-          assertM(result, isTrue)
-        },
-        testM("jvm applies test aspect only on jvm") {
-          for {
-            ref    <- Ref.make(false)
-            spec   = test("test")(assert(true, isTrue)) @@ jvm(after(ref.set(true)))
-            _      <- execute(spec)
-            result <- ref.get
-          } yield assert(if (TestPlatform.isJVM) result else !result, isTrue)
-        },
-        testM("jvmOnly runs tests only on the JVM") {
-          val spec   = test("JVM-only")(assert(TestPlatform.isJVM, isTrue)) @@ jvmOnly
-          val result = if (TestPlatform.isJVM) succeeded(spec) else ignored(spec)
-          assertM(result, isTrue)
-        },
         test("failure makes a test pass if the result was a failure") {
           assert(throw new java.lang.Exception("boom"), isFalse)
         } @@ failure,
@@ -125,6 +96,9 @@ object TestAspectSpec
             n      <- ref.get
           } yield assert(result, isTrue) && assert(n, equalTo(100))
         },
+        test("flaky retries a test with a limit") {
+          assert(true, isFalse)
+        } @@ flaky @@ failure,
         test("ifEnv runs a test if environment variable satisfies assertion") {
           assert(true, isTrue)
         } @@ ifEnv("PATH", containsString("bin")) @@ success @@ jvmOnly,
@@ -155,6 +129,32 @@ object TestAspectSpec
         test("ifPropSet ignores a test if property is not set") {
           assert(true, isFalse)
         } @@ ifPropSet("qwerty") @@ jvmOnly,
+        testM("js applies test aspect only on ScalaJS") {
+          for {
+            ref    <- Ref.make(false)
+            spec   = test("test")(assert(true, isTrue)) @@ js(after(ref.set(true)))
+            _      <- execute(spec)
+            result <- ref.get
+          } yield if (TestPlatform.isJS) assert(result, isTrue) else assert(result, isFalse)
+        },
+        testM("jsOnly runs tests only on ScalaJS") {
+          val spec   = test("Javascript-only")(assert(TestPlatform.isJS, isTrue)) @@ jsOnly
+          val result = if (TestPlatform.isJS) succeeded(spec) else ignored(spec)
+          assertM(result, isTrue)
+        },
+        testM("jvm applies test aspect only on jvm") {
+          for {
+            ref    <- Ref.make(false)
+            spec   = test("test")(assert(true, isTrue)) @@ jvm(after(ref.set(true)))
+            _      <- execute(spec)
+            result <- ref.get
+          } yield assert(if (TestPlatform.isJVM) result else !result, isTrue)
+        },
+        testM("jvmOnly runs tests only on the JVM") {
+          val spec   = test("JVM-only")(assert(TestPlatform.isJVM, isTrue)) @@ jvmOnly
+          val result = if (TestPlatform.isJVM) succeeded(spec) else ignored(spec)
+          assertM(result, isTrue)
+        },
         testM("scala2 applies test aspect only on Scala 2") {
           for {
             ref    <- Ref.make(false)
