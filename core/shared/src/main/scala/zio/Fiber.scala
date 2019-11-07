@@ -428,7 +428,17 @@ object Fiber {
    * @return `UIO[Unit]`
    */
   final def interruptAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
-    ZIO.descriptor.flatMap(d => fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(d.id)))
+    ZIO.fiberId.flatMap(interruptAllAs(_)(fs))
+
+  /**
+   * Interrupts all fibers as by the specified fiber, awaiting their interruption.
+   *
+   * @param fiberId The identity of the fiber to interrupt as.
+   * @param fs `Iterable` of fibers to be interrupted
+   * @return `UIO[Unit]`
+   */
+  final def interruptAllAs(fiberId: FiberId)(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+    fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(fiberId))
 
   /**
    * Awaits on all fibers to be completed, successfully or not.
