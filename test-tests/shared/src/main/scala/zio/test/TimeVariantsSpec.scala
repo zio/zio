@@ -27,7 +27,7 @@ import zio.test.TestUtils.label
 object TimeVariantsSpec extends AsyncBaseSpec {
 
   val run: List[Async[(Boolean, String)]] = List(
-    label(anyDurationShrinksToZero, "anyDuration shrinks to zero"),
+    label(anyFiniteDurationShrinksToZero, "anyFiniteDuration shrinks to zero"),
     label(anyInstantGeneratesInstants, "anyInstant generates Instant values"),
     label(anyLocalDateTimeGeneratesLocalDateTimes, "anyLocalDateTime generates LocalDateTime values"),
     label(anyOffsetDateTimeGeneratesOffsetDateTimes, "anyOffsetDateTime generates OffsetDateTime values"),
@@ -37,7 +37,7 @@ object TimeVariantsSpec extends AsyncBaseSpec {
     label(offsetDateTimeGeneratesValuesInRange, "offsetDateTime generates values in range")
   )
 
-  def anyDurationShrinksToZero: Future[Boolean] = checkShrink(Gen.anyDuration)(Duration.Zero)
+  def anyFiniteDurationShrinksToZero: Future[Boolean] = checkShrink(Gen.anyFiniteDuration)(Duration.Zero)
 
   def anyInstantGeneratesInstants: Future[Boolean] = checkSample(Gen.anyInstant)(_.nonEmpty)
 

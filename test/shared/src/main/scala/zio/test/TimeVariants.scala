@@ -26,7 +26,7 @@ trait TimeVariants {
   /**
    * A generator of ZIO duration values. Shrinks toward Duration.Zero.
    */
-  final def anyDuration: Gen[Random, Duration] = Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
+  final def anyFiniteDuration: Gen[Random, Duration] = Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
 
   /**
    * A generator java.time.Instant values.
