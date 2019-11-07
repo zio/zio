@@ -10,6 +10,42 @@ import zio.test.environment._
 object ZManagedSpec
     extends ZIOBaseSpec(
       suite("ZManaged")(
+        suite("preallocate")(
+          testM("runs finalizer on interruption") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.run.ignore
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("runs finalizer on interruption") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.run.ignore
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("runs finalizer when resource closes") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.flatMap(_.use_(ZIO.unit))
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("propagates failures in acquire") {
+            for {
+              exit <- ZManaged.fromEffect(ZIO.fail("boom")).preallocate.either
+            } yield assert(exit, isLeft(equalTo("boom")))
+          },
+          testM("propagates failures in reserve") {
+            for {
+              exit <- ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit).preallocate.either
+            } yield assert(exit, isLeft(equalTo("boom")))
+          }
+        ),
         suite("make")(
           testM("Invokes cleanups in reverse order of acquisition.") {
             for {
