@@ -18,7 +18,7 @@ object TestAspectSpec
             spec = testM("test") {
               assertM(ref.get, equalTo(1))
             } @@ around(ref.set(1), ref.set(-1))
-            result <- succeeded(spec)
+            result <- isSuccess(spec)
             after  <- ref.get
           } yield {
             assert(result, isTrue) &&
@@ -35,7 +35,7 @@ object TestAspectSpec
         },
         testM("dottyOnly runs tests only on Dotty") {
           val spec   = test("Dotty-only")(assert(TestVersion.isDotty, isTrue)) @@ dottyOnly
-          val result = if (TestVersion.isDotty) succeeded(spec) else ignored(spec)
+          val result = if (TestVersion.isDotty) isSuccess(spec) else isIgnored(spec)
           assertM(result, isTrue)
         },
         test("exceptDotty runs tests on all versions except Dotty") {
@@ -82,7 +82,7 @@ object TestAspectSpec
             spec = testM("flaky test") {
               assertM(ref.update(_ + 1), equalTo(100))
             } @@ flaky
-            result <- succeeded(spec)
+            result <- isSuccess(spec)
             n      <- ref.get
           } yield assert(result, isTrue) && assert(n, equalTo(100))
         },
@@ -92,7 +92,7 @@ object TestAspectSpec
             spec = testM("flaky test that dies") {
               assertM(ref.update(_ + 1).filterOrDieMessage(_ >= 100)("die"), equalTo(100))
             } @@ flaky
-            result <- succeeded(spec)
+            result <- isSuccess(spec)
             n      <- ref.get
           } yield assert(result, isTrue) && assert(n, equalTo(100))
         },
@@ -139,7 +139,7 @@ object TestAspectSpec
         },
         testM("jsOnly runs tests only on ScalaJS") {
           val spec   = test("Javascript-only")(assert(TestPlatform.isJS, isTrue)) @@ jsOnly
-          val result = if (TestPlatform.isJS) succeeded(spec) else ignored(spec)
+          val result = if (TestPlatform.isJS) isSuccess(spec) else isIgnored(spec)
           assertM(result, isTrue)
         },
         testM("jvm applies test aspect only on jvm") {
@@ -152,7 +152,7 @@ object TestAspectSpec
         },
         testM("jvmOnly runs tests only on the JVM") {
           val spec   = test("JVM-only")(assert(TestPlatform.isJVM, isTrue)) @@ jvmOnly
-          val result = if (TestPlatform.isJVM) succeeded(spec) else ignored(spec)
+          val result = if (TestPlatform.isJVM) isSuccess(spec) else isIgnored(spec)
           assertM(result, isTrue)
         },
         testM("nonFlakyPar runs a test a specified number of times in parallel") {
@@ -180,7 +180,7 @@ object TestAspectSpec
         },
         testM("scala2Only runs tests only on Scala 2") {
           val spec   = test("Scala2-only")(assert(TestVersion.isScala2, isTrue)) @@ scala2Only
-          val result = if (TestVersion.isScala2) succeeded(spec) else ignored(spec)
+          val result = if (TestVersion.isScala2) isSuccess(spec) else isIgnored(spec)
           assertM(result, isTrue)
         },
         testM("timeout makes tests fail after given duration") {
