@@ -37,7 +37,7 @@ class QueueSequentialBenchmark {
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](totalSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
-    zioTQ = unsafeRun(TQueue(totalSize).commit)
+    zioTQ = unsafeRun(TQueue.make(totalSize).commit)
     monixQ = monix.catnap.ConcurrentQueue.withConfig[MTask, Int](Bounded(totalSize), SPSC).runSyncUnsafe()
   }
 
