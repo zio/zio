@@ -37,7 +37,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
 )
 addCommandAlias(
   "testJVMDotty",
