@@ -328,10 +328,11 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   /**
    * Runs only tests whose labels (which must be strings) contain the given substring
    */
-  final def only[S](
+  final def only[S, E0](
     s: String
-  )(implicit ev1: L <:< String, ev2: T <:< Either[TestFailure[Nothing], TestSuccess[S]]): ZSpec[R, E, String, S] =
-    mapLabel(ev1).mapTest(ev2).filterLabels(_.contains(s)).getOrElse(Spec.test(label, ignore))
+  )(implicit ev1: L <:< String, ev2: T <:< TestSuccess[S], ev3: E <:< TestFailure[E0]): ZSpec[R, E0, String, S] =
+    mapLabel(ev1).mapTest(ev2).mapError(ev3)
+      .filterLabels(_.contains(s)).getOrElse(Spec.test("only", ignored))
 }
 
 object Spec {

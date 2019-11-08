@@ -1,9 +1,9 @@
 package zio.test
 
 import zio.ZManaged
-import zio.test.Assertion.{equalTo, isFalse, isTrue}
+import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test.TestOnlySpecData._
-import zio.test.TestUtils.{execute, succeeded}
+import zio.test.TestUtils._
 
 object SpecSpec
     extends ZIOBaseSpec(
@@ -25,23 +25,23 @@ object SpecSpec
           testM("ignores all tests except one matching the given label") {
             zio.test.checkM(genSuite) { spec =>
               for {
-                passed1 <- succeeded(spec.only(passingTest))
-                passed2 <- succeeded(spec.only(failingTest))
+                passed1 <- isSuccess(spec.only(passingTest))
+                passed2 <- isSuccess(spec.only(failingTest))
               } yield assert(passed1, isTrue) && assert(passed2, isFalse)
             }
           },
           testM("ignores all tests except ones in the suite matching the given label") {
             zio.test.checkM(genSuite) { spec =>
               for {
-                passed1 <- succeeded(spec.only(passingSuite))
-                passed2 <- succeeded(spec.only(failingSuite))
+                passed1 <- isSuccess(spec.only(passingSuite))
+                passed2 <- isSuccess(spec.only(failingSuite))
               } yield assert(passed1, isTrue) && assert(passed2, isFalse)
             }
           },
           testM("runs everything if root suite label given") {
             zio.test.checkM(genSuite) { spec =>
               for {
-                passed <- succeeded(spec.only(rootSuite))
+                passed <- isSuccess(spec.only(rootSuite))
               } yield assert(passed, isFalse)
             }
           }
