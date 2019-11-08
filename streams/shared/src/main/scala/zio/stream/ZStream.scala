@@ -2724,33 +2724,42 @@ object ZStream extends Serializable {
     register: (ZIO[R, Option[E], A] => Unit) => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
-        maybeStream <- UIO(
-                        register(
-                          k =>
-                            try {
-                              runtime.unsafeRun(
-                                k.foldCauseM(
-                                    Cause.sequenceCauseOption(_) match {
-                                      case None    => output.offer(Pull.end)
-                                      case Some(c) => output.offer(Pull.halt(c))
-                                    },
-                                    a => output.offer(Pull.emit(a))
-                                  )
-                                  .unit
-                              )
-                            } catch {
-                              case FiberFailure(Cause.Interrupt(_)) =>
-                              case t: Throwable                     => t.printStackTrace()
+        maybeStream <- ZManaged.effectTotal {
+                        register { k =>
+                          try {
+                            runtime.unsafeRun {
+                              k.foldCauseM(
+                                  Cause
+                                    .sequenceCauseOption(_)
+                                    .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
+                                  a => output.offer(Pull.emit(a))
+                                )
+                                .unit
                             }
-                        )
-                      ).toManaged_
+                          } catch {
+                            case FiberFailure(Cause.Interrupt(_)) =>
+                          }
+                        }
+                      }
         pull <- maybeStream match {
                  case Some(stream) => output.shutdown.toManaged_ *> stream.process
-                 case None         => ZManaged.succeed(output.take.flatten)
+                 case None =>
+                   for {
+                     done <- Ref.make(false).toManaged_
+                   } yield done.get.flatMap {
+                     if (_) Pull.end
+                     else
+                       output.take.flatten.foldCauseM(
+                         Cause
+                           .sequenceCauseOption(_)
+                           .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt),
+                         Pull.emit
+                       )
+                   }
                }
       } yield pull
     }
@@ -2764,28 +2773,37 @@ object ZStream extends Serializable {
     register: (ZIO[R, Option[E], A] => Unit) => ZIO[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register(
               k =>
                 try {
-                  runtime.unsafeRun(
+                  runtime.unsafeRun {
                     k.foldCauseM(
-                        Cause.sequenceCauseOption(_) match {
-                          case None    => output.offer(Pull.end)
-                          case Some(c) => output.offer(Pull.halt(c))
-                        },
+                        Cause
+                          .sequenceCauseOption(_)
+                          .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
                         a => output.offer(Pull.emit(a))
                       )
                       .unit
-                  )
+                  }
                 } catch {
                   case FiberFailure(Cause.Interrupt(_)) =>
                 }
             ).toManaged_
-      } yield output.take.flatten
+        done <- Ref.make(false).toManaged_
+      } yield done.get.flatMap {
+        if (_) Pull.end
+        else
+          output.take.flatten.foldCauseM(
+            Cause
+              .sequenceCauseOption(_)
+              .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt),
+            Pull.emit
+          )
+      }
     }
 
   /**
@@ -2798,32 +2816,43 @@ object ZStream extends Serializable {
     register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
-        eitherStream <- UIO(
+        eitherStream <- ZManaged.effectTotal {
                          register(
                            k =>
                              try {
-                               runtime.unsafeRun(
+                               runtime.unsafeRun {
                                  k.foldCauseM(
-                                     Cause.sequenceCauseOption(_) match {
-                                       case None    => output.offer(Pull.end)
-                                       case Some(c) => output.offer(Pull.halt(c))
-                                     },
+                                     Cause
+                                       .sequenceCauseOption(_)
+                                       .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
                                      a => output.offer(Pull.emit(a))
                                    )
                                    .unit
-                               )
+                               }
                              } catch {
                                case FiberFailure(Cause.Interrupt(_)) =>
                              }
                          )
-                       ).toManaged_
+                       }
         pull <- eitherStream match {
-                 case Left(canceler) => ZManaged.succeed(output.take.flatten).ensuring(canceler)
-                 case Right(stream)  => output.shutdown.toManaged_ *> stream.process
+                 case Left(canceler) =>
+                   (for {
+                     done <- Ref.make(false).toManaged_
+                   } yield done.get.flatMap {
+                     if (_) Pull.end
+                     else
+                       output.take.flatten.foldCauseM(
+                         Cause
+                           .sequenceCauseOption(_)
+                           .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt),
+                         Pull.emit
+                       )
+                   }).ensuring(canceler)
+                 case Right(stream) => output.shutdown.toManaged_ *> stream.process
                }
       } yield pull
     }
@@ -2838,11 +2867,10 @@ object ZStream extends Serializable {
    * Creates an empty stream that never fails and executes the finalizer when it ends.
    */
   final def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Nothing] =
-    ZStream[R, Nothing, Nothing] {
+    ZStream {
       for {
-        finalizerRef <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit).toManaged_
-        _            <- ZManaged.finalizer[R](finalizerRef.get.flatten)
-        pull         = (finalizerRef.set(finalizer) *> Pull.end).uninterruptible
+        finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
+        pull         = (finalizerRef.set(_ => finalizer) *> Pull.end).uninterruptible
       } yield pull
     }
 
@@ -2953,7 +2981,7 @@ object ZStream extends Serializable {
    * Creates a single-valued stream from a managed resource
    */
   final def managed[R, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         doneRef   <- Ref.make(false).toManaged_
         finalizer <- ZManaged.finalizerRef[R](_ => UIO.unit)
@@ -2962,10 +2990,10 @@ object ZStream extends Serializable {
             if (done) Pull.end
             else
               (for {
+                _           <- doneRef.set(true)
                 reservation <- managed.reserve
                 _           <- finalizer.set(reservation.release)
                 a           <- restore(reservation.acquire)
-                _           <- doneRef.set(true)
               } yield a).mapError(Some(_))
           }
         }

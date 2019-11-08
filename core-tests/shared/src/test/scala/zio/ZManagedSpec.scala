@@ -6,10 +6,64 @@ import zio.Exit.Failure
 import zio.test.{ Gen, testM, _ }
 import zio.test.Assertion._
 import zio.test.environment._
+import ZManagedSpecUtil._
 
 object ZManagedSpec
     extends ZIOBaseSpec(
       suite("ZManaged")(
+        suite("absorbWith")(
+          testM("on fail") {
+            assertM(
+              ZManagedExampleError.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed).run,
+              fails(equalTo(ExampleError))
+            )
+          },
+          testM("on die") {
+            assertM(
+              ZManagedExampleDie.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed).run,
+              fails(equalTo(ExampleError))
+            )
+          },
+          testM("on success") {
+            assertM(ZIO.succeed(1).absorbWith(_ => ExampleError), equalTo(1))
+          }
+        ),
+        suite("preallocate")(
+          testM("runs finalizer on interruption") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.run.ignore
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("runs finalizer on interruption") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.run.ignore
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("runs finalizer when resource closes") {
+            for {
+              ref    <- Ref.make(0)
+              res    = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+              _      <- res.preallocate.flatMap(_.use_(ZIO.unit))
+              result <- assertM(ref.get, equalTo(1))
+            } yield result
+          },
+          testM("propagates failures in acquire") {
+            for {
+              exit <- ZManaged.fromEffect(ZIO.fail("boom")).preallocate.either
+            } yield assert(exit, isLeft(equalTo("boom")))
+          },
+          testM("propagates failures in reserve") {
+            for {
+              exit <- ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit).preallocate.either
+            } yield assert(exit, isLeft(equalTo("boom")))
+          }
+        ),
         suite("make")(
           testM("Invokes cleanups in reverse order of acquisition.") {
             for {
@@ -885,6 +939,12 @@ object ZManagedSpec
     )
 
 object ZManagedSpecUtil {
+  val ExampleError = new Throwable("Oh noes!")
+
+  val ZManagedExampleError: ZManaged[Any, Throwable, Int] = ZManaged.fail[Throwable](ExampleError)
+
+  val ZManagedExampleDie: ZManaged[Any, Throwable, Int] = ZManaged.effectTotal(throw ExampleError)
+
   def countDownLatch(n: Int): UIO[UIO[Unit]] =
     Ref.make(n).map { counter =>
       counter.update(_ - 1) *> {
