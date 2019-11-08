@@ -128,6 +128,19 @@ testJVM: &testJVM
     - store_test_results:
         path: core-tests/jvm/target/test-reports
 
+  testJVM213: &testJVM213
+    steps:
+      - checkout
+      - <<: *load_cache
+      - <<: *install_jdk
+      - run:
+          name: Run tests
+          command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM213
+      - <<: *clean_cache
+      - <<: *save_cache
+      - store_test_results:
+          path: core-tests/jvm/target/test-reports
+
 testJVMDotty: &testJVMDotty
   steps:
     - checkout
@@ -232,7 +245,7 @@ jobs:
       - <<: *jdk_8
 
   test_213_jdk8_jvm:
-    <<: *testJVM
+    <<: *testJVM213
     <<: *machine_ubuntu
     <<: *machine_resource
     environment:
