@@ -126,7 +126,7 @@ package object test extends AssertionVariants with CheckVariants {
   /**
    * Creates a failed test result with the specified runtime cause.
    */
-  final def fail[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
+  final def failed[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
     ZIO.fail(TestFailure.Runtime(cause))
 
   /**
