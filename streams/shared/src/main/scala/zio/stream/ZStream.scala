@@ -2975,7 +2975,7 @@ object ZStream extends Serializable {
    * Creates a single-valued stream from a managed resource
    */
   final def managed[R, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         doneRef   <- Ref.make(false).toManaged_
         finalizer <- ZManaged.finalizerRef[R](_ => UIO.unit)
@@ -2984,10 +2984,10 @@ object ZStream extends Serializable {
             if (done) Pull.end
             else
               (for {
+                _           <- doneRef.set(true)
                 reservation <- managed.reserve
                 _           <- finalizer.set(reservation.release)
                 a           <- restore(reservation.acquire)
-                _           <- doneRef.set(true)
               } yield a).mapError(Some(_))
           }
         }

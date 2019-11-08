@@ -2,7 +2,7 @@ package zio.stream
 
 import zio._
 import zio.test._
-import zio.test.Assertion.{ equalTo, isTrue }
+import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import ZStream.Pull
 import StreamUtils.threePulls
 
@@ -164,6 +164,33 @@ object StreamPullSafetySpec
             .process
             .use(threePulls(_))
             .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
-        }
+        },
+        suite("Stream.managed")(
+          testM("is safe to pull again after success") {
+            for {
+              ref   <- Ref.make(false)
+              pulls <- Stream.managed(Managed.make(UIO.succeed(5))(_ => ref.set(true))).process.use(threePulls(_))
+              fin   <- ref.get
+            } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(5), Left(None), Left(None))))
+          },
+          testM("is safe to pull again after failed acquisition") {
+            for {
+              ref   <- Ref.make(false)
+              pulls <- Stream.managed(Managed.make(IO.fail("Ouch"))(_ => ref.set(true))).process.use(threePulls(_))
+              fin   <- ref.get
+            } yield assert(fin, isFalse) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+          },
+          testM("is safe to pull again after inner failure") {
+            for {
+              ref <- Ref.make(false)
+              pulls <- Stream
+                        .managed(Managed.make(UIO.succeed(5))(_ => ref.set(true)))
+                        .flatMap(_ => Stream.fail("Ouch"))
+                        .process
+                        .use(threePulls(_))
+              fin <- ref.get
+            } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+          }
+        )
       )
     )
