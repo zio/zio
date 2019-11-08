@@ -245,12 +245,12 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   final def provideManagedShared[R0, E1 >: E](
     managed: ZManaged[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): Spec[R0, E1, L, T] = {
-    def loop(r: R)(spec: Spec[R, E, L, T]): ZIO[R, E, Spec[R0, E, L, T]] =
+    def loop(r: R)(spec: Spec[R, E, L, T]): ZIO[R, E, Spec[Any, E, L, T]] =
       spec.caseValue match {
         case SuiteCase(label, specs, exec) =>
           specs.flatMap(ZIO.foreach(_)(loop(r))).map(z => Spec.suite(label, ZIO.succeed(z.toVector), exec))
         case TestCase(label, test) =>
-          test.map(t => Spec.test(label, ZIO.succeed(t))).provide(r)
+          test.map(t => Spec.test(label, ZIO.succeed(t)))
       }
     caseValue match {
       case SuiteCase(label, specs, exec) =>
