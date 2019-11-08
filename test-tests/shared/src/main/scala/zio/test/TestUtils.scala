@@ -10,9 +10,6 @@ object TestUtils {
   final def execute[L, E, S](spec: ZSpec[TestEnvironment, E, L, S]): UIO[ExecutedSpec[L, E, S]] =
     TestExecutor.managed(environment.testEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
 
-  final def failed[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] =
-    succeeded(spec).map(!_)
-
   final def failedWith(spec: ZSpec[TestEnvironment, Any, String, Any], pred: Throwable => Boolean) =
     forAllTests(execute(spec)) {
       case Left(TestFailure.Runtime(cause)) => cause.dieOption.fold(false)(pred)
@@ -26,11 +23,22 @@ object TestUtils {
       results.forall { case Spec.TestCase(_, test) => test.map(f); case _ => ZIO.succeed(true) }
     }
 
-  final def ignored[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+  final def isFailed[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] =
+    isSuccessful(spec).map(!_)
+
+  final def isIgnored[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
     forAllTests(execSpec) {
       case Right(TestSuccess.Ignored) => true
       case _                          => false
+    }
+  }
+
+  final def isSuccessful[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+    val execSpec = execute(spec)
+    forAllTests(execSpec) {
+      case Right(TestSuccess.Succeeded(_)) => true
+      case _                               => false
     }
   }
 
@@ -63,14 +71,6 @@ object TestUtils {
       val passed = tests.forall(_._1)
       if (passed) (passed, succeed(label)) :: offset else (passed, fail(label)) :: offset
     }
-
-  final def succeeded[L, E, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
-    val execSpec = execute(spec)
-    forAllTests(execSpec) {
-      case Right(TestSuccess.Succeeded(_)) => true
-      case _                               => false
-    }
-  }
 
   final def timeit[A](label: String)(async: Async[A]): Async[A] =
     for {

@@ -132,7 +132,7 @@ package object test extends AssertionVariants with CheckVariants {
   /**
    * Creates an ignored test result.
    */
-  final val ignore: ZTest[Any, Nothing, Nothing] =
+  final val ignored: ZTest[Any, Nothing, Nothing] =
     ZIO.succeed(TestSuccess.Ignored)
 
   /**
@@ -143,7 +143,7 @@ package object test extends AssertionVariants with CheckVariants {
   final def platformSpecific[R, E, A, S](js: => A, jvm: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
     if (TestPlatform.isJS) f(js)
     else if (TestPlatform.isJVM) f(jvm)
-    else ignore
+    else ignored
 
   /**
    * Builds a suite containing a number of other specs.
@@ -181,7 +181,7 @@ package object test extends AssertionVariants with CheckVariants {
   final def versionSpecific[R, E, A, S](dotty: => A, scala2: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
     if (TestVersion.isDotty) f(dotty)
     else if (TestVersion.isScala2) f(scala2)
-    else ignore
+    else ignored
 
   val defaultTestRunner: TestRunner[TestEnvironment, String, Any, Any, Any] =
     TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
