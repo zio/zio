@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ IO, ZIO }
+import zio.{ IO, NeedsEnv, ZIO }
 
 import zio.Managed
 
@@ -77,7 +77,7 @@ package object environment {
    * environment. This is useful for performing effects such as timing out
    * tests, accessing the real time, or printing to the real console.
    */
-  def live[R, E, A](zio: ZIO[R, E, A]): ZIO[Live[R], E, A] =
+  def live[R, E, A](zio: ZIO[R, E, A])(implicit ev: NeedsEnv[R]): ZIO[Live[R], E, A] =
     Live.live(zio)
 
   /**
@@ -91,7 +91,9 @@ package object environment {
    *  withLive(test)(_.timeout(duration))
    * }}}
    */
-  def withLive[R, R1, E, E1, A, B](zio: ZIO[R, E, A])(f: IO[E, A] => ZIO[R1, E1, B]): ZIO[R with Live[R1], E1, B] =
+  def withLive[R, R1, E, E1, A, B](
+    zio: ZIO[R, E, A]
+  )(f: IO[E, A] => ZIO[R1, E1, B])(implicit ev: NeedsEnv[R1]): ZIO[R with Live[R1], E1, B] =
     Live.withLive(zio)(f)
 
   /**

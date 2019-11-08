@@ -130,5 +130,5 @@ object TRef {
    * transaction to extract the value out.
    */
   final def makeCommit[A](a: => A): UIO[TRef[A]] =
-    STM.atomically(make(a))
+    STM.atomically(TRef.make(a))
 }

@@ -20,12 +20,12 @@ class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
   final def acquire: STM[Nothing, Unit] = acquireN(1L)
 
   final def acquireN(n: Long): STM[Nothing, Unit] =
-    (for {
+    for {
       _     <- assertNonNegative(n)
       value <- permits.get
       _     <- STM.check(value >= n)
       _     <- permits.set(value - n)
-    } yield ())
+    } yield ()
 
   final def available: STM[Nothing, Long] = permits.get
 

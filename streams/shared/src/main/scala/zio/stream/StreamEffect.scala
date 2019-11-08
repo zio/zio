@@ -229,7 +229,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
       }
     }
 
-  override def transduce[R1 <: R, E1 >: E, A1 >: A, B](
+  override def aggregate[R1 <: R, E1 >: E, A1 >: A, B](
     sink: ZSink[R1, E1, A1, A1, B]
   ): ZStream[R1, E1, B] =
     sink match {
@@ -281,7 +281,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
           }
         }
 
-      case sink: ZSink[R1, E1, A1, A1, B] => super.transduce(sink)
+      case sink: ZSink[R1, E1, A1, A1, B] => super.aggregate(sink)
     }
 
   override final def toInputStream(
@@ -344,6 +344,9 @@ private[stream] object StreamEffect extends Serializable {
 
   final def apply[R, E, A](pull: ZManaged[R, E, () => A]): StreamEffect[R, E, A] =
     new StreamEffect(pull)
+
+  final def fail[E](e: E): StreamEffect[Any, E, Nothing] =
+    StreamEffect(memoizeEnd(Managed.effectTotal(() => fail(e))))
 
   final def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {

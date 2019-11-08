@@ -52,10 +52,7 @@ class TMap[K, V] private (
    * Atomically folds using pure function.
    */
   final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
-    for {
-      buckets <- tBuckets.get
-      res     <- buckets.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op))
-    } yield res
+    tBuckets.get.flatMap(_.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op)))
 
   /**
    * Atomically folds using effectful function.
@@ -67,10 +64,7 @@ class TMap[K, V] private (
         case head :: tail => loopM(acc.flatMap(op(_, head)), tail)
       }
 
-    for {
-      buckets <- tBuckets.get
-      res     <- buckets.foldM(zero)((acc, bucket) => loopM(STM.succeed(acc), bucket))
-    } yield res
+    tBuckets.get.flatMap(_.foldM(zero)((acc, bucket) => loopM(STM.succeed(acc), bucket)))
   }
 
   /**
@@ -103,11 +97,22 @@ class TMap[K, V] private (
     toList.map(_.map(_._1))
 
   /**
+   * If the key `k` is not already associated with a value, stores the provided
+   * value, otherwise merge the existing value with the new one using function `f`
+   * and store the result
+   */
+  final def merge(k: K, v: V)(f: (V, V) => V): STM[Nothing, V] =
+    get(k).flatMap(_.fold(put(k, v).as(v)) { v0 =>
+      val v1 = f(v0, v)
+      put(k, v1).as(v1)
+    })
+
+  /**
    * Stores new binding into the map.
    */
   final def put(k: K, v: V): STM[Nothing, Unit] = {
     def upsert(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
-      val exists = bucket.find(_._1 == k).isDefined
+      val exists = bucket.exists(_._1 == k)
 
       if (exists)
         STM.succeed(bucket.map(kv => if (kv._1 == k) (k, v) else kv))
@@ -175,10 +180,7 @@ class TMap[K, V] private (
    * Atomically updates all values using effectful function.
    */
   final def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
-    for {
-      buckets <- tBuckets.get
-      _       <- buckets.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _))))
-    } yield ()
+    tBuckets.get.flatMap(_.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _)))))
 
   /**
    * Collects all values stored in map.
@@ -203,7 +205,6 @@ class TMap[K, V] private (
       updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
       _        <- STM.collectAll(updates)
     } yield ()
-
 }
 
 object TMap {
@@ -211,7 +212,7 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with specified values.
    */
-  final def apply[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
+  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
   /**
    * Makes an empty `TMap`.
@@ -236,8 +237,8 @@ object TMap {
     }
 
     for {
-      tChains   <- STM.collectAll(buckets.map(b => TRef.make(b)))
-      tBuckets  <- TRef.make(TArray(tChains.toArray))
+      tChains   <- TArray.fromIterable(buckets)
+      tBuckets  <- TRef.make(tChains)
       tCapacity <- TRef.make(capacity)
       tSize     <- TRef.make(uniqueItems.size)
     } yield new TMap(tBuckets, tCapacity, tSize)

@@ -30,7 +30,7 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Serializable { self =>
   import ZStream.Pull
 
   /**
@@ -397,6 +397,18 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     mapM(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
 
   /**
+   * Transforms the errors that possibly result from this stream.
+   */
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZStreamChunk[R, E1, A] =
+    ZStreamChunk(chunks.mapError(f))
+
+  /**
+   * Transforms the errors that possibly result from this stream.
+   */
+  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZStreamChunk[R, E1, A] =
+    ZStreamChunk(chunks.mapErrorCause(f))
+
+  /**
    * Maps over elements of the stream with the specified effectful function.
    */
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
@@ -437,42 +449,44 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    * Provides the stream with its required environment, which eliminates
    * its dependency on `R`.
    */
-  final def provide(r: R): StreamChunk[E, A] =
+  final def provide(r: R)(implicit ev: NeedsEnv[R]): StreamChunk[E, A] =
     provideSome(_ => r)
 
   /**
    * An effectful version of `provide`, useful when the act of provision
    * requires an effect.
    */
-  final def provideM[E1 >: E](r: IO[E1, R]): StreamChunk[E1, A] =
+  final def provideM[E1 >: E](r: IO[E1, R])(implicit ev: NeedsEnv[R]): StreamChunk[E1, A] =
     provideSomeM(r)
 
   /**
    * Uses the given [[Managed]] to provide the environment required to run this stream,
    * leaving no outstanding environments.
    */
-  final def provideManaged[E1 >: E](m: Managed[E1, R]): StreamChunk[E1, A] =
+  final def provideManaged[E1 >: E](m: Managed[E1, R])(implicit ev: NeedsEnv[R]): StreamChunk[E1, A] =
     provideSomeManaged(m)
 
   /**
    * Provides some of the environment reuqired to run this effect,
    * leaving the remainder `R0`.
    */
-  final def provideSome[R0](env: R0 => R): ZStreamChunk[R0, E, A] =
+  final def provideSome[R0](env: R0 => R)(implicit ev: NeedsEnv[R]): ZStreamChunk[R0, E, A] =
     ZStreamChunk(chunks.provideSome(env))
 
   /**
    * Effectfully provides some of the environment required to run this effect
    * leaving the remainder `R0`.
    */
-  final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R]): ZStreamChunk[R0, E1, A] =
+  final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStreamChunk[R0, E1, A] =
     ZStreamChunk(chunks.provideSomeM(env))
 
   /**
    * Uses the given [[Managed]] to provide some of the environment required to run
    * this stream, leaving the remainder `R0`.
    */
-  final def provideSomeManaged[R0, E1 >: E](env: ZManaged[R0, E1, R]): ZStreamChunk[R0, E1, A] =
+  final def provideSomeManaged[R0, E1 >: E](
+    env: ZManaged[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): ZStreamChunk[R0, E1, A] =
     ZStreamChunk(chunks.provideSomeManaged(env))
 
   /**
@@ -480,6 +494,17 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
    */
   final def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, Chunk[A1], B]): ZIO[R1, E1, B] =
     chunks.run(sink)
+
+  /**
+   * Runs the stream and collects all of its elements in a list.
+   *
+   * Equivalent to `run(Sink.collectAll[A])`.
+   */
+  final def runCollect: ZIO[R, E, List[A]] =
+    for {
+      chunks <- chunks.runCollect
+      list   <- ZIO.succeed(chunks.flatMap(_.toSeq))
+    } yield list
 
   /**
    * Takes the specified number of elements from this stream.
@@ -602,7 +627,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) { self =>
     self.mapAccum(0)((index, a) => (index + 1, (a, index)))
 }
 
-object ZStreamChunk {
+object ZStreamChunk extends Serializable {
 
   /**
    * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].

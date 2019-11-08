@@ -142,7 +142,7 @@ libraryDependencies ++= Seq(
   "dev.zio" %% "zio-test"     % zioVersion % "test",
   "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
 ),
-testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
+testFrameworks += Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 ```
 
 ## Using Test Environment
