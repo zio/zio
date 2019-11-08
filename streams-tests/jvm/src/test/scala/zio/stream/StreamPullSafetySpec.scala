@@ -165,6 +165,22 @@ object StreamPullSafetySpec
             .use(threePulls(_))
             .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
         },
+        suite("Stream.fromEffect")(
+          testM("is safe to pull again after success") {
+            Stream
+              .fromEffect(UIO.succeed(5))
+              .process
+              .use(threePulls(_))
+              .map(assert(_, equalTo(List(Right(5), Left(None), Left(None)))))
+          },
+          testM("is safe to pull again after failure") {
+            Stream
+              .fromEffect(IO.fail("Ouch"))
+              .process
+              .use(threePulls(_))
+              .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+          }
+        ),
         suite("Stream.managed")(
           testM("is safe to pull again after success") {
             for {
