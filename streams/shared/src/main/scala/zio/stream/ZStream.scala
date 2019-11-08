@@ -2860,11 +2860,10 @@ object ZStream extends Serializable {
    * Creates an empty stream that never fails and executes the finalizer when it ends.
    */
   final def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Nothing] =
-    ZStream[R, Nothing, Nothing] {
+    ZStream {
       for {
-        finalizerRef <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit).toManaged_
-        _            <- ZManaged.finalizer[R](finalizerRef.get.flatten)
-        pull         = (finalizerRef.set(finalizer) *> Pull.end).uninterruptible
+        finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
+        pull         = (finalizerRef.set(_ => finalizer) *> Pull.end).uninterruptible
       } yield pull
     }
 

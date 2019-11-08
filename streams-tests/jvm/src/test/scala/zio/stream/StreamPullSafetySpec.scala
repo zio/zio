@@ -165,6 +165,13 @@ object StreamPullSafetySpec
             .use(threePulls(_))
             .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
         },
+        testM("Stream.finalizer is safe to pull again") {
+          for {
+            ref   <- Ref.make(0)
+            pulls <- Stream.finalizer(ref.update(_ + 1)).process.use(threePulls(_))
+            fin   <- ref.get
+          } yield assert(fin, equalTo(1)) && assert(pulls, equalTo(List(Left(None), Left(None), Left(None))))
+        },
         suite("Stream.fromEffect")(
           testM("is safe to pull again after success") {
             Stream
