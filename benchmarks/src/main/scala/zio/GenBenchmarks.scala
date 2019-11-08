@@ -40,6 +40,34 @@ class GenBenchmarks {
     scalacheck.Gen.listOfN(size, scalacheck.Gen.alphaChar).map(_.mkString).sample.get
 
   @Benchmark
+  def hedgehogDouble: Double =
+    hedgehog.Gen
+      .double(hedgehog.Range.linear(0.0, 1.0))
+      .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
+      .value
+      ._2
+      .head
+
+  @Benchmark
+  def hedgehogIntListOfSizeN: List[Int] =
+    hedgehog.Gen
+      .int(hedgehog.Range.linear(Int.MinValue, Int.MaxValue))
+      .list(hedgehog.Range.linear(0, size))
+      .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
+      .value
+      ._2
+      .head
+
+  @Benchmark
+  def hedgehogStringOfSizeN: String =
+    hedgehog.Gen
+      .string(hedgehog.Gen.alpha, hedgehog.Range.linear(0, size))
+      .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
+      .value
+      ._2
+      .head
+
+  @Benchmark
   def nyayaDouble: Double =
     nyaya.gen.Gen.double.sample
 

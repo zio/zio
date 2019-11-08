@@ -257,6 +257,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"            % "scala-reflect"    % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"     % "2.0.0",
         "org.scalacheck"            %% "scalacheck"      % "1.14.2",
+        "hedgehog"                  %% "hedgehog-core"   % "0.1.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.9.0-RC1"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
@@ -269,6 +270,9 @@ lazy val benchmarks = project.module
       "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
+    ),
+    resolvers += Resolver.url("bintray-scala-hedgehog", url("https://dl.bintray.com/hedgehogqa/scala-hedgehog"))(
+      Resolver.ivyStylePatterns
     )
   )
 
