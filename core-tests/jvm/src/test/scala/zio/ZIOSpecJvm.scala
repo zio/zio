@@ -649,7 +649,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(odds.either) must_=== Left("not odd")
   }
 
-  def testSummarized = {
+  def testSummarized =
     unsafeRun(
       for {
         counter   <- Ref.make(0)
@@ -662,7 +662,6 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
           .and(end must_=== 3)
       }
     )
-  }
 
   def testForeachParN_Interruption = {
     val actions = List(
