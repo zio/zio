@@ -2860,11 +2860,10 @@ object ZStream extends Serializable {
    * Creates an empty stream that never fails and executes the finalizer when it ends.
    */
   final def finalizer[R](finalizer: ZIO[R, Nothing, Any]): ZStream[R, Nothing, Nothing] =
-    ZStream[R, Nothing, Nothing] {
+    ZStream {
       for {
-        finalizerRef <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit).toManaged_
-        _            <- ZManaged.finalizer[R](finalizerRef.get.flatten)
-        pull         = (finalizerRef.set(finalizer) *> Pull.end).uninterruptible
+        finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
+        pull         = (finalizerRef.set(_ => finalizer) *> Pull.end).uninterruptible
       } yield pull
     }
 
@@ -2975,7 +2974,7 @@ object ZStream extends Serializable {
    * Creates a single-valued stream from a managed resource
    */
   final def managed[R, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         doneRef   <- Ref.make(false).toManaged_
         finalizer <- ZManaged.finalizerRef[R](_ => UIO.unit)
@@ -2984,10 +2983,10 @@ object ZStream extends Serializable {
             if (done) Pull.end
             else
               (for {
+                _           <- doneRef.set(true)
                 reservation <- managed.reserve
                 _           <- finalizer.set(reservation.release)
                 a           <- restore(reservation.acquire)
-                _           <- doneRef.set(true)
               } yield a).mapError(Some(_))
           }
         }

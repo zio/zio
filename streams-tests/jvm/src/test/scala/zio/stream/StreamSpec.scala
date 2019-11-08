@@ -541,16 +541,6 @@ object StreamSpec
             execution <- log.get
           } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
         },
-        testM("Stream.finalizer") {
-          for {
-            log <- Ref.make[List[String]](Nil)
-            _ <- (for {
-                  _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-                  _ <- Stream.finalizer(log.update("Use" :: _))
-                } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
-            execution <- log.get
-          } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
-        },
         testM("Stream.filter")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
@@ -563,6 +553,25 @@ object StreamSpec
             res2 <- s.runCollect.map(_.filter(p))
           } yield assert(res1, equalTo(res2))
         }),
+        suite("Stream.finalizer")(
+          testM("happy path") {
+            for {
+              log <- Ref.make[List[String]](Nil)
+              _ <- (for {
+                    _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                    _ <- Stream.finalizer(log.update("Use" :: _))
+                  } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
+              execution <- log.get
+            } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
+          },
+          testM("finalizer is not run if stream is not pulled") {
+            for {
+              ref <- Ref.make(false)
+              _   <- Stream.finalizer(ref.set(true)).process.use(_ => UIO.unit)
+              fin <- ref.get
+            } yield assert(fin, isFalse)
+          }
+        ),
         suite("Stream.flatMap")(
           testM("deep flatMap stack safety") {
             def fib(n: Int): Stream[Nothing, Int] =
