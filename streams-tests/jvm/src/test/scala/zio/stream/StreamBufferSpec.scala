@@ -4,6 +4,7 @@ import scala.{ Stream => _ }
 import zio._
 import zio.test._
 import zio.test.Assertion.{ equalTo, fails }
+import zio.test.TestAspect.flaky
 
 object StreamBufferSpec
     extends ZIOBaseSpec(
@@ -129,7 +130,7 @@ object StreamBufferSpec
             ) &&
               assert(snapshots._3, equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9)))
           }
-        ),
+        ) @@ flaky,
         suite("Stream.bufferUnbounded")(
           testM("buffer the Stream")(checkM(Gen.listOf(Gen.anyInt)) { list =>
             assertM(
