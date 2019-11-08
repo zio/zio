@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import zio._
 import zio.clock.Clock
+import zio.console.Console
 import zio.duration._
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
@@ -111,8 +112,12 @@ object TestClock extends Serializable {
     def timeZone: UIO[ZoneId]
   }
 
-  case class Test(clockState: Ref[TestClock.Data], fiberState: FiberRef[TestClock.FiberData])
-      extends TestClock.Service[Any] {
+  case class Test(
+    clockState: Ref[TestClock.Data],
+    fiberState: FiberRef[TestClock.FiberData],
+    live: Live.Service[Clock with Console],
+    warningState: RefM[TestClock.WarningData]
+  ) extends TestClock.Service[Any] {
 
     /**
      * Increments the current clock time by the specified duration. Any effects
@@ -120,7 +125,7 @@ object TestClock extends Serializable {
      * be run.
      */
     final def adjust(duration: Duration): UIO[Unit] =
-      clockState.modify { data =>
+      warningDone *> clockState.modify { data =>
         val nanoTime          = data.nanoTime + duration.toNanos
         val currentTimeMillis = data.currentTimeMillis + duration.toMillis
         val (wakes, sleeps)   = data.sleeps.partition(_._1 <= Duration.fromNanos(nanoTime))
@@ -183,7 +188,7 @@ object TestClock extends Serializable {
      * the new time will immediately be run.
      */
     final def setTime(duration: Duration): UIO[Unit] =
-      clockState.modify { data =>
+      warningDone *> clockState.modify { data =>
         val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
         val updated = data.copy(
           nanoTime = duration.toNanos,
@@ -233,7 +238,7 @@ object TestClock extends Serializable {
               }
             final def shutdown(): Unit =
               runtime.unsafeRunAsync_ {
-                clockState.modify { data =>
+                warningDone *> clockState.modify { data =>
                   if (data.sleeps.isEmpty)
                     (Nil, data)
                   else {
@@ -267,7 +272,7 @@ object TestClock extends Serializable {
                   else
                     (false, data)
                 }
-        _ <- if (await) latch.await else latch.succeed(())
+        _ <- if (await) warningStart *> latch.await else latch.succeed(())
       } yield ()
 
     /**
@@ -290,6 +295,23 @@ object TestClock extends Serializable {
 
     private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
       UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
+
+    private val warningDone: UIO[Unit] =
+      warningState
+        .updateSome[Any, Nothing] {
+          case WarningData.Start          => ZIO.succeed(WarningData.done)
+          case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
+        }
+        .unit
+
+    private val warningStart: UIO[Unit] =
+      warningState.updateSome {
+        case WarningData.Start =>
+          for {
+            fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).fork
+          } yield WarningData.pending(fiber)
+      }.unit
+
   }
 
   /**
@@ -312,8 +334,8 @@ object TestClock extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Clock`, such as with [[ZIO!.provide]].
    */
-  def make(data: Data): UIO[TestClock] =
-    makeTest(data).map { test =>
+  def make(data: Data, live: Option[Live.Service[Clock with Console]] = None): UIO[TestClock] =
+    makeTest(data, live).map { test =>
       new TestClock {
         val clock     = test
         val scheduler = test
@@ -324,11 +346,16 @@ object TestClock extends Serializable {
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def makeTest(data: Data): UIO[Test] =
+  def makeTest(data: Data, live: Option[Live.Service[Clock with Console]] = None): UIO[Test] =
     for {
       ref      <- Ref.make(data)
       fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine)
-    } yield Test(ref, fiberRef)
+      live <- live match {
+               case None       => Live.makeService(new DefaultRuntime {}.Environment)
+               case Some(live) => ZIO.succeed(live)
+             }
+      refM <- RefM.make(WarningData.start)
+    } yield Test(ref, fiberRef, live, refM)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
@@ -392,9 +419,26 @@ object TestClock extends Serializable {
       FiberData(first.nanoTime max last.nanoTime)
   }
 
+  sealed trait WarningData
+
+  object WarningData {
+    case object Start                                     extends WarningData
+    final case class Pending(fiber: Fiber[Nothing, Unit]) extends WarningData
+    case object Done                                      extends WarningData
+
+    val start: WarningData                                = Start
+    def pending(fiber: Fiber[Nothing, Unit]): WarningData = Pending(fiber)
+    val done: WarningData                                 = Done
+  }
+
   private def toDateTime(millis: Long, timeZone: ZoneId): OffsetDateTime =
     OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), timeZone)
 
   private def fromDateTime(dateTime: OffsetDateTime): Duration =
     Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+
+  private val warning =
+    "Warning: A test is using time, but is not advancing the test clock, " +
+      "which may result in the test hanging. Use TestClock.adjust to " +
+      "manually advance the time."
 }
