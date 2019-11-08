@@ -575,7 +575,7 @@ private[zio] final class FiberContext[E, A](
             }
           } else {
             // Fiber was interrupted
-            curZio = ZIO.halt(state.get.interrupted)
+            curZio = ZIO.halt(state.get.interrupted).refailWithTrace
           }
 
           opcount = opcount + 1

@@ -31,12 +31,12 @@ object DaemonStatus {
   final def nonDaemon: DaemonStatus = NonDaemon
 
   /**
-   * Indicates the fiber can be Daemoned right now.
+   * Indicates forked children of the fiber will be marked as daemons.
    */
   case object Daemon extends DaemonStatus
 
   /**
-   * Indicates the fiber cannot be Daemoned right now.
+   * Indicates forked children of the fiber will not be marked as daemons.
    */
   case object NonDaemon extends DaemonStatus
 

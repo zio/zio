@@ -354,6 +354,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
+   * Acts on the children of this fiber (collected into a single fiber),
+   * guaranteeing the specified callback will be invoked, whether or not
+   * this effect succeeds.
+   */
+  final def ensuringChild[R1 <: R](f: Fiber[Any, List[Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
+    ensuringChildren(children => f(Fiber.collectAll(children)))
+
+  /**
+   * Acts on the children of this fiber, guaranteeing the specified callback
+   * will be invoked, whether or not this effect succeeds.
+   */
+  final def ensuringChildren[R1 <: R](f: Set[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
+    self.ensuring(ZIO.descriptorWith(d => f(d.children)))
+
+  /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
    */
   final def eventually(implicit ev: CanFail[E]): URIO[R, A] =
@@ -1277,21 +1292,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     implicit ev: CanFail[E]
   ): ZIO[R1, E1, A] =
     self.foldCauseM(new ZIO.TapErrorRefailFn(f), new ZIO.TapFn(g))
-
-  /**
-   * Taps into the children of this fiber (collected into a single fiber),
-   * guaranteeing the specified callback will be invoked, whether or not
-   * this effect succeeds.
-   */
-  final def tapChild[R1 <: R](f: Fiber[Any, List[Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
-    self.ensuring(ZIO.descriptorWith(d => f(Fiber.collectAll(d.children))))
-
-  /**
-   * Taps into the children of this fiber, guaranteeing the specified callback
-   * will be invoked, whether or not this effect succeeds.
-   */
-  final def tapChildren[R1 <: R](f: Set[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
-    self.ensuring(ZIO.descriptorWith(d => f(d.children)))
 
   /**
    * Returns an effect that effectfully "peeks" at the failure of this effect.
