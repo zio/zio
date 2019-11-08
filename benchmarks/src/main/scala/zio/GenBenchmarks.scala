@@ -42,7 +42,7 @@ class GenBenchmarks {
   @Benchmark
   def hedgehogDouble: Double =
     hedgehog.Gen
-      .double(hedgehog.Range.linear(0.0, 1.0))
+      .double(hedgehog.Range.constant(0.0, 1.0))
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
@@ -51,8 +51,8 @@ class GenBenchmarks {
   @Benchmark
   def hedgehogIntListOfSizeN: List[Int] =
     hedgehog.Gen
-      .int(hedgehog.Range.linear(Int.MinValue, Int.MaxValue))
-      .list(hedgehog.Range.linear(0, size))
+      .int(hedgehog.Range.constant(Int.MinValue, Int.MaxValue))
+      .list(hedgehog.Range.constant(0, size))
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
@@ -61,7 +61,7 @@ class GenBenchmarks {
   @Benchmark
   def hedgehogStringOfSizeN: String =
     hedgehog.Gen
-      .string(hedgehog.Gen.alpha, hedgehog.Range.linear(0, size))
+      .string(hedgehog.Gen.alpha, hedgehog.Range.constant(0, size))
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
