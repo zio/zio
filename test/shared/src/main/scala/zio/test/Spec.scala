@@ -280,16 +280,6 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       case t @ TestCase(_, _)            => Spec(f(t))
     }
 
-  final def mapTests[R1, E1, L1 >: L, T1](
-    suiteCase: ZIO[R, E, Vector[Spec[R1, E1, L1, T1]]] => ZIO[R1, E1, Vector[Spec[R1, E1, L1, T1]]],
-    testCase: ZIO[R, E, T] => ZIO[R1, E1, T1]
-  ): Spec[R1, E1, L1, T1] =
-    caseValue match {
-      case SuiteCase(label, specs, exec) =>
-        Spec.suite(label, suiteCase(specs.map(_.map(_.mapTests(suiteCase, testCase)))), exec)
-      case TestCase(label, test) => Spec.test(label, testCase(test))
-    }
-
   /**
    * Transforms the spec statefully, one layer at a time.
    */
