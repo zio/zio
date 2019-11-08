@@ -350,11 +350,8 @@ object TestClock extends Serializable {
     for {
       ref      <- Ref.make(data)
       fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine)
-      live <- live match {
-               case None       => Live.makeService(new DefaultRuntime {}.Environment)
-               case Some(live) => ZIO.succeed(live)
-             }
-      refM <- RefM.make(WarningData.start)
+      live     <- live.fold(Live.makeService[Clock with Console](new DefaultRuntime {}.Environment))(ZIO.succeed)
+      refM     <- RefM.make(WarningData.start)
     } yield Test(ref, fiberRef, live, refM)
 
   /**
