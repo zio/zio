@@ -128,14 +128,14 @@ testJVM: &testJVM
     - store_test_results:
         path: core-tests/jvm/target/test-reports
 
-  testJVMScala213: &testJVMScala213
+  testJVMNoBenchmarks: &testJVMNoBenchmarks
     steps:
       - checkout
       - <<: *load_cache
       - <<: *install_jdk
       - run:
           name: Run tests
-          command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMScala213
+          command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMNoBenchmarks
       - <<: *clean_cache
       - <<: *save_cache
       - store_test_results:
@@ -245,7 +245,7 @@ jobs:
       - <<: *jdk_8
 
   test_213_jdk8_jvm:
-    <<: *testJVMScala213
+    <<: *testJVMNoBenchmarks
     <<: *machine_ubuntu
     <<: *machine_resource
     environment:
