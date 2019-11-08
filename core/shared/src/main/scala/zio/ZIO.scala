@@ -1967,7 +1967,7 @@ private[zio] trait ZIOFunctions extends Serializable {
       a <- ZIO.uninterruptibleMask { restore =>
             val f = register(k => r.unsafeRunAsync_(k.to(p)))
 
-            restore(f.catchAllCause(p.halt)).fork *> restore(p.await) //.onInterrupt(f.interrupt)
+            restore(f.catchAllCause(p.halt)).fork *> restore(p.await)
           }
     } yield a
 
