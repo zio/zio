@@ -118,22 +118,22 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       case SuiteCase(label, specs, exec) =>
         exec.getOrElse(defExec) match {
           case ExecutionStrategy.Parallel =>
-            specs.foldM(
-              e => f(SuiteCase(label, ZIO.fail(e), exec)),
+            specs.foldCauseM(
+              c => f(SuiteCase(label, ZIO.halt(c), exec)),
               ZIO
                 .foreachPar(_)(_.foldM(defExec)(f))
                 .flatMap(z => f(SuiteCase(label, ZIO.succeed(z.toVector), exec)))
             )
           case ExecutionStrategy.ParallelN(n) =>
-            specs.foldM(
-              e => f(SuiteCase(label, ZIO.fail(e), exec)),
+            specs.foldCauseM(
+              c => f(SuiteCase(label, ZIO.halt(c), exec)),
               ZIO
                 .foreachParN(n)(_)(_.foldM(defExec)(f))
                 .flatMap(z => f(SuiteCase(label, ZIO.succeed(z.toVector), exec)))
             )
           case ExecutionStrategy.Sequential =>
-            specs.foldM(
-              e => f(SuiteCase(label, ZIO.fail(e), exec)),
+            specs.foldCauseM(
+              c => f(SuiteCase(label, ZIO.halt(c), exec)),
               ZIO
                 .foreach(_)(_.foldM(defExec)(f))
                 .flatMap(z => f(SuiteCase(label, ZIO.succeed(z.toVector), exec)))
@@ -237,16 +237,18 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
-   * Uses the specified `Managed` once to provide all tests in this spec with
+   * Uses the specified `ZManaged` once to provide all tests in this spec with
    * a shared version of their required environment. This is useful when the
    * act of creating the environment is expensive and should only be performed
    * once.
    */
-  final def provideManagedShared[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] = {
-    def loop(r: R)(spec: Spec[R, E, L, T]): ZIO[Any, E, Spec[Any, E, L, T]] =
+  final def provideManagedShared[R0, E1 >: E](
+    managed: ZManaged[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, L, T] = {
+    def loop(r: R)(spec: Spec[R, E, L, T]): ZIO[R, E, Spec[R0, E, L, T]] =
       spec.caseValue match {
         case SuiteCase(label, specs, exec) =>
-          specs.flatMap(ZIO.foreach(_)(loop(r))).map(z => Spec.suite(label, ZIO.succeed(z.toVector), exec)).provide(r)
+          specs.flatMap(ZIO.foreach(_)(loop(r))).map(z => Spec.suite(label, ZIO.succeed(z.toVector), exec))
         case TestCase(label, test) =>
           test.map(t => Spec.test(label, ZIO.succeed(t))).provide(r)
       }
@@ -254,7 +256,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       case SuiteCase(label, specs, exec) =>
         Spec.suite(label, managed.use(r => specs.flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector).provide(r)), exec)
       case TestCase(label, test) =>
-        Spec.test(label, test.provideManaged(managed))
+        Spec.test(label, test.provideSomeManaged(managed))
     }
   }
 
