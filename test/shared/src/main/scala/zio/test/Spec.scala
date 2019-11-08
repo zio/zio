@@ -227,13 +227,13 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
-   * Uses the specified `Managed` to provide each test in this spec with its
+   * Uses the specified `ZManaged` to provide each test in this spec with its
    * required environment.
    */
-  final def provideManaged[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] =
-    transform[Any, E1, L, T] {
-      case SuiteCase(label, specs, exec) => SuiteCase(label, specs.provideManaged(managed), exec)
-      case TestCase(label, test)         => TestCase(label, test.provideManaged(managed))
+  final def provideManaged[R0, E1 >: E](managed: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, L, T] =
+    transform[R0, E1, L, T] {
+      case SuiteCase(label, specs, exec) => SuiteCase(label, specs.provideSomeManaged(managed), exec)
+      case TestCase(label, test)         => TestCase(label, test.provideSomeManaged(managed))
     }
 
   /**
