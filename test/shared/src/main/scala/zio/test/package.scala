@@ -160,17 +160,19 @@ package object test extends AssertionVariants with CheckVariants {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
+  final def testM[R, E, L](label: L)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
     Spec.test(
       label,
-      assertion.foldCauseM(
-        cause => ZIO.fail(TestFailure.Runtime(cause)),
-        result =>
-          result.failures match {
-            case None           => ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
-            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-          }
-      )
+      ZIO
+        .effectSuspendTotal(assertion)
+        .foldCauseM(
+          cause => ZIO.fail(TestFailure.Runtime(cause)),
+          result =>
+            result.failures match {
+              case None           => ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+              case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+            }
+        )
     )
 
   /**
