@@ -1,27 +1,29 @@
 package zio
-import zio.test._
-import ZIOSpecJvmUtils._
+import zio.ZIOSpecJvmUtils._
 import zio.random.Random
-import Assertion._
-
-import scala.collection.mutable
+import zio.test.Assertion._
+import zio.test._
 
 object ZIOSpecJvm extends ZIOBaseSpec (
   suite("ZIOSpecJvm") (
-    testM("Generate a list of String and a f: String => Task[Int]: `IO.foreach` returns the list of results") {
+    testM("`IO.foreach` returns the list of results") {
       checkAllM(functionIOGen, listGen) { (f, list) =>
         val res = IO.foreach(list)(f)
         assertM(res,  isSubtype[List[Int]](anything) && hasSize(equalTo(100)))
       }
     },
-    testM("Create a list of Strings and pass an f: String => IO[String, Int] " +
-      "`IO.foreach` both evaluates effects and returns the list of Ints in the same order") {
+    testM("`IO.foreach` both evaluates effects and returns the list of Ints in the same order") {
       val list    = List("1", "2", "3")
       for {
         ref <- Ref.make(List.empty[String])
         res     <- IO.foreach(list) (x => ref.update(_ :+ x) *> IO.effectTotal[Int](x.toInt))
         effects <- ref.get
       } yield assert(effects, equalTo(list)) && assert(res, equalTo(List(1, 2, 3)))
+    },
+    testM("`IO.foreach` fails with a NumberFormatException exception") {
+      val list = List("1", "h", "3")
+      val res  = IO.foreach(list)(x => IO.effectTotal[Int](x.toInt))
+      assertM(res.run, dies(isSubtype[NumberFormatException](anything)) )
     }
   )
 )
