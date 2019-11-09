@@ -222,6 +222,13 @@ object StreamPullSafetySpec
             }
             .map(assert(_, equalTo(List(Right(1), Left(Some(error)), Right(3), Left(None), Left(None)))))
         },
+        testM("Stream.fromIterable is safe to pull again") {
+          Stream
+            .fromIterable(List(1))
+            .process
+            .use(threePulls(_))
+            .map(assert(_, equalTo(List(Right(1), Left(None), Left(None)))))
+        },
         suite("Stream.managed")(
           testM("is safe to pull again after success") {
             for {
