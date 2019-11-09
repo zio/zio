@@ -4,7 +4,9 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 
 import scala.collection.mutable
+import scala.concurrent.duration.{ Duration => SDuration }
 import scala.util.Try
+import java.util.concurrent.TimeUnit
 import zio.Cause.{ die, fail, interrupt }
 import zio.duration._
 import zio.syntax._
@@ -12,6 +14,8 @@ import zio.test.environment.TestClock
 
 class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
+
+  override val DefaultTimeout: SDuration = SDuration(60, TimeUnit.SECONDS)
 
   def is = "ZIOSpecJvm".title ^ s2"""
    Generate a list of String and a f: String => Task[Int]:
