@@ -172,6 +172,13 @@ object StreamPullSafetySpec
             fin   <- ref.get
           } yield assert(fin, equalTo(1)) && assert(pulls, equalTo(List(Left(None), Left(None), Left(None))))
         },
+        testM("Stream.fromChunk is safe to pull again") {
+          Stream
+            .fromChunk(Chunk(1))
+            .process
+            .use(threePulls(_))
+            .map(assert(_, equalTo(List(Right(1), Left(None), Left(None)))))
+        },
         suite("Stream.fromEffect")(
           testM("is safe to pull again after success") {
             Stream
