@@ -365,7 +365,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def testZipParInterupt = {
     val io = ZIO.interrupt.zipPar(IO.interrupt)
     unsafeRunSync(io) match {
-      case Exit.Failure(cause) => cause.interruptors.size must_=== 2
+      case Exit.Failure(cause) => cause.interruptors.size must_!== 0
       case _                   => false must_=== true
     }
   }
