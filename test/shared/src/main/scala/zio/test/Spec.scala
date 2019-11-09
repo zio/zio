@@ -28,8 +28,6 @@ import Spec._
  */
 final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E, L, T]]) { self =>
 
-  final def label: L = caseValue.label
-
   /**
    * Syntax for adding aspects.
    * {{{
@@ -328,19 +326,17 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   /**
    * Runs only tests whose labels (which must be strings) contain the given substring
    */
-  final def only[S, E0](
+  final def only[S, E1](
     s: String
-  )(implicit ev1: L <:< String, ev2: T <:< TestSuccess[S], ev3: E <:< TestFailure[E0]): ZSpec[R, E0, String, S] =
-    mapLabel(ev1)
-      .mapTest(ev2)
-      .mapError(ev3)
+  )(implicit ev1: L <:< String, ev2: T <:< TestSuccess[S], ev3: E <:< TestFailure[E1]): ZSpec[R, E1, String, S] =
+    self
+      .asInstanceOf[ZSpec[R, E1, String, S]]
       .filterLabels(_.contains(s))
       .getOrElse(Spec.test("only", ignored))
 }
 
 object Spec {
   sealed trait SpecCase[-R, +E, +L, +T, +A] { self =>
-    val label: L
     final def map[B](f: A => B): SpecCase[R, E, L, T, B] = self match {
       case SuiteCase(label, specs, exec) => SuiteCase(label, specs.map(_.map(f)), exec)
       case TestCase(label, test)         => TestCase(label, test)
