@@ -313,11 +313,7 @@ object FiberRefSpec
           }
         )
       )
-    ) {
-
-  override def runner =
-    super.runner.withPlatform(_.withFiberContextPropagation(true))
-}
+    )
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")

@@ -36,7 +36,4 @@ object FiberRefSpecJvm
           } yield assert((value0, value1, value2, value3), equalTo((update1, initial, update2, initial)))
         }
       )
-    ) {
-  override def runner =
-    super.runner.withPlatform(_.withFiberContextPropagation(true))
-}
+    )

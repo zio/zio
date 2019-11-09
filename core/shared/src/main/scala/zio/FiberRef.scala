@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.internal.FiberContext
-
 /**
  * Fiber's counterpart for Java's `ThreadLocal`. Value is automatically propagated
  * to child on fork and merged back in after joining child.
@@ -112,17 +110,12 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
    * This feature is meant to be used for integration with side effecting code, that needs to access fiber specific data,
    * like MDC contexts and the like. The returned `ThreadLocal` will be backed by this `FiberRef` on all threads that are
    * currently managed by ZIO, and behave like an ordinary `ThreadLocal` on all other threads.
-   *
-   * Important: Enable `Platform.fiberContextPropagation` if you want to use this.
    */
   final def unsafeAsThreadLocal: UIO[ThreadLocal[A]] =
-    ZIO.effectSuspendTotalWith { platform =>
-      if (platform.fiberContextPropagation) ZIO.unit
-      else ZIO.dieMessage("Unsafe handles require Platform.fiberContextPropagation to be enabled.")
-    } *> ZIO.effectTotal {
+    ZIO.effectTotal {
       new ThreadLocal[A] {
         override def get(): A = {
-          val fiberContext = FiberContext.current.get()
+          val fiberContext = Fiber._currentFiber.get()
 
           Option {
             if (fiberContext eq null) null
@@ -131,7 +124,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
         }
 
         override def set(a: A): Unit = {
-          val fiberContext = FiberContext.current.get()
+          val fiberContext = Fiber._currentFiber.get()
           val fiberRef     = self.asInstanceOf[FiberRef[Any]]
 
           if (fiberContext eq null) super.set(a)
@@ -141,7 +134,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
         }
 
         override def remove(): Unit = {
-          val fiberContext = FiberContext.current.get()
+          val fiberContext = Fiber._currentFiber.get()
           val fiberRef     = self.asInstanceOf[FiberRef[Any]]
 
           if (fiberContext eq null) super.remove()

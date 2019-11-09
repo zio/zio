@@ -153,12 +153,6 @@ trait Runtime[+R] {
    * Constructs a new `Runtime` with the specified tracing configuration.
    */
   final def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
-
-  /**
-   * Constructs a new `Runtime` with fiber context propagation enabled/disabled.
-   */
-  final def withFiberContextPropagation(enabled: Boolean): Runtime[R] =
-    mapPlatform(_.withFiberContextPropagation(enabled))
 }
 
 object Runtime {

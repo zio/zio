@@ -44,9 +44,6 @@ object PlatformLive {
           println(cause.prettyPrint)
 
       val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
-
-      def fiberContextPropagation: Boolean =
-        false
     }
 
   final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
