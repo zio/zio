@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package zio
+package zio.internal
 
-import zio.clock.Clock
-import zio.console.Console
-import zio.system.System
-import zio.random.Random
-import zio.internal.{ Platform, PlatformLive }
+import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
+import java.util.concurrent.ConcurrentHashMap
 
-trait DefaultRuntime extends Runtime[ZEnv] {
-  override val platform: Platform = PlatformLive.Default
-  override val environment: ZEnv  = new Clock.Live with Console.Live with System.Live with Random.Live
+trait PlatformSpecific {
+  final def newWeakHashMap[A, B](): JMap[A, B] =
+    Collections.synchronizedMap(new WeakHashMap[A, B]())
+
+  final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
 }

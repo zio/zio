@@ -28,23 +28,23 @@ trait Runtime[+R] {
   /**
    * The environment of the runtime.
    */
-  val Environment: R
+  val environment: R
 
   /**
    * The platform of the runtime, which provides the essential capabilities
    * necessary to bootstrap execution of tasks.
    */
-  val Platform: Platform
+  val platform: Platform
 
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
-  final def map[R1](f: R => R1): Runtime[R1] = Runtime(f(Environment), Platform)
+  final def map[R1](f: R => R1): Runtime[R1] = Runtime(f(environment), platform)
 
   /**
    * Constructs a new `Runtime` by mapping the platform.
    */
-  final def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(Environment, f(Platform))
+  final def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
 
   /**
    * Executes the effect synchronously, failing
@@ -84,15 +84,19 @@ trait Runtime[+R] {
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       null,
-      Platform,
-      Environment.asInstanceOf[AnyRef],
-      Platform.executor,
+      platform,
+      environment.asInstanceOf[AnyRef],
+      platform.executor,
       InitialInterruptStatus,
       false,
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()
     )
+
+    Fiber._rootFibers.add(context)
+
+    context.onDone(_ => { val _ = Fiber._rootFibers.remove(context) })
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
@@ -159,8 +163,8 @@ object Runtime {
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
    */
-  final def apply[R](r: R, platform: Platform): Runtime[R] = new Runtime[R] {
-    val Environment = r
-    val Platform    = platform
+  final def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
+    val environment = r
+    val platform    = platform0
   }
 }

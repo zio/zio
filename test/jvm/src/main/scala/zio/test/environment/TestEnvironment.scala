@@ -95,7 +95,7 @@ object TestEnvironment extends Serializable {
       for {
         clock    <- TestClock.makeTest(TestClock.DefaultData)
         console  <- TestConsole.makeTest(TestConsole.DefaultData)
-        live     <- Live.makeService(new DefaultRuntime {}.Environment)
+        live     <- Live.makeService(new DefaultRuntime {}.environment)
         random   <- TestRandom.makeTest(TestRandom.DefaultData)
         time     <- live.provide(zio.clock.nanoTime)
         _        <- random.setSeed(time)

@@ -2168,7 +2168,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * composite fiber that produces a list of their results, in order.
    */
   final def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber[E, List[A]]] =
-    as.foldRight[URIO[R, Fiber[E, List[A]]]](succeed(Fiber.succeed[E, List[A]](List()))) { (aIO, asFiberIO) =>
+    as.foldRight[URIO[R, Fiber[E, List[A]]]](succeed(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
       asFiberIO.zip(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
