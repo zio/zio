@@ -390,19 +390,23 @@ private[stream] object StreamEffect extends Serializable {
     StreamEffectChunk {
       StreamEffect {
         Managed.effectTotal {
+          var done = false
+
           def pull(): Chunk[Byte] = {
             val buf = Array.ofDim[Byte](chunkSize)
             try {
               val bytesRead = is.read(buf)
-              if (bytesRead < 0) end
-              else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
+              if (bytesRead < 0) {
+                done = true
+                end
+              } else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
               else Chunk.fromArray(buf)
             } catch {
               case e: IOException => fail(e)
             }
           }
 
-          () => pull()
+          () => if (done) end else pull()
         }
       }
     }
