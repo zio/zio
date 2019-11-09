@@ -195,6 +195,33 @@ object StreamPullSafetySpec
               .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
           }
         ),
+        testM("Stream.fromInputStream is safe to pull again") {
+          val error = new java.io.IOException()
+          val is = new java.io.InputStream {
+            var state = 0
+
+            def read(): Int = {
+              state += 1
+              if (state == 2) throw error
+              else if (state == 4) -1
+              else state
+            }
+          }
+
+          Stream
+            .fromInputStream(is, 1)
+            .process
+            .use { pull =>
+              for {
+                e1 <- pull.either
+                e2 <- pull.either
+                e3 <- pull.either
+                e4 <- pull.either
+                e5 <- pull.either
+              } yield List(e1, e2, e3, e4, e5)
+            }
+            .map(assert(_, equalTo(List(Right(1), Left(Some(error)), Right(3), Left(None), Left(None)))))
+        },
         suite("Stream.managed")(
           testM("is safe to pull again after success") {
             for {
