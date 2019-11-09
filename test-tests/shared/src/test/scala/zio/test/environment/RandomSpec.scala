@@ -126,38 +126,38 @@ object RandomSpec
 
 object RandomSpecUtil {
 
-  def checkClear[A](generate: SRandom => A)(feed: (Test, List[A]) => UIO[Unit])(
+  def checkClear[A, B <: Random](generate: SRandom => A)(feed: (Test, List[A]) => UIO[Unit])(
     clear: Test => UIO[Unit]
-  )(extract: Test => UIO[A]): ZIO[TestRandom, Nothing, TestResult] = {
-    val seed    = SRandom.nextLong()
-    val sRandom = new SRandom(seed)
-    for {
-      testRandom <- TestRandom.makeTest(DefaultData)
-      _          <- testRandom.setSeed(seed)
-      value      = generate(sRandom)
-      _          <- feed(testRandom, List(value))
-      _          <- clear(testRandom)
-      random     <- extract(testRandom)
-    } yield assert(random, equalTo(generate(new SRandom(seed))))
-  }
-
-  def checkFeed[A](generate: SRandom => A)(
-    feed: (Test, List[A]) => UIO[Unit]
-  )(extract: Test => UIO[A]): ZIO[TestRandom, Nothing, TestResult] = {
-    val seed    = SRandom.nextLong()
-    val sRandom = new SRandom(seed)
-    for {
-      testRandom <- TestRandom.makeTest(DefaultData)
-      _          <- testRandom.setSeed(seed)
-      values     = List.fill(100)(generate(sRandom))
-      _          <- feed(testRandom, values)
-      results    <- UIO.foreach(List.range(0, 100))(_ => extract(testRandom))
-      random     <- extract(testRandom)
-    } yield {
-      assert(results, equalTo(values)) &&
-      assert(random, equalTo(generate(new SRandom(seed))))
+  )(extract: Test => UIO[A]): ZIO[Random, Nothing, TestResult] =
+    checkM(Gen.anyLong) { seed =>
+      val sRandom = new SRandom(seed)
+      for {
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        value      = generate(sRandom)
+        _          <- feed(testRandom, List(value))
+        _          <- clear(testRandom)
+        random     <- extract(testRandom)
+      } yield assert(random, equalTo(generate(new SRandom(seed))))
     }
-  }
+
+  def checkFeed[A, B >: Random](generate: SRandom => A)(
+    feed: (Test, List[A]) => UIO[Unit]
+  )(extract: Test => UIO[A]): ZIO[Random, Nothing, TestResult] =
+    checkM(Gen.anyLong) { seed =>
+      val sRandom = new SRandom(seed)
+      for {
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        values     = List.fill(100)(generate(sRandom))
+        _          <- feed(testRandom, values)
+        results    <- UIO.foreach(List.range(0, 100))(_ => extract(testRandom))
+        random     <- extract(testRandom)
+      } yield {
+        assert(results, equalTo(values)) &&
+        assert(random, equalTo(generate(new SRandom(seed))))
+      }
+    }
 
   def nextBytes(n: Int)(random: SRandom): Chunk[Byte] = {
     val arr = new Array[Byte](n)
@@ -167,71 +167,66 @@ object RandomSpecUtil {
 
   def forAllEqual[A](
     f: Test => UIO[A]
-  )(g: SRandom => A): ZIO[Any, Nothing, TestResult] = {
-    val seed    = SRandom.nextLong()
-    val sRandom = new SRandom(seed)
-    for {
-      testRandom <- TestRandom.makeTest(DefaultData)
-      _          <- testRandom.setSeed(seed)
-      actual     <- UIO.foreach(List.fill(100)(()))(_ => f(testRandom))
-      expected   = List.fill(100)(g(sRandom))
-    } yield assert(actual, equalTo(expected))
-  }
+  )(g: SRandom => A): ZIO[Random, Nothing, TestResult] =
+    checkM(Gen.anyLong) { seed =>
+      val sRandom = new SRandom(seed)
+      for {
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- UIO.foreach(List.fill(100)(()))(_ => f(testRandom))
+        expected   = List.fill(100)(g(sRandom))
+      } yield assert(actual, equalTo(expected))
+    }
 
-  def forAllEqualBytes: ZIO[Any, Nothing, TestResult] = {
-    val seed    = SRandom.nextLong()
-    val sRandom = new SRandom(seed)
-    for {
-      testRandom <- TestRandom.makeTest(DefaultData)
-      _          <- testRandom.setSeed(seed)
-      actual     <- UIO.foreach(List.range(0, 100))(testRandom.nextBytes(_))
-      expected = List.range(0, 100).map(new Array[Byte](_)).map { arr =>
-        sRandom.nextBytes(arr)
-        Chunk.fromArray(arr)
-      }
-    } yield assert(actual, equalTo(expected))
-  }
+  def forAllEqualBytes: ZIO[Random, Nothing, TestResult] =
+    checkM(Gen.anyLong) { seed =>
+      val sRandom = new SRandom(seed)
+      for {
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- UIO.foreach(0 to 100)(testRandom.nextBytes(_))
+        expected = (0 to 100).map(new Array[Byte](_)).map { arr =>
+          sRandom.nextBytes(arr)
+          Chunk.fromArray(arr)
+        }
+      } yield assert(actual, equalTo(expected))
+    }
 
-  def forAllEqualGaussian: ZIO[Any, Nothing, TestResult] = {
-    val seed    = SRandom.nextLong()
-    val sRandom = new SRandom(seed)
-    for {
-      testRandom <- TestRandom.makeTest(DefaultData)
-      _          <- testRandom.setSeed(seed)
-      actual     <- UIO.foreach(List.fill(100)(()))(_ => testRandom.nextGaussian)
-      expected   = List.fill(100)(sRandom.nextGaussian)
-    } yield assert(actual.zip(expected).forall {
-      case (x, y) => math.abs(x - y) < 0.01
-    }, equalTo(true))
-  }
+  def forAllEqualGaussian: ZIO[Random, Nothing, TestResult] =
+    checkM(Gen.anyLong) { seed =>
+      val sRandom = new SRandom(seed)
+      for {
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- testRandom.nextGaussian
+        expected   = sRandom.nextGaussian
+      } yield assert(math.abs(actual - expected), isLessThan(0.01))
+    }
 
   def forAllEqualN[A](
     f: (Test, Int) => UIO[A]
-  )(g: (SRandom, Int) => A) = {
-    val seed    = SRandom.nextLong()
-    val sRandom = new SRandom(seed)
-    for {
-      testRandom <- TestRandom.makeTest(DefaultData)
-      _          <- testRandom.setSeed(seed)
-      actual     <- UIO.foreach(1 to 100)(f(testRandom, _))
-      expected   = (1 to 100).map(g(sRandom, _))
-    } yield assert(actual, equalTo(expected))
-  }
+  )(g: (SRandom, Int) => A): ZIO[Random, Nothing, TestResult] =
+    checkM(Gen.anyLong, Gen.int(1, 100)) { (seed, size) =>
+      val sRandom = new SRandom(seed)
+      for {
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- f(testRandom, size)
+        expected   = g(sRandom, size)
+      } yield assert(actual, equalTo(expected))
+    }
 
   def forAllEqualShuffle(
     f: (TestRandom.Test, List[Int]) => UIO[List[Int]]
-  )(g: (SRandom, List[Int]) => List[Int]): ZIO[Random, Nothing, TestResult] =
-    checkSomeM(Gen.int(0, 100))(100) { size =>
-      checkSomeM(Gen.listOfN(size)(Gen.anyInt))(1) { testList =>
-        val seed    = SRandom.nextLong()
-        val sRandom = new SRandom(seed)
-        for {
-          testRandom <- TestRandom.makeTest(DefaultData)
-          _          <- testRandom.setSeed(seed)
-          actual     <- f(testRandom, testList)
-          expected   = g(sRandom, testList)
-        } yield assert(actual, equalTo(expected))
-      }
+  )(g: (SRandom, List[Int]) => List[Int]): ZIO[Random with Sized, Nothing, TestResult] =
+    checkM(Gen.anyLong, Gen.listOf(Gen.anyInt)) { (seed, testList) =>
+      val sRandom = new SRandom(seed)
+      for {
+        testRandom <- TestRandom.makeTest(DefaultData)
+        _          <- testRandom.setSeed(seed)
+        actual     <- f(testRandom, testList)
+        expected   = g(sRandom, testList)
+      } yield assert(actual, equalTo(expected))
     }
 
   def forAllBounded[A: Numeric](gen: Gen[Random, A])(
