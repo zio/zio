@@ -328,12 +328,12 @@ object StreamPullSafetySpec
         testM("Stream.unfold is safe to pull again") {
           Stream
             .unfold(0) { n =>
-              if (n == 1) None
+              if (n > 2) None
               else Some((n, n + 1))
             }
             .process
-            .use(nPulls(_, 3))
-            .map(assert(_, equalTo(List(Right(0), Left(None), Left(None)))))
+            .use(nPulls(_, 5))
+            .map(assert(_, equalTo(List(Right(0), Right(1), Right(2), Left(None), Left(None)))))
         },
         suite("Stream.unfoldM")(
           testM("is safe to pull again after success") {
