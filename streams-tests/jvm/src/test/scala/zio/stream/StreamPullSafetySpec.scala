@@ -309,6 +309,29 @@ object StreamPullSafetySpec
               fin <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
           }
+        ),
+        suite("Stream.paginate")(
+          testM("is safe to pull again after success") {
+            Stream
+              .paginate(0)(n => UIO.succeed((n, None)))
+              .process
+              .use(threePulls(_))
+              .map(assert(_, equalTo(List(Right(0), Left(None), Left(None)))))
+          },
+          testM("is safe to pull again after failure") {
+            for {
+              ref <- Ref.make(false)
+              pulls <- Stream
+                        .paginate(1) { n =>
+                          ref.get.flatMap { done =>
+                            if (n == 2 && !done) ref.set(true) *> IO.fail("Ouch")
+                            else UIO.succeed((n, Some(n + 1)))
+                          }
+                        }
+                        .process
+                        .use(threePulls(_))
+            } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(2))))
+          }
         )
       )
     )

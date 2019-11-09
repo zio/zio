@@ -3016,13 +3016,13 @@ object ZStream extends Serializable {
    * hence the name.
    */
   final def paginate[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         ref <- Ref.make[Option[S]](Some(s)).toManaged_
-      } yield ref.get.flatMap({
-        case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s) *> Pull.emit(a) })
+      } yield ref.get.flatMap {
+        case Some(s) => f(s).foldM(Pull.fail, { case (a, s) => ref.set(s) *> Pull.emit(a) })
         case None    => Pull.end
-      })
+      }
     }
 
   /**
