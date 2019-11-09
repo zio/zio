@@ -24,6 +24,17 @@ object ZIOSpecJvm extends ZIOBaseSpec (
       val list = List("1", "h", "3")
       val res  = IO.foreach(list)(x => IO.effectTotal[Int](x.toInt))
       assertM(res.run, dies(isSubtype[NumberFormatException](anything)) )
+    },
+    testM("`IO.foreachPar` returns the list of Ints in the same order") {
+      val list = List("1", "2", "3")
+      val res  = IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt))
+      assertM(res, equalTo(List(1, 2, 3)))
+    },
+    testM("For f: Int => String: `IO.bimap(f, identity)` maps an IO[Int, String] into an IO[String, String]") {
+      checkM(Gen.anyInt) { i =>
+        val res = IO.fail(i).bimap(_.toString, identity).either
+        assertM(res, isLeft(equalTo(i.toString)))
+      }
     }
   )
 )
