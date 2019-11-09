@@ -825,13 +825,13 @@ object ZIOSpec
           },
           testM("supervise fibers") {
             def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
-              (clock.sleep(20.millis * n.toDouble) *> IO.unit).fork
+              (clock.sleep(20.millis * n.toDouble) *> IO.never).fork
 
             val io =
               for {
                 counter <- Ref.make(0)
                 _ <- (makeChild(1) *> makeChild(2)).handleChildrenWith { fs =>
-                      fs.foldLeft(IO.unit)((acc, f) => acc *> f.join.ignore *> counter.update(_ + 1).unit)
+                      fs.foldLeft(IO.unit)((acc, f) => acc *> f.interrupt.ignore *> counter.update(_ + 1).unit)
                     }
                 value <- counter.get
               } yield value
