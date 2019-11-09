@@ -227,10 +227,28 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
-   * Uses the specified `ZManaged` to provide each test in this spec with its
+   * Uses the specified `Managed` to provide each test in this spec with its
    * required environment.
    */
-  final def provideManaged[R0, E1 >: E](managed: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, L, T] =
+  final def provideManaged[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] =
+    provideSomeManaged(managed)
+
+  /**
+   * Uses the specified `Managed` once to provide all tests in this spec with
+   * a shared version of their required environment. This is useful when the
+   * act of creating the environment is expensive and should only be performed
+   * once.
+   */
+  final def provideManagedShared[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] =
+    provideSomeManagedShared(managed)
+
+  /**
+   * Uses the specified `ZManaged` to provide each test in this spec with part
+   * of its required environment.
+   */
+  final def provideSomeManaged[R0, E1 >: E](
+    managed: ZManaged[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, L, T] =
     transform[R0, E1, L, T] {
       case SuiteCase(label, specs, exec) => SuiteCase(label, specs.provideSomeManaged(managed), exec)
       case TestCase(label, test)         => TestCase(label, test.provideSomeManaged(managed))
@@ -238,11 +256,11 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
 
   /**
    * Uses the specified `ZManaged` once to provide all tests in this spec with
-   * a shared version of their required environment. This is useful when the
-   * act of creating the environment is expensive and should only be performed
-   * once.
+   * a shared version of part of their required environment. This is useful
+   * when the act of creating the environment is expensive and should only be
+   * performed once.
    */
-  final def provideManagedShared[R0, E1 >: E](
+  final def provideSomeManagedShared[R0, E1 >: E](
     managed: ZManaged[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): Spec[R0, E1, L, T] = {
     def loop(r: R)(spec: Spec[R, E, L, T]): ZIO[R, E, Spec[Any, E, L, T]] =
