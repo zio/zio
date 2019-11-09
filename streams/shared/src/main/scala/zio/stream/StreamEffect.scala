@@ -427,16 +427,22 @@ private[stream] object StreamEffect extends Serializable {
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
+        var done  = false
         var state = s
 
-        () => {
-          val opt = f0(state)
-          if (opt.isDefined) {
-            val res = opt.get
-            state = res._2
-            res._1
-          } else end
-        }
+        () =>
+          if (done) end
+          else {
+            val opt = f0(state)
+            if (opt.isDefined) {
+              val res = opt.get
+              state = res._2
+              res._1
+            } else {
+              done = true
+              end
+            }
+          }
       }
     }
 

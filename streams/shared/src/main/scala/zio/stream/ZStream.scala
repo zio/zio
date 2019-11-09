@@ -3066,19 +3066,25 @@ object ZStream extends Serializable {
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
   final def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
-        ref <- Ref.make(s).toManaged_
-      } yield ref.get
-        .flatMap(f0)
-        .foldM(
-          e => Pull.fail(e),
-          opt =>
-            opt match {
-              case Some((a, s)) => ref.set(s) *> Pull.emit(a)
-              case None         => Pull.end
-            }
-        )
+        done <- Ref.make(false).toManaged_
+        ref  <- Ref.make(s).toManaged_
+      } yield done.get.flatMap {
+        if (_) Pull.end
+        else {
+          ref.get
+            .flatMap(f0)
+            .foldM(
+              Pull.fail,
+              opt =>
+                opt match {
+                  case Some((a, s)) => ref.set(s) *> Pull.emit(a)
+                  case None         => done.set(true) *> Pull.end
+                }
+            )
+        }
+      }
     }
 
   /**

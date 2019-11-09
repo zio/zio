@@ -4,7 +4,7 @@ import zio._
 import zio.test._
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import ZStream.Pull
-import StreamUtils.threePulls
+import StreamUtils.nPulls
 
 object StreamPullSafetySpec
     extends ZIOBaseSpec(
@@ -13,14 +13,14 @@ object StreamPullSafetySpec
           testM("is safe to pull again after success") {
             for {
               ref   <- Ref.make(false)
-              pulls <- Stream.bracket(UIO.succeed(5))(_ => ref.set(true)).process.use(threePulls(_))
+              pulls <- Stream.bracket(UIO.succeed(5))(_ => ref.set(true)).process.use(nPulls(_, 3))
               fin   <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(5), Left(None), Left(None))))
           },
           testM("is safe to pull again after failed acqusition") {
             for {
               ref   <- Ref.make(false)
-              pulls <- Stream.bracket(IO.fail("Ouch"))(_ => ref.set(true)).process.use(threePulls(_))
+              pulls <- Stream.bracket(IO.fail("Ouch"))(_ => ref.set(true)).process.use(nPulls(_, 3))
               fin   <- ref.get
             } yield assert(fin, isFalse) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
           },
@@ -31,7 +31,7 @@ object StreamPullSafetySpec
                         .bracket(UIO.succeed(5))(_ => ref.set(true))
                         .flatMap(_ => Stream.fail("Ouch"))
                         .process
-                        .use(threePulls(_))
+                        .use(nPulls(_, 3))
               fin <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
           }
@@ -40,14 +40,14 @@ object StreamPullSafetySpec
           testM("is safe to pull again after success") {
             for {
               ref   <- Ref.make(false)
-              pulls <- Stream.bracketExit(UIO.succeed(5))((_, _) => ref.set(true)).process.use(threePulls(_))
+              pulls <- Stream.bracketExit(UIO.succeed(5))((_, _) => ref.set(true)).process.use(nPulls(_, 3))
               fin   <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(5), Left(None), Left(None))))
           },
           testM("is safe to pull again after failed acquisition") {
             for {
               ref   <- Ref.make(false)
-              pulls <- Stream.bracketExit(IO.fail("Ouch"))((_, _) => ref.set(true)).process.use(threePulls(_))
+              pulls <- Stream.bracketExit(IO.fail("Ouch"))((_, _) => ref.set(true)).process.use(nPulls(_, 3))
               fin   <- ref.get
             } yield assert(fin, isFalse) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
           },
@@ -58,14 +58,14 @@ object StreamPullSafetySpec
                         .bracketExit(UIO.succeed(5))((_, _) => ref.set(true))
                         .flatMap(_ => Stream.fail("Ouch"))
                         .process
-                        .use(threePulls(_))
+                        .use(nPulls(_, 3))
               fin <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
           }
         ),
         testM("Stream.empty is safe to pull again") {
           Stream.empty.process
-            .use(threePulls(_))
+            .use(nPulls(_, 3))
             .map(assert(_, equalTo(List(Left(None), Left(None), Left(None)))))
         },
         suite("Stream.effectAsync")(
@@ -77,7 +77,7 @@ object StreamPullSafetySpec
                 }
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Right(1), Left(Some("Ouch")), Right(3)))))
           },
           testM("is safe to pull again after end") {
@@ -87,7 +87,7 @@ object StreamPullSafetySpec
                 k(Pull.end)
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Right(1), Left(None), Left(None)))))
           }
         ),
@@ -101,7 +101,7 @@ object StreamPullSafetySpec
                 UIO.unit
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Right(1), Left(Some("Ouch")), Right(3)))))
           },
           testM("is safe to pull again after end") {
@@ -112,7 +112,7 @@ object StreamPullSafetySpec
                 UIO.unit
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Right(1), Left(None), Left(None)))))
           }
         ),
@@ -126,7 +126,7 @@ object StreamPullSafetySpec
                 None
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Right(1), Left(Some("Ouch")), Right(3)))))
           },
           testM("is safe to pull again after error sync case") {
@@ -136,7 +136,7 @@ object StreamPullSafetySpec
                 Some(Stream.fail("Ouch sync"))
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Left(Some("Ouch sync")), Left(None), Left(None)))))
           },
           testM("is safe to pull again after end async case") {
@@ -147,7 +147,7 @@ object StreamPullSafetySpec
                 None
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Right(1), Left(None), Left(None)))))
           },
           testM("is safe to pull again after end sync case") {
@@ -157,7 +157,7 @@ object StreamPullSafetySpec
                 Some(Stream.empty)
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Left(None), Left(None), Left(None)))))
           }
         ),
@@ -173,7 +173,7 @@ object StreamPullSafetySpec
                           Left(ref.set(true))
                         }
                         .process
-                        .use(threePulls(_))
+                        .use(nPulls(_, 3))
               fin <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(3))))
           },
@@ -184,7 +184,7 @@ object StreamPullSafetySpec
                 Right(Stream.fail("Ouch sync"))
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Left(Some("Ouch sync")), Left(None), Left(None)))))
           },
           testM("is safe to pull again after end async case") {
@@ -197,7 +197,7 @@ object StreamPullSafetySpec
                           Left(ref.set(true))
                         }
                         .process
-                        .use(threePulls(_))
+                        .use(nPulls(_, 3))
               fin <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(1), Left(None), Left(None))))
           },
@@ -208,7 +208,7 @@ object StreamPullSafetySpec
                 Right(Stream.empty)
               }
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Left(None), Left(None), Left(None)))))
           }
         ),
@@ -216,13 +216,13 @@ object StreamPullSafetySpec
           Stream
             .fail("Ouch")
             .process
-            .use(threePulls(_))
+            .use(nPulls(_, 3))
             .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
         },
         testM("Stream.finalizer is safe to pull again") {
           for {
             ref   <- Ref.make(0)
-            pulls <- Stream.finalizer(ref.update(_ + 1)).process.use(threePulls(_))
+            pulls <- Stream.finalizer(ref.update(_ + 1)).process.use(nPulls(_, 3))
             fin   <- ref.get
           } yield assert(fin, equalTo(1)) && assert(pulls, equalTo(List(Left(None), Left(None), Left(None))))
         },
@@ -230,7 +230,7 @@ object StreamPullSafetySpec
           Stream
             .fromChunk(Chunk(1))
             .process
-            .use(threePulls(_))
+            .use(nPulls(_, 3))
             .map(assert(_, equalTo(List(Right(1), Left(None), Left(None)))))
         },
         suite("Stream.fromEffect")(
@@ -238,14 +238,14 @@ object StreamPullSafetySpec
             Stream
               .fromEffect(UIO.succeed(5))
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Right(5), Left(None), Left(None)))))
           },
           testM("is safe to pull again after failure") {
             Stream
               .fromEffect(IO.fail("Ouch"))
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
           }
         ),
@@ -265,36 +265,28 @@ object StreamPullSafetySpec
           Stream
             .fromInputStream(is, 1)
             .process
-            .use { pull =>
-              for {
-                e1 <- pull.either
-                e2 <- pull.either
-                e3 <- pull.either
-                e4 <- pull.either
-                e5 <- pull.either
-              } yield List(e1, e2, e3, e4, e5)
-            }
+            .use(nPulls(_, 5))
             .map(assert(_, equalTo(List(Right(1), Left(Some(error)), Right(3), Left(None), Left(None)))))
         },
         testM("Stream.fromIterable is safe to pull again") {
           Stream
             .fromIterable(List(1))
             .process
-            .use(threePulls(_))
+            .use(nPulls(_, 3))
             .map(assert(_, equalTo(List(Right(1), Left(None), Left(None)))))
         },
         suite("Stream.managed")(
           testM("is safe to pull again after success") {
             for {
               ref   <- Ref.make(false)
-              pulls <- Stream.managed(Managed.make(UIO.succeed(5))(_ => ref.set(true))).process.use(threePulls(_))
+              pulls <- Stream.managed(Managed.make(UIO.succeed(5))(_ => ref.set(true))).process.use(nPulls(_, 3))
               fin   <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(5), Left(None), Left(None))))
           },
           testM("is safe to pull again after failed acquisition") {
             for {
               ref   <- Ref.make(false)
-              pulls <- Stream.managed(Managed.make(IO.fail("Ouch"))(_ => ref.set(true))).process.use(threePulls(_))
+              pulls <- Stream.managed(Managed.make(IO.fail("Ouch"))(_ => ref.set(true))).process.use(nPulls(_, 3))
               fin   <- ref.get
             } yield assert(fin, isFalse) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
           },
@@ -305,7 +297,7 @@ object StreamPullSafetySpec
                         .managed(Managed.make(UIO.succeed(5))(_ => ref.set(true)))
                         .flatMap(_ => Stream.fail("Ouch"))
                         .process
-                        .use(threePulls(_))
+                        .use(nPulls(_, 3))
               fin <- ref.get
             } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
           }
@@ -315,7 +307,7 @@ object StreamPullSafetySpec
             Stream
               .paginate(0)(n => UIO.succeed((n, None)))
               .process
-              .use(threePulls(_))
+              .use(nPulls(_, 3))
               .map(assert(_, equalTo(List(Right(0), Left(None), Left(None)))))
           },
           testM("is safe to pull again after failure") {
@@ -329,7 +321,7 @@ object StreamPullSafetySpec
                           }
                         }
                         .process
-                        .use(threePulls(_))
+                        .use(nPulls(_, 3))
             } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(2))))
           }
         ),
@@ -340,8 +332,35 @@ object StreamPullSafetySpec
               else Some((n, n + 1))
             }
             .process
-            .use(threePulls(_))
+            .use(nPulls(_, 3))
             .map(assert(_, equalTo(List(Right(0), Left(None), Left(None)))))
-        }
+        },
+        suite("Stream.unfoldM")(
+          testM("is safe to pull again after success") {
+            Stream
+              .unfoldM(0) { n =>
+                if (n == 1) UIO.succeed(None)
+                else UIO.succeed(Some((n, n + 1)))
+              }
+              .process
+              .use(nPulls(_, 3))
+              .map(assert(_, equalTo(List(Right(0), Left(None), Left(None)))))
+          },
+          testM("is safe to pull again after failure") {
+            for {
+              ref <- Ref.make(false)
+              pulls <- Stream
+                        .unfoldM(1) { n =>
+                          ref.get.flatMap { done =>
+                            if (n == 2 && !done) ref.set(true) *> IO.fail("Ouch")
+                            else if (n > 2) UIO.succeed(None)
+                            else UIO.succeed(Some((n, n + 1)))
+                          }
+                        }
+                        .process
+                        .use(nPulls(_, 5))
+            } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(2), Left(None), Left(None))))
+          }
+        )
       )
     )
