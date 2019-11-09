@@ -9,6 +9,60 @@ import StreamUtils.threePulls
 object StreamPullSafetySpec
     extends ZIOBaseSpec(
       suite("StreamPullSafetySpec")(
+        suite("Stream.bracket")(
+          testM("is safe to pull again after success") {
+            for {
+              ref   <- Ref.make(false)
+              pulls <- Stream.bracket(UIO.succeed(5))(_ => ref.set(true)).process.use(threePulls(_))
+              fin   <- ref.get
+            } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(5), Left(None), Left(None))))
+          },
+          testM("is safe to pull again after failed acqusition") {
+            for {
+              ref   <- Ref.make(false)
+              pulls <- Stream.bracket(IO.fail("Ouch"))(_ => ref.set(true)).process.use(threePulls(_))
+              fin   <- ref.get
+            } yield assert(fin, isFalse) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+          },
+          testM("is safe to pull again after inner failure") {
+            for {
+              ref <- Ref.make(false)
+              pulls <- Stream
+                        .bracket(UIO.succeed(5))(_ => ref.set(true))
+                        .flatMap(_ => Stream.fail("Ouch"))
+                        .process
+                        .use(threePulls(_))
+              fin <- ref.get
+            } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+          }
+        ),
+        suite("Stream.bracketExit")(
+          testM("is safe to pull again after success") {
+            for {
+              ref   <- Ref.make(false)
+              pulls <- Stream.bracketExit(UIO.succeed(5))((_, _) => ref.set(true)).process.use(threePulls(_))
+              fin   <- ref.get
+            } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(5), Left(None), Left(None))))
+          },
+          testM("is safe to pull again after failed acquisition") {
+            for {
+              ref   <- Ref.make(false)
+              pulls <- Stream.bracketExit(IO.fail("Ouch"))((_, _) => ref.set(true)).process.use(threePulls(_))
+              fin   <- ref.get
+            } yield assert(fin, isFalse) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+          },
+          testM("is safe to pull again after inner failure") {
+            for {
+              ref <- Ref.make(false)
+              pulls <- Stream
+                        .bracketExit(UIO.succeed(5))((_, _) => ref.set(true))
+                        .flatMap(_ => Stream.fail("Ouch"))
+                        .process
+                        .use(threePulls(_))
+              fin <- ref.get
+            } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+          }
+        ),
         testM("Stream.empty is safe to pull again") {
           Stream.empty.process
             .use(threePulls(_))
