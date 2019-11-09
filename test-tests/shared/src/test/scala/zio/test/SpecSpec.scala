@@ -23,7 +23,7 @@ object SpecSpec
         ),
         suite(".only(pattern)")(
           testM("ignores all tests except one matching the given label") {
-            zio.test.checkM(genSuite) { spec =>
+            checkM(genSuite) { spec =>
               for {
                 passed1 <- isSuccess(spec.only(passingTest))
                 passed2 <- isSuccess(spec.only(failingTest))
@@ -31,7 +31,7 @@ object SpecSpec
             }
           },
           testM("ignores all tests except ones in the suite matching the given label") {
-            zio.test.checkM(genSuite) { spec =>
+            checkM(genSuite) { spec =>
               for {
                 passed1 <- isSuccess(spec.only(passingSuite))
                 passed2 <- isSuccess(spec.only(failingSuite))
@@ -39,7 +39,7 @@ object SpecSpec
             }
           },
           testM("runs everything if root suite label given") {
-            zio.test.checkM(genSuite) { spec =>
+            checkM(genSuite) { spec =>
               for {
                 passed <- isSuccess(spec.only(rootSuite))
               } yield assert(passed, isFalse)
