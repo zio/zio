@@ -332,6 +332,16 @@ object StreamPullSafetySpec
                         .use(threePulls(_))
             } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(2))))
           }
-        )
+        ),
+        testM("Stream.unfold is safe to pull again") {
+          Stream
+            .unfold(0) { n =>
+              if (n == 1) None
+              else Some((n, n + 1))
+            }
+            .process
+            .use(threePulls(_))
+            .map(assert(_, equalTo(List(Right(0), Left(None), Left(None)))))
+        }
       )
     )
