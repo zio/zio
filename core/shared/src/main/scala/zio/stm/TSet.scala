@@ -38,9 +38,7 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   final def diff(other: TSet[A]): STM[Nothing, Unit] =
-    other.toList
-      .map(_.toSet)
-      .flatMap(vals => removeIf(vals.contains))
+    other.toList.map(_.toSet).flatMap(vals => removeIf(vals.contains))
 
   /**
    * Atomically folds using pure function.
@@ -65,9 +63,7 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   final def intersect(other: TSet[A]): STM[Nothing, Unit] =
-    other.toList
-      .map(_.toSet)
-      .flatMap(vals => retainIf(vals.contains))
+    other.toList.map(_.toSet).flatMap(vals => retainIf(vals.contains))
 
   /**
    * Stores new element in the set.
@@ -114,9 +110,7 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * set.
    */
   final def union(other: TSet[A]): STM[Nothing, Unit] =
-    other.toList
-      .flatMap(vals => STM.collectAll(vals.map(put)))
-      .unit
+    other.toList.flatMap(vals => STM.collectAll(vals.map(put))).unit
 }
 
 object TSet {
@@ -124,7 +118,7 @@ object TSet {
   /**
    * Makes a new `TSet` that is initialized with specified values.
    */
-  final def apply[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
+  final def make[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
 
   /**
    * Makes an empty `TSet`.

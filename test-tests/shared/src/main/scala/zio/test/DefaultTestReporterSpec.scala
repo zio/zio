@@ -53,7 +53,7 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     )
   )
 
-  val test4 = Spec.test("Failing test", fail(Cause.fail("Fail")))
+  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")))
 
   val test4Expected = Vector(
     expectedFailure("Failing test"),
