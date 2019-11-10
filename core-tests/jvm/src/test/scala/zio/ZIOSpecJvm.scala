@@ -40,6 +40,11 @@ object ZIOSpecJvm extends ZIOBaseSpec (
       val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
       val res  = IO.collectAllPar(list)
       assertM(res, equalTo(List(1, 2, 3)))
+    },
+    testM("`IO.forkAll` returns the list of Ints in the same order") {
+      val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
+      val res  = IO.forkAll(list).flatMap[Any, Nothing, List[Int]](_.join)
+      assertM(res, equalTo(List(1, 2, 3)))
     }
   )
 )
