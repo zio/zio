@@ -792,7 +792,10 @@ private[zio] final class FiberContext[E, A](
           reportUnhandled(v)
           notifyObservers(v, observers)
           // Disconnect this node from the tree for GC reasons:
-          _children.forEach { child =>
+          val iterator = _children.iterator()
+          while (iterator.hasNext()) {
+            val child = iterator.next()
+
             child.parentFiber = self.parentFiber
           }
           self.parentFiber = null
