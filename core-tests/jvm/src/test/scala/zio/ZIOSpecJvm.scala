@@ -1,8 +1,9 @@
 package zio
+import zio.Cause.fail
 import zio.ZIOSpecJvmUtils._
 import zio.random.Random
-import zio.test.Assertion.{ equalTo, _ }
-import zio.test.{ assertM, _ }
+import zio.test.Assertion.{equalTo, _}
+import zio.test.{assertM, _}
 
 object ZIOSpecJvm
     extends ZIOBaseSpec(
@@ -157,6 +158,14 @@ object ZIOSpecJvm
             _    <- ZIO.whenCaseM(IO.succeed(v2)) { case Some(_) => ref.set(true) }
             res2 <- ref.get
           } yield assert(res1, isFalse) && assert(res2, isTrue)
+        },
+        testM("Check `unsandbox` unwraps exception") {
+          val failure: IO[Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
+          val success: IO[Cause[Any], Int]          = IO.succeed(100)
+          for {
+            message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
+            result  <- success.unsandbox
+          } yield assert(message, equalTo("fail")) && assert(result, equalTo(100))
         }
       )
     )
