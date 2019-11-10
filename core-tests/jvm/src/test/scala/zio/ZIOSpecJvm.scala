@@ -35,6 +35,11 @@ object ZIOSpecJvm extends ZIOBaseSpec (
         val res = IO.fail(i).bimap(_.toString, identity).either
         assertM(res, isLeft(equalTo(i.toString)))
       }
+    },
+    testM("`IO.collectAllPar` returns the list in the same order") {
+      val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
+      val res  = IO.collectAllPar(list)
+      assertM(res, equalTo(List(1, 2, 3)))
     }
   )
 )
