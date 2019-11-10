@@ -173,6 +173,14 @@ object ZIOSpecJvm
             supervise1 <- io.interruptChildren
             supervise2 <- IO.interruptChildren(io)
           } yield assert(supervise1, equalTo(supervise2))
+        },
+        testM("Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does") {
+          checkM(Gen.anyString) { str =>
+            for {
+              flatten1 <- IO.effectTotal(IO.effectTotal(str)).flatten
+              flatten2 <- IO.flatten(IO.effectTotal(IO.effectTotal(str)))
+            } yield assert(flatten1, equalTo(flatten2))
+          }
         }
       )
     )
