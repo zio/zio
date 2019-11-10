@@ -166,6 +166,13 @@ object ZIOSpecJvm
             message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
             result  <- success.unsandbox
           } yield assert(message, equalTo("fail")) && assert(result, equalTo(100))
+        },
+        testM("Check `supervise` returns same value as IO.supervise"){
+          val io = IO.effectTotal("supercalifragilisticexpialadocious")
+          for {
+            supervise1 <- io.interruptChildren
+            supervise2 <- IO.interruptChildren(io)
+          } yield assert(supervise1, equalTo(supervise2))
         }
       )
     )
