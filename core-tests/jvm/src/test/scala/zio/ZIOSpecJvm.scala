@@ -3,7 +3,9 @@ import zio.Cause.fail
 import zio.ZIOSpecJvmUtils._
 import zio.random.Random
 import zio.test.Assertion.{equalTo, _}
+import zio.test.environment.TestClock
 import zio.test.{assertM, _}
+import zio.duration._
 
 object ZIOSpecJvm
     extends ZIOBaseSpec(
@@ -192,12 +194,32 @@ object ZIOSpecJvm
           }
         },
         testM("Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency") {
-          checkM(Gen.alphaNumericStr) { str =>
-            val io: UIO[Option[String]] = IO.effectTotal(Some(str)) // using `Some` for object allocation
-            (io <*> io)
-              .map(tuple =>
-                assert(tuple._1 eq tuple._2, isFalse))
-          }
+          val io = random.nextString(10)
+          (io <*> io)
+            .map(tuple =>
+              assert(tuple._1, not(equalTo(tuple._2)))
+            )
+        },
+        testM("Check `memoize` method on IO[E, A] returns the same instance on repeated calls") {
+          val ioMemo = random.nextString(10).memoize
+          ioMemo.flatMap(io => io <*> io)
+            .map(tuple =>
+              assert(tuple._1, equalTo(tuple._2))
+            )
+        },
+        testM("Check `cached` method on IO[E, A] returns new instances after duration"){
+          def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
+          for {
+            ref   <- Ref.make(0)
+            cache <- incrementAndGet(ref).cached(60.minutes)
+            a     <- cache
+            _     <- TestClock.adjust(59.minutes)
+            b     <- cache
+            _     <- TestClock.adjust(1.minute)
+            c     <- cache
+            _     <- TestClock.adjust(59.minutes)
+            d     <- cache
+          } yield assert(a, equalTo(b)) && assert(b, not(equalTo(c))) && assert(c, equalTo(d))
         }
       )
     )
