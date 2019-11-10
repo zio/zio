@@ -17,7 +17,7 @@
 package zio.stm
 
 /**
- * Transactional map implemented qon top of [[TRef]] and [[TArray]]. Resolves
+ * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
  */
 class TMap[K, V] private (
