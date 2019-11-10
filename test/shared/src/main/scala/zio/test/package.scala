@@ -410,4 +410,8 @@ package object test extends AssertionVariants {
   private final def reassociate[A, B, C, D, E](f: (A, B, C, D) => E): ((((A, B), C), D)) => E = {
     case (((a, b), c), d) => f(a, b, c, d)
   }
+
+  implicit class ZioOfTestResultOps[R, E](val res: ZIO[R, E, TestResult]) {
+    def &&[R1] (that: ZIO[R1, E, TestResult]): ZIO[R1 with R, E, TestResult] = res.zipWith(that)(_ && _)
+  }
 }

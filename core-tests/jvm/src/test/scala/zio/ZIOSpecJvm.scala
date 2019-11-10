@@ -1,8 +1,8 @@
 package zio
 import zio.ZIOSpecJvmUtils._
 import zio.random.Random
-import zio.test.Assertion._
-import zio.test._
+import zio.test.Assertion.{equalTo, _}
+import zio.test.{assertM, _}
 
 object ZIOSpecJvm extends ZIOBaseSpec (
   suite("ZIOSpecJvm") (
@@ -68,6 +68,19 @@ object ZIOSpecJvm extends ZIOBaseSpec (
         val res = IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))
         assertM(res.run, fails(equalTo("fail")))
       }
+    },
+    testM("Check done lifts exit result into IO") {
+
+      val error = exampleError
+      val completed = Exit.succeed(1)
+      val interrupted: Exit[Error, Int] = Exit.interrupt
+      val terminated: Exit[Error, Int] = Exit.die(error)
+      val failed: Exit[Error, Int] = Exit.fail(error)
+
+      assertM(IO.done(completed), equalTo(1)) &&
+        assertM(IO.done(interrupted).run, isInterrupted) &&
+        assertM(IO.done(terminated).run, dies(equalTo(error))) &&
+        assertM(IO.done(failed).run, fails(equalTo(error)))
     }
   )
 )
@@ -78,4 +91,6 @@ object ZIOSpecJvmUtils {
 
   def listGen: Gen[Random with Sized, List[String]] =
     Gen.listOfN(100)(Gen.alphaNumericStr)
+
+  val exampleError = new Error("something went wrong")
 }
