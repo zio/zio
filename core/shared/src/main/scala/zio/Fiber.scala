@@ -116,6 +116,11 @@ trait Fiber[+E, +A] { self =>
     ZIO.fiberId.flatMap(fiberId => self.interruptAs(fiberId))
 
   /**
+   * Children of the fiber.
+   */
+  def children: UIO[Iterable[Fiber[Any, Any]]]
+
+  /**
    * Interrupts the fiber as if interrupted from the specified fiber. If the
    * fiber has already exited, the returned effect will resume immediately.
    * Otherwise, the effect will resume when the fiber exits.
@@ -163,6 +168,7 @@ trait Fiber[+E, +A] { self =>
     new Fiber[E1, B] {
       final def await: UIO[Exit[E1, B]] =
         self.await.flatMap(_.foreach(f))
+      final def children: UIO[Iterable[Fiber[Any, Any]]] = self.children
       final def inheritFiberRefs: UIO[Unit] =
         self.inheritFiberRefs
       final def interruptAs(id: FiberId): UIO[Exit[E1, B]] =
@@ -188,6 +194,8 @@ trait Fiber[+E, +A] { self =>
           case (Exit.Failure(_), e2) => e2
           case (e1, _)               => e1
         }
+
+      final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
       final def poll: UIO[Option[Exit[E1, A1]]] =
         self.poll.zipWith(that.poll)(_ orElse _)
@@ -322,6 +330,8 @@ trait Fiber[+E, +A] { self =>
       def await: UIO[Exit[E1, C]] =
         self.await.flatMap(IO.done).zipWithPar(that.await.flatMap(IO.done))(f).run
 
+      final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
+
       def poll: UIO[Option[Exit[E1, C]]] =
         self.poll.zipWith(that.poll) {
           case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ && _))
@@ -350,9 +360,11 @@ object Fiber {
     status: Status,
     interruptors: Set[FiberId],
     interruptStatus: InterruptStatus,
-    children: Set[Fiber[Any, Any]],
+    children: UIO[Iterable[Fiber[Any, Any]]],
     executor: Executor
   )
+
+  final case class Dump(fiberId: FiberId, status: Status, trace: ZTrace)
 
   sealed trait Status extends Serializable with Product
   object Status {
@@ -390,9 +402,10 @@ object Fiber {
   final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
       final def await: UIO[Exit[E, A]]                    = IO.succeed(exit)
-      final def poll: UIO[Option[Exit[E, A]]]             = IO.succeed(Some(exit))
+      final def children: UIO[Iterable[Fiber[Any, Any]]]  = UIO(Nil)
       final def interruptAs(id: FiberId): UIO[Exit[E, A]] = IO.succeed(exit)
       final def inheritFiberRefs: UIO[Unit]               = IO.unit
+      final def poll: UIO[Option[Exit[E, A]]]             = IO.succeed(Some(exit))
     }
 
   /**
@@ -428,11 +441,13 @@ object Fiber {
 
       final def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
-      final def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
+      final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
 
       final def interruptAs(id: FiberId): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
       final def inheritFiberRefs: UIO[Unit] = IO.unit
+
+      final def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
     }
 
   /**
@@ -483,18 +498,19 @@ object Fiber {
   final val never: Fiber[Nothing, Nothing] =
     new Fiber[Nothing, Nothing] {
       final def await: UIO[Exit[Nothing, Nothing]]                    = IO.never
-      final def poll: UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeed(None)
+      final def children: UIO[Iterable[Fiber[Any, Any]]]              = UIO(Nil)
       final def interruptAs(id: FiberId): UIO[Exit[Nothing, Nothing]] = IO.never
       final def inheritFiberRefs: UIO[Unit]                           = IO.unit
+      final def poll: UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeed(None)
     }
 
   /**
    * The root fibers.
    */
-  final val roots: UIO[Set[Fiber[_, _]]] = UIO {
+  final val roots: UIO[Set[Fiber[Any, Any]]] = UIO {
     import scala.collection.JavaConverters._
 
-    _rootFibers.asScala.asInstanceOf[Set[Fiber[_, _]]]: @silent("JavaConverters")
+    _rootFibers.asScala.asInstanceOf[Set[Fiber[Any, Any]]]: @silent("JavaConverters")
   }
 
   /**

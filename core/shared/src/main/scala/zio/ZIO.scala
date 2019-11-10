@@ -365,8 +365,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Acts on the children of this fiber, guaranteeing the specified callback
    * will be invoked, whether or not this effect succeeds.
    */
-  final def ensuringChildren[R1 <: R](f: Set[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
-    self.ensuring(ZIO.descriptorWith(d => f(d.children)))
+  final def ensuringChildren[R1 <: R](f: Iterable[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
+    self.ensuring(ZIO.children.flatMap(f))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
@@ -539,8 +539,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns a new effect that, on exit of this effect, invokes the specified
    * handler with all forked (non-daemon) children of this effect.
    */
-  final def handleChildrenWith[R1 <: R, E1 >: E](f: Set[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E1, A] =
-    self.ensuring(ZIO.descriptor.flatMap(d => f(d.children)))
+  final def handleChildrenWith[R1 <: R, E1 >: E](f: Iterable[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E1, A] =
+    self.ensuring(ZIO.children.flatMap(f))
 
   /**
    * Returns a successful effect with the head of the list if the list is
@@ -1531,7 +1531,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Sequentially zips this effect with the specified effect using the
    * specified combiner function.
    */
-  final def zipWith[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
+  final def zipWith[R1 <: R, E1 >: E, B, C](that: => ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
     self.flatMap(a => that.map(ZIOFn(f)(b => f(a, b))))
 
   /**
@@ -1784,7 +1784,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Provides access to the list of child fibers supervised by this fiber.
    */
-  final def children: UIO[Set[Fiber[Any, Any]]] = descriptor.map(_.children)
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = descriptor.flatMap(_.children)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect

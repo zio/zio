@@ -83,7 +83,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.children]]
    */
-  final def children: UIO[Set[Fiber[Any, Any]]] = ZIO.children
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see [[zio.ZIO.collectAll]]

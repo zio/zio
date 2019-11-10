@@ -72,7 +72,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.children]]
    */
-  final def children: UIO[Set[Fiber[Any, Any]]] = ZIO.children
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see See [[zio.ZIO.collectAll]]

@@ -66,7 +66,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val environments    = Stack[AnyRef](startEnv)
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-  private[this] val children        = new AtomicReference(Set[FiberContext[_, _]]())
+  private[this] val _children       = Platform.newConcurrentSet[FiberContext[Any, Any]]()
   private[this] val daemonStatus    = StackBool(startDStatus)
 
   private[this] val tracingStatus =
@@ -141,7 +141,7 @@ private[zio] final class FiberContext[E, A](
     )
   }
 
-  final def runAsync(k: Callback[E, A]): Unit =
+  private[zio] final def runAsync(k: Callback[E, A]): Unit =
     register0(xx => k(Exit.flatten(xx))) match {
       case null =>
       case v    => k(v)
@@ -609,7 +609,7 @@ private[zio] final class FiberContext[E, A](
       state.get.status,
       state.get.interrupted.interruptors,
       InterruptStatus.fromBoolean(isInterruptible()),
-      children.get.asInstanceOf[Set[Fiber[Any, Any]]],
+      children,
       executor
     )
 
@@ -641,8 +641,8 @@ private[zio] final class FiberContext[E, A](
     )
 
     if (!isDaemon) {
-      self.addChild(childContext)
-      childContext.onDone(_ => self.removeChild(childContext))
+      self._children.add(childContext.asInstanceOf[FiberContext[Any, Any]])
+      childContext.onDone(_ => { val _ = self._children.remove(childContext) })
     }
 
     platform.executor.submitOrThrow(() => childContext.evaluateNow(zio))
@@ -663,6 +663,9 @@ private[zio] final class FiberContext[E, A](
   }
 
   final def interruptAs(fiberId: FiberId): UIO[Exit[E, A]] = kill0(fiberId)
+
+  final def children: UIO[Iterable[Fiber[Any, Any]]] =
+    UIO(_children.toArray().asInstanceOf[Array[Fiber[Any, Any]]])
 
   final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
@@ -787,7 +790,7 @@ private[zio] final class FiberContext[E, A](
           reportUnhandled(v)
           notifyObservers(v, observers)
           // Disconnect this node from the tree for GC reasons:
-          children.get.foreach { child =>
+          _children.forEach { child =>
             child.parentFiber = self.parentFiber
           }
           self.parentFiber = null
@@ -826,8 +829,9 @@ private[zio] final class FiberContext[E, A](
 
     val setInterrupt = UIO(setInterruptedLoop())
 
+    @silent("JavaConverters")
     val interruptChildren =
-      UIO.effectSuspendTotal(children.get.foldLeft[UIO[Any]](UIO.unit) {
+      UIO.effectSuspendTotal(_children.asScala.foldLeft[UIO[Any]](UIO.unit) {
         case (acc, child) => acc.flatMap(_ => child.interruptAs(fiberId))
       })
 
@@ -846,20 +850,6 @@ private[zio] final class FiberContext[E, A](
 
       case Done(v) => k(Exit.succeed(v))
     }
-  }
-
-  @tailrec
-  private[this] def addChild(child: FiberContext[_, _]): Unit = {
-    val oldState = children.get
-
-    if (!children.compareAndSet(oldState, oldState + child)) addChild(child)
-  }
-
-  @tailrec
-  private[this] def removeChild(child: FiberContext[_, _]): Unit = {
-    val oldState = children.get
-
-    if (!children.compareAndSet(oldState, oldState - child)) removeChild(child)
   }
 
   private[this] final def observe0(
