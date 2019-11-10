@@ -95,6 +95,22 @@ object ZIOSpecJvm extends ZIOBaseSpec (
       }.sandbox.either.map(
         assert(_,  isLeft(equalTo(Cause.interrupt)))
       )
+    },
+    testM("Check `when` executes correct branch only"){
+      for {
+        effectRef <- Ref.make(0)
+        _         <- effectRef.set(1).when(false)
+        val1      <- effectRef.get
+        _         <- effectRef.set(2).when(true)
+        val2      <- effectRef.get
+        failure   = new Exception("expected")
+        _         <- IO.fail(failure).when(false)
+        failed    <- IO.fail(failure).when(true).either
+      } yield {
+        assert(val1, equalTo(0)) &&
+        assert(val2, equalTo(2)) &&
+        assert(failed, isLeft(equalTo(failure)))
+      }
     }
   )
 )
