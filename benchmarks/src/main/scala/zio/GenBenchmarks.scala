@@ -16,42 +16,56 @@ class GenBenchmarks {
   var size: Int = _
 
   @Benchmark
-  def zioDouble: Double =
-    unsafeRun(Gen.uniform.sample.map(_.value).runHead.get)
+  def zioDouble: List[Double] =
+    unsafeRun(Gen.listOfN(size)(Gen.uniform).sample.map(_.value).runHead.get)
 
   @Benchmark
-  def zioIntListOfSizeN: List[Int] =
-    unsafeRun(Gen.listOfN(size)(Gen.anyInt).sample.map(_.value).runHead.get)
+  def zioIntListsOfSizeN: List[List[Int]] =
+    unsafeRun(Gen.listOfN(size)(Gen.listOfN(size)(Gen.anyInt)).sample.map(_.value).runHead.get)
 
   @Benchmark
-  def zioStringOfSizeN: String =
-    unsafeRun(Gen.stringN(size)(Gen.anyChar).sample.map(_.value).runHead.get)
+  def zioStringsOfSizeN: List[String] =
+    unsafeRun(Gen.listOfN(size)(Gen.stringN(size)(Gen.anyChar)).sample.map(_.value).runHead.get)
 
   @Benchmark
-  def scalaCheckDouble: Double =
-    scalacheck.Gen.choose(0.0, 1.0).sample.get
+  def scalaCheckDoubles: List[Double] =
+    scalacheck.Gen.listOfN(size, scalacheck.Gen.choose(0.0, 1.0)).sample.get
 
   @Benchmark
-  def scalaCheckIntListOfSizeN: List[Int] =
-    scalacheck.Gen.listOfN(size, scalacheck.Gen.choose(Int.MinValue, Int.MaxValue)).sample.get
+  def scalaCheckIntListsOfSizeN: List[List[Int]] =
+    scalacheck.Gen.listOfN(size, scalacheck.Gen.listOfN(size, scalacheck.Gen.choose(Int.MinValue, Int.MaxValue))).sample.get
 
   @Benchmark
-  def scalaCheckStringOfSizeN: String =
-    scalacheck.Gen.listOfN(size, scalacheck.Gen.alphaChar).map(_.mkString).sample.get
+  def scalaCheckStringsOfSizeN: List[String] =
+    scalacheck.Gen.listOfN(size, scalacheck.Gen.listOfN(size, scalacheck.Gen.alphaChar).sample.mkString).sample.get
 
   @Benchmark
-  def hedgehogDouble: Double =
+  def hedgehogDoubles: List[Double] =
     hedgehog.Gen
-      .double(hedgehog.Range.constant(0.0, 1.0))
+      .list(hedgehog.Gen.double(hedgehog.Range.constant(0.0, 1.0)), hedgehog.Range.constant(0, size))
+        .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
+        .value
+        ._2
+        .head
+
+  @Benchmark
+  def hedgehogIntListsOfSizeN: List[List[Int]] = {
+    val listRange = hedgehog.Range.constant(0, size)
+
+    hedgehog.Gen
+      .int(hedgehog.Range.constant(Int.MinValue, Int.MaxValue))
+      .list(listRange)
+      .list(listRange)
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
       .head
+  }
 
   @Benchmark
-  def hedgehogIntListOfSizeN: List[Int] =
+  def hedgehogStringsOfSizeN: List[String] =
     hedgehog.Gen
-      .int(hedgehog.Range.constant(Int.MinValue, Int.MaxValue))
+      .string(hedgehog.Gen.alpha, hedgehog.Range.constant(0, size))
       .list(hedgehog.Range.constant(0, size))
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
@@ -59,24 +73,15 @@ class GenBenchmarks {
       .head
 
   @Benchmark
-  def hedgehogStringOfSizeN: String =
-    hedgehog.Gen
-      .string(hedgehog.Gen.alpha, hedgehog.Range.constant(0, size))
-      .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
-      .value
-      ._2
-      .head
+  def nyayaDoubles: List[Double] =
+    nyaya.gen.Gen.double.list.sample
 
   @Benchmark
-  def nyayaDouble: Double =
-    nyaya.gen.Gen.double.sample
+  def nyayaIntListsOfSizeN: List[List[Int]] =
+    nyaya.gen.Gen.int.list(0 to size).list(0 to size).sample
 
   @Benchmark
-  def nyayaIntListOfSizeN: List[Int] =
-    nyaya.gen.Gen.int.list(0 to size).sample
-
-  @Benchmark
-  def nyayaStringOfSizeN: String =
-    nyaya.gen.Gen.string(0 to size).sample
+  def nyayaStringsOfSizeN: List[String] =
+    nyaya.gen.Gen.string(0 to size).list(0 to size).sample
 
 }
