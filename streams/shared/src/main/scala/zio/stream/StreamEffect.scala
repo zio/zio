@@ -312,25 +312,6 @@ private[stream] object StreamEffect extends Serializable {
     override def fillInStackTrace() = this
   }
 
-  final def memoizeEnd[R, E, A](pull: ZManaged[R, E, () => A]): ZManaged[R, E, () => A] =
-    pull.flatMap { thunk =>
-      ZManaged.effectTotal {
-        var done = false
-
-        () => {
-          if (done) end
-          else {
-            try thunk()
-            catch {
-              case t: Throwable =>
-                done = true
-                throw t
-            }
-          }
-        }
-      }
-    }
-
   def end[A]: A = throw End
 
   def fail[E, A](e: E): A = throw Failure(e)
@@ -346,7 +327,17 @@ private[stream] object StreamEffect extends Serializable {
     new StreamEffect(pull)
 
   final def fail[E](e: E): StreamEffect[Any, E, Nothing] =
-    StreamEffect(memoizeEnd(Managed.effectTotal(() => fail(e))))
+    StreamEffect {
+      Managed.effectTotal {
+        var done = false
+        () =>
+          if (done) end
+          else {
+            done = true
+            fail(e)
+          }
+      }
+    }
 
   final def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
