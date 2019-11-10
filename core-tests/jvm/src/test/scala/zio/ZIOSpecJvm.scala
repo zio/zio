@@ -136,8 +136,20 @@ object ZIOSpecJvm
           assert(conditionVal2, equalTo(2)) &&
           assert(failed, isLeft(equalTo(failure)))
         }
+      },
+      testM("Check `whenCase` executes correct branch only") {
+        val v1: Option[Int] = None
+        val v2: Option[Int] = Some(0)
+        for {
+          ref  <- Ref.make(false)
+          _    <- ZIO.whenCase(v1) { case Some(_) => ref.set(true) }
+          res1 <- ref.get
+          _    <- ZIO.whenCase(v2) { case Some(_) => ref.set(true) }
+          res2 <- ref.get
+        } yield assert(res1, isFalse) && assert(res2, isTrue)
       }
     )
+
 object ZIOSpecJvmUtils {
 
   def functionIOGen: Gen[Random with Sized, String => Task[Int]] =
