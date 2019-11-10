@@ -19,6 +19,7 @@ package zio
 import zio.internal.Executor
 
 import scala.concurrent.Future
+import scala.collection.JavaConverters._
 import com.github.ghik.silencer.silent
 
 /**
@@ -175,6 +176,7 @@ trait Fiber[+E, +A] { self =>
         self.interruptAs(id).flatMap(_.foreach(f))
       final def poll: UIO[Option[Exit[E1, B]]] =
         self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
+      final def status: UIO[Fiber.Status] = self.status
     }
 
   /**
@@ -187,7 +189,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam A1 type of the other fiber
    * @return `Fiber[E1, A1]`
    */
-  def orElse[E1 >: E, A1 >: A](that: Fiber[E1, A1]): Fiber[E1, A1] =
+  def orElse[E1 >: E, A1 >: A](that: => Fiber[E1, A1]): Fiber[E1, A1] =
     new Fiber[E1, A1] {
       final def await: UIO[Exit[E1, A1]] =
         self.await.zipWith(that.await) {
@@ -205,6 +207,8 @@ trait Fiber[+E, +A] { self =>
 
       final def inheritFiberRefs: UIO[Unit] =
         that.inheritFiberRefs *> self.inheritFiberRefs
+
+      final def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
     }
 
   /**
@@ -226,6 +230,11 @@ trait Fiber[+E, +A] { self =>
    * @return `UIO[Option[Exit, E, A]]]`
    */
   def poll: UIO[Option[Exit[E, A]]]
+
+  /**
+   * The status of the fiber.
+   */
+  def status: UIO[Fiber.Status]
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]].
@@ -342,6 +351,8 @@ trait Fiber[+E, +A] { self =>
         (self interruptAs id).zipWith(that interruptAs id)(_.zipWith(_)(f, _ && _))
 
       def inheritFiberRefs: UIO[Unit] = that.inheritFiberRefs *> self.inheritFiberRefs
+
+      final def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
     }
 }
 
@@ -366,7 +377,20 @@ object Fiber {
 
   final case class Dump(fiberId: FiberId, status: Status, trace: ZTrace)
 
-  sealed trait Status extends Serializable with Product
+  sealed trait Status extends Serializable with Product { self =>
+    import Status._
+
+    /**
+     * Combines the two statuses into one in an associative way.
+     */
+    final def <>(that: Status): Status = (self, that) match {
+      case (Done, Done)                           => Done
+      case (Suspended(i1, e1), Suspended(i2, e2)) => Suspended(i1 && i2, e1 max e2)
+      case (Suspended(_, _), _)                   => self
+      case (_, Suspended(_, _))                   => that
+      case _                                      => Running
+    }
+  }
   object Status {
     case object Done                                                extends Status
     case object Running                                             extends Status
@@ -406,7 +430,36 @@ object Fiber {
       final def interruptAs(id: FiberId): UIO[Exit[E, A]] = IO.succeed(exit)
       final def inheritFiberRefs: UIO[Unit]               = IO.unit
       final def poll: UIO[Option[Exit[E, A]]]             = IO.succeed(Some(exit))
+      final def status: UIO[Fiber.Status]                 = UIO(Fiber.Status.Done)
     }
+
+  /**
+   * Collects a complete dump of all fibers. This could potentially be quite large.
+   *
+   * TODO: Switch to "streaming lazy" version.
+   */
+  final val dump: UIO[Iterable[Dump]] = UIO.effectSuspendTotal {
+    import internal.FiberContext
+
+    def loop(fibers: Iterable[FiberContext[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
+      ZIO
+        .collectAll(fibers.toIterable.map { context =>
+          for {
+            status   <- context.status
+            trace    <- ZIO.trace
+            children <- context.children
+          } yield (children, Dump(context.fiberId, status, trace))
+        })
+        .flatMap { (collected: List[(Iterable[Fiber[Any, Any]], Dump)]) =>
+          val children = collected.map(_._1).flatten
+          val dumps    = collected.map(_._2)
+          val acc2     = acc.map(_ ++ dumps.toVector)
+
+          if (children.isEmpty) acc2 else loop(children.asInstanceOf[Iterable[FiberContext[Any, Any]]], acc2)
+        }
+
+    loop(_rootFibers.asScala, UIO(Vector()))
+  }
 
   /**
    * A fiber that has already failed with the specified value.
@@ -448,6 +501,10 @@ object Fiber {
       final def inheritFiberRefs: UIO[Unit] = IO.unit
 
       final def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
+
+      final def status: UIO[Fiber.Status] = UIO {
+        if (thunk.isCompleted) Status.Done else Status.Running
+      }
     }
 
   /**
@@ -502,15 +559,14 @@ object Fiber {
       final def interruptAs(id: FiberId): UIO[Exit[Nothing, Nothing]] = IO.never
       final def inheritFiberRefs: UIO[Unit]                           = IO.unit
       final def poll: UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeed(None)
+      final def status: UIO[Fiber.Status]                             = UIO(Status.Suspended(false, 0))
     }
 
   /**
    * The root fibers.
    */
   final val roots: UIO[Set[Fiber[Any, Any]]] = UIO {
-    import scala.collection.JavaConverters._
-
-    _rootFibers.asScala.asInstanceOf[Set[Fiber[Any, Any]]]: @silent("JavaConverters")
+    _rootFibers.asScala.toSet: @silent("JavaConverters")
   }
 
   /**

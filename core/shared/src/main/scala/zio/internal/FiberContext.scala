@@ -32,7 +32,7 @@ import scala.collection.JavaConverters._
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-  fiberId: FiberId,
+  val fiberId: FiberId,
   @volatile var parentFiber: FiberContext[_, _],
   platform: Platform,
   startEnv: AnyRef,
@@ -683,6 +683,8 @@ private[zio] final class FiberContext[E, A](
           ref.update(old => ref.combine(old, value))
       }
   }
+
+  final def status: UIO[Fiber.Status] = UIO(state.get.status)
 
   @tailrec
   private[this] final def enterAsync(epoch: Long): Boolean = {
