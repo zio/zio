@@ -50,6 +50,11 @@ object ZIOSpecJvm extends ZIOBaseSpec (
       val list = List(1, 2, 3).map(IO.effectTotal[Int](_))
       val res  = IO.collectAllParN(2)(list)
       assertM(res, equalTo(List(1, 2, 3)))
+    },
+    testM("`IO.foreachParN` returns the list of created Strings in the appropriate order") {
+      val list = List(1, 2, 3)
+      val res  = IO.foreachParN(2)(list)(x => IO.effectTotal(x.toString))
+      assertM(res, equalTo(List("1", "2", "3")))
     }
   )
 )
