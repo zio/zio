@@ -178,7 +178,7 @@ import zio.test.mock._
 trait AccountEvent
 ```
 
-```scala mdoc:silent
+```scala
 import zio.macros.access.accessible
 import zio.macros.mock.mockable
 import zio.console.Console
@@ -202,6 +202,7 @@ object AccountObserver {
 trait AccountObserverLive extends AccountObserver {
   // dependency on Console module
   val console: Console.Service[Any]
+  import zio.CanSucceed.canSucceed
 
   val accountObserver = new AccountObserver.Service[Any] {
     def processEvent(event: AccountEvent): UIO[Unit] =
@@ -226,7 +227,7 @@ For each built-in ZIO service you will find their mockable counterparts in `zio.
 
 Finally we're all set and can create ad-hoc mock environments with our services.
 
-```scala mdoc:silent
+```scala
 import zio.test._
 import zio.test.Assertion._
 
@@ -241,7 +242,7 @@ val mockEnv: Managed[Nothing, MockConsole] = (
 
 ## Providing mocked environment
 
-```scala mdoc:silent
+```scala
 object AccountObserverSpec extends DefaultRunnableSpec(
   suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
@@ -261,7 +262,7 @@ object AccountObserverSpec extends DefaultRunnableSpec(
 In some cases we have more than one collaborating service being called. In such situations we need to build our expectations seperately for each
 service and then combine them into single environment:
 
-```scala mdoc:silent
+```scala
 import zio.console.Console
 import zio.random.Random
 
