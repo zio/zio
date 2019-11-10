@@ -228,6 +228,14 @@ object ZIOSpecJvm
             race2 <- IO.raceAll(io, ios)
           } yield assert(race1, equalTo(race2))
         },
+        testM("Check `firstSuccessOf` method returns the same IO[E, A] as `IO.firstSuccessOf` does") {
+          val io  = IO.effectTotal("supercalifragilisticexpialadocious")
+          val ios = List.empty[UIO[String]]
+          for {
+            race1 <- io.firstSuccessOf(ios)
+            race2 <- IO.firstSuccessOf(io, ios)
+          } yield assert(race1, equalTo(race2))
+        }
       )
     )
 
