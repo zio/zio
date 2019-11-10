@@ -151,6 +151,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   }
 
   def t5 = forAll { (i: Int) =>
+    import zio.CanSucceed.canSucceed
     val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).either)
     res must_=== Left(i.toString)
   }
@@ -414,6 +415,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   }
 
   def testSomeOnException = {
+    import zio.CanSucceed.canSucceed
     val task: IO[Option[Throwable], Int] = Task.fail(new RuntimeException("Failed Task")).some
     unsafeRun(task) must throwA[FiberFailure]
   }
@@ -429,6 +431,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   }
 
   def testNoneOnException = {
+    import zio.CanSucceed.canSucceed
     val task: IO[Option[Throwable], Unit] = Task.fail(new RuntimeException("Failed Task")).none
     unsafeRun(task) must throwA[FiberFailure]
   }
@@ -444,6 +447,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   }
 
   def testFlattenErrorOptionOnSomeValue = {
+    import zio.CanFail.canFail
     val task: IO[String, Int] = IO.succeed(1).flattenErrorOption("Default")
     unsafeRun(task) must_=== 1
   }
@@ -459,6 +463,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   }
 
   def testOptionalOnSomeValue = {
+    import zio.CanFail.canFail
     val task: IO[String, Option[Int]] = IO.succeed(1).optional
     unsafeRun(task) must_=== Some(1)
   }
@@ -586,8 +591,8 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     ) must_=== Right(0)
 
     val partialBadCase = unsafeRun(
-      exactlyOnce(0)(_.collectM("Predicate failed!")({ case v @ 0 => ZIO.fail("Partial failed!") })).sandbox.either
-    ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
+      exactlyOnce(0)(_.collectM("Predicate failed!")({ case v @ 0 => ZIO.fail("Partial failed!") })).sandbox.flip
+    ) must_=== Cause.fail("Partial failed!")
 
     val badCase = unsafeRun(
       exactlyOnce(1)(_.collectM("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })).sandbox.either
@@ -667,8 +672,8 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def eagerT2 = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
-      a <- str.fail.either
-      b <- IO.fail(str).either
+      a <- str.fail.flip
+      b <- IO.fail(str).flip
     } yield a must ===(b))
   }
 

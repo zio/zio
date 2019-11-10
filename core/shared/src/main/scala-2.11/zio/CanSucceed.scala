@@ -19,17 +19,18 @@ package zio
 import scala.annotation.implicitNotFound
 
 /**
- * A value of type `CanFail[E]` provides implicit evidence that an effect with
- * failure type `E` can fail, that is, that `E` is not equal to `Nothing`.
+ * A value of type `CanSucceed[A]` provides implicit evidence that an effect
+ * with success type `A` can succeed, that is, that `A` is not equal to
+ * `Nothing`.
  */
-@implicitNotFound("This operation only makes sense for effects that can fail.")
-sealed trait CanFail[-E]
+sealed trait CanSucceed[-A]
 
-object CanFail extends CanFail[Any] {
+@implicitNotFound("This operation only makes sense for effects that can succeed.")
+object CanSucceed extends CanSucceed[Any] {
 
-  implicit final def canFail[E]: CanFail[E] = CanFail
+  implicit final def canSucceed[A]: CanSucceed[A] = CanSucceed
 
-  // Provide multiple ambiguous values so an implicit CanFail[Nothing] cannot be found.
-  implicit final val canFailAmbiguous1: CanFail[Nothing] = CanFail
-  implicit final val canFailAmbiguous2: CanFail[Nothing] = CanFail
+  // Provide multiple ambiguous values so an implicit CanSucceed[Nothing] cannot be found.
+  implicit final val canSucceedAmbiguous1: CanSucceed[Nothing] = CanSucceed
+  implicit final val canSucceedAmbiguous2: CanSucceed[Nothing] = CanSucceed
 }

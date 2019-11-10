@@ -281,9 +281,9 @@ object ZScheduleSpec
           testM("run the specified finalizer as soon as the schedule is complete") {
             for {
               p          <- Promise.make[Nothing, Unit]
-              v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
+              v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).run
               finalizerV <- p.poll
-            } yield assert(v.isEmpty, equalTo(true)) && assert(finalizerV.isDefined, equalTo(true))
+            } yield assert(v, fails(anything)) && assert(finalizerV, isSome(anything))
           }
         ),
         testM("`ensuring` should only call finalizer once.") {
@@ -362,10 +362,7 @@ object ZScheduleSpecUtil {
    * It always fails, with the incremented value in error
    */
   def alwaysFail(ref: Ref[Int]): IO[String, Int] =
-    for {
-      i <- ref.update(_ + 1)
-      x <- IO.fail(s"Error: $i")
-    } yield x
+    ref.update(_ + 1).flatMap(i => IO.fail(s"Error: $i"))
 
   /**
    * A function that increments ref each time it is called.

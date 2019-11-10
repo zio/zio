@@ -71,7 +71,7 @@ object RTSSpec
                   (r: Int, exit: Exit[Any, Any]) =>
                     if (exit.interrupted) exitLatch.succeed(r)
                     else IO.die(new Error("Unexpected case"))
-                )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+                )(a => startLatch.succeed(a) *> IO.never)
               fiber      <- bracketed.fork
               startValue <- startLatch.await
               _          <- fiber.interrupt.fork
@@ -117,7 +117,7 @@ object RTSSpec
             IO.effect(if (c.incrementAndGet() <= 1) throw new RuntimeException("x"))
               .forever
               .ensuring(IO.unit)
-              .either
+              .ignore
               .forever
 
           val zio =

@@ -124,10 +124,11 @@ object ZIOSpec
             assertM(ZIO.succeed(List(1, 2, 3)).head.either, isRight(equalTo(1)))
           },
           testM("on empty list") {
-            assertM(ZIO.succeed(List.empty).head.either, isLeft(isNone))
+            assertM(ZIO.succeed(List.empty).head.flip, isNone)
           },
           testM("on failure") {
-            assertM(ZIO.fail("Fail").head.either, isLeft(isSome(equalTo("Fail"))))
+            import zio.CanSucceed.canSucceed
+            assertM(ZIO.fail("Fail").head.flip, isSome(equalTo("Fail")))
           }
         ),
         suite("ignore")(
@@ -146,10 +147,11 @@ object ZIOSpec
             assertM(ZIO.succeed(Left("Left")).left, equalTo("Left"))
           },
           testM("on Right value") {
-            assertM(ZIO.succeed(Right("Right")).left.either, isLeft(isNone))
+            assertM(ZIO.succeed(Right("Right")).left.flip, isNone)
           },
           testM("on failure") {
-            assertM(ZIO.fail("Fail").left.either, isLeft(isSome(equalTo("Fail"))))
+            import zio.CanSucceed.canSucceed
+            assertM(ZIO.fail("Fail").left.flip, isSome(equalTo("Fail")))
           }
         ),
         suite("leftOrFail")(
@@ -206,13 +208,16 @@ object ZIOSpec
             assertM(ZIO.succeed(11).option, equalTo(Some(11)))
           },
           testM("return failure as None") {
+            import zio.CanSucceed.canSucceed
             assertM(ZIO.fail(123).option, equalTo(None))
           },
           testM("not catch throwable") {
             import zio.CanFail.canFail
+            import zio.CanSucceed.canSucceed
             assertM(ZIO.die(ExampleError).option.run, dies(equalTo(ExampleError)))
           },
           testM("catch throwable after sandboxing") {
+            import zio.CanSucceed.canSucceed
             assertM(ZIO.die(ExampleError).sandbox.option, equalTo(None))
           }
         ),
@@ -235,9 +240,10 @@ object ZIOSpec
             assertM(ZIO.succeed(Right("Right")).right, equalTo("Right"))
           },
           testM("on Left value") {
-            assertM(ZIO.succeed(Left("Left")).right.either, isLeft(isNone))
+            assertM(ZIO.succeed(Left("Left")).right.flip, isNone)
           },
           testM("on failure") {
+            import zio.CanSucceed.canSucceed
             assertM(ZIO.fail("Fail").right.either, isLeft(isSome(equalTo("Fail"))))
           }
         ),
@@ -291,12 +297,12 @@ object ZIOSpec
             assertM(io, isLeft(equalTo(Cause.die(ExampleError))))
           },
           testM("effectSuspend must catch throwable") {
-            val io = ZIO.effectSuspend[Any, Nothing](throw ExampleError).either
-            assertM(io, isLeft(equalTo(ExampleError)))
+            val io = ZIO.effectSuspend[Any, Nothing](throw ExampleError).flip
+            assertM(io, equalTo(ExampleError))
           },
           testM("effectSuspendWith must catch throwable") {
-            val io = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either
-            assertM(io, isLeft(equalTo(ExampleError)))
+            val io = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).flip
+            assertM(io, equalTo(ExampleError))
           },
           testM("effectSuspendTotal must be evaluatable") {
             assertM(IO.effectSuspendTotal(IO.effectTotal(42)), equalTo(42))
@@ -370,7 +376,7 @@ object ZIOSpec
           },
           testM("flip must make value into error") {
             val io = IO.succeed(42).flip
-            assertM(io.either, isLeft(equalTo(42)))
+            assertM(io.run, fails(equalTo(42)))
           },
           testM("flipping twice returns identical value") {
             val io = IO.succeed(42)
@@ -406,7 +412,7 @@ object ZIOSpec
             assertM(io, isSome(equalTo(Cause.die(ExampleError))))
           },
           testM("catch sandbox terminate") {
-            val io = IO.effectTotal(throw ExampleError).sandbox.fold(identity, identity)
+            val io = IO.effectTotal(throw ExampleError).sandbox.flip
             assertM(io, equalTo(Cause.die(ExampleError)))
           },
           testM("uncaught fail") {
@@ -476,17 +482,13 @@ object ZIOSpec
             assertM(io.provide(Clock.Live), isNone)
           },
           testM("catchAllCause") {
-            val io =
-              for {
-                _ <- ZIO.succeed(42)
-                f <- ZIO.fail("Uh oh!")
-              } yield f
+            val io = ZIO.succeed(42) *> ZIO.fail("Uh oh!")
 
             assertM(io.catchAllCause(ZIO.succeed), equalTo(Cause.fail("Uh oh!")))
           },
           testM("exception in fromFuture does not kill fiber") {
-            val io = ZIO.fromFuture(_ => throw ExampleError).either
-            assertM(io, isLeft(equalTo(ExampleError)))
+            val io = ZIO.fromFuture(_ => throw ExampleError).flip
+            assertM(io, equalTo(ExampleError))
           }
         ),
         suite("RTS finalizers")(
@@ -924,8 +926,8 @@ object ZIOSpec
             assertM(io, equalTo(24))
           },
           testM("race of fail with fail") {
-            val io = IO.fail(42).race(IO.fail(42)).either
-            assertM(io, isLeft(equalTo(42)))
+            val io = IO.fail(42).race(IO.fail(42)).flip
+            assertM(io, equalTo(42))
           },
           testM("race of value & never") {
             val io = IO.effectTotal(42).race(IO.never)
@@ -936,8 +938,8 @@ object ZIOSpec
             assertM(io, isRight(equalTo(100)))
           },
           testM("firstSuccessOf of failures") {
-            val io = ZIO.firstSuccessOf(IO.fail(0).delay(10.millis), List(IO.fail(101))).either
-            assertM(io.provide(Clock.Live), isLeft(equalTo(101)))
+            val io = ZIO.firstSuccessOf(IO.fail(0).delay(10.millis), List(IO.fail(101))).flip
+            assertM(io.provide(Clock.Live), equalTo(101))
           },
           testM("firstSuccessOF of failures & 1 success") {
             val io = ZIO.firstSuccessOf(IO.fail(0), List(IO.succeed(102).delay(1.millis))).either
@@ -961,7 +963,7 @@ object ZIOSpec
               winner = s.await *> IO.fromEither(Left(new Exception))
               loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
               race   = winner raceAttempt loser
-              _      <- race.either
+              _      <- race.ignore
               b      <- effect.await
             } yield assert(b, equalTo(42))
           },
@@ -1073,7 +1075,7 @@ object ZIOSpec
               for {
                 promise <- Promise.make[Nothing, Unit]
                 fiber <- IO
-                          .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))(
+                          .bracketExit(promise.succeed(()) *> IO.never)(
                             (_, _: Exit[Any, Any]) => IO.unit
                           )(
                             _ => IO.unit: IO[Nothing, Unit]
@@ -1171,6 +1173,7 @@ object ZIOSpec
             } yield assert(value, isTrue)
           },
           testM("recovery of interruptible") {
+            import zio.CanSucceed.canSucceed
             for {
               recovered <- Ref.make(false)
               fiber <- withLatch { release =>
@@ -1188,16 +1191,16 @@ object ZIOSpec
           },
           testM("sandbox of interruptible") {
             for {
-              recovered <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
+              recovered <- Ref.make[Option[Cause[Nothing]]](None)
               fiber <- withLatch { release =>
-                        (release *> ZIO.never.interruptible).sandbox.either
+                        (release *> ZIO.never.interruptible).sandbox.flip
                           .flatMap(exit => recovered.set(Some(exit)))
                           .uninterruptible
                           .fork
                       }
               _     <- fiber.interrupt
               value <- recovered.get
-            } yield assert(value, isSome(isLeft(equalTo(Cause.interrupt))))
+            } yield assert(value, isSome(equalTo(Cause.interrupt)))
           },
           testM("run of interruptible") {
             for {
@@ -1407,7 +1410,7 @@ object ZIOSpec
           testM("no information is lost during composition") {
             val causes = Gen.causes(Gen.anyString, Gen.throwable)
             def cause[R, E](zio: ZIO[R, E, Nothing]): ZIO[R, Nothing, Cause[E]] =
-              zio.foldCauseM(ZIO.succeed, ZIO.fail)
+              zio.catchAllCause(ZIO.succeed)
             checkM(causes) { c =>
               for {
                 result <- cause(ZIO.halt(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)

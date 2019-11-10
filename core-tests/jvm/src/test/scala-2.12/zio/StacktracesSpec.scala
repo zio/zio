@@ -288,10 +288,12 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _  <- f2.join
       } yield ()
 
-    def fiber2 =
+    def fiber2 = {
+      import zio.CanSucceed.canSucceed
       for {
         _ <- UIO { throw new Exception() }
       } yield ()
+    }
 
     fiber0 causeMust { cause =>
       (cause.traces must not be empty) and
@@ -354,6 +356,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def blockingTrace = {
+    import zio.CanSucceed.canSucceed
     val io = for {
       _ <- blocking.effectBlocking { throw new Exception() }
     } yield ()
@@ -369,6 +372,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def tracingRegions = {
+    import zio.CanSucceed.canSucceed
     import tracingRegionsFixture._
 
     val io = (for {
@@ -393,6 +397,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def tracingRegionsInheritance = {
+    import zio.CanSucceed.canSucceed
     val io: ZIO[Any, Nothing, Unit] = for {
       _ <- ZIO.unit
       _ <- ZIO.unit
@@ -426,11 +431,13 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   object executionTraceConditionalExampleFixture {
-    def doWork(condition: Boolean) =
+    def doWork(condition: Boolean) = {
+      import zio.CanSucceed.canSucceed
       for {
         _ <- IO.when(condition)(doSideWork)
         _ <- doMainWork
       } yield ()
+    }
 
     def doSideWork() = Task(())
     def doMainWork() = Task(throw new Exception("Worker failed!"))
@@ -494,6 +501,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def catchSomeWithOptimizedEffect = {
+    import zio.CanSucceed.canSucceed
     import catchSomeWithOptimizedEffectFixture._
 
     val io = for {
@@ -521,6 +529,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def catchAllWithOptimizedEffect = {
+    import zio.CanSucceed.canSucceed
     import catchAllWithOptimizedEffectFixture._
 
     val io = for {
@@ -547,6 +556,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def mapErrorPreservesTrace = {
+    import zio.CanSucceed.canSucceed
     import mapErrorPreservesTraceFixture._
 
     val io = for {
@@ -576,6 +586,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def foldMWithOptimizedEffect = {
+    import zio.CanSucceed.canSucceed
     import foldMWithOptimizedEffectFixture._
 
     val io = for {

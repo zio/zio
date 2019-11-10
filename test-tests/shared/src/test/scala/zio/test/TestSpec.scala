@@ -2,6 +2,7 @@ package zio.test
 
 import zio.ZIO
 import zio.clock._
+import zio.random._
 import zio.test.Assertion._
 import zio.test.TestAspect.failure
 import zio.test.TestUtils.execute
@@ -14,9 +15,10 @@ object TestSpec
         },
         testM("testM error is test failure") {
           for {
-            _      <- ZIO.fail("fail")
-            result <- ZIO.succeed("succeed")
-          } yield assert(result, equalTo("succeed"))
+            n      <- nextInt
+            _      <- ZIO.effect(n / 0)
+            result <- ZIO.succeed(0)
+          } yield assert(result, equalTo(0))
         } @@ failure,
         testM("testM is polymorphic in error type") {
           for {

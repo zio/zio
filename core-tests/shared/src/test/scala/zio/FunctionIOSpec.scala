@@ -112,8 +112,8 @@ object FunctionIOSpec
           },
           testM("`fail` returns a failure") {
             assertM(
-              FunctionIO.fail[String]("error").run(1).either,
-              isLeft(equalTo("error"))
+              FunctionIO.fail[String]("error").run(1).run,
+              fails(equalTo("error"))
             )
           },
           testM("`effect` can translate an Exception to an error") {

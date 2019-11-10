@@ -47,7 +47,7 @@ object SemaphoreSpec
             val n = 1L
             for {
               s       <- Semaphore.make(n)
-              _       <- s.withPermit(IO.fail("fail")).either
+              _       <- s.withPermit(IO.fail("fail")).ignore
               permits <- s.available
             } yield assert(permits, equalTo(1L))
           },

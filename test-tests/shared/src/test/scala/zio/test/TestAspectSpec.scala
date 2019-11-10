@@ -184,11 +184,11 @@ object TestAspectSpec
           assertM(result, isTrue)
         },
         testM("timeout makes tests fail after given duration") {
-          assertM(ZIO.never *> ZIO.unit, equalTo(()))
+          assertM(ZIO.never, anything)
         } @@ timeout(1.nanos)
           @@ failure(diesWithSubtypeOf[TestTimeoutException]),
         testM("timeout reports problem with interruption") {
-          assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
+          assertM(ZIO.never.uninterruptible, anything)
         } @@ timeout(10.millis, 1.nano)
           @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
       )
