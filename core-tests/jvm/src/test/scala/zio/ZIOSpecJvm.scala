@@ -1,5 +1,5 @@
 package zio
-import zio.Cause.{Both, fail, interrupt}
+import zio.Cause.{Both, die, fail, interrupt}
 import zio.ZIOSpecJvmUtils._
 import zio.random.Random
 import zio.test.Assertion.{equalTo, _}
@@ -244,6 +244,20 @@ object ZIOSpecJvm
           val io = ZIO.interrupt.zipPar(IO.succeed(1))
           val interrupted = io.sandbox.either.map(_.left.map(_.interrupted))
           assertM(interrupted, isLeft(isTrue))
+        },
+        testM("Check `orElse` method does not recover from defects") {
+          val ex = new Exception("Died")
+          import zio.CanFail.canFail
+          for {
+            plain <- (ZIO.die(ex) <> IO.unit).run
+            both <- (ZIO.halt(Cause.Both(interrupt, die(ex))) <> IO.unit).run
+            thn <- (ZIO.halt(Cause.Then(interrupt, die(ex))) <> IO.unit).run
+            fail <- (ZIO.fail(ex) <> IO.unit).run
+          } yield
+            assert(plain, dies(equalTo(ex))) &&
+              assert(both, dies(equalTo(ex))) &&
+              assert(thn, dies(equalTo(ex))) &&
+              assert(fail, succeeds(equalTo(())))
         }
       )
     )
