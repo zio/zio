@@ -112,42 +112,53 @@ object ZIOSpecJvm
             assert(val2, equalTo(2)) &&
             assert(failed, isLeft(equalTo(failure)))
           }
+        },
+        testM("Check `whenM` executes condition effect and correct branch") {
+          for {
+            effectRef      <- Ref.make(0)
+            conditionRef   <- Ref.make(0)
+            conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
+            conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+            _              <- effectRef.set(1).whenM(conditionFalse)
+            val1           <- effectRef.get
+            conditionVal1  <- conditionRef.get
+            _              <- effectRef.set(2).whenM(conditionTrue)
+            val2           <- effectRef.get
+            conditionVal2  <- conditionRef.get
+            failure        = new Exception("expected")
+            _              <- IO.fail(failure).whenM(conditionFalse)
+            failed         <- IO.fail(failure).whenM(conditionTrue).either
+          } yield {
+            assert(val1, equalTo(0)) &&
+            assert(conditionVal1, equalTo(1)) &&
+            assert(val2, equalTo(2)) &&
+            assert(conditionVal2, equalTo(2)) &&
+            assert(failed, isLeft(equalTo(failure)))
+          }
+        },
+        testM("Check `whenCase` executes correct branch only") {
+          val v1: Option[Int] = None
+          val v2: Option[Int] = Some(0)
+          for {
+            ref  <- Ref.make(false)
+            _    <- ZIO.whenCase(v1) { case Some(_) => ref.set(true) }
+            res1 <- ref.get
+            _    <- ZIO.whenCase(v2) { case Some(_) => ref.set(true) }
+            res2 <- ref.get
+          } yield assert(res1, isFalse) && assert(res2, isTrue)
+        },
+        testM("Check `whenCaseM` executes condition effect and correct branch") {
+          val v1: Option[Int] = None
+          val v2: Option[Int] = Some(0)
+          for {
+            ref  <- Ref.make(false)
+            _    <- ZIO.whenCaseM(IO.succeed(v1)) { case Some(_) => ref.set(true) }
+            res1 <- ref.get
+            _    <- ZIO.whenCaseM(IO.succeed(v2)) { case Some(_) => ref.set(true) }
+            res2 <- ref.get
+          } yield assert(res1, isFalse) && assert(res2, isTrue)
         }
-      ),
-      testM("Check `whenM` executes condition effect and correct branch") {
-        for {
-          effectRef      <- Ref.make(0)
-          conditionRef   <- Ref.make(0)
-          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
-          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
-          _              <- effectRef.set(1).whenM(conditionFalse)
-          val1           <- effectRef.get
-          conditionVal1  <- conditionRef.get
-          _              <- effectRef.set(2).whenM(conditionTrue)
-          val2           <- effectRef.get
-          conditionVal2  <- conditionRef.get
-          failure        = new Exception("expected")
-          _              <- IO.fail(failure).whenM(conditionFalse)
-          failed         <- IO.fail(failure).whenM(conditionTrue).either
-        } yield {
-          assert(val1, equalTo(0)) &&
-          assert(conditionVal1, equalTo(1)) &&
-          assert(val2, equalTo(2)) &&
-          assert(conditionVal2, equalTo(2)) &&
-          assert(failed, isLeft(equalTo(failure)))
-        }
-      },
-      testM("Check `whenCase` executes correct branch only") {
-        val v1: Option[Int] = None
-        val v2: Option[Int] = Some(0)
-        for {
-          ref  <- Ref.make(false)
-          _    <- ZIO.whenCase(v1) { case Some(_) => ref.set(true) }
-          res1 <- ref.get
-          _    <- ZIO.whenCase(v2) { case Some(_) => ref.set(true) }
-          res2 <- ref.get
-        } yield assert(res1, isFalse) && assert(res2, isTrue)
-      }
+      )
     )
 
 object ZIOSpecJvmUtils {
