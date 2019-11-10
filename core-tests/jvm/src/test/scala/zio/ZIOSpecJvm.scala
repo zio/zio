@@ -61,6 +61,13 @@ object ZIOSpecJvm extends ZIOBaseSpec (
         val res = IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))
         assertM(res, equalTo(l.sum))
       }
+    },
+    testM("`IO.foldLeft` with a failing step function returns a failed IO") {
+      val genNonEmpty = Gen.anyInt.zipWith(Gen.listOf(Gen.anyInt))(_ :: _)
+      checkM(genNonEmpty) { l =>
+        val res = IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))
+        assertM(res.run, fails(equalTo("fail")))
+      }
     }
   )
 )
