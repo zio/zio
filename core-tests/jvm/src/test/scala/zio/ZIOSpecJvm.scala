@@ -113,7 +113,30 @@ object ZIOSpecJvm
             assert(failed, isLeft(equalTo(failure)))
           }
         }
-      )
+      ),
+      testM("Check `whenM` executes condition effect and correct branch") {
+        for {
+          effectRef      <- Ref.make(0)
+          conditionRef   <- Ref.make(0)
+          conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
+          conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+          _              <- effectRef.set(1).whenM(conditionFalse)
+          val1           <- effectRef.get
+          conditionVal1  <- conditionRef.get
+          _              <- effectRef.set(2).whenM(conditionTrue)
+          val2           <- effectRef.get
+          conditionVal2  <- conditionRef.get
+          failure        = new Exception("expected")
+          _              <- IO.fail(failure).whenM(conditionFalse)
+          failed         <- IO.fail(failure).whenM(conditionTrue).either
+        } yield {
+          assert(val1, equalTo(0)) &&
+          assert(conditionVal1, equalTo(1)) &&
+          assert(val2, equalTo(2)) &&
+          assert(conditionVal2, equalTo(2)) &&
+          assert(failed, isLeft(equalTo(failure)))
+        }
+      }
     )
 object ZIOSpecJvmUtils {
 
