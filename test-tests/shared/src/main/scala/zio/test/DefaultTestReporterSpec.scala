@@ -19,7 +19,8 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     label(reportSuite2, "correctly reports failed test suite"),
     label(reportSuites, "correctly reports multiple test suites"),
     label(simpleAssertion, "correctly reports failure of simple assertion"),
-    label(multipleNestedFailures, "correctly reports multiple nested failures")
+    label(multipleNestedFailures, "correctly reports multiple nested failures"),
+    label(labeledFailures, "correctly reports labeled failures")
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
@@ -87,6 +88,26 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     )
   )
 
+  val test7 = testM("labeled failures") {
+    for {
+      a <- ZIO.effectTotal(Some(1))
+      b <- ZIO.effectTotal(Some(1))
+      c <- ZIO.effectTotal(Some(0))
+      d <- ZIO.effectTotal(Some(1))
+    } yield assert(a, isSome(equalTo(1)).label("first")) &&
+      assert(b, isSome(equalTo(1)).label("second")) &&
+      assert(c, isSome(equalTo(1)).label("third")) &&
+      assert(d, isSome(equalTo(1)).label("fourth"))
+  }
+
+  val test7Expected = Vector(
+    expectedFailure("labeled failures"),
+    withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
+    withOffset(2)(
+      s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(" + yellowThenCyan("equalTo(1)") + ") @@ \"third\")")}\n"
+    )
+  )
+
   val suite1 = suite("Suite1")(test1, test2)
 
   val suite1Expected = Vector(
@@ -137,6 +158,9 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
 
   def multipleNestedFailures =
     check(test6, test6Expected :+ reportStats(0, 0, 1))
+
+  def labeledFailures =
+    check(test7, test7Expected :+ reportStats(0, 0, 1))
 
   def check[E](spec: ZSpec[TestEnvironment, String, String, Unit], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(testEnvironmentManaged) { r =>

@@ -60,6 +60,12 @@ class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult
     toString.hashCode
 
   /**
+   * Labels this assertion with the specified string.
+   */
+  final def label(string: String): Assertion[A] =
+    new Assertion(infix(param(self), "@@", param(quoted(string))), run)
+
+  /**
    * Returns the negation of this assertion.
    */
   final def negate: Assertion[A] =
