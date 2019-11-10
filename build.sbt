@@ -102,6 +102,11 @@ lazy val coreJVM = core.jvm
   .settings(replSettings)
 
 lazy val coreJS = core.js
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.scalajs" %%% "nodejs" % "0.4.2"
+    )
+  )
 
 lazy val coreNative = core.native
   .settings(scalaVersion := "2.11.12")

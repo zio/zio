@@ -50,7 +50,10 @@ object ZMXServer {
     true
   }
 
-  def apply(config: ZMXConfig, selector: Selector, zmxSocket: ServerSocketChannel, zmxAddress: InetSocketAddress): Unit = {
+  def apply(config: ZMXConfig): Unit = {
+    val selector: Selector = Selector.open()
+    val zmxSocket: ServerSocketChannel = ServerSocketChannel.open()
+    val zmxAddress: InetSocketAddress = new InetSocketAddress(config.host, config.port)
     zmxSocket.socket.setReuseAddress(true)
     zmxSocket.bind(zmxAddress)
     zmxSocket.configureBlocking(false)

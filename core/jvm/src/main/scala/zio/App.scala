@@ -49,7 +49,22 @@ trait App extends DefaultRuntime {
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   // $COVERAGE-OFF$ Bootstrap to `Unit`
-  final def main(args0: Array[String]): Unit =
+  final def main(args0: Array[String]): Unit = {
+    if (!args0.isEmpty) {
+      import zio.zmx._
+      val config = args0.sliding(2, 1).toList.foldLeft(ZMXConfig.empty) { case (accumArgs, currArgs) => currArgs match {
+        case Array("-h", host) => accumArgs.copy(host = host)
+        case Array("--host", host) => accumArgs.copy(host = host)
+        case Array("-p", port) => accumArgs.copy(port = port.toInt)
+        case Array("--port", port) => accumArgs.copy(port = port.toInt)
+        case Array("-d", debug) => accumArgs.copy(debug = debug.toBoolean)
+        case Array("--debug", debug) => accumArgs.copy(debug = debug.toBoolean)
+        case _ => accumArgs
+        }
+      }
+      println(s"Starting zmx JVM server on host: [${config.host}] port: [${config.port}]")
+      ZMXServer(config)
+    }
     try sys.exit(
       unsafeRun(
         for {
@@ -66,4 +81,5 @@ trait App extends DefaultRuntime {
     )
     catch { case _: SecurityException => }
   // $COVERAGE-ON$
+  }
 }
