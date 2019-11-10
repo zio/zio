@@ -175,11 +175,20 @@ object ZIOSpecJvm
           } yield assert(supervise1, equalTo(supervise2))
         },
         testM("Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does") {
-          checkM(Gen.anyString) { str =>
+          checkM(Gen.alphaNumericStr) { str =>
             for {
               flatten1 <- IO.effectTotal(IO.effectTotal(str)).flatten
               flatten2 <- IO.flatten(IO.effectTotal(IO.effectTotal(str)))
             } yield assert(flatten1, equalTo(flatten2))
+          }
+        },
+        testM("Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does") {
+          checkM(Gen.alphaNumericStr) { str =>
+            val ioEither: UIO[Either[Nothing, String]] = IO.succeed(Right(str))
+            for {
+              abs1 <- ioEither.absolve
+              abs2 <- IO.absolve(ioEither)
+            } yield assert(abs1, equalTo(abs2))
           }
         }
       )
