@@ -167,7 +167,7 @@ control and determinism. However there is another source of complexity that come
 
 It is easy to accidentally use different test instances at the same time.
 
-```scala mdoc
+```scala mdoc:fail
 import zio.test._
 import zio.test.environment.TestClock
 import scala.language.postfixOps
@@ -197,7 +197,7 @@ import zio.clock.Clock
 sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     /* All other method declarations in this trait ignored to avoid clutter */
 
-    final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]]
+    def timeout(d: Duration): ZIO[R with Clock, E, Option[A]]
 }
 ```
 
@@ -428,7 +428,7 @@ Test aspects are used to modify existing tests or even entire suites that you ha
 applied to a test or suite using the `@@` operator. This is an example test suite showing the use of aspects to modify 
 test behaviour:
 
-```scala mdoc:reset
+```scala
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
