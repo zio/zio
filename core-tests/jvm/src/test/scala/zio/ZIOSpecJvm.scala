@@ -55,6 +55,12 @@ object ZIOSpecJvm extends ZIOBaseSpec (
       val list = List(1, 2, 3)
       val res  = IO.foreachParN(2)(list)(x => IO.effectTotal(x.toString))
       assertM(res, equalTo(List("1", "2", "3")))
+    },
+    testM("`IO.foldLeft` with a successful step function sums the list properly") {
+      checkM(Gen.listOf(Gen.anyInt)) { l =>
+        val res = IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))
+        assertM(res, equalTo(l.sum))
+      }
     }
   )
 )
