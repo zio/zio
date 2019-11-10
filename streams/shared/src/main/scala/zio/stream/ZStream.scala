@@ -1643,9 +1643,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
   /**
    * Maps over elements of the stream with the specified effectful function,
-   * partitioned by `p` executing invocations of `f` concurrently on up
-   * to `buffer` partitions. Transformed elements may be reordered but the order within
-   * a partition is maintained.
+   * partitioned by `p` executing invocations of `f` concurrently. The number
+   * of concurrent invocations of `f` is determined by the number of different
+   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
+   * Transformed elements may be reordered but the order within a partition is maintained.
    */
   final def mapMPartitioned[R1 <: R, E1 >: E, B, K](
     keyBy: A => K,
