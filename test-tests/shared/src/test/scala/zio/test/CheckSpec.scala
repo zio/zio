@@ -24,10 +24,7 @@ object CheckSpec
         },
         testM("error in checkM is test failure") {
           checkM(Gen.int(1, 100)) { n =>
-            for {
-              _ <- ZIO.effect(n / 0)
-              r <- random.nextInt(n)
-            } yield assert(r, isLessThan(n))
+            assertM(random.nextInt(n) <* ZIO.fail("fail"), isLessThan(n))
           }
         } @@ failure,
         testM("overloaded check methods work") {
