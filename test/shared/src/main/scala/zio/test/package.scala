@@ -412,6 +412,6 @@ package object test extends AssertionVariants {
   }
 
   implicit class ZioOfTestResultOps[R, E](val res: ZIO[R, E, TestResult]) {
-    def &&[R1] (that: ZIO[R1, E, TestResult]): ZIO[R1 with R, E, TestResult] = res.zipWith(that)(_ && _)
+    def &&[R1](that: ZIO[R1, E, TestResult]): ZIO[R1 with R, E, TestResult] = res.zipWith(that)(_ && _)
   }
 }

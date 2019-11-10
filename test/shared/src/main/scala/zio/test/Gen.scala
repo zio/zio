@@ -100,7 +100,6 @@ object Gen extends GenZIO with FunctionVariants {
   final val alphaNumericStr: Gen[Random with Sized, String] =
     Gen.string(alphaNumericChar)
 
-
   /**
    * A generator of bytes. Shrinks toward '0'.
    */
