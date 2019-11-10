@@ -1649,7 +1649,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def mapMPartitioned[R1 <: R, E1 >: E, B, K](
     keyBy: A => K,
-    buffer: Int
+    buffer: Int = 16
   )(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     groupByKey(keyBy, buffer).apply { case (_, s) => s.mapM(f) }
 
