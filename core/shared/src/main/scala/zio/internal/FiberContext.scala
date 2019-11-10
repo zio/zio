@@ -664,8 +664,8 @@ private[zio] final class FiberContext[E, A](
 
   final def interruptAs(fiberId: FiberId): UIO[Exit[E, A]] = kill0(fiberId)
 
-  final def children: UIO[Iterable[Fiber[Any, Any]]] =
-    UIO(_children.toArray().asInstanceOf[Array[Fiber[Any, Any]]])
+  @silent("JavaConverters")
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(_children.asScala.toSet)
 
   final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
