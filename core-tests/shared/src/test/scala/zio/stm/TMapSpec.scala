@@ -122,17 +122,17 @@ object TMapSpec
 
               override def equals(obj: Any): Boolean = obj match {
                 case o: HashContainer => i == o.i
-                case _ => false
+                case _                => false
               }
             }
-            
+
             def hashOf(hc: Int) = new HashContainer(hc)
-            
+
             val tx =
               for {
                 tmap <- TMap.empty[HashContainer, Int]
-                _ <- tmap.put(hashOf(-1), 1)
-                e <- tmap.get(hashOf(-1))
+                _    <- tmap.put(hashOf(-1), 1)
+                e    <- tmap.get(hashOf(-1))
               } yield e
 
             assertM(tx.commit, isSome(equalTo(1)))
