@@ -195,7 +195,7 @@ class TMap[K, V] private (
     foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
 
   private def indexOf(k: K): STM[Nothing, Int] =
-    tCapacity.get.map(c => k.hashCode() % c)
+    tCapacity.get.map(c => Math.abs(k.hashCode() % c))
 
   private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
     for {
