@@ -29,6 +29,7 @@ abstract class AbstractRunnableSpec {
   type Failure
   type Success
 
+  def aspects: List[TestAspect[Nothing, Environment, Nothing, Any, Nothing, Any]]
   def runner: TestRunner[Environment, Label, Test, Failure, Success]
   def spec: ZSpec[Environment, Failure, Label, Test]
 
@@ -36,7 +37,7 @@ abstract class AbstractRunnableSpec {
    * Returns an effect that executes the spec, producing the results of the execution.
    */
   final def run: URIO[TestLogger with Clock, ExecutedSpec[Label, Failure, Success]] =
-    runner.run(spec)
+    runner.run(aspects.foldLeft(spec)(_ @@ _))
 
   /**
    * the platform used by the runner

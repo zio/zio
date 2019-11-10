@@ -17,18 +17,26 @@
 package zio.test
 
 import zio.clock.Clock
+import zio.duration._
+import zio.test.environment.TestEnvironment
 import zio.test.Spec.TestCase
 import zio.{ UIO, URIO }
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-trait RunnableSpec[R, L, T, E, S] extends AbstractRunnableSpec {
-  override type Environment = R
-  override type Label       = L
-  override type Test        = T
-  override type Failure     = E
-  override type Success     = S
+trait RunnableSpec extends AbstractRunnableSpec {
+  override type Environment = TestEnvironment
+  override type Label       = String
+  override type Test        = Any
+  override type Failure     = Any
+  override type Success     = Any
+
+  override def aspects: List[TestAspect[Nothing, Environment, Nothing, Any, Nothing, Any]] =
+    List(TestAspect.timeoutWarning(60.seconds))
+
+  override def runner: TestRunner[Environment, Label, Test, Failure, Success] =
+    DefaultTestRunner
 
   private val runSpec: URIO[TestLogger with Clock, Int] = for {
     results     <- run

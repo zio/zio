@@ -1,8 +1,8 @@
 package zio.test
 
-object DefaultRunnableSpecSpec extends DefaultRunnableSpec {
+object RunnableSpecSpec extends RunnableSpec {
 
-  override def spec = suite("DefaultRunnableSpecSpec")(
+  def spec = suite("RunnableSpecSpec")(
     test("inheritance style specification of spec is allowed") {
       assertCompletes
     }
