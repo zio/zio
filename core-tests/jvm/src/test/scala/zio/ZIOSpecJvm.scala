@@ -258,6 +258,17 @@ object ZIOSpecJvm
               assert(both, dies(equalTo(ex))) &&
               assert(thn, dies(equalTo(ex))) &&
               assert(fail, succeeds(equalTo(())))
+        },
+        testM("Check `eventually` method succeeds eventually"){
+          def effect(ref: Ref[Int]) =
+            ref.get.flatMap(n => if (n < 10) ref.update(_ + 1) *> IO.fail("Ouch") else UIO.succeed(n))
+
+          val test = for {
+            ref <- Ref.make(0)
+            n   <- effect(ref).eventually
+          } yield n
+
+          assertM(test, equalTo(10))
         }
       )
     )
