@@ -1,10 +1,10 @@
 package zio
-import zio.Cause.fail
+import zio.Cause.{Both, fail, interrupt}
 import zio.ZIOSpecJvmUtils._
 import zio.random.Random
-import zio.test.Assertion.{ equalTo, _ }
+import zio.test.Assertion.{equalTo, _}
 import zio.test.environment.TestClock
-import zio.test.{ assertM, _ }
+import zio.test.{assertM, _}
 import zio.duration._
 
 object ZIOSpecJvm
@@ -235,6 +235,15 @@ object ZIOSpecJvm
             race1 <- io.firstSuccessOf(ios)
             race2 <- IO.firstSuccessOf(io, ios)
           } yield assert(race1, equalTo(race2))
+        },
+        testM("Check `zipPar` method does not swallow exit causes of loser") {
+          val io = ZIO.interrupt.zipPar(IO.interrupt)
+          assertM(io.run, equalTo(Exit.Failure(Both(interrupt, interrupt))))
+        },
+        testM("Check `zipPar` method does not report failure when interrupting loser after it succeeded") {
+          val io = ZIO.interrupt.zipPar(IO.succeed(1))
+          val interrupted = io.sandbox.either.map(_.left.map(_.interrupted))
+          assertM(interrupted, isLeft(isTrue))
         }
       )
     )
