@@ -190,6 +190,14 @@ object ZIOSpecJvm
               abs2 <- IO.absolve(ioEither)
             } yield assert(abs1, equalTo(abs2))
           }
+        },
+        testM("Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency") {
+          checkM(Gen.alphaNumericStr) { str =>
+            val io: UIO[Option[String]] = IO.effectTotal(Some(str)) // using `Some` for object allocation
+            (io <*> io)
+              .map(tuple =>
+                assert(tuple._1 eq tuple._2, isFalse))
+          }
         }
       )
     )
