@@ -2,9 +2,9 @@ package zio
 import zio.Cause.fail
 import zio.ZIOSpecJvmUtils._
 import zio.random.Random
-import zio.test.Assertion.{equalTo, _}
+import zio.test.Assertion.{ equalTo, _ }
 import zio.test.environment.TestClock
-import zio.test.{assertM, _}
+import zio.test.{ assertM, _ }
 import zio.duration._
 
 object ZIOSpecJvm
@@ -169,7 +169,7 @@ object ZIOSpecJvm
             result  <- success.unsandbox
           } yield assert(message, equalTo("fail")) && assert(result, equalTo(100))
         },
-        testM("Check `supervise` returns same value as IO.supervise"){
+        testM("Check `supervise` returns same value as IO.supervise") {
           val io = IO.effectTotal("supercalifragilisticexpialadocious")
           for {
             supervise1 <- io.interruptChildren
@@ -184,7 +184,9 @@ object ZIOSpecJvm
             } yield assert(flatten1, equalTo(flatten2))
           }
         },
-        testM("Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does") {
+        testM(
+          "Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does"
+        ) {
           checkM(Gen.alphaNumericStr) { str =>
             val ioEither: UIO[Either[Nothing, String]] = IO.succeed(Right(str))
             for {
@@ -196,18 +198,15 @@ object ZIOSpecJvm
         testM("Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency") {
           val io = random.nextString(10)
           (io <*> io)
-            .map(tuple =>
-              assert(tuple._1, not(equalTo(tuple._2)))
-            )
+            .map(tuple => assert(tuple._1, not(equalTo(tuple._2))))
         },
         testM("Check `memoize` method on IO[E, A] returns the same instance on repeated calls") {
           val ioMemo = random.nextString(10).memoize
-          ioMemo.flatMap(io => io <*> io)
-            .map(tuple =>
-              assert(tuple._1, equalTo(tuple._2))
-            )
+          ioMemo
+            .flatMap(io => io <*> io)
+            .map(tuple => assert(tuple._1, equalTo(tuple._2)))
         },
-        testM("Check `cached` method on IO[E, A] returns new instances after duration"){
+        testM("Check `cached` method on IO[E, A] returns new instances after duration") {
           def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
           for {
             ref   <- Ref.make(0)
@@ -220,7 +219,15 @@ object ZIOSpecJvm
             _     <- TestClock.adjust(59.minutes)
             d     <- cache
           } yield assert(a, equalTo(b)) && assert(b, not(equalTo(c))) && assert(c, equalTo(d))
-        }
+        },
+        testM("Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does") {
+          val io  = IO.effectTotal("supercalifragilisticexpialadocious")
+          val ios = List.empty[UIO[String]]
+          for {
+            race1 <- io.raceAll(ios)
+            race2 <- IO.raceAll(io, ios)
+          } yield assert(race1, equalTo(race2))
+        },
       )
     )
 
