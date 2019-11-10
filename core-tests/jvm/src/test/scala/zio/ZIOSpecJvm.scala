@@ -4,8 +4,9 @@ import zio.ZIOSpecJvmUtils._
 import zio.random.Random
 import zio.test.Assertion.{ equalTo, _ }
 import zio.test.environment.TestClock
-import zio.test.{ assertM, _ }
+import zio.test.{ assert, assertM, _ }
 import zio.duration._
+import zio.syntax._
 
 object ZIOSpecJvm
     extends ZIOBaseSpec(
@@ -170,7 +171,7 @@ object ZIOSpecJvm
           } yield assert(message, equalTo("fail")) && assert(result, equalTo(100))
         },
         testM("Check `supervise` returns same value as IO.supervise") {
-          val io = IO.effectTotal("supercalifragilisticexpialadocious")
+          val io = IO.effectTotal(testString)
           for {
             supervise1 <- io.interruptChildren
             supervise2 <- IO.interruptChildren(io)
@@ -221,7 +222,7 @@ object ZIOSpecJvm
           } yield assert(a, equalTo(b)) && assert(b, not(equalTo(c))) && assert(c, equalTo(d))
         },
         testM("Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does") {
-          val io  = IO.effectTotal("supercalifragilisticexpialadocious")
+          val io  = IO.effectTotal(testString)
           val ios = List.empty[UIO[String]]
           for {
             race1 <- io.raceAll(ios)
@@ -229,7 +230,7 @@ object ZIOSpecJvm
           } yield assert(race1, equalTo(race2))
         },
         testM("Check `firstSuccessOf` method returns the same IO[E, A] as `IO.firstSuccessOf` does") {
-          val io  = IO.effectTotal("supercalifragilisticexpialadocious")
+          val io  = IO.effectTotal(testString)
           val ios = List.empty[UIO[String]]
           for {
             race1 <- io.firstSuccessOf(ios)
@@ -486,6 +487,131 @@ object ZIOSpecJvm
           )
           val io = ZIO.foreachParN(4)(actions)(a => a)
           assertM(io.either, isLeft(equalTo("C")))
+        },
+        suite("Eager - Generate a String:")(
+          testM("`.succeed` extension method returns the same UIO[String] as `IO.succeed` does") {
+            checkM(Gen.alphaNumericStr) { str =>
+              for {
+                a <- str.succeed
+                b <- IO.succeed(str)
+              } yield assert(a, equalTo(b))
+            }
+          },
+          testM("`.fail` extension method returns the same IO[String, Nothing] as `IO.fail` does") {
+            checkM(Gen.alphaNumericStr) { str =>
+              for {
+                a <- str.fail.either
+                b <- IO.fail(str).either
+              } yield assert(a, equalTo(b))
+            }
+          },
+          testM("`.ensure` extension method returns the same IO[E, Option[A]] => IO[E, A] as `IO.ensure` does") {
+            checkM(Gen.alphaNumericStr) { str =>
+              val ioSome = IO.succeed(Some(42))
+              for {
+                a <- str.require(ioSome)
+                b <- IO.require(str)(ioSome)
+              } yield assert(a, equalTo(b))
+            }
+          }
+        ),
+        suite("Lazy - Generate a String:")(
+          testM("`.effect` extension method returns the same UIO[String] as `IO.effect` does") {
+            checkM(Gen.alphaNumericStr) { str =>
+              for {
+                a <- str.effect
+                b <- IO.effectTotal(str)
+              } yield assert(a, equalTo(b))
+            }
+          },
+          testM("`.effect` extension method returns the same Task[String] as `IO.effect` does") {
+            checkM(Gen.alphaNumericStr) { str =>
+              for {
+                a <- str.effect
+                b <- IO.effect(str)
+              } yield assert(a, equalTo(b))
+            }
+          },
+          testM(
+            "`.effect` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.effect` does"
+          ) {
+            checkM(Gen.alphaNumericStr) { str =>
+              val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
+              for {
+                a <- str.effect.refineOrDie(partial)
+                b <- IO.effect(str).refineOrDie(partial)
+              } yield assert(a, equalTo(b))
+            }
+          }
+        ),
+        suite("Generate an Iterable of Char:")(
+          testM("`.mergeAll` extension method returns the same IO[E, B] as `IO.mergeAll` does") {
+            val TestData                     = testString.toList
+            val ios                          = TestData.map(IO.succeed)
+            val zero                         = List.empty[Char]
+            def merger[A](as: List[A], a: A) = a :: as
+            for {
+              merged1 <- ios.mergeAll(zero)(merger)
+              merged2 <- IO.mergeAll(ios)(zero)(merger)
+            } yield assert(merged1, equalTo(merged2))
+          },
+          testM("`.parAll` extension method returns the same IO[E, List[A]] as `IO.parAll`") {
+            val TestData = testString.toList
+            val ios      = TestData.map(IO.effectTotal(_))
+            for {
+              parAll1 <- ios.collectAllPar
+              parAll2 <- IO.collectAllPar(ios)
+            } yield assert(parAll1, equalTo(parAll2))
+          },
+          testM("`.forkAll` extension method returns the same UIO[Fiber[E, List[A]]] as `IO.forkAll` does") {
+            val TestData                        = testString.toList
+            val ios: Iterable[IO[String, Char]] = TestData.map(IO.effectTotal(_))
+            for {
+              f1       <- ios.forkAll
+              forkAll1 <- f1.join
+              f2       <- IO.forkAll(ios)
+              forkAll2 <- f2.join
+            } yield assert(forkAll1, equalTo(forkAll2))
+          },
+          testM("`.sequence` extension method returns the same IO[E, List[A]] as `IO.sequence` does") {
+            val TestData = testString.toList
+            val ios      = TestData.map(IO.effectTotal(_))
+            for {
+              sequence1 <- ios.collectAll
+              sequence2 <- IO.collectAll(ios)
+            } yield assert(sequence1, equalTo(sequence2))
+          }
+        ),
+        testM(
+          "Generate a Tuple2 of (Int, String): " +
+            "`.map2` extension method should combine them to an IO[E, Z] with a function (A, B) => Z"
+        ) {
+          checkM(Gen.anyInt, Gen.alphaNumericStr) { (int: Int, str: String) =>
+            def f(i: Int, s: String): String = i.toString + s
+            val ios                          = (IO.succeed(int), IO.succeed(str))
+            assertM(ios.map2[String](f), equalTo(f(int, str)))
+          }
+        },
+        testM(
+          "Generate a Tuple3 of (Int, String, String): " +
+            "`.map3` extension method should combine them to an IO[E, Z] with a function (A, B, C) => Z"
+        ) {
+          checkM(Gen.anyInt, Gen.alphaNumericStr, Gen.alphaNumericStr) { (int: Int, str1: String, str2: String) =>
+            def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
+            val ios                                       = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2))
+            assertM(ios.map3[String](f), equalTo(f(int, str1, str2)))
+          }
+        },
+        testM(
+          "Generate a Tuple4 of (Int, String, String, String): " +
+            "`.map4` extension method should combine them to an IO[E, C] with a function (A, B, C, D) => Z"
+        ) {
+          checkM(Gen.anyInt, Gen.alphaNumericStr, Gen.alphaNumericStr, Gen.alphaNumericStr) {
+            (int: Int, str1: String, str2: String, str3: String) =>
+              def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
+              val ios                                                   = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2), IO.succeed(str3))
+              assertM(ios.map4[String](f), equalTo(f(int, str1, str2, str3)))
+          }
         }
       )
     )
@@ -512,4 +638,6 @@ object ZIOSpecJvmUtils {
             }
       } yield res
     }
+
+  val testString = "supercalifragilisticexpialadocious"
 }
