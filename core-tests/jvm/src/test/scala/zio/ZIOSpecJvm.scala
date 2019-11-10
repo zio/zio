@@ -85,7 +85,16 @@ object ZIOSpecJvm extends ZIOBaseSpec (
     testM("Check `catchSomeCause` catches matching cause") {
       ZIO.interrupt.catchSomeCause {
         case c if c.interrupted => ZIO.succeed(true)
-      }.sandbox.map(assert(_, isTrue))
+      }.sandbox.map(
+        assert(_, isTrue)
+      )
+    },
+    testM("Check `catchSomeCause` halts if cause doesn't match") {
+      ZIO.interrupt.catchSomeCause {
+        case c if (!c.interrupted) => ZIO.succeed(true)
+      }.sandbox.either.map(
+        assert(_,  isLeft(equalTo(Cause.interrupt)))
+      )
     }
   )
 )
