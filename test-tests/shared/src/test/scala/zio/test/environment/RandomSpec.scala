@@ -1,6 +1,7 @@
 package zio.test.environment
 
 import zio._
+import zio.ZIO._
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.environment.RandomSpecUtil._
@@ -113,8 +114,7 @@ object RandomSpec
         },
         testM("referential transparency") {
           val test = TestRandom.makeTest(DefaultData)
-          ZIO
-            .runtime[Any]
+          runtime[Any]
             .map(rt => {
               val x = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
               val y = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
@@ -130,11 +130,11 @@ object RandomSpecUtil {
     clear: Test => UIO[Unit]
   )(extract: Test => UIO[A]): ZIO[Random, Nothing, TestResult] =
     checkM(Gen.anyLong) { seed =>
-      val sRandom = new SRandom(seed)
       for {
+        sRandom    <- effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
-        value      = generate(sRandom)
+        value      <- effectTotal(generate(sRandom))
         _          <- feed(testRandom, List(value))
         _          <- clear(testRandom)
         random     <- extract(testRandom)
@@ -145,11 +145,11 @@ object RandomSpecUtil {
     feed: (Test, List[A]) => UIO[Unit]
   )(extract: Test => UIO[A]): ZIO[Random, Nothing, TestResult] =
     checkM(Gen.anyLong) { seed =>
-      val sRandom = new SRandom(seed)
       for {
+        sRandom    <- effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
-        values     = List.fill(100)(generate(sRandom))
+        values     <- effectTotal(List.fill(100)(generate(sRandom)))
         _          <- feed(testRandom, values)
         results    <- UIO.foreach(List.range(0, 100))(_ => extract(testRandom))
         random     <- extract(testRandom)
@@ -169,37 +169,37 @@ object RandomSpecUtil {
     f: Test => UIO[A]
   )(g: SRandom => A): ZIO[Random, Nothing, TestResult] =
     checkM(Gen.anyLong) { seed =>
-      val sRandom = new SRandom(seed)
       for {
+        sRandom    <- effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- UIO.foreach(List.fill(100)(()))(_ => f(testRandom))
-        expected   = List.fill(100)(g(sRandom))
+        expected   <- effectTotal(List.fill(100)(g(sRandom)))
       } yield assert(actual, equalTo(expected))
     }
 
   def forAllEqualBytes: ZIO[Random, Nothing, TestResult] =
     checkM(Gen.anyLong) { seed =>
-      val sRandom = new SRandom(seed)
       for {
+        sRandom    <- effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- UIO.foreach(0 to 100)(testRandom.nextBytes(_))
-        expected = (0 to 100).map(new Array[Byte](_)).map { arr =>
-          sRandom.nextBytes(arr)
-          Chunk.fromArray(arr)
-        }
+        expected <- effectTotal((0 to 100).map(new Array[Byte](_)).map { arr =>
+                     sRandom.nextBytes(arr)
+                     Chunk.fromArray(arr)
+                   })
       } yield assert(actual, equalTo(expected))
     }
 
   def forAllEqualGaussian: ZIO[Random, Nothing, TestResult] =
     checkM(Gen.anyLong) { seed =>
-      val sRandom = new SRandom(seed)
       for {
+        sRandom    <- effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- testRandom.nextGaussian
-        expected   = sRandom.nextGaussian
+        expected   <- effectTotal(sRandom.nextGaussian)
       } yield assert(math.abs(actual - expected), isLessThan(0.01))
     }
 
@@ -207,12 +207,12 @@ object RandomSpecUtil {
     f: (Test, Int) => UIO[A]
   )(g: (SRandom, Int) => A): ZIO[Random, Nothing, TestResult] =
     checkM(Gen.anyLong, Gen.int(1, 100)) { (seed, size) =>
-      val sRandom = new SRandom(seed)
       for {
+        sRandom    <- effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- f(testRandom, size)
-        expected   = g(sRandom, size)
+        expected   <- effectTotal(g(sRandom, size))
       } yield assert(actual, equalTo(expected))
     }
 
@@ -220,12 +220,12 @@ object RandomSpecUtil {
     f: (TestRandom.Test, List[Int]) => UIO[List[Int]]
   )(g: (SRandom, List[Int]) => List[Int]): ZIO[Random with Sized, Nothing, TestResult] =
     checkM(Gen.anyLong, Gen.listOf(Gen.anyInt)) { (seed, testList) =>
-      val sRandom = new SRandom(seed)
       for {
+        sRandom    <- effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- f(testRandom, testList)
-        expected   = g(sRandom, testList)
+        expected   <- effectTotal(g(sRandom, testList))
       } yield assert(actual, equalTo(expected))
     }
 
