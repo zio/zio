@@ -53,7 +53,7 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     )
   )
 
-  val test4 = Spec.test("Failing test", fail(Cause.fail("Fail")))
+  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")))
 
   val test4Expected = Vector(
     expectedFailure("Failing test"),
@@ -159,7 +159,7 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     unsafeRunToFuture(r.use[Any, E, A](f))
 
   def TestTestRunner(testEnvironment: TestEnvironment) =
-    TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Unit]], String, Unit](
+    TestRunner[TestEnvironment, String, Unit, String, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](Managed.succeed(testEnvironment)),
       reporter = DefaultTestReporter()
     )

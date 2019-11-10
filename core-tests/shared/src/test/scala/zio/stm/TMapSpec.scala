@@ -25,7 +25,7 @@ object TMapSpec
       suite("TMap")(
         suite("factories")(
           testM("apply") {
-            val tx = TMap("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3).flatMap(_.toList)
+            val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3).flatMap(_.toList)
             assertM(tx.commit, hasSameElements(List("a" -> 1, "b" -> 3, "c" -> 2)))
           },
           testM("empty") {
@@ -39,7 +39,7 @@ object TMapSpec
         ),
         suite("lookups")(
           testM("get existing element") {
-            val tx = TMap("a" -> 1, "b" -> 2).flatMap(_.get("a"))
+            val tx = TMap.make("a" -> 1, "b" -> 2).flatMap(_.get("a"))
             assertM(tx.commit, isSome(equalTo(1)))
           },
           testM("get non-existing element") {
@@ -47,7 +47,7 @@ object TMapSpec
             assertM(tx.commit, isNone)
           },
           testM("getOrElse existing element") {
-            val tx = TMap("a" -> 1, "b" -> 2).flatMap(_.getOrElse("a", 10))
+            val tx = TMap.make("a" -> 1, "b" -> 2).flatMap(_.getOrElse("a", 10))
             assertM(tx.commit, equalTo(1))
           },
           testM("getOrElse non-existing element") {
@@ -55,7 +55,7 @@ object TMapSpec
             assertM(tx.commit, equalTo(10))
           },
           testM("contains existing element") {
-            val tx = TMap("a" -> 1, "b" -> 2).flatMap(_.contains("a"))
+            val tx = TMap.make("a" -> 1, "b" -> 2).flatMap(_.contains("a"))
             assertM(tx.commit, isTrue)
           },
           testM("contains non-existing element") {
@@ -63,15 +63,15 @@ object TMapSpec
             assertM(tx.commit, isFalse)
           },
           testM("collect all elements") {
-            val tx = TMap("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.toList)
+            val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.toList)
             assertM(tx.commit, hasSameElements(List("a" -> 1, "b" -> 2, "c" -> 3)))
           },
           testM("collect all keys") {
-            val tx = TMap("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.keys)
+            val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.keys)
             assertM(tx.commit, hasSameElements(List("a", "b", "c")))
           },
           testM("collect all values") {
-            val tx = TMap("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.values)
+            val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 3).flatMap(_.values)
             assertM(tx.commit, hasSameElements(List(1, 2, 3)))
           }
         ),
@@ -89,7 +89,7 @@ object TMapSpec
           testM("overwrite existing element") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "b" -> 2)
+                tmap <- TMap.make("a" -> 1, "b" -> 2)
                 _    <- tmap.put("a", 10)
                 e    <- tmap.get("a")
               } yield e
@@ -99,7 +99,7 @@ object TMapSpec
           testM("remove existing element") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "b" -> 2)
+                tmap <- TMap.make("a" -> 1, "b" -> 2)
                 _    <- tmap.delete("a")
                 e    <- tmap.get("a")
               } yield e
@@ -121,7 +121,7 @@ object TMapSpec
           testM("merge") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1)
+                tmap <- TMap.make("a" -> 1)
                 a    <- tmap.merge("a", 2)(_ + _)
                 b    <- tmap.merge("b", 2)(_ + _)
               } yield (a, b)
@@ -131,7 +131,7 @@ object TMapSpec
           testM("retainIf") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.retainIf((k, _) => k == "aa")
                 a    <- tmap.contains("a")
                 aa   <- tmap.contains("aa")
@@ -143,7 +143,7 @@ object TMapSpec
           testM("removeIf") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.removeIf((k, _) => k == "aa")
                 a    <- tmap.contains("a")
                 aa   <- tmap.contains("aa")
@@ -155,7 +155,7 @@ object TMapSpec
           testM("transform") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.transform((k, v) => k.replaceAll("a", "b") -> v * 2)
                 res  <- tmap.toList
               } yield res
@@ -165,7 +165,7 @@ object TMapSpec
           testM("transformM") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.transformM((k, v) => STM.succeed(k.replaceAll("a", "b") -> v * 2))
                 res  <- tmap.toList
               } yield res
@@ -175,7 +175,7 @@ object TMapSpec
           testM("transformValues") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.transformValues(_ * 2)
                 res  <- tmap.toList
               } yield res
@@ -185,7 +185,7 @@ object TMapSpec
           testM("transformValuesM") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "aa" -> 2, "aaa" -> 3)
+                tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
                 _    <- tmap.transformValuesM(v => STM.succeed(v * 2))
                 res  <- tmap.toList
               } yield res
@@ -197,7 +197,7 @@ object TMapSpec
           testM("fold on non-empty map") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "b" -> 2, "c" -> 3)
+                tmap <- TMap.make("a" -> 1, "b" -> 2, "c" -> 3)
                 res  <- tmap.fold(0)((acc, kv) => acc + kv._2)
               } yield res
 
@@ -215,7 +215,7 @@ object TMapSpec
           testM("foldM on non-empty map") {
             val tx =
               for {
-                tmap <- TMap("a" -> 1, "b" -> 2, "c" -> 3)
+                tmap <- TMap.make("a" -> 1, "b" -> 2, "c" -> 3)
                 res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
               } yield res
 

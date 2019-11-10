@@ -6,7 +6,7 @@ import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestUtils.{ label, succeeded }
+import zio.test.TestUtils.{ isSuccess, label }
 import zio.ZIO
 
 object GenSpec extends AsyncBaseSpec {
@@ -374,7 +374,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(as.reverse.reverse, equalTo(as))
         }
       }
-      succeeded(reverseProp)
+      isSuccess(reverseProp)
     }
 
   def uniformGeneratesValuesInRange: Future[Boolean] =
@@ -479,7 +479,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(as.takeWhile(f).forall(f), isTrue)
         }
       }
-      succeeded(takeWhileProp)
+      isSuccess(takeWhileProp)
     }
   }
 
@@ -495,7 +495,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(f(a, b), equalTo(g(a, b)))
         }
       }
-      succeeded(swapProp)
+      isSuccess(swapProp)
     }
   }
 }

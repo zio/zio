@@ -51,7 +51,8 @@ a {
 }
 
 .mainContainer {
-  padding-top: 0
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .nav-footer .sitemap .nav-home {
@@ -59,10 +60,40 @@ a {
 }
 
 .fixedHeaderContainer header .headerTitleWithLogo {
-    display: none;
-    font-size: 1.25em;
-    line-height: 18px;
-    margin: 0;
-    position: relative;
-    z-index: 9999;
+  display: none;
+  font-size: 1.25em;
+  line-height: 18px;
+  margin: 0;
+  position: relative;
+  z-index: 9999;
+}
+
+.sponsorsSection {
+  padding: 0 20px 40px;
+  text-align: center
+}
+
+.sponsorsSection h2 {
+  color: #bd271a;
+  font-size: 30px;
+  line-height: 1em;
+  margin-top: 30px;
+  padding: 30px 0 0;
+  text-align: center
+}
+
+.sponsorsSection p {
+  margin: 0 auto;
+  max-width: 560px;
+  padding: .8em 0
+}
+
+.sponsorsSection .blockImage {
+  margin-bottom: 20px;
+  max-width: 240px;
+}
+
+.sponsorsSection .blockImage img {
+  height: 120px;
+  object-fit: contain;
 }

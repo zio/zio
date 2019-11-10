@@ -294,6 +294,19 @@ object Assertion {
     )
 
   /**
+   * Makes a new assertion that requires a sequence to contain an element
+   * satisfying the given assertion on the given position
+   */
+  final def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
+    Assertion.assertionRec("hasAt")(param(assertion))(assertion) { actual =>
+      if (pos >= 0 && pos < actual.size) {
+        Some(actual.apply(pos))
+      } else {
+        None
+      }
+    }
+
+  /**
    * Makes a new assertion that focuses in on a field in a case class.
    *
    * {{{
@@ -303,6 +316,24 @@ object Assertion {
   final def hasField[A, B](name: String, proj: A => B, assertion: Assertion[B]): Assertion[A] =
     Assertion.assertionRec("hasField")(param(quoted(name)), param(field(name)), param(assertion))(assertion) { actual =>
       Some(proj(actual))
+    }
+
+  /**
+   * Makes a new assertion that requires an iterable to contain the first
+   * element satisfying the given assertion
+   */
+  final def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasFirst")(param(assertion))(assertion) { actual =>
+      actual.headOption
+    }
+
+  /**
+   * Makes a new assertion that requires an iterable to contain the last
+   * element satisfying the given assertion
+   */
+  final def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasLast")(param(assertion))(assertion) { actual =>
+      actual.lastOption
     }
 
   /**

@@ -541,16 +541,6 @@ object StreamSpec
             execution <- log.get
           } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
         },
-        testM("Stream.finalizer") {
-          for {
-            log <- Ref.make[List[String]](Nil)
-            _ <- (for {
-                  _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-                  _ <- Stream.finalizer(log.update("Use" :: _))
-                } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
-            execution <- log.get
-          } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
-        },
         testM("Stream.filter")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
@@ -563,6 +553,25 @@ object StreamSpec
             res2 <- s.runCollect.map(_.filter(p))
           } yield assert(res1, equalTo(res2))
         }),
+        suite("Stream.finalizer")(
+          testM("happy path") {
+            for {
+              log <- Ref.make[List[String]](Nil)
+              _ <- (for {
+                    _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                    _ <- Stream.finalizer(log.update("Use" :: _))
+                  } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
+              execution <- log.get
+            } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
+          },
+          testM("finalizer is not run if stream is not pulled") {
+            for {
+              ref <- Ref.make(false)
+              _   <- Stream.finalizer(ref.set(true)).process.use(_ => UIO.unit)
+              fin <- ref.get
+            } yield assert(fin, isFalse)
+          }
+        ),
         suite("Stream.flatMap")(
           testM("deep flatMap stack safety") {
             def fib(n: Int): Stream[Nothing, Int] =
@@ -768,7 +777,7 @@ object StreamSpec
               _ <- Stream(1, 2, 3, 4)
                     .flatMapParSwitch(1) { i =>
                       if (i > 3) Stream.bracket(UIO.unit)(_ => lastExecuted.set(true)).flatMap(_ => Stream.empty)
-                      else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+                      else Stream.managed(semaphore.withPermitManaged).flatMap(_ => Stream.never)
                     }
                     .runDrain
               result <- semaphore.withPermit(lastExecuted.get)
@@ -782,7 +791,7 @@ object StreamSpec
                     .flatMapParSwitch(4) { i =>
                       if (i > 8)
                         Stream.bracket(UIO.unit)(_ => lastExecuted.update(_ + 1)).flatMap(_ => Stream.empty)
-                      else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+                      else Stream.managed(semaphore.withPermitManaged).flatMap(_ => Stream.never)
                     }
                     .runDrain
               result <- semaphore.withPermits(4)(lastExecuted.get)

@@ -25,7 +25,7 @@ object TSetSpec
       suite("TSet")(
         suite("factories")(
           testM("apply") {
-            val tx = TSet(1, 2, 2, 3).flatMap(_.toList)
+            val tx = TSet.make(1, 2, 2, 3).flatMap(_.toList)
             assertM(tx.commit, hasSameElements(List(1, 2, 3)))
 
           },
@@ -40,19 +40,19 @@ object TSetSpec
         ),
         suite("lookups")(
           testM("contains existing element") {
-            val tx = TSet(1, 2, 3, 4).flatMap(_.contains(1))
+            val tx = TSet.make(1, 2, 3, 4).flatMap(_.contains(1))
             assertM(tx.commit, isTrue)
           },
           testM("contains non-existing element") {
-            val tx = TSet(1, 2, 3, 4).flatMap(_.contains(0))
+            val tx = TSet.make(1, 2, 3, 4).flatMap(_.contains(0))
             assertM(tx.commit, isFalse)
           },
           testM("collect all elements") {
-            val tx = TSet(1, 2, 3, 4).flatMap(_.toList)
+            val tx = TSet.make(1, 2, 3, 4).flatMap(_.toList)
             assertM(tx.commit, hasSameElements(List(1, 2, 3, 4)))
           },
           testM("cardinality") {
-            val tx = TSet(1, 2, 3, 4).flatMap(_.size)
+            val tx = TSet.make(1, 2, 3, 4).flatMap(_.size)
             assertM(tx.commit, equalTo(4))
           }
         ),
@@ -70,7 +70,7 @@ object TSetSpec
           testM("add duplicate element") {
             val tx =
               for {
-                tset <- TSet(1)
+                tset <- TSet.make(1)
                 _    <- tset.put(1)
                 res  <- tset.toList
               } yield res
@@ -80,7 +80,7 @@ object TSetSpec
           testM("remove existing element") {
             val tx =
               for {
-                tset <- TSet(1, 2)
+                tset <- TSet.make(1, 2)
                 _    <- tset.delete(1)
                 res  <- tset.toList
               } yield res
@@ -90,7 +90,7 @@ object TSetSpec
           testM("remove non-existing element") {
             val tx =
               for {
-                tset <- TSet(1, 2)
+                tset <- TSet.make(1, 2)
                 _    <- tset.delete(3)
                 res  <- tset.toList
               } yield res
@@ -102,7 +102,7 @@ object TSetSpec
           testM("retainIf") {
             val tx =
               for {
-                tset <- TSet("a", "aa", "aaa")
+                tset <- TSet.make("a", "aa", "aaa")
                 _    <- tset.retainIf(_ == "aa")
                 a    <- tset.contains("a")
                 aa   <- tset.contains("aa")
@@ -114,7 +114,7 @@ object TSetSpec
           testM("removeIf") {
             val tx =
               for {
-                tset <- TSet("a", "aa", "aaa")
+                tset <- TSet.make("a", "aa", "aaa")
                 _    <- tset.removeIf(_ == "aa")
                 a    <- tset.contains("a")
                 aa   <- tset.contains("aa")
@@ -126,7 +126,7 @@ object TSetSpec
           testM("transform") {
             val tx =
               for {
-                tset <- TSet(1, 2, 3)
+                tset <- TSet.make(1, 2, 3)
                 _    <- tset.transform(_ * 2)
                 res  <- tset.toList
               } yield res
@@ -136,7 +136,7 @@ object TSetSpec
           testM("transformM") {
             val tx =
               for {
-                tset <- TSet(1, 2, 3)
+                tset <- TSet.make(1, 2, 3)
                 _    <- tset.transformM(a => STM.succeed(a * 2))
                 res  <- tset.toList
               } yield res
@@ -148,7 +148,7 @@ object TSetSpec
           testM("fold on non-empty set") {
             val tx =
               for {
-                tset <- TSet(1, 2, 3)
+                tset <- TSet.make(1, 2, 3)
                 res  <- tset.fold(0)(_ + _)
               } yield res
 
@@ -166,7 +166,7 @@ object TSetSpec
           testM("foldM on non-empty set") {
             val tx =
               for {
-                tset <- TSet(1, 2, 3)
+                tset <- TSet.make(1, 2, 3)
                 res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
               } yield res
 
@@ -186,8 +186,8 @@ object TSetSpec
           testM("diff") {
             val tx =
               for {
-                tset1 <- TSet(1, 2, 3)
-                tset2 <- TSet(1, 4, 5)
+                tset1 <- TSet.make(1, 2, 3)
+                tset2 <- TSet.make(1, 4, 5)
                 _     <- tset1.diff(tset2)
                 res   <- tset1.toList
               } yield res
@@ -197,8 +197,8 @@ object TSetSpec
           testM("intersect") {
             val tx =
               for {
-                tset1 <- TSet(1, 2, 3)
-                tset2 <- TSet(1, 4, 5)
+                tset1 <- TSet.make(1, 2, 3)
+                tset2 <- TSet.make(1, 4, 5)
                 _     <- tset1.intersect(tset2)
                 res   <- tset1.toList
               } yield res
@@ -208,8 +208,8 @@ object TSetSpec
           testM("union") {
             val tx =
               for {
-                tset1 <- TSet(1, 2, 3)
-                tset2 <- TSet(1, 4, 5)
+                tset1 <- TSet.make(1, 2, 3)
+                tset2 <- TSet.make(1, 4, 5)
                 _     <- tset1.union(tset2)
                 res   <- tset1.toList
               } yield res
