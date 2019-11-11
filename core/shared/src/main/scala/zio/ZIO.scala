@@ -283,7 +283,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Turns on daemon mode for this region, which means that any fibers forked
    * in this region will be daemon fibers—new roots in the fiber graph and
-   * invisible to the their (otherwise) parent fiber.
+   * invisible to the their (otherwise) parent fiber, and not interrupted
+   * when their (otherwise) parent fiber is interrupted.
    */
   final def daemon: ZIO[R, E, A] = daemonStatus(DaemonStatus.Daemon)
 
@@ -638,7 +639,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Turns off daemon mode for this region, which means that any fibers forked
    * in this region will not be daemon fibers, so they will be visible as
-   * children of their parent fiber.
+   * children of their parent fiber, and interrupted when their parent fiber is
+   * interrupted.
    */
   final def nonDaemon: ZIO[R, E, A] = daemonStatus(DaemonStatus.NonDaemon)
 
