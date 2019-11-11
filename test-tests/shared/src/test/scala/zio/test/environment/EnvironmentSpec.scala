@@ -67,14 +67,15 @@ object EnvironmentSpec
           } yield assert(lineSep, equalTo(","))
         },
         testM("mapTestClock maps the `TestClock` implementation in the test environment") {
-          for {
-            _               <- TestClock.setTime(1.millis)
-            testEnvironment <- ZIO.environment[TestEnvironment]
-            testClock       <- TestClock.makeTest(TestClock.DefaultData)
-            result <- clock
-                       .currentTime(TimeUnit.MILLISECONDS)
-                       .provide(testEnvironment.mapTestClock(_ => testClock))
-          } yield assert(result, equalTo(0L))
+          TestClock.makeTest(TestClock.DefaultData).use { testClock =>
+            for {
+              _               <- TestClock.setTime(1.millis)
+              testEnvironment <- ZIO.environment[TestEnvironment]
+              result <- clock
+                         .currentTime(TimeUnit.MILLISECONDS)
+                         .provide(testEnvironment.mapTestClock(_ => testClock))
+            } yield assert(result, equalTo(0L))
+          }
         },
         testM("mapTestConsole maps the `TestConsole` implementation in the test environment") {
           for {
