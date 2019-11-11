@@ -1801,20 +1801,19 @@ object StreamSpec
             import zio.test.environment.TestClock
 
             for {
-              clock <- TestClock.make(TestClock.DefaultData)
-              s1    = Stream.iterate(0)(_ + 1).fixed(100.millis).provide(clock)
-              s2    = Stream.iterate(0)(_ + 1).fixed(70.millis).provide(clock)
-              s3    = s1.zipWithLatest(s2)((_, _))
-              q     <- Queue.unbounded[(Int, Int)]
-              _     <- s3.foreach(q.offer).fork
-              a     <- q.take
-              _     <- clock.clock.setTime(70.millis)
-              b     <- q.take
-              _     <- clock.clock.setTime(100.millis)
-              c     <- q.take
-              _     <- clock.clock.setTime(140.millis)
-              d     <- q.take
-              _     <- clock.clock.setTime(210.millis)
+              q  <- Queue.unbounded[(Int, Int)]
+              s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
+              s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
+              s3 = s1.zipWithLatest(s2)((_, _))
+              _  <- s3.foreach(q.offer).fork
+              a  <- q.take
+              _  <- TestClock.setTime(70.millis)
+              b  <- q.take
+              _  <- TestClock.setTime(100.millis)
+              c  <- q.take
+              _  <- TestClock.setTime(140.millis)
+              d  <- q.take
+              _  <- TestClock.setTime(210.millis)
             } yield assert(List(a, b, c, d), equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
           }
         ),

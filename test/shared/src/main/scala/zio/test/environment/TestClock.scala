@@ -296,7 +296,7 @@ object TestClock extends Serializable {
     private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
       UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
 
-    private val warningDone: UIO[Unit] =
+    private[TestClock] val warningDone: UIO[Unit] =
       warningState
         .updateSome[Any, Nothing] {
           case WarningData.Start          => ZIO.succeed(WarningData.done)
@@ -308,7 +308,7 @@ object TestClock extends Serializable {
       warningState.updateSome {
         case WarningData.Start =>
           for {
-            fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).fork
+            fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
           } yield WarningData.pending(fiber)
       }.unit
 
@@ -334,7 +334,7 @@ object TestClock extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Clock`, such as with [[ZIO!.provide]].
    */
-  def make(data: Data, live: Option[Live.Service[Clock with Console]] = None): UIO[TestClock] =
+  def make(data: Data, live: Option[Live.Service[Clock with Console]] = None): UManaged[TestClock] =
     makeTest(data, live).map { test =>
       new TestClock {
         val clock     = test
@@ -346,13 +346,15 @@ object TestClock extends Serializable {
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def makeTest(data: Data, live: Option[Live.Service[Clock with Console]] = None): UIO[Test] =
-    for {
-      ref      <- Ref.make(data)
-      fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine)
-      live     <- live.fold(Live.makeService[Clock with Console](new DefaultRuntime {}.Environment))(ZIO.succeed)
-      refM     <- RefM.make(WarningData.start)
-    } yield Test(ref, fiberRef, live, refM)
+  def makeTest(data: Data, live: Option[Live.Service[Clock with Console]] = None): UManaged[Test] =
+    Managed.make {
+      for {
+        ref      <- Ref.make(data)
+        fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine)
+        live     <- live.fold(Live.makeService[Clock with Console](new DefaultRuntime {}.Environment))(ZIO.succeed)
+        refM     <- RefM.make(WarningData.start)
+      } yield Test(ref, fiberRef, live, refM)
+    }(_.warningDone)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
