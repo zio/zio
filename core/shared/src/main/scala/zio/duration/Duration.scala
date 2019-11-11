@@ -135,7 +135,7 @@ object Duration {
 
     override def asScala: ScalaDuration = ScalaDuration.Inf
 
-    override def asJava: JavaDuration = JavaDuration.ofSeconds(Long.MaxValue)
+    override def asJava: JavaDuration = JavaDuration.ofMillis(Long.MaxValue)
 
     override def render: String = "Infinity"
   }

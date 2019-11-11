@@ -119,7 +119,7 @@ object DurationSpec
             assert(Duration.Infinity.asScala, equalTo(ScalaDuration.Inf: ScalaDuration))
           },
           test("It converts into a Long.MaxValue second-long JDK Duration") {
-            assert(Duration.Infinity.asJava, equalTo(JavaDuration.ofSeconds(Long.MaxValue)))
+            assert(Duration.Infinity.asJava, equalTo(JavaDuration.ofMillis(Long.MaxValue)))
           },
           test("Folding picks up the correct value") {
             assert(Duration.Infinity.fold("Infinity", _ => "Finite"), equalTo("Infinity"))
