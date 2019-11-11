@@ -3,9 +3,26 @@
 }
 
 @media only screen and (min-width: 1024px) {
+  .newsletter-form {
+    margin-right: 50px;
+  }
+  .newsletter-input:focus,
+  .newsletter-input:active {
+    width: 220px;
+  }
+  .newsletter-form label {
+    display: block;
+  }
 }
 
 @media only screen and (max-width: 1023px) {
+  .newsletter-form {
+    margin-right: 20px;
+  }
+
+  .newsletter-form label {
+    display: none;
+  }
 }
 
 @media only screen and (min-width: 1400px) {
@@ -96,4 +113,52 @@ a {
 .sponsorsSection .blockImage img {
   height: 120px;
   object-fit: contain;
+}
+
+.newsletter-form {
+  float: right;
+}
+
+.newsletter-form label {
+  color: #fff;
+  padding-left: 8px;
+}
+
+.newsletter-input {
+  padding: 8px 16px 8px;
+  background: #20232a;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.2em;
+  width: 170px;
+  border-radius: 25px 0 0 25px;
+  border: none;
+  outline: none;
+  transition: 0.5s width ease;
+}
+
+.newsletter-button {
+  padding: 8px 16px 8px 8px;
+  background: #bd271a;
+  color: #fff;
+  font-weight: 400;
+  line-height: 1.2em;
+  letter-spacing: .1em;
+  font-size: 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  border-radius: 0 25px 25px 0;
+  border: none;
+}
+
+.newsletter-button:hover{
+  opacity: 90%;
+}
+
+.input-group {
+  display: flex;
+}
+
+.input-group-append {
+  margin-left: -1px;
 }
