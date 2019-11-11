@@ -177,6 +177,7 @@ trait Fiber[+E, +A] { self =>
       final def poll: UIO[Option[Exit[E1, B]]] =
         self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
       final def status: UIO[Fiber.Status] = self.status
+      def trace: UIO[Option[ZTrace]] = self.trace
     }
 
   /**
@@ -209,6 +210,8 @@ trait Fiber[+E, +A] { self =>
         that.inheritFiberRefs *> self.inheritFiberRefs
 
       final def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
+
+      final def trace: UIO[Option[ZTrace]] = UIO(None)
     }
 
   /**
@@ -275,6 +278,11 @@ trait Fiber[+E, +A] { self =>
    */
   final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
     ZManaged.make(UIO.succeed(self))(_.interrupt)
+
+  /**
+   * The trace of the fiber.
+   */
+  def trace: UIO[Option[ZTrace]]
 
   /**
    * Maps the output of this fiber to `()`.
@@ -353,6 +361,8 @@ trait Fiber[+E, +A] { self =>
       def inheritFiberRefs: UIO[Unit] = that.inheritFiberRefs *> self.inheritFiberRefs
 
       final def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
+
+      final def trace: UIO[Option[ZTrace]] = UIO(None)
     }
 }
 
@@ -431,6 +441,7 @@ object Fiber {
       final def inheritFiberRefs: UIO[Unit]               = IO.unit
       final def poll: UIO[Option[Exit[E, A]]]             = IO.succeed(Some(exit))
       final def status: UIO[Fiber.Status]                 = UIO(Fiber.Status.Done)
+      final def trace: UIO[Option[ZTrace]] = UIO(None)
     }
 
   /**
@@ -446,14 +457,15 @@ object Fiber {
         .collectAll(fibers.toIterable.map { context =>
           for {
             status   <- context.status
-            trace    <- ZIO.trace
+            trace    <- context.trace
             children <- context.children
-          } yield (children, Dump(context.fiberId, status, trace))
+          } yield trace.map(trace => (children, Dump(context.fiberId, status, trace)))
         })
-        .flatMap { (collected: List[(Iterable[Fiber[Any, Any]], Dump)]) =>
-          val children = collected.map(_._1).flatten
-          val dumps    = collected.map(_._2)
-          val acc2     = acc.map(_ ++ dumps.toVector)
+        .flatMap { (collected: List[Option[(Iterable[Fiber[Any, Any]], Dump)]]) =>
+          val collected1 = collected.collect { case Some(a) => a }
+          val children   = collected1.map(_._1).flatten
+          val dumps      = collected1.map(_._2)
+          val acc2       = acc.map(_ ++ dumps.toVector)
 
           if (children.isEmpty) acc2 else loop(children.asInstanceOf[Iterable[FiberContext[Any, Any]]], acc2)
         }
@@ -505,6 +517,8 @@ object Fiber {
       final def status: UIO[Fiber.Status] = UIO {
         if (thunk.isCompleted) Status.Done else Status.Running
       }
+
+      final def trace: UIO[Option[ZTrace]] = UIO(None)
     }
 
   /**
@@ -560,6 +574,7 @@ object Fiber {
       final def inheritFiberRefs: UIO[Unit]                           = IO.unit
       final def poll: UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeed(None)
       final def status: UIO[Fiber.Status]                             = UIO(Status.Suspended(false, 0))
+      final def trace: UIO[Option[ZTrace]] = UIO(None)
     }
 
   /**

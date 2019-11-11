@@ -686,6 +686,8 @@ private[zio] final class FiberContext[E, A](
 
   final def status: UIO[Fiber.Status] = UIO(state.get.status)
 
+  final def trace: UIO[Option[ZTrace]] = UIO(Some(captureTrace(null)))
+
   @tailrec
   private[this] final def enterAsync(epoch: Long): Boolean = {
     val oldState = state.get
