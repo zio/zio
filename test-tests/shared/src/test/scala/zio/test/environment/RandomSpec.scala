@@ -134,7 +134,7 @@ object RandomSpecUtil {
         _          <- testRandom.setSeed(seed)
         actual     <- testRandom.nextGaussian
         expected   <- ZIO.effectTotal(sRandom.nextGaussian)
-      } yield assert(math.abs(actual - expected), isLessThan(0.01))
+      } yield assert(actual, approximatelyEquals(expected, 0.01))
     }
 
   def forAllEqualN[A](
