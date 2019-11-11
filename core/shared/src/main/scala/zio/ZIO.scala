@@ -949,11 +949,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
                       io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                   }
 
-              inheritFiberRefs = { (res: (A1, Fiber[E1, A1])) =>
-                res._2.inheritFiberRefs.as(res._1)
+              inheritRefs = { (res: (A1, Fiber[E1, A1])) =>
+                res._2.inheritRefs.as(res._1)
               }
 
-              c <- restore(done.await >>= inheritFiberRefs)
+              c <- restore(done.await >>= inheritRefs)
                     .onInterrupt(fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt))
             } yield c
           }
@@ -1572,7 +1572,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).fork.flatMap {
           f =>
             f.await.flatMap { exit =>
-              if (exit.succeeded) f.inheritFiberRefs *> ZIO.done(exit)
+              if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
               else ZIO.done(exit)
             }
         }

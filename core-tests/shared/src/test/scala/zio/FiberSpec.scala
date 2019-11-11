@@ -26,7 +26,7 @@ object FiberSpec
               child <- withLatch { release =>
                         (fiberRef.set(update) *> release).fork
                       }
-              _     <- child.map(_ => ()).inheritFiberRefs
+              _     <- child.map(_ => ()).inheritRefs
               value <- fiberRef.get
             } yield assert(value, equalTo(update))
           },
@@ -38,7 +38,7 @@ object FiberSpec
               child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
               child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
               _        <- latch1.await *> latch2.await
-              _        <- child1.orElse(child2).inheritFiberRefs
+              _        <- child1.orElse(child2).inheritRefs
               value    <- fiberRef.get
             } yield assert(value, equalTo("child1"))
           },
@@ -50,7 +50,7 @@ object FiberSpec
               child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
               child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
               _        <- latch1.await *> latch2.await
-              _        <- child1.zip(child2).inheritFiberRefs
+              _        <- child1.zip(child2).inheritRefs
               value    <- fiberRef.get
             } yield assert(value, equalTo("child1"))
           }

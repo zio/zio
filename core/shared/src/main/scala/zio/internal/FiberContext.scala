@@ -216,7 +216,7 @@ private[zio] final class FiberContext[E, A](
       if (ab.compareAndSet(true, false)) {
         winnerExit match {
           case exit: Exit.Success[_] =>
-            cb(winner.inheritFiberRefs.flatMap(_ => cont(exit, loser)))
+            cb(winner.inheritRefs.flatMap(_ => cont(exit, loser)))
           case exit: Exit.Failure[_] =>
             cb(cont(exit, loser))
         }
@@ -476,7 +476,7 @@ private[zio] final class FiberContext[E, A](
                         case Some(zio) => if (exitAsync(epoch)) zio else null
                         case None      => null
                       }
-                    } else ZIO.interrupt
+                    } else ZIO.interruptAs(state.get.interrupted.interruptors.headOption.getOrElse(Fiber.Id.None))
 
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
@@ -586,7 +586,7 @@ private[zio] final class FiberContext[E, A](
         } catch {
           case _: InterruptedException =>
             Thread.interrupted()
-            curZio = ZIO.interrupt
+            curZio = ZIO.interruptAs(Fiber.Id.None)
 
           // Catastrophic error handler. Any error thrown inside the interpreter is
           // either a bug in the interpreter or a bug in the user's code. Let the
@@ -671,7 +671,7 @@ private[zio] final class FiberContext[E, A](
     observe0(x => k(ZIO.done(x)))
   }
 
-  final def getFiberRef[A](ref: FiberRef[A]): UIO[A] = UIO {
+  final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
     val oldValue = Option(fiberRefLocals.get(ref))
 
     oldValue.asInstanceOf[Option[A]].getOrElse(ref.initial)
@@ -681,7 +681,7 @@ private[zio] final class FiberContext[E, A](
 
   final def id: UIO[Option[Fiber.Id]] = UIO(Some(fiberId))
 
-  final def inheritFiberRefs: UIO[Unit] = UIO.effectSuspendTotal {
+  final def inheritRefs: UIO[Unit] = UIO.effectSuspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
