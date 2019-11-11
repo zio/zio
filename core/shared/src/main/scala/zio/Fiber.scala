@@ -177,7 +177,7 @@ trait Fiber[+E, +A] { self =>
       final def poll: UIO[Option[Exit[E1, B]]] =
         self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
       final def status: UIO[Fiber.Status] = self.status
-      def trace: UIO[Option[ZTrace]] = self.trace
+      def trace: UIO[Option[ZTrace]]      = self.trace
     }
 
   /**
@@ -441,7 +441,7 @@ object Fiber {
       final def inheritFiberRefs: UIO[Unit]               = IO.unit
       final def poll: UIO[Option[Exit[E, A]]]             = IO.succeed(Some(exit))
       final def status: UIO[Fiber.Status]                 = UIO(Fiber.Status.Done)
-      final def trace: UIO[Option[ZTrace]] = UIO(None)
+      final def trace: UIO[Option[ZTrace]]                = UIO(None)
     }
 
   /**
@@ -574,7 +574,7 @@ object Fiber {
       final def inheritFiberRefs: UIO[Unit]                           = IO.unit
       final def poll: UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeed(None)
       final def status: UIO[Fiber.Status]                             = UIO(Status.Suspended(false, 0))
-      final def trace: UIO[Option[ZTrace]] = UIO(None)
+      final def trace: UIO[Option[ZTrace]]                            = UIO(None)
     }
 
   /**
