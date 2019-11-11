@@ -39,6 +39,12 @@ class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult
     })
 
   /**
+   * A symbolic alias for `label`.
+   */
+  final def ??(string: String): Assertion[A] =
+    label(string)
+
+  /**
    * Returns a new assertion that succeeds if either assertion succeeds.
    */
   final def ||[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
@@ -58,6 +64,12 @@ class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult
 
   override final def hashCode: Int =
     toString.hashCode
+
+  /**
+   * Labels this assertion with the specified string.
+   */
+  final def label(string: String): Assertion[A] =
+    new Assertion(infix(param(self), "??", param(quoted(string))), run)
 
   /**
    * Returns the negation of this assertion.
