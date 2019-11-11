@@ -104,7 +104,7 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     expectedFailure("labeled failures"),
     withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
     withOffset(2)(
-      s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(" + yellowThenCyan("equalTo(1)") + ") @@ \"third\")")}\n"
+      s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(" + yellowThenCyan("equalTo(1)") + ") ?? \"third\")")}\n"
     )
   )
 
