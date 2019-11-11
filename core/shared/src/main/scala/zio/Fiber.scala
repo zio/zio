@@ -458,7 +458,7 @@ object Fiber {
           if (children.isEmpty) acc2 else loop(children.asInstanceOf[Iterable[FiberContext[Any, Any]]], acc2)
         }
 
-    loop(_rootFibers.asScala, UIO(Vector()))
+    loop(_rootFibers.asScala: @silent("JavaConverters"), UIO(Vector()))
   }
 
   /**
