@@ -17,8 +17,6 @@ class GenBenchmarks {
 
   @Param(Array("1000"))
   var elementSize: Int = _
-
-
   @Benchmark
   def zioDouble: List[Double] =
     unsafeRun(Gen.listOfN(listSize)(Gen.uniform).sample.map(_.value).runHead.get)
@@ -37,20 +35,26 @@ class GenBenchmarks {
 
   @Benchmark
   def scalaCheckIntListsOfSizeN: List[List[Int]] =
-    scalacheck.Gen.listOfN(listSize, scalacheck.Gen.listOfN(elementSize, scalacheck.Gen.choose(Int.MinValue, Int.MaxValue))).sample.get
+    scalacheck.Gen
+      .listOfN(listSize, scalacheck.Gen.listOfN(elementSize, scalacheck.Gen.choose(Int.MinValue, Int.MaxValue)))
+      .sample
+      .get
 
   @Benchmark
   def scalaCheckStringsOfSizeN: List[String] =
-    scalacheck.Gen.listOfN(listSize, scalacheck.Gen.listOfN(elementSize, scalacheck.Gen.alphaChar).sample.mkString).sample.get
+    scalacheck.Gen
+      .listOfN(listSize, scalacheck.Gen.listOfN(elementSize, scalacheck.Gen.alphaChar).sample.mkString)
+      .sample
+      .get
 
   @Benchmark
   def hedgehogDoubles: List[Double] =
     hedgehog.Gen
       .list(hedgehog.Gen.double(hedgehog.Range.constant(0.0, 1.0)), hedgehog.Range.constant(0, listSize))
-        .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
-        .value
-        ._2
-        .head
+      .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
+      .value
+      ._2
+      .head
 
   @Benchmark
   def hedgehogIntListsOfSizeN: List[List[Int]] =
