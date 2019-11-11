@@ -167,7 +167,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   )
 
 lazy val testJVM = test.jvm.settings(dottySettings)
-lazy val testJS = test.js
+lazy val testJS  = test.js
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
