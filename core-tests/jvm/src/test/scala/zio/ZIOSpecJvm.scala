@@ -87,6 +87,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
    Check `foreachParN` runs effects in parallel $testForeachParN_Parallel
    Check `foreachParN` propogates error $testForeachParN_Error
    Check `foreachParN` interrupts effects on first failure $testForeachParN_Interruption
+   Check `summarized` returns summary and value $testSummarized
 
    Eager - Generate a String:
       `.succeed` extension method returns the same UIO[String] as `IO.succeed` does. $eagerT1
@@ -331,7 +332,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     )
   }
 
-  def testCached = unsafeRunWith(TestClock.make(TestClock.DefaultData)) {
+  def testCached = unsafeRunWithManaged(TestClock.make(TestClock.DefaultData)) {
     def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
     for {
       ref   <- Ref.make(0)
@@ -647,6 +648,20 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     }
     unsafeRun(odds.either) must_=== Left("not odd")
   }
+
+  def testSummarized =
+    unsafeRun(
+      for {
+        counter   <- Ref.make(0)
+        increment = counter.update(_ + 1)
+        result    <- increment.summarized((a: Int, b: Int) => (a, b))(increment)
+      } yield {
+        val ((start, end), value) = result
+        (start must_=== 1)
+          .and(value must_=== 2)
+          .and(end must_=== 3)
+      }
+    )
 
   def testForeachParN_Interruption = {
     val actions = List(

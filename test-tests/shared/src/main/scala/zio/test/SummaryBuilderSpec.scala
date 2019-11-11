@@ -103,8 +103,8 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
       val zio = for {
         results <- TestTestRunner(r)
                     .run(spec)
-                    .provideSomeM(for {
-                      logSvc   <- TestLogger.fromConsoleM
+                    .provideSomeManaged(for {
+                      logSvc   <- TestLogger.fromConsoleM.toManaged_
                       clockSvc <- TestClock.make(TestClock.DefaultData)
                     } yield new TestLogger with Clock {
                       override def testLogger: TestLogger.Service = logSvc.testLogger

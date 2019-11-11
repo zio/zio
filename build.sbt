@@ -149,6 +149,9 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
 
 lazy val streamsTestsJS = streamsTests.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  )
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))

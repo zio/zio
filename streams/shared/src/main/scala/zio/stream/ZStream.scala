@@ -2512,26 +2512,6 @@ object ZStream extends Serializable {
         case Take.Fail(e)  => halt(e)
         case Take.End      => end
       }
-
-    /**
-     * A managed [[Pull]] constructor that monitors the state of the wrapped [[Pull]].
-     * In case of error or stream end, it sets a guard that makes sure that any
-     * subsequent pulls always signal stream end. This allows the constructed stream
-     * to be safely pulled again after an error, a feature used by Stream sequencing
-     * combinators such as `flatMap`. This will allow for element level error handling
-     * combinators to be developed in the future.
-     */
-    private[stream] final def memoizeEnd[R, E, A](pull: ZManaged[R, E, Pull[R, E, A]]): ZManaged[R, E, Pull[R, E, A]] =
-      for {
-        as   <- pull
-        done <- Ref.make(false).toManaged_
-      } yield done.get.flatMap {
-        if (_) Pull.end
-        else
-          as.catchAllCause(
-            done.set(true) *> _.failureOrCause.fold(_.fold[Pull[R, E, A]](Pull.end)(Pull.fail), Pull.halt)
-          )
-      }
   }
 
   private[stream] sealed abstract class Structure[-R, +E, +A] {
@@ -3016,13 +2996,13 @@ object ZStream extends Serializable {
    * hence the name.
    */
   final def paginate[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
         ref <- Ref.make[Option[S]](Some(s)).toManaged_
-      } yield ref.get.flatMap({
-        case Some(s) => f(s).foldM(e => Pull.fail(e), { case (a, s) => ref.set(s) *> Pull.emit(a) })
+      } yield ref.get.flatMap {
+        case Some(s) => f(s).foldM(Pull.fail, { case (a, s) => ref.set(s) *> Pull.emit(a) })
         case None    => Pull.end
-      })
+      }
     }
 
   /**
@@ -3066,19 +3046,25 @@ object ZStream extends Serializable {
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
   final def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
+    ZStream {
       for {
-        ref <- Ref.make(s).toManaged_
-      } yield ref.get
-        .flatMap(f0)
-        .foldM(
-          e => Pull.fail(e),
-          opt =>
-            opt match {
-              case Some((a, s)) => ref.set(s) *> Pull.emit(a)
-              case None         => Pull.end
-            }
-        )
+        done <- Ref.make(false).toManaged_
+        ref  <- Ref.make(s).toManaged_
+      } yield done.get.flatMap {
+        if (_) Pull.end
+        else {
+          ref.get
+            .flatMap(f0)
+            .foldM(
+              Pull.fail,
+              opt =>
+                opt match {
+                  case Some((a, s)) => ref.set(s) *> Pull.emit(a)
+                  case None         => done.set(true) *> Pull.end
+                }
+            )
+        }
+      }
     }
 
   /**
