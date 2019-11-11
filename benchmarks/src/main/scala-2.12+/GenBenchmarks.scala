@@ -1,11 +1,8 @@
-package zio
-
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import org.scalacheck
-import zio.test.Gen
-import IOBenchmarks._
+import zio.IOBenchmarks.unsafeRun
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
