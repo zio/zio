@@ -308,7 +308,7 @@ object TestClock extends Serializable {
       warningState.updateSome {
         case WarningData.Start =>
           for {
-            fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).fork
+            fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
           } yield WarningData.pending(fiber)
       }.unit
 
