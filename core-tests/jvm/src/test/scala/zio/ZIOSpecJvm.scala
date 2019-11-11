@@ -330,7 +330,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     )
   }
 
-  def testCached = unsafeRunWith(TestClock.make(TestClock.DefaultData)) {
+  def testCached = unsafeRunWithManaged(TestClock.make(TestClock.DefaultData)) {
     def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
     for {
       ref   <- Ref.make(0)

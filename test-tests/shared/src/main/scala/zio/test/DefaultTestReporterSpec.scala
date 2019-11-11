@@ -167,8 +167,8 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
       val zio = for {
         _ <- TestTestRunner(r)
               .run(spec)
-              .provideSomeM(for {
-                logSvc   <- TestLogger.fromConsoleM
+              .provideSomeManaged(for {
+                logSvc   <- TestLogger.fromConsoleM.toManaged_
                 clockSvc <- TestClock.make(TestClock.DefaultData)
               } yield new TestLogger with Clock {
                 override def testLogger: TestLogger.Service = logSvc.testLogger
