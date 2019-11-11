@@ -18,19 +18,23 @@ package zio.test
 
 import zio.UIO
 
-import scala.reflect.macros.blackbox.Context
-import scala.reflect.macros.TypecheckException
+import scala.compiletime.testing.typeChecks
 
-private[test] object Macros {
+trait CompileVariants {
 
-  def compile_impl(c: Context)(code: c.Expr[String]): c.Expr[UIO[Either[String, Unit]]] = {
-    import c.universe._
+  /**
+   * Returns either `Right` if the specified string is valid Scala code or
+   * `Left` with an error message otherwise. The specified string must be known
+   * at compile time.
+   */
+  inline final def compile(inline code: String): UIO[Either[String, Unit]] =
     try {
-      c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))
-      c.Expr(q"zio.UIO.succeed(Right(()))")
+      if (typeChecks(code)) UIO.succeed(Right(()))
+      else UIO.succeed(Left(errorMessage))
     } catch {
-      case e: TypecheckException => c.Expr(q"zio.UIO.succeed(Left(${e.getMessage}))")
-      case _: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed"))""")
+      case _: Throwable => UIO.die(new RuntimeException("Compilation failed"))
     }
-  }
+
+  private val errorMessage =
+    "Reporting of compilation error messages on Dotty is not currently supported due to instability of the underlying APIs."
 }

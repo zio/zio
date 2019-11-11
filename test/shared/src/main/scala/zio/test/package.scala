@@ -42,7 +42,7 @@ import zio.stream.{ ZSink, ZStream }
  *  }
  * }}}
  */
-package object test extends AssertionVariants {
+package object test extends CompileVariants {
   type AssertResult = BoolAlgebra[AssertionValue]
   type TestResult   = BoolAlgebra[FailureDetails]
 

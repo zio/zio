@@ -4,7 +4,7 @@ import zio.LatchOps._
 import zio.ZIOSpecHelper._
 import zio.clock.Clock
 import zio.duration._
-import zio.test.{ test => pureTest, _ }
+import zio.test._
 import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, ignore, jvm, nonFlaky }
@@ -1434,8 +1434,8 @@ object ZIOSpec
               } yield n
             assertM(task.run, fails(isSubtype[NoSuchElementException](anything)))
           },
-          pureTest("withFilter doesn't compile with UIO") {
-            !assertCompiles {
+          testM("withFilter doesn't compile with UIO") {
+            val result = compile {
               """
                 |import zio._
                 |
@@ -1444,9 +1444,12 @@ object ZIOSpec
                 |} yield n
                 """.stripMargin
             }
+            val expected = "This operation only makes sense for effects that can fail."
+            if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
+            else assertM(result, isLeft(anything))
           },
-          pureTest("withFilter doesn't compile with IO that fails with type other than Throwable") {
-            !assertCompiles {
+          testM("withFilter doesn't compile with IO that fails with type other than Throwable") {
+            val result = compile {
               """
                 |import zio._
                 |val io: IO[String, Int] = IO.succeed(1)
@@ -1455,6 +1458,9 @@ object ZIOSpec
                 |} yield n
               """.stripMargin
             }
+            val expected = "Cannot prove that NoSuchElementException <:< String."
+            if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
+            else assertM(result, isLeft(anything))
           }
         ),
         suite("doWhile")(

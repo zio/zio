@@ -1,12 +1,13 @@
 package zio
 
-import zio.test.{ test => test0, _ }
+import zio.test._
+import zio.test.Assertion._
 
 object NeedsEnvSpec
     extends ZIOBaseSpec(
       suite("NeedsEnvSpec")(
-        test0("useful combinators compile") {
-          assertCompiles {
+        testM("useful combinators compile") {
+          val result = compile {
             """
             import zio._
             import zio.console._
@@ -16,18 +17,22 @@ object NeedsEnvSpec
             sayHello.provide(Console.Live)
             """
           }
+          assertM(result, isRight(isUnit))
         },
-        test0("useless combinators don't compile") {
-          !assertCompiles {
+        testM("useless combinators don't compile") {
+          val result = compile {
             """
             import zio._
             import zio.console._
 
             val uio = UIO.succeed("Hello, World!")
 
-            uio.provide(Clock.Live)
+            uio.provide(Console.Live)
             """
           }
+          val expected = "This operation only makes sense for effects that need an environment."
+          if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
+          else assertM(result, isLeft(anything))
         }
       )
     )
