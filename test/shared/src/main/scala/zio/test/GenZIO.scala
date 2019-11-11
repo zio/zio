@@ -28,8 +28,8 @@ trait GenZIO {
     val failure        = e.map(Cause.fail)
     val die            = t.map(Cause.die)
     val empty          = Gen.const(Cause.empty)
-    val interrupt      = Gen.anyLong.map(Cause.interrupt)
-    def traced(n: Int) = Gen.suspend(causesN(n - 1).map(Cause.Traced(_, ZTrace(0, Nil, Nil, None))))
+    val interrupt      = Gen.anyLong.zipWith(Gen.anyLong)((l, r) => Cause.interrupt(Fiber.Id(l, r)))
+    def traced(n: Int) = Gen.suspend(causesN(n - 1).map(Cause.Traced(_, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))))
     def meta(n: Int)   = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
 
     def sequential(n: Int) = Gen.suspend {

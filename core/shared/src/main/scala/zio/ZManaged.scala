@@ -964,9 +964,9 @@ object ZManaged {
     halt(Cause.fail(error))
 
   /**
-   * Returns an effect that succeeds with the `FiberId` of the caller.
+   * Returns an effect that succeeds with the `Fiber.Id` of the caller.
    */
-  final val fiberId: ZManaged[Any, Nothing, FiberId] = ZManaged.fromEffect(ZIO.fiberId)
+  final val fiberId: ZManaged[Any, Nothing, Fiber.Id] = ZManaged.fromEffect(ZIO.fiberId)
 
   /**
    * Creates an effect that only executes the provided finalizer as its
@@ -1158,7 +1158,7 @@ object ZManaged {
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
-  final def interruptAs(fiberId: FiberId): ZManaged[Any, Nothing, Nothing] =
+  final def interruptAs(fiberId: Fiber.Id): ZManaged[Any, Nothing, Nothing] =
     halt(Cause.interrupt(fiberId))
 
   /**

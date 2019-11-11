@@ -958,7 +958,7 @@ object ZManagedSpecUtil {
 
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
-    expected: FiberId => Option[Exit[Nothing, Unit]]
+    expected: Fiber.Id => Option[Exit[Nothing, Unit]]
   ) =
     for {
       fiberId            <- ZIO.fiberId

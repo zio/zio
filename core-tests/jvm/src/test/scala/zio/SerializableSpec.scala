@@ -88,7 +88,8 @@ object SerializableSpec
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
         testSync("Cause.traced is serializable") {
-          val cause = Cause.traced(Cause.fail("test"), ZTrace(0L, List.empty, List.empty, None))
+          val fiberId = Fiber.Id(0L, 0L)
+          val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, List.empty, List.empty, None))
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
         testSync("Cause.&& is serializable") {
@@ -199,7 +200,7 @@ object SerializableSpec
         },
         testSync("ZTrace is serializable") {
           val trace = ZTrace(
-            0L,
+            Fiber.Id(0L, 0L),
             List(ZTraceElement.NoLocation("test")),
             List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
             None

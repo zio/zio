@@ -16,14 +16,14 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 
 import com.github.ghik.silencer.silent
 
 import zio._
-import zio.internal.FiberContext.FiberRefLocals
-import zio.internal.stacktracer.ZTraceElement
-import zio.internal.tracing.ZIOFn
+import FiberContext.FiberRefLocals
+import stacktracer.ZTraceElement
+import tracing.ZIOFn
 
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
@@ -32,7 +32,7 @@ import scala.collection.JavaConverters._
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-  val fiberId: FiberId,
+  fiberId: Fiber.Id,
   @volatile var parentFiber: FiberContext[_, _],
   platform: Platform,
   startEnv: AnyRef,
@@ -628,7 +628,7 @@ private[zio] final class FiberContext[E, A](
       else None
 
     val childContext = new FiberContext[E, A](
-      FiberContext.fiberCounter.getAndIncrement(),
+      Fiber.newFiberId(),
       if (isDaemon) null else self,
       platform,
       environments.peek(),
@@ -662,7 +662,7 @@ private[zio] final class FiberContext[E, A](
     if (exitAsync(epoch)) evaluateLater(zio)
   }
 
-  final def interruptAs(fiberId: FiberId): UIO[Exit[E, A]] = kill0(fiberId)
+  final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
 
   @silent("JavaConverters")
   final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(_children.asScala.toSet)
@@ -672,6 +672,8 @@ private[zio] final class FiberContext[E, A](
   }
 
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
+
+  final def id: UIO[Option[Fiber.Id]] = UIO(Some(fiberId))
 
   final def inheritFiberRefs: UIO[Unit] = UIO.effectSuspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
@@ -813,7 +815,7 @@ private[zio] final class FiberContext[E, A](
     case _                   =>
   }
 
-  private[this] final def kill0(fiberId: FiberId): UIO[Exit[E, A]] = {
+  private[this] final def kill0(fiberId: Fiber.Id): UIO[Exit[E, A]] = {
     @tailrec
     def setInterruptedLoop(): Unit = {
       val oldState = state.get
@@ -900,8 +902,6 @@ private[zio] final class FiberContext[E, A](
 
 }
 private[zio] object FiberContext {
-  val fiberCounter = new AtomicLong(0)
-
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
     def interrupted: Cause[Nothing]
     def status: Fiber.Status

@@ -57,7 +57,7 @@ object FiberSpec
         ),
         suite("`Fiber.join` on interrupted Fiber")(
           testM("is inner interruption") {
-            val fiberId = 123L
+            val fiberId = Fiber.Id(0L, 123L)
 
             for {
               exit <- Fiber.interruptAs(fiberId).join.run

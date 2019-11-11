@@ -1543,7 +1543,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     that: ZIO[R1, E1, B]
   )(f: (A, B) => C): ZIO[R1, E1, C] = {
     def coordinate[A, B](
-      fiberId: FiberId,
+      fiberId: Fiber.Id,
       f: (A, B) => C,
       leftWinner: Boolean
     )(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
@@ -2033,9 +2033,9 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def fail[E](error: E): IO[E, Nothing] = haltWith(trace => Cause.Traced(Cause.Fail(error), trace()))
 
   /**
-   * Returns the `FiberId` of the fiber executing the effect that calls this method.
+   * Returns the `Fiber.Id` of the fiber executing the effect that calls this method.
    */
-  final val fiberId: UIO[FiberId] = ZIO.descriptor.map(_.id)
+  final val fiberId: UIO[Fiber.Id] = ZIO.descriptor.map(_.id)
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -2284,7 +2284,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
-  final def interruptAs(fiberId: FiberId): UIO[Nothing] =
+  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] =
     haltWith(trace => Cause.Traced(Cause.interrupt(fiberId), trace()))
 
   /**

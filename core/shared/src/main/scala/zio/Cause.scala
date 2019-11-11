@@ -114,8 +114,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Returns a set of interruptors, fibers that interrupted the fiber described
    * by this `Cause`.
    */
-  final def interruptors: Set[FiberId] =
-    foldLeft[Set[FiberId]](Set()) {
+  final def interruptors: Set[Fiber.Id] =
+    foldLeft[Set[Fiber.Id]](Set()) {
       case (acc, Interrupt(fiberId)) => acc + fiberId
     }
 
@@ -134,7 +134,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     empty: => Z,
     failCase: E => Z,
     dieCase: Throwable => Z,
-    interruptCase: FiberId => Z
+    interruptCase: Fiber.Id => Z
   )(thenCase: (Z, Z) => Z, bothCase: (Z, Z) => Z, tracedCase: (Z, ZTrace) => Z): Z =
     self match {
       case Empty => empty
@@ -247,7 +247,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         List(Failure("An unchecked error was produced." :: renderThrowable(t, maybeData) ++ renderTrace(maybeTrace)))
       )
 
-    def renderInterrupt(fiberId: FiberId, maybeTrace: Option[ZTrace]): Sequential =
+    def renderInterrupt(fiberId: Fiber.Id, maybeTrace: Option[ZTrace]): Sequential =
       Sequential(
         List(Failure(s"An interrupt was produced by ${fiberId}." :: renderTrace(maybeTrace)))
       )
@@ -418,7 +418,7 @@ object Cause extends Serializable {
   final val empty: Cause[Nothing]                               = Empty
   final def die(defect: Throwable): Cause[Nothing]              = Die(defect)
   final def fail[E](error: E): Cause[E]                         = Fail(error)
-  final def interrupt(fiberId: FiberId): Cause[Nothing]         = Interrupt(fiberId)
+  final def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Interrupt(fiberId)
   final def stack[E](cause: Cause[E]): Cause[E]                 = Meta(cause, Data(false))
   final def stackless[E](cause: Cause[E]): Cause[E]             = Meta(cause, Data(true))
   final def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Traced(cause, trace)
@@ -490,7 +490,7 @@ object Cause extends Serializable {
       new Die(value)
   }
 
-  final case class Interrupt(fiberId: FiberId) extends Cause[Nothing] {
+  final case class Interrupt(fiberId: Fiber.Id) extends Cause[Nothing] {
     override final def equals(that: Any): Boolean =
       (this eq that.asInstanceOf[AnyRef]) || (that match {
         case interrupt: Interrupt => fiberId == interrupt.fiberId

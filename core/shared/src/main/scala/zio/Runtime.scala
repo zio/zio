@@ -79,7 +79,7 @@ trait Runtime[+R] {
   final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
     val InitialInterruptStatus = InterruptStatus.Interruptible
 
-    val fiberId = FiberContext.fiberCounter.getAndIncrement()
+    val fiberId = Fiber.newFiberId()
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,

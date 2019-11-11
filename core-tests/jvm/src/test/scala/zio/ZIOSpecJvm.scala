@@ -195,7 +195,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private val exampleError = new Error("something went wrong")
 
   def testDone = {
-    val fiberId                       = 123L
+    val fiberId                       = Fiber.Id(0L, 123L)
     val error                         = exampleError
     val completed                     = Exit.succeed(1)
     val interrupted: Exit[Error, Int] = Exit.interrupt(fiberId)
@@ -380,7 +380,7 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val ex = new Exception("Died")
 
     unsafeRun {
-      val fiberId = 123L
+      val fiberId = Fiber.Id(0L, 123L)
 
       import zio.CanFail.canFail
       for {

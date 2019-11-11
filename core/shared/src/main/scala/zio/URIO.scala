@@ -212,7 +212,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  final val fiberId: UIO[FiberId] = ZIO.fiberId
+  final val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
    * @see [[zio.ZIO.firstSuccessOf]]
@@ -336,7 +336,7 @@ object URIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  final def interruptAs(fiberId: FiberId): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see [[zio.ZIO.interruptible]]
