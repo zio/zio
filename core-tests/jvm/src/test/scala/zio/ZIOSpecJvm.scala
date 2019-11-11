@@ -488,6 +488,18 @@ object ZIOSpecJvm
           val io = ZIO.foreachParN(4)(actions)(a => a)
           assertM(io.either, isLeft(equalTo("C")))
         },
+        testM("Check `summarized` returns summary and value") {
+          for {
+            counter   <- Ref.make(0)
+            increment = counter.update(_ + 1)
+            result    <- increment.summarized((a: Int, b: Int) => (a, b))(increment)
+          } yield {
+            val ((start, end), value) = result
+            assert(start, equalTo(1)) &&
+            assert(value, equalTo(2)) &&
+            assert(end, equalTo(3))
+          }
+        },
         suite("Eager - Generate a String:")(
           testM("`.succeed` extension method returns the same UIO[String] as `IO.succeed` does") {
             checkM(Gen.alphaNumericString) { str =>
