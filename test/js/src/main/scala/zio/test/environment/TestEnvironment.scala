@@ -89,14 +89,14 @@ object TestEnvironment extends Serializable {
   val Value: Managed[Nothing, TestEnvironment] =
     Managed.fromEffect {
       for {
-        clock   <- TestClock.makeTest(TestClock.DefaultData)
-        console <- TestConsole.makeTest(TestConsole.DefaultData)
         live    <- Live.makeService(new DefaultRuntime {}.environment)
+        clock   <- TestClock.makeTest(TestClock.DefaultData, Some(live))
+        console <- TestConsole.makeTest(TestConsole.DefaultData)
         random  <- TestRandom.makeTest(TestRandom.DefaultData)
-        time    <- live.provide(zio.clock.nanoTime)
-        _       <- random.setSeed(time)
         size    <- Sized.makeService(100)
         system  <- TestSystem.makeTest(TestSystem.DefaultData)
+        time    <- live.provide(zio.clock.nanoTime)
+        _       <- random.setSeed(time)
       } yield new TestEnvironment(clock, console, live, random, size, system)
     }
 }

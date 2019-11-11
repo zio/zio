@@ -312,25 +312,6 @@ private[stream] object StreamEffect extends Serializable {
     override def fillInStackTrace() = this
   }
 
-  final def memoizeEnd[R, E, A](pull: ZManaged[R, E, () => A]): ZManaged[R, E, () => A] =
-    pull.flatMap { thunk =>
-      ZManaged.effectTotal {
-        var done = false
-
-        () => {
-          if (done) end
-          else {
-            try thunk()
-            catch {
-              case t: Throwable =>
-                done = true
-                throw t
-            }
-          }
-        }
-      }
-    }
-
   def end[A]: A = throw End
 
   def fail[E, A](e: E): A = throw Failure(e)
@@ -346,7 +327,17 @@ private[stream] object StreamEffect extends Serializable {
     new StreamEffect(pull)
 
   final def fail[E](e: E): StreamEffect[Any, E, Nothing] =
-    StreamEffect(memoizeEnd(Managed.effectTotal(() => fail(e))))
+    StreamEffect {
+      Managed.effectTotal {
+        var done = false
+        () =>
+          if (done) end
+          else {
+            done = true
+            fail(e)
+          }
+      }
+    }
 
   final def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
@@ -390,19 +381,23 @@ private[stream] object StreamEffect extends Serializable {
     StreamEffectChunk {
       StreamEffect {
         Managed.effectTotal {
+          var done = false
+
           def pull(): Chunk[Byte] = {
             val buf = Array.ofDim[Byte](chunkSize)
             try {
               val bytesRead = is.read(buf)
-              if (bytesRead < 0) end
-              else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
+              if (bytesRead < 0) {
+                done = true
+                end
+              } else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
               else Chunk.fromArray(buf)
             } catch {
               case e: IOException => fail(e)
             }
           }
 
-          () => pull()
+          () => if (done) end else pull()
         }
       }
     }
@@ -423,16 +418,22 @@ private[stream] object StreamEffect extends Serializable {
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
+        var done  = false
         var state = s
 
-        () => {
-          val opt = f0(state)
-          if (opt.isDefined) {
-            val res = opt.get
-            state = res._2
-            res._1
-          } else end
-        }
+        () =>
+          if (done) end
+          else {
+            val opt = f0(state)
+            if (opt.isDefined) {
+              val res = opt.get
+              state = res._2
+              res._1
+            } else {
+              done = true
+              end
+            }
+          }
       }
     }
 
