@@ -1228,13 +1228,7 @@ object SinkSpec
                   res5  <- sink.extract(step5).map(_._1)
                 } yield assert(List(res1, res2, res3, res4, res5), equalTo(List(Some(1), Some(2), None, None, Some(5))))
 
-              for {
-                clock <- TestClock.make(TestClock.DefaultData)
-                test <- ZSink
-                         .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
-                         .use(sinkTest)
-                         .provide(clock)
-              } yield test
+              ZSink.throttleEnforce[Int](1, 10.milliseconds)(_ => 1).use(sinkTest)
             },
             testM("with burst") {
 
@@ -1262,13 +1256,7 @@ object SinkSpec
                   equalTo(List(Some(1), Some(2), Some(3), None, Some(5)))
                 )
 
-              for {
-                clock <- TestClock.make(TestClock.DefaultData)
-                test <- ZSink
-                         .throttleEnforce[Int](1, 10.milliseconds, 1)(_ => 1)
-                         .use(sinkTest)
-                         .provide(clock)
-              } yield test
+              ZSink.throttleEnforce[Int](1, 10.milliseconds, 1)(_ => 1).use(sinkTest)
             }
           ),
           suite("throttleShape")(
@@ -1289,13 +1277,11 @@ object SinkSpec
                 } yield assert(List(res1, res2, res3), equalTo(List(1, 2, 3)))
 
               for {
-                clock <- TestClock.make(TestClock.DefaultData)
                 fiber <- ZSink
                           .throttleShape[Int](1, 1.second)(_.toLong)
                           .use(sinkTest)
-                          .provide(clock)
                           .fork
-                _    <- clock.clock.adjust(8.seconds)
+                _    <- TestClock.adjust(8.seconds)
                 test <- fiber.join
               } yield test
             },
@@ -1312,13 +1298,7 @@ object SinkSpec
                   elapsed <- clock.currentTime(TimeUnit.SECONDS)
                 } yield assert(elapsed, equalTo(0L)) && assert(List(res1, res2), equalTo(List(1, 2)))
 
-              for {
-                clock <- TestClock.make(TestClock.DefaultData)
-                test <- ZSink
-                         .throttleShape[Int](1, 0.seconds)(_ => 100000L)
-                         .use(sinkTest)
-                         .provide(clock)
-              } yield test
+              ZSink.throttleShape[Int](1, 0.seconds)(_ => 100000L).use(sinkTest)
             },
             testM("with burst") {
 
@@ -1339,11 +1319,9 @@ object SinkSpec
                 } yield assert(List(res1, res2, res3), equalTo(List(1, 2, 3)))
 
               for {
-                clock <- TestClock.make(TestClock.DefaultData)
                 fiber <- ZSink
                           .throttleShape[Int](1, 1.second, 2)(_.toLong)
                           .use(sinkTest)
-                          .provide(clock)
                           .fork
                 test <- fiber.join
               } yield test
