@@ -30,9 +30,7 @@ object CanFailSpec
             uio.orElse(io)
             """
           }
-          val expected = "This operation only makes sense for effects that can fail."
-          if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
-          else assertM(result, isLeft(anything))
+          assertM(result, isLeft(anything))
         }
       )
     )

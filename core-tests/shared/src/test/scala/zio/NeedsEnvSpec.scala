@@ -30,9 +30,7 @@ object NeedsEnvSpec
             uio.provide(Console.Live)
             """
           }
-          val expected = "This operation only makes sense for effects that need an environment."
-          if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
-          else assertM(result, isLeft(anything))
+          assertM(result, isLeft(anything))
         }
       )
     )

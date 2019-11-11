@@ -1444,9 +1444,7 @@ object ZIOSpec
                 |} yield n
                 """.stripMargin
             }
-            val expected = "This operation only makes sense for effects that can fail."
-            if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
-            else assertM(result, isLeft(anything))
+            assertM(result, isLeft(anything))
           },
           testM("withFilter doesn't compile with IO that fails with type other than Throwable") {
             val result = compile {
