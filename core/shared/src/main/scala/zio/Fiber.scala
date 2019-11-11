@@ -104,6 +104,12 @@ trait Fiber[+E, +A] { self =>
   final def const[B](b: => B): Fiber[E, B] = self as b
 
   /**
+   * Gets the value of the fiber ref for this fiber, or the initial value of
+   * the fiber ref, if the fiber is not storing the ref.
+   */
+  def getFiberRef[A](ref: FiberRef[A]): UIO[A]
+
+  /**
    * The identity of the fiber, if it is a single runtime fiber. Fibers created
    * from values or composite fibers do not have identities.
    */
@@ -176,6 +182,7 @@ trait Fiber[+E, +A] { self =>
       final def await: UIO[Exit[E1, B]] =
         self.await.flatMap(_.foreach(f))
       final def children: UIO[Iterable[Fiber[Any, Any]]] = self.children
+      final def getFiberRef[A](ref: FiberRef[A]): UIO[A] = self.getFiberRef(ref)
       final def id: UIO[Option[Fiber.Id]]                = self.id
       final def inheritFiberRefs: UIO[Unit] =
         self.inheritFiberRefs
@@ -206,6 +213,12 @@ trait Fiber[+E, +A] { self =>
         }
 
       final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
+
+      final def getFiberRef[A](ref: FiberRef[A]): UIO[A] =
+        for {
+          first  <- self.getFiberRef(ref)
+          second <- self.getFiberRef(ref)
+        } yield if (first == ref.initial) second else first
 
       final def id: UIO[Option[Fiber.Id]] = UIO.none
 
@@ -358,6 +371,9 @@ trait Fiber[+E, +A] { self =>
 
       final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
+      final def getFiberRef[A](ref: FiberRef[A]): UIO[A] =
+        (self.getFiberRef(ref) zipWith that.getFiberRef(ref))(ref.combine(_, _))
+
       final def id: UIO[Option[Fiber.Id]] = UIO.none
 
       final def interruptAs(id: Fiber.Id): UIO[Exit[E1, C]] =
@@ -396,7 +412,8 @@ object Fiber {
     executor: Executor
   )
 
-  final case class Dump(fiberId: Fiber.Id, status: Status, trace: ZTrace) extends Serializable
+  final case class Dump(fiberId: Fiber.Id, fiberName: Option[String], status: Status, trace: ZTrace)
+      extends Serializable
 
   final case class Id(startTimeMillis: Long, seqNumber: Long) extends Serializable
 
@@ -450,6 +467,7 @@ object Fiber {
     new Fiber[E, A] {
       final def await: UIO[Exit[E, A]]                     = IO.succeed(exit)
       final def children: UIO[Iterable[Fiber[Any, Any]]]   = UIO(Nil)
+      final def getFiberRef[A](ref: FiberRef[A]): UIO[A]   = UIO(ref.initial)
       final def id: UIO[Option[Fiber.Id]]                  = UIO.none
       final def interruptAs(id: Fiber.Id): UIO[Exit[E, A]] = IO.succeed(exit)
       final def inheritFiberRefs: UIO[Unit]                = IO.unit
@@ -470,6 +488,7 @@ object Fiber {
       ZIO
         .collectAll(fibers.toIterable.map { context =>
           for {
+            name     <- context.getFiberRef(fiberName)
             id       <- context.id
             status   <- context.status
             trace    <- context.trace
@@ -477,7 +496,7 @@ object Fiber {
           } yield for {
             id    <- id
             trace <- trace
-          } yield (children, Dump(id, status, trace))
+          } yield (children, Dump(id, name, status, trace))
         })
         .flatMap { (collected: List[Option[(Iterable[Fiber[Any, Any]], Dump)]]) =>
           val collected1 = collected.collect { case Some(a) => a }
@@ -499,6 +518,11 @@ object Fiber {
    * @return `Fiber[E, Nothing]` failed fiber
    */
   final def fail[E](e: E): Fiber[E, Nothing] = done(Exit.fail(e))
+
+  /**
+   * A `FiberRef` that stores the name of the fiber, which defaults to `None`.
+   */
+  val fiberName: FiberRef[Option[String]] = new FiberRef(None, (old, _) => old)
 
   /**
    * Lifts an [[zio.IO]] into a `Fiber`.
@@ -525,6 +549,8 @@ object Fiber {
       final def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
       final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
+
+      final def getFiberRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 
       final def id: UIO[Option[Fiber.Id]] = UIO.none
 
@@ -590,6 +616,7 @@ object Fiber {
     new Fiber[Nothing, Nothing] {
       final def await: UIO[Exit[Nothing, Nothing]]                     = IO.never
       final def children: UIO[Iterable[Fiber[Any, Any]]]               = UIO(Nil)
+      final def getFiberRef[A](ref: FiberRef[A]): UIO[A]               = UIO(ref.initial)
       final def id: UIO[Option[Fiber.Id]]                              = UIO.none
       final def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
       final def inheritFiberRefs: UIO[Unit]                            = IO.unit

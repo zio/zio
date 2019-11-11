@@ -671,6 +671,12 @@ private[zio] final class FiberContext[E, A](
     observe0(x => k(ZIO.done(x)))
   }
 
+  final def getFiberRef[A](ref: FiberRef[A]): UIO[A] = UIO {
+    val oldValue = Option(fiberRefLocals.get(ref))
+
+    oldValue.asInstanceOf[Option[A]].getOrElse(ref.initial)
+  }
+
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
   final def id: UIO[Option[Fiber.Id]] = UIO(Some(fiberId))

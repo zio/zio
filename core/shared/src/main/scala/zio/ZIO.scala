@@ -521,6 +521,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def fork: URIO[R, Fiber[E, A]] = new ZIO.Fork(self)
 
   /**
+   * Forks the effect into a new independent fiber, with the specified name.
+   */
+  final def forkAs(name: String): URIO[R, Fiber[E, A]] =
+    (Fiber.fiberName.set(Some(name)) *> self).fork
+
+  /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
   final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber[E, A]] =
