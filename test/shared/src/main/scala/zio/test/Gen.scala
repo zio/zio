@@ -97,7 +97,7 @@ object Gen extends GenZIO with FunctionVariants {
   /**
    * A generator of alphanumeric strings. Shrinks towards the empty string.
    */
-  final val alphaNumericStr: Gen[Random with Sized, String] =
+  final val alphaNumericString: Gen[Random with Sized, String] =
     Gen.string(alphaNumericChar)
 
   /**

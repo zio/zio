@@ -2,9 +2,9 @@ package zio
 import zio.Cause.{ die, fail, interrupt, Both }
 import zio.ZIOSpecJvmUtils._
 import zio.random.Random
-import zio.test.Assertion.{ equalTo, _ }
+import zio.test.Assertion._
 import zio.test.environment.TestClock
-import zio.test.{ assert, assertM, _ }
+import zio.test._
 import zio.duration._
 import zio.syntax._
 
@@ -178,7 +178,7 @@ object ZIOSpecJvm
           } yield assert(supervise1, equalTo(supervise2))
         },
         testM("Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does") {
-          checkM(Gen.alphaNumericStr) { str =>
+          checkM(Gen.alphaNumericString) { str =>
             for {
               flatten1 <- IO.effectTotal(IO.effectTotal(str)).flatten
               flatten2 <- IO.flatten(IO.effectTotal(IO.effectTotal(str)))
@@ -188,7 +188,7 @@ object ZIOSpecJvm
         testM(
           "Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does"
         ) {
-          checkM(Gen.alphaNumericStr) { str =>
+          checkM(Gen.alphaNumericString) { str =>
             val ioEither: UIO[Either[Nothing, String]] = IO.succeed(Right(str))
             for {
               abs1 <- ioEither.absolve
@@ -490,7 +490,7 @@ object ZIOSpecJvm
         },
         suite("Eager - Generate a String:")(
           testM("`.succeed` extension method returns the same UIO[String] as `IO.succeed` does") {
-            checkM(Gen.alphaNumericStr) { str =>
+            checkM(Gen.alphaNumericString) { str =>
               for {
                 a <- str.succeed
                 b <- IO.succeed(str)
@@ -498,7 +498,7 @@ object ZIOSpecJvm
             }
           },
           testM("`.fail` extension method returns the same IO[String, Nothing] as `IO.fail` does") {
-            checkM(Gen.alphaNumericStr) { str =>
+            checkM(Gen.alphaNumericString) { str =>
               for {
                 a <- str.fail.either
                 b <- IO.fail(str).either
@@ -506,7 +506,7 @@ object ZIOSpecJvm
             }
           },
           testM("`.ensure` extension method returns the same IO[E, Option[A]] => IO[E, A] as `IO.ensure` does") {
-            checkM(Gen.alphaNumericStr) { str =>
+            checkM(Gen.alphaNumericString) { str =>
               val ioSome = IO.succeed(Some(42))
               for {
                 a <- str.require(ioSome)
@@ -517,7 +517,7 @@ object ZIOSpecJvm
         ),
         suite("Lazy - Generate a String:")(
           testM("`.effect` extension method returns the same UIO[String] as `IO.effect` does") {
-            checkM(Gen.alphaNumericStr) { str =>
+            checkM(Gen.alphaNumericString) { str =>
               for {
                 a <- str.effect
                 b <- IO.effectTotal(str)
@@ -525,7 +525,7 @@ object ZIOSpecJvm
             }
           },
           testM("`.effect` extension method returns the same Task[String] as `IO.effect` does") {
-            checkM(Gen.alphaNumericStr) { str =>
+            checkM(Gen.alphaNumericString) { str =>
               for {
                 a <- str.effect
                 b <- IO.effect(str)
@@ -535,7 +535,7 @@ object ZIOSpecJvm
           testM(
             "`.effect` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.effect` does"
           ) {
-            checkM(Gen.alphaNumericStr) { str =>
+            checkM(Gen.alphaNumericString) { str =>
               val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
               for {
                 a <- str.effect.refineOrDie(partial)
@@ -586,7 +586,7 @@ object ZIOSpecJvm
           "Generate a Tuple2 of (Int, String): " +
             "`.map2` extension method should combine them to an IO[E, Z] with a function (A, B) => Z"
         ) {
-          checkM(Gen.anyInt, Gen.alphaNumericStr) { (int: Int, str: String) =>
+          checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
             def f(i: Int, s: String): String = i.toString + s
             val ios                          = (IO.succeed(int), IO.succeed(str))
             assertM(ios.map2[String](f), equalTo(f(int, str)))
@@ -596,7 +596,7 @@ object ZIOSpecJvm
           "Generate a Tuple3 of (Int, String, String): " +
             "`.map3` extension method should combine them to an IO[E, Z] with a function (A, B, C) => Z"
         ) {
-          checkM(Gen.anyInt, Gen.alphaNumericStr, Gen.alphaNumericStr) { (int: Int, str1: String, str2: String) =>
+          checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
             def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
             val ios                                       = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2))
             assertM(ios.map3[String](f), equalTo(f(int, str1, str2)))
@@ -606,7 +606,7 @@ object ZIOSpecJvm
           "Generate a Tuple4 of (Int, String, String, String): " +
             "`.map4` extension method should combine them to an IO[E, C] with a function (A, B, C, D) => Z"
         ) {
-          checkM(Gen.anyInt, Gen.alphaNumericStr, Gen.alphaNumericStr, Gen.alphaNumericStr) {
+          checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
             (int: Int, str1: String, str2: String, str3: String) =>
               def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
               val ios                                                   = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2), IO.succeed(str3))
@@ -622,7 +622,7 @@ object ZIOSpecJvmUtils {
     Gen.function[Random with Sized, String, Task[Int]](Gen.successes(Gen.anyInt))
 
   def listGen: Gen[Random with Sized, List[String]] =
-    Gen.listOfN(100)(Gen.alphaNumericStr)
+    Gen.listOfN(100)(Gen.alphaNumericString)
 
   val exampleError = new Error("something went wrong")
 
@@ -640,4 +640,8 @@ object ZIOSpecJvmUtils {
     }
 
   val testString = "supercalifragilisticexpialadocious"
+
+  implicit class ZioOfTestResultOps[R, E](val res: ZIO[R, E, TestResult]) {
+    def &&[R1](that: ZIO[R1, E, TestResult]): ZIO[R1 with R, E, TestResult] = res.zipWith(that)(_ && _)
+  }
 }
