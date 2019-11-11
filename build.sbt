@@ -167,7 +167,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   )
 
 lazy val testJVM = test.jvm.settings(dottySettings)
-lazy val testJS  = test.js
+lazy val testJS = test.js
   .settings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
   )
