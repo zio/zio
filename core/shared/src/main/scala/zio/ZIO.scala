@@ -1151,10 +1151,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
    */
-  def someOrFailException[B, E1 >: NoSuchElementException](implicit ev: A <:< Option[B], ev2: E <:< E1): ZIO[R, E1, B] =
-    self.foldM(e => ZIO.fail(ev2(e)), ev(_) match {
+  def someOrFailException[B, E1 >: E](implicit ev: A <:< Option[B], ev2: NoSuchElementException <:< E1): ZIO[R, E1, B] =
+    self.foldM(e => ZIO.fail(e), ev(_) match {
       case Some(value) => ZIO.succeed(value)
-      case None        => ZIO.fail(new NoSuchElementException("None.get"))
+      case None        => ZIO.fail(ev2(new NoSuchElementException("None.get")))
     })
 
   /**
