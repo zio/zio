@@ -322,6 +322,18 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
         val (z, caseValue) = f(z0, t)
         ZIO.succeed(z -> Spec(caseValue))
     }
+
+  /**
+   * Runs only tests whose labels (which must be strings) contain the given substring.
+   * If a suite label contains the specified string all specs in that suite will be included in the resulting spec.
+   */
+  final def only[S, E1](
+    s: String
+  )(implicit ev1: L <:< String, ev2: E <:< TestFailure[E1], ev3: T <:< TestSuccess[S]): ZSpec[R, E1, String, S] =
+    self
+      .asInstanceOf[ZSpec[R, E1, String, S]]
+      .filterLabels(_.contains(s))
+      .getOrElse(Spec.test("only", ignored))
 }
 
 object Spec {
