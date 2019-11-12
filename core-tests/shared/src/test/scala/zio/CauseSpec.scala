@@ -112,9 +112,10 @@ object CauseSpecUtil {
   val equalCauses: Gen[Random with Sized, (Cause[String], Cause[String])] =
     (causes <*> causes <*> causes).flatMap {
       case ((a, b), c) =>
+        val fiberId = Fiber.Id(0L, 0L)
         Gen.elements(
           (a, a),
-          (a, Cause.traced(a, ZTrace(0, Nil, Nil, None))),
+          (a, Cause.traced(a, ZTrace(fiberId, Nil, Nil, None))),
           (Then(Then(a, b), c), Then(a, Then(b, c))),
           (Then(a, Both(b, c)), Both(Then(a, b), Then(a, c))),
           (Both(Both(a, b), c), Both(a, Both(b, c))),

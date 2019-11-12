@@ -190,8 +190,9 @@ object Queue {
 
       final def shutdown: UIO[Unit] =
         for {
+          fiberId <- ZIO.fiberId
           putters <- IO.effectTotal(unsafePollAll(putters))
-          _       <- IO.foreachPar(putters) { case (_, p, lastItem) => if (lastItem) p.interrupt else IO.unit }
+          _       <- IO.foreachPar(putters) { case (_, p, lastItem) => if (lastItem) p.interruptAs(fiberId) else IO.unit }
         } yield ()
     }
   }
@@ -275,10 +276,13 @@ object Queue {
     final val size: UIO[Int] = checkShutdownState.map(_ => queue.size() - takers.size() + strategy.surplusSize)
 
     final val shutdown: UIO[Unit] =
-      IO.whenM(shutdownHook.succeed(()))(
-          IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interrupt) *> strategy.shutdown)
-        )
-        .uninterruptible
+      ZIO.fiberId.flatMap(
+        fiberId =>
+          IO.whenM(shutdownHook.succeed(()))(
+              IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interruptAs(fiberId)) *> strategy.shutdown)
+            )
+            .uninterruptible
+      )
 
     final val isShutdown: UIO[Boolean] = shutdownHook.poll.map(_.isDefined)
 

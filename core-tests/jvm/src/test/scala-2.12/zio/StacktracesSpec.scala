@@ -3,13 +3,16 @@ package zio
 import org.specs2.execute.Result
 import org.specs2.matcher.{ Expectable, Matcher }
 import org.specs2.mutable
+import scala.concurrent.duration.{ Duration => SDuration }
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.SourceLocation
+import java.util.concurrent.TimeUnit
 
 class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
     with mutable.SpecificationLike {
+  override val DefaultTimeout: SDuration = SDuration(60, TimeUnit.SECONDS)
 
   // Using mutable Spec here to easily run individual tests from Intellij to inspect result traces
 
