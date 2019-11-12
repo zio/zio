@@ -24,58 +24,80 @@ import zio.random.Random
 trait TimeVariants {
 
   /**
-   * A generator of ZIO duration values. Shrinks toward Duration.Zero.
+   * A generator of finite `zio.duration.Duration` values. Shrinks toward `Duration.Zero`.
    */
   final def anyFiniteDuration: Gen[Random, Duration] = Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
 
   /**
-   * A generator java.time.Instant values.
+   * A generator of `java.time.Instant` values. Shrinks toward `Instant.MIN`.
    */
   final def anyInstant: Gen[Random, Instant] = instant(Instant.MIN, Instant.MAX)
 
   /**
-   * A generator java.time.LocalDateTime values.
+   * A generator of `java.time.LocalDateTime` values. Shrinks toward `LocalDateTime.MIN`.
    */
   final def anyLocalDateTime: Gen[Random, LocalDateTime] = localDateTime(LocalDateTime.MIN, LocalDateTime.MAX)
 
   /**
-   * A generator java.time.OffsetDateTime values.
+   * A generator of `java.time.OffsetDateTime` values. Shrinks toward `OffsetDateTime.MIN`.
    */
   final def anyOffsetDateTime: Gen[Random, OffsetDateTime] = offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
 
   /**
-   * A generator of ZIO duration values inside the specified range: [min, max].
+   * A generator of finite `zio.duration.Duration` values inside the specified range: [min, max]. Shrinks toward min.
    */
-  final def duration(min: Duration, max: Duration): Gen[Random, Duration] =
+  final def finiteDuration(min: Duration, max: Duration): Gen[Random, Duration] =
     Gen.long(min.toNanos, max.toNanos).map(Duration.Finite(_))
 
   /**
-   * A generator of java.time.Instant values inside the specified range: [min, max].
+   * A generator of `java.time.Instant` values inside the specified range: [min, max]. Shrinks toward min.
    */
-  final def instant(min: Instant, max: Instant): Gen[Random, Instant] =
+  final def instant(min: Instant, max: Instant): Gen[Random, Instant] = {
+
+    def genSecond(min: Instant, max: Instant): Gen[Random, Long] = Gen.long(min.getEpochSecond, max.getEpochSecond - 1)
+
+    def genNano(min: Instant, max: Instant, second: Long): Gen[Random, Long] = {
+      val minNano = if (min.getEpochSecond == second) min.getNano.toLong else 0L
+      val maxNano = if (max.getEpochSecond == second) max.getNano.toLong else 1000000000L
+      Gen.long(minNano, maxNano)
+    }
+
     for {
-      second       <- Gen.long(min.getEpochSecond, max.getEpochSecond - 1)
-      nanoFraction <- Gen.long(0L, 1000000000L)
+      second       <- genSecond(min, max)
+      nanoFraction <- genNano(min, max, second)
     } yield Instant.ofEpochSecond(second, nanoFraction)
+  }
 
   /**
-   * A generator of java.time.LocalDateTime values inside the specified range: [min, max].
+   * A generator of `java.time.LocalDateTime` values inside the specified range: [min, max]. Shrinks toward min.
    */
   final def localDateTime(min: LocalDateTime, max: LocalDateTime): Gen[Random, LocalDateTime] =
     instant(min.toInstant(utc), max.toInstant(utc)).map(LocalDateTime.ofInstant(_, utc))
 
   /**
-   * A generator of java.time.OffsetDateTime values inside the specified range: [min, max].
+   * A generator of `java.time.OffsetDateTime` values inside the specified range: [min, max]. Shrinks toward min.
    */
   final def offsetDateTime(min: OffsetDateTime, max: OffsetDateTime): Gen[Random, OffsetDateTime] = {
-    val minInst: Instant = min.plusSeconds(min.getOffset.getTotalSeconds.toLong).toInstant
-    val maxInst: Instant = max.plusSeconds(max.getOffset.getTotalSeconds.toLong).toInstant
-    Gen
-      .int(-18, 18)
-      .map(offsetHours => ZoneOffset.ofHours(offsetHours))
-      .flatMap { offset =>
-        instant(minInst, maxInst).map(inst => OffsetDateTime.ofInstant(inst, offset))
-      }
+
+    def genLocalDateTime(min: OffsetDateTime, max: OffsetDateTime): Gen[Random, LocalDateTime] = {
+      val minInst = min.atZoneSimilarLocal(utc).toInstant
+      val maxInst = max.atZoneSimilarLocal(utc).toInstant
+      instant(minInst, maxInst).map(_.atOffset(utc).toLocalDateTime)
+    }
+
+    def genOffset(min: OffsetDateTime, max: OffsetDateTime, actual: LocalDateTime): Gen[Random, ZoneOffset] = {
+      val minLocalDate     = min.atZoneSimilarLocal(utc).toLocalDate
+      val maxLocalDate     = max.atZoneSimilarLocal(utc).toLocalDate
+      val actualLocalDate  = actual.toLocalDate
+      val minOffsetSeconds = if (minLocalDate == actualLocalDate) min.getOffset.getTotalSeconds else -18 * 3600
+      val maxOffsetSeconds = if (maxLocalDate == actualLocalDate) max.getOffset.getTotalSeconds else 18 * 3600
+      Gen.int(minOffsetSeconds, maxOffsetSeconds).map(ZoneOffset.ofTotalSeconds(_))
+    }
+
+    for {
+      localDateTime <- genLocalDateTime(min, max)
+      offset        <- genOffset(min, max, localDateTime)
+    } yield OffsetDateTime.of(localDateTime, offset)
   }
 
   private val utc: ZoneOffset = ZoneOffset.UTC
