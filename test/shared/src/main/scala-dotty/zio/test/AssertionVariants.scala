@@ -24,7 +24,7 @@ trait AssertionVariants {
    * Makes a new assertion that requires the specified string to be valid Scala
    * code.
    */
-  inline final def assertCompiles(inline code: String): TestResult =
+  @inline final def assertCompiles(@inline code: String): TestResult =
     assert(
       if (typeChecks(code)) None else Some(errorMessage),
       Assertion.isNone
