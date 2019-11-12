@@ -771,15 +771,18 @@ object Chunk {
     }
 
     override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
-      val self                      = array
-      val len                       = self.length
+      val len                       = array.length
       val orElse                    = (_: A) => UIO.succeed(null.asInstanceOf[B])
       var dest: ZIO[R, E, Array[B]] = UIO.succeed(null.asInstanceOf[Array[B]])
 
       var i = 0
       var j = 0
       while (i < len) {
-        dest = dest.zipWith(pf.applyOrElse(self(i), orElse)) { (array, b) =>
+        // `zipWith` is lazy in the RHS, so we need to capture to evaluate the
+        // `pf.applyOrElse` strictly to make sure we use the right value of `i`.
+        val rhs = pf.applyOrElse(array(i), orElse)
+
+        dest = dest.zipWith(rhs) { (array, b) =>
           var tmp = array
           if (b != null) {
             if (tmp == null) {
@@ -846,7 +849,10 @@ object Chunk {
       }
 
       while (!done && i < len) {
-        dest = dest.zipWith(pf.applyOrElse(self(i), orElse)) { (array, b) =>
+        // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
+        val rhs = pf.applyOrElse(self(i), orElse)
+
+        dest = dest.zipWith(rhs) { (array, b) =>
           var tmp = array
           if (b != null) {
             if (tmp == null) {
