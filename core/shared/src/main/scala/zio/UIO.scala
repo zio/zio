@@ -156,14 +156,17 @@ object UIO {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  final def effectAsync[A](register: (UIO[A] => Unit) => Unit): UIO[A] =
-    ZIO.effectAsync(register)
+  final def effectAsync[A](register: (UIO[A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): UIO[A] =
+    ZIO.effectAsync(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[A](register: (UIO[A] => Unit) => Option[UIO[A]]): UIO[A] =
-    ZIO.effectAsyncMaybe(register)
+  final def effectAsyncMaybe[A](
+    register: (UIO[A] => Unit) => Option[UIO[A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): UIO[A] =
+    ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
@@ -174,8 +177,11 @@ object UIO {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[A](register: (UIO[A] => Unit) => Either[Canceler[Any], UIO[A]]): UIO[A] =
-    ZIO.effectAsyncInterrupt(register)
+  final def effectAsyncInterrupt[A](
+    register: (UIO[A] => Unit) => Either[Canceler[Any], UIO[A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): UIO[A] =
+    ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]

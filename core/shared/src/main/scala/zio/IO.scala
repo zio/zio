@@ -162,14 +162,17 @@ object IO {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  final def effectAsync[E, A](register: (IO[E, A] => Unit) => Unit): IO[E, A] =
-    ZIO.effectAsync(register)
+  final def effectAsync[E, A](register: (IO[E, A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
+    ZIO.effectAsync(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]]): IO[E, A] =
-    ZIO.effectAsyncInterrupt(register)
+  final def effectAsyncInterrupt[E, A](
+    register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): IO[E, A] =
+    ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
@@ -180,8 +183,11 @@ object IO {
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[E, A](register: (IO[E, A] => Unit) => Option[IO[E, A]]): IO[E, A] =
-    ZIO.effectAsyncMaybe(register)
+  final def effectAsyncMaybe[E, A](
+    register: (IO[E, A] => Unit) => Option[IO[E, A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): IO[E, A] =
+    ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see [[zio.ZIO.effectSuspend]]

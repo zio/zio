@@ -162,14 +162,17 @@ object Task {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  final def effectAsync[A](register: (Task[A] => Unit) => Unit): Task[A] =
-    ZIO.effectAsync(register)
+  final def effectAsync[A](register: (Task[A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): Task[A] =
+    ZIO.effectAsync(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[A](register: (Task[A] => Unit) => Option[Task[A]]): Task[A] =
-    ZIO.effectAsyncMaybe(register)
+  final def effectAsyncMaybe[A](
+    register: (Task[A] => Unit) => Option[Task[A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): Task[A] =
+    ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
@@ -180,8 +183,11 @@ object Task {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[A](register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]]): Task[A] =
-    ZIO.effectAsyncInterrupt(register)
+  final def effectAsyncInterrupt[A](
+    register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): Task[A] =
+    ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.RIO.effectSuspend]]

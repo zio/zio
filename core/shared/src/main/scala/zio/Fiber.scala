@@ -21,6 +21,7 @@ import zio.internal.Executor
 import scala.concurrent.Future
 import scala.collection.JavaConverters._
 import com.github.ghik.silencer.silent
+import zio.internal.stacktracer.ZTraceElement
 
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
@@ -438,17 +439,22 @@ object Fiber {
      * Combines the two statuses into one in an associative way.
      */
     final def <>(that: Status): Status = (self, that) match {
-      case (Done, Done)                           => Done
-      case (Suspended(i1, e1), Suspended(i2, e2)) => Suspended(i1 && i2, e1 max e2)
-      case (Suspended(_, _), _)                   => self
-      case (_, Suspended(_, _))                   => that
-      case _                                      => Running
+      case (Done, Done)                                           => Done
+      case (Suspended(i1, e1, l1, a1), Suspended(i2, e2, l2, a2)) => Suspended(i1 && i2, e1 max e2, l1 ++ l2, a1 ++ a2)
+      case (Suspended(_, _, _, _), _)                             => self
+      case (_, Suspended(_, _, _, _))                             => that
+      case _                                                      => Running
     }
   }
   object Status {
-    case object Done                                                extends Status
-    case object Running                                             extends Status
-    final case class Suspended(interruptible: Boolean, epoch: Long) extends Status
+    case object Done    extends Status
+    case object Running extends Status
+    final case class Suspended(
+      interruptible: Boolean,
+      epoch: Long,
+      blockingOn: List[Fiber.Id],
+      asyncTrace: List[ZTraceElement]
+    ) extends Status
   }
 
   /**
@@ -635,7 +641,7 @@ object Fiber {
       final def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
       final def inheritRefs: UIO[Unit]                                 = IO.unit
       final def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeed(None)
-      final def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0))
+      final def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0, Nil, Nil))
       final def trace: UIO[Option[ZTrace]]                             = UIO.none
     }
 

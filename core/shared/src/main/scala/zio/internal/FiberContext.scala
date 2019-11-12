@@ -270,6 +270,8 @@ private[zio] final class FiberContext[E, A](
       // Put the maximum operation count on the stack for fast access:
       val maxopcount = executor.yieldOpCount
 
+      val maxpropcount = (1 + maxopcount / 10)
+
       // Store the trace of the immediate future flatMap during evaluation
       // of a 1-hop left bind, to show a stack trace closer to the point of failure
       var fastPathFlatMapContinuationTrace: ZTraceElement = null
@@ -296,6 +298,9 @@ private[zio] final class FiberContext[E, A](
 
             // Check to see if the fiber should continue executing or not:
             if (tag == ZIO.Tags.Fail || !shouldInterrupt()) {
+              // Propagate ancestor interruption every once in a while:
+              if (opcount % maxpropcount == 0) propagateAncestorInterruption()
+
               // Fiber does not need to be interrupted, but might need to yield:
               if (opcount == maxopcount) {
                 evaluateLater(curZio)
@@ -467,16 +472,18 @@ private[zio] final class FiberContext[E, A](
                     asyncEpoch = epoch + 1
 
                     // Enter suspended state:
-                    curZio = if (enterAsync(epoch)) {
+                    curZio = enterAsync(epoch, zio.register, zio.blockingOn)
+
+                    if (curZio eq null) {
                       val k = zio.register
 
                       if (traceEffects && inTracingRegion) addTrace(k)
 
-                      k(resumeAsync(epoch)) match {
+                      curZio = k(resumeAsync(epoch)) match {
                         case Some(zio) => if (exitAsync(epoch)) zio else null
                         case None      => null
                       }
-                    } else ZIO.interruptAs(state.get.interrupted.interruptors.headOption.getOrElse(Fiber.Id.None))
+                    }
 
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
@@ -697,21 +704,24 @@ private[zio] final class FiberContext[E, A](
   final def trace: UIO[Option[ZTrace]] = UIO(Some(captureTrace(null)))
 
   @tailrec
-  private[this] final def enterAsync(epoch: Long): Boolean = {
+  private[this] final def enterAsync(epoch: Long, register: AnyRef, blockingOn: List[Fiber.Id]): IO[E, Any] = {
     val oldState = state.get
 
     oldState match {
       case Executing(_, observers, interrupt) =>
-        val newState = Executing(Fiber.Status.Suspended(isInterruptible(), epoch), observers, interrupt)
+        val asyncTrace = if (traceStack && inTracingRegion) tracer.traceLocation(register) :: Nil else Nil
 
-        if (!state.compareAndSet(oldState, newState)) enterAsync(epoch)
+        val newState =
+          Executing(Fiber.Status.Suspended(isInterruptible(), epoch, blockingOn, asyncTrace), observers, interrupt)
+
+        if (!state.compareAndSet(oldState, newState)) enterAsync(epoch, register, blockingOn)
         else if (shouldInterrupt()) {
           // Fiber interrupted, so go back into running state:
           exitAsync(epoch)
-          false
-        } else true
+          ZIO.halt(state.get.interrupted)
+        } else null
 
-      case _ => false
+      case _ => throw new RuntimeException(s"Unexpected fiber completion ${fiberId}")
     }
   }
 
@@ -720,7 +730,7 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(Fiber.Status.Suspended(_, oldEpoch), observers, interrupt) if epoch == oldEpoch =>
+      case Executing(Fiber.Status.Suspended(_, oldEpoch, _, _), observers, interrupt) if epoch == oldEpoch =>
         if (!state.compareAndSet(oldState, Executing(Fiber.Status.Running, observers, interrupt))) exitAsync(epoch)
         else true
 
@@ -736,7 +746,7 @@ private[zio] final class FiberContext[E, A](
     val _ = daemonStatus.popOrElse(false)
   }
 
-  final def propagateAncestorInterruption(): Unit = {
+  private[this] final def propagateAncestorInterruption(): Unit = {
     var fiber = self: FiberContext[_, _]
 
     while (fiber ne null) {
@@ -747,11 +757,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   @inline
-  private final def isInterrupted(): Boolean = {
-    propagateAncestorInterruption()
-
-    !state.get.interrupted.isEmpty
-  }
+  private final def isInterrupted(): Boolean = !state.get.interrupted.isEmpty
 
   @inline
   private[this] final def isInterruptible(): Boolean = interruptStatus.peekOrElse(true)
@@ -827,7 +833,7 @@ private[zio] final class FiberContext[E, A](
       val oldState = state.get
 
       oldState match {
-        case Executing(Fiber.Status.Suspended(true, _), observers, interrupted) =>
+        case Executing(Fiber.Status.Suspended(true, _, _, _), observers, interrupted) =>
           if (!state.compareAndSet(
                 oldState,
                 Executing(Fiber.Status.Running, observers, interrupted ++ Cause.interrupt(fiberId))

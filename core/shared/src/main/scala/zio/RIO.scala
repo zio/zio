@@ -179,14 +179,17 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  final def effectAsync[R, A](register: (RIO[R, A] => Unit) => Unit): RIO[R, A] =
-    ZIO.effectAsync(register)
+  final def effectAsync[R, A](register: (RIO[R, A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): RIO[R, A] =
+    ZIO.effectAsync(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[R, A](register: (RIO[R, A] => Unit) => Option[RIO[R, A]]): RIO[R, A] =
-    ZIO.effectAsyncMaybe(register)
+  final def effectAsyncMaybe[R, A](
+    register: (RIO[R, A] => Unit) => Option[RIO[R, A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): RIO[R, A] =
+    ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
@@ -197,8 +200,11 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[R, A](register: (RIO[R, A] => Unit) => Either[Canceler[R], RIO[R, A]]): RIO[R, A] =
-    ZIO.effectAsyncInterrupt(register)
+  final def effectAsyncInterrupt[R, A](
+    register: (RIO[R, A] => Unit) => Either[Canceler[R], RIO[R, A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): RIO[R, A] =
+    ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.

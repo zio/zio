@@ -1920,12 +1920,15 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * The callback function `ZIO[R, E, A] => Unit` must be called at most once.
    */
-  final def effectAsync[R, E, A](register: (ZIO[R, E, A] => Unit) => Unit): ZIO[R, E, A] =
-    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
+  final def effectAsync[R, E, A](
+    register: (ZIO[R, E, A] => Unit) => Unit,
+    blockingOn: List[Fiber.Id] = Nil
+  ): ZIO[R, E, A] =
+    effectAsyncMaybe(ZIOFn(register)((callback: ZIO[R, E, A] => Unit) => {
       register(callback)
 
       None
-    })
+    }), blockingOn)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -1940,7 +1943,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    * function must be called at most once.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
+    blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
@@ -1948,16 +1952,19 @@ private[zio] trait ZIOFunctions extends Serializable {
     effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
       case (started, cancel) =>
         flatten {
-          effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
-            started.set(true)
+          effectAsyncMaybe(
+            ZIOFn(register)((k: UIO[ZIO[R, E, A]] => Unit) => {
+              started.set(true)
 
-            try register(io => k(ZIO.succeed(io))) match {
-              case Left(canceler) =>
-                cancel.set(canceler)
-                None
-              case Right(io) => Some(ZIO.succeed(io))
-            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
-          })
+              try register(io => k(ZIO.succeed(io))) match {
+                case Left(canceler) =>
+                  cancel.set(canceler)
+                  None
+                case Right(io) => Some(ZIO.succeed(io))
+              } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+            }),
+            blockingOn
+          )
         }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
     }
   }
@@ -1984,9 +1991,10 @@ private[zio] trait ZIOFunctions extends Serializable {
    * the value synchronously.
    */
   final def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]
+    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
+    blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] =
-    new ZIO.EffectAsync(register)
+    new ZIO.EffectAsync(register, blockingOn)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.
@@ -2823,8 +2831,10 @@ object ZIO extends ZIOFunctions {
     override def tag = Tags.EffectPartial
   }
 
-  private[zio] final class EffectAsync[R, E, A](val register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]])
-      extends ZIO[R, E, A] {
+  private[zio] final class EffectAsync[R, E, A](
+    val register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
+    val blockingOn: List[Fiber.Id]
+  ) extends ZIO[R, E, A] {
     override def tag = Tags.EffectAsync
   }
 

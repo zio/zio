@@ -168,14 +168,17 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectAsync]]
    */
-  final def effectAsync[R, A](register: (URIO[R, A] => Unit) => Unit): URIO[R, A] =
-    ZIO.effectAsync(register)
+  final def effectAsync[R, A](register: (URIO[R, A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): URIO[R, A] =
+    ZIO.effectAsync(register, blockingOn)
 
   /**
    * @see [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[R, A](register: (URIO[R, A] => Unit) => Option[URIO[R, A]]): URIO[R, A] =
-    ZIO.effectAsyncMaybe(register)
+  final def effectAsyncMaybe[R, A](
+    register: (URIO[R, A] => Unit) => Option[URIO[R, A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): URIO[R, A] =
+    ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see [[zio.ZIO.effectAsyncM]]
@@ -186,8 +189,11 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[R, A](register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]]): URIO[R, A] =
-    ZIO.effectAsyncInterrupt(register)
+  final def effectAsyncInterrupt[R, A](
+    register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): URIO[R, A] =
+    ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * @see [[zio.ZIO.effectSuspendTotal]]
