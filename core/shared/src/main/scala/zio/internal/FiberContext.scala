@@ -270,8 +270,6 @@ private[zio] final class FiberContext[E, A](
       // Put the maximum operation count on the stack for fast access:
       val maxopcount = executor.yieldOpCount
 
-      val maxpropcount = (1 + maxopcount / 10)
-
       // Store the trace of the immediate future flatMap during evaluation
       // of a 1-hop left bind, to show a stack trace closer to the point of failure
       var fastPathFlatMapContinuationTrace: ZTraceElement = null
@@ -287,6 +285,9 @@ private[zio] final class FiberContext[E, A](
           kTrace
         } else null
 
+      // Propagate ancestor interruption every once in a while:
+      propagateAncestorInterruption()
+
       Fiber._currentFiber.set(this)
 
       while (curZio ne null) {
@@ -298,9 +299,6 @@ private[zio] final class FiberContext[E, A](
 
             // Check to see if the fiber should continue executing or not:
             if (tag == ZIO.Tags.Fail || !shouldInterrupt()) {
-              // Propagate ancestor interruption every once in a while:
-              if (opcount % maxpropcount == 0) propagateAncestorInterruption()
-
               // Fiber does not need to be interrupted, but might need to yield:
               if (opcount == maxopcount) {
                 evaluateLater(curZio)
