@@ -53,7 +53,7 @@ for {
 } yield v == 10
 ```
 
-You can inherit the values from all `FiberRef`s from an existing `Fiber` using the `Fiber#inheritFiberRefs` method:
+You can inherit the values from all `FiberRef`s from an existing `Fiber` using the `Fiber#inheritRefs` method:
 
 ```scala mdoc:silent
 for {
@@ -61,12 +61,12 @@ for {
   latch    <- Promise.make[Nothing, Unit]
   fiber    <- (fiberRef.set(10) *> latch.succeed(())).fork
   _        <- latch.await
-  _        <- fiber.inheritFiberRefs
+  _        <- fiber.inheritRefs
   v        <- fiberRef.get
 } yield v == 10
 ```
 
-Note that `inheritFiberRefs` is automatically called on `join`. This effectively means that both of the following effects behave identically:
+Note that `inheritRefs` is automatically called on `join`. This effectively means that both of the following effects behave identically:
 
 ```scala mdoc:silent
 val withJoin =

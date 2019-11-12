@@ -24,6 +24,6 @@ import zio.blocking.Blocking
 import zio.internal.{ Platform, PlatformLive }
 
 trait DefaultRuntime extends Runtime[ZEnv] {
-  val Platform: Platform = PlatformLive.Default
-  val Environment: ZEnv  = new Clock.Live with Console.Live with System.Live with Random.Live with Blocking.Live
+  override val platform: Platform = PlatformLive.Default
+  override val environment: ZEnv  = new Clock.Live with Console.Live with System.Live with Random.Live with Blocking.Live
 }

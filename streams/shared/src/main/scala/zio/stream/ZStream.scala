@@ -537,6 +537,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
     ZStream[R1 with Clock, E1, Either[C, B]] {
       for {
+        fiberId   <- ZManaged.fiberId
         initSink  <- sink.initial.toManaged_
         initAwait <- Promise.make[Nothing, Unit].toManaged_
         permits   <- Semaphore.make(1).toManaged_
@@ -549,7 +550,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                      )
                      .fork
         bs <- consumerStream(stateVar, permits).process
-               .ensuringFirst(producer.interrupt.fork)
+               .ensuringFirst(producer.interruptAs(fiberId).fork)
       } yield bs
     }
   }
@@ -770,7 +771,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
   /**
    * Switches over to the stream produced by the provided function in case this one
-   * fails. Allows recovery from all errors, except external interruption.
+   * fails. Allows recovery from all causes of failure, including interruption of the
+   * stream is uninterruptible.
    */
   final def catchAllCause[R1 <: R, E2, A1 >: A](f: Cause[E] => ZStream[R1, E2, A1]): ZStream[R1, E2, A1] = {
     sealed abstract class State
@@ -1171,8 +1173,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             e
           )
         case None =>
-          (finalizer.get.flatMap(_(Exit.succeed(()))) *> finalizer
-            .set(_ => UIO.unit)).uninterruptible *> pullOuter *> go(as, finalizer, currPull)
+          (finalizer.get.flatMap(_(Exit.succeed(()))) *>
+            finalizer.set(_ => UIO.unit)).uninterruptible *>
+            pullOuter *>
+            go(as, finalizer, currPull)
       }
     }
 
@@ -1711,7 +1715,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 c => (interruptWorkers.succeed(()) *> out.offer(Pull.halt(c))).unit.toManaged_,
                 _ => out.offer(Pull.end).unit.toManaged_
               )
-              .ensuringFirst(interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
+              .ensuringFirst(
+                interruptWorkers.succeed(()) *> permits
+                  .withPermits(n.toLong)(ZIO.unit)
+              )
               .fork
       } yield out.take.flatten
     }
@@ -2714,7 +2721,7 @@ object ZStream extends Serializable {
                                 .unit
                             }
                           } catch {
-                            case FiberFailure(Cause.Interrupt) =>
+                            case FiberFailure(Cause.Interrupt(_)) =>
                           }
                         }
                       }
@@ -2763,7 +2770,7 @@ object ZStream extends Serializable {
                       .unit
                   }
                 } catch {
-                  case FiberFailure(Cause.Interrupt) =>
+                  case FiberFailure(Cause.Interrupt(_)) =>
                 }
             ).toManaged_
         done <- Ref.make(false).toManaged_
@@ -2807,7 +2814,7 @@ object ZStream extends Serializable {
                                    .unit
                                }
                              } catch {
-                               case FiberFailure(Cause.Interrupt) =>
+                               case FiberFailure(Cause.Interrupt(_)) =>
                              }
                          )
                        }

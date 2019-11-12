@@ -4,14 +4,18 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 
 import scala.collection.mutable
+import scala.concurrent.duration.{ Duration => SDuration }
 import scala.util.Try
-import zio.Cause.{ die, fail, interrupt, Both }
+import java.util.concurrent.TimeUnit
+import zio.Cause.{ die, fail, interrupt }
 import zio.duration._
 import zio.syntax._
 import zio.test.environment.TestClock
 
 class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
+
+  override val DefaultTimeout: SDuration = SDuration(60, TimeUnit.SECONDS)
 
   def is = "ZIOSpecJvm".title ^ s2"""
    Generate a list of String and a f: String => Task[Int]:
@@ -44,7 +48,6 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
    Check `whenCase` executes correct branch only. $testWhenCase
    Check `whenCaseM` executes condition effect and correct branch. $testWhenCaseM
    Check `unsandbox` unwraps exception. $testUnsandbox
-   Check `supervise` returns same value as IO.supervise. $testSupervise
    Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
    Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
@@ -192,14 +195,15 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   private val exampleError = new Error("something went wrong")
 
   def testDone = {
+    val fiberId                       = Fiber.Id(0L, 123L)
     val error                         = exampleError
     val completed                     = Exit.succeed(1)
-    val interrupted: Exit[Error, Int] = Exit.interrupt
+    val interrupted: Exit[Error, Int] = Exit.interrupt(fiberId)
     val terminated: Exit[Error, Int]  = Exit.die(error)
     val failed: Exit[Error, Int]      = Exit.fail(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRunSync(IO.done(interrupted)) must_=== Exit.interrupt
+    unsafeRunSync(IO.done(interrupted)) must_=== Exit.interrupt(fiberId)
     unsafeRunSync(IO.done(terminated)) must_=== Exit.die(error)
     unsafeRunSync(IO.done(failed)) must_=== Exit.fail(error)
   }
@@ -213,9 +217,11 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   private def testCatchSomeCauseNoMatch =
     unsafeRun {
-      ZIO.interrupt.catchSomeCause {
-        case c if (!c.interrupted) => ZIO.succeed(true)
-      }.sandbox.either.map(_ must_=== Left(Cause.interrupt))
+      ZIO.fiberId.flatMap { selfId =>
+        ZIO.interrupt.catchSomeCause {
+          case c if (!c.interrupted) => ZIO.succeed(true)
+        }.sandbox.either.map(_ must_=== Left(Cause.interrupt(selfId)))
+      }
     }
 
   def testWhen =
@@ -292,14 +298,6 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     } yield (message must_=== "fail") and (result must_=== 100))
   }
 
-  def testSupervise = {
-    val io = IO.effectTotal("supercalifragilisticexpialadocious")
-    unsafeRun(for {
-      supervise1 <- io.interruptChildren
-      supervise2 <- IO.interruptChildren(io)
-    } yield supervise1 must ===(supervise2))
-  }
-
   def testFlatten = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
       flatten1 <- IO.effectTotal(IO.effectTotal(str)).flatten
@@ -367,7 +365,10 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def testZipParInterupt = {
     val io = ZIO.interrupt.zipPar(IO.interrupt)
-    unsafeRunSync(io) must_=== Exit.Failure(Both(interrupt, interrupt))
+    unsafeRunSync(io) match {
+      case Exit.Failure(cause) => cause.interruptors.size must_!== 0
+      case _                   => false must_=== true
+    }
   }
 
   def testZipParSucceed = {
@@ -379,11 +380,13 @@ class ZIOSpecJvm(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val ex = new Exception("Died")
 
     unsafeRun {
+      val fiberId = Fiber.Id(0L, 123L)
+
       import zio.CanFail.canFail
       for {
         plain <- (ZIO.die(ex) <> IO.unit).run
-        both  <- (ZIO.halt(Cause.Both(interrupt, die(ex))) <> IO.unit).run
-        thn   <- (ZIO.halt(Cause.Then(interrupt, die(ex))) <> IO.unit).run
+        both  <- (ZIO.halt(Cause.Both(interrupt(fiberId), die(ex))) <> IO.unit).run
+        thn   <- (ZIO.halt(Cause.Then(interrupt(fiberId), die(ex))) <> IO.unit).run
         fail  <- (ZIO.fail(ex) <> IO.unit).run
       } yield (plain must_=== Exit.die(ex))
         .and(both must_=== Exit.die(ex))
