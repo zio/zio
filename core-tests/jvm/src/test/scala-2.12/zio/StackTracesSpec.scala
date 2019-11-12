@@ -36,6 +36,19 @@ object StackTracesSpecUtil {
   object foreachTraceFixture {
     def effectTotal: UIO[Unit] = ZIO.effectTotal(())
   }
+
+  def foreachFail: ZIO[Any, Throwable, (ZTrace, ZTrace)] =
+    for {
+      t1 <- ZIO
+        .foreach_(1 to 10) { i =>
+          if (i == 7)
+            ZIO.unit *> ZIO.fail("Dummy error!")
+          else
+            ZIO.unit *> ZIO.trace
+        }
+        .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
+      t2 <- ZIO.trace
+    } yield (t1, t2)
 }
 
 object StackTracesSpec2 extends ZIOBaseSpec (
@@ -64,6 +77,23 @@ object StackTracesSpec2 extends ZIOBaseSpec (
           assert(trace.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
           assert(trace.executionTrace.exists(_.prettyPrint.contains("effectTotal")), isTrue)
       }
+    },
+    testM("foreach fail") {
+      for {
+        trace <- StackTracesSpecUtil.foreachFail
+      } yield {
+        val (trace1, trace2) = trace
+
+        assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
+          assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
+          assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
+          assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
+          assert(trace2.stackTrace.size, equalTo(6)) &&
+          assert(trace2.stackTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
+          assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
+          assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue)
+
+      }
     }
   )
 )
@@ -80,7 +110,7 @@ class StackTracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 //  "basic test" >> basicTest
 
 //  "foreach" >> foreachTrace
-  "foreach fail" >> foreachFail
+//  "foreach fail" >> foreachFail
   "foreachPar fail" >> foreachParFail
   "foreachParN fail" >> foreachParNFail
 
