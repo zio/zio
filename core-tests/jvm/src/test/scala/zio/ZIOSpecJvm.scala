@@ -1,5 +1,5 @@
 package zio
-import zio.Cause.{ die, fail, interrupt, Both }
+import zio.Cause.{ die, fail, interrupt }
 import zio.ZIOSpecJvmUtils._
 import zio.random.Random
 import zio.test.Assertion._
@@ -76,9 +76,10 @@ object ZIOSpecJvm
         },
         testM("Check done lifts exit result into IO") {
 
+          val fiberId                       = Fiber.Id(0L, 123L)
           val error                         = exampleError
           val completed                     = Exit.succeed(1)
-          val interrupted: Exit[Error, Int] = Exit.interrupt
+          val interrupted: Exit[Error, Int] = Exit.interrupt(fiberId)
           val terminated: Exit[Error, Int]  = Exit.die(error)
           val failed: Exit[Error, Int]      = Exit.fail(error)
 
@@ -95,11 +96,13 @@ object ZIOSpecJvm
           )
         },
         testM("Check `catchSomeCause` halts if cause doesn't match") {
-          ZIO.interrupt.catchSomeCause {
-            case c if (!c.interrupted) => ZIO.succeed(true)
-          }.sandbox.either.map(
-            assert(_, isLeft(equalTo(Cause.interrupt)))
-          )
+          ZIO.fiberId.flatMap { fiberId =>
+            ZIO.interrupt.catchSomeCause {
+              case c if (!c.interrupted) => ZIO.succeed(true)
+            }.sandbox.either.map(
+              assert(_, isLeft(equalTo(Cause.interrupt(fiberId))))
+            )
+          }
         },
         testM("Check `when` executes correct branch only") {
           for {
@@ -170,13 +173,6 @@ object ZIOSpecJvm
             result  <- success.unsandbox
           } yield assert(message, equalTo("fail")) && assert(result, equalTo(100))
         },
-        testM("Check `supervise` returns same value as IO.supervise") {
-          val io = IO.effectTotal(testString)
-          for {
-            supervise1 <- io.interruptChildren
-            supervise2 <- IO.interruptChildren(io)
-          } yield assert(supervise1, equalTo(supervise2))
-        },
         testM("Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does") {
           checkM(Gen.alphaNumericString) { str =>
             for {
@@ -238,8 +234,10 @@ object ZIOSpecJvm
           } yield assert(race1, equalTo(race2))
         },
         testM("Check `zipPar` method does not swallow exit causes of loser") {
-          val io = ZIO.interrupt.zipPar(IO.interrupt)
-          assertM(io.run, equalTo(Exit.Failure(Both(interrupt, interrupt))))
+          ZIO.interrupt.zipPar(IO.interrupt).run.map {
+            case Exit.Failure(cause) => assert(cause.interruptors, not(isEmpty))
+            case _                   => assert(false, isTrue)
+          }
         },
         testM("Check `zipPar` method does not report failure when interrupting loser after it succeeded") {
           val io          = ZIO.interrupt.zipPar(IO.succeed(1))
@@ -247,12 +245,13 @@ object ZIOSpecJvm
           assertM(interrupted, isLeft(isTrue))
         },
         testM("Check `orElse` method does not recover from defects") {
-          val ex = new Exception("Died")
+          val ex      = new Exception("Died")
+          val fiberId = Fiber.Id(0L, 123L)
           import zio.CanFail.canFail
           for {
             plain <- (ZIO.die(ex) <> IO.unit).run
-            both  <- (ZIO.halt(Cause.Both(interrupt, die(ex))) <> IO.unit).run
-            thn   <- (ZIO.halt(Cause.Then(interrupt, die(ex))) <> IO.unit).run
+            both  <- (ZIO.halt(Cause.Both(interrupt(fiberId), die(ex))) <> IO.unit).run
+            thn   <- (ZIO.halt(Cause.Then(interrupt(fiberId), die(ex))) <> IO.unit).run
             fail  <- (ZIO.fail(ex) <> IO.unit).run
           } yield assert(plain, dies(equalTo(ex))) &&
             assert(both, dies(equalTo(ex))) &&
