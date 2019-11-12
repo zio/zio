@@ -278,30 +278,36 @@ object StreamPullSafetySpec
         testM("Stream.fromQueue is safe to pull again") {
           for {
             queue <- Queue.bounded[Int](1)
-            pulls <- Stream.fromQueue(queue).process.use { pull =>
-                      for {
-                        _  <- queue.offer(1)
-                        e1 <- pull.either
-                        _  <- queue.offer(2)
-                        e2 <- pull.either
-                        _  <- queue.shutdown
-                        e3 <- pull.either
-                        e4 <- pull.either
-                      } yield List(e1, e2, e3, e4)
-                    }
+            pulls <- Stream
+                      .fromQueue(queue)
+                      .process
+                      .use { pull =>
+                        for {
+                          _  <- queue.offer(1)
+                          e1 <- pull.either
+                          _  <- queue.offer(2)
+                          e2 <- pull.either
+                          _  <- queue.shutdown
+                          e3 <- pull.either
+                          e4 <- pull.either
+                        } yield List(e1, e2, e3, e4)
+                      }
           } yield assert(pulls, equalTo(List(Right(1), Right(2), Left(None), Left(None))))
         },
         testM("Stream.fromQueueWithShutdown is safe to pull again") {
           for {
             queue <- Queue.bounded[Int](1)
-            pulls <- Stream.fromQueueWithShutdown(queue).process.use { pull =>
-                      for {
-                        _  <- queue.offer(1)
-                        e1 <- pull.either
-                        _  <- queue.offer(2)
-                        e2 <- pull.either
-                      } yield List(e1, e2)
-                    }
+            pulls <- Stream
+                      .fromQueueWithShutdown(queue)
+                      .process
+                      .use { pull =>
+                        for {
+                          _  <- queue.offer(1)
+                          e1 <- pull.either
+                          _  <- queue.offer(2)
+                          e2 <- pull.either
+                        } yield List(e1, e2)
+                      }
             fin <- queue.isShutdown
           } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(1), Right(2))))
         },
