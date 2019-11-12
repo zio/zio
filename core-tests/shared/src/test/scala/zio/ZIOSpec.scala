@@ -1357,7 +1357,7 @@ object ZIOSpec
             assertM(task.run, fails(isSubtype[NoSuchElementException](anything)))
           },
           testM("withFilter doesn't compile with UIO") {
-            val result = compile {
+            val result = typeCheck {
               """
                 |import zio._
                 |
@@ -1369,7 +1369,7 @@ object ZIOSpec
             assertM(result, isLeft(anything))
           },
           testM("withFilter doesn't compile with IO that fails with type other than Throwable") {
-            val result = compile {
+            val result = typeCheck {
               """
                 |import zio._
                 |val io: IO[String, Int] = IO.succeed(1)

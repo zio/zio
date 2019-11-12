@@ -23,7 +23,7 @@ import scala.reflect.macros.TypecheckException
 
 private[test] object Macros {
 
-  def compile_impl(c: Context)(code: c.Expr[String]): c.Expr[UIO[Either[String, Unit]]] = {
+  def typeCheck_impl(c: Context)(code: c.Expr[String]): c.Expr[UIO[Either[String, Unit]]] = {
     import c.universe._
     try {
       c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))

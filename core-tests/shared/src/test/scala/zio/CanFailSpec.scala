@@ -7,7 +7,7 @@ object CanFailSpec
     extends ZIOBaseSpec(
       suite("CanFailSpec")(
         testM("useful combinators compile") {
-          val result = compile {
+          val result = typeCheck {
             """
             import zio._
 
@@ -20,7 +20,7 @@ object CanFailSpec
           assertM(result, isRight(anything))
         },
         testM("useless combinators don't compile") {
-          val result = compile {
+          val result = typeCheck {
             """
             import zio._
 

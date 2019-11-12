@@ -7,7 +7,7 @@ object NeedsEnvSpec
     extends ZIOBaseSpec(
       suite("NeedsEnvSpec")(
         testM("useful combinators compile") {
-          val result = compile {
+          val result = typeCheck {
             """
             import zio._
             import zio.console._
@@ -20,7 +20,7 @@ object NeedsEnvSpec
           assertM(result, isRight(isUnit))
         },
         testM("useless combinators don't compile") {
-          val result = compile {
+          val result = typeCheck {
             """
             import zio._
             import zio.console._

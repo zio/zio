@@ -21,10 +21,11 @@ import zio.UIO
 trait CompileVariants {
 
   /**
-   * Returns either `Right` if the specified string is valid Scala code or
-   * `Left` with an error message otherwise. The specified string must be known
-   * at compile time.
+   * Returns either `Right` if the specified string type checks as valid Scala
+   * code or `Left` with an error message otherwise. Dies with a runtime
+   * exception if specified string cannot be parsed or is not a known value at
+   * compile time.
    */
-  final def compile(code: String): UIO[Either[String, Unit]] =
-    macro Macros.compile_impl
+  final def typeCheck(code: String): UIO[Either[String, Unit]] =
+    macro Macros.typeCheck_impl
 }

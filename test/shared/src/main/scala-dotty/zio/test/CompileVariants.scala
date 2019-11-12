@@ -23,11 +23,12 @@ import scala.compiletime.testing.typeChecks
 trait CompileVariants {
 
   /**
-   * Returns either `Right` if the specified string is valid Scala code or
-   * `Left` with an error message otherwise. The specified string must be known
-   * at compile time.
+   * Returns either `Right` if the specified string type checks as valid Scala
+   * code or `Left` with an error message otherwise. Dies with a runtime
+   * exception if specified string cannot be parsed or is not a known value at
+   * compile time.
    */
-  inline final def compile(inline code: String): UIO[Either[String, Unit]] =
+  inline final def typeCheck(inline code: String): UIO[Either[String, Unit]] =
     try {
       if (typeChecks(code)) UIO.succeed(Right(()))
       else UIO.succeed(Left(errorMessage))
