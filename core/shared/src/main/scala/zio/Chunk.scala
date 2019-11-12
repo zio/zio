@@ -851,7 +851,7 @@ object Chunk {
       while (!done && i < len) {
         // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
         val rhs = pf.applyOrElse(self(i), orElse)
-        
+
         dest = dest.zipWith(rhs) { (array, b) =>
           var tmp = array
           if (b != null) {
