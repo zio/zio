@@ -33,7 +33,23 @@ object ZMXServer {
     client.register(selector, SelectionKey.OP_READ)
   }
 
-  def responseReceived(buffer: ByteBuffer, key: SelectionKey, debug: Boolean): Boolean = {
+  final val getFiberDumpCommand: PartialFunction[ZMXServerRequest, ZMXCommands] = {
+      case ZMXServerRequest(command, args) if command.equalsIgnoreCase("dump") => ZMXCommands.FiberDump
+  }
+
+  private def handleCommand(command: ZMXCommands): String = {
+    command match {
+      case ZMXCommands.FiberDump => ???
+      case _ => ""
+    }
+  }
+
+  private def processCommand(received: String): Option[ZMXCommands] = {
+    val request: Option[ZMXServerRequest] = ZMXProtocol.serverReceived(received)
+    request.map(getFiberDumpCommand(_))
+  }
+
+  private def responseReceived(buffer: ByteBuffer, key: SelectionKey, debug: Boolean): Boolean = {
     val client: SocketChannel = key.channel().asInstanceOf[SocketChannel]
     client.read(buffer)
     val received: String = ZMXCommands.ByteBufferToString(buffer)
@@ -44,8 +60,16 @@ object ZMXServer {
       client.close()
       return false
     }
+    val receivedCommand = processCommand(received)
     buffer.flip
-    client.write(ZMXCommands.StringToByteBuffer(s"Server received: $received"))
+    receivedCommand match {
+      case Some(comm) => {
+      val responseToSend: String = handleCommand(comm)
+      client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply(responseToSend, Success)))
+      }
+      case None => 
+        client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply("No Response", Fail)))
+    }
     buffer.clear
     true
   }

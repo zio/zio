@@ -24,6 +24,11 @@ object ZMXClient {
   val client: SocketChannel = SocketChannel.open(new InetSocketAddress("localhost", 1111))
   val buffer: ByteBuffer = ByteBuffer.allocate(256)
 
+  def SendCommand(args: List[String]) = {
+    val sending: String = ZMXProtocol.generateRespCommand(args)
+    SendMessage(sending)
+  }
+
   def SendMessage(message: String): String = {
     client.write(ZMXCommands.StringToByteBuffer(message))
     client.read(buffer)

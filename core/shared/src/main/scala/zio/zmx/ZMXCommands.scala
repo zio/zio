@@ -32,7 +32,7 @@ object ZMXCommands {
 
   case object Test extends ZMXCommands
   case object Stop extends ZMXCommands
-  case object FiberDump extends ZMXCommands
   case object Metrics extends ZMXCommands
+  case object FiberDump extends ZMXCommands
 }
 
