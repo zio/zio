@@ -95,6 +95,12 @@ object Gen extends GenZIO with FunctionVariants {
     weighted((char(48, 57), 10), (char(65, 122), 52))
 
   /**
+   * A generator of alphanumeric strings. Shrinks towards the empty string.
+   */
+  final val alphaNumericString: Gen[Random with Sized, String] =
+    Gen.string(alphaNumericChar)
+
+  /**
    * A generator of bytes. Shrinks toward '0'.
    */
   final val anyByte: Gen[Random, Byte] =
