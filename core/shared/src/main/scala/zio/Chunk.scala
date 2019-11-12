@@ -413,7 +413,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * The number of elements in the chunk.
    */
-  final val size: Int = length
+  final def size: Int = length
 
   /**
    * Returns two splits of this chunk at the specified index.
