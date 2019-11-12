@@ -4,6 +4,7 @@ import zio.{ Chunk, IO, UIO, ZIOBaseSpec }
 import zio.random.Random
 import zio.test._
 import zio.test.Assertion.{ equalTo, isLeft }
+import zio.test.TestAspect.ignore
 import ChunkUtils._
 
 case class Value(i: Int) extends AnyVal
@@ -160,10 +161,10 @@ object ChunkSpec
                 expected <- UIO.sequence(c.toList.collect(pf))
               } yield assert(result, equalTo(expected))
             }
-          },
+          } @@ ignore,
           testM("collectM chunk that fails") {
             Chunk(1, 2).collectM { case 2 => IO.fail("Ouch") }.either.map(assert(_, isLeft(equalTo("Ouch"))))
-          }
+          } @@ ignore
         ),
         suite("collectWhile")(
           test("collectWhile empty Chunk") {
@@ -188,10 +189,10 @@ object ChunkSpec
                 expected <- UIO.sequence(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply))
               } yield assert(result, equalTo(expected))
             }
-          },
+          } @@ ignore,
           testM("collectWhileM chunk that fails") {
             Chunk(1, 2).collectWhileM { case _ => IO.fail("Ouch") }.either.map(assert(_, isLeft(equalTo("Ouch"))))
-          }
+          } @@ ignore
         ),
         testM("foreach") {
           check(mediumChunks(intGen)) { c =>
