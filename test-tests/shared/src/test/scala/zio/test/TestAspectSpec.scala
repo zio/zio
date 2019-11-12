@@ -1,11 +1,11 @@
 package zio.test
 
-import zio._
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestAspectSpecUtil._
 import zio.test.TestUtils._
+import zio.{ Cause, Promise, Ref, ZIO, ZSchedule }
 
 import scala.reflect.ClassTag
 
