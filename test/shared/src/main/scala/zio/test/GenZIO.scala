@@ -27,8 +27,9 @@ trait GenZIO {
   final def causes[R <: Random with Sized, E](e: Gen[R, E], t: Gen[R, Throwable]): Gen[R, Cause[E]] = {
     val failure        = e.map(Cause.fail)
     val die            = t.map(Cause.die)
-    val interrupt      = Gen.const(Cause.interrupt)
-    def traced(n: Int) = Gen.suspend(causesN(n - 1).map(Cause.Traced(_, ZTrace(0, Nil, Nil, None))))
+    val empty          = Gen.const(Cause.empty)
+    val interrupt      = Gen.anyLong.zipWith(Gen.anyLong)((l, r) => Cause.interrupt(Fiber.Id(l, r)))
+    def traced(n: Int) = Gen.suspend(causesN(n - 1).map(Cause.Traced(_, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))))
     def meta(n: Int)   = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
 
     def sequential(n: Int) = Gen.suspend {
@@ -48,7 +49,7 @@ trait GenZIO {
     }
 
     def causesN(n: Int): Gen[R, Cause[E]] = Gen.suspend {
-      if (n == 1) Gen.oneOf(failure, die, interrupt)
+      if (n == 1) Gen.oneOf(empty, failure, die, interrupt)
       else if (n == 2) Gen.oneOf(traced(n), meta(n))
       else Gen.oneOf(traced(n), meta(n), sequential(n), parallel(n))
     }

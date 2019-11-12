@@ -92,7 +92,7 @@ object TestEnvironment extends Serializable {
 
   val Value: Managed[Nothing, TestEnvironment] =
     for {
-      live     <- Live.makeService(new DefaultRuntime {}.Environment).toManaged_
+      live     <- Live.makeService(new DefaultRuntime {}.environment).toManaged_
       clock    <- TestClock.makeTest(TestClock.DefaultData, Some(live))
       console  <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
       random   <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_

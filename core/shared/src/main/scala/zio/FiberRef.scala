@@ -45,7 +45,8 @@ package zio
  * @param initial
  * @tparam A
  */
-final class FiberRef[A](private[zio] val initial: A, private[zio] val combine: (A, A) => A) extends Serializable {
+final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] val combine: (A, A) => A)
+    extends Serializable {
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
