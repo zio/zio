@@ -826,6 +826,20 @@ object SinkSpec
           })
         ),
         suite("Constructors")(
+          testM("head")(
+            assertM(
+              Stream[Int](1, 2, 3)
+                .run(ZSink.head[Int]),
+              isSome(equalTo(1))
+            )
+          ),
+          testM("last")(
+            assertM(
+              Stream[Int](1, 2, 3)
+                .run(ZSink.last[Int]),
+              isSome(equalTo(3))
+            )
+          ),
           testM("foldLeft")(
             checkM(
               Gen.small(pureStreamGen(Gen.anyInt, _)),

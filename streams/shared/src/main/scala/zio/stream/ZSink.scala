@@ -1284,18 +1284,16 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     foldLeft(())((s, _) => s)
 
   /**
-    * Creates a sink containing the first value.
-    */
+   * Creates a sink containing the first value.
+   */
   final def head[A]: ZSink[Any, Nothing, A, A, Option[A]] =
     foldUntil[Option[A], A](None, 1) { case (_, a) => Some(a) }
 
-
   /**
-    * Creates a sink containing the last value.
-    */
-  final def last[A]: ZSink[Any, Nothing, Nothing, A, Option[A]] =
+   * Creates a sink containing the last value.
+   */
+  final def last[A]: ZSink[Any, Nothing, A, A, Option[A]] =
     foldLeft[A, Option[A]](None) { case (_, a) => Some(a) }
-
 
   /**
    * Creates a sink failing with a value of type `E`.
