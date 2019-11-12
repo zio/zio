@@ -263,11 +263,12 @@ object STMSpec
             },
             testM("interrupt the fiber and observe it, it should be resumed with Interrupted Cause") {
               for {
+                selfId  <- ZIO.fiberId
                 v       <- TRef.makeCommit(1)
                 f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
                 _       <- f.interrupt
                 observe <- f.join.sandbox.either
-              } yield assert(observe, isLeft(equalTo(Cause.interrupt)))
+              } yield assert(observe, isLeft(equalTo(Cause.interrupt(selfId))))
             }
           ),
           testM("Using `collect` filter and map simultaneously the value produced by the transaction") {
