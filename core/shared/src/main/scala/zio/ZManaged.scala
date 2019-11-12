@@ -415,18 +415,12 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
         // so to make sure the acquire phase of the original `ZManaged` runs
         // interruptibly, we need to create an interruptible hole in the region.
         fiber <- ZIO.interruptibleMask { restore =>
-                  restore {
-                    for {
-                      reservation <- self.reserve
-                      _           <- finalizer.set(reservation.release)
-                    } yield reservation
-                  } >>= (_.acquire)
+                  restore(self.reserve.tap(r => finalizer.set(r.release))) >>= (_.acquire)
                 }.fork
-        reservation = Reservation(
-          acquire = UIO.succeed(fiber),
-          release = e => fiber.interrupt *> finalizer.get.flatMap(f => f(e))
-        )
-      } yield reservation
+      } yield Reservation(
+        acquire = UIO.succeed(fiber),
+        release = e => fiber.interrupt *> finalizer.get.flatMap(f => f(e))
+      )
     }
 
   /**
@@ -785,7 +779,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * interrupted, and if completed will cause the regular finalizer to not run.
    */
   final def withEarlyRelease: ZManaged[R, E, (URIO[R, Any], A)] =
-    withEarlyReleaseExit(Exit.interrupt)
+    ZManaged.fiberId.flatMap(fiberId => withEarlyReleaseExit(Exit.interrupt(fiberId)))
 
   /**
    * A more powerful version of `withEarlyRelease` that allows specifying an
@@ -970,6 +964,11 @@ object ZManaged {
     halt(Cause.fail(error))
 
   /**
+   * Returns an effect that succeeds with the `Fiber.Id` of the caller.
+   */
+  final val fiberId: ZManaged[Any, Nothing, Fiber.Id] = ZManaged.fromEffect(ZIO.fiberId)
+
+  /**
    * Creates an effect that only executes the provided finalizer as its
    * release action.
    */
@@ -1150,9 +1149,17 @@ object ZManaged {
   final def identity[R]: ZManaged[R, Nothing, R] = fromFunction(scala.Predef.identity)
 
   /**
-   * Returns an effect that is interrupted.
+   * Returns an effect that is interrupted as if by the fiber calling this
+   * method.
    */
-  final val interrupt: ZManaged[Any, Nothing, Nothing] = halt(Cause.interrupt)
+  final val interrupt: ZManaged[Any, Nothing, Nothing] =
+    ZManaged.fromEffect(ZIO.descriptor).flatMap(d => halt(Cause.interrupt(d.id)))
+
+  /**
+   * Returns an effect that is interrupted as if by the specified fiber.
+   */
+  final def interruptAs(fiberId: Fiber.Id): ZManaged[Any, Nothing, Nothing] =
+    halt(Cause.interrupt(fiberId))
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action.
@@ -1425,13 +1432,14 @@ object ZManaged {
    */
   final def switchable[R, E, A]: ZManaged[R, Nothing, ZManaged[R, E, A] => ZIO[R, E, A]] =
     for {
+      fiberId      <- ZManaged.fiberId
       finalizerRef <- ZManaged.finalizerRef[R](_ => UIO.unit)
       switch = { (newResource: ZManaged[R, E, A]) =>
         ZIO.uninterruptibleMask { restore =>
           for {
             _ <- finalizerRef
                   .modify(f => (f, _ => UIO.unit))
-                  .flatMap(f => f(Exit.interrupt))
+                  .flatMap(f => f(Exit.interrupt(fiberId)))
             reservation <- newResource.reserve
             _           <- finalizerRef.set(reservation.release)
             a           <- restore(reservation.acquire)
