@@ -2927,17 +2927,16 @@ object ZStream extends Serializable {
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   final def fromQueue[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
-    ZStream[R, E, A] {
-      ZManaged.reserve(
-        Reservation(
-          UIO(
-            queue.take.catchAllCause(
-              c => queue.isShutdown.flatMap(down => if (down && c.interrupted) Pull.end else Pull.halt(c))
-            )
-          ),
-          _ => UIO.unit
+    ZStream {
+      ZManaged.succeed {
+        queue.take.catchAllCause(
+          c =>
+            queue.isShutdown.flatMap { down =>
+              if (down && c.interrupted) Pull.end
+              else Pull.halt(c)
+            }
         )
-      )
+      }
     }
 
   /**
