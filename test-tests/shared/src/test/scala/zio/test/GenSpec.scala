@@ -17,7 +17,7 @@ object GenSpec
                 right <- sample(a)
               } yield assert(left, startsWith(right))
             }
-          },
+          } @@ scala2Only,
           testM("right preservation") {
             checkM(deterministic, deterministic) { (a, b) =>
               for {
@@ -25,7 +25,7 @@ object GenSpec
                 right <- sample(b)
               } yield assert(left, startsWith(right))
             }
-          },
+          } @@ scala2Only,
           testM("shrinking") {
             checkM(random, random) { (a, b) =>
               for {
@@ -35,7 +35,7 @@ object GenSpec
             }
           }
         )
-      ) @@ scala2Only
+      )
     )
 
 object GenSpecUtil {
