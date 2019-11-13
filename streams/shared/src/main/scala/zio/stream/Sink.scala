@@ -19,6 +19,7 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
+import zio.stream.ZSink.{ foldLeft, foldUntil }
 
 object Sink extends Serializable {
 
@@ -93,6 +94,18 @@ object Sink extends Serializable {
    */
   final def drain: Sink[Nothing, Nothing, Any, Unit] =
     ZSink.drain
+
+  /**
+   * see [[ZSink.head]]
+   */
+  final def head[A]: Sink[Nothing, A, A, Option[A]] =
+    ZSink.head
+
+  /**
+   * see [[ZSink.last]]
+   */
+  final def last[A]: Sink[Nothing, Nothing, A, Option[A]] =
+    ZSink.last
 
   /**
    * see [[ZSink.fail]]
