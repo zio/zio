@@ -928,7 +928,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * it to the destination stream. `f0` can maintain some internal state to control
    * the combining process, with the initial state being specified by `s1`.
    */
-  final def combine[R1 <: R, E1 >: E, A1 >: A, S1, B, C](that: ZStream[R1, E1, B])(s1: S1)(
+  final def combine[R1 <: R, E1 >: E, S1, B, C](that: ZStream[R1, E1, B])(s1: S1)(
     f0: (S1, Pull[R, E, A], Pull[R1, E1, B]) => ZIO[R1, E1, (S1, Take[E1, C])]
   ): ZStream[R1, E1, C] =
     ZStream[R1, E1, C] {

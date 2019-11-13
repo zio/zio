@@ -16,14 +16,17 @@
 
 package zio.test
 
-import zio.ZIO
-import zio.stream.ZStream
+import zio.{ Cause, ZIO }
+import zio.stream.{ Take, ZStream }
 
 /**
  * A sample is a single observation from a random variable, together with a
  * tree of "shrinkings" used for minimization of "large" failures.
  */
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
+
+  final def <&>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
+    self.zipPar(that)
 
   final def <*>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.zip(that)
@@ -61,10 +64,32 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     f(value).map(Sample(_, shrink.mapM(_.traverse(f))))
 
   final def zip[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
-    self.flatMap(a => that.map(b => (a, b)))
+    self.zipWith(that)((_, _))
+
+  final def zipPar[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
+    self.zipWithPar(that)((_, _))
 
   final def zipWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] =
-    self.zip(that).map(f.tupled)
+    self.flatMap(a => that.map(b => f(a, b)))
+
+  final def zipWithPar[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] = {
+    val value = f(self.value, that.value)
+    val shrink = self.shrink.combine[R1, Nothing, (A, B), Sample[R1, B], Sample[R1, C]](that.shrink)(
+      (self.value, that.value)
+    ) {
+      case ((a, b), left, right) =>
+        Take.fromPull(left).zipWithPar(Take.fromPull(right)) {
+          case (Take.Value(l), Take.Value(r)) => ((l.value, r.value), Take.Value(l.zipWithPar(r)(f)))
+          case (Take.Value(l), Take.End)      => ((l.value, b), Take.Value(l.map(f(_, b))))
+          case (Take.End, Take.Value(r))      => ((a, r.value), Take.Value(r.map(f(a, _))))
+          case (Take.End, Take.End)           => ((a, b), Take.End)
+          case (Take.Fail(e1), Take.Fail(e2)) => ((a, b), Take.Fail(Cause.Both(e1, e2)))
+          case (Take.Fail(e), _)              => ((a, b), Take.Fail(e))
+          case (_, Take.Fail(e))              => ((a, b), Take.Fail(e))
+        }
+    }
+    Sample(value, shrink)
+  }
 }
 object Sample {
 

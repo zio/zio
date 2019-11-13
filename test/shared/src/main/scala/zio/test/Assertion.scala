@@ -260,8 +260,14 @@ object Assertion {
   /**
    * Makes a new assertion that requires a given string to end with the specified suffix.
    */
-  final def endsWith(suffix: String): Assertion[String] =
+  final def endsWith[A](suffix: Seq[A]): Assertion[Seq[A]] =
     Assertion.assertion("endsWith")(param(suffix))(_.endsWith(suffix))
+
+  /**
+   * Makes a new assertion that requires a given string to end with the specified suffix.
+   */
+  final def endsWithString(suffix: String): Assertion[String] =
+    Assertion.assertion("endsWithString")(param(suffix))(_.endsWith(suffix))
 
   /**
    * Makes a new assertion that requires a value equal the specified value.
@@ -570,10 +576,17 @@ object Assertion {
     Assertion.assertion("nothing")()(_ => false)
 
   /**
+   * Makes a new assertion that requires a given sequence to start with the
+   * specified prefix.
+   */
+  final def startsWith[A](prefix: Seq[A]): Assertion[Seq[A]] =
+    Assertion.assertion("startsWith")(param(prefix))(_.startsWith(prefix))
+
+  /**
    * Makes a new assertion that requires a given string to start with a specified prefix
    */
-  final def startsWith(prefix: String): Assertion[String] =
-    Assertion.assertion("startsWith")(param(prefix))(_.startsWith(prefix))
+  final def startsWithString(prefix: String): Assertion[String] =
+    Assertion.assertion("startsWithString")(param(prefix))(_.startsWith(prefix))
 
   /**
    * Makes a new assertion that requires an exit value to succeed.

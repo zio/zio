@@ -83,21 +83,21 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     Gen(sample.map(sample => f(sample.value)))
 
   final def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
-    self.flatMap(a => that.map(b => (a, b)))
+    self.zipWith(that)((_, _))
 
   final def zipPar[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zipWithPar(that)((_, _))
 
   final def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
-    self.zip(that).map(f.tupled)
+    self.flatMap(a => that.map(b => f(a, b)))
 
   final def zipWithPar[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
     val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
     val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
     left.zipWith(right) {
-      case (Some(Right(a)), Some(Right(b))) => Some(a.zipWith(b)(f))
-      case (Some(Right(a)), Some(Left(b)))  => Some(a.zipWith(b)(f))
-      case (Some(Left(a)), Some(Right(b)))  => Some(a.zipWith(b)(f))
+      case (Some(Right(l)), Some(Right(r))) => Some(l.zipWithPar(r)(f))
+      case (Some(Right(l)), Some(Left(r)))  => Some(l.zipWithPar(r)(f))
+      case (Some(Left(l)), Some(Right(r)))  => Some(l.zipWithPar(r)(f))
       case _                                => None
     }
   }
