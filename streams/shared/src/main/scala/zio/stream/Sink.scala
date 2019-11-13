@@ -19,7 +19,6 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.stream.ZSink.{ foldLeft, foldUntil }
 
 object Sink extends Serializable {
 
