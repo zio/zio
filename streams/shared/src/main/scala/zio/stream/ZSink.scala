@@ -1292,7 +1292,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Creates a sink containing the last value.
    */
-  final def last[A]: ZSink[Any, Nothing, A, A, Option[A]] =
+  final def last[A]: ZSink[Any, Nothing, Nothing, A, Option[A]] =
     foldLeft[A, Option[A]](None) { case (_, a) => Some(a) }
 
   /**
