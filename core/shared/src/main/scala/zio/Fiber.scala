@@ -424,7 +424,7 @@ object Fiber {
     /**
      * {{{
      * "Fiber Name" #432 (16m2s) waiting on fiber #283
-     *    Status: Suspended (interruptible, 12 asyncs, #283, ...)
+     *    Status: Suspended (interruptible, 12 asyncs, ...)
      *     at ...
      *     at ...
      *     at ...
@@ -437,7 +437,7 @@ object Fiber {
       val minutes = seconds / 60L
       val hours   = minutes / 60L
 
-      val name = fiberName.fold("")(name => "\"" + name + "\"")
+      val name = fiberName.fold("")(name => "\"" + name + "\" ")
       val lifeMsg = (if (hours == 0) "" else s"${hours}h") +
         (if (hours == 0 && minutes == 0) "" else s"${minutes}m") +
         (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
@@ -453,16 +453,15 @@ object Fiber {
       val statMsg = status match {
         case Done    => "Done"
         case Running => "Running"
-        case Suspended(interruptible, epoch, blockingOn, asyncTrace) =>
+        case Suspended(interruptible, epoch, _, asyncTrace) =>
           val in = if (interruptible) "interruptible" else "uninterruptible"
           val ep = s"${epoch} asyncs"
-          val bl = blockingOn.map(id => s"#${id.seqNumber}").mkString(" ")
           val as = asyncTrace.map(_.prettyPrint).mkString(" ")
-          s"Suspended(${in}, ${ep}, ${bl}, ${as})"
+          s"Suspended(${in}, ${ep}, ${as})"
       }
 
       s"""
-      ${name} #${fiberId.seqNumber} (${lifeMsg}) ${waitMsg}}
+      ${name}#${fiberId.seqNumber} (${lifeMsg}) ${waitMsg}}
          Status: ${statMsg}
       ${trace.prettyPrint}
       """
