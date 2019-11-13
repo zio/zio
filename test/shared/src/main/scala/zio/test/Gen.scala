@@ -28,6 +28,9 @@ import zio.stream.{ Stream, ZStream }
  */
 case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
+  final def <&>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+    self.zipPar(that)
+
   final def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zip(that)
 
@@ -82,8 +85,22 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
   final def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.flatMap(a => that.map(b => (a, b)))
 
+  final def zipPar[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+    self.zipWithPar(that)((_, _))
+
   final def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
     self.zip(that).map(f.tupled)
+
+  final def zipWithPar[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
+    val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
+    val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
+    left.zipWith(right) {
+      case (Some(Right(a)), Some(Right(b))) => Some(a.zipWith(b)(f))
+      case (Some(Right(a)), Some(Left(b)))  => Some(a.zipWith(b)(f))
+      case (Some(Left(a)), Some(Right(b)))  => Some(a.zipWith(b)(f))
+      case _                                => None
+    }
+  }
 }
 
 object Gen extends GenZIO with FunctionVariants {
