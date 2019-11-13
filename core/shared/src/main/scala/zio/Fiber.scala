@@ -22,6 +22,7 @@ import scala.concurrent.Future
 import scala.collection.JavaConverters._
 import com.github.ghik.silencer.silent
 import zio.internal.stacktracer.ZTraceElement
+import java.util.concurrent.TimeUnit
 
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
@@ -417,7 +418,56 @@ object Fiber {
   )
 
   final case class Dump(fiberId: Fiber.Id, fiberName: Option[String], status: Status, trace: ZTrace)
-      extends Serializable
+      extends Serializable {
+    import zio.Fiber.Status._
+
+    /**
+     * {{{
+     * "Fiber Name" #432 (16m2s) waiting on fiber #283
+     *    Status: Suspended (interruptible, 12 asyncs, #283, ...)
+     *     at ...
+     *     at ...
+     *     at ...
+     *     at ...
+     * }}}
+     */
+    final def prettyPrintM: URIO[clock.Clock, String] = clock.currentTime(TimeUnit.MILLISECONDS).map { time =>
+      val millis  = (time - fiberId.startTimeMillis)
+      val seconds = millis / 1000L
+      val minutes = seconds / 60L
+      val hours   = minutes / 60L
+
+      val name = fiberName.fold("")(name => "\"" + name + "\"")
+      val lifeMsg = (if (hours == 0) "" else s"${hours}h") +
+        (if (hours == 0 && minutes == 0) "" else s"${minutes}m") +
+        (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
+        (s"${millis}ms")
+      val waitMsg = status match {
+        case Done    => ""
+        case Running => ""
+        case Suspended(_, _, blockingOn, _) =>
+          if (blockingOn.nonEmpty)
+            " waiting on " + blockingOn.map(id => s"${id.seqNumber}").mkString(", ")
+          else ""
+      }
+      val statMsg = status match {
+        case Done    => "Done"
+        case Running => "Running"
+        case Suspended(interruptible, epoch, blockingOn, asyncTrace) =>
+          val in = if (interruptible) "interruptible" else "uninterruptible"
+          val ep = s"${epoch} asyncs"
+          val bl = blockingOn.map(id => s"#${id.seqNumber}").mkString(" ")
+          val as = asyncTrace.map(_.prettyPrint).mkString(" ")
+          s"Suspended(${in}, ${ep}, ${bl}, ${as})"
+      }
+
+      s"""
+      ${name} #${fiberId.seqNumber} (${lifeMsg}) ${waitMsg}}
+         Status: ${statMsg}
+      ${trace.prettyPrint}
+      """
+    }
+  }
 
   /**
    * The identity of a Fiber, described by the time it began life, and a
