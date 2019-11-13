@@ -48,6 +48,8 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     }
   }
 
+  final def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
+
   final def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = Gen {
     self.sample.flatMap { sample =>
       val values  = f(sample.value).sample
@@ -84,13 +86,19 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     self.zip(that).map(f.tupled)
 }
 
-object Gen extends GenZIO {
+object Gen extends GenZIO with FunctionVariants {
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
    */
   final val alphaNumericChar: Gen[Random, Char] =
     weighted((char(48, 57), 10), (char(65, 122), 52))
+
+  /**
+   * A generator of alphanumeric strings. Shrinks towards the empty string.
+   */
+  final val alphaNumericString: Gen[Random with Sized, String] =
+    Gen.string(alphaNumericChar)
 
   /**
    * A generator of bytes. Shrinks toward '0'.
@@ -143,8 +151,14 @@ object Gen extends GenZIO {
   /**
    * A generator of strings. Shrinks towards the empty string.
    */
-  final val anyString: Gen[Random with Sized, String] =
-    Gen.string(Gen.anyChar)
+  final def anyString: Gen[Random with Sized, String] =
+    Gen.string(Gen.anyUnicodeChar)
+
+  /**
+   * A generator of Unicode characters. Shrinks toward '0'.
+   */
+  final val anyUnicodeChar: Gen[Random, Char] =
+    Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
 
   /**
    * A generator of booleans. Shrinks toward 'false'.
@@ -221,7 +235,7 @@ object Gen extends GenZIO {
    */
   final def fromIterable[R, A](
     as: Iterable[A],
-    shrinker: (A => ZStream[R, Nothing, A]) = (_: A) => ZStream.empty
+    shrinker: (A => ZStream[R, Nothing, A]) = defaultShrinker
   ): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
 
@@ -238,29 +252,6 @@ object Gen extends GenZIO {
    */
   final def fromRandomSample[R <: Random, A](f: Random.Service[Any] => UIO[Sample[R, A]]): Gen[R, A] =
     Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random))))
-
-  /**
-   * Constructs a generator of functions from `A` to `B` given a generator of
-   * `B` values. Two `A` values will be considered to be equal, and thus will
-   * be guaranteed to generate the same `B` value, if they have the same
-   * `hashCode`.
-   */
-  final def function[R, A, B](gen: Gen[R, B]): Gen[R, A => B] =
-    functionWith(gen)(_.hashCode)
-
-  /**
-   * Constructs a generator of functions from `A` to `B` given a generator of
-   * `B` values and a hashing function for `A` values. Two `A` values will be
-   * considered to be equal, and thus will be guaranteed to generate the same
-   * `B` value, if they have have the same hash. This is useful when `A` does
-   * not implement `hashCode` in a way that is constent with equality.
-   */
-  final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
-    Gen.fromEffect {
-      gen.sample.forever.process.use { pull =>
-        Fun.makeHash((_: A) => pull.optional.map(_.get.value))(hash)
-      }
-    }
 
   /**
    * A generator of integers inside the specified range: [start, end].
@@ -295,6 +286,19 @@ object Gen extends GenZIO {
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+
+  /**
+   * A generator of long values in the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   */
+  final def long(min: Long, max: Long): Gen[Random, Long] =
+    Gen.fromEffectSample {
+      val difference = max - min + 1
+      val effect =
+        if (difference > 0) nextLong(difference).map(min + _)
+        else nextLong.doUntil(n => min <= n && n <= max)
+      effect.map(Sample.shrinkIntegral(min))
+    }
 
   /**
    * A sized generator that uses an exponential distribution of size values.
@@ -444,4 +448,7 @@ object Gen extends GenZIO {
     if (n < min) min
     else if (n > max) max
     else n
+
+  private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
+    _ => ZStream.empty
 }

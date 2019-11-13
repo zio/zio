@@ -109,6 +109,7 @@ object Duration {
 
     override def render: String =
       toMillis match {
+        case 0                       => s"$nanos ns"
         case millis if millis < 1000 => s"$millis ms"
         case millis if millis < 60000 && millis % 1000 == 0 => s"${millis / 1000} s"
         case millis if millis < 60000 => s"${millis / 1000} s ${millis % 1000} ms"
@@ -134,7 +135,7 @@ object Duration {
 
     override def asScala: ScalaDuration = ScalaDuration.Inf
 
-    override def asJava: JavaDuration = JavaDuration.ofSeconds(Long.MaxValue)
+    override def asJava: JavaDuration = JavaDuration.ofMillis(Long.MaxValue)
 
     override def render: String = "Infinity"
   }

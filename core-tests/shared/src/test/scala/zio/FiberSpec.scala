@@ -26,40 +26,77 @@ object FiberSpec
               child <- withLatch { release =>
                         (fiberRef.set(update) *> release).fork
                       }
-              _     <- child.map(_ => ()).inheritFiberRefs
+              _     <- child.map(_ => ()).inheritRefs
               value <- fiberRef.get
             } yield assert(value, equalTo(update))
           },
           testM("`orElse`") {
             for {
-              fiberRef  <- FiberRef.make(initial)
-              semaphore <- Semaphore.make(2)
-              _         <- semaphore.acquireN(2)
-              child1    <- (fiberRef.set("child1") *> semaphore.release).fork
-              child2    <- (fiberRef.set("child2") *> semaphore.release).fork
-              _         <- semaphore.acquireN(2)
-              _         <- child1.orElse(child2).inheritFiberRefs
-              value     <- fiberRef.get
+              fiberRef <- FiberRef.make(initial)
+              latch1   <- Promise.make[Nothing, Unit]
+              latch2   <- Promise.make[Nothing, Unit]
+              child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
+              child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
+              _        <- latch1.await *> latch2.await
+              _        <- child1.orElse(child2).inheritRefs
+              value    <- fiberRef.get
             } yield assert(value, equalTo("child1"))
           },
           testM("`zip`") {
             for {
-              fiberRef  <- FiberRef.make(initial)
-              semaphore <- Semaphore.make(2)
-              _         <- semaphore.acquireN(2)
-              child1    <- (fiberRef.set("child1") *> semaphore.release).fork
-              child2    <- (fiberRef.set("child2") *> semaphore.release).fork
-              _         <- semaphore.acquireN(2)
-              _         <- child1.zip(child2).inheritFiberRefs
-              value     <- fiberRef.get
+              fiberRef <- FiberRef.make(initial)
+              latch1   <- Promise.make[Nothing, Unit]
+              latch2   <- Promise.make[Nothing, Unit]
+              child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
+              child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
+              _        <- latch1.await *> latch2.await
+              _        <- child1.zip(child2).inheritRefs
+              value    <- fiberRef.get
             } yield assert(value, equalTo("child1"))
           }
         ),
         suite("`Fiber.join` on interrupted Fiber")(
           testM("is inner interruption") {
+            val fiberId = Fiber.Id(0L, 123L)
+
             for {
-              exit <- Fiber.interrupt.join.run
-            } yield assert(exit, equalTo(Exit.interrupt))
+              exit <- Fiber.interruptAs(fiberId).join.run
+            } yield assert(exit, equalTo(Exit.interrupt(fiberId)))
+          }
+        ),
+        suite("if one composed fiber fails then all must fail")(
+          testM("`await`") {
+            for {
+              exit <- Fiber.fail("fail").zip(Fiber.never).await
+            } yield assert(exit, fails(equalTo("fail")))
+          },
+          testM("`join`") {
+            for {
+              exit <- Fiber.fail("fail").zip(Fiber.never).join.run
+            } yield assert(exit, fails(equalTo("fail")))
+          },
+          testM("`awaitAll`") {
+            for {
+              exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).run
+            } yield assert(exit, succeeds(isUnit))
+          },
+          testM("`joinAll`") {
+            for {
+              exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).run
+            } yield assert(exit, succeeds(isUnit))
+          },
+          testM("shard example") {
+            def shard[R, E, A](queue: Queue[A], n: Int, worker: A => ZIO[R, E, Unit]): ZIO[R, E, Nothing] = {
+              val worker1 = queue.take.flatMap(a => worker(a).uninterruptible).forever
+              ZIO.forkAll(List.fill(n)(worker1)).flatMap(_.join) *> ZIO.never
+            }
+            for {
+              queue  <- Queue.unbounded[Int]
+              _      <- queue.offerAll(1 to 100)
+              worker = (n: Int) => if (n == 100) ZIO.fail("fail") else queue.offer(n).unit
+              exit   <- shard(queue, 4, worker).run
+              _      <- queue.shutdown
+            } yield assert(exit, fails(equalTo("fail")))
           }
         )
       )

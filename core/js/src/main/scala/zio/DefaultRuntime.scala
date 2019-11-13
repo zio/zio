@@ -22,9 +22,7 @@ import zio.system.System
 import zio.random.Random
 import zio.internal.{ Platform, PlatformLive }
 
-trait DefaultRuntime extends Runtime[Clock with Console with System with Random] {
-  type Environment = Clock with Console with System with Random
-
-  val Platform: Platform       = PlatformLive.Default
-  val Environment: Environment = new Clock.Live with Console.Live with System.Live with Random.Live
+trait DefaultRuntime extends Runtime[ZEnv] {
+  override val platform: Platform = PlatformLive.Default
+  override val environment: ZEnv  = new Clock.Live with Console.Live with System.Live with Random.Live
 }

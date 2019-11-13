@@ -88,19 +88,16 @@ object SerializableSpec
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
         testSync("Cause.traced is serializable") {
-          val cause = Cause.traced(Cause.fail("test"), ZTrace(0L, List.empty, List.empty, None))
-          assert(serializeAndDeserialize(cause), equalTo(cause))
-        },
-        testSync("Cause.interrupt is serializable") {
-          val cause = Cause.interrupt
+          val fiberId = Fiber.Id(0L, 0L)
+          val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, List.empty, List.empty, None))
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
         testSync("Cause.&& is serializable") {
-          val cause = Cause.fail("test") && Cause.interrupt
+          val cause = Cause.fail("test") && Cause.fail("Another test")
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
         testSync("Cause.++ is serializable") {
-          val cause = Cause.fail("test") ++ Cause.interrupt
+          val cause = Cause.fail("test") ++ Cause.fail("Another test")
           assert(serializeAndDeserialize(cause), equalTo(cause))
         },
         testSync("Exit.succeed is serializable") {
@@ -116,7 +113,7 @@ object SerializableSpec
           assert(serializeAndDeserialize(exit), equalTo(exit))
         },
         testSync("FiberFailure is serializable") {
-          val failure = FiberFailure(Cause.interrupt)
+          val failure = FiberFailure(Cause.fail("Uh oh"))
           assert(serializeAndDeserialize(failure), equalTo(failure))
         },
         testSync("InterruptStatus.interruptible is serializable") {
@@ -139,8 +136,8 @@ object SerializableSpec
         testM("ZSchedule is serializable") {
           val schedule = Schedule.recurs(5)
           for {
-            out1 <- schedule.run(List(1, 2, 3, 4, 5))
-            out2 <- serializeAndDeserialize(schedule).run(List(1, 2, 3, 4, 5))
+            out1 <- ZIO.unit.repeat(schedule)
+            out2 <- ZIO.unit.repeat(serializeAndDeserialize(schedule))
           } yield assert(out2, equalTo(out1))
         },
         testM("Chunk.single is serializable") {
@@ -203,7 +200,7 @@ object SerializableSpec
         },
         testSync("ZTrace is serializable") {
           val trace = ZTrace(
-            0L,
+            Fiber.Id(0L, 0L),
             List(ZTraceElement.NoLocation("test")),
             List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
             None
@@ -237,7 +234,7 @@ object SerializableSpec
     )
 
 object SerializableSpecHelpers {
-  def serializeAndBack[T](a: T): IO[_, T] =
+  def serializeAndBack[T](a: T): IO[Any, T] =
     for {
       obj       <- IO.effectTotal(serializeToBytes(a))
       returnObj <- IO.effectTotal(getObjFromBytes[T](obj))

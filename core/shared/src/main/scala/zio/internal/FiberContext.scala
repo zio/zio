@@ -16,13 +16,14 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 
 import com.github.ghik.silencer.silent
-import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
-import zio.internal.stacktracer.ZTraceElement
-import zio.internal.tracing.ZIOFn
-import zio.{ Cause, _ }
+
+import zio._
+import FiberContext.FiberRefLocals
+import stacktracer.ZTraceElement
+import tracing.ZIOFn
 
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
@@ -31,24 +32,26 @@ import scala.collection.JavaConverters._
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
+  fiberId: Fiber.Id,
+  @volatile var parentFiber: FiberContext[_, _],
   platform: Platform,
   startEnv: AnyRef,
   startExec: Executor,
   startIStatus: InterruptStatus,
-  startSStatus: SuperviseStatus,
+  startDStatus: Boolean,
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   fiberRefLocals: FiberRefLocals
-) extends Fiber[E, A] {
-  import java.util.{ Collections, Set }
+) extends Fiber[E, A] { self =>
 
   import FiberContext._
   import FiberState._
 
   // Accessed from multiple threads:
-  private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
+  private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
 
-  @volatile private[this] var interrupted = false
+  @volatile
+  private[this] var asyncEpoch: Long = 0L
 
   private[this] val traceExec: Boolean =
     PlatformConstants.tracingSupported && platform.tracing.tracingConfig.traceExecution
@@ -59,12 +62,12 @@ private[zio] final class FiberContext[E, A](
   private[this] val traceEffects: Boolean =
     traceExec && platform.tracing.tracingConfig.traceEffectOpsInExecution
 
-  private[this] val fiberId         = FiberContext.fiberCounter.getAndIncrement()
   private[this] val stack           = Stack[Any => IO[Any, Any]]()
   private[this] val environments    = Stack[AnyRef](startEnv)
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-  private[this] val supervised      = Stack[SuperviseStatus](startSStatus)
+  private[this] val _children       = Platform.newConcurrentSet[FiberContext[Any, Any]]()
+  private[this] val daemonStatus    = StackBool(startDStatus)
 
   private[this] val tracingStatus =
     if (traceExec || traceStack) StackBool()
@@ -138,27 +141,24 @@ private[zio] final class FiberContext[E, A](
     )
   }
 
-  final def runAsync(k: Callback[E, A]): Unit =
+  private[zio] final def runAsync(k: Callback[E, A]): Unit =
     register0(xx => k(Exit.flatten(xx))) match {
       case null =>
       case v    => k(v)
     }
 
-  private object InterruptExit extends Function[Any, IO[E, Any]] {
-    final def apply(v: Any): IO[E, Any] = {
-      val isInterruptible = interruptStatus.peekOrElse(true)
-
-      if (isInterruptible) {
+  private[this] object InterruptExit extends Function[Any, IO[E, Any]] {
+    final def apply(v: Any): IO[E, Any] =
+      if (isInterruptible()) {
         interruptStatus.popDrop(())
 
         ZIO.succeed(v)
       } else {
         ZIO.effectTotal { interruptStatus.popDrop(v) }
       }
-    }
   }
 
-  private object TracingRegionExit extends Function[Any, IO[E, Any]] {
+  private[this] object TracingRegionExit extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
       // don't use effectTotal to avoid TracingRegionExit appearing in execution trace twice with traceEffects=true
       tracingStatus.popDrop(())
@@ -171,7 +171,7 @@ private[zio] final class FiberContext[E, A](
    * Unwinds the stack, looking for the first error handler, and exiting
    * interruptible / uninterruptible regions.
    */
-  final def unwindStack(): Unit = {
+  private[this] final def unwindStack(): Unit = {
     var unwinding = true
 
     // Unwind the stack, looking for an error handler:
@@ -185,7 +185,7 @@ private[zio] final class FiberContext[E, A](
           // do not remove TracingRegionExit from stack trace as it was not added
           tracingStatus.popDrop(())
 
-        case fold: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
+        case fold: ZIO.Fold[_, _, _, _, _] if !shouldInterrupt() =>
           // Push error handler back onto the stack and halt iteration:
           val k = fold.failure.asInstanceOf[Any => ZIO[Any, Any, Any]]
 
@@ -202,6 +202,54 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def executor: Executor = executors.peekOrElse(platform.executor)
 
+  @inline private[this] final def raceWithImpl[R, EL, ER, E, A, B, C](
+    race: ZIO.RaceWith[R, EL, ER, E, A, B, C]
+  ): ZIO[R, E, C] = {
+    @inline def complete[E0, E1, A, B](
+      winner: Fiber[E0, A],
+      loser: Fiber[E1, B],
+      cont: (Exit[E0, A], Fiber[E1, B]) => ZIO[R, E, C],
+      winnerExit: Exit[E0, A],
+      ab: AtomicBoolean,
+      cb: ZIO[R, E, C] => Unit
+    ): Unit =
+      if (ab.compareAndSet(true, false)) {
+        winnerExit match {
+          case exit: Exit.Success[_] =>
+            cb(winner.inheritRefs.flatMap(_ => cont(exit, loser)))
+          case exit: Exit.Failure[_] =>
+            cb(cont(exit, loser))
+        }
+      }
+
+    val raceIndicator = new AtomicBoolean(true)
+
+    val left  = fork[EL, A](race.left.interruptible.asInstanceOf[IO[EL, A]])
+    val right = fork[ER, B](race.right.interruptible.asInstanceOf[IO[ER, B]])
+
+    ZIO
+      .effectAsync[R, E, C] { cb =>
+        val leftRegister = left.register0 {
+          case exit0: Exit.Success[Exit[EL, A]] =>
+            complete[EL, ER, A, B](left, right, race.leftWins, exit0.value, raceIndicator, cb)
+          case exit: Exit.Failure[_] => complete(left, right, race.leftWins, exit, raceIndicator, cb)
+        }
+
+        if (leftRegister ne null)
+          complete(left, right, race.leftWins, leftRegister, raceIndicator, cb)
+        else {
+          val rightRegister = right.register0 {
+            case exit0: Exit.Success[Exit[_, _]] =>
+              complete(right, left, race.rightWins, exit0.value, raceIndicator, cb)
+            case exit: Exit.Failure[_] => complete(right, left, race.rightWins, exit, raceIndicator, cb)
+          }
+
+          if (rightRegister ne null)
+            complete(right, left, race.rightWins, rightRegister, raceIndicator, cb)
+        }
+      }
+  }
+
   /**
    * The main interpreter loop for `IO` actions. For purely synchronous actions,
    * this will run to completion unless required to yield to other fibers.
@@ -210,333 +258,349 @@ private[zio] final class FiberContext[E, A](
    *
    * @param io0 The `IO` to evaluate on the fiber.
    */
-  final def evaluateNow(io0: IO[E, _]): Unit = {
-    // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
-    // it in `ObjectRef` and performance will plummet.
-    var curZio: IO[E, Any] = io0
+  final def evaluateNow(io0: IO[E, Any]): Unit =
+    try {
+      // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
+      // it in `ObjectRef` and performance will plummet.
+      var curZio: IO[E, Any] = io0
 
-    // Put the stack reference on the stack:
-    val stack = this.stack
+      // Put the stack reference on the stack:
+      val stack = this.stack
 
-    // Put the maximum operation count on the stack for fast access:
-    val maxopcount = executor.yieldOpCount
+      // Put the maximum operation count on the stack for fast access:
+      val maxopcount = executor.yieldOpCount
 
-    // Store the trace of the immediate future flatMap during evaluation
-    // of a 1-hop left bind, to show a stack trace closer to the point of failure
-    var fastPathFlatMapContinuationTrace: ZTraceElement = null
+      // Store the trace of the immediate future flatMap during evaluation
+      // of a 1-hop left bind, to show a stack trace closer to the point of failure
+      var fastPathFlatMapContinuationTrace: ZTraceElement = null
 
-    @noinline def fastPathTrace(k: Any => ZIO[Any, E, Any], effect: AnyRef): ZTraceElement =
-      if (inTracingRegion) {
-        val kTrace = traceLocation(k)
+      @noinline def fastPathTrace(k: Any => ZIO[Any, E, Any], effect: AnyRef): ZTraceElement =
+        if (inTracingRegion) {
+          val kTrace = traceLocation(k)
 
-        if (this.traceEffects) addTrace(effect)
-        // record the nearest continuation for a better trace in case of failure
-        if (this.traceStack) fastPathFlatMapContinuationTrace = kTrace
+          if (this.traceEffects) addTrace(effect)
+          // record the nearest continuation for a better trace in case of failure
+          if (this.traceStack) fastPathFlatMapContinuationTrace = kTrace
 
-        kTrace
-      } else null
+          kTrace
+        } else null
 
-    while (curZio ne null) {
-      try {
-        var opcount: Int = 0
+      // Propagate ancestor interruption every once in a while:
+      propagateAncestorInterruption()
 
-        while (curZio ne null) {
-          val tag = curZio.tag
+      Fiber._currentFiber.set(this)
 
-          // Check to see if the fiber should continue executing or not:
-          if (tag == ZIO.Tags.Fail || !shouldInterrupt) {
-            // Fiber does not need to be interrupted, but might need to yield:
-            if (opcount == maxopcount) {
-              evaluateLater(curZio)
-              curZio = null
-            } else {
-              // Fiber is neither being interrupted nor needs to yield. Execute
-              // the next instruction in the program:
-              (tag: @switch) match {
-                case ZIO.Tags.FlatMap =>
-                  val zio = curZio.asInstanceOf[ZIO.FlatMap[Any, E, Any, Any]]
+      while (curZio ne null) {
+        try {
+          var opcount: Int = 0
 
-                  val nested = zio.zio
-                  val k      = zio.k
+          while (curZio ne null) {
+            val tag = curZio.tag
 
-                  // A mini interpreter for the left side of FlatMap that evaluates
-                  // anything that is 1-hop away. This eliminates heap usage for the
-                  // happy path.
-                  (nested.tag: @switch) match {
-                    case ZIO.Tags.Succeed =>
-                      val io2 = nested.asInstanceOf[ZIO.Succeed[Any]]
+            // Check to see if the fiber should continue executing or not:
+            if (tag == ZIO.Tags.Fail || !shouldInterrupt()) {
+              // Fiber does not need to be interrupted, but might need to yield:
+              if (opcount == maxopcount) {
+                evaluateLater(curZio)
+                curZio = null
+              } else {
+                // Fiber is neither being interrupted nor needs to yield. Execute
+                // the next instruction in the program:
+                (tag: @switch) match {
+                  case ZIO.Tags.FlatMap =>
+                    val zio = curZio.asInstanceOf[ZIO.FlatMap[Any, E, Any, Any]]
 
-                      if (traceExec && inTracingRegion) addTrace(k)
+                    val nested = zio.zio
+                    val k      = zio.k
 
-                      curZio = k(io2.value)
+                    // A mini interpreter for the left side of FlatMap that evaluates
+                    // anything that is 1-hop away. This eliminates heap usage for the
+                    // happy path.
+                    (nested.tag: @switch) match {
+                      case ZIO.Tags.Succeed =>
+                        val io2 = nested.asInstanceOf[ZIO.Succeed[Any]]
 
-                    case ZIO.Tags.EffectTotal =>
-                      val io2    = nested.asInstanceOf[ZIO.EffectTotal[Any]]
-                      val effect = io2.effect
+                        if (traceExec && inTracingRegion) addTrace(k)
 
-                      val kTrace = fastPathTrace(k, effect)
+                        curZio = k(io2.value)
 
-                      val value = effect()
+                      case ZIO.Tags.EffectTotal =>
+                        val io2    = nested.asInstanceOf[ZIO.EffectTotal[Any]]
+                        val effect = io2.effect
 
-                      // delete continuation as it was "popped" after success
-                      if (traceStack && (kTrace ne null)) fastPathFlatMapContinuationTrace = null
-                      // record continuation in exec as we're just "passing" it
-                      if (traceExec && (kTrace ne null)) execTrace.put(kTrace)
+                        val kTrace = fastPathTrace(k, effect)
 
-                      curZio = k(value)
+                        val value = effect()
 
-                    case ZIO.Tags.EffectPartial =>
-                      val io2    = nested.asInstanceOf[ZIO.EffectPartial[Any]]
-                      val effect = io2.effect
-
-                      val kTrace = fastPathTrace(k, effect)
-
-                      var failIO = null.asInstanceOf[IO[E, Any]]
-                      val value = try effect()
-                      catch {
-                        case t: Throwable if !platform.fatal(t) =>
-                          failIO = ZIO.fail(t.asInstanceOf[E])
-                      }
-
-                      if (failIO eq null) {
                         // delete continuation as it was "popped" after success
                         if (traceStack && (kTrace ne null)) fastPathFlatMapContinuationTrace = null
                         // record continuation in exec as we're just "passing" it
                         if (traceExec && (kTrace ne null)) execTrace.put(kTrace)
 
                         curZio = k(value)
-                      } else {
-                        curZio = failIO
+
+                      case ZIO.Tags.EffectPartial =>
+                        val io2    = nested.asInstanceOf[ZIO.EffectPartial[Any]]
+                        val effect = io2.effect
+
+                        val kTrace = fastPathTrace(k, effect)
+
+                        var failIO = null.asInstanceOf[IO[E, Any]]
+                        val value = try effect()
+                        catch {
+                          case t: Throwable if !platform.fatal(t) =>
+                            failIO = ZIO.fail(t.asInstanceOf[E])
+                        }
+
+                        if (failIO eq null) {
+                          // delete continuation as it was "popped" after success
+                          if (traceStack && (kTrace ne null)) fastPathFlatMapContinuationTrace = null
+                          // record continuation in exec as we're just "passing" it
+                          if (traceExec && (kTrace ne null)) execTrace.put(kTrace)
+
+                          curZio = k(value)
+                        } else {
+                          curZio = failIO
+                        }
+
+                      case _ =>
+                        // Fallback case. We couldn't evaluate the LHS so we have to
+                        // use the stack:
+                        curZio = nested
+                        pushContinuation(k)
+                    }
+
+                  case ZIO.Tags.Succeed =>
+                    val zio = curZio.asInstanceOf[ZIO.Succeed[Any]]
+
+                    val value = zio.value
+
+                    curZio = nextInstr(value)
+
+                  case ZIO.Tags.EffectTotal =>
+                    val zio    = curZio.asInstanceOf[ZIO.EffectTotal[Any]]
+                    val effect = zio.effect
+
+                    if (traceEffects && inTracingRegion) addTrace(effect)
+
+                    curZio = nextInstr(effect())
+
+                  case ZIO.Tags.Fail =>
+                    val zio = curZio.asInstanceOf[ZIO.Fail[E, Any]]
+
+                    // Put last trace into a val to avoid `ObjectRef` boxing.
+                    val fastPathTrace = fastPathFlatMapContinuationTrace
+                    fastPathFlatMapContinuationTrace = null
+
+                    val cause0 = zio.fill(() => captureTrace(fastPathTrace))
+
+                    unwindStack()
+
+                    if (stack.isEmpty) {
+                      // Error not caught, stack is empty:
+                      val cause = {
+                        // Add interruption information into the cause, if it's not already there:
+                        val interrupted = state.get.interrupted
+
+                        if (!cause0.contains(interrupted)) cause0 ++ interrupted else cause0
                       }
 
-                    case _ =>
-                      // Fallback case. We couldn't evaluate the LHS so we have to
-                      // use the stack:
-                      curZio = nested
-                      pushContinuation(k)
-                  }
+                      curZio = done(Exit.halt(cause))
+                    } else {
+                      // Error caught, next continuation on the stack will deal
+                      // with it, so we just have to compute it here:
+                      curZio = nextInstr(cause0)
+                    }
 
-                case ZIO.Tags.Succeed =>
-                  val zio = curZio.asInstanceOf[ZIO.Succeed[Any]]
+                  case ZIO.Tags.Fold =>
+                    val zio = curZio.asInstanceOf[ZIO.Fold[Any, E, Any, Any, Any]]
 
-                  val value = zio.value
+                    curZio = zio.value
+                    pushContinuation(zio)
 
-                  curZio = nextInstr(value)
+                  case ZIO.Tags.InterruptStatus =>
+                    val zio = curZio.asInstanceOf[ZIO.InterruptStatus[Any, E, Any]]
 
-                case ZIO.Tags.EffectTotal =>
-                  val zio    = curZio.asInstanceOf[ZIO.EffectTotal[Any]]
-                  val effect = zio.effect
+                    interruptStatus.push(zio.flag.toBoolean)
+                    // do not add InterruptExit to the stack trace
+                    stack.push(InterruptExit)
 
-                  if (traceEffects && inTracingRegion) addTrace(effect)
+                    curZio = zio.zio
 
-                  curZio = nextInstr(effect())
+                  case ZIO.Tags.CheckInterrupt =>
+                    val zio = curZio.asInstanceOf[ZIO.CheckInterrupt[Any, E, Any]]
 
-                case ZIO.Tags.Fail =>
-                  val zio = curZio.asInstanceOf[ZIO.Fail[E, Any]]
+                    curZio = zio.k(InterruptStatus.fromBoolean(isInterruptible()))
 
-                  // Put last trace into a val to avoid `ObjectRef` boxing.
-                  val fastPathTrace = fastPathFlatMapContinuationTrace
-                  fastPathFlatMapContinuationTrace = null
+                  case ZIO.Tags.TracingStatus =>
+                    val zio = curZio.asInstanceOf[ZIO.TracingStatus[Any, E, Any]]
 
-                  val cause0 = zio.fill(() => captureTrace(fastPathTrace))
+                    if (tracingStatus ne null) {
+                      tracingStatus.push(zio.flag.toBoolean)
+                      // do not add TracingRegionExit to the stack trace
+                      stack.push(TracingRegionExit)
+                    }
 
-                  unwindStack()
+                    curZio = zio.zio
 
-                  if (stack.isEmpty) {
-                    // Error not caught, stack is empty:
+                  case ZIO.Tags.CheckTracing =>
+                    val zio = curZio.asInstanceOf[ZIO.CheckTracing[Any, E, Any]]
+
+                    curZio = zio.k(TracingStatus.fromBoolean(inTracingRegion))
+
+                  case ZIO.Tags.EffectPartial =>
+                    val zio    = curZio.asInstanceOf[ZIO.EffectPartial[Any]]
+                    val effect = zio.effect
+
+                    if (traceEffects && inTracingRegion) addTrace(effect)
+
+                    var nextIo = null.asInstanceOf[IO[E, Any]]
+                    val value = try effect()
+                    catch {
+                      case t: Throwable if !platform.fatal(t) =>
+                        nextIo = ZIO.fail(t.asInstanceOf[E])
+                    }
+                    if (nextIo eq null) curZio = nextInstr(value)
+                    else curZio = nextIo
+
+                  case ZIO.Tags.EffectAsync =>
+                    val zio = curZio.asInstanceOf[ZIO.EffectAsync[Any, E, Any]]
+
+                    val epoch = asyncEpoch
+                    asyncEpoch = epoch + 1
+
+                    // Enter suspended state:
+                    curZio = enterAsync(epoch, zio.register, zio.blockingOn)
+
+                    if (curZio eq null) {
+                      val k = zio.register
+
+                      if (traceEffects && inTracingRegion) addTrace(k)
+
+                      curZio = k(resumeAsync(epoch)) match {
+                        case Some(zio) => if (exitAsync(epoch)) zio else null
+                        case None      => null
+                      }
+                    }
+
+                  case ZIO.Tags.Fork =>
+                    val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
+
+                    curZio = nextInstr(fork(zio.value))
+
+                  case ZIO.Tags.DaemonStatus =>
+                    val zio = curZio.asInstanceOf[ZIO.DaemonStatus[Any, E, Any]]
+
+                    curZio = daemonEnter(zio.flag).bracket_(daemonExit)(zio.zio)
+
+                  case ZIO.Tags.CheckDaemon =>
+                    val zio = curZio.asInstanceOf[ZIO.CheckDaemon[Any, E, Any]]
+
+                    curZio = zio.k(DaemonStatus.fromBoolean(daemonStatus.peekOrElse(false)))
+
+                  case ZIO.Tags.Descriptor =>
+                    val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
+
+                    val k = zio.k
+                    if (traceExec && inTracingRegion) addTrace(k)
+
+                    curZio = k(getDescriptor())
+
+                  case ZIO.Tags.Lock =>
+                    val zio = curZio.asInstanceOf[ZIO.Lock[Any, E, Any]]
+
+                    curZio = lock(zio.executor).bracket_(unlock, zio.zio)
+
+                  case ZIO.Tags.Yield =>
+                    evaluateLater(ZIO.unit)
+
                     curZio = null
 
-                    val cause =
-                      if (interrupted && !cause0.interrupted) cause0 ++ Cause.interrupt
-                      else cause0
+                  case ZIO.Tags.Access =>
+                    val zio = curZio.asInstanceOf[ZIO.Read[Any, E, Any]]
 
-                    done(Exit.halt(cause))
-                  } else {
-                    // Error caught, next continuation on the stack will deal
-                    // with it, so we just have to compute it here:
-                    curZio = nextInstr(cause0)
-                  }
+                    val k = zio.k
+                    if (traceExec && inTracingRegion) addTrace(k)
 
-                case ZIO.Tags.Fold =>
-                  val zio = curZio.asInstanceOf[ZIO.Fold[Any, E, Any, Any, Any]]
+                    curZio = k(environments.peek())
 
-                  curZio = zio.value
-                  pushContinuation(zio)
+                  case ZIO.Tags.Provide =>
+                    val zio = curZio.asInstanceOf[ZIO.Provide[Any, E, Any]]
 
-                case ZIO.Tags.InterruptStatus =>
-                  val zio = curZio.asInstanceOf[ZIO.InterruptStatus[Any, E, Any]]
+                    val push = ZIO.effectTotal(
+                      environments
+                        .push(zio.r.asInstanceOf[AnyRef])
+                    )
+                    val pop = ZIO.effectTotal(
+                      environments
+                        .pop()
+                    )
+                    curZio = push.bracket_(pop, zio.next)
 
-                  interruptStatus.push(zio.flag.toBoolean)
-                  // do not add InterruptExit to the stack trace
-                  stack.push(InterruptExit)
+                  case ZIO.Tags.EffectSuspendPartialWith =>
+                    val zio = curZio.asInstanceOf[ZIO.EffectSuspendPartialWith[Any, Any]]
 
-                  curZio = zio.zio
+                    val k = zio.f
+                    if (traceExec && inTracingRegion) addTrace(k)
 
-                case ZIO.Tags.CheckInterrupt =>
-                  val zio = curZio.asInstanceOf[ZIO.CheckInterrupt[Any, E, Any]]
-
-                  curZio = zio.k(InterruptStatus.fromBoolean(interruptible))
-
-                case ZIO.Tags.TracingStatus =>
-                  val zio = curZio.asInstanceOf[ZIO.TracingStatus[Any, E, Any]]
-
-                  if (tracingStatus ne null) {
-                    tracingStatus.push(zio.flag.toBoolean)
-                    // do not add TracingRegionExit to the stack trace
-                    stack.push(TracingRegionExit)
-                  }
-
-                  curZio = zio.zio
-
-                case ZIO.Tags.CheckTracing =>
-                  val zio = curZio.asInstanceOf[ZIO.CheckTracing[Any, E, Any]]
-
-                  curZio = zio.k(TracingStatus.fromBoolean(inTracingRegion))
-
-                case ZIO.Tags.EffectPartial =>
-                  val zio    = curZio.asInstanceOf[ZIO.EffectPartial[Any]]
-                  val effect = zio.effect
-
-                  if (traceEffects && inTracingRegion) addTrace(effect)
-
-                  var nextIo = null.asInstanceOf[IO[E, Any]]
-                  val value = try effect()
-                  catch {
-                    case t: Throwable if !platform.fatal(t) =>
-                      nextIo = ZIO.fail(t.asInstanceOf[E])
-                  }
-                  if (nextIo eq null) curZio = nextInstr(value)
-                  else curZio = nextIo
-
-                case ZIO.Tags.EffectAsync =>
-                  val zio = curZio.asInstanceOf[ZIO.EffectAsync[Any, E, Any]]
-
-                  // Enter suspended state:
-                  curZio = if (enterAsync()) {
-                    val k = zio.register
-
-                    if (traceEffects && inTracingRegion) addTrace(k)
-
-                    k(resumeAsync) match {
-                      case Some(zio) => if (exitAsync()) zio else null
-                      case None      => null
+                    curZio = try k(platform).asInstanceOf[ZIO[Any, E, Any]]
+                    catch {
+                      case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
                     }
-                  } else ZIO.interrupt
 
-                case ZIO.Tags.Fork =>
-                  val zio = curZio.asInstanceOf[ZIO.Fork[Any, _, Any]]
+                  case ZIO.Tags.EffectSuspendTotalWith =>
+                    val zio = curZio.asInstanceOf[ZIO.EffectSuspendTotalWith[Any, E, Any]]
 
-                  val value: FiberContext[_, Any] = fork(zio.value)
+                    val k = zio.f
+                    if (traceExec && inTracingRegion) addTrace(k)
 
-                  supervise(value)
+                    curZio = k(platform)
 
-                  curZio = nextInstr(value)
+                  case ZIO.Tags.Trace =>
+                    curZio = nextInstr(captureTrace(null))
 
-                case ZIO.Tags.SuperviseStatus =>
-                  val zio = curZio.asInstanceOf[ZIO.SuperviseStatus[Any, E, Any]]
+                  case ZIO.Tags.FiberRefNew =>
+                    val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
 
-                  curZio = changeSupervision(zio.status).bracket_(exitSupervision, zio.value)
+                    val fiberRef = new FiberRef[Any](zio.initialValue, zio.combine)
+                    fiberRefLocals.put(fiberRef, zio.initialValue)
 
-                case ZIO.Tags.Descriptor =>
-                  val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
+                    curZio = nextInstr(fiberRef)
 
-                  val k = zio.k
-                  if (traceExec && inTracingRegion) addTrace(k)
+                  case ZIO.Tags.FiberRefModify =>
+                    val zio = curZio.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
 
-                  curZio = k(getDescriptor)
+                    val oldValue           = Option(fiberRefLocals.get(zio.fiberRef))
+                    val (result, newValue) = zio.f(oldValue.getOrElse(zio.fiberRef.initial))
+                    fiberRefLocals.put(zio.fiberRef, newValue)
 
-                case ZIO.Tags.Lock =>
-                  val zio = curZio.asInstanceOf[ZIO.Lock[Any, E, Any]]
+                    curZio = nextInstr(result)
 
-                  curZio = lock(zio.executor).bracket_(unlock, zio.zio)
-
-                case ZIO.Tags.Yield =>
-                  evaluateLater(ZIO.unit)
-
-                  curZio = null
-
-                case ZIO.Tags.Access =>
-                  val zio = curZio.asInstanceOf[ZIO.Read[Any, E, Any]]
-
-                  val k = zio.k
-                  if (traceExec && inTracingRegion) addTrace(k)
-
-                  curZio = k(environments.peek())
-
-                case ZIO.Tags.Provide =>
-                  val zio = curZio.asInstanceOf[ZIO.Provide[Any, E, Any]]
-
-                  val push = ZIO.effectTotal(
-                    environments
-                      .push(zio.r.asInstanceOf[AnyRef])
-                  )
-                  val pop = ZIO.effectTotal(
-                    environments
-                      .pop()
-                  )
-                  curZio = push.bracket_(pop, zio.next)
-
-                case ZIO.Tags.EffectSuspendPartialWith =>
-                  val zio = curZio.asInstanceOf[ZIO.EffectSuspendPartialWith[Any, Any]]
-
-                  val k = zio.f
-                  if (traceExec && inTracingRegion) addTrace(k)
-
-                  curZio = try k(platform).asInstanceOf[ZIO[Any, E, Any]]
-                  catch {
-                    case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
-                  }
-
-                case ZIO.Tags.EffectSuspendTotalWith =>
-                  val zio = curZio.asInstanceOf[ZIO.EffectSuspendTotalWith[Any, E, Any]]
-
-                  val k = zio.f
-                  if (traceExec && inTracingRegion) addTrace(k)
-
-                  curZio = k(platform)
-
-                case ZIO.Tags.Trace =>
-                  curZio = nextInstr(captureTrace(null))
-
-                case ZIO.Tags.FiberRefNew =>
-                  val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
-
-                  val fiberRef = new FiberRef[Any](zio.initialValue)
-                  fiberRefLocals.put(fiberRef, zio.initialValue)
-
-                  curZio = nextInstr(fiberRef)
-
-                case ZIO.Tags.FiberRefModify =>
-                  val zio = curZio.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
-
-                  val oldValue           = Option(fiberRefLocals.get(zio.fiberRef))
-                  val (result, newValue) = zio.f(oldValue.getOrElse(zio.fiberRef.initial))
-                  fiberRefLocals.put(zio.fiberRef, newValue)
-
-                  curZio = nextInstr(result)
-
+                  case ZIO.Tags.RaceWith =>
+                    val zio = curZio.asInstanceOf[ZIO.RaceWith[Any, Any, Any, Any, Any, Any, Any]]
+                    curZio = raceWithImpl(zio).asInstanceOf[IO[E, Any]]
+                }
               }
+            } else {
+              // Fiber was interrupted
+              curZio = ZIO.halt(state.get.interrupted)
             }
-          } else {
-            // Fiber was interrupted
-            curZio = ZIO.interrupt
+
+            opcount = opcount + 1
           }
+        } catch {
+          case _: InterruptedException =>
+            Thread.interrupted()
+            curZio = ZIO.interruptAs(Fiber.Id.None)
 
-          opcount = opcount + 1
+          // Catastrophic error handler. Any error thrown inside the interpreter is
+          // either a bug in the interpreter or a bug in the user's code. Let the
+          // fiber die but attempt finalization & report errors.
+          case t: Throwable =>
+            curZio = if (platform.fatal(t)) platform.reportFatal(t) else ZIO.die(t)
         }
-      } catch {
-        case _: InterruptedException =>
-          Thread.interrupted
-          curZio = ZIO.interrupt
-
-        // Catastrophic error handler. Any error thrown inside the interpreter is
-        // either a bug in the interpreter or a bug in the user's code. Let the
-        // fiber die but attempt finalization & report errors.
-        case t: Throwable =>
-          curZio = if (platform.fatal(t)) platform.reportFatal(t) else ZIO.die(t)
       }
-    }
-  }
+    } finally Fiber._currentFiber.remove()
 
   private[this] final def lock(executor: Executor): UIO[Unit] =
     ZIO.effectTotal { executors.push(executor) } *> ZIO.yieldNow
@@ -544,57 +608,51 @@ private[zio] final class FiberContext[E, A](
   private[this] final def unlock: UIO[Unit] =
     ZIO.effectTotal { executors.pop() } *> ZIO.yieldNow
 
-  private[this] final def getDescriptor: Fiber.Descriptor =
+  private[this] final def getDescriptor(): Fiber.Descriptor =
     Fiber.Descriptor(
       fiberId,
-      interrupted,
-      InterruptStatus.fromBoolean(interruptible),
-      supervised.peek().convert,
-      executor,
-      getFibers
+      state.get.status,
+      state.get.interrupted.interruptors,
+      InterruptStatus.fromBoolean(isInterruptible()),
+      children,
+      executor
     )
-
-  // We make a copy of the supervised fibers set as an array
-  // to prevent mutations of the set from propagating to the caller.
-  private[this] final def getFibers: UIO[IndexedSeq[Fiber[_, _]]] =
-    UIO {
-      supervised.peek() match {
-        case SuperviseStatus.Unsupervised  => Array.empty[Fiber[_, _]].toIndexedSeq
-        case s: SuperviseStatus.Supervised => s.fibers
-      }
-    }
 
   /**
    * Forks an `IO` with the specified failure handler.
    */
   final def fork[E, A](zio: IO[E, A]): FiberContext[E, A] = {
-    val childFiberRefLocals: FiberRefLocals = platform.newWeakHashMap()
-    childFiberRefLocals.putAll(fiberRefLocals)
+    val isDaemon = daemonStatus.peekOrElse(false)
 
-    val childSupervised = supervised.peek() match {
-      case SuperviseStatus.Unsupervised  => SuperviseStatus.Unsupervised
-      case SuperviseStatus.Supervised(_) => SuperviseStatus.Supervised(newWeakSet[Fiber[_, _]])
-    }
+    val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
+    childFiberRefLocals.putAll(fiberRefLocals)
 
     val tracingRegion = inTracingRegion
     val ancestry =
       if ((traceExec || traceStack) && tracingRegion) Some(cutAncestryTrace(captureTrace(null)))
       else None
 
-    val context = new FiberContext[E, A](
+    val childContext = new FiberContext[E, A](
+      Fiber.newFiberId(),
+      if (isDaemon) null else self,
       platform,
       environments.peek(),
       executors.peek(),
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
-      childSupervised,
+      daemonStatus.peekOrElse(false),
       ancestry,
       tracingRegion,
       childFiberRefLocals
     )
 
-    platform.executor.submitOrThrow(() => context.evaluateNow(zio))
+    if (!isDaemon) {
+      self._children.add(childContext.asInstanceOf[FiberContext[Any, Any]])
+      childContext.onDone(_ => { val _ = self._children.remove(childContext) })
+    }
 
-    context
+    platform.executor.submitOrThrow(() => childContext.evaluateNow(zio))
+
+    childContext
   }
 
   private[this] final def evaluateLater(zio: IO[E, Any]): Unit =
@@ -605,95 +663,123 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final def resumeAsync: IO[E, Any] => Unit = {
-    val a = new AtomicBoolean(true)
-    zio => if (a.getAndSet(false) && exitAsync()) evaluateLater(zio)
+  private[this] final def resumeAsync(epoch: Long): IO[E, Any] => Unit = { zio =>
+    if (exitAsync(epoch)) evaluateLater(zio)
   }
 
-  final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
-    kill0(x => k(ZIO.done(x)))
-  }
+  final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
+
+  @silent("JavaConverters")
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(_children.asScala.toSet)
 
   final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
   }
 
+  final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
+    val oldValue = Option(fiberRefLocals.get(ref))
+
+    oldValue.asInstanceOf[Option[A]].getOrElse(ref.initial)
+  }
+
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
-  final def inheritFiberRefs: UIO[Unit] = UIO.effectSuspendTotal {
+  final def id: UIO[Option[Fiber.Id]] = UIO(Some(fiberId))
+
+  final def inheritRefs: UIO[Unit] = UIO.effectSuspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
       UIO.foreach_(locals) {
         case (fiberRef, value) =>
-          fiberRef.asInstanceOf[FiberRef[Any]].set(value)
+          val ref = fiberRef.asInstanceOf[FiberRef[Any]]
+          ref.update(old => ref.combine(old, value))
       }
   }
 
-  private[this] final def newWeakSet[A]: Set[A] =
-    Collections.newSetFromMap[A](platform.newWeakHashMap[A, java.lang.Boolean]())
+  final def status: UIO[Fiber.Status] = UIO(state.get.status)
 
-  private[this] final def changeSupervision(status: zio.SuperviseStatus): IO[E, Unit] = ZIO.effectTotal {
-    status match {
-      case zio.SuperviseStatus.Supervised =>
-        val set = newWeakSet[Fiber[_, _]]
-
-        supervised.push(SuperviseStatus.Supervised(set))
-      case zio.SuperviseStatus.Unsupervised =>
-        supervised.push(SuperviseStatus.Unsupervised)
-    }
-
-  }
-
-  private[this] final def supervise(child: FiberContext[_, _]): Unit =
-    supervised.peek() match {
-      case SuperviseStatus.Unsupervised    =>
-      case SuperviseStatus.Supervised(set) => set.add(child); ()
-    }
+  final def trace: UIO[Option[ZTrace]] = UIO(Some(captureTrace(null)))
 
   @tailrec
-  private[this] final def enterAsync(): Boolean = {
+  private[this] final def enterAsync(epoch: Long, register: AnyRef, blockingOn: List[Fiber.Id]): IO[E, Any] = {
     val oldState = state.get
 
     oldState match {
-      case Executing(_, observers) =>
-        val newState = Executing(FiberStatus.Suspended, observers)
+      case Executing(_, observers, interrupt) =>
+        val asyncTrace = if (traceStack && inTracingRegion) tracer.traceLocation(register) :: Nil else Nil
 
-        if (!state.compareAndSet(oldState, newState)) enterAsync()
-        else if (shouldInterrupt) {
+        val newState =
+          Executing(Fiber.Status.Suspended(isInterruptible(), epoch, blockingOn, asyncTrace), observers, interrupt)
+
+        if (!state.compareAndSet(oldState, newState)) enterAsync(epoch, register, blockingOn)
+        else if (shouldInterrupt()) {
           // Fiber interrupted, so go back into running state:
-          exitAsync()
-          false
-        } else true
+          exitAsync(epoch)
+          ZIO.halt(state.get.interrupted)
+        } else null
 
-      case _ => false
+      case _ => throw new RuntimeException(s"Unexpected fiber completion ${fiberId}")
     }
   }
 
   @tailrec
-  private[this] final def exitAsync(): Boolean = {
+  private[this] final def exitAsync(epoch: Long): Boolean = {
     val oldState = state.get
 
     oldState match {
-      case Executing(FiberStatus.Suspended, observers) =>
-        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers)))
-          exitAsync()
+      case Executing(Fiber.Status.Suspended(_, oldEpoch, _, _), observers, interrupt) if epoch == oldEpoch =>
+        if (!state.compareAndSet(oldState, Executing(Fiber.Status.Running, observers, interrupt))) exitAsync(epoch)
         else true
 
       case _ => false
     }
   }
 
-  private[this] final def exitSupervision: UIO[_] = ZIO.effectTotal(supervised.pop())
+  private[this] final def daemonEnter(flag: DaemonStatus): UIO[Unit] = ZIO.effectTotal {
+    daemonStatus.push(flag.toBoolean)
+  }
+
+  private[this] final def daemonExit: UIO[Unit] = ZIO.effectTotal {
+    val _ = daemonStatus.popOrElse(false)
+  }
+
+  private[this] final def propagateAncestorInterruption(): Unit = {
+    var fiber = self: FiberContext[_, _]
+
+    while (fiber ne null) {
+      addInterruptor(fiber.state.get.interrupted)
+
+      fiber = fiber.parentFiber
+    }
+  }
 
   @inline
-  private[this] final def interruptible: Boolean = interruptStatus.peekOrElse(true)
+  private final def isInterrupted(): Boolean = !state.get.interrupted.isEmpty
 
   @inline
-  private[this] final def shouldInterrupt: Boolean = interrupted && interruptible
+  private[this] final def isInterruptible(): Boolean = interruptStatus.peekOrElse(true)
 
   @inline
-  private[this] final def allowRecovery: Boolean = !shouldInterrupt
+  private[this] final def shouldInterrupt(): Boolean =
+    isInterrupted() && isInterruptible()
+
+  @tailrec
+  private[this] final def addInterruptor(cause: Cause[Nothing]): Unit =
+    if (!cause.isEmpty) {
+      val oldState = state.get
+
+      oldState match {
+        case Executing(status, observers, interrupted) =>
+          val newInterrupted = if (!interrupted.contains(cause)) interrupted ++ cause else interrupted
+
+          val newState = Executing(status, observers, newInterrupted)
+
+          if (!state.compareAndSet(oldState, newState)) addInterruptor(cause)
+
+        case _ =>
+      }
+    }
 
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
@@ -707,64 +793,81 @@ private[zio] final class FiberContext[E, A](
       }
 
       k(value).asInstanceOf[IO[E, Any]]
-    } else {
-      done(Exit.succeed(value.asInstanceOf[A]))
-
-      null
-    }
+    } else done(Exit.succeed(value.asInstanceOf[A]))
 
   @tailrec
-  private[this] final def done(v: Exit[E, A]): Unit = {
+  private[this] final def done(v: Exit[E, A]): IO[E, Any] = {
     val oldState = state.get
 
     oldState match {
-      case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]]) => // TODO: Dotty doesn't infer this properly
+      case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], _) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Done(v))) done(v)
         else {
-          notifyObservers(v, observers)
           reportUnhandled(v)
+          notifyObservers(v, observers)
+          // Disconnect this node from the tree for GC reasons:
+          val iterator = _children.iterator()
+          while (iterator.hasNext()) {
+            val child = iterator.next()
+
+            child.parentFiber = self.parentFiber
+          }
+          self.parentFiber = null
+          null
         }
 
-      case Done(_) => // Huh?
+      case Done(_) => null // Already done
     }
   }
 
   private[this] final def reportUnhandled(v: Exit[E, A]): Unit = v match {
     case Exit.Failure(cause) => platform.reportFailure(cause)
+    case _                   =>
+  }
 
-    case _ =>
+  private[this] final def kill0(fiberId: Fiber.Id): UIO[Exit[E, A]] = {
+    @tailrec
+    def setInterruptedLoop(): Unit = {
+      val oldState = state.get
+
+      oldState match {
+        case Executing(Fiber.Status.Suspended(true, _, _, _), observers, interrupted) =>
+          if (!state.compareAndSet(
+                oldState,
+                Executing(Fiber.Status.Running, observers, interrupted ++ Cause.interrupt(fiberId))
+              )) setInterruptedLoop()
+          else evaluateLater(ZIO.interruptAs(fiberId))
+
+        case Executing(status, observers, interrupted) =>
+          if (!state.compareAndSet(oldState, Executing(status, observers, interrupted ++ Cause.interrupt(fiberId))))
+            setInterruptedLoop()
+
+        case _ =>
+      }
+    }
+
+    val setInterrupt = UIO(setInterruptedLoop())
+
+    @silent("JavaConverters")
+    val interruptChildren =
+      UIO.effectSuspendTotal(_children.asScala.foldLeft[UIO[Any]](UIO.unit) {
+        case (acc, child) => acc.flatMap(_ => child.interruptAs(fiberId))
+      })
+
+    setInterrupt *> await <* interruptChildren
   }
 
   @tailrec
-  private[this] final def kill0(
-    k: Callback[Nothing, Exit[E, A]]
-  ): Option[IO[Nothing, Exit[E, A]]] = {
-
+  private[zio] final def onDone(k: Callback[Nothing, Exit[E, A]]): Unit = {
     val oldState = state.get
 
     oldState match {
-      case Executing(FiberStatus.Suspended, observers0) if interruptible =>
+      case Executing(status, observers0, interrupt) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(FiberStatus.Running, observers))) kill0(k)
-        else {
-          interrupted = true
+        if (!state.compareAndSet(oldState, Executing(status, observers, interrupt))) onDone(k)
 
-          evaluateLater(ZIO.interrupt)
-
-          None
-        }
-
-      case Executing(status, observers0) =>
-        val observers = k :: observers0
-
-        if (!state.compareAndSet(oldState, Executing(status, observers))) kill0(k)
-        else {
-          interrupted = true
-          None
-        }
-
-      case Done(e) => Some(ZIO.succeed(e))
+      case Done(v) => k(Exit.succeed(v))
     }
   }
 
@@ -777,14 +880,14 @@ private[zio] final class FiberContext[E, A](
     }
 
   @tailrec
-  private[this] final def register0(k: Callback[Nothing, Exit[E, A]]): Exit[E, A] = {
+  private final def register0(k: Callback[Nothing, Exit[E, A]]): Exit[E, A] = {
     val oldState = state.get
 
     oldState match {
-      case Executing(status, observers0) =>
+      case Executing(status, observers0, interrupt) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(status, observers))) register0(k)
+        if (!state.compareAndSet(oldState, Executing(status, observers, interrupt))) register0(k)
         else null
 
       case Done(v) => v
@@ -803,54 +906,29 @@ private[zio] final class FiberContext[E, A](
   ): Unit = {
     val result = Exit.succeed(v)
 
-    // To preserve fair scheduling, we submit all resumptions on the thread
-    // pool in order of their submission.
-    observers.reverse.foreach(
-      k =>
-        platform.executor
-          .submitOrThrow(() => k(result))
-    )
+    // For improved fairness, we resume in order of submission:
+    observers.reverse.foreach(k => k(result))
   }
+
 }
 private[zio] object FiberContext {
-  val fiberCounter = new AtomicLong(0)
-
-  sealed trait FiberStatus extends Serializable with Product
-  object FiberStatus {
-    case object Running   extends FiberStatus
-    case object Suspended extends FiberStatus
+  sealed abstract class FiberState[+E, +A] extends Serializable with Product {
+    def interrupted: Cause[Nothing]
+    def status: Fiber.Status
   }
-
-  sealed trait FiberState[+E, +A] extends Serializable with Product
   object FiberState extends Serializable {
     final case class Executing[E, A](
-      status: FiberStatus,
-      observers: List[Callback[Nothing, Exit[E, A]]]
+      status: Fiber.Status,
+      observers: List[Callback[Nothing, Exit[E, A]]],
+      interrupted: Cause[Nothing]
     ) extends FiberState[E, A]
-    final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A]
-
-    def Initial[E, A] = Executing[E, A](FiberStatus.Running, Nil)
-  }
-
-  type FiberRefLocals = java.util.Map[FiberRef[_], Any]
-
-  sealed abstract class SuperviseStatus extends Serializable with Product {
-    def convert: zio.SuperviseStatus = this match {
-      case SuperviseStatus.Supervised(_) => zio.SuperviseStatus.Supervised
-      case SuperviseStatus.Unsupervised  => zio.SuperviseStatus.Unsupervised
+    final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A] {
+      def interrupted          = Cause.empty
+      def status: Fiber.Status = Fiber.Status.Done
     }
+
+    def initial[E, A] = Executing[E, A](Fiber.Status.Running, Nil, Cause.empty)
   }
-  object SuperviseStatus {
-    final case class Supervised(value: java.util.Set[Fiber[_, _]]) extends SuperviseStatus {
-      def fibers: IndexedSeq[Fiber[_, _]] = {
-        val arr = Array.ofDim[Fiber[_, _]](value.size)
-        value
-          .toArray[Fiber[_, _]](arr)
-          .toIndexedSeq
-          // In WeakHashMap based sets elements can become null
-          .filter(_ != null)
-      }
-    }
-    case object Unsupervised extends SuperviseStatus
-  }
+
+  type FiberRefLocals = java.util.Map[FiberRef[Any], Any]
 }

@@ -20,9 +20,10 @@ import java.util.concurrent.atomic.AtomicReference
 import Promise.internal._
 
 /**
- * A promise represents an asynchronous variable that can be set exactly once,
- * with the ability for an arbitrary number of fibers to suspend (by calling
- * `get`) and automatically resume when the variable is set.
+ * A promise represents an asynchronous variable, of [[zio.IO]] type, that can
+ * be set exactly once, with the ability for an arbitrary number of fibers to
+ * suspend (by calling `await`) and automatically resume when the variable is
+ * set.
  *
  * Promises can be used for building primitive actions whose completions
  * require the coordinated action of multiple fibers, and for building
@@ -30,53 +31,57 @@ import Promise.internal._
  * {{{
  * for {
  *   promise <- Promise.make[Nothing, Int]
- *   _       <- promise.complete(42).delay(1.second).fork
- *   value   <- promise.get // Resumes when forked fiber completes promise
+ *   _       <- promise.succeed(42).delay(1.second).fork
+ *   value   <- promise.await // Resumes when forked fiber completes promise
  * } yield value
  * }}}
  */
-class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal with Serializable {
+class Promise[E, A] private (private val state: AtomicReference[State[E, A]], blockingOn: List[Fiber.Id])
+    extends Serializable {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
    * until the result is available.
    */
   final def await: IO[E, A] =
-    IO.effectAsyncInterrupt[E, A](k => {
-      var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
-      var retry  = true
+    IO.effectAsyncInterrupt[E, A](
+      k => {
+        var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
+        var retry  = true
 
-      while (retry) {
-        val oldState = state.get
+        while (retry) {
+          val oldState = state.get
 
-        val newState = oldState match {
-          case Pending(joiners) =>
-            result = Left(interruptJoiner(k))
+          val newState = oldState match {
+            case Pending(joiners) =>
+              result = Left(interruptJoiner(k))
 
-            Pending(k :: joiners)
-          case s @ Done(value) =>
-            result = Right(value)
+              Pending(k :: joiners)
+            case s @ Done(value) =>
+              result = Right(value)
 
-            s
+              s
+          }
+
+          retry = !state.compareAndSet(oldState, newState)
         }
 
-        retry = !state.compareAndSet(oldState, newState)
-      }
-
-      result
-    })
+        result
+      },
+      blockingOn
+    )
 
   /**
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def die(e: Throwable): UIO[Boolean] = complete(IO.die(e))
+  final def die(e: Throwable): UIO[Boolean] = completeWith(IO.die(e))
 
   /**
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def done(e: Exit[E, A]): UIO[Boolean] = complete(IO.done(e))
+  final def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.done(e))
 
   /**
    * Alias for [[Promise.complete]]
@@ -85,10 +90,29 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   final def done(io: IO[E, A]): UIO[Boolean] = complete(io)
 
   /**
-   * Completes the promise with the specified result. If the specified promise
-   * has already been completed, the method will produce false.
+   * Completes the promise with the result of the specified effect. If the
+   * promise has already been completed, the method will produce false.
+   *
+   * Note that [[Promise.completeWith]] will be much faster, so consider using
+   * that if you do not need to memoize the result of the specified effect.
    */
   final def complete(io: IO[E, A]): UIO[Boolean] =
+    io.to(this)
+
+  /**
+   * Completes the promise with the specified effect. If the promise has
+   * already been completed, the method will produce false.
+   *
+   * Note that since the promise is completed with an effect, the effect will
+   * be evaluated each time the value of the promise is retrieved through
+   * combinators such as `await`, potentially producing different results if
+   * the effect produces different results on subsequent evaluations. In this
+   * case te meaning of the "exactly once" guarantee of `Promise` is that the
+   * promise can be completed with exactly one effect. For a version that
+   * completes the promise with the result of an effect see
+   * [[Promise.complete]].
+   */
+  final def completeWith(io: IO[E, A]): UIO[Boolean] =
     IO.effectTotal {
       var action: () => Boolean = null.asInstanceOf[() => Boolean]
       var retry                 = true
@@ -118,19 +142,25 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def fail(e: E): UIO[Boolean] = complete(IO.fail(e))
+  final def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def halt(e: Cause[E]): UIO[Boolean] = complete(IO.halt(e))
+  final def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
-   * waiting on the value of the promise.
+   * waiting on the value of the promise as by the fiber calling this method.
    */
-  final def interrupt: UIO[Boolean] = complete(IO.interrupt)
+  final def interrupt: UIO[Boolean] = ZIO.fiberId.flatMap(id => completeWith(IO.interruptAs(id)))
+
+  /**
+   * Completes the promise with interruption. This will interrupt all fibers
+   * waiting on the value of the promise as by the specified fiber.
+   */
+  final def interruptAs(fiberId: Fiber.Id): UIO[Boolean] = completeWith(IO.interruptAs(fiberId))
 
   /**
    * Checks for completion of this Promise. Produces true if this promise has
@@ -143,7 +173,8 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   /**
-   * Completes immediately this promise and returns optionally it's result.
+   * Checks for completion of this Promise. Returns the result effect if this
+   * promise has already been completed or a `None` otherwise.
    */
   final def poll: UIO[Option[IO[E, A]]] =
     IO.effectTotal(state.get).flatMap {
@@ -154,7 +185,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   /**
    * Completes the promise with the specified value.
    */
-  final def succeed(a: A): UIO[Boolean] = complete(IO.succeed(a))
+  final def succeed(a: A): UIO[Boolean] = completeWith(IO.succeed(a))
 
   private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
     var retry = true
@@ -198,9 +229,6 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
 object Promise {
   private val ConstFalse: () => Boolean = () => false
 
-  private final def unsafeMake[E, A]: Promise[E, A] =
-    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
-
   private[zio] object internal {
     sealed trait State[E, A]                                        extends Serializable with Product
     final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
@@ -208,33 +236,15 @@ object Promise {
   }
 
   /**
-   * Acquires a resource and performs a state change atomically, and then
-   * guarantees that if the resource is acquired (and the state changed), a
-   * release action will be called.
+   * Makes a new promise to be completed by the fiber creating the promise.
    */
-  final def bracket[E, A, B, C](
-    ref: Ref[A]
-  )(
-    acquire: (Promise[E, B], A) => (UIO[C], A)
-  )(release: (C, Promise[E, B]) => UIO[_]): IO[E, B] =
-    for {
-      pRef <- Ref.make[Option[(C, Promise[E, B])]](None)
-      b <- (for {
-            p <- ref.modify { (a: A) =>
-                  val p = Promise.unsafeMake[E, B]
-
-                  val (io, a2) = acquire(p, a)
-
-                  ((p, io), a2)
-                }.flatMap {
-                  case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.succeed(p))
-                }.uninterruptible
-            b <- p.await
-          } yield b).ensuring(pRef.get.flatMap(_.map(t => release(t._1, t._2)).getOrElse(IO.unit)))
-    } yield b
+  final def make[E, A]: UIO[Promise[E, A]] = ZIO.fiberId.flatMap(makeAs(_))
 
   /**
-   * Makes a new promise.
+   * Makes a new promise to be completed by the fiber with the specified id.
    */
-  final def make[E, A]: UIO[Promise[E, A]] = IO.effectTotal[Promise[E, A]](unsafeMake[E, A])
+  final def makeAs[E, A](fiberId: Fiber.Id): UIO[Promise[E, A]] =
+    ZIO.effectTotal(
+      new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)
+    )
 }

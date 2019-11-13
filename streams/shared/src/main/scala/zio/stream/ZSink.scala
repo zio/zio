@@ -29,7 +29,7 @@ import scala.collection.mutable
  *
  * Sinks form monads and combine in the usual ways.
  */
-trait ZSink[-R, +E, +A0, -A, +B] { self =>
+trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
   type State
 
@@ -125,7 +125,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Replaces any error produced by this sink.
    */
-  final def asError[E1](e1: E1): ZSink[R, E1, A0, A, B] = self.mapError(_ => e1)
+  final def asError[E1](e1: => E1): ZSink[R, E1, A0, A, B] = self.mapError(new ZIO.ConstFn(() => e1))
 
   /**
    * Creates a sink where every element of type `A` entering the sink is first
@@ -417,7 +417,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Narrows the environment by partially building it with `f`
    */
-  final def provideSome[R1](f: R1 => R): ZSink[R1, E, A0, A, B] =
+  final def provideSome[R1](f: R1 => R)(implicit ev: NeedsEnv[R]): ZSink[R1, E, A0, A, B] =
     new ZSink[R1, E, A0, A, B] {
       type State = self.State
       val initial                  = self.initial.provideSome(f)
@@ -553,6 +553,18 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
           case _                                => false
         }
     }
+
+  /**
+   * Performs the specified effect for every element that is consumed by this sink.
+   */
+  final def tapInput[R1 <: R, E1 >: E, A1 <: A](f: A1 => ZIO[R1, E1, Unit]): ZSink[R1, E1, A0, A1, B] =
+    contramapM(a => f(a).as(a))
+
+  /**
+   * Performs the specified effect for every element that is produced by this sink.
+   */
+  final def tapOutput[R1 <: R, E1 >: E](f: B => ZIO[R1, E1, Unit]): ZSink[R1, E1, A0, A, B] =
+    mapM(b => f(b).as(b))
 
   /**
    * Times the invocation of the sink
@@ -716,7 +728,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     zip(that).map(f.tupled)
 }
 
-object ZSink extends ZSinkPlatformSpecific {
+object ZSink extends ZSinkPlatformSpecific with Serializable {
 
   implicit class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
 
@@ -724,32 +736,33 @@ object ZSink extends ZSinkPlatformSpecific {
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, E, A, A, Option[B]] =
+    final def ? : ZSink[R, Nothing, A, A, Option[B]] =
       new ZSink[R, Nothing, A, A, Option[B]] {
-        sealed trait State
-        object State {
-          case class Done(s: sink.State) extends State
-          case class More(s: sink.State) extends State
-          case class Fail(as: Chunk[A])  extends State
+        type State = OptionalState
+        sealed trait OptionalState
+        object OptionalState {
+          case class Done(s: sink.State) extends OptionalState
+          case class More(s: sink.State) extends OptionalState
+          case class Fail(as: Chunk[A])  extends OptionalState
         }
 
         val initial = sink.initial.fold(
-          _ => State.Fail(Chunk.empty),
+          _ => OptionalState.Fail(Chunk.empty),
           s =>
-            if (sink.cont(s)) State.More(s)
-            else State.Done(s)
+            if (sink.cont(s)) OptionalState.More(s)
+            else OptionalState.Done(s)
         )
 
         def step(state: State, a: A) =
           state match {
-            case State.More(s1) =>
+            case OptionalState.More(s1) =>
               sink
                 .step(s1, a)
                 .fold(
-                  _ => State.Fail(Chunk.single(a)),
+                  _ => OptionalState.Fail(Chunk.single(a)),
                   s2 =>
-                    if (sink.cont(s2)) State.More(s2)
-                    else State.Done(s2)
+                    if (sink.cont(s2)) OptionalState.More(s2)
+                    else OptionalState.Done(s2)
                 )
 
             case s => UIO.succeed(s)
@@ -757,27 +770,27 @@ object ZSink extends ZSinkPlatformSpecific {
 
         def extract(state: State) =
           state match {
-            case State.Done(s) =>
+            case OptionalState.Done(s) =>
               sink
                 .extract(s)
                 .fold(
                   _ => (None, Chunk.empty), { case (b, as) => (Some(b), as) }
                 )
 
-            case State.More(s) =>
+            case OptionalState.More(s) =>
               sink
                 .extract(s)
                 .fold(
                   _ => (None, Chunk.empty), { case (b, as) => (Some(b), as) }
                 )
 
-            case State.Fail(as) => UIO.succeed((None, as))
+            case OptionalState.Fail(as) => UIO.succeed((None, as))
           }
 
         def cont(state: State) =
           state match {
-            case State.More(_) => true
-            case _             => false
+            case OptionalState.More(_) => true
+            case _                     => false
           }
       }
 
@@ -809,9 +822,10 @@ object ZSink extends ZSinkPlatformSpecific {
       i: Int
     ): ZSink[R, E, A, A, List[B]] =
       new ZSink[R, E, A, A, List[B]] {
-        case class State(s: sink.State, bs: List[B], n: Int, leftover: Chunk[A], dirty: Boolean)
+        type State = CollectAllNState
+        case class CollectAllNState(s: sink.State, bs: List[B], n: Int, leftover: Chunk[A], dirty: Boolean)
 
-        val initial = sink.initial.map(State(_, List(), 0, Chunk(), false))
+        val initial = sink.initial.map(CollectAllNState(_, List(), 0, Chunk(), false))
 
         def step(state: State, a: A) =
           if (state.n >= i) UIO.succeed(state.copy(leftover = state.leftover ++ Chunk.single(a)))
@@ -824,10 +838,16 @@ object ZSink extends ZSinkPlatformSpecific {
                              init          <- sink.initial
                              stepResult    <- sink.stepChunk(init, as ++ state.leftover ++ Chunk.single(a))
                              (s, leftover) = stepResult
-                           } yield State(s, b :: state.bs, state.n + 1, leftover, true)
+                           } yield CollectAllNState(s, b :: state.bs, state.n + 1, leftover, true)
                          else
                            sink.initial.map(
-                             State(_, b :: state.bs, state.n + 1, as ++ state.leftover ++ Chunk.single(a), false)
+                             CollectAllNState(
+                               _,
+                               b :: state.bs,
+                               state.n + 1,
+                               as ++ state.leftover ++ Chunk.single(a),
+                               false
+                             )
                            )
             } yield newState
           else sink.step(state.s, a).map(s2 => state.copy(s = s2, dirty = true))
@@ -861,7 +881,8 @@ object ZSink extends ZSinkPlatformSpecific {
      */
     final def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       new ZSink[R, E, A, A, S] {
-        case class State(
+        type State = CollectAllWhileWithState
+        case class CollectAllWhileWithState(
           s: S,
           selfS: sink.State,
           predicateViolated: Boolean,
@@ -869,7 +890,7 @@ object ZSink extends ZSinkPlatformSpecific {
           dirty: Boolean
         )
 
-        val initial = sink.initial.map(State(z, _, false, Chunk.empty, false))
+        val initial = sink.initial.map(CollectAllWhileWithState(z, _, false, Chunk.empty, false))
 
         def step(state: State, a: A) =
           if (!p(a))
@@ -881,7 +902,7 @@ object ZSink extends ZSinkPlatformSpecific {
               init          <- sink.initial
               stepResult    <- sink.stepChunk(init, as ++ state.leftovers ++ Chunk.single(a))
               (s, leftover) = stepResult
-            } yield State(f(state.s, b), s, state.predicateViolated, leftover, true)
+            } yield CollectAllWhileWithState(f(state.s, b), s, state.predicateViolated, leftover, true)
           else
             sink.step(state.selfS, a).map(s2 => state.copy(selfS = s2, dirty = true))
 
@@ -899,7 +920,7 @@ object ZSink extends ZSinkPlatformSpecific {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, E, A, A, Option[B]] = ?
+    final def optional: ZSink[R, Nothing, A, A, Option[B]] = ?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
@@ -949,7 +970,7 @@ object ZSink extends ZSinkPlatformSpecific {
                     init          <- sink.initial
                     stepResult    <- sink.stepChunk(init, leftover ++ Chunk.single(a))
                     (s, leftover) = stepResult
-                  } yield (s, None, leftover, leftover.notEmpty)
+                  } yield (s, None, leftover, leftover.nonEmpty)
             }
 
         def extract(state: State) =
@@ -971,7 +992,7 @@ object ZSink extends ZSinkPlatformSpecific {
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, E, A, A, Option[B]] = widen.?
+    final def ? : ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Takes a `Sink`, and lifts it to be chunked in its input. This
@@ -1009,7 +1030,7 @@ object ZSink extends ZSinkPlatformSpecific {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, E, A, A, Option[B]] = widen.?
+    final def optional: ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
@@ -1137,7 +1158,7 @@ object ZSink extends ZSinkPlatformSpecific {
             }
             .map { list =>
               val results   = list.map { case (k, (b, _)) => (k, b) }.toMap
-              val leftovers = Chunk.fromIterable(list.map { case (k, (_, chunk)) => (k, chunk) }).filter(_._2.notEmpty)
+              val leftovers = Chunk.fromIterable(list.map { case (k, (_, chunk)) => (k, chunk) }).filter(_._2.nonEmpty)
               (results, leftovers)
             }
 
@@ -1348,9 +1369,10 @@ object ZSink extends ZSinkPlatformSpecific {
     decompose: A => ZIO[R, E, Chunk[A]]
   )(f: (S, A) => ZIO[R1, E1, S]): ZSink[R1, E1, A, A, S] =
     new ZSink[R1, E1, A, A, S] {
-      case class State(s: S, cost: Long, cont: Boolean, leftovers: Chunk[A])
+      type State = FoldWeightedState
+      case class FoldWeightedState(s: S, cost: Long, cont: Boolean, leftovers: Chunk[A])
 
-      val initial = UIO.succeed(State(z, 0L, true, Chunk.empty))
+      val initial = UIO.succeed(FoldWeightedState(z, 0L, true, Chunk.empty))
 
       def step(state: State, a: A) =
         costFn(a).flatMap { cost =>
@@ -1359,9 +1381,9 @@ object ZSink extends ZSinkPlatformSpecific {
           if (newCost > max)
             decompose(a).map(leftovers => state.copy(cont = false, leftovers = state.leftovers ++ leftovers))
           else if (newCost == max)
-            f(state.s, a).map(State(_, newCost, false, Chunk.empty))
+            f(state.s, a).map(FoldWeightedState(_, newCost, false, Chunk.empty))
           else
-            f(state.s, a).map(State(_, newCost, true, Chunk.empty))
+            f(state.s, a).map(FoldWeightedState(_, newCost, true, Chunk.empty))
         }
 
       def extract(state: State) = UIO.succeed((state.s, state.leftovers))
@@ -1395,7 +1417,7 @@ object ZSink extends ZSinkPlatformSpecific {
    * example:
    * {{{
    * Stream(1, 5, 1)
-   *  .transduce(
+   *  .aggregate(
    *    Sink
    *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
    *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
@@ -1416,9 +1438,10 @@ object ZSink extends ZSinkPlatformSpecific {
     f: (S, A) => S
   ): ZSink[Any, Nothing, A, A, S] =
     new SinkPure[Nothing, A, A, S] {
-      case class State(s: S, cost: Long, cont: Boolean, leftovers: Chunk[A])
+      type State = FoldWeightedState
+      case class FoldWeightedState(s: S, cost: Long, cont: Boolean, leftovers: Chunk[A])
 
-      val initialPure = State(z, 0L, true, Chunk.empty)
+      val initialPure = FoldWeightedState(z, 0L, true, Chunk.empty)
 
       def stepPure(state: State, a: A) = {
         val newCost = costFn(a) + state.cost
@@ -1426,9 +1449,9 @@ object ZSink extends ZSinkPlatformSpecific {
         if (newCost > max)
           state.copy(cont = false, leftovers = state.leftovers ++ decompose(a))
         else if (newCost == max)
-          State(f(state.s, a), newCost, false, Chunk.empty)
+          FoldWeightedState(f(state.s, a), newCost, false, Chunk.empty)
         else
-          State(f(state.s, a), newCost, true, Chunk.empty)
+          FoldWeightedState(f(state.s, a), newCost, true, Chunk.empty)
       }
 
       def extractPure(state: State) = Right((state.s, state.leftovers))
@@ -1473,6 +1496,12 @@ object ZSink extends ZSinkPlatformSpecific {
     identity.map(f)
 
   /**
+   * Creates a sink that effectfully transforms incoming values.
+   */
+  final def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, Option[E], Nothing, A, B] =
+    identity.mapError(_ => None).mapM(f(_).mapError(Some(_)))
+
+  /**
    * Creates a sink halting with a specified cause.
    */
   final def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
@@ -1501,7 +1530,13 @@ object ZSink extends ZSinkPlatformSpecific {
    * the predicate `p`.
    */
   final def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
-    ignoreWhileM(a => IO.succeed(p(a)))
+    new SinkPure[Nothing, A, A, Unit] {
+      type State = Chunk[A]
+      val initialPure                  = Chunk.empty
+      def stepPure(state: State, a: A) = if (p(a)) state else Chunk.single(a)
+      def extractPure(state: State)    = Right(((), state))
+      def cont(state: State)           = state.isEmpty
+    }
 
   /**
    * Creates a sink by starts consuming value as soon as one fails
@@ -1510,11 +1545,10 @@ object ZSink extends ZSinkPlatformSpecific {
   final def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, Unit] =
     new ZSink[R, E, A, A, Unit] {
       type State = Chunk[A]
-      val initial = IO.succeed(Chunk.empty)
-      def step(state: State, a: A) =
-        p(a).map(if (_) state else Chunk.single(a))
-      def extract(state: State) = IO.succeed(((), state))
-      def cont(state: State)    = state.isEmpty
+      val initial                  = IO.succeed(Chunk.empty)
+      def step(state: State, a: A) = p(a).map(if (_) state else Chunk.single(a))
+      def extract(state: State)    = IO.succeed(((), state))
+      def cont(state: State)       = state.isEmpty
     }
 
   /**
@@ -1587,7 +1621,8 @@ object ZSink extends ZSinkPlatformSpecific {
    */
   final val splitLines: ZSink[Any, Nothing, String, String, Chunk[String]] =
     new SinkPure[Nothing, String, String, Chunk[String]] {
-      case class State(
+      type State = SplitLinesState
+      case class SplitLinesState(
         accumulatedLines: Chunk[String],
         concat: Option[String],
         wasSplitCRLF: Boolean,
@@ -1595,7 +1630,7 @@ object ZSink extends ZSinkPlatformSpecific {
         leftover: Chunk[String]
       )
 
-      val initialPure = State(Chunk.empty, None, false, true, Chunk.empty)
+      val initialPure = SplitLinesState(Chunk.empty, None, false, true, Chunk.empty)
 
       override def stepPure(state: State, a: String) = {
         val accumulatedLines = state.accumulatedLines
@@ -1634,15 +1669,15 @@ object ZSink extends ZSinkPlatformSpecific {
             }
           }
 
-          if (buf.isEmpty) State(accumulatedLines, Some(concat), splitCRLF, true, Chunk.empty)
+          if (buf.isEmpty) SplitLinesState(accumulatedLines, Some(concat), splitCRLF, true, Chunk.empty)
           else {
             val newLines = Chunk.fromArray(buf.toArray[String])
             val leftover = concat.substring(sliceStart, concat.length)
 
-            if (splitCRLF) State(accumulatedLines ++ newLines, Some(leftover), splitCRLF, true, Chunk.empty)
+            if (splitCRLF) SplitLinesState(accumulatedLines ++ newLines, Some(leftover), splitCRLF, true, Chunk.empty)
             else {
               val remainder = if (leftover.nonEmpty) Chunk.single(leftover) else Chunk.empty
-              State(accumulatedLines ++ newLines, None, splitCRLF, false, remainder)
+              SplitLinesState(accumulatedLines ++ newLines, None, splitCRLF, false, remainder)
             }
           }
         }
@@ -1660,6 +1695,83 @@ object ZSink extends ZSinkPlatformSpecific {
    */
   final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
     splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
+
+  /**
+   * Splits strings on a delimiter.
+   */
+  final def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
+    new SinkPure[Nothing, String, String, Chunk[String]] {
+      type State = SplitOnState
+      case class SplitOnState(
+        // Index into the delimiter
+        delimiterPointer: Int,
+        // Index into the current frame
+        framePointer: Int,
+        // Signals when extraction of the delimiter is ongoing
+        cont: Boolean,
+        // Accumulated strings from previous pulls
+        leftover: String,
+        // Frames already collected
+        frames: Chunk[String]
+      )
+
+      def initialPure: State = SplitOnState(0, 0, true, "", Chunk.empty)
+
+      def extractPure(state: State): Either[Nothing, (Chunk[String], Chunk[String])] = {
+        val (frames, leftover) =
+          if (state.cont && !state.leftover.isEmpty)
+            state.frames + state.leftover -> Chunk.empty
+          else
+            state.frames -> Chunk.single(state.leftover)
+        Right(frames -> leftover)
+      }
+
+      def stepPure(s: State, a: String): State = {
+        val frame = s.leftover + a
+        val l     = delimiter.length
+        val m     = frame.length
+
+        var start = 0
+        var i     = s.delimiterPointer
+        var j     = s.framePointer
+
+        val buf = mutable.ArrayBuffer[String]()
+
+        while (j < m) {
+          while (i < l && j < m && delimiter(i) == frame(j)) {
+            i += 1
+            j += 1
+          }
+
+          if (i == l) {
+            // We've found a new frame, store it (_without_ the delimiter),
+            // reset the delimiter pointer and advance the start pointer
+            buf += frame.substring(start, j - l)
+            i = 0
+            start = j
+          } else if (j == m) {
+            // We've reached the end of the frame in the middle of the
+            // delimiter; hence, we keep the indices intact so we can
+            // start from where we left off in the next step
+          } else {
+            // We've found a character that does not match the delimiter,
+            // reset the delimiter pointer and advance the frame pointer
+            // until we find a character that matches, or reach the end
+            // of the frame
+            i = 0
+            while (j < m && frame(j) != delimiter(0)) j += 1
+          }
+        }
+
+        if (buf.isEmpty) SplitOnState(i, j, true, frame, s.frames)
+        else {
+          val frames = Chunk.fromArray(buf.toArray[String])
+          SplitOnState(0, j - start, i > 0, frame.drop(start), s.frames ++ frames)
+        }
+      }
+
+      def cont(state: State): Boolean = state.cont
+    }
 
   /**
    * Creates a single-value sink from a value.
@@ -1802,24 +1914,6 @@ object ZSink extends ZSinkPlatformSpecific {
 
     ZManaged.fromEffect(sink)
   }
-
-  /**
-   * Decodes individual bytes into a String using UTF-8. Up to `bufferSize` bytes
-   * will be buffered by the sink.
-   *
-   * This sink uses the String constructor's behavior when handling malformed byte
-   * sequences.
-   */
-  def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): ZSink[Any, Nothing, Byte, Byte, String] =
-    foldUntil[List[Byte], Byte](Nil, bufferSize.toLong)((chunk, byte) => byte :: chunk).mapM { bytes =>
-      val chunk = Chunk.fromIterable(bytes.reverse)
-
-      for {
-        init   <- utf8DecodeChunk.initial
-        state  <- utf8DecodeChunk.step(init, chunk)
-        string <- utf8DecodeChunk.extract(state)
-      } yield string._1
-    }
 
   /**
    * Decodes chunks of bytes into a String.

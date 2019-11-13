@@ -1,10 +1,10 @@
-package zio.stm
+package zio
+package stm
 
-import zio.{ UIO, ZIO, ZIOBaseSpec }
-import zio._
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._
+import zio.test.TestAspect.nonFlaky
 import STMSpecUtil._
 
 object STMSpec
@@ -263,11 +263,12 @@ object STMSpec
             },
             testM("interrupt the fiber and observe it, it should be resumed with Interrupted Cause") {
               for {
+                selfId  <- ZIO.fiberId
                 v       <- TRef.makeCommit(1)
                 f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
                 _       <- f.interrupt
                 observe <- f.join.sandbox.either
-              } yield assert(observe, isLeft(equalTo(Cause.interrupt)))
+              } yield assert(observe, isLeft(equalTo(Cause.interrupt(selfId))))
             }
           ),
           testM("Using `collect` filter and map simultaneously the value produced by the transaction") {
@@ -380,26 +381,19 @@ object STMSpec
                          _       <- STM.partial(throw new RuntimeException).orElse(STM.unit)
                          newVal2 <- ref.get
                        } yield (newVal1, newVal2))
-            } yield assert(result, equalTo((2 -> 2)))
+            } yield assert(result, equalTo(2 -> 2))
           }
         ),
-        suite("STM issue 1587") {
+        suite("STM issue 2073") {
           testM("read only STM shouldn't return partial state of concurrent read-write STM") {
-            def repeat(test: UIO[TestResult], i: Int): UIO[TestResult] =
-              test.flatMap { result =>
-                if (result.isSuccess && i > 0) repeat(test, i - 1)
-                else ZIO.succeed(result)
-              }
-            val race = for {
+            for {
               r0       <- TRef.makeCommit(0)
               r1       <- TRef.makeCommit(0)
               sumFiber <- r0.get.flatMap(v0 => r1.get.map(_ + v0)).commit.fork
               _        <- r0.update(_ + 1).flatMap(_ => r1.update(_ + 1)).commit
               sum      <- sumFiber.join
             } yield assert(sum, equalTo(0) || equalTo(2))
-
-            repeat(race, 100000)
-          }
+          } @@ nonFlaky(5000)
         }
       )
     )

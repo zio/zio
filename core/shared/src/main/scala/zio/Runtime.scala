@@ -28,23 +28,23 @@ trait Runtime[+R] {
   /**
    * The environment of the runtime.
    */
-  val Environment: R
+  val environment: R
 
   /**
    * The platform of the runtime, which provides the essential capabilities
    * necessary to bootstrap execution of tasks.
    */
-  val Platform: Platform
+  val platform: Platform
 
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
-  final def map[R1](f: R => R1): Runtime[R1] = Runtime(f(Environment), Platform)
+  final def map[R1](f: R => R1): Runtime[R1] = Runtime(f(environment), platform)
 
   /**
    * Constructs a new `Runtime` by mapping the platform.
    */
-  final def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(Environment, f(Platform))
+  final def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
 
   /**
    * Executes the effect synchronously, failing
@@ -79,16 +79,24 @@ trait Runtime[+R] {
   final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
     val InitialInterruptStatus = InterruptStatus.Interruptible
 
-    val context = new FiberContext[E, A](
-      Platform,
-      Environment.asInstanceOf[AnyRef],
-      Platform.executor,
+    val fiberId = Fiber.newFiberId()
+
+    lazy val context: FiberContext[E, A] = new FiberContext[E, A](
+      fiberId,
+      null,
+      platform,
+      environment.asInstanceOf[AnyRef],
+      platform.executor,
       InitialInterruptStatus,
-      FiberContext.SuperviseStatus.Unsupervised,
+      false,
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()
     )
+
+    Fiber._rootFibers.add(context)
+
+    context.onDone(_ => { val _ = Fiber._rootFibers.remove(context) })
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
@@ -107,7 +115,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be used at the edges of your program.
    */
-  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): scala.concurrent.Future[A] =
+  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): CancelableFuture[E, A] =
     unsafeRun(io.toFuture)
 
   /**
@@ -136,7 +144,7 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified error reporter.
    */
-  final def withReportFailure(f: Cause[_] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
+  final def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
 
   /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.
@@ -155,8 +163,8 @@ object Runtime {
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
    */
-  final def apply[R](r: R, platform: Platform): Runtime[R] = new Runtime[R] {
-    val Environment = r
-    val Platform    = platform
+  final def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
+    val environment = r
+    val platform    = platform0
   }
 }

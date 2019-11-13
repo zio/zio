@@ -23,13 +23,14 @@ import zio.test.reflect.Reflect.EnableReflectiveInstantiation
 @EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {
 
+  type Environment
   type Label
   type Test
   type Failure
   type Success
 
-  def runner: TestRunner[Label, Test, Failure, Success]
-  def spec: Spec[Label, Test]
+  def runner: TestRunner[Environment, Label, Test, Failure, Success]
+  def spec: ZSpec[Environment, Failure, Label, Test]
 
   /**
    * Returns an effect that executes the spec, producing the results of the execution.

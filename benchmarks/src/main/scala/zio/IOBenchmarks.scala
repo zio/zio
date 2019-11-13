@@ -9,10 +9,10 @@ import monix.eval.{ Task => MTask }
 import zio.internal._
 
 object IOBenchmarks extends DefaultRuntime {
-  override val Platform: Platform = PlatformLive.Benchmark
+  override val platform: Platform = PlatformLive.Benchmark
 
   val TracedRuntime = new DefaultRuntime {
-    override val Platform = PlatformLive.Benchmark.withTracing(Tracing.enabled)
+    override val platform = PlatformLive.Benchmark.withTracing(Tracing.enabled)
   }
 
   import monix.execution.Scheduler
@@ -26,6 +26,9 @@ object IOBenchmarks extends DefaultRuntime {
   def repeat[R, E, A](n: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     if (n <= 1) zio
     else zio *> repeat(n - 1)(zio)
+
+  def verify(cond: Boolean)(message: => String): IO[AssertionError, Unit] =
+    ZIO.when(!cond)(IO.fail(new AssertionError(message)))
 
   def catsForkAll[A](as: Iterable[CIO[A]]): CIO[CFiber[CIO, List[A]]] = {
     type Fiber[A] = CFiber[CIO, A]

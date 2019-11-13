@@ -34,11 +34,11 @@ abstract class TestRuntime(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
 
   final def flaky(
-    v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]
+    v: => ZIO[ZEnv, Any, org.specs2.matcher.MatchResult[Any]]
   ): org.specs2.matcher.MatchResult[Any] =
     eventually(unsafeRun(v.timeout(1.second)).get)
 
-  def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
+  def nonFlaky(v: => ZIO[ZEnv, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
     (1 to 100).foldLeft[org.specs2.matcher.MatchResult[Any]](true must_=== true) {
       case (acc, _) =>
         acc and unsafeRun(v)
@@ -46,4 +46,7 @@ abstract class TestRuntime(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def unsafeRunWith[R, E, A](r: UIO[R])(zio: ZIO[R, E, A]): A =
     unsafeRun(r.flatMap[Any, E, A](zio.provide))
+
+  def unsafeRunWithManaged[R, E, A](r: UManaged[R])(zio: ZIO[R, E, A]): A =
+    unsafeRun(zio.provideManaged(r))
 }

@@ -119,7 +119,7 @@ object DurationSpec
             assert(Duration.Infinity.asScala, equalTo(ScalaDuration.Inf: ScalaDuration))
           },
           test("It converts into a Long.MaxValue second-long JDK Duration") {
-            assert(Duration.Infinity.asJava, equalTo(JavaDuration.ofSeconds(Long.MaxValue)))
+            assert(Duration.Infinity.asJava, equalTo(JavaDuration.ofMillis(Long.MaxValue)))
           },
           test("Folding picks up the correct value") {
             assert(Duration.Infinity.fold("Infinity", _ => "Finite"), equalTo("Infinity"))
@@ -193,8 +193,11 @@ object DurationSpec
           }
         ),
         suite("Render duration:")(
-          test(" 0 ms") {
-            assert(Duration(0, TimeUnit.MILLISECONDS).render, equalTo("0 ms"))
+          test(" 0 ns") {
+            assert(Duration(0, TimeUnit.NANOSECONDS).render, equalTo("0 ns"))
+          },
+          test(" < 1 ms") {
+            assert(Duration(23456, TimeUnit.NANOSECONDS).render, equalTo("23456 ns"))
           },
           test(" 1 ms") {
             assert(Duration(1, TimeUnit.MILLISECONDS).render, equalTo("1 ms"))

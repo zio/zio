@@ -16,10 +16,12 @@
 
 package zio.test
 
+import zio.test.environment._
+
 /**
  * A `Runner` that provides a default testable environment.
  */
 object DefaultTestRunner
-    extends TestRunner[String, ZTest[mock.MockEnvironment, Any, Any], Any, Any](
-      TestExecutor.managed(zio.test.mock.mockEnvironmentManaged)
+    extends TestRunner[TestEnvironment, String, Any, Any, Any](
+      TestExecutor.managed(testEnvironmentManaged)
     ) {}
