@@ -464,7 +464,7 @@ object Fiber {
       ${name}#${fiberId.seqNumber} (${lifeMsg}) ${waitMsg}}
          Status: ${statMsg}
       ${trace.prettyPrint}
-      """
+      """.stripMargin
     }
   }
 
