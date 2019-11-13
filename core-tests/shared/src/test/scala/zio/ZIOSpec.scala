@@ -28,7 +28,7 @@ object ZIOSpec
             assertM(orElse, equalTo(true))
           },
           testM("left failed and right failed with kept cause") {
-            val z1 = Task.fail(new Throwable("1"))
+            val z1                = Task.fail(new Throwable("1"))
             val z2: Task[Nothing] = Task.fail(new Throwable("2"))
             val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
               case Then(Die(FiberFailure(Traced(Fail(a: Throwable), _))), Traced(Fail(b: Throwable), _)) =>
