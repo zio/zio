@@ -73,7 +73,7 @@ object FiberLocal {
       .map(state => new FiberLocal(state))
 
   private[zio] object internal {
-    type State[A] = Map[FiberId, A]
+    type State[A] = Map[Fiber.Id, A]
   }
 
 }

@@ -413,7 +413,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * The number of elements in the chunk.
    */
-  final val size: Int = length
+  final def size: Int = length
 
   /**
    * Returns two splits of this chunk at the specified index.
@@ -771,15 +771,18 @@ object Chunk {
     }
 
     override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = {
-      val self                      = array
-      val len                       = self.length
+      val len                       = array.length
       val orElse                    = (_: A) => UIO.succeed(null.asInstanceOf[B])
       var dest: ZIO[R, E, Array[B]] = UIO.succeed(null.asInstanceOf[Array[B]])
 
       var i = 0
       var j = 0
       while (i < len) {
-        dest = dest.zipWith(pf.applyOrElse(self(i), orElse)) { (array, b) =>
+        // `zipWith` is lazy in the RHS, so we need to capture to evaluate the
+        // `pf.applyOrElse` strictly to make sure we use the right value of `i`.
+        val rhs = pf.applyOrElse(array(i), orElse)
+
+        dest = dest.zipWith(rhs) { (array, b) =>
           var tmp = array
           if (b != null) {
             if (tmp == null) {
@@ -846,7 +849,10 @@ object Chunk {
       }
 
       while (!done && i < len) {
-        dest = dest.zipWith(pf.applyOrElse(self(i), orElse)) { (array, b) =>
+        // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
+        val rhs = pf.applyOrElse(self(i), orElse)
+
+        dest = dest.zipWith(rhs) { (array, b) =>
           var tmp = array
           if (b != null) {
             if (tmp == null) {
@@ -1136,7 +1142,7 @@ object Chunk {
       else if (isFloat(c)) FloatClass.asInstanceOf[ClassTag[A]]
       else if (isDouble(c)) DoubleClass.asInstanceOf[ClassTag[A]]
       else if (isChar(c)) CharClass.asInstanceOf[ClassTag[A]]
-      else classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      else classTag[AnyRef].asInstanceOf[ClassTag[A]] // TODO: Find a better way
 
     private final def isBoolean(c: ClassTag[_]): Boolean =
       c == BooleanClass || c == BooleanClassBox

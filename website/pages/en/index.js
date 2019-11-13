@@ -59,6 +59,7 @@ class HomeSplash extends React.Component {
         </a>
       </div>
     );
+
     return (
       <SplashContainer>
         <div className="inner">
@@ -164,8 +165,21 @@ class Index extends React.Component {
       </Block>
     );
 
+    const Newsletter = props => (
+      <form id="revue-form" name="revue-form" target="_blank" action="https://www.getrevue.co/profile/zio/add_subscriber" method="post" className="newsletter-form">
+        <label htmlFor="member_email">Subscribe to ZIO News:</label>
+        <div className="input-group">
+            <input type="email" name="member[email]" id="member_email" required="" placeholder="Your email address..." className="newsletter-input"/>
+            <div className="input-group-append">
+                <input type="submit" value="Subscribe" name="member[subscribe]" id="member_submit" className="newsletter-button"/>
+            </div>
+        </div>
+      </form>
+    );
+
     return (
       <div>
+        <Newsletter/>
         <HomeSplash siteConfig={siteConfig} language={language} />
         <div className="mainContainer">
           <Features />

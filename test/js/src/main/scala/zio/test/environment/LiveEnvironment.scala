@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-package zio
+package zio.test.environment
 
 import zio.clock.Clock
 import zio.console.Console
-import zio.system.System
 import zio.random.Random
-import zio.internal.{ Platform, PlatformLive }
+import zio.system.System
 
-trait DefaultRuntime extends Runtime[ZEnv] {
-  override val platform: Platform = PlatformLive.Default
-  override val environment: ZEnv  = new Clock.Live with Console.Live with System.Live with Random.Live
-}
+private object LiveEnvironment extends Clock.Live with Console.Live with Random.Live with System.Live
