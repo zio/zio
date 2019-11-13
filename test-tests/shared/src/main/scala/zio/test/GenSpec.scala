@@ -15,7 +15,7 @@ object GenSpec extends AsyncBaseSpec {
     label(monadLeftIdentity, "monad left identity"),
     label(monadRightIdentity, "monad right identity"),
     label(monadAssociativity, "monad associativity"),
-    label(alphaNumericCharGeneratesValuesInRange, "alphaNumericChar generates values in range"),
+    label(alphaNumericCharGeneratesLettersAndDigits, "alphaNumericChar generates letter and digits"),
     label(alphaNumericCharShrinksToZero, "alphaNumericChar shrinks to zero"),
     label(anyByteShrinksToZero, "anyByte shrinks to zero"),
     label(anyCharShrinksToZero, "anyChar shrinks to zero"),
@@ -129,10 +129,8 @@ object GenSpec extends AsyncBaseSpec {
     checkEqual(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g)))
   }
 
-  def alphaNumericCharGeneratesValuesInRange: Future[Boolean] =
-    checkSample(Gen.alphaNumericChar)(_.forall { c =>
-      (48 <= c && c <= 57) || (65 <= c && c <= 122)
-    })
+  def alphaNumericCharGeneratesLettersAndDigits: Future[Boolean] =
+    checkSample(Gen.alphaNumericChar)(_.forall(_.isLetterOrDigit))
 
   def alphaNumericCharShrinksToZero: Future[Boolean] =
     checkShrink(Gen.alphaNumericChar)('0')
