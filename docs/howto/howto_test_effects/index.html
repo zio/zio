@@ -72,16 +72,31 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-keyword">import</span> zio.clock.nanoTime
 <span class="hljs-keyword">import</span> <span class="hljs-type">Assertion</span>.isGreaterThan
 
-<span class="hljs-keyword">val</span> clockSuite = suite(<span class="hljs-string">"clock"</span>) {
+<span class="hljs-keyword">val</span> clockSuite = suite(<span class="hljs-string">"clock"</span>) (
   testM(<span class="hljs-string">"time is non-zero"</span>) {
-    assertM(nanoTime, isGreaterThan(<span class="hljs-number">0</span>))
+    assertM(nanoTime, isGreaterThan(<span class="hljs-number">0</span>L))
   }
-}
+)
+<span class="hljs-comment">// clockSuite: Spec[zio.clock.Clock, Nothing, String, Either[TestFailure[Nothing], TestSuccess[Unit]]] = Spec(</span>
+<span class="hljs-comment">//   SuiteCase("clock", zio.ZIO$Succeed@3f380c31, None)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>As you can see the whole suit was assigned to <code>clockSuite</code> val. As it was said suites can contain other suites so we can aggregate them as much as needed. Example, we can have multiple suites that test external HTTP apis and one big suite that will aggregate them all.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> paymentProviderABCSuite  = suite(<span class="hljs-string">"ABC payment provider tests"</span>) {<span class="hljs-comment">/* tests */</span>}
-<span class="hljs-keyword">val</span> paymentProviderXYZSuite  = suite(<span class="hljs-string">"XYZ payment provider tests"</span>) {<span class="hljs-comment">/* tests */</span>}
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.test._
+<span class="hljs-keyword">import</span> <span class="hljs-type">Assertion</span>._
+
+<span class="hljs-keyword">val</span> paymentProviderABCSuite  = suite(<span class="hljs-string">"ABC payment provider tests"</span>) {test(<span class="hljs-string">"Your test"</span>)(assert(<span class="hljs-string">"Your value"</span>, <span class="hljs-type">Assertion</span>.isNonEmptyString))}
+<span class="hljs-comment">// paymentProviderABCSuite: Spec[Any, Nothing, String, Either[TestFailure[Nothing], TestSuccess[Unit]]] = Spec(</span>
+<span class="hljs-comment">//   SuiteCase("ABC payment provider tests", zio.ZIO$Succeed@5a54373, None)</span>
+<span class="hljs-comment">// )</span>
+<span class="hljs-keyword">val</span> paymentProviderXYZSuite  = suite(<span class="hljs-string">"XYZ payment provider tests"</span>) {test(<span class="hljs-string">"Your other test"</span>)(assert(<span class="hljs-string">"Your other value"</span>, <span class="hljs-type">Assertion</span>.isNonEmptyString))}
+<span class="hljs-comment">// paymentProviderXYZSuite: Spec[Any, Nothing, String, Either[TestFailure[Nothing], TestSuccess[Unit]]] = Spec(</span>
+<span class="hljs-comment">//   SuiteCase("XYZ payment provider tests", zio.ZIO$Succeed@732a8c11, None)</span>
+<span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> allPaymentProvidersTests = suite(<span class="hljs-string">"All payment providers tests"</span>)(paymentProviderABCSuite, paymentProviderXYZSuite)
+<span class="hljs-comment">// allPaymentProvidersTests: Spec[Any, Nothing, String, Either[TestFailure[Nothing], TestSuccess[Unit]]] = Spec(</span>
+<span class="hljs-comment">//   SuiteCase("All payment providers tests", zio.ZIO$Succeed@42a2f7d, None)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>Real tests that run some logic and return testing result are created mostly with <code>testM</code> function. It expects two arguments, first one that will be the label of test
 which will be used for visual reporting back to the user and an assertion of type
@@ -98,6 +113,7 @@ known from operating on boolean values like and (<code>&amp;&amp;</code>), or (<
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">Assertion</span>
 
 <span class="hljs-keyword">val</span> assertionForString: <span class="hljs-type">Assertion</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">Assertion</span>.containsString(<span class="hljs-string">"Foo"</span>) &amp;&amp; <span class="hljs-type">Assertion</span>.endsWith(<span class="hljs-string">"Bar"</span>)
+<span class="hljs-comment">// assertionForString: Assertion[String] = (containsString(Foo) &amp;&amp; endsWith(Bar))</span>
 </code></pre>
 <p>What's more, assertions also compose with each other allowing for doing rich diffs not only simple value to value comparison.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">Assertion</span>.{isRight, isSome,equalTo, hasField}
@@ -105,6 +121,9 @@ known from operating on boolean values like and (<code>&amp;&amp;</code>), or (<
 test(<span class="hljs-string">"Check assertions"</span>) {
   assert(<span class="hljs-type">Right</span>(<span class="hljs-type">Some</span>(<span class="hljs-number">2</span>)), isRight(isSome(equalTo(<span class="hljs-number">2</span>))))
 }
+<span class="hljs-comment">// res0: ZSpec[Any, Nothing, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase("Check assertions", zio.ZIO$FlatMap@5ee5bbff)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>Here we're checking deeply nested values inside an <code>Either</code> and <code>Option</code>. Because <code>Assertion</code>s compose this is not a problem
 all layers are being peeled off tested for condition until final value is reached.
@@ -122,6 +141,9 @@ test(<span class="hljs-string">"Rich checking"</span>) {
     hasField(<span class="hljs-string">"country"</span>, (u:<span class="hljs-type">User</span>) =&gt; u.address.country, not(equalTo(<span class="hljs-string">"USA"</span>)))
   )
 }
+<span class="hljs-comment">// res1: ZSpec[Any, Nothing, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase("Rich checking", zio.ZIO$FlatMap@5e31b4b2)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>There is also an easy way to test object's data for certain assertions with <code>hasField</code> which accepts besides a name, a mapping function from object to its tested property and <code>Assertion</code> object which will validate this property. Here our test checks if a person has at least 18 years and is not from USA. What is nice about those tests is that, test reporters will tell you exactly which assertion was broken. Let's say we would change <code>isGreaterThanEqualTo(18)</code> to <code>isGreaterThanEqualTo(40)</code> which will fail. Printout
 on console will be a nice detailed text explaining what exactly went wrong:</p>
@@ -130,27 +152,50 @@ on console will be a nice detailed text explaining what exactly went wrong:</p>
 </code></pre>
 <p>Having this all in mind probably the most common and also most readable way of structuring tests is to pass
 a for-comprehension to <code>testM</code> function and yield a call to <code>assert</code> function.</p>
-<pre><code class="hljs css language-scala">testM(<span class="hljs-string">"Semaphore should expose available number of permits"</span>) {
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.test._
+<span class="hljs-keyword">import</span> <span class="hljs-type">Assertion</span>._
+
+testM(<span class="hljs-string">"Semaphore should expose available number of permits"</span>) {
   <span class="hljs-keyword">for</span> {
     s         &lt;- <span class="hljs-type">Semaphore</span>.make(<span class="hljs-number">1</span>L)
     permits   &lt;- s.available
   } <span class="hljs-keyword">yield</span> assert(permits, equalTo(<span class="hljs-number">1</span>L))
 }
+<span class="hljs-comment">// res2: ZSpec[Any, Nothing, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase(</span>
+<span class="hljs-comment">//     "Semaphore should expose available number of permits",</span>
+<span class="hljs-comment">//     zio.ZIO$FlatMap@37a15022</span>
+<span class="hljs-comment">//   )</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="running-tests"></a><a href="#running-tests" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Running tests</h3>
 <p>When all of our tests are constructed, we need to have a way to actually execute them. Your first stop is the <code>zio.test.DefaultRunnableSpec</code> which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suites can hold any number of other suites. You may structure your tests like this:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> suite1 = suite(<span class="hljs-string">"suite1"</span>) {
-  testM(<span class="hljs-string">"s1.t1"</span>) {...},
-  testM(<span class="hljs-string">"s1.t2"</span>) {...}
-}
-<span class="hljs-keyword">val</span> suite2 = suite(<span class="hljs-string">"suite2"</span>) {
-  testM(<span class="hljs-string">"s2.t1"</span>) {...},
-  testM(<span class="hljs-string">"s2.t2"</span>) {...},
-  testM(<span class="hljs-string">"s2.t3"</span>) {...}
-}
-<span class="hljs-keyword">val</span> suite3 = suite(<span class="hljs-string">"suite3"</span>) {
-  testM(<span class="hljs-string">"s3.t1"</span>) {...}
-}
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.test._
+<span class="hljs-keyword">import</span> zio.clock.nanoTime
+<span class="hljs-keyword">import</span> <span class="hljs-type">Assertion</span>._
+
+<span class="hljs-keyword">val</span> suite1 = suite(<span class="hljs-string">"suite1"</span>) (
+  testM(<span class="hljs-string">"s1.t1"</span>) {assertM(nanoTime, isGreaterThanEqualTo(<span class="hljs-number">0</span>L))},
+  testM(<span class="hljs-string">"s1.t2"</span>) {assertM(nanoTime, isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
+)
+<span class="hljs-comment">// suite1: Spec[clock.Clock, Nothing, String, Either[TestFailure[Nothing], TestSuccess[Unit]]] = Spec(</span>
+<span class="hljs-comment">//   SuiteCase("suite1", zio.ZIO$Succeed@671ec1be, None)</span>
+<span class="hljs-comment">// )</span>
+<span class="hljs-keyword">val</span> suite2 = suite(<span class="hljs-string">"suite2"</span>) (
+  testM(<span class="hljs-string">"s2.t1"</span>) {assertM(nanoTime, isGreaterThanEqualTo(<span class="hljs-number">0</span>L))},
+  testM(<span class="hljs-string">"s2.t2"</span>) {assertM(nanoTime, isGreaterThanEqualTo(<span class="hljs-number">0</span>L))},
+  testM(<span class="hljs-string">"s2.t3"</span>) {assertM(nanoTime, isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
+)
+<span class="hljs-comment">// suite2: Spec[clock.Clock, Nothing, String, Either[TestFailure[Nothing], TestSuccess[Unit]]] = Spec(</span>
+<span class="hljs-comment">//   SuiteCase("suite2", zio.ZIO$Succeed@f32c5d8, None)</span>
+<span class="hljs-comment">// )</span>
+<span class="hljs-keyword">val</span> suite3 = suite(<span class="hljs-string">"suite3"</span>) (
+  testM(<span class="hljs-string">"s3.t1"</span>) {assertM(nanoTime, isGreaterThanEqualTo(<span class="hljs-number">0</span>L))}
+)
+<span class="hljs-comment">// suite3: Spec[clock.Clock, Nothing, String, Either[TestFailure[Nothing], TestSuccess[Unit]]] = Spec(</span>
+<span class="hljs-comment">//   SuiteCase("suite3", zio.ZIO$Succeed@5cf564a8, None)</span>
+<span class="hljs-comment">// )</span>
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">AllSuites</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">DefaultRunnableSpec</span>(<span class="hljs-params">suite("<span class="hljs-type">All</span> tests"</span>)(<span class="hljs-params">suite1, suite2, suite3</span>))</span>
 </code></pre>
@@ -160,11 +205,11 @@ Just like with <code>zio.App</code> where at the very end an instance of <code>Z
 <code>R</code> is composed of some other modules we need to provide them first before test can be executed. How can we provide our dependencies?
 Here again the design of <code>zio-test</code> shines. Since our tests are ordinary values we can just transform them with a call to <code>mapTest</code>.
 It accepts a lambda of type <code>ZIO[R with TestSystem, TestFailure[Throwable], TestSuccess[Unit] ] =&gt; T1</code>. Without getting into too much details about types we can see that our lambda argument is a test instance (<code>ZIO</code>) that expects an environment of type <code>R with TestSystem</code>. This is no different from normal usage of ZIO in <code>zio.App</code>. We can use the same <code>provide</code>, <code>provideSome</code> methods to provide modules which <code>DefaultRunnableSpec</code> cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added <code>zio-test-sbt</code> to our dependencies and <code>zio.test.sbt.TestFramework</code> to SBT's <code>testFrameworks</code> our tests should be automatically picked up by SBT on invocation of <code>test</code>. However if we're not using SBT or have some other special needs <code>DefaultRunnableSpec</code> has a <code>main</code> method which can be invoked directly or with SBTs <code>test:run</code>.</p>
-<pre><code class="hljs css language-scala">libraryDependencies ++= <span class="hljs-type">Seq</span>(
-  <span class="hljs-string">"dev.zio"</span> %% <span class="hljs-string">"zio-test"</span>     % zioVersion % <span class="hljs-string">"test"</span>,
-  <span class="hljs-string">"dev.zio"</span> %% <span class="hljs-string">"zio-test-sbt"</span> % zioVersion % <span class="hljs-string">"test"</span>
-),
-testFrameworks := <span class="hljs-type">Seq</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">TestFramework</span>(<span class="hljs-string">"zio.test.sbt.ZTestFramework"</span>))
+<pre><code class="hljs css language-sbt">libraryDependencies ++= Se<span class="hljs-string">q(
+  "dev.zio" %% "zio-test"     % zioVersion % "test",
+  "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+)</span>,
+testFrameworks += Se<span class="hljs-string">q(new TestFramework("zio.test.sbt.ZTestFramework")</span>)
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="using-test-environment"></a><a href="#using-test-environment" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Using Test Environment</h2>
 <p>What we expect from tests (at least those that we consider unit tests) is to be stable i.e. consecutive runs should yield the same results and take
@@ -172,20 +217,37 @@ more or less the same amount of time. Biggest source of complexity during testin
 payment APIs, object storages, http APIs etc. It is normal to hide these kind of services behind an interface and provide test instances to regain
 control and determinism. However there is another source of complexity that comes from the local infrastructure that is also hard to control without building prior abstractions. Things like stdin/stdout, clocks, random generators, schedulers can make writing tests hard or even impossible. Fortunately ZIO abstracted most of it in its runtime under <code>Environment</code> type. Thanks to this design <code>zio-test</code> could easily provide its own implementation named <code>TestEnvironment</code> which gives you test implementations of mentioned infrastructure. In most of the cases when you'll be using <code>ZIO</code>s <code>testM</code> test implementations are already created and should be controlled by exposed functions on companion object. If for some reason you would like to provide custom environment or are using other testing framework but still want to use test environment there are <code>make</code> functions on companion objects of test modules where you can construct your own.</p>
 <p>It is easy to accidentally use different test instances at the same time.</p>
-<pre><code class="hljs css language-scala">testM(<span class="hljs-string">"`acquire` doesn't leak permits upon cancellation"</span>) {
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.test._
+<span class="hljs-keyword">import</span> zio.test.environment.<span class="hljs-type">TestClock</span>
+<span class="hljs-keyword">import</span> scala.language.postfixOps
+<span class="hljs-keyword">import</span> <span class="hljs-type">Assertion</span>._
+<span class="hljs-keyword">import</span> zio.duration.<span class="hljs-type">Duration</span>
+<span class="hljs-keyword">import</span> scala.concurrent.duration._
+
+testM(<span class="hljs-string">"`acquire` doesn't leak permits upon cancellation"</span>) {
   <span class="hljs-keyword">for</span> {
-    testClock &lt;- <span class="hljs-type">TestClock</span>.makeTest(<span class="hljs-type">TestClock</span>.<span class="hljs-type">DefaultData</span>)
-    s         &lt;- <span class="hljs-type">Semaphore</span>.make(<span class="hljs-number">1</span>L)
-    sf        &lt;- s.acquireN(<span class="hljs-number">2</span>).timeout(<span class="hljs-number">1.</span>milli).either.fork
-    _         &lt;- testClock.adjust(<span class="hljs-number">1.</span>second)
-    _         &lt;- sf.join
-    _         &lt;- s.release
-    permits   &lt;- s.available
+      testClock &lt;- <span class="hljs-type">TestClock</span>.makeTest(<span class="hljs-type">TestClock</span>.<span class="hljs-type">DefaultData</span>)
+      s         &lt;- <span class="hljs-type">Semaphore</span>.make(<span class="hljs-number">1</span>L)
+      sf        &lt;- s.acquireN(<span class="hljs-number">2</span>).timeout(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">1</span> milli)).either.fork
+      _         &lt;- testClock.adjust(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">1</span> second))
+      _         &lt;- sf.join
+      _         &lt;- s.release
+      permits   &lt;- s.available
   } <span class="hljs-keyword">yield</span> assert(permits, equalTo(<span class="hljs-number">2</span>L))
 }
+<span class="hljs-comment">// error: This operation only makes sense for effects that can fail.</span>
+<span class="hljs-comment">//       sf        &lt;- s.acquireN(2).timeout(Duration.fromScala(1 milli)).either.fork</span>
+<span class="hljs-comment">//                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>
 </code></pre>
 <p>Above code doesn't work. We created a new <code>TestClock</code> instance and are correctly adjusting its time. What might be surprising is that call to <code>timeout</code> will use the <code>TestClock</code> provided by the <code>TestEnvironment</code> not our <code>testClock</code> instance. It easy to know why when you look at the signature of <code>timeout</code>:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">final</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">timeout</span></span>(d: <span class="hljs-type">Duration</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">R</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Clock</span>, <span class="hljs-type">E</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">A</span>]]
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.duration.<span class="hljs-type">Duration</span>
+<span class="hljs-keyword">import</span> zio.clock.<span class="hljs-type">Clock</span>
+
+<span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">ZIO</span>[-<span class="hljs-type">R</span>, +<span class="hljs-type">E</span>, +<span class="hljs-type">A</span>] <span class="hljs-keyword">extends</span> <span class="hljs-title">Serializable</span> </span>{ self =&gt;
+    <span class="hljs-comment">/* All other method declarations in this trait ignored to avoid clutter */</span>
+
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">timeout</span></span>(d: <span class="hljs-type">Duration</span>): <span class="hljs-type">ZIO</span>[<span class="hljs-type">R</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Clock</span>, <span class="hljs-type">E</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">A</span>]]
+}
 </code></pre>
 <p>The returned type is <code>ZIO[R with Clock, E, Option[A]]</code> where our environment is &quot;some R plus a Clock&quot;.
 Before running this <code>Clock</code> has to be provided and the framework provides the Clock from the <code>TestEnvironment</code> not our instance variable as it is not aware that we created it.</p>
@@ -194,7 +256,11 @@ Before running this <code>Clock</code> has to be provided and the framework prov
 <p>When working with randomness testing might be hard because the inputs to the tested function change on every invocation so our code behave in a indeterministic way. Precisely because of this reason <code>ZIO</code> exposes <code>TestRandom</code> module which allows for fully deterministic testing of code
 that deals with Randomness.
 <code>TestRandom</code> can operate in two modes based on needed use case. In first mode it is a purely functional pseudo-random number generator. During generation on random values like when calling <code>nextInt</code> no internal state is being mutated. It is expected to chain such operations with combinators like <code>flatMap</code>. To preserve the same values generated between invocation of tests <code>setSeed</code> method can be used. It is guaranteed to return the same sequence of values for any given seed.</p>
-<pre><code class="hljs css language-scala">testM(<span class="hljs-string">"Use setSeed to generate stable values"</span>) {
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.test.assert
+<span class="hljs-keyword">import</span> zio.test.environment.<span class="hljs-type">TestRandom</span>
+<span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">Assertion</span>.equalTo
+
+testM(<span class="hljs-string">"Use setSeed to generate stable values"</span>) {
   <span class="hljs-keyword">for</span> {
     _  &lt;- <span class="hljs-type">TestRandom</span>.setSeed(<span class="hljs-number">27</span>)
     r1 &lt;- random.nextLong
@@ -207,6 +273,9 @@ that deals with Randomness.
       <span class="hljs-number">-9135922664019402287</span>L
     )))
 }
+<span class="hljs-comment">// res4: ZSpec[TestRandom, Nothing, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase("Use setSeed to generate stable values", zio.ZIO$FlatMap@2505c7c)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>In second mode <code>TestRandom</code> maintains an internal buffer of values that can be &quot;fed&quot; upfront with methods such as <code>feedInts</code>. When random values are being generated first values from that buffer are being used.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.test.environment.<span class="hljs-type">TestRandom</span>
@@ -227,6 +296,9 @@ testM(<span class="hljs-string">"One can provide its own list of ints"</span>) {
     equalTo(<span class="hljs-type">List</span>(r1, r2, r3, r4, r5, r6, r7, r8, r9))
   )
 }
+<span class="hljs-comment">// res5: ZSpec[TestRandom, Nothing, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase("One can provide its own list of ints", zio.ZIO$FlatMap@e75c2cd)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>When we run out of values in buffer <code>TestRandom</code> it falls back to first mode. If we want to we can also clear internal buffers by calling method
 like <code>clearInts</code>.</p>
@@ -234,27 +306,46 @@ like <code>clearInts</code>.</p>
 <p>Sometimes one need to be able to control the flow of time. In most cases you want your unit test to be as fast as possible. Waiting for real time to pass by is a real killer for this. ZIO exposes a <code>TestClock</code> in <code>TestEnvironment</code> that can control time so we can deterministically and efficiently test effects involving the passage of time.</p>
 <p><strong>Example 1</strong></p>
 <p>Thanks to call to <code>TestClock.adjust(1.minute)</code> we moved the time instantly 1 minute.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.test.environment.<span class="hljs-type">TestClock</span>
-<span class="hljs-keyword">import</span> zio.duration._
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.util.concurrent.<span class="hljs-type">TimeUnit</span>
+<span class="hljs-keyword">import</span> zio.clock.currentTime
+<span class="hljs-keyword">import</span> zio.duration.<span class="hljs-type">Duration</span>
+<span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">Assertion</span>.isGreaterThanEqualTo
+<span class="hljs-keyword">import</span> zio.test._
+<span class="hljs-keyword">import</span> zio.test.environment.<span class="hljs-type">TestClock</span>
+<span class="hljs-keyword">import</span> scala.concurrent.duration._
+<span class="hljs-keyword">import</span> scala.language.postfixOps
 
 testM(<span class="hljs-string">"One can move time very fast"</span>) {
   <span class="hljs-keyword">for</span> {
     startTime &lt;- currentTime(<span class="hljs-type">TimeUnit</span>.<span class="hljs-type">SECONDS</span>)
-    _         &lt;- <span class="hljs-type">TestClock</span>.adjust(<span class="hljs-number">1.</span>minute)
+    _         &lt;- <span class="hljs-type">TestClock</span>.adjust(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">1</span> minute))
     endTime   &lt;- currentTime(<span class="hljs-type">TimeUnit</span>.<span class="hljs-type">SECONDS</span>)
   } <span class="hljs-keyword">yield</span> assert(endTime - startTime, isGreaterThanEqualTo(<span class="hljs-number">60</span>L))
 }
+<span class="hljs-comment">// res6: ZSpec[TestClock, Nothing, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase("One can move time very fast", zio.ZIO$FlatMap@5ee69d9e)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p><strong>Example 2</strong></p>
 <p><code>TestClock</code> affects also all code running asynchronously that is scheduled to run after certain time but with caveats to how runtime works.</p>
-<pre><code class="hljs css language-scala">testM(<span class="hljs-string">"One can control time as he see fit"</span>) {
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.duration.<span class="hljs-type">Duration</span>
+<span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">Assertion</span>.equalTo
+<span class="hljs-keyword">import</span> zio.test._
+<span class="hljs-keyword">import</span> zio.test.environment.<span class="hljs-type">TestClock</span>
+<span class="hljs-keyword">import</span> scala.concurrent.duration._
+<span class="hljs-keyword">import</span> scala.language.postfixOps
+
+testM(<span class="hljs-string">"One can control time as he see fit"</span>) {
   <span class="hljs-keyword">for</span> {
     promise &lt;- <span class="hljs-type">Promise</span>.make[<span class="hljs-type">Unit</span>, <span class="hljs-type">Int</span>]
-    _       &lt;- (<span class="hljs-type">ZIO</span>.sleep(<span class="hljs-number">10.</span>seconds) *&gt; promise.succeed(<span class="hljs-number">1</span>)).fork
-    _       &lt;- <span class="hljs-type">TestClock</span>.adjust(<span class="hljs-number">10.</span>seconds)
+    _       &lt;- (<span class="hljs-type">ZIO</span>.sleep(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">10</span> seconds)) *&gt; promise.succeed(<span class="hljs-number">1</span>)).fork
+    _       &lt;- <span class="hljs-type">TestClock</span>.adjust(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">10</span> seconds))
     readRef &lt;- promise.await
   } <span class="hljs-keyword">yield</span> assert(<span class="hljs-number">1</span>, equalTo(readRef))
 }
+<span class="hljs-comment">// res7: ZSpec[TestClock, Unit, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase("One can control time as he see fit", zio.ZIO$FlatMap@7789b8cc)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>The above code creates a write once cell that will be set to &quot;1&quot; after 10 seconds asynchronously from a different thread thanks to call to <code>fork</code>.
 At the end we wait on the promise until it is set. With call to <code>TestClock.adjust(10.seconds)</code> we simulate passing of 10 seconds of time.
@@ -272,33 +363,50 @@ propagated.</p>
     value   &lt;- ref.get
   } <span class="hljs-keyword">yield</span> assert(<span class="hljs-number">1</span>, equalTo(value))
 }
+<span class="hljs-comment">// res8: ZSpec[TestClock, Nothing, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase(</span>
+<span class="hljs-comment">//     "THIS TEST WILL FAIL - Sleep and adjust can introduce races",</span>
+<span class="hljs-comment">//     zio.ZIO$FlatMap@773ab9fd</span>
+<span class="hljs-comment">//   )</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>The pattern with <code>Promise</code> and <code>await</code> can be generalized when we need to wait for multiple values using a <code>Queue</code>. We simply need to put multiple values into
 the queue and progress the clock multiple times and there is no need to create multiple promises.
 Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test
 snapshots of data in particular point in time <code>Queue</code> can help with that.</p>
-<pre><code class="hljs css language-scala">testM(<span class="hljs-string">"zipWithLatest"</span>) {
-  <span class="hljs-keyword">val</span> s1 = <span class="hljs-type">Stream</span>.iterate(<span class="hljs-number">0</span>)(_ + <span class="hljs-number">1</span>).fixed(<span class="hljs-number">100.</span>millis)
-  <span class="hljs-keyword">val</span> s2 = <span class="hljs-type">Stream</span>.iterate(<span class="hljs-number">0</span>)(_ + <span class="hljs-number">1</span>).fixed(<span class="hljs-number">70.</span>millis)
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.duration.<span class="hljs-type">Duration</span>
+<span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">Assertion</span>.equalTo
+<span class="hljs-keyword">import</span> zio.test._
+<span class="hljs-keyword">import</span> zio.test.environment.<span class="hljs-type">TestClock</span>
+<span class="hljs-keyword">import</span> scala.concurrent.duration._
+<span class="hljs-keyword">import</span> scala.language.postfixOps
+<span class="hljs-keyword">import</span> zio.stream._
+
+testM(<span class="hljs-string">"zipWithLatest"</span>) {
+  <span class="hljs-keyword">val</span> s1 = <span class="hljs-type">Stream</span>.iterate(<span class="hljs-number">0</span>)(_ + <span class="hljs-number">1</span>).fixed(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">100</span> millis))
+  <span class="hljs-keyword">val</span> s2 = <span class="hljs-type">Stream</span>.iterate(<span class="hljs-number">0</span>)(_ + <span class="hljs-number">1</span>).fixed(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">70</span> millis))
   <span class="hljs-keyword">val</span> s3 = s1.zipWithLatest(s2)((_, _))
 
   <span class="hljs-keyword">for</span> {
-    _ &lt;- <span class="hljs-type">TestClock</span>.setTime(<span class="hljs-number">0.</span>millis)
+    _ &lt;- <span class="hljs-type">TestClock</span>.setTime(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">0</span> millis))
     q &lt;- <span class="hljs-type">Queue</span>.unbounded[(<span class="hljs-type">Int</span>, <span class="hljs-type">Int</span>)]
     _ &lt;- s3.foreach(q.offer).fork
     a &lt;- q.take
-    _ &lt;- <span class="hljs-type">TestClock</span>.setTime(<span class="hljs-number">70.</span>millis)
+    _ &lt;- <span class="hljs-type">TestClock</span>.setTime(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">70</span> millis))
     b &lt;- q.take
-    _ &lt;- <span class="hljs-type">TestClock</span>.setTime(<span class="hljs-number">100.</span>millis)
+    _ &lt;- <span class="hljs-type">TestClock</span>.setTime(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">100</span> millis))
     c &lt;- q.take
-    _ &lt;- <span class="hljs-type">TestClock</span>.setTime(<span class="hljs-number">140.</span>millis)
+    _ &lt;- <span class="hljs-type">TestClock</span>.setTime(<span class="hljs-type">Duration</span>.fromScala(<span class="hljs-number">140</span> millis))
     d &lt;- q.take
   } <span class="hljs-keyword">yield</span>
     assert(a, equalTo(<span class="hljs-number">0</span> -&gt; <span class="hljs-number">0</span>)) &amp;&amp;
-    assert(b, equalTo(<span class="hljs-number">0</span>       -&gt; <span class="hljs-number">1</span>)) &amp;&amp;
-    assert(c, equalTo(<span class="hljs-number">1</span>       -&gt; <span class="hljs-number">1</span>)) &amp;&amp;
-    assert(d, equalTo(<span class="hljs-number">1</span>       -&gt; <span class="hljs-number">2</span>))
+      assert(b, equalTo(<span class="hljs-number">0</span>       -&gt; <span class="hljs-number">1</span>)) &amp;&amp;
+      assert(c, equalTo(<span class="hljs-number">1</span>       -&gt; <span class="hljs-number">1</span>)) &amp;&amp;
+      assert(d, equalTo(<span class="hljs-number">1</span>       -&gt; <span class="hljs-number">2</span>))
 }
+<span class="hljs-comment">// res9: ZSpec[TestClock, Nothing, String, Unit] = Spec(</span>
+<span class="hljs-comment">//   TestCase("zipWithLatest", zio.ZIO$FlatMap@57f97e7d)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="testing-console"></a><a href="#testing-console" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Testing Console</h3>
 <p><code>TestConsole</code> allows testing of applications that interact with console by modeling working with standard input and output
@@ -325,6 +433,9 @@ as writing and reading to and from internal buffers.</p>
     }
   }
 )
+<span class="hljs-comment">// consoleSuite: Spec[TestConsole, java.io.IOException, String, Either[TestFailure[Nothing], TestSuccess[Unit]]] = Spec(</span>
+<span class="hljs-comment">//   SuiteCase("ConsoleTest", zio.ZIO$Succeed@3d190371, None)</span>
+<span class="hljs-comment">// )</span>
 </code></pre>
 <p>Above code simulates an application that will ask for name and age of the user. To test it we prefill buffers with answers
 with call to <code>TestConsole.feedLines</code> method. Calls to <code>console.getStrLn</code> will get the value from the buffers instead of
@@ -342,6 +453,7 @@ like in the code below:</p>
   _      &lt;- <span class="hljs-type">TestSystem</span>.putProperty(<span class="hljs-string">"java.vm.name"</span>, <span class="hljs-string">"VM"</span>)
   result &lt;- system.property(<span class="hljs-string">"java.vm.name"</span>)
 } <span class="hljs-keyword">yield</span> assert(result, equalTo(<span class="hljs-type">Some</span>(<span class="hljs-string">"VM"</span>)))
+<span class="hljs-comment">// res10: zio.ZIO[TestSystem, Throwable, TestResult] = zio.ZIO$FlatMap@76c93c6</span>
 </code></pre>
 <p>It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.</p>
@@ -380,4 +492,4 @@ test behaviour:</p>
       ) @@ timeout(<span class="hljs-number">60.</span>seconds)   <span class="hljs-comment">//apply a timeout to the whole suite</span>
     )
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/howto/howto_use_module_pattern"><span class="arrow-prev">← </span><span>Use module pattern</span></a><a class="docs-next button" href="/docs/howto/howto_mock_services"><span>Mock services</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#how-zio-test-was-designed">How zio-test was designed</a></li><li><a href="#constructing-tests">Constructing tests</a><ul class="toc-headings"><li><a href="#assertions-creating-testresults">Assertions - creating TestResults</a></li><li><a href="#running-tests">Running tests</a></li></ul></li><li><a href="#using-test-environment">Using Test Environment</a><ul class="toc-headings"><li><a href="#testing-random">Testing Random</a></li><li><a href="#testing-clock">Testing Clock</a></li><li><a href="#testing-console">Testing Console</a></li><li><a href="#testing-system">Testing System</a></li><li><a href="#test-aspects">Test Aspects</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/img/discord.png" width="120" height="60" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/howto/howto_use_module_pattern"><span class="arrow-prev">← </span><span>Use module pattern</span></a><a class="docs-next button" href="/docs/howto/howto_mock_services"><span>Mock services</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#how-zio-test-was-designed">How zio-test was designed</a></li><li><a href="#constructing-tests">Constructing tests</a><ul class="toc-headings"><li><a href="#assertions-creating-testresults">Assertions - creating TestResults</a></li><li><a href="#running-tests">Running tests</a></li></ul></li><li><a href="#using-test-environment">Using Test Environment</a><ul class="toc-headings"><li><a href="#testing-random">Testing Random</a></li><li><a href="#testing-clock">Testing Clock</a></li><li><a href="#testing-console">Testing Console</a></li><li><a href="#testing-system">Testing System</a></li><li><a href="#test-aspects">Test Aspects</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/img/discord.png" width="120" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
