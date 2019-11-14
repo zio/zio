@@ -249,7 +249,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 
     def renderInterrupt(fiberId: Fiber.Id, maybeTrace: Option[ZTrace]): Sequential =
       Sequential(
-        List(Failure(s"An interrupt was produced by ${fiberId}." :: renderTrace(maybeTrace)))
+        List(Failure(s"An interrupt was produced by #${fiberId.seqNumber}." :: renderTrace(maybeTrace)))
       )
 
     def causeToSequential(cause: Cause[Any], maybeData: Option[Data]): Sequential =
