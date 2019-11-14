@@ -886,10 +886,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
               }
           }.flatMap(ZIO.done)
 
-        val release1 = (_: Exit[_, _]) => ZIO.unit
-
         val acquire2: ZIO[R, E, ZManaged[R, E, A]] =
-          ZIO.succeed(ZManaged(ZIO.succeed(Reservation(acquire1, release1))))
+          ZIO.succeed(acquire1.toManaged_)
 
         val release2 = (_: Exit[_, _]) =>
           ref.updateSome {
