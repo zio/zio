@@ -6,7 +6,7 @@ import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestUtils.{ label, succeeded }
+import zio.test.TestUtils.{ isSuccess, label }
 import zio.ZIO
 
 object GenSpec extends AsyncBaseSpec {
@@ -15,7 +15,7 @@ object GenSpec extends AsyncBaseSpec {
     label(monadLeftIdentity, "monad left identity"),
     label(monadRightIdentity, "monad right identity"),
     label(monadAssociativity, "monad associativity"),
-    label(alphaNumericCharGeneratesValuesInRange, "alphaNumericChar generates values in range"),
+    label(alphaNumericCharGeneratesLettersAndDigits, "alphaNumericChar generates letter and digits"),
     label(alphaNumericCharShrinksToZero, "alphaNumericChar shrinks to zero"),
     label(anyByteShrinksToZero, "anyByte shrinks to zero"),
     label(anyCharShrinksToZero, "anyChar shrinks to zero"),
@@ -129,10 +129,8 @@ object GenSpec extends AsyncBaseSpec {
     checkEqual(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g)))
   }
 
-  def alphaNumericCharGeneratesValuesInRange: Future[Boolean] =
-    checkSample(Gen.alphaNumericChar)(_.forall { c =>
-      (48 <= c && c <= 57) || (65 <= c && c <= 122)
-    })
+  def alphaNumericCharGeneratesLettersAndDigits: Future[Boolean] =
+    checkSample(Gen.alphaNumericChar)(_.forall(_.isLetterOrDigit))
 
   def alphaNumericCharShrinksToZero: Future[Boolean] =
     checkShrink(Gen.alphaNumericChar)('0')
@@ -374,7 +372,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(as.reverse.reverse, equalTo(as))
         }
       }
-      succeeded(reverseProp)
+      isSuccess(reverseProp)
     }
 
   def uniformGeneratesValuesInRange: Future[Boolean] =
@@ -479,7 +477,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(as.takeWhile(f).forall(f), isTrue)
         }
       }
-      succeeded(takeWhileProp)
+      isSuccess(takeWhileProp)
     }
   }
 
@@ -495,7 +493,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(f(a, b), equalTo(g(a, b)))
         }
       }
-      succeeded(swapProp)
+      isSuccess(swapProp)
     }
   }
 }

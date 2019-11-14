@@ -59,12 +59,13 @@ class HomeSplash extends React.Component {
         </a>
       </div>
     );
+
     return (
       <SplashContainer>
         <div className="inner">
           <ProjectTitle siteConfig={siteConfig} />
           <PromoSection>
-            <Button href="./docs/getting_started.html">Getting started</Button>
+            <Button href="./docs/getting_started.html">Get started</Button>
           </PromoSection>
         </div>
       </SplashContainer>
@@ -90,35 +91,39 @@ class Index extends React.Component {
     );
 
     const Sponsors = () => (
-      <section>
-        <GridBlock
-          align="center"
-          contents={
-            [
-              {
-                content: 'ZIO is being supported by',
-                title: 'Sponsors'
-              }
-            ]
-          }
-        />
-        <Block layout="threeColumn">
-          {[
-            {
-              content: `<a href="https://scalac.io/"><img src="${baseUrl}img/scalac.svg" /></a><br/>&nbsp;Scale fast with Scala`,
-              title: 'Scalac'
-            },
-            {
-              content: `<a href="https://7mind.io/"><img src="${baseUrl}img/septimal_mind.svg" /></a><br/>&nbsp;Inventing productivity`,
-              title: 'Septimal Mind'
-            },
-            {
-              content: `<a href="https://softwaremill.com/"><img src="${baseUrl}img/softwaremill.svg" /></a><br/>&nbsp;Custom software by true engineers`,
-              title: 'SoftwareMill'
-            },
-          ]}
-        </Block>
-      </section>
+      <Container background="light">
+        <div className="sponsorsSection">
+            <h2>Sponsors</h2>
+            <Block layout="threeColumn">
+              {[
+                {
+                  title: '',
+                  image: `${baseUrl}img/scalac.svg`,
+                  imageAlt: 'Scalac',
+                  imageLink: 'https://scalac.io/',
+                  imageAlign: 'top',
+                  content: 'Scale fast with Scala'
+                },
+                {
+                  title: '',
+                  image: `${baseUrl}img/septimal_mind.svg`,
+                  imageAlt: 'Septimal Mind',
+                  imageLink: 'https://7mind.io/',
+                  imageAlign: 'top',
+                  content: 'Inventing productivity'
+                },
+                {
+                  title: '',
+                  image: `${baseUrl}img/softwaremill.svg`,
+                  imageAlt: 'SoftwareMill',
+                  imageLink: 'https://softwaremill.com/',
+                  imageAlign: 'top',
+                  content: 'Custom software by true engineers'
+                },
+              ]}
+            </Block>
+        </div>
+      </Container>
     );
 
     const Features = () => (
@@ -160,12 +165,24 @@ class Index extends React.Component {
       </Block>
     );
 
+    const Newsletter = props => (
+      <form id="revue-form" name="revue-form" target="_blank" action="https://www.getrevue.co/profile/zio/add_subscriber" method="post" className="newsletter-form">
+        <label htmlFor="member_email">Subscribe to ZIO News:</label>
+        <div className="input-group">
+            <input type="email" name="member[email]" id="member_email" required="" placeholder="Your email address..." className="newsletter-input"/>
+            <div className="input-group-append">
+                <input type="submit" value="Subscribe" name="member[subscribe]" id="member_submit" className="newsletter-button"/>
+            </div>
+        </div>
+      </form>
+    );
+
     return (
       <div>
+        <Newsletter/>
         <HomeSplash siteConfig={siteConfig} language={language} />
         <div className="mainContainer">
           <Features />
-          <hr />
           <Sponsors />
         </div>
       </div>

@@ -37,6 +37,10 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
+)
+addCommandAlias(
+  "testJVMNoBenchmarks",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
@@ -145,6 +149,9 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
 
 lazy val streamsTestsJS = streamsTests.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  )
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
@@ -245,11 +252,11 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                   %% "fs2-core"        % "2.0.1",
+        "co.fs2"                   %% "fs2-core"        % "2.1.0",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.26",
-        "io.monix"                 %% "monix"           % "3.0.0",
+        "io.monix"                 %% "monix"           % "3.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.14",
         "org.ow2.asm"              % "asm"              % "7.2",

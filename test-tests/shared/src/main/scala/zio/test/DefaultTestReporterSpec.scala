@@ -19,7 +19,8 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     label(reportSuite2, "correctly reports failed test suite"),
     label(reportSuites, "correctly reports multiple test suites"),
     label(simpleAssertion, "correctly reports failure of simple assertion"),
-    label(multipleNestedFailures, "correctly reports multiple nested failures")
+    label(multipleNestedFailures, "correctly reports multiple nested failures"),
+    label(labeledFailures, "correctly reports labeled failures")
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
@@ -53,7 +54,7 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     )
   )
 
-  val test4 = Spec.test("Failing test", fail(Cause.fail("Fail")))
+  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")))
 
   val test4Expected = Vector(
     expectedFailure("Failing test"),
@@ -84,6 +85,26 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     ),
     withOffset(2)(
       s"${blue("Right(Some(3))")} did not satisfy ${cyan("isRight(" + yellowThenCyan("isSome(isGreaterThan(4))") + ")")}\n"
+    )
+  )
+
+  val test7 = testM("labeled failures") {
+    for {
+      a <- ZIO.effectTotal(Some(1))
+      b <- ZIO.effectTotal(Some(1))
+      c <- ZIO.effectTotal(Some(0))
+      d <- ZIO.effectTotal(Some(1))
+    } yield assert(a, isSome(equalTo(1)).label("first")) &&
+      assert(b, isSome(equalTo(1)).label("second")) &&
+      assert(c, isSome(equalTo(1)).label("third")) &&
+      assert(d, isSome(equalTo(1)).label("fourth"))
+  }
+
+  val test7Expected = Vector(
+    expectedFailure("labeled failures"),
+    withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
+    withOffset(2)(
+      s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(" + yellowThenCyan("equalTo(1)") + ") ?? \"third\")")}\n"
     )
   )
 
@@ -138,13 +159,16 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
   def multipleNestedFailures =
     check(test6, test6Expected :+ reportStats(0, 0, 1))
 
+  def labeledFailures =
+    check(test7, test7Expected :+ reportStats(0, 0, 1))
+
   def check[E](spec: ZSpec[TestEnvironment, String, String, Unit], expected: Vector[String]): Future[Boolean] =
     unsafeRunWith(testEnvironmentManaged) { r =>
       val zio = for {
         _ <- TestTestRunner(r)
               .run(spec)
-              .provideSomeM(for {
-                logSvc   <- TestLogger.fromConsoleM
+              .provideSomeManaged(for {
+                logSvc   <- TestLogger.fromConsoleM.toManaged_
                 clockSvc <- TestClock.make(TestClock.DefaultData)
               } yield new TestLogger with Clock {
                 override def testLogger: TestLogger.Service = logSvc.testLogger
@@ -159,7 +183,7 @@ object DefaultTestReporterSpec extends AsyncBaseSpec {
     unsafeRunToFuture(r.use[Any, E, A](f))
 
   def TestTestRunner(testEnvironment: TestEnvironment) =
-    TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Unit]], String, Unit](
+    TestRunner[TestEnvironment, String, Unit, String, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](Managed.succeed(testEnvironment)),
       reporter = DefaultTestReporter()
     )

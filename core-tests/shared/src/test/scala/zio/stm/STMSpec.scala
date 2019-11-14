@@ -66,13 +66,13 @@ object STMSpec
         suite("Make a new `TRef` and")(
           testM("get its initial value") {
             (for {
-              intVar <- TRef(14)
+              intVar <- TRef.make(14)
               v      <- intVar.get
             } yield assert(v, equalTo(14))).commit
           },
           testM("set a new value") {
             (for {
-              intVar <- TRef(14)
+              intVar <- TRef.make(14)
               _      <- intVar.set(42)
               v      <- intVar.get
             } yield assert(v, equalTo(42))).commit
@@ -93,7 +93,7 @@ object STMSpec
             for {
               tVars <- STM
                         .atomically(
-                          TRef(10000) <*> TRef(0) <*> TRef(0)
+                          TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
                         )
               tvar1 <*> tvar2 <*> tvar3 = tVars
               fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
@@ -263,11 +263,12 @@ object STMSpec
             },
             testM("interrupt the fiber and observe it, it should be resumed with Interrupted Cause") {
               for {
+                selfId  <- ZIO.fiberId
                 v       <- TRef.makeCommit(1)
                 f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
                 _       <- f.interrupt
                 observe <- f.join.sandbox.either
-              } yield assert(observe, isLeft(equalTo(Cause.interrupt)))
+              } yield assert(observe, isLeft(equalTo(Cause.interrupt(selfId))))
             }
           ),
           testM("Using `collect` filter and map simultaneously the value produced by the transaction") {
@@ -302,7 +303,7 @@ object STMSpec
           "Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values"
         ) {
           for {
-            it    <- UIO((1 to 100).map(TRef(_)))
+            it    <- UIO((1 to 100).map(TRef.make(_)))
             tvars <- STM.collectAll(it).commit
             res   <- UIO.collectAllPar(tvars.map(_.get.commit))
           } yield assert(res, equalTo((1 to 100).toList))
@@ -373,7 +374,7 @@ object STMSpec
           },
           testM("local reset, not global") {
             for {
-              ref <- TRef(0).commit
+              ref <- TRef.make(0).commit
               result <- STM.atomically(for {
                          _       <- ref.set(2)
                          newVal1 <- ref.get

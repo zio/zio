@@ -27,8 +27,8 @@ sealed abstract class InterruptStatus extends Serializable with Product {
   private[zio] final def toBoolean: Boolean = isInterruptible
 }
 object InterruptStatus {
-  def interruptible: InterruptStatus   = Interruptible
-  def uninterruptible: InterruptStatus = Uninterruptible
+  final def interruptible: InterruptStatus   = Interruptible
+  final def uninterruptible: InterruptStatus = Uninterruptible
 
   /**
    * Indicates the fiber can be interrupted right now.

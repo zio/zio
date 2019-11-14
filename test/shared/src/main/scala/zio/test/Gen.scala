@@ -18,7 +18,7 @@ package zio.test
 
 import scala.collection.immutable.SortedMap
 
-import zio.{ Schedule, UIO, ZIO }
+import zio.{ UIO, ZIO }
 import zio.random._
 import zio.stream.{ Stream, ZStream }
 
@@ -92,7 +92,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of alphanumeric characters. Shrinks toward '0'.
    */
   final val alphaNumericChar: Gen[Random, Char] =
-    weighted((char(48, 57), 10), (char(65, 122), 52))
+    weighted(char(48, 57) -> 10, char(65, 90) -> 26, char(97, 122) -> 26)
+
+  /**
+   * A generator of alphanumeric strings. Shrinks towards the empty string.
+   */
+  final val alphaNumericString: Gen[Random with Sized, String] =
+    Gen.string(alphaNumericChar)
 
   /**
    * A generator of bytes. Shrinks toward '0'.
@@ -290,7 +296,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
       val difference = max - min + 1
       val effect =
         if (difference > 0) nextLong(difference).map(min + _)
-        else nextLong.repeat(Schedule.doUntil(n => min <= n && n <= max))
+        else nextLong.doUntil(n => min <= n && n <= max)
       effect.map(Sample.shrinkIntegral(min))
     }
 

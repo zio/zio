@@ -22,9 +22,11 @@ import scala.collection.immutable.{ Queue => ScalaQueue }
 
 class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   final def offer(a: A): STM[Nothing, Unit] =
-    (ref.get
-      .flatMap(q => STM.check(q.length < capacity))
-      *> ref.update(_ enqueue a)).unit
+    for {
+      q <- ref.get
+      _ <- STM.check(q.length < capacity)
+      _ <- ref.update(_.enqueue(a))
+    } yield ()
 
   // TODO: Scala doesn't allow Iterable???
   @silent("enqueueAll")
@@ -54,6 +56,6 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       .map(_.toList)
 }
 object TQueue {
-  final def apply[A](capacity: Int): STM[Nothing, TQueue[A]] =
-    TRef(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
+  final def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
+    TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 }
