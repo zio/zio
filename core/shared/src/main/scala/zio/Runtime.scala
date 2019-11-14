@@ -94,9 +94,7 @@ trait Runtime[+R] {
       Platform.newWeakHashMap()
     )
 
-    Fiber._rootFibers.add(context)
-
-    context.onDone(_ => { val _ = Fiber._rootFibers.remove(context) })
+    Fiber.track(context)
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)

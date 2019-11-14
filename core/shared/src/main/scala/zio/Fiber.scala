@@ -22,7 +22,6 @@ import scala.concurrent.Future
 import scala.collection.JavaConverters._
 import com.github.ghik.silencer.silent
 import zio.internal.stacktracer.ZTraceElement
-import java.util.concurrent.TimeUnit
 
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
@@ -104,6 +103,20 @@ trait Fiber[+E, +A] { self =>
 
   @deprecated("use as", "1.0.0")
   final def const[B](b: => B): Fiber[E, B] = self as b
+
+  /**
+   * Generates a fiber dump, if the fiber is not synthetic.
+   */
+  final def dump: UIO[Option[Fiber.Dump]] =
+    for {
+      name   <- self.getRef(Fiber.fiberName)
+      id     <- self.id
+      status <- self.status
+      trace  <- self.trace
+    } yield for {
+      id    <- id
+      trace <- trace
+    } yield Fiber.Dump(id, name, status, trace)
 
   /**
    * Gets the value of the fiber ref for this fiber, or the initial value of
@@ -431,7 +444,9 @@ object Fiber {
      *     at ...
      * }}}
      */
-    final def prettyPrintM: URIO[clock.Clock, String] = clock.currentTime(TimeUnit.MILLISECONDS).map { time =>
+    final def prettyPrintM: UIO[String] = UIO {
+      val time = System.currentTimeMillis()
+
       val millis  = (time - fiberId.startTimeMillis)
       val seconds = millis / 1000L
       val minutes = seconds / 60L
@@ -447,7 +462,7 @@ object Fiber {
         case Running => ""
         case Suspended(_, _, blockingOn, _) =>
           if (blockingOn.nonEmpty)
-            " waiting on " + blockingOn.map(id => s"${id.seqNumber}").mkString(", ")
+            "waiting on " + blockingOn.map(id => s"#${id.seqNumber}").mkString(", ")
           else ""
       }
       val statMsg = status match {
@@ -461,10 +476,10 @@ object Fiber {
       }
 
       s"""
-      ${name}#${fiberId.seqNumber} (${lifeMsg}) ${waitMsg}}
-         Status: ${statMsg}
-      ${trace.prettyPrint}
-      """.stripMargin
+         |${name}#${fiberId.seqNumber} (${lifeMsg}) ${waitMsg}
+         |   Status: ${statMsg}
+         |${trace.prettyPrint}
+         |""".stripMargin
     }
   }
 
@@ -556,16 +571,9 @@ object Fiber {
     def loop(fibers: Iterable[FiberContext[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
       ZIO
         .collectAll(fibers.toIterable.map { context =>
-          for {
-            name     <- context.getRef(fiberName)
-            id       <- context.id
-            status   <- context.status
-            trace    <- context.trace
-            children <- context.children
-          } yield for {
-            id    <- id
-            trace <- trace
-          } yield (children, Dump(id, name, status, trace))
+          (context.children zip context.dump).map {
+            case (children, dump) => dump.map(dump => (children, dump))
+          }
         })
         .flatMap { (collected: List[Option[(Iterable[Fiber[Any, Any]], Dump)]]) =>
           val collected1 = collected.collect { case Some(a) => a }
@@ -729,10 +737,16 @@ object Fiber {
 
   private[zio] def newFiberId(): Fiber.Id = Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())
 
+  private[zio] def track[E, A](context: internal.FiberContext[E, A]): Unit = {
+    Fiber._rootFibers.add(context)
+
+    context.onDone(_ => { val _ = Fiber._rootFibers.remove(context) })
+  }
+
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
 
-  private[zio] val _rootFibers: java.util.Set[internal.FiberContext[_, _]] =
+  private val _rootFibers: java.util.Set[internal.FiberContext[_, _]] =
     internal.Platform.newConcurrentSet[internal.FiberContext[_, _]]()
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0)
