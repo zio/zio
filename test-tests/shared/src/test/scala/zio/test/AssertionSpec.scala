@@ -23,21 +23,6 @@ object AssertionSpec
         test("approximatelyEquals must fail when number is not within range") {
           assert(50.0, approximatelyEquals(5.0, 3.0))
         } @@ failure,
-        test("assertCompiles must succeed when string is valid code") {
-          assertCompiles("1 + 1")
-        },
-        test("assertCompiles must fail when string is not valid Scala code") {
-          assertCompiles("1 ++ 1")
-        } @@ failure,
-        test("assertCompiles must report error messages on Scala 2") {
-          assert(
-            assertCompiles("1 ++ 1").failures match {
-              case Some(Value(failure)) => Some(failure.assertion.head.value)
-              case _                    => None
-            },
-            isSome(equalTo(Some("value ++ is not a member of Int")))
-          )
-        } @@ scala2Only,
         test("contains must succeed when iterable contains specified element") {
           assert(Seq("zio", "scala"), contains("zio"))
         },
@@ -308,14 +293,6 @@ object AssertionSpec
         test("throws must succeed when given assertion is correct") {
           assert(throw sampleException, throws(equalTo(sampleException)))
         }
-        test(
-          "hasSameElements must fail when both iterables have the same size, have the same values but they appear a different number of times."
-        ) {
-          assert(
-            Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"),
-            hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
-          )
-        } @@ failure
       )
     )
 
