@@ -11,7 +11,8 @@ object TestMain {
       ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("SummaryBuilderSpec", SummaryBuilderSpec),
       ("GenSpec", GenSpec),
-      ("SampleSpec", SampleSpec)
+      ("SampleSpec", SampleSpec),
+      ("TimeVariantsSpec", TimeVariantsSpec)
     )
 
     val selectedTests = args match {
