@@ -3,7 +3,6 @@ package zio.test
 import zio.Exit
 import zio.test.Assertion._
 import zio.test.AssertionSpecHelper._
-import zio.test.BoolAlgebra.Value
 import zio.test.TestAspect._
 
 object AssertionSpec
@@ -281,22 +280,7 @@ object AssertionSpec
             Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"),
             hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
           )
-        } @@ failure,
-        test("assertCompiles must succeed when string is valid code") {
-          assertCompiles("1 + 1")
-        },
-        test("assertCompiles must fail when string is not valid Scala code") {
-          assertCompiles("1 ++ 1")
-        } @@ failure,
-        test("assertCompiles must report error messages on Scala 2") {
-          assert(
-            assertCompiles("1 ++ 1").failures match {
-              case Some(Value(failure)) => Some(failure.assertion.head.value)
-              case _                    => None
-            },
-            isSome(equalTo(Some("value ++ is not a member of Int")))
-          )
-        } @@ scala2Only
+        } @@ failure
       )
     )
 
