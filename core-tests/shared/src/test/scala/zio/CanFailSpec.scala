@@ -2,12 +2,12 @@ package zio
 
 import zio.test.{ test => test0, _ }
 
-object CanFailSpec
-    extends ZIOBaseSpec(
-      suite("CanFailSpec")(
-        test0("useful combinators compile") {
-          assertCompiles {
-            """
+object CanFailSpec extends ZIOBaseSpec {
+
+  def spec = suite("CanFailSpec")(
+    test0("useful combinators compile") {
+      assertCompiles {
+        """
             import zio._
 
             val io =  IO(1 / 0)
@@ -15,11 +15,11 @@ object CanFailSpec
 
             io.orElse(uio)
             """
-          }
-        },
-        test0("useless combinators don't compile") {
-          !assertCompiles {
-            """
+      }
+    },
+    test0("useless combinators don't compile") {
+      !assertCompiles {
+        """
             import zio._
 
             val io =  IO(1 / 0)
@@ -27,7 +27,7 @@ object CanFailSpec
 
             uio.orElse(io)
             """
-          }
-        }
-      )
-    )
+      }
+    }
+  )
+}

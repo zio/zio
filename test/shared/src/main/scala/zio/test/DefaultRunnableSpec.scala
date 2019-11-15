@@ -23,6 +23,7 @@ import zio.test.environment.TestEnvironment
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
  */
+@deprecated("use RunnableSpec", "1.0.0")
 abstract class DefaultRunnableSpec(
   spec0: => ZSpec[TestEnvironment, Any, String, Any],
   aspects0: List[TestAspect[Nothing, TestEnvironment, Nothing, Any, Nothing, Any]] = List(

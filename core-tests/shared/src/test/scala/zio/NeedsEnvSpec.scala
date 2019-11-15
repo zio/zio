@@ -2,12 +2,12 @@ package zio
 
 import zio.test.{ test => test0, _ }
 
-object NeedsEnvSpec
-    extends ZIOBaseSpec(
-      suite("NeedsEnvSpec")(
-        test0("useful combinators compile") {
-          assertCompiles {
-            """
+object NeedsEnvSpec extends ZIOBaseSpec {
+
+  def spec = suite("NeedsEnvSpec")(
+    test0("useful combinators compile") {
+      assertCompiles {
+        """
             import zio._
             import zio.console._
 
@@ -15,11 +15,11 @@ object NeedsEnvSpec
 
             sayHello.provide(Console.Live)
             """
-          }
-        },
-        test0("useless combinators don't compile") {
-          !assertCompiles {
-            """
+      }
+    },
+    test0("useless combinators don't compile") {
+      !assertCompiles {
+        """
             import zio._
             import zio.console._
 
@@ -27,7 +27,7 @@ object NeedsEnvSpec
 
             uio.provide(Clock.Live)
             """
-          }
-        }
-      )
-    )
+      }
+    }
+  )
+}

@@ -1,66 +1,61 @@
 package zio.test.environment
 
-import zio.test.Assertion._
-import zio.test.environment.RandomSpecUtil._
-import zio.test.environment.TestRandom.DefaultData
-import zio.test.{ assert, suite, testM, TestResult, ZIOBaseSpec }
+import scala.util.{ Random => SRandom }
+
 import zio._
+import zio.test.{ assert, suite, testM, TestResult, ZIOBaseSpec }
+import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
+import zio.test.Assertion._
 
-object RandomSpec
-    extends ZIOBaseSpec(
-      suite("RandomSpec")(
-        testM("check clearBooleans")(checkClear(_.nextBoolean)(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
-        testM("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
-        testM("check clearChars")(
-          checkClear(_.nextPrintableChar)(_.feedChars(_: _*))(_.clearChars)(_.nextPrintableChar)
-        ),
-        testM("check clearDoubles")(checkClear(_.nextDouble)(_.feedDoubles(_: _*))(_.clearDoubles)(_.nextDouble)),
-        testM("check clearFloats")(checkClear(_.nextFloat)(_.feedFloats(_: _*))(_.clearFloats)(_.nextFloat)),
-        testM("check clearInts")(checkClear(_.nextInt)(_.feedInts(_: _*))(_.clearInts)(_.nextInt)),
-        testM("check clearLongs")(checkClear(_.nextLong)(_.feedLongs(_: _*))(_.clearLongs)(_.nextLong)),
-        testM("check clearStrings")(checkClear(_.nextString(1))(_.feedStrings(_: _*))(_.clearStrings)(_.nextString(1))),
-        testM("check feedBooleans")(checkFeed(_.nextBoolean)(_.feedBooleans(_: _*))(_.nextBoolean)),
-        testM("check feedBytes")(checkFeed(nextBytes(1))(_.feedBytes(_: _*))(_.nextBytes(1))),
-        testM("check feedChars")(checkFeed(_.nextPrintableChar)(_.feedChars(_: _*))(_.nextPrintableChar)),
-        testM("check feedDoubles")(checkFeed(_.nextDouble)(_.feedDoubles(_: _*))(_.nextDouble)),
-        testM("check feedFloats")(checkFeed(_.nextFloat)(_.feedFloats(_: _*))(_.nextFloat)),
-        testM("check feedInts")(checkFeed(_.nextInt)(_.feedInts(_: _*))(_.nextInt)),
-        testM("check feedLongs")(checkFeed(_.nextLong)(_.feedLongs(_: _*))(_.nextLong)),
-        testM("check feedStrings")(checkFeed(_.nextString(1))(_.feedStrings(_: _*))(_.nextString(1))),
-        testM("check nextBoolean")(forAllEqual(_.nextBoolean)(_.nextBoolean())),
-        testM("check nextBytes")(forAllEqualBytes),
-        testM("check nextDouble")(forAllEqual(_.nextDouble)(_.nextDouble())),
-        testM("check nextFloat")(forAllEqual(_.nextFloat)(_.nextFloat())),
-        testM("check nextGaussian")(forAllEqualGaussian),
-        testM("check nextInt")(forAllEqual(_.nextInt)(_.nextInt())),
-        testM("check nextLong")(forAllEqual(_.nextLong)(_.nextLong())),
-        testM("check nextPrintableChar")(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar())),
-        testM("check nextString")(forAllEqualN(_.nextString(_))(_.nextString(_))),
-        testM("bounded nextInt")(forAllEqualN(_.nextInt(_))(_.nextInt(_))),
-        testM("bounded nextInt generates values within the bounds")(forAllBounded(_.nextInt)(_.nextInt(_))),
-        testM("bounded nextLong generates values within the bounds")(forAllBounded(_.nextLong)(_.nextLong(_))),
-        testM("shuffle")(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_))),
-        testM("referential transparency") {
-          val test = TestRandom.makeTest(DefaultData)
-          ZIO
-            .runtime[Any]
-            .map(rt => {
-              val x = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
-              val y = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
-              assert(x, equalTo(y))
-            })
-        }
-      )
-    )
+object RandomSpec extends ZIOBaseSpec {
 
-object RandomSpecUtil {
-
-  import scala.util.{ Random => SRandom }
-  import zio.test.environment.TestRandom.Test
+  def spec = suite("RandomSpec")(
+    testM("check clearBooleans")(checkClear(_.nextBoolean)(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
+    testM("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
+    testM("check clearChars")(
+      checkClear(_.nextPrintableChar)(_.feedChars(_: _*))(_.clearChars)(_.nextPrintableChar)
+    ),
+    testM("check clearDoubles")(checkClear(_.nextDouble)(_.feedDoubles(_: _*))(_.clearDoubles)(_.nextDouble)),
+    testM("check clearFloats")(checkClear(_.nextFloat)(_.feedFloats(_: _*))(_.clearFloats)(_.nextFloat)),
+    testM("check clearInts")(checkClear(_.nextInt)(_.feedInts(_: _*))(_.clearInts)(_.nextInt)),
+    testM("check clearLongs")(checkClear(_.nextLong)(_.feedLongs(_: _*))(_.clearLongs)(_.nextLong)),
+    testM("check clearStrings")(checkClear(_.nextString(1))(_.feedStrings(_: _*))(_.clearStrings)(_.nextString(1))),
+    testM("check feedBooleans")(checkFeed(_.nextBoolean)(_.feedBooleans(_: _*))(_.nextBoolean)),
+    testM("check feedBytes")(checkFeed(nextBytes(1))(_.feedBytes(_: _*))(_.nextBytes(1))),
+    testM("check feedChars")(checkFeed(_.nextPrintableChar)(_.feedChars(_: _*))(_.nextPrintableChar)),
+    testM("check feedDoubles")(checkFeed(_.nextDouble)(_.feedDoubles(_: _*))(_.nextDouble)),
+    testM("check feedFloats")(checkFeed(_.nextFloat)(_.feedFloats(_: _*))(_.nextFloat)),
+    testM("check feedInts")(checkFeed(_.nextInt)(_.feedInts(_: _*))(_.nextInt)),
+    testM("check feedLongs")(checkFeed(_.nextLong)(_.feedLongs(_: _*))(_.nextLong)),
+    testM("check feedStrings")(checkFeed(_.nextString(1))(_.feedStrings(_: _*))(_.nextString(1))),
+    testM("check nextBoolean")(forAllEqual(_.nextBoolean)(_.nextBoolean())),
+    testM("check nextBytes")(forAllEqualBytes),
+    testM("check nextDouble")(forAllEqual(_.nextDouble)(_.nextDouble())),
+    testM("check nextFloat")(forAllEqual(_.nextFloat)(_.nextFloat())),
+    testM("check nextGaussian")(forAllEqualGaussian),
+    testM("check nextInt")(forAllEqual(_.nextInt)(_.nextInt())),
+    testM("check nextLong")(forAllEqual(_.nextLong)(_.nextLong())),
+    testM("check nextPrintableChar")(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar())),
+    testM("check nextString")(forAllEqualN(_.nextString(_))(_.nextString(_))),
+    testM("bounded nextInt")(forAllEqualN(_.nextInt(_))(_.nextInt(_))),
+    testM("bounded nextInt generates values within the bounds")(forAllBounded(_.nextInt)(_.nextInt(_))),
+    testM("bounded nextLong generates values within the bounds")(forAllBounded(_.nextLong)(_.nextLong(_))),
+    testM("shuffle")(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_))),
+    testM("referential transparency") {
+      val test = TestRandom.makeTest(DefaultData)
+      ZIO
+        .runtime[Any]
+        .map(rt => {
+          val x = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
+          val y = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
+          assert(x, equalTo(y))
+        })
+    }
+  )
 
   def checkClear[A](generate: SRandom => A)(
-    feed: (Test, List[A]) => UIO[Unit]
-  )(clear: Test => UIO[Unit])(extract: Test => UIO[A]): ZIO[TestRandom, Nothing, TestResult] = {
+    feed: (ZRandom, List[A]) => UIO[Unit]
+  )(clear: ZRandom => UIO[Unit])(extract: ZRandom => UIO[A]): ZIO[TestRandom, Nothing, TestResult] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     for {
@@ -72,9 +67,10 @@ object RandomSpecUtil {
       random     <- extract(testRandom)
     } yield assert(random, equalTo(generate(new SRandom(seed))))
   }
+
   def checkFeed[A](
     generate: SRandom => A
-  )(feed: (Test, List[A]) => UIO[Unit])(extract: Test => UIO[A]): ZIO[TestRandom, Nothing, TestResult] = {
+  )(feed: (ZRandom, List[A]) => UIO[Unit])(extract: ZRandom => UIO[A]): ZIO[TestRandom, Nothing, TestResult] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     for {
@@ -96,7 +92,7 @@ object RandomSpecUtil {
     Chunk.fromArray(arr)
   }
 
-  def forAllEqual[A](f: Test => UIO[A])(g: SRandom => A): ZIO[Any, Nothing, TestResult] = {
+  def forAllEqual[A](f: ZRandom => UIO[A])(g: SRandom => A): ZIO[Any, Nothing, TestResult] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     for {
@@ -132,7 +128,7 @@ object RandomSpecUtil {
     } yield assert(actual.zip(expected).forall { case (x, y) => math.abs(x - y) < 0.01 }, equalTo(true))
   }
 
-  def forAllEqualN[A](f: (Test, Int) => UIO[A])(g: (SRandom, Int) => A): ZIO[Any, Nothing, TestResult] = {
+  def forAllEqualN[A](f: (ZRandom, Int) => UIO[A])(g: (SRandom, Int) => A): ZIO[Any, Nothing, TestResult] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
     for {
@@ -144,7 +140,7 @@ object RandomSpecUtil {
   }
 
   def forAllEqualShuffle(
-    f: (Test, List[Int]) => UIO[List[Int]]
+    f: (ZRandom, List[Int]) => UIO[List[Int]]
   )(g: (SRandom, List[Int]) => List[Int]): ZIO[Any, Nothing, TestResult] = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
@@ -156,7 +152,7 @@ object RandomSpecUtil {
     } yield assert(actual, equalTo(expected))
   }
 
-  def forAllBounded[A: Numeric](bound: SRandom => A)(f: (Test, A) => UIO[A]): ZIO[Any, Nothing, TestResult] = {
+  def forAllBounded[A: Numeric](bound: SRandom => A)(f: (ZRandom, A) => UIO[A]): ZIO[Any, Nothing, TestResult] = {
     val num = implicitly[Numeric[A]]
     import num._
     val seed    = SRandom.nextLong()
