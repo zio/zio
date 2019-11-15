@@ -43,7 +43,7 @@ class GenBenchmarks {
   @Benchmark
   def scalaCheckStringsOfSizeN: List[String] =
     scalacheck.Gen
-      .listOfN(listSize, scalacheck.Gen.listOfN(elementSize, scalacheck.Gen.alphaChar).sample.mkString)
+      .listOfN(listSize, scalacheck.Gen.listOfN(elementSize, scalacheck.Gen.alphaChar).map(_.mkString))
       .sample
       .get
 
