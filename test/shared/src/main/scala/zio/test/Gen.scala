@@ -28,15 +28,29 @@ import zio.stream.{ Stream, ZStream }
  */
 case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
+  /**
+   * A symbolic alias for `zip`.
+   */
   final def <&>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zip(that)
 
+  /**
+   * A symbolic alias for `cross`.
+   */
   final def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.cross(that)
 
+  /**
+   * Composes this generator with the specified generator to create a cartesian
+   * product of elements.
+   */
   final def cross[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.crossWith(that)((_, _))
 
+  /**
+   * Composes this generator with the specified generator to create a cartesian
+   * product of elements with the specified function.
+   */
   final def crossWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 
@@ -88,9 +102,19 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
   final def reshrink[R1 <: R, B](f: A => Sample[R1, B]): Gen[R1, B] =
     Gen(sample.map(sample => f(sample.value)))
 
+  /**
+   * Zips two generators together pairwise. The new generator will generate
+   * elements as long as either generator is generating elements, running the
+   * other generator multiple times if necessary.
+   */
   final def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zipWith(that)((_, _))
 
+  /**
+   * Zips two generators together pairwise with the specified function. The new
+   * generator will generate elements as long as either generator is generating
+   * elements, running the other generator multiple times if necessary.
+   */
   final def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
     val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
     val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever

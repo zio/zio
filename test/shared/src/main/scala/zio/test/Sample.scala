@@ -25,15 +25,29 @@ import zio.stream.{ Take, ZStream }
  */
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
+  /**
+   * A symbolic alias for `zip`.
+   */
   final def <&>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.zip(that)
 
+  /**
+   * A symbolic alias for `cross`.
+   */
   final def <*>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.cross(that)
 
+  /**
+   * Composes this sample with the specified sample to create a cartesian
+   * product of values and shrinkings.
+   */
   final def cross[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.crossWith(that)((_, _))
 
+  /**
+   * Composes this sample with the specified sample to create a cartesian
+   * product of values and shrinkings with the specified function.
+   */
   final def crossWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 
@@ -69,9 +83,15 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   final def traverse[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): ZIO[R1, Nothing, Sample[R1, B]] =
     f(value).map(Sample(_, shrink.mapM(_.traverse(f))))
 
+  /**
+   * Zips two samples together pairwise.
+   */
   final def zip[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.zipWith(that)((_, _))
 
+  /**
+   * Zips two samples together pairwise with the specified function.
+   */
   final def zipWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] = {
     type State = (Boolean, Boolean, Option[Sample[R, A]], Option[Sample[R1, B]])
     val value = f(self.value, that.value)
