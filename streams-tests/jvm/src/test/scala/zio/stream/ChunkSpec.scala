@@ -1,8 +1,6 @@
 package zio.stream
 
-import zio.Chunk
-import zio.{ IO, UIO }
-import zio.ZIOBaseSpec
+import zio.{ Chunk, IO, UIO, ZIOBaseSpec }
 import zio.random.Random
 import zio.test._
 import zio.test.Assertion.{ equalTo, isLeft }
@@ -113,6 +111,17 @@ object ChunkSpec
             assert(c.toArray.toSeq, equalTo(c.toSeq))
           }
         },
+        test("non-homogeneous element type") {
+          trait Animal
+          trait Cat extends Animal
+          trait Dog extends Animal
+
+          val vector   = Vector(new Cat {}, new Dog {}, new Animal {})
+          val actual   = Chunk.fromIterable(vector).map(identity)
+          val expected = Chunk.fromArray(vector.toArray)
+
+          assert(actual, equalTo(expected))
+        },
         test("toArray for an empty Chunk of type String") {
           assert(Chunk.empty.toArray[String], equalTo(Array.empty[String]))
         },
@@ -128,24 +137,62 @@ object ChunkSpec
           val v: Vector[Any] = Vector("String", 1, Value(2))
           assert(Chunk.fromIterable(v).toArray.toVector, equalTo(v))
         },
-        test("collect for empty Chunk") {
-          assert(Chunk.empty.collect { case _ => 1 } == Chunk.empty, Assertion.isTrue)
-        },
-        testM("collect chunk") {
-          val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
-          check(mediumChunks(intGen), pfGen) { (c, pf) =>
-            assert(c.collect(pf).toSeq, equalTo(c.toSeq.collect(pf)))
+        suite("collect")(
+          test("collect empty Chunk") {
+            assert(Chunk.empty.collect { case _ => 1 } == Chunk.empty, Assertion.isTrue)
+          },
+          testM("collect chunk") {
+            val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
+            check(mediumChunks(intGen), pfGen) { (c, pf) =>
+              assert(c.collect(pf).toSeq, equalTo(c.toSeq.collect(pf)))
+            }
           }
-        },
-        test("collectWhile for empty Chunk") {
-          assert(Chunk.empty.collectWhile { case _ => 1 } == Chunk.empty, Assertion.isTrue)
-        },
-        testM("collectWhile chunk") {
-          val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
-          check(mediumChunks(intGen), pfGen) { (c, pf) =>
-            assert(c.collectWhile(pf).toSeq, equalTo(c.toSeq.takeWhile(pf.isDefinedAt).map(pf.apply)))
+        ),
+        suite("collectM")(
+          testM("collectM empty Chunk") {
+            assertM(Chunk.empty.collectM { case _ => UIO.succeed(1) }, equalTo(Chunk.empty))
+          },
+          testM("collectM chunk") {
+            val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[String]](Gen.successes(stringGen))
+            checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
+              for {
+                result   <- c.collectM(pf).map(_.toList)
+                expected <- UIO.sequence(c.toList.collect(pf))
+              } yield assert(result, equalTo(expected))
+            }
+          },
+          testM("collectM chunk that fails") {
+            Chunk(1, 2).collectM { case 2 => IO.fail("Ouch") }.either.map(assert(_, isLeft(equalTo("Ouch"))))
           }
-        },
+        ),
+        suite("collectWhile")(
+          test("collectWhile empty Chunk") {
+            assert(Chunk.empty.collectWhile { case _ => 1 } == Chunk.empty, Assertion.isTrue)
+          },
+          testM("collectWhile chunk") {
+            val pfGen = Gen.partialFunction[Random with Sized, Int, String](stringGen)
+            check(mediumChunks(intGen), pfGen) { (c, pf) =>
+              assert(c.collectWhile(pf).toSeq, equalTo(c.toSeq.takeWhile(pf.isDefinedAt).map(pf.apply)))
+            }
+          }
+        ),
+        suite("collectWhileM")(
+          testM("collectWhileM empty Chunk") {
+            assertM(Chunk.empty.collectWhileM { case _ => UIO.succeed(1) }, equalTo(Chunk.empty))
+          },
+          testM("collectWhileM chunk") {
+            val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[String]](Gen.successes(stringGen))
+            checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
+              for {
+                result   <- c.collectWhileM(pf).map(_.toList)
+                expected <- UIO.sequence(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply))
+              } yield assert(result, equalTo(expected))
+            }
+          },
+          testM("collectWhileM chunk that fails") {
+            Chunk(1, 2).collectWhileM { case _ => IO.fail("Ouch") }.either.map(assert(_, isLeft(equalTo("Ouch"))))
+          }
+        ),
         testM("foreach") {
           check(mediumChunks(intGen)) { c =>
             var sum = 0

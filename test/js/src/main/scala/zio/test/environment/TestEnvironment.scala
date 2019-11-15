@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ DefaultRuntime, Managed, ZEnv }
+import zio.{ Managed, ZEnv }
 import zio.scheduler.Scheduler
 import zio.test.Sized
 
@@ -88,7 +88,7 @@ object TestEnvironment extends Serializable {
 
   val Value: Managed[Nothing, TestEnvironment] =
     for {
-      live    <- Live.makeService(new DefaultRuntime {}.Environment).toManaged_
+      live    <- Live.makeService(LiveEnvironment).toManaged_
       clock   <- TestClock.makeTest(TestClock.DefaultData, Some(live))
       console <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
       random  <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_

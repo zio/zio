@@ -84,6 +84,20 @@ object CauseSpec
             }
           }
         ),
+        suite("Empty")(
+          testM("`Empty` is empty element for `Then`") {
+            check(causes) { c =>
+              assert(Then(c, Cause.empty), equalTo(c)) &&
+              assert(Then(Cause.empty, c), equalTo(c))
+            }
+          },
+          testM("`Empty` is empty element for `Both`") {
+            check(causes) { c =>
+              assert(Both(c, Cause.empty), equalTo(c)) &&
+              assert(Both(Cause.empty, c), equalTo(c))
+            }
+          }
+        ),
         suite("Monad Laws:")(
           testM("Left identity") {
             check(causes) { c =>
@@ -114,13 +128,15 @@ object CauseSpecUtil {
       case ((a, b), c) =>
         Gen.elements(
           (a, a),
-          (a, Cause.traced(a, ZTrace(0, Nil, Nil, None))),
+          (a, Cause.traced(a, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))),
           (Then(Then(a, b), c), Then(a, Then(b, c))),
           (Then(a, Both(b, c)), Both(Then(a, b), Then(a, c))),
           (Both(Both(a, b), c), Both(a, Both(b, c))),
           (Both(Then(a, c), Then(b, c)), Then(Both(a, b), c)),
           (Both(a, b), Both(b, a)),
-          (a, Cause.stackless(a))
+          (a, Cause.stackless(a)),
+          (a, Then(a, Cause.empty)),
+          (a, Both(a, Cause.empty))
         )
     }
 

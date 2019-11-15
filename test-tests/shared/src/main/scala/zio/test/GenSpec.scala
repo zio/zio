@@ -15,7 +15,7 @@ object GenSpec extends AsyncBaseSpec {
     label(monadLeftIdentity, "monad left identity"),
     label(monadRightIdentity, "monad right identity"),
     label(monadAssociativity, "monad associativity"),
-    label(alphaNumericCharGeneratesValuesInRange, "alphaNumericChar generates values in range"),
+    label(alphaNumericCharGeneratesLettersAndDigits, "alphaNumericChar generates letter and digits"),
     label(alphaNumericCharShrinksToZero, "alphaNumericChar shrinks to zero"),
     label(anyByteShrinksToZero, "anyByte shrinks to zero"),
     label(anyCharShrinksToZero, "anyChar shrinks to zero"),
@@ -129,10 +129,8 @@ object GenSpec extends AsyncBaseSpec {
     checkEqual(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g)))
   }
 
-  def alphaNumericCharGeneratesValuesInRange: Future[Boolean] =
-    checkSample(Gen.alphaNumericChar)(_.forall { c =>
-      (48 <= c && c <= 57) || (65 <= c && c <= 122)
-    })
+  def alphaNumericCharGeneratesLettersAndDigits: Future[Boolean] =
+    checkSample(Gen.alphaNumericChar)(_.forall(_.isLetterOrDigit))
 
   def alphaNumericCharShrinksToZero: Future[Boolean] =
     checkShrink(Gen.alphaNumericChar)('0')
@@ -428,7 +426,7 @@ object GenSpec extends AsyncBaseSpec {
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
         if (p) assert((), Assertion.anything) else assert((as, bs), Assertion.nothing)
     }
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
@@ -444,7 +442,7 @@ object GenSpec extends AsyncBaseSpec {
   def testShrinkingNonEmptyList: Future[Boolean] = {
     val gen                            = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "List(0)"
@@ -460,7 +458,7 @@ object GenSpec extends AsyncBaseSpec {
       val p = n % 2 == 0
       if (p) assert((), Assertion.anything) else assert(n, Assertion.nothing)
     }
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "1"
