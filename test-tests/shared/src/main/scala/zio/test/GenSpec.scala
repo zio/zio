@@ -426,7 +426,7 @@ object GenSpec extends AsyncBaseSpec {
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
         if (p) assert((), Assertion.anything) else assert((as, bs), Assertion.nothing)
     }
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
@@ -442,7 +442,7 @@ object GenSpec extends AsyncBaseSpec {
   def testShrinkingNonEmptyList: Future[Boolean] = {
     val gen                            = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "List(0)"
@@ -458,7 +458,7 @@ object GenSpec extends AsyncBaseSpec {
       val p = n % 2 == 0
       if (p) assert((), Assertion.anything) else assert(n, Assertion.nothing)
     }
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "1"
