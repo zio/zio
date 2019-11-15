@@ -51,7 +51,7 @@ object StackTracesSpecUtil {
     } yield (t1, t2)
 }
 
-object StackTracesSpec2 extends ZIOBaseSpec (
+object StackTracesSpec_ToZioMigration extends ZIOBaseSpec (
   suite("StackTracesSpec")(
     testM("basic test") {
       for {
@@ -98,7 +98,7 @@ object StackTracesSpec2 extends ZIOBaseSpec (
   )
 )
 
-class StackTracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent.ExecutionEnv)
   extends TestRuntime
     with mutable.SpecificationLike {
 
@@ -107,10 +107,6 @@ class StackTracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   // set to true to print traces
   private val debug = false
 
-//  "basic test" >> basicTest
-
-//  "foreach" >> foreachTrace
-//  "foreach fail" >> foreachFail
   "foreachPar fail" >> foreachParFail
   "foreachParN fail" >> foreachParNFail
 
@@ -181,75 +177,6 @@ class StackTracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         },
         _ => failure
       )
-  }
-
-  def basicTest = {
-    val io = for {
-      _ <- ZIO.unit
-      trace <- ZIO.trace
-    } yield trace
-
-    unsafeRun(io) must { trace: ZTrace =>
-      show(trace)
-
-      (trace.executionTrace must have size 1) and
-        (trace.executionTrace must mentionMethod("basicTest")) and
-        (trace.stackTrace must have size 2) and
-        (trace.stackTrace must mentionMethod("basicTest"))
-    }
-  }
-
-  def foreachTrace = {
-    import foreachTraceFixture._
-
-    val io = for {
-      _ <- effectTotal
-      _ <- ZIO.foreach_(1 to 10)(_ => ZIO.unit *> ZIO.trace)
-      trace <- ZIO.trace
-    } yield trace
-
-    unsafeRun(io) must { trace: ZTrace =>
-      show(trace)
-
-      (trace.stackTrace must have size 2) and
-        (trace.stackTrace must mentionMethod("foreachTrace")) and
-        (trace.executionTrace must mentionMethod("foreachTrace")) and
-        (trace.executionTrace must mentionMethod("foreach_")) and
-        (trace.executionTrace must mentionMethod("effectTotal"))
-    }
-  }
-
-  object foreachTraceFixture {
-    def effectTotal = ZIO.effectTotal(())
-  }
-
-  def foreachFail = {
-    val io = for {
-      t1 <- ZIO
-        .foreach_(1 to 10) { i =>
-          if (i == 7)
-            ZIO.unit *>
-              ZIO.fail("Dummy error!")
-          else
-            ZIO.unit *>
-              ZIO.trace
-        }
-        .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
-      t2 <- ZIO.trace
-    } yield (t1, t2)
-
-    unsafeRun(io) must { r: (ZTrace, ZTrace) =>
-      val (trace1, trace2) = r
-
-      (trace1.stackTrace must mentionMethod("foreach_")) and
-        (trace1.stackTrace must mentionMethod("foreachFail")) and
-        (trace1.executionTrace must mentionMethod("foreach_")) and
-        (trace1.executionTrace must mentionMethod("foreachFail")) and
-        (trace2.stackTrace must have size 2) and
-        (trace2.stackTrace must mentionMethod("foreachFail")) and
-        (trace2.executionTrace must mentionMethod("foreach_")) and
-        (trace2.executionTrace must mentionMethod("foreachFail"))
-    }
   }
 
   def foreachParFail = {
