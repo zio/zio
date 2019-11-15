@@ -26,10 +26,16 @@ import zio.stream.{ Take, ZStream }
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
   final def <&>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
-    self.zipPar(that)
+    self.zip(that)
 
   final def <*>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
-    self.zip(that)
+    self.cross(that)
+
+  final def cross[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
+    self.crossWith(that)((_, _))
+
+  final def crossWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] =
+    self.flatMap(a => that.map(b => f(a, b)))
 
   /**
    * Filters this sample by replacing it with its shrink tree if the value does
@@ -66,13 +72,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   final def zip[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.zipWith(that)((_, _))
 
-  final def zipPar[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
-    self.zipWithPar(that)((_, _))
-
-  final def zipWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] =
-    self.flatMap(a => that.map(b => f(a, b)))
-
-  final def zipWithPar[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] = {
+  final def zipWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] = {
     type State = (Boolean, Boolean, Option[Sample[R, A]], Option[Sample[R1, B]])
     val value = f(self.value, that.value)
     val shrink = self.shrink
@@ -80,15 +80,15 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
         case ((leftDone, rightDone, s1, s2), left, right) =>
           Take.fromPull(left).zipWithPar(Take.fromPull(right)) {
             case (Take.Value(l), Take.Value(r)) =>
-              ((leftDone, rightDone, Some(l), Some(r)), Take.Value(l.zipWithPar(r)(f)))
+              ((leftDone, rightDone, Some(l), Some(r)), Take.Value(zipWith(r)(f)))
             case (Take.Value(l), Take.End) =>
               s2 match {
-                case Some(r) => ((leftDone, rightDone, Some(l), s2), Take.Value(l.zipWithPar(r)(f)))
+                case Some(r) => ((leftDone, rightDone, Some(l), s2), Take.Value(l.zipWith(r)(f)))
                 case None    => ((leftDone, true, Some(l), s2), Take.Value(l.map(f(_, that.value))))
               }
             case (Take.End, Take.Value(r)) =>
               s1 match {
-                case Some(l) => ((leftDone, rightDone, s1, Some(r)), Take.Value(l.zipWithPar(r)(f)))
+                case Some(l) => ((leftDone, rightDone, s1, Some(r)), Take.Value(l.zipWith(r)(f)))
                 case None    => ((true, rightDone, s1, Some(r)), Take.Value(r.map(f(self.value, _))))
               }
             case (Take.End, Take.End) =>

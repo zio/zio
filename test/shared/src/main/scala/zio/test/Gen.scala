@@ -29,10 +29,16 @@ import zio.stream.{ Stream, ZStream }
 case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
   final def <&>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
-    self.zipPar(that)
+    self.zip(that)
 
   final def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
-    self.zip(that)
+    self.cross(that)
+
+  final def cross[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+    self.crossWith(that)((_, _))
+
+  final def crossWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
+    self.flatMap(a => that.map(b => f(a, b)))
 
   /**
    * Filters the values produced by this generator, discarding any values that
@@ -85,19 +91,13 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
   final def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zipWith(that)((_, _))
 
-  final def zipPar[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
-    self.zipWithPar(that)((_, _))
-
-  final def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
-    self.flatMap(a => that.map(b => f(a, b)))
-
-  final def zipWithPar[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
+  final def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
     val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
     val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
     left.zipWith(right) {
-      case (Some(Right(l)), Some(Right(r))) => Some(l.zipWithPar(r)(f))
-      case (Some(Right(l)), Some(Left(r)))  => Some(l.zipWithPar(r)(f))
-      case (Some(Left(l)), Some(Right(r)))  => Some(l.zipWithPar(r)(f))
+      case (Some(Right(l)), Some(Right(r))) => Some(l.zipWith(r)(f))
+      case (Some(Right(l)), Some(Left(r)))  => Some(l.zipWith(r)(f))
+      case (Some(Left(l)), Some(Right(r)))  => Some(l.zipWith(r)(f))
       case _                                => None
     }
   }
@@ -302,7 +302,7 @@ object Gen extends GenZIO with FunctionVariants {
     small(listOfN(_)(g), 1)
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
-    List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+    List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.crossWith(gen)(_ :: _))
 
   /**
    * A generator of long values in the specified range: [start, end].

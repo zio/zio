@@ -9,11 +9,11 @@ import zio.ZIO
 object GenSpec
     extends ZIOBaseSpec(
       suite("GenSpec")(
-        suite("zipWithPar")(
+        suite("zipWith")(
           testM("left preservation") {
             checkM(deterministic, deterministic) { (a, b) =>
               for {
-                left  <- sample(a.zipPar(b).map(_._1))
+                left  <- sample(a.zip(b).map(_._1))
                 right <- sample(a)
               } yield assert(left, startsWith(right))
             }
@@ -21,7 +21,7 @@ object GenSpec
           testM("right preservation") {
             checkM(deterministic, deterministic) { (a, b) =>
               for {
-                left  <- sample(a.zipPar(b).map(_._2))
+                left  <- sample(a.zip(b).map(_._2))
                 right <- sample(b)
               } yield assert(left, startsWith(right))
             }
@@ -29,14 +29,14 @@ object GenSpec
           testM("shrinking") {
             checkM(random, random) { (a, b) =>
               for {
-                left  <- shrink(a.zipPar(b))
-                right <- shrink(a.zip(b))
+                left  <- shrink(a.zip(b))
+                right <- shrink(a.cross(b))
               } yield assert(left, equalTo(right))
             }
           },
           testM("shrink search") {
             val smallInt = Gen.int(0, 9)
-            checkM(Gen.const(shrinkable.zipPar(shrinkable)), smallInt, smallInt) { (gen, m, n) =>
+            checkM(Gen.const(shrinkable.zip(shrinkable)), smallInt, smallInt) { (gen, m, n) =>
               for {
                 result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
               } yield assert(result.reverse.headOption, isSome(equalTo((m, 0)) || equalTo((0, n))))
