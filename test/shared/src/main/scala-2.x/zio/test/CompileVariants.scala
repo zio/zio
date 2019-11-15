@@ -16,20 +16,16 @@
 
 package zio.test
 
-import scala.compiletime.testing.typeChecks
+import zio.UIO
 
-trait AssertionVariants {
+trait CompileVariants {
 
   /**
-   * Makes a new assertion that requires the specified string to be valid Scala
-   * code.
+   * Returns either `Right` if the specified string type checks as valid Scala
+   * code or `Left` with an error message otherwise. Dies with a runtime
+   * exception if specified string cannot be parsed or is not a known value at
+   * compile time.
    */
-  inline final def assertCompiles(inline code: String): TestResult =
-    assert(
-      if (typeChecks(code)) None else Some(errorMessage),
-      Assertion.isNone
-    )
-
-  private val errorMessage =
-    "Reporting of compilation error messages on Dotty is not currently supported due to instability of the underlying APIs."
+  final def typeCheck(code: String): UIO[Either[String, Unit]] =
+    macro Macros.typeCheck_impl
 }

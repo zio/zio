@@ -3,7 +3,6 @@ package zio.test
 import zio.Exit
 import zio.test.Assertion._
 import zio.test.AssertionSpecHelper._
-import zio.test.BoolAlgebra.Value
 import zio.test.TestAspect._
 
 object AssertionSpec
@@ -309,6 +308,14 @@ object AssertionSpec
         test("throws must succeed when given assertion is correct") {
           assert(throw sampleException, throws(equalTo(sampleException)))
         }
+        test(
+          "hasSameElements must fail when both iterables have the same size, have the same values but they appear a different number of times."
+        ) {
+          assert(
+            Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"),
+            hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
+          )
+        } @@ failure
       )
     )
 
