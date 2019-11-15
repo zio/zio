@@ -5,9 +5,9 @@ import zio._
 import zio.ZQueueSpecUtil.waitForValue
 import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
 import zio.test._
-import zio.test.Assertion.{ equalTo, isFalse, isTrue }
+import zio.test.Assertion._
 import StreamUtils.inParallel
-import zio.Exit.{ Cause => _, _ }
+import zio.Exit.{ Cause => _ }
 
 object StreamEffectAsyncSpec extends ZIOBaseSpec {
 
@@ -167,6 +167,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
       },
       testM("effectAsyncInterrupt back pressure") {
         for {
+          selfId  <- ZIO.fiberId
           refCnt  <- Ref.make(0)
           refDone <- Ref.make[Boolean](false)
           stream = ZStream.effectAsyncInterrupt[Any, Throwable, Int](
@@ -184,7 +185,8 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           _      <- waitForValue(refCnt.get, 7)
           isDone <- refDone.get
           exit   <- run.interrupt
-        } yield assert(isDone, isFalse) && assert(exit.untraced, equalTo(Failure(Cause.Interrupt)))
+        } yield assert(isDone, isFalse) &&
+          assert(exit.untraced, failsCause(containsCause(Cause.interrupt(selfId))))
       }
     )
   )

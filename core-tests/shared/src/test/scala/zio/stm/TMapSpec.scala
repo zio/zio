@@ -115,6 +115,18 @@ object TMapSpec extends ZIOBaseSpec {
           } yield e
 
         assertM(tx.commit, isNone)
+      },
+      testM("add many keys with negative hash codes") {
+        val expected = Range(1, 1000).map(i => HashContainer(-i) -> i).toList
+
+        val tx =
+          for {
+            tmap <- TMap.empty[HashContainer, Int]
+            _    <- STM.collectAll(expected.map(i => tmap.put(i._1, i._2)))
+            e    <- tmap.toList
+          } yield e
+
+        assertM(tx.commit, hasSameElements(expected))
       }
     ),
     suite("transformations")(
@@ -161,6 +173,19 @@ object TMapSpec extends ZIOBaseSpec {
           } yield res
 
         assertM(tx.commit, hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
+      },
+      testM("transform with keys with negative hashCodes") {
+        val tx =
+          for {
+            tmap <- TMap.make(HashContainer(-1) -> 1, HashContainer(-2) -> 2, HashContainer(-3) -> 3)
+            _    <- tmap.transform((k, v) => HashContainer(k.i * -2) -> v * 2)
+            res  <- tmap.toList
+          } yield res
+
+        assertM(
+          tx.commit,
+          hasSameElements(List(HashContainer(2) -> 2, HashContainer(4) -> 4, HashContainer(6) -> 6))
+        )
       },
       testM("transformM") {
         val tx =
@@ -232,4 +257,19 @@ object TMapSpec extends ZIOBaseSpec {
       }
     )
   )
+}
+
+private final class HashContainer(val i: Int) {
+  override def hashCode(): Int = i
+
+  override def equals(obj: Any): Boolean = obj match {
+    case o: HashContainer => i == o.i
+    case _                => false
+  }
+
+  override def toString: String = s"HashContainer($i)"
+}
+
+private object HashContainer {
+  def apply(hc: Int) = new HashContainer(hc)
 }

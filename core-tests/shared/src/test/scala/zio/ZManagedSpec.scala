@@ -82,7 +82,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result.length, equalTo(2)) && assert(cleanups, hasSize(equalTo(2)))
       },
       testM("Constructs an uninterruptible Managed value") {
-        doInterrupt(io => ZManaged.make(io)(_ => IO.unit), None)
+        doInterrupt(io => ZManaged.make(io)(_ => IO.unit), _ => None)
       }
     ),
     suite("makeEffect")(
@@ -101,7 +101,10 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("reserve")(
       testM("Interruption is possible when using this form") {
-        doInterrupt(io => ZManaged.reserve(Reservation(io, _ => IO.unit)), Some(Failure(Interrupt)))
+        doInterrupt(
+          io => ZManaged.reserve(Reservation(io, _ => IO.unit)),
+          selfId => Some(Failure(Interrupt(selfId)))
+        )
       }
     ),
     suite("makeExit")(
@@ -807,13 +810,15 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(r, equalTo(1))
       },
       testM("Does not swallow acquisition if one acquisition fails") {
-        (for {
-          latch  <- Promise.make[Nothing, Unit]
-          first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
-          second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
-          _      <- first.zipPar(second).use_(ZIO.unit)
-        } yield ()).run
-          .map(assert(_, equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.Interrupt)))))
+        ZIO.fiberId.flatMap { selfId =>
+          (for {
+            latch  <- Promise.make[Nothing, Unit]
+            first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
+            second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
+            _      <- first.zipPar(second).use_(ZIO.unit)
+          } yield ()).run
+            .map(assert(_, equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.interrupt(selfId))))))
+        }
       },
       testM("Run finalizers if one reservation fails") {
         for {
@@ -945,15 +950,16 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
-    expected: Option[Exit[Nothing, Unit]]
+    expected: Fiber.Id => Option[Exit[Nothing, Unit]]
   ) =
     for {
+      fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live)
-    } yield assert(interruption, equalTo(expected))
+      interruption       <- managedFiber.interruptAs(fiberId).timeout(5.seconds).provide(zio.clock.Clock.Live)
+    } yield assert(interruption.map(_.untraced), equalTo(expected(fiberId)))
 
   def testFinalizersPar[R, E](
     n: Int,

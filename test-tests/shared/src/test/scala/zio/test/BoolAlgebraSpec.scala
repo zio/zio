@@ -66,7 +66,7 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       assert(failure1 || failure2, isFailure)
     },
     testM("hashCode is consistent with equals") {
-      checkSome(equalBoolAlgebraOfSize(4))(n = 10) { pair =>
+      checkSome(10)(equalBoolAlgebraOfSize(4)) { pair =>
         val (a, b) = pair
         assert(a.hashCode, equalTo(b.hashCode))
       }

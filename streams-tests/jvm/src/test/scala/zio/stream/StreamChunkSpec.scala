@@ -298,7 +298,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       val otherInts2 = pureStreamChunkGen(tinyChunks(Gen.int(-100, -1)))
       val fn1        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts1)
       val fn2        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts2)
-      checkSomeM(pureStreamChunkGen(tinyChunks(intGen)), fn1, fn2)(5) { (m, f, g) =>
+      checkSomeM(5)(pureStreamChunkGen(tinyChunks(intGen)), fn1, fn2) { (m, f, g) =>
         val leftStream: StreamChunk[Nothing, Int]  = m.flatMap(f).flatMap(g)
         val rightStream: StreamChunk[Nothing, Int] = m.flatMap(f(_).flatMap(g))
 

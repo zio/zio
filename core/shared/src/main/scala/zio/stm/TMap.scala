@@ -195,14 +195,14 @@ class TMap[K, V] private (
     foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
 
   private def indexOf(k: K): STM[Nothing, Int] =
-    tCapacity.get.map(c => k.hashCode() % c)
+    tCapacity.get.map(c => TMap.bucketIdxForKey(k, c))
 
   private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
     for {
       buckets  <- tBuckets.get
       capacity <- tCapacity.get
       _        <- buckets.transform(_ => Nil)
-      updates  = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
+      updates  = data.map(kv => buckets.update(TMap.bucketIdxForKey(kv._1, capacity), kv :: _))
       _        <- STM.collectAll(updates)
     } yield ()
 }
@@ -227,12 +227,14 @@ object TMap {
     allocate(capacity, data.toList)
   }
 
+  private final def bucketIdxForKey[K](k: K, capacity: Int): Int = Math.abs(k.hashCode() % capacity)
+
   private final def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets     = Array.fill[List[(K, V)]](capacity)(Nil)
     val uniqueItems = data.toMap.toList
 
     uniqueItems.foreach { kv =>
-      val idx = kv._1.hashCode() % capacity
+      val idx = bucketIdxForKey(kv._1, capacity)
       buckets(idx) = kv :: buckets(idx)
     }
 

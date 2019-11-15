@@ -13,7 +13,7 @@ libraryDependencies ++= Seq(
 testFrameworks += Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 ```
 
-From there the fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
+From there the fastest way to start writing tests is to extend `RunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
 
 ```scala
 import zio._
@@ -29,17 +29,16 @@ object HelloWorld {
     console.putStrLn("Hello, World!")
 }
 
-object HelloWorldSpec
-    extends DefaultRunnableSpec(
-      suite("HelloWorldSpec")(
-        testM("sayHello correctly displays output") {
-          for {
-            _      <- sayHello
-            output <- TestConsole.output
-          } yield assert(output, equalTo(Vector("Hello, World!\n")))
-        }
-      )
-    )
+object HelloWorldSpec extends RunnableSpec {
+  def spec = suite("HelloWorldSpec")(
+    testM("sayHello correctly displays output") {
+      for {
+        _      <- sayHello
+        output <- TestConsole.output
+      } yield assert(output, equalTo(Vector("Hello, World!\n")))
+    }
+  )
+}
 ```
 
 In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. In the example above, our test involved the effect of printing to the console but we didn't have to do anything differently in our test because of this other than use `testM` instead of `test`.
