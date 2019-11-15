@@ -767,7 +767,7 @@ object ZIOSpec
               assert(unexpected, isEmpty) &&
               assert(result, isNone) // timeout happens
             }
-          },
+          } @@ flaky,
           testM("sleep 0 must return") {
             assertM(clock.sleep(1.nanos).provide(Clock.Live), isUnit)
           },

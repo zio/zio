@@ -18,6 +18,7 @@ import zio.test.Assertion.{
   isTrue,
   isUnit
 }
+import zio.test.TestAspect.flaky
 import scala.{ Stream => _ }
 import Exit.Success
 import StreamUtils._
@@ -836,7 +837,7 @@ object StreamSpec
                        ).flatMapParSwitch(2)(identity).runDrain.either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled, isTrue) && assert(result, isLeft(equalTo("Ouch")))
-          },
+          } @@ flaky,
           testM("outer errors interrupt all fibers") {
             for {
               substreamCancelled <- Ref.make[Boolean](false)
