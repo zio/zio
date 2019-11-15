@@ -33,6 +33,14 @@ object GenSpec
                 right <- shrink(a.zip(b))
               } yield assert(left, equalTo(right))
             }
+          },
+          testM("shrink search") {
+            val smallInt = Gen.int(0, 9)
+            checkM(Gen.const(shrinkable.zipPar(shrinkable)), smallInt, smallInt) { (gen, m, n) =>
+              for {
+                result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
+              } yield assert(result.reverse.headOption, isSome(equalTo((m, 0)) || equalTo((0, n))))
+            }
           }
         )
       )
@@ -51,4 +59,10 @@ object GenSpecUtil {
 
   def shrink[R, A](gen: Gen[R, A]): ZIO[R, Nothing, A] =
     gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runLast.map(_.get)
+
+  val shrinkable: Gen[Random, Int] =
+    Gen.fromRandomSample(_.nextInt(90).map(_ + 10).map(Sample.shrinkIntegral(0)))
+
+  def shrinkWith[R, A](gen: Gen[R, A])(f: A => Boolean): ZIO[R, Nothing, List[A]] =
+    gen.sample.take(1).flatMap(_.shrinkSearch(!f(_))).take(1000).filter(!f(_)).runCollect
 }
