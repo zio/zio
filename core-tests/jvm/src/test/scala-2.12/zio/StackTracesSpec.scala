@@ -1,7 +1,7 @@
 package zio
 
 import org.specs2.execute.Result
-import org.specs2.matcher.{Expectable, Matcher}
+import org.specs2.matcher.{ Expectable, Matcher }
 import org.specs2.mutable
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
@@ -20,15 +20,15 @@ object StackTracesSpecUtil {
 
   def basicTest: ZIO[Any, Nothing, ZTrace] =
     for {
-      _ <- ZIO.unit
+      _     <- ZIO.unit
       trace <- ZIO.trace
     } yield trace
 
   def foreachTest: ZIO[Any, Nothing, ZTrace] = {
     import foreachTraceFixture._
     for {
-      _ <- effectTotal
-      _ <- ZIO.foreach_(1 to 10)(_ => ZIO.unit *> ZIO.trace)
+      _     <- effectTotal
+      _     <- ZIO.foreach_(1 to 10)(_ => ZIO.unit *> ZIO.trace)
       trace <- ZIO.trace
     } yield trace
   }
@@ -40,66 +40,67 @@ object StackTracesSpecUtil {
   def foreachFail: ZIO[Any, Throwable, (ZTrace, ZTrace)] =
     for {
       t1 <- ZIO
-        .foreach_(1 to 10) { i =>
-          if (i == 7)
-            ZIO.unit *> ZIO.fail("Dummy error!")
-          else
-            ZIO.unit *> ZIO.trace
-        }
-        .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
+             .foreach_(1 to 10) { i =>
+               if (i == 7)
+                 ZIO.unit *> ZIO.fail("Dummy error!")
+               else
+                 ZIO.unit *> ZIO.trace
+             }
+             .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
       t2 <- ZIO.trace
     } yield (t1, t2)
 }
 
-object StackTracesSpec_ToZioMigration extends ZIOBaseSpec (
-  suite("StackTracesSpec")(
-    testM("basic test") {
-      for {
-        trace <- StackTracesSpecUtil.basicTest
-      } yield {
-        StackTracesSpecUtil.show(trace)
+object StackTracesSpec_ToZioMigration
+    extends ZIOBaseSpec(
+      suite("StackTracesSpec")(
+        testM("basic test") {
+          for {
+            trace <- StackTracesSpecUtil.basicTest
+          } yield {
+            StackTracesSpecUtil.show(trace)
 
-        assert(trace.executionTrace.size, equalTo(4)) &&
-          assert(trace.executionTrace.count(_.prettyPrint.contains("basicTest")), equalTo(1)) &&
-          assert(trace.stackTrace.size, equalTo(6)) &&
-          assert(trace.stackTrace.count(_.prettyPrint.contains("basicTest")), equalTo(1))
-      }
-    },
-    testM("foreachTrace") {
-      for {
-        trace <- StackTracesSpecUtil.foreachTest
-      } yield {
-        StackTracesSpecUtil.show(trace)
+            assert(trace.executionTrace.size, equalTo(4)) &&
+            assert(trace.executionTrace.count(_.prettyPrint.contains("basicTest")), equalTo(1)) &&
+            assert(trace.stackTrace.size, equalTo(6)) &&
+            assert(trace.stackTrace.count(_.prettyPrint.contains("basicTest")), equalTo(1))
+          }
+        },
+        testM("foreachTrace") {
+          for {
+            trace <- StackTracesSpecUtil.foreachTest
+          } yield {
+            StackTracesSpecUtil.show(trace)
 
-        assert(trace.stackTrace.size, equalTo(6)) &&
-          assert(trace.stackTrace.exists(_.prettyPrint.contains("foreachTest")), isTrue) &&
-          assert(trace.executionTrace.exists(_.prettyPrint.contains("foreachTest")), isTrue) &&
-          assert(trace.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
-          assert(trace.executionTrace.exists(_.prettyPrint.contains("effectTotal")), isTrue)
-      }
-    },
-    testM("foreach fail") {
-      for {
-        trace <- StackTracesSpecUtil.foreachFail
-      } yield {
-        val (trace1, trace2) = trace
+            assert(trace.stackTrace.size, equalTo(6)) &&
+            assert(trace.stackTrace.exists(_.prettyPrint.contains("foreachTest")), isTrue) &&
+            assert(trace.executionTrace.exists(_.prettyPrint.contains("foreachTest")), isTrue) &&
+            assert(trace.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
+            assert(trace.executionTrace.exists(_.prettyPrint.contains("effectTotal")), isTrue)
+          }
+        },
+        testM("foreach fail") {
+          for {
+            trace <- StackTracesSpecUtil.foreachFail
+          } yield {
+            val (trace1, trace2) = trace
 
-        assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
-          assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
-          assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
-          assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
-          assert(trace2.stackTrace.size, equalTo(6)) &&
-          assert(trace2.stackTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
-          assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
-          assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue)
+            assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
+            assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
+            assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
+            assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
+            assert(trace2.stackTrace.size, equalTo(6)) &&
+            assert(trace2.stackTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
+            assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
+            assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue)
 
-      }
-    }
-  )
-)
+          }
+        }
+      )
+    )
 
 class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent.ExecutionEnv)
-  extends TestRuntime
+    extends TestRuntime
     with mutable.SpecificationLike {
 
   // Using mutable Spec here to easily run individual tests from Intellij to inspect result traces
@@ -141,7 +142,7 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   private def mentionsMethod(method: String, trace: ZTraceElement): Boolean =
     trace match {
       case s: SourceLocation => s.method contains method
-      case _ => false
+      case _                 => false
     }
 
   private def mentionMethod(method: String)(implicit dummy: DummyImplicit): Matcher[ZTraceElement] =
@@ -182,15 +183,15 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   def foreachParFail = {
     val io = for {
       _ <- ZIO.foreachPar(1 to 10) { i =>
-        ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
-      }
+            ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+          }
     } yield ()
 
     io causeMust {
       _.traces.head.stackTrace must have size 2 and contain {
         (_: ZTraceElement) match {
           case s: SourceLocation => s.method contains "foreachParFail"
-          case _ => false
+          case _                 => false
         }
       }
     }
@@ -199,15 +200,15 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   def foreachParNFail = {
     val io = for {
       _ <- ZIO.foreachParN(4)(1 to 10) { i =>
-        ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
-      }
+            ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+          }
     } yield ()
 
     io causeMust {
       _.traces.head.stackTrace must have size 2 and contain {
         (_: ZTraceElement) match {
           case s: SourceLocation => s.method contains "foreachParNFail"
-          case _ => false
+          case _                 => false
         }
       }
     }
@@ -260,10 +261,10 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
     def method2 =
       for {
         trace <- ZIO.trace
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-        _ <- UIO(())
+        _     <- ZIO.unit
+        _     <- ZIO.unit
+        _     <- ZIO.unit
+        _     <- UIO(())
       } yield trace
 
     def method1 =
@@ -295,23 +296,23 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
     def fiber0 =
       for {
         f1 <- fiber1.fork
-        _ <- f1.join
+        _  <- f1.join
       } yield ()
 
     def fiber1 =
       for {
-        _ <- ZIO.unit
-        _ <- ZIO.unit
+        _  <- ZIO.unit
+        _  <- ZIO.unit
         f2 <- fiber2.fork
-        _ <- ZIO.unit
-        _ <- f2.join
+        _  <- ZIO.unit
+        _  <- f2.join
       } yield ()
 
     def fiber2 =
       for {
         _ <- UIO {
-          throw new Exception()
-        }
+              throw new Exception()
+            }
       } yield ()
 
     fiber0 causeMust { cause =>
@@ -381,8 +382,8 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   def blockingTrace = {
     val io = for {
       _ <- blocking.effectBlocking {
-        throw new Exception()
-      }
+            throw new Exception()
+          }
     } yield ()
 
     io causeMust { cause =>
@@ -424,12 +425,12 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
       _ <- ZIO.unit
       _ <- ZIO.unit
       untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.checkTraced(
-        ZIO.succeed
-      )).fork).untraced
+                           ZIO.succeed
+                         )).fork).untraced
       tracingStatus <- untraceableFiber.join
       _ <- ZIO.when(tracingStatus.isTraced) {
-        ZIO.dieMessage("Expected disabled tracing")
-      }
+            ZIO.dieMessage("Expected disabled tracing")
+          }
     } yield ()
 
     io causeMust { cause =>
@@ -528,10 +529,10 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
     val io = for {
       t <- Task(fail())
-        .flatMap(badMethod)
-        .catchSome {
-          case _: ArithmeticException => ZIO.fail("impossible match!")
-        }
+            .flatMap(badMethod)
+            .catchSome {
+              case _: ArithmeticException => ZIO.fail("impossible match!")
+            }
     } yield t
 
     io causeMust { cause =>
@@ -546,7 +547,7 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   }
 
   object catchSomeWithOptimizedEffectFixture {
-    val fail = () => throw new Exception("error!")
+    val fail      = () => throw new Exception("error!")
     val badMethod = ZIO.succeed(_: ZTrace)
   }
 
@@ -555,8 +556,8 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
     val io = for {
       t <- Task(fail())
-        .flatMap(succ)
-        .catchAll(refailAndLoseTrace)
+            .flatMap(succ)
+            .catchAll(refailAndLoseTrace)
     } yield t
 
     io causeMust { cause =>
@@ -571,8 +572,8 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   }
 
   object catchAllWithOptimizedEffectFixture {
-    val succ = ZIO.succeed(_: ZTrace)
-    val fail = () => throw new Exception("error!")
+    val succ               = ZIO.succeed(_: ZTrace)
+    val fail               = () => throw new Exception("error!")
     val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
   }
 
@@ -581,8 +582,8 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
     val io = for {
       t <- Task(fail())
-        .flatMap(succ)
-        .mapError(mapError)
+            .flatMap(succ)
+            .mapError(mapError)
     } yield t
 
     io causeMust { cause =>
@@ -600,8 +601,8 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   }
 
   object mapErrorPreservesTraceFixture {
-    val succ = ZIO.succeed(_: ZTrace)
-    val fail = () => throw new Exception("error!")
+    val succ     = ZIO.succeed(_: ZTrace)
+    val fail     = () => throw new Exception("error!")
     val mapError = (_: Any) => ()
   }
 
@@ -610,8 +611,8 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
     val io = for {
       t <- Task(fail())
-        .flatMap(badMethod1)
-        .foldM(mkTrace, badMethod2)
+            .flatMap(badMethod1)
+            .foldM(mkTrace, badMethod2)
     } yield t
 
     unsafeRun(io) must { trace: ZTrace =>
@@ -626,8 +627,8 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   }
 
   object foldMWithOptimizedEffectFixture {
-    val mkTrace = (_: Any) => ZIO.trace
-    val fail = () => throw new Exception("error!")
+    val mkTrace    = (_: Any) => ZIO.trace
+    val fail       = () => throw new Exception("error!")
     val badMethod1 = ZIO.succeed(_: ZTrace)
     val badMethod2 = ZIO.succeed(_: ZTrace)
   }
