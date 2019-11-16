@@ -70,15 +70,48 @@ object StackTracesSpecUtil {
           }
     } yield ()
 
-  def leftAssociativeFold(n: Int): ZIO[Any, Nothing, ZTrace] = {
-      (1 to n)
-        .foldLeft(ZIO.unit *> ZIO.unit) { (acc, _) =>
-          acc *> UIO(())
-        } *>
-        ZIO.unit *>
-        ZIO.unit *>
-        ZIO.unit *>
-        ZIO.trace
+  def leftAssociativeFold(n: Int): ZIO[Any, Nothing, ZTrace] =
+    (1 to n)
+      .foldLeft(ZIO.unit *> ZIO.unit) { (acc, _) =>
+        acc *> UIO(())
+      } *>
+      ZIO.unit *>
+      ZIO.unit *>
+      ZIO.unit *>
+      ZIO.trace
+
+  object nestedLeftBinds {
+    def method2 =
+      for {
+        trace <- ZIO.trace
+        _     <- ZIO.unit
+        _     <- ZIO.unit
+        _     <- ZIO.unit
+        _     <- UIO(())
+      } yield trace
+
+    def method1 =
+      for {
+        t <- method2
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+      } yield t
+
+    def tuple(t: ZTrace): ZTrace => (ZTrace, ZTrace) = t2 => (t, t2)
+
+    val io =
+      (for {
+        t <- method1
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+      } yield t)
+        .flatMap(
+          t =>
+            IO.trace
+              .map(tuple(t))
+        )
   }
 
   implicit final class CauseMust[R >: ZEnv](io: ZIO[TestClock, Any, Any]) {
@@ -175,10 +208,10 @@ object StackTracesSpec_ToZioMigration
           }
         },
         testM("left-associative fold") {
-          val inFoldExecutions = 10
+          val inFoldExecutions               = 10
           val inFoldAssociationsPerIteration = 2
-          val nonFoldExecution = 5
-          val expectedExecutionTrace = inFoldExecutions * inFoldAssociationsPerIteration + nonFoldExecution
+          val nonFoldExecution               = 5
+          val expectedExecutionTrace         = inFoldExecutions * inFoldAssociationsPerIteration + nonFoldExecution
 
           for {
             trace <- StackTracesSpecUtil.leftAssociativeFold(inFoldExecutions)
@@ -186,7 +219,30 @@ object StackTracesSpec_ToZioMigration
             StackTracesSpecUtil.show(trace)
 
             assert(trace.stackTrace.size, equalTo(5)) &&
-            assert(trace.executionTrace.count(x => x.prettyPrint.contains("leftAssociativeFold")), equalTo((expectedExecutionTrace)))
+            assert(
+              trace.executionTrace.count(x => x.prettyPrint.contains("leftAssociativeFold")),
+              equalTo((expectedExecutionTrace))
+            )
+          }
+        },
+        testM("nested left binds") {
+          for {
+            trace <- StackTracesSpecUtil.nestedLeftBinds.io
+          } yield {
+            val (trace1: ZTrace, trace2: ZTrace) = trace
+            StackTracesSpecUtil.show(trace1)
+            StackTracesSpecUtil.show(trace2)
+
+            assert(trace1.executionTrace.size, equalTo(3)) &&
+            assert(trace1.stackTrace.size, equalTo(9)) &&
+            assert(trace1.stackTrace.exists(_.prettyPrint.contains("method2")), isTrue) &&
+            assert(trace1.stackTrace.exists(_.prettyPrint.contains("method1")), isTrue) &&
+            assert(trace1.stackTrace.exists(_.prettyPrint.contains("io")), isTrue) &&
+            assert(trace2.stackTrace.size, equalTo(6)) &&
+            assert(trace2.stackTrace.exists(_.prettyPrint.contains("tuple")), isTrue) &&
+            assert(trace2.executionTrace.exists(_.prettyPrint.contains("method2")), isTrue) &&
+            assert(trace2.executionTrace.exists(_.prettyPrint.contains("method1")), isTrue) &&
+            assert(trace2.executionTrace.exists(_.prettyPrint.contains("io")), isTrue)
           }
         }
       )
@@ -201,8 +257,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
   // set to true to print traces
   private val debug = false
-
-  "nested left binds" >> nestedLeftBinds
 
   "fiber ancestry" >> fiberAncestry
   "fiber ancestry example with uploads" >> fiberAncestryUploadExample
@@ -268,64 +322,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def nestedLeftBinds = {
-    import nestedLeftBindsFixture._
-
-    unsafeRun(io) must { r: (ZTrace, ZTrace) =>
-      val (trace1, trace2) = r
-      show(trace1)
-      show(trace2)
-
-      // due to the way tracing works, we've accumulated quite a stack
-      // but we haven't yet passed a single flatMap while going through
-      // left binds, so our exec trace is empty.
-      (trace1.executionTrace must beEmpty) and
-        (trace1.stackTrace must have size 5) and
-        (trace1.stackTrace must mentionMethod("method2")) and
-        (trace1.stackTrace must mentionMethod("method1")) and
-        (trace1.stackTrace must mentionMethod("io")) and
-        (trace2.stackTrace must have size 2) and
-        (trace2.stackTrace must mentionMethod("tuple")) and
-        (trace2.executionTrace must mentionMethod("method2")) and
-        (trace2.executionTrace must mentionMethod("method1")) and
-        (trace2.executionTrace must mentionMethod("io"))
-    }
-  }
-
-  object nestedLeftBindsFixture {
-    def method2 =
-      for {
-        trace <- ZIO.trace
-        _     <- ZIO.unit
-        _     <- ZIO.unit
-        _     <- ZIO.unit
-        _     <- UIO(())
-      } yield trace
-
-    def method1 =
-      for {
-        t <- method2
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-      } yield t
-
-    def tuple(t: ZTrace): ZTrace => (ZTrace, ZTrace) = t2 => (t, t2)
-
-    val io =
-      (for {
-        t <- method1
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-      } yield t)
-        .flatMap(
-          t =>
-            IO.trace
-              .map(tuple(t))
-        )
   }
 
   def fiberAncestry = {
