@@ -158,6 +158,16 @@ object StackTracesSpecUtil {
     }
   }
 
+  object fiberAncestryIsLimitedFixture {
+    def recursiveFork(i: Int): UIO[Unit] =
+      i match {
+        case 0 =>
+          UIO(throw new Exception("oops!"))
+        case _ =>
+          UIO.effectSuspendTotal(recursiveFork(i - 1)).fork.flatMap(_.join)
+      }
+  }
+
   implicit final class CauseMust[R >: ZEnv](io: ZIO[TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -333,6 +343,16 @@ object StackTracesSpec_ToZioMigration
                 isTrue
               )
           }
+        },
+        testM("fiber ancestry has a limited size") {
+          import StackTracesSpecUtil._
+
+          StackTracesSpecUtil.fiberAncestryIsLimitedFixture.recursiveFork(10000) causeMust { cause =>
+            assert(cause.traces.size, equalTo(1)) &&
+            assert(cause.traces.head.parents.size, equalTo(10)) &&
+            assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("recursiveFork")), isTrue) &&
+            assert(cause.traces.head.parents.head.stackTrace.exists(_.prettyPrint.contains("recursiveFork")), isTrue)
+          }
         }
       )
     )
@@ -346,8 +366,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
   // set to true to print traces
   private val debug = false
-
-  "fiber ancestry has a limited size" >> fiberAncestryIsLimited
 
   "blocking trace" >> blockingTrace
 
@@ -409,27 +427,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def fiberAncestryIsLimited = {
-    import fiberAncestryIsLimitedFixture._
-
-    recursiveFork(10000) causeMust { cause =>
-      (cause.traces must have size 1) and
-        (cause.traces.head.parents must have size 10) and
-        (cause.traces.head.executionTrace must mentionMethod("recursiveFork")) and
-        (cause.traces.head.parents.head.stackTrace must mentionMethod("recursiveFork"))
-    }
-  }
-
-  object fiberAncestryIsLimitedFixture {
-    def recursiveFork(i: Int): UIO[Unit] =
-      i match {
-        case 0 =>
-          UIO(throw new Exception("oops!"))
-        case _ =>
-          UIO.effectSuspendTotal(recursiveFork(i - 1)).fork.flatMap(_.join)
-      }
   }
 
   def blockingTrace = {
