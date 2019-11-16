@@ -16,7 +16,7 @@
 
 package zio.stream
 
-import java.io.{ IOException, InputStream }
+import java.io.{IOException, InputStream}
 
 import com.github.ghik.silencer.silent
 import zio._
@@ -2649,14 +2649,25 @@ object ZStream extends Serializable {
   /**
    * Creates a stream from a value received from the accessed environment.
    */
-  final def access[R, A](f: R => A): ZStream[R, Nothing, A] =
-    fromEffect(ZIO.access[R](f))
+  final def access[R]: AccessPartiallyApplied[R] =
+   new AccessPartiallyApplied[R]
 
   /**
    * Creates a stream from a value received from the effectfully accessed environment.
    */
-  final def accessM[R, A](f: R => ZIO[R, Nothing, A]): ZStream[R, Nothing, A] =
-    fromEffect(ZIO.accessM[R](f))
+  final def accessM[R]: AccessMPartiallyApplied[R] =
+   new AccessMPartiallyApplied[R]
+
+
+  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: R => A): ZStream[R, Nothing, A] =
+      managed(ZManaged.fromFunction(f))
+  }
+
+  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: R => ZStream[R, Nothing, A]): ZStream[R, Nothing, A] =
+      managed(ZManaged.fromFunction(f).flatten)
+  }
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
