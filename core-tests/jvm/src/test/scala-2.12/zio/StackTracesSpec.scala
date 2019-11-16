@@ -70,6 +70,17 @@ object StackTracesSpecUtil {
           }
     } yield ()
 
+  def leftAssociativeFold(n: Int): ZIO[Any, Nothing, ZTrace] = {
+      (1 to n)
+        .foldLeft(ZIO.unit *> ZIO.unit) { (acc, _) =>
+          acc *> UIO(())
+        } *>
+        ZIO.unit *>
+        ZIO.unit *>
+        ZIO.unit *>
+        ZIO.trace
+  }
+
   implicit final class CauseMust[R >: ZEnv](io: ZIO[TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -162,6 +173,21 @@ object StackTracesSpec_ToZioMigration
               }
             }, isTrue)
           }
+        },
+        testM("left-associative fold") {
+          val inFoldExecutions = 10
+          val inFoldAssociationsPerIteration = 2
+          val nonFoldExecution = 5
+          val expectedExecutionTrace = inFoldExecutions * inFoldAssociationsPerIteration + nonFoldExecution
+
+          for {
+            trace <- StackTracesSpecUtil.leftAssociativeFold(inFoldExecutions)
+          } yield {
+            StackTracesSpecUtil.show(trace)
+
+            assert(trace.stackTrace.size, equalTo(5)) &&
+            assert(trace.executionTrace.count(x => x.prettyPrint.contains("leftAssociativeFold")), equalTo((expectedExecutionTrace)))
+          }
         }
       )
     )
@@ -176,7 +202,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   // set to true to print traces
   private val debug = false
 
-  "left-associative fold" >> leftAssociativeFold
   "nested left binds" >> nestedLeftBinds
 
   "fiber ancestry" >> fiberAncestry
@@ -243,25 +268,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def leftAssociativeFold = {
-    val io: ZIO[Any, Nothing, ZTrace] =
-      (1 to 10)
-        .foldLeft(ZIO.unit *> ZIO.unit) { (acc, _) =>
-          acc *> UIO(())
-        } *>
-        ZIO.unit *>
-        ZIO.unit *>
-        ZIO.unit *>
-        ZIO.trace
-
-    unsafeRun(io) must { trace: ZTrace =>
-      show(trace)
-
-      (trace.stackTrace must have size 1) and
-        (trace.executionTrace must forall[ZTraceElement](mentionMethod("leftAssociativeFold")))
-    }
   }
 
   def nestedLeftBinds = {
