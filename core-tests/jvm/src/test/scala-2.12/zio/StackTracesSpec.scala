@@ -3,14 +3,18 @@ package zio
 import org.specs2.execute.Result
 import org.specs2.matcher.{ Expectable, Matcher }
 import org.specs2.mutable
+
+import scala.language.postfixOps
 import scala.concurrent.duration.{ Duration => SDuration }
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.SourceLocation
 import java.util.concurrent.TimeUnit
 
+import zio.clock.Clock
 import zio.test.Assertion._
 import zio.test._
+import zio.test.environment.TestClock
 
 object StackTracesSpecUtil {
   // set to true to print traces
@@ -51,6 +55,24 @@ object StackTracesSpecUtil {
              .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
       t2 <- ZIO.trace
     } yield (t1, t2)
+
+  def foreachParFail: ZIO[Clock, Nothing, Unit] =
+    for {
+      _ <- ZIO.foreachPar(1 to 10) { i =>
+            ZIO.sleep(1 second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+          }
+    } yield ()
+
+  implicit final class CauseMust[R >: ZEnv](io: ZIO[TestClock, Any, Any]) {
+    def causeMust(check: Cause[Any] => TestResult) =
+      io.foldCause[TestResult](
+        cause => {
+          show(cause)
+          check(cause)
+        },
+        _ => assert(false, isTrue)
+      )
+  }
 }
 
 object StackTracesSpec_ToZioMigration
@@ -97,6 +119,24 @@ object StackTracesSpec_ToZioMigration
             assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue)
 
           }
+        },
+        testM("foreachPar fail") {
+          import StackTracesSpecUtil._
+
+          val io = for {
+            _     <- TestClock.setTime(1 second)
+            trace <- StackTracesSpecUtil.foreachParFail
+          } yield trace
+
+          io causeMust { cause =>
+            assert(cause.traces.head.stackTrace.size, equalTo(7)) &&
+            assert(cause.traces.head.stackTrace.exists {
+              (_: ZTraceElement) match {
+                case s: SourceLocation => s.method contains "foreachParFail"
+                case _                 => false
+              }
+            }, isTrue)
+          }
         }
       )
     )
@@ -111,7 +151,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   // set to true to print traces
   private val debug = false
 
-  "foreachPar fail" >> foreachParFail
   "foreachParN fail" >> foreachParNFail
 
   "left-associative fold" >> leftAssociativeFold
@@ -181,23 +220,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def foreachParFail = {
-    val io = for {
-      _ <- ZIO.foreachPar(1 to 10) { i =>
-            ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
-          }
-    } yield ()
-
-    io causeMust {
-      _.traces.head.stackTrace must have size 2 and contain {
-        (_: ZTraceElement) match {
-          case s: SourceLocation => s.method contains "foreachParFail"
-          case _                 => false
-        }
-      }
-    }
   }
 
   def foreachParNFail = {
