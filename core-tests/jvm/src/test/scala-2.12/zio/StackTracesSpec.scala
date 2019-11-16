@@ -137,6 +137,27 @@ object StackTracesSpecUtil {
     } yield ()
   }
 
+  object fiberAncestryUploadExample {
+
+    sealed trait JSON
+
+    final class User extends JSON
+
+    final class URL
+
+    def userDestination: URL = new URL
+
+    def uploadUsers(users: List[User]): Task[Unit] =
+      for {
+        _ <- IO.foreachPar(users)(uploadTo(userDestination))
+      } yield ()
+
+    def uploadTo(destination: URL)(json: JSON): Task[Unit] = {
+      val _ = (destination, json)
+      Task(throw new Exception("Expired credentials"))
+    }
+  }
+
   implicit final class CauseMust[R >: ZEnv](io: ZIO[TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -287,6 +308,31 @@ object StackTracesSpec_ToZioMigration
                 isTrue
               )
           }
+        },
+        testM("fiber ancestry example with uploads") {
+          import StackTracesSpecUtil._
+
+          StackTracesSpecUtil.fiberAncestryUploadExample
+            .uploadUsers(List(new StackTracesSpecUtil.fiberAncestryUploadExample.User)) causeMust {
+            cause =>
+              assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
+              assert(cause.traces.head.stackTrace.head.prettyPrint.contains("uploadUsers"), isTrue) &&
+              assert(cause.traces(1).stackTrace, isEmpty) &&
+              assert(cause.traces(1).executionTrace.size, equalTo(1)) &&
+              assert(cause.traces(1).executionTrace.head.prettyPrint.contains("uploadTo"), isTrue) &&
+              assert(cause.traces(1).parentTrace.isEmpty, isFalse) &&
+              assert(
+                cause
+                  .traces(1)
+                  .parentTrace
+                  .get
+                  .parentTrace
+                  .get
+                  .stackTrace
+                  .exists(_.prettyPrint.contains("uploadUsers")),
+                isTrue
+              )
+          }
         }
       )
     )
@@ -301,7 +347,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   // set to true to print traces
   private val debug = false
 
-  "fiber ancestry example with uploads" >> fiberAncestryUploadExample
   "fiber ancestry has a limited size" >> fiberAncestryIsLimited
 
   "blocking trace" >> blockingTrace
@@ -364,41 +409,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def fiberAncestryUploadExample = {
-    import fiberAncestryUploadExampleFixture._
-
-    uploadUsers(List(new User)) causeMust { cause =>
-      (cause.traces.head.stackTrace must have size 2) and
-        (cause.traces.head.stackTrace.head must mentionMethod("uploadUsers")) and
-        (cause.traces(1).stackTrace must have size 0) and
-        (cause.traces(1).executionTrace must have size 1) and
-        (cause.traces(1).executionTrace.head must mentionMethod("uploadTo")) and
-        (cause.traces(1).parentTrace must not be empty) and
-        (cause.traces(1).parentTrace.get.parentTrace.get.stackTrace must mentionMethod("uploadUsers"))
-    }
-  }
-
-  object fiberAncestryUploadExampleFixture {
-
-    sealed trait JSON
-
-    final class User extends JSON
-
-    final class URL
-
-    def userDestination: URL = new URL
-
-    def uploadUsers(users: List[User]): Task[Unit] =
-      for {
-        _ <- IO.foreachPar(users)(uploadTo(userDestination))
-      } yield ()
-
-    def uploadTo(destination: URL)(json: JSON): Task[Unit] = {
-      val _ = (destination, json)
-      Task(throw new Exception("Expired credentials"))
-    }
   }
 
   def fiberAncestryIsLimited = {
