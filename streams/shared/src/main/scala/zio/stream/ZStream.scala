@@ -2649,13 +2649,13 @@ object ZStream extends Serializable {
   /**
    * Creates a stream from a value received from the accessed environment.
    */
-  final def access[R](f: R => Any): ZStream[R, Nothing, Any] =
+  final def access[R, A](f: R => A): ZStream[R, Nothing, A] =
     fromEffect(ZIO.access[R](f))
 
   /**
    * Creates a stream from a value received from the effectfully accessed environment.
    */
-  final def accessM[R](f: R => ZIO[R, Nothing, Any]): ZStream[R, Nothing, Any] =
+  final def accessM[R, A](f: R => ZIO[R, Nothing, A]): ZStream[R, Nothing, A] =
     fromEffect(ZIO.accessM[R](f))
 
   /**
