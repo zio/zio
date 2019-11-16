@@ -30,7 +30,9 @@ import zio._
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
  * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
-class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Serializable { self =>
+class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Serializable {
+  self =>
+
   import ZStream.Pull
 
   /**
@@ -91,45 +93,40 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
 
   /**
    * Chunks the stream with specifed chunkSize
+   *
    * @param chunkSize size of the chunk
    */
   final def chunkN(chunkSize: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream {
-        self.process.mapM { as =>
-          Ref.make[Option[Option[E]]](None).flatMap { stateRef =>
-            def loop(acc: Array[A], i: Int): Pull[R, E, Chunk[A]] =
-              as.foldM(
-                success = { a =>
-                  acc(i) = a
-                  val i1 = i + 1
-                  if (i1 >= chunkSize) Pull.emit(Chunk.fromArray(acc)) else loop(acc, i1)
-                },
-                failure = { e =>
-                  stateRef.set(Some(e)) *> Pull.emit(Chunk.fromArray(acc).take(i))
-                }
-              )
-            def first: Pull[R, E, Chunk[A]] =
-              as.foldM(
-                success = { a =>
-                  if (chunkSize <= 1) {
-                    Pull.emit(Chunk.single(a))
-                  } else {
-                    val acc = Array.ofDim(chunkSize)(Chunk.Tags.fromValue(a))
-                    acc(0) = a
-                    loop(acc, 1)
-                  }
-                },
-                failure = { e =>
-                  stateRef.set(Some(e)) *> ZIO.fail(e)
-                }
-              )
-            IO.succeed {
-              stateRef.get.flatMap {
-                case None    => first
-                case Some(e) => ZIO.fail(e)
+        chunks.process.mapM { xss =>
+          Ref.make[(Boolean, Chunk[A])](false -> Chunk.empty).map { state =>
+            def pull: Pull[R, E, Chunk[A]] =
+              state.get.flatMap {
+                case (true, _) => Pull.end
+
+                case (false, chunk) if chunk.length >= chunkSize =>
+                  Pull.emit(chunk.take(chunkSize)) <* state.set(false -> chunk.drop(chunkSize))
+
+                case (false, chunk0) =>
+                  xss.foldM(
+                    {
+                      case None        => Pull.emit(chunk0) <* state.set(true -> Chunk.empty)
+                      case e @ Some(_) => ZIO.fail(e)
+                    },
+                    xs =>
+                      state.modify {
+                        case (_, chunk) =>
+                          if (chunk.length + xs.length >= chunkSize) {
+                            val m = chunkSize - chunk.length
+                            Pull.emit(chunk ++ xs.take(m)) -> (false -> xs.drop(m))
+                          } else
+                            pull -> (false -> (chunk ++ xs))
+                      }.flatten
+                  )
               }
-            }
+
+            pull
           }
         }
       }
