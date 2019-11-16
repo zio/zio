@@ -2650,7 +2650,7 @@ object ZStream extends Serializable {
    * Creates a stream from a value received from the accessed environment.
    */
   final def access[R]: AccessPartiallyApplied[R] =
-   new AccessPartiallyApplied[R]
+    new AccessPartiallyApplied[R]
 
   /**
    * Creates a stream from a value received from the effectfully accessed environment.
@@ -2658,15 +2658,14 @@ object ZStream extends Serializable {
   final def accessM[R]: AccessMPartiallyApplied[R] =
    new AccessMPartiallyApplied[R]
 
-
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZStream[R, Nothing, A] =
-      managed(ZManaged.fromFunction(f))
+      ZStream.fromEffect(ZIO.access(f))
   }
 
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZStream[R, Nothing, A]): ZStream[R, Nothing, A] =
-      managed(ZManaged.fromFunction(f).flatten)
+      ZStream.unwrap(ZIO.access(f))
   }
 
   /**
