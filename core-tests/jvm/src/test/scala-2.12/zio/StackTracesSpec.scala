@@ -63,6 +63,13 @@ object StackTracesSpecUtil {
           }
     } yield ()
 
+  def foreachParNFail =
+    for {
+      _ <- ZIO.foreachParN(4)(1 to 10) { i =>
+            (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+          }
+    } yield ()
+
   implicit final class CauseMust[R >: ZEnv](io: ZIO[TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -137,6 +144,24 @@ object StackTracesSpec_ToZioMigration
               }
             }, isTrue)
           }
+        },
+        testM("foreachParN fail") {
+          import StackTracesSpecUtil._
+
+          val io = for {
+            _     <- TestClock.setTime(1 second)
+            trace <- StackTracesSpecUtil.foreachParNFail
+          } yield trace
+
+          io causeMust { cause =>
+            assert(cause.traces.head.stackTrace.size, equalTo(7)) &&
+            assert(cause.traces.head.stackTrace.exists {
+              (_: ZTraceElement) match {
+                case s: SourceLocation => s.method contains "foreachParNFail"
+                case _                 => false
+              }
+            }, isTrue)
+          }
         }
       )
     )
@@ -150,8 +175,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
   // set to true to print traces
   private val debug = false
-
-  "foreachParN fail" >> foreachParNFail
 
   "left-associative fold" >> leftAssociativeFold
   "nested left binds" >> nestedLeftBinds
@@ -220,23 +243,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def foreachParNFail = {
-    val io = for {
-      _ <- ZIO.foreachParN(4)(1 to 10) { i =>
-            ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
-          }
-    } yield ()
-
-    io causeMust {
-      _.traces.head.stackTrace must have size 2 and contain {
-        (_: ZTraceElement) match {
-          case s: SourceLocation => s.method contains "foreachParNFail"
-          case _                 => false
-        }
-      }
-    }
   }
 
   def leftAssociativeFold = {
