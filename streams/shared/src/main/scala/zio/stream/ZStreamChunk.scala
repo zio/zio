@@ -111,8 +111,9 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
                 case (false, chunk0) =>
                   xss.foldM(
                     {
-                      case None        => Pull.emit(chunk0) <* state.set(true -> Chunk.empty)
-                      case e @ Some(_) => ZIO.fail(e)
+                      case None if chunk0.length == 0 => Pull.end
+                      case None                       => Pull.emit(chunk0) <* state.set(true -> Chunk.empty)
+                      case e @ Some(_)                => ZIO.fail(e)
                     },
                     xs =>
                       state.modify {
