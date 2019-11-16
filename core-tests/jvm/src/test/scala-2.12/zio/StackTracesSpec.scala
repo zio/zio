@@ -114,6 +114,29 @@ object StackTracesSpecUtil {
         )
   }
 
+  def fiberAncestry = {
+    def fiber1 =
+      for {
+        _  <- ZIO.unit
+        _  <- ZIO.unit
+        f2 <- fiber2.fork
+        _  <- ZIO.unit
+        _  <- f2.join
+      } yield ()
+
+    def fiber2 =
+      for {
+        _ <- UIO {
+              throw new Exception()
+            }
+      } yield ()
+
+    for {
+      f1 <- fiber1.fork
+      _  <- f1.join
+    } yield ()
+  }
+
   implicit final class CauseMust[R >: ZEnv](io: ZIO[TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -244,6 +267,26 @@ object StackTracesSpec_ToZioMigration
             assert(trace2.executionTrace.exists(_.prettyPrint.contains("method1")), isTrue) &&
             assert(trace2.executionTrace.exists(_.prettyPrint.contains("io")), isTrue)
           }
+        },
+        testM("fiber ancestry") {
+          import StackTracesSpecUtil._
+
+          val fiber = for {
+            trace <- StackTracesSpecUtil.fiberAncestry
+          } yield trace
+
+          fiber causeMust {
+            cause =>
+              assert(cause.traces, isNonEmpty) &&
+              assert(cause.traces.head.parentTrace.isEmpty, isFalse) &&
+              assert(cause.traces.head.parentTrace.get.parentTrace.isEmpty, isFalse) &&
+              assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty, isFalse) &&
+              assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty, isFalse) &&
+              assert(
+                cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty,
+                isTrue
+              )
+          }
         }
       )
     )
@@ -258,7 +301,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   // set to true to print traces
   private val debug = false
 
-  "fiber ancestry" >> fiberAncestry
   "fiber ancestry example with uploads" >> fiberAncestryUploadExample
   "fiber ancestry has a limited size" >> fiberAncestryIsLimited
 
@@ -322,38 +364,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def fiberAncestry = {
-
-    def fiber0 =
-      for {
-        f1 <- fiber1.fork
-        _  <- f1.join
-      } yield ()
-
-    def fiber1 =
-      for {
-        _  <- ZIO.unit
-        _  <- ZIO.unit
-        f2 <- fiber2.fork
-        _  <- ZIO.unit
-        _  <- f2.join
-      } yield ()
-
-    def fiber2 =
-      for {
-        _ <- UIO {
-              throw new Exception()
-            }
-      } yield ()
-
-    fiber0 causeMust { cause =>
-      (cause.traces must not be empty) and
-        (cause.traces.head.parentTrace must not be empty) and
-        (cause.traces.head.parentTrace.get.parentTrace must not be empty) and
-        (cause.traces.head.parentTrace.get.parentTrace.get.parentTrace must beEmpty)
-    }
   }
 
   def fiberAncestryUploadExample = {
