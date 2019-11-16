@@ -35,10 +35,13 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   )
 
   def done(): String =
-    summaries.get
-      .filter(_.nonEmpty)
-      .flatMap(summary => summary :: "\n" :: Nil)
-      .mkString("", "", "Done")
+    if (summaries.get.isEmpty)
+      s"${Console.YELLOW}No tests were executed${Console.RESET}"
+    else
+      summaries.get
+        .filter(_.nonEmpty)
+        .flatMap(summary => summary :: "\n" :: Nil)
+        .mkString("", "", "Done")
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
