@@ -72,13 +72,13 @@ object DefaultTestReporterSpec
 
 object DefaultTestReporterSpecUtil {
 
-  val test1         = test("Addition works fine")(assert(1 + 1, equalTo(2)))
+  val test1         = zio.test.test("Addition works fine")(assert(1 + 1, equalTo(2)))
   val test1Expected = expectedSuccess("Addition works fine")
 
-  val test2         = test("Subtraction works fine")(assert(1 - 1, equalTo(0)))
+  val test2         = zio.test.test("Subtraction works fine")(assert(1 - 1, equalTo(0)))
   val test2Expected = expectedSuccess("Subtraction works fine")
 
-  val test3 = test("Value falls within range")(assert(52, equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
+  val test3 = zio.test.test("Value falls within range")(assert(52, equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
@@ -100,14 +100,13 @@ object DefaultTestReporterSpecUtil {
       withOffset(2)("No ZIO Trace available.\n")
   )
 
-  val test5 = test("Addition works fine")(assert(1 + 1, equalTo(3)))
+  val test5 = zio.test.test("Addition works fine")(assert(1 + 1, equalTo(3)))
   val test5Expected = Vector(
     expectedFailure("Addition works fine"),
     withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n")
   )
 
-  val test6 =
-    test("Multiple nested failures")(assert(Right(Some(3)), isRight(isSome(isGreaterThan(4)))))
+  val test6 = zio.test.test("Multiple nested failures")(assert(Right(Some(3)), isRight(isSome(isGreaterThan(4)))))
   val test6Expected = Vector(
     expectedFailure("Multiple nested failures"),
     withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n"),
