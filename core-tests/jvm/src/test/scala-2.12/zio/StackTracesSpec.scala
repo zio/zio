@@ -3,8 +3,7 @@ package zio
 import scala.language.postfixOps
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
-import zio.internal.stacktracer.ZTraceElement.SourceLocation
-
+import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
 import zio.blocking.Blocking
 import zio.test.Assertion._
 import zio.test._
@@ -208,7 +207,10 @@ object StackTracesSpec
             assert(cause.traces.size, equalTo(1)) &&
             assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("traceThis")), isTrue) &&
             assert(
-              cause.traces.head.executionTrace.exists { case SourceLocation(_, _, m, _) => m == "tracingRegions" },
+              cause.traces.head.executionTrace.exists {
+                case SourceLocation(_, _, m, _) => m == "tracingRegions"
+                case NoLocation(_)              => true
+              },
               isFalse
             ) &&
             assert(cause.traces.head.stackTrace.size, equalTo(6))
