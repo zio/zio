@@ -223,6 +223,22 @@ object StackTracesSpecUtil {
     def doMainWork() = Task(throw new Exception("Worker failed!"))
   }
 
+  def mapErrorPreservesTrace = {
+    import mapErrorPreservesTraceFixture._
+
+    for {
+      t <- Task(fail())
+            .flatMap(succ)
+            .mapError(mapError)
+    } yield t
+  }
+
+  object mapErrorPreservesTraceFixture {
+    val succ     = ZIO.succeed(_: ZTrace)
+    val fail     = () => throw new Exception("error!")
+    val mapError = (_: Any) => ()
+  }
+
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -467,6 +483,27 @@ object StackTracesSpec_ToZioMigration
             assert(trace.executionTrace.exists(_.prettyPrint.contains("doMainWork")), isTrue) &&
             assert(trace.stackTrace.head.prettyPrint.contains("doWork"), isTrue)
           }
+        },
+        testM("mapError fully preserves previous stack trace") {
+          import StackTracesSpecUtil._
+
+          val io = for {
+            trace <- StackTracesSpecUtil.mapErrorPreservesTrace
+          } yield trace
+
+          io causeMust {
+            cause =>
+              // mapError does not change the trace in any way from its state during `fail()`
+              // as a consequence, `executionTrace` is not updated with finalizer info, etc...
+              // but overall it's a good thing since you're not losing traces at the border between your domain errors & Throwable
+              assert(cause.traces.size, equalTo(1)) &&
+              assert(cause.traces.head.executionTrace.size, equalTo(4)) &&
+              assert(cause.traces.head.executionTrace.head.prettyPrint.contains("fail"), isTrue) &&
+              assert(cause.traces.head.stackTrace.size, equalTo(9)) &&
+              assert(cause.traces.head.stackTrace.head.prettyPrint.contains("succ"), isTrue) &&
+              assert(cause.traces.head.stackTrace(1).prettyPrint.contains("mapError"), isTrue) &&
+              assert(cause.traces.head.stackTrace(2).prettyPrint.contains("mapErrorPreservesTrace"), isTrue)
+          }
         }
       )
     )
@@ -654,35 +691,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
     val succ               = ZIO.succeed(_: ZTrace)
     val fail               = () => throw new Exception("error!")
     val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
-  }
-
-  def mapErrorPreservesTrace = {
-    import mapErrorPreservesTraceFixture._
-
-    val io = for {
-      t <- Task(fail())
-            .flatMap(succ)
-            .mapError(mapError)
-    } yield t
-
-    io causeMust { cause =>
-      // mapError does not change the trace in any way from its state during `fail()`
-      // as a consequence, `executionTrace` is not updated with finalizer info, etc...
-      // but overall it's a good thing since you're not losing traces at the border between your domain errors & Throwable
-      (cause.traces must have size 1) and
-        (cause.traces.head.executionTrace must have size 1) and
-        (cause.traces.head.executionTrace.head must mentionMethod("fail")) and
-        (cause.traces.head.stackTrace must have size 4) and
-        (cause.traces.head.stackTrace.head must mentionMethod("succ")) and
-        (cause.traces.head.stackTrace(1) must mentionMethod("mapError")) and
-        (cause.traces.head.stackTrace(2) must mentionMethod("mapErrorPreservesTrace"))
-    }
-  }
-
-  object mapErrorPreservesTraceFixture {
-    val succ     = ZIO.succeed(_: ZTrace)
-    val fail     = () => throw new Exception("error!")
-    val mapError = (_: Any) => ()
   }
 
   def foldMWithOptimizedEffect = {
