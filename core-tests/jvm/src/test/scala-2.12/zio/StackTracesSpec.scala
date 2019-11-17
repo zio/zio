@@ -272,6 +272,23 @@ object StackTracesSpecUtil {
     val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
   }
 
+  def foldMWithOptimizedEffect = {
+    import foldMWithOptimizedEffectFixture._
+
+    for {
+      t <- Task(fail())
+            .flatMap(badMethod1)
+            .foldM(mkTrace, badMethod2)
+    } yield t
+  }
+
+  object foldMWithOptimizedEffectFixture {
+    val mkTrace    = (_: Any) => ZIO.trace
+    val fail       = () => throw new Exception("error!")
+    val badMethod1 = ZIO.succeed(_: ZTrace)
+    val badMethod2 = ZIO.succeed(_: ZTrace)
+  }
+
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -572,6 +589,20 @@ object StackTracesSpec_ToZioMigration
               assert(cause.traces.head.stackTrace.size, equalTo(7)) &&
               assert(cause.traces.head.stackTrace.head.prettyPrint.contains("catchAllWithOptimizedEffect"), isTrue)
           }
+        },
+        testM("foldM with optimized effect path") {
+          for {
+            trace <- StackTracesSpecUtil.foldMWithOptimizedEffect
+          } yield {
+            StackTracesSpecUtil.show(trace)
+
+            assert(trace.stackTrace.size, equalTo(6)) &&
+            assert(trace.stackTrace.exists(_.prettyPrint.contains("foldMWithOptimizedEffect")), isTrue) &&
+            assert(trace.executionTrace.size, equalTo(5)) &&
+            assert(trace.executionTrace.head.prettyPrint.contains("mkTrace"), isTrue) &&
+            assert(trace.executionTrace.exists(_.prettyPrint.contains("fail")), isTrue)
+
+          }
         }
       )
     )
@@ -585,9 +616,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
   // set to true to print traces
   private val debug = false
-
-  "catchAll with optimized effect path" >> catchAllWithOptimizedEffect
-  "foldM with optimized effect path" >> foldMWithOptimizedEffect
 
   "single effect for-comprehension" >> singleEffectForComp
   "single effectTotal for-comprehension" >> singleEffectTotalForComp
@@ -704,32 +732,4 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
       _ <- asyncDbCall()
     } yield ()
   }
-
-  def foldMWithOptimizedEffect = {
-    import foldMWithOptimizedEffectFixture._
-
-    val io = for {
-      t <- Task(fail())
-            .flatMap(badMethod1)
-            .foldM(mkTrace, badMethod2)
-    } yield t
-
-    unsafeRun(io) must { trace: ZTrace =>
-      show(trace)
-
-      (trace.stackTrace must have size 2) and
-        (trace.stackTrace must mentionMethod("foldMWithOptimizedEffect")) and
-        (trace.executionTrace must have size 2) and
-        (trace.executionTrace.head must mentionMethod("mkTrace")) and
-        (trace.executionTrace.last must mentionMethod("fail"))
-    }
-  }
-
-  object foldMWithOptimizedEffectFixture {
-    val mkTrace    = (_: Any) => ZIO.trace
-    val fail       = () => throw new Exception("error!")
-    val badMethod1 = ZIO.succeed(_: ZTrace)
-    val badMethod2 = ZIO.succeed(_: ZTrace)
-  }
-
 }
