@@ -1,15 +1,9 @@
 package zio
 
-import org.specs2.execute.Result
-import org.specs2.matcher.{ Expectable, Matcher }
-import org.specs2.mutable
-
 import scala.language.postfixOps
-import scala.concurrent.duration.{ Duration => SDuration }
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.SourceLocation
-import java.util.concurrent.TimeUnit
 
 import zio.blocking.Blocking
 import zio.test.Assertion._
@@ -292,6 +286,24 @@ object StackTracesSpecUtil {
   object singleTaskForCompFixture {
     def asyncDbCall(): Task[Unit] =
       Task(throw new Exception)
+
+    val selectHumans: Task[Unit] = for {
+      _ <- asyncDbCall()
+    } yield ()
+  }
+
+  object singleUIOForCompFixture {
+    def asyncDbCall(): Task[Unit] =
+      UIO(throw new Exception)
+
+    val selectHumans: Task[Unit] = for {
+      _ <- asyncDbCall()
+    } yield ()
+  }
+
+  object singleEffectTotalWithForCompFixture {
+    def asyncDbCall(): Task[Unit] =
+      Task.effectSuspendTotalWith(_ => throw new Exception)
 
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()
@@ -621,109 +633,24 @@ object StackTracesSpec_ToZioMigration
             assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
             assert(cause.traces.head.stackTrace.head.prettyPrint.contains("selectHumans"), isTrue)
           }
+        },
+        testM("single effectTotal for-comprehension") {
+          import StackTracesSpecUtil._
+
+          StackTracesSpecUtil.singleUIOForCompFixture.selectHumans causeMust { cause =>
+            assert(cause.traces.size, equalTo(1)) &&
+            assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
+            assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")), isTrue)
+          }
+        },
+        testM("single suspendWith for-comprehension") {
+          import StackTracesSpecUtil._
+
+          StackTracesSpecUtil.singleEffectTotalWithForCompFixture.selectHumans causeMust { cause =>
+            assert(cause.traces.size, equalTo(1)) &&
+            assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
+            assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")), isTrue)
+          }
         }
       )
     )
-
-class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends TestRuntime
-    with mutable.SpecificationLike {
-  override val DefaultTimeout: SDuration = SDuration(60, TimeUnit.SECONDS)
-
-  // Using mutable Spec here to easily run individual tests from Intellij to inspect result traces
-
-  // set to true to print traces
-  private val debug = false
-
-  "single effectTotal for-comprehension" >> singleEffectTotalForComp
-  "single suspendWith for-comprehension" >> singleSuspendWithForComp
-
-  private def show(cause: Cause[Any]): Unit = if (debug) println(cause.prettyPrint)
-
-  private def mentionsMethod(method: String, trace: ZTraceElement): Boolean =
-    trace match {
-      case s: SourceLocation => s.method contains method
-      case _                 => false
-    }
-
-  private def mentionMethod(method: String): Matcher[List[ZTraceElement]] =
-    new Matcher[List[ZTraceElement]] {
-      def apply[S <: List[ZTraceElement]](expectable: Expectable[S]) =
-        result(
-          expectable.value.exists(mentionsMethod(method, _)),
-          expectable.description + s" mentions method `$method`",
-          expectable.description + s" does not mention method `$method`",
-          expectable
-        )
-    }
-
-  private implicit final class CauseMust[R >: ZEnv](io: ZIO[R, Any, Any]) {
-    def causeMust(check: Cause[Any] => Result): Result =
-      unsafeRunSync(io).fold[Result](
-        cause => {
-          show(cause)
-          check(cause)
-        },
-        _ => failure
-      )
-  }
-
-  object executionTraceConditionalExampleFixture {
-    def doWork(condition: Boolean) =
-      for {
-        _ <- IO.when(condition)(doSideWork)
-        _ <- doMainWork
-      } yield ()
-
-    def doSideWork() = Task(())
-
-    def doMainWork() = Task(throw new Exception("Worker failed!"))
-  }
-
-  object singleTaskForCompFixture {
-    def asyncDbCall(): Task[Unit] =
-      Task(throw new Exception)
-
-    val selectHumans: Task[Unit] = for {
-      _ <- asyncDbCall()
-    } yield ()
-  }
-
-  def singleEffectTotalForComp = {
-    import singleUIOForCompFixture._
-
-    selectHumans causeMust { cause =>
-      (cause.traces must have size 1) and
-        (cause.traces.head.stackTrace must have size 2) and
-        (cause.traces.head.stackTrace must mentionMethod("selectHumans"))
-    }
-  }
-
-  object singleUIOForCompFixture {
-    def asyncDbCall(): Task[Unit] =
-      UIO(throw new Exception)
-
-    val selectHumans: Task[Unit] = for {
-      _ <- asyncDbCall()
-    } yield ()
-  }
-
-  def singleSuspendWithForComp = {
-    import singleEffectTotalWithForCompFixture._
-
-    selectHumans causeMust { cause =>
-      (cause.traces must have size 1) and
-        (cause.traces.head.stackTrace must have size 2) and
-        (cause.traces.head.stackTrace must mentionMethod("selectHumans"))
-    }
-  }
-
-  object singleEffectTotalWithForCompFixture {
-    def asyncDbCall(): Task[Unit] =
-      Task.effectSuspendTotalWith(_ => throw new Exception)
-
-    val selectHumans: Task[Unit] = for {
-      _ <- asyncDbCall()
-    } yield ()
-  }
-}
