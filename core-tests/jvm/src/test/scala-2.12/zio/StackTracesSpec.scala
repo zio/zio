@@ -11,7 +11,7 @@ import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.SourceLocation
 import java.util.concurrent.TimeUnit
 
-import zio.clock.Clock
+import zio.blocking.Blocking
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestClock
@@ -56,10 +56,10 @@ object StackTracesSpecUtil {
       t2 <- ZIO.trace
     } yield (t1, t2)
 
-  def foreachParFail: ZIO[Clock, Nothing, Unit] =
+  def foreachParFail: ZIO[Any, Nothing, Unit] =
     for {
       _ <- ZIO.foreachPar(1 to 10) { i =>
-            ZIO.sleep(1 second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+            (if (i >= 7) UIO(i / 0) else UIO(i / 10))
           }
     } yield ()
 
@@ -168,7 +168,14 @@ object StackTracesSpecUtil {
       }
   }
 
-  implicit final class CauseMust[R >: ZEnv](io: ZIO[TestClock, Any, Any]) {
+  def blockingTrace =
+    for {
+      _ <- blocking.effectBlocking {
+            throw new Exception()
+          }
+    } yield ()
+
+  implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
         cause => {
@@ -229,8 +236,7 @@ object StackTracesSpec_ToZioMigration
           import StackTracesSpecUtil._
 
           val io = for {
-            _     <- TestClock.setTime(1 second)
-            trace <- StackTracesSpecUtil.foreachParFail
+            trace <- TestClock.setTime(1 second) *> StackTracesSpecUtil.foreachParFail
           } yield trace
 
           io causeMust { cause =>
@@ -353,6 +359,20 @@ object StackTracesSpec_ToZioMigration
             assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("recursiveFork")), isTrue) &&
             assert(cause.traces.head.parents.head.stackTrace.exists(_.prettyPrint.contains("recursiveFork")), isTrue)
           }
+        },
+        testM("blocking trace") {
+          import StackTracesSpecUtil._
+
+          val io: ZIO[Blocking, Throwable, Unit] = for {
+            trace <- StackTracesSpecUtil.blockingTrace
+          } yield trace
+
+          io causeMust { cause =>
+            val trace = cause.traces.head
+
+            assert(trace.stackTrace.exists(_.prettyPrint.contains("blockingTrace")), isTrue) &&
+            assert(trace.executionTrace.exists(_.prettyPrint.contains("blockingTrace")), isTrue)
+          }
         }
       )
     )
@@ -366,8 +386,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
   // set to true to print traces
   private val debug = false
-
-  "blocking trace" >> blockingTrace
 
   "tracing regions" >> tracingRegions
   "tracing region is inherited on fork" >> tracingRegionsInheritance
@@ -427,23 +445,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def blockingTrace = {
-    val io = for {
-      _ <- blocking.effectBlocking {
-            throw new Exception()
-          }
-    } yield ()
-
-    io causeMust { cause =>
-      val trace = cause.traces.head
-
-      // the bottom items on exec trace and stack trace refer to this line
-      (trace.stackTrace must mentionMethod("blockingTrace")) and
-        (trace.executionTrace.last must mentionMethod("blockingTrace"))
-    }
-
   }
 
   def tracingRegions = {
