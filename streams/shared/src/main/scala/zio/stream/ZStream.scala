@@ -16,7 +16,7 @@
 
 package zio.stream
 
-import java.io.{IOException, InputStream}
+import java.io.{ IOException, InputStream }
 
 import com.github.ghik.silencer.silent
 import zio._
@@ -2656,7 +2656,7 @@ object ZStream extends Serializable {
    * Creates a stream from a value received from the effectfully accessed environment.
    */
   final def accessM[R]: AccessMPartiallyApplied[R] =
-   new AccessMPartiallyApplied[R]
+    new AccessMPartiallyApplied[R]
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZStream[R, Nothing, A] =
