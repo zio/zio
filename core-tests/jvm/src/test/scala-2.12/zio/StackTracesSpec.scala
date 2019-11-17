@@ -421,7 +421,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   // set to true to print traces
   private val debug = false
 
-  "tracing regions" >> tracingRegions
   "tracing region is inherited on fork" >> tracingRegionsInheritance
 
   "execution trace example with conditional" >> executionTraceConditionalExample
