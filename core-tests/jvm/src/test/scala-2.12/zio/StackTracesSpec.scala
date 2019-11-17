@@ -175,6 +175,23 @@ object StackTracesSpecUtil {
           }
     } yield ()
 
+  def tracingRegions = {
+    import tracingRegionsFixture._
+
+    (for {
+      _ <- ZIO.unit
+      _ <- ZIO.unit
+      _ <- ZIO.effect(traceThis()).traced.traced.traced
+      _ <- ZIO.unit
+      _ <- ZIO.unit
+      _ <- ZIO.fail("end")
+    } yield ()).untraced
+  }
+
+  object tracingRegionsFixture {
+    val traceThis: () => String = () => "trace this!"
+  }
+
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -373,6 +390,23 @@ object StackTracesSpec_ToZioMigration
             assert(trace.stackTrace.exists(_.prettyPrint.contains("blockingTrace")), isTrue) &&
             assert(trace.executionTrace.exists(_.prettyPrint.contains("blockingTrace")), isTrue)
           }
+        },
+        testM("tracing regions") {
+          import StackTracesSpecUtil._
+
+          val io = for {
+            trace <- StackTracesSpecUtil.tracingRegions
+          } yield trace
+
+          io causeMust { cause =>
+            assert(cause.traces.size, equalTo(1)) &&
+            assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("traceThis")), isTrue) &&
+            assert(
+              cause.traces.head.executionTrace.exists { case SourceLocation(_, _, m, _) => m == "tracingRegions" },
+              isFalse
+            ) &&
+            assert(cause.traces.head.stackTrace.size, equalTo(6))
+          }
         }
       )
     )
@@ -445,30 +479,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def tracingRegions = {
-    import tracingRegionsFixture._
-
-    val io = (for {
-      _ <- ZIO.unit
-      _ <- ZIO.unit
-      _ <- ZIO.effect(traceThis()).traced.traced.traced
-      _ <- ZIO.unit
-      _ <- ZIO.unit
-      _ <- ZIO.fail("end")
-    } yield ()).untraced
-
-    io causeMust { cause =>
-      (cause.traces must have size 1) and
-        (cause.traces.head.executionTrace must mentionMethod("traceThis")) and
-        (cause.traces.head.executionTrace must not have mentionedMethod("tracingRegions")) and
-        (cause.traces.head.stackTrace must have size 1)
-    }
-  }
-
-  object tracingRegionsFixture {
-    val traceThis: () => String = () => "trace this!"
   }
 
   def tracingRegionsInheritance = {
