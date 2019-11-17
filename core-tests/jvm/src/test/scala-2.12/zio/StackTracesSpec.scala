@@ -10,319 +10,7 @@ import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestClock
 
-object StackTracesSpecUtil {
-  // set to true to print traces
-  private val debug = false
-
-  def show(trace: ZTrace): Unit = if (debug) println(trace.prettyPrint)
-
-  def show(cause: Cause[Any]): Unit = if (debug) println(cause.prettyPrint)
-
-  def basicTest: ZIO[Any, Nothing, ZTrace] =
-    for {
-      _     <- ZIO.unit
-      trace <- ZIO.trace
-    } yield trace
-
-  def foreachTest: ZIO[Any, Nothing, ZTrace] = {
-    import foreachTraceFixture._
-    for {
-      _     <- effectTotal
-      _     <- ZIO.foreach_(1 to 10)(_ => ZIO.unit *> ZIO.trace)
-      trace <- ZIO.trace
-    } yield trace
-  }
-
-  object foreachTraceFixture {
-    def effectTotal: UIO[Unit] = ZIO.effectTotal(())
-  }
-
-  def foreachFail: ZIO[Any, Throwable, (ZTrace, ZTrace)] =
-    for {
-      t1 <- ZIO
-             .foreach_(1 to 10) { i =>
-               if (i == 7)
-                 ZIO.unit *> ZIO.fail("Dummy error!")
-               else
-                 ZIO.unit *> ZIO.trace
-             }
-             .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
-      t2 <- ZIO.trace
-    } yield (t1, t2)
-
-  def foreachParFail: ZIO[Any, Nothing, Unit] =
-    for {
-      _ <- ZIO.foreachPar(1 to 10) { i =>
-            (if (i >= 7) UIO(i / 0) else UIO(i / 10))
-          }
-    } yield ()
-
-  def foreachParNFail =
-    for {
-      _ <- ZIO.foreachParN(4)(1 to 10) { i =>
-            (if (i >= 7) UIO(i / 0) else UIO(i / 10))
-          }
-    } yield ()
-
-  def leftAssociativeFold(n: Int): ZIO[Any, Nothing, ZTrace] =
-    (1 to n)
-      .foldLeft(ZIO.unit *> ZIO.unit) { (acc, _) =>
-        acc *> UIO(())
-      } *>
-      ZIO.unit *>
-      ZIO.unit *>
-      ZIO.unit *>
-      ZIO.trace
-
-  object nestedLeftBinds {
-    def method2 =
-      for {
-        trace <- ZIO.trace
-        _     <- ZIO.unit
-        _     <- ZIO.unit
-        _     <- ZIO.unit
-        _     <- UIO(())
-      } yield trace
-
-    def method1 =
-      for {
-        t <- method2
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-      } yield t
-
-    def tuple(t: ZTrace): ZTrace => (ZTrace, ZTrace) = t2 => (t, t2)
-
-    val io =
-      (for {
-        t <- method1
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-      } yield t)
-        .flatMap(
-          t =>
-            IO.trace
-              .map(tuple(t))
-        )
-  }
-
-  def fiberAncestry = {
-    def fiber1 =
-      for {
-        _  <- ZIO.unit
-        _  <- ZIO.unit
-        f2 <- fiber2.fork
-        _  <- ZIO.unit
-        _  <- f2.join
-      } yield ()
-
-    def fiber2 =
-      for {
-        _ <- UIO {
-              throw new Exception()
-            }
-      } yield ()
-
-    for {
-      f1 <- fiber1.fork
-      _  <- f1.join
-    } yield ()
-  }
-
-  object fiberAncestryUploadExample {
-
-    sealed trait JSON
-
-    final class User extends JSON
-
-    final class URL
-
-    def userDestination: URL = new URL
-
-    def uploadUsers(users: List[User]): Task[Unit] =
-      for {
-        _ <- IO.foreachPar(users)(uploadTo(userDestination))
-      } yield ()
-
-    def uploadTo(destination: URL)(json: JSON): Task[Unit] = {
-      val _ = (destination, json)
-      Task(throw new Exception("Expired credentials"))
-    }
-  }
-
-  object fiberAncestryIsLimitedFixture {
-    def recursiveFork(i: Int): UIO[Unit] =
-      i match {
-        case 0 =>
-          UIO(throw new Exception("oops!"))
-        case _ =>
-          UIO.effectSuspendTotal(recursiveFork(i - 1)).fork.flatMap(_.join)
-      }
-  }
-
-  def blockingTrace =
-    for {
-      _ <- blocking.effectBlocking {
-            throw new Exception()
-          }
-    } yield ()
-
-  def tracingRegions = {
-    import tracingRegionsFixture._
-
-    (for {
-      _ <- ZIO.unit
-      _ <- ZIO.unit
-      _ <- ZIO.effect(traceThis()).traced.traced.traced
-      _ <- ZIO.unit
-      _ <- ZIO.unit
-      _ <- ZIO.fail("end")
-    } yield ()).untraced
-  }
-
-  object tracingRegionsFixture {
-    val traceThis: () => String = () => "trace this!"
-  }
-
-  def tracingRegionsInheritance =
-    for {
-      _ <- ZIO.unit
-      _ <- ZIO.unit
-      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.checkTraced(
-                           ZIO.succeed
-                         )).fork).untraced
-      tracingStatus <- untraceableFiber.join
-      _ <- ZIO.when(tracingStatus.isTraced) {
-            ZIO.dieMessage("Expected disabled tracing")
-          }
-    } yield ()
-
-  def executionTraceConditionalExample = {
-    import executionTraceConditionalExampleFixture._
-
-    doWork(true)
-  }
-
-  object executionTraceConditionalExampleFixture {
-    def doWork(condition: Boolean) =
-      for {
-        _ <- IO.when(condition)(doSideWork)
-        _ <- doMainWork
-      } yield ()
-
-    def doSideWork() = Task(())
-
-    def doMainWork() = Task(throw new Exception("Worker failed!"))
-  }
-
-  def mapErrorPreservesTrace = {
-    import mapErrorPreservesTraceFixture._
-
-    for {
-      t <- Task(fail())
-            .flatMap(succ)
-            .mapError(mapError)
-    } yield t
-  }
-
-  object mapErrorPreservesTraceFixture {
-    val succ     = ZIO.succeed(_: ZTrace)
-    val fail     = () => throw new Exception("error!")
-    val mapError = (_: Any) => ()
-  }
-
-  def catchSomeWithOptimizedEffect = {
-    import catchSomeWithOptimizedEffectFixture._
-
-    for {
-      t <- Task(fail())
-            .flatMap(badMethod)
-            .catchSome {
-              case _: ArithmeticException => ZIO.fail("impossible match!")
-            }
-    } yield t
-  }
-
-  object catchSomeWithOptimizedEffectFixture {
-    val fail      = () => throw new Exception("error!")
-    val badMethod = ZIO.succeed(_: ZTrace)
-  }
-
-  def catchAllWithOptimizedEffect = {
-    import catchAllWithOptimizedEffectFixture._
-
-    for {
-      t <- Task(fail())
-            .flatMap(succ)
-            .catchAll(refailAndLoseTrace)
-    } yield t
-  }
-
-  object catchAllWithOptimizedEffectFixture {
-    val succ               = ZIO.succeed(_: ZTrace)
-    val fail               = () => throw new Exception("error!")
-    val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
-  }
-
-  def foldMWithOptimizedEffect = {
-    import foldMWithOptimizedEffectFixture._
-
-    for {
-      t <- Task(fail())
-            .flatMap(badMethod1)
-            .foldM(mkTrace, badMethod2)
-    } yield t
-  }
-
-  object foldMWithOptimizedEffectFixture {
-    val mkTrace    = (_: Any) => ZIO.trace
-    val fail       = () => throw new Exception("error!")
-    val badMethod1 = ZIO.succeed(_: ZTrace)
-    val badMethod2 = ZIO.succeed(_: ZTrace)
-  }
-
-  object singleTaskForCompFixture {
-    def asyncDbCall(): Task[Unit] =
-      Task(throw new Exception)
-
-    val selectHumans: Task[Unit] = for {
-      _ <- asyncDbCall()
-    } yield ()
-  }
-
-  object singleUIOForCompFixture {
-    def asyncDbCall(): Task[Unit] =
-      UIO(throw new Exception)
-
-    val selectHumans: Task[Unit] = for {
-      _ <- asyncDbCall()
-    } yield ()
-  }
-
-  object singleEffectTotalWithForCompFixture {
-    def asyncDbCall(): Task[Unit] =
-      Task.effectSuspendTotalWith(_ => throw new Exception)
-
-    val selectHumans: Task[Unit] = for {
-      _ <- asyncDbCall()
-    } yield ()
-  }
-
-  implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
-    def causeMust(check: Cause[Any] => TestResult) =
-      io.foldCause[TestResult](
-        cause => {
-          show(cause)
-          check(cause)
-        },
-        _ => assert(false, isTrue)
-      )
-  }
-}
-
-object StackTracesSpec_ToZioMigration
+object StackTracesSpec
     extends ZIOBaseSpec(
       suite("StackTracesSpec")(
         testM("basic test") {
@@ -654,3 +342,315 @@ object StackTracesSpec_ToZioMigration
         }
       )
     )
+
+object StackTracesSpecUtil {
+  // set to true to print traces
+  private val debug = false
+
+  def show(trace: ZTrace): Unit = if (debug) println(trace.prettyPrint)
+
+  def show(cause: Cause[Any]): Unit = if (debug) println(cause.prettyPrint)
+
+  def basicTest: ZIO[Any, Nothing, ZTrace] =
+    for {
+      _     <- ZIO.unit
+      trace <- ZIO.trace
+    } yield trace
+
+  def foreachTest: ZIO[Any, Nothing, ZTrace] = {
+    import foreachTraceFixture._
+    for {
+      _     <- effectTotal
+      _     <- ZIO.foreach_(1 to 10)(_ => ZIO.unit *> ZIO.trace)
+      trace <- ZIO.trace
+    } yield trace
+  }
+
+  object foreachTraceFixture {
+    def effectTotal: UIO[Unit] = ZIO.effectTotal(())
+  }
+
+  def foreachFail: ZIO[Any, Throwable, (ZTrace, ZTrace)] =
+    for {
+      t1 <- ZIO
+             .foreach_(1 to 10) { i =>
+               if (i == 7)
+                 ZIO.unit *> ZIO.fail("Dummy error!")
+               else
+                 ZIO.unit *> ZIO.trace
+             }
+             .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
+      t2 <- ZIO.trace
+    } yield (t1, t2)
+
+  def foreachParFail: ZIO[Any, Nothing, Unit] =
+    for {
+      _ <- ZIO.foreachPar(1 to 10) { i =>
+            (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+          }
+    } yield ()
+
+  def foreachParNFail =
+    for {
+      _ <- ZIO.foreachParN(4)(1 to 10) { i =>
+            (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+          }
+    } yield ()
+
+  def leftAssociativeFold(n: Int): ZIO[Any, Nothing, ZTrace] =
+    (1 to n)
+      .foldLeft(ZIO.unit *> ZIO.unit) { (acc, _) =>
+        acc *> UIO(())
+      } *>
+      ZIO.unit *>
+      ZIO.unit *>
+      ZIO.unit *>
+      ZIO.trace
+
+  object nestedLeftBinds {
+    def method2 =
+      for {
+        trace <- ZIO.trace
+        _     <- ZIO.unit
+        _     <- ZIO.unit
+        _     <- ZIO.unit
+        _     <- UIO(())
+      } yield trace
+
+    def method1 =
+      for {
+        t <- method2
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+      } yield t
+
+    def tuple(t: ZTrace): ZTrace => (ZTrace, ZTrace) = t2 => (t, t2)
+
+    val io =
+      (for {
+        t <- method1
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+      } yield t)
+        .flatMap(
+          t =>
+            IO.trace
+              .map(tuple(t))
+        )
+  }
+
+  def fiberAncestry = {
+    def fiber1 =
+      for {
+        _  <- ZIO.unit
+        _  <- ZIO.unit
+        f2 <- fiber2.fork
+        _  <- ZIO.unit
+        _  <- f2.join
+      } yield ()
+
+    def fiber2 =
+      for {
+        _ <- UIO {
+              throw new Exception()
+            }
+      } yield ()
+
+    for {
+      f1 <- fiber1.fork
+      _  <- f1.join
+    } yield ()
+  }
+
+  object fiberAncestryUploadExample {
+
+    sealed trait JSON
+
+    final class User extends JSON
+
+    final class URL
+
+    def userDestination: URL = new URL
+
+    def uploadUsers(users: List[User]): Task[Unit] =
+      for {
+        _ <- IO.foreachPar(users)(uploadTo(userDestination))
+      } yield ()
+
+    def uploadTo(destination: URL)(json: JSON): Task[Unit] = {
+      val _ = (destination, json)
+      Task(throw new Exception("Expired credentials"))
+    }
+  }
+
+  object fiberAncestryIsLimitedFixture {
+    def recursiveFork(i: Int): UIO[Unit] =
+      i match {
+        case 0 =>
+          UIO(throw new Exception("oops!"))
+        case _ =>
+          UIO.effectSuspendTotal(recursiveFork(i - 1)).fork.flatMap(_.join)
+      }
+  }
+
+  def blockingTrace =
+    for {
+      _ <- blocking.effectBlocking {
+            throw new Exception()
+          }
+    } yield ()
+
+  def tracingRegions = {
+    import tracingRegionsFixture._
+
+    (for {
+      _ <- ZIO.unit
+      _ <- ZIO.unit
+      _ <- ZIO.effect(traceThis()).traced.traced.traced
+      _ <- ZIO.unit
+      _ <- ZIO.unit
+      _ <- ZIO.fail("end")
+    } yield ()).untraced
+  }
+
+  object tracingRegionsFixture {
+    val traceThis: () => String = () => "trace this!"
+  }
+
+  def tracingRegionsInheritance =
+    for {
+      _ <- ZIO.unit
+      _ <- ZIO.unit
+      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.checkTraced(
+                           ZIO.succeed
+                         )).fork).untraced
+      tracingStatus <- untraceableFiber.join
+      _ <- ZIO.when(tracingStatus.isTraced) {
+            ZIO.dieMessage("Expected disabled tracing")
+          }
+    } yield ()
+
+  def executionTraceConditionalExample = {
+    import executionTraceConditionalExampleFixture._
+
+    doWork(true)
+  }
+
+  object executionTraceConditionalExampleFixture {
+    def doWork(condition: Boolean) =
+      for {
+        _ <- IO.when(condition)(doSideWork)
+        _ <- doMainWork
+      } yield ()
+
+    def doSideWork() = Task(())
+
+    def doMainWork() = Task(throw new Exception("Worker failed!"))
+  }
+
+  def mapErrorPreservesTrace = {
+    import mapErrorPreservesTraceFixture._
+
+    for {
+      t <- Task(fail())
+            .flatMap(succ)
+            .mapError(mapError)
+    } yield t
+  }
+
+  object mapErrorPreservesTraceFixture {
+    val succ     = ZIO.succeed(_: ZTrace)
+    val fail     = () => throw new Exception("error!")
+    val mapError = (_: Any) => ()
+  }
+
+  def catchSomeWithOptimizedEffect = {
+    import catchSomeWithOptimizedEffectFixture._
+
+    for {
+      t <- Task(fail())
+            .flatMap(badMethod)
+            .catchSome {
+              case _: ArithmeticException => ZIO.fail("impossible match!")
+            }
+    } yield t
+  }
+
+  object catchSomeWithOptimizedEffectFixture {
+    val fail      = () => throw new Exception("error!")
+    val badMethod = ZIO.succeed(_: ZTrace)
+  }
+
+  def catchAllWithOptimizedEffect = {
+    import catchAllWithOptimizedEffectFixture._
+
+    for {
+      t <- Task(fail())
+            .flatMap(succ)
+            .catchAll(refailAndLoseTrace)
+    } yield t
+  }
+
+  object catchAllWithOptimizedEffectFixture {
+    val succ               = ZIO.succeed(_: ZTrace)
+    val fail               = () => throw new Exception("error!")
+    val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
+  }
+
+  def foldMWithOptimizedEffect = {
+    import foldMWithOptimizedEffectFixture._
+
+    for {
+      t <- Task(fail())
+            .flatMap(badMethod1)
+            .foldM(mkTrace, badMethod2)
+    } yield t
+  }
+
+  object foldMWithOptimizedEffectFixture {
+    val mkTrace    = (_: Any) => ZIO.trace
+    val fail       = () => throw new Exception("error!")
+    val badMethod1 = ZIO.succeed(_: ZTrace)
+    val badMethod2 = ZIO.succeed(_: ZTrace)
+  }
+
+  object singleTaskForCompFixture {
+    def asyncDbCall(): Task[Unit] =
+      Task(throw new Exception)
+
+    val selectHumans: Task[Unit] = for {
+      _ <- asyncDbCall()
+    } yield ()
+  }
+
+  object singleUIOForCompFixture {
+    def asyncDbCall(): Task[Unit] =
+      UIO(throw new Exception)
+
+    val selectHumans: Task[Unit] = for {
+      _ <- asyncDbCall()
+    } yield ()
+  }
+
+  object singleEffectTotalWithForCompFixture {
+    def asyncDbCall(): Task[Unit] =
+      Task.effectSuspendTotalWith(_ => throw new Exception)
+
+    val selectHumans: Task[Unit] = for {
+      _ <- asyncDbCall()
+    } yield ()
+  }
+
+  implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
+    def causeMust(check: Cause[Any] => TestResult) =
+      io.foldCause[TestResult](
+        cause => {
+          show(cause)
+          check(cause)
+        },
+        _ => assert(false, isTrue)
+      )
+  }
+}
