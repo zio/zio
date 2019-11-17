@@ -26,40 +26,42 @@ object FiberSpec
               child <- withLatch { release =>
                         (fiberRef.set(update) *> release).fork
                       }
-              _     <- child.map(_ => ()).inheritFiberRefs
+              _     <- child.map(_ => ()).inheritRefs
               value <- fiberRef.get
             } yield assert(value, equalTo(update))
           },
           testM("`orElse`") {
             for {
-              fiberRef  <- FiberRef.make(initial)
-              semaphore <- Semaphore.make(2)
-              _         <- semaphore.acquireN(2)
-              child1    <- (fiberRef.set("child1") *> semaphore.release).fork
-              child2    <- (fiberRef.set("child2") *> semaphore.release).fork
-              _         <- semaphore.acquireN(2)
-              _         <- child1.orElse(child2).inheritFiberRefs
-              value     <- fiberRef.get
+              fiberRef <- FiberRef.make(initial)
+              latch1   <- Promise.make[Nothing, Unit]
+              latch2   <- Promise.make[Nothing, Unit]
+              child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
+              child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
+              _        <- latch1.await *> latch2.await
+              _        <- child1.orElse(child2).inheritRefs
+              value    <- fiberRef.get
             } yield assert(value, equalTo("child1"))
           },
           testM("`zip`") {
             for {
-              fiberRef  <- FiberRef.make(initial)
-              semaphore <- Semaphore.make(2)
-              _         <- semaphore.acquireN(2)
-              child1    <- (fiberRef.set("child1") *> semaphore.release).fork
-              child2    <- (fiberRef.set("child2") *> semaphore.release).fork
-              _         <- semaphore.acquireN(2)
-              _         <- child1.zip(child2).inheritFiberRefs
-              value     <- fiberRef.get
+              fiberRef <- FiberRef.make(initial)
+              latch1   <- Promise.make[Nothing, Unit]
+              latch2   <- Promise.make[Nothing, Unit]
+              child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
+              child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
+              _        <- latch1.await *> latch2.await
+              _        <- child1.zip(child2).inheritRefs
+              value    <- fiberRef.get
             } yield assert(value, equalTo("child1"))
           }
         ),
         suite("`Fiber.join` on interrupted Fiber")(
           testM("is inner interruption") {
+            val fiberId = Fiber.Id(0L, 123L)
+
             for {
-              exit <- Fiber.interrupt.join.run
-            } yield assert(exit, equalTo(Exit.interrupt))
+              exit <- Fiber.interruptAs(fiberId).join.run
+            } yield assert(exit, equalTo(Exit.interrupt(fiberId)))
           }
         ),
         suite("if one composed fiber fails then all must fail")(

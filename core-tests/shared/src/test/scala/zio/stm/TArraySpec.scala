@@ -18,21 +18,22 @@ package zio.stm
 import zio.stm.TArraySpecUtil._
 import zio.test.Assertion._
 import zio.test._
-import zio.{ UIO, ZIO, ZIOBaseSpec }
+import zio.{ ZIO, ZIOBaseSpec }
 
 object TArraySpec
     extends ZIOBaseSpec(
       suite("TArraySpec")(
         suite("apply")(
           testM("happy-path") {
-            for {
+            val res = for {
               tArray <- makeTArray(1)(42)
-              value  <- tArray(0).commit
-            } yield assert(value, equalTo(42))
+              value  <- tArray(0)
+            } yield value
+            assertM(res.commit, equalTo(42))
           },
           testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
             for {
-              tArray <- makeTArray(1)(42)
+              tArray <- makeTArray(1)(42).commit
               result <- ZIO.effect(tArray(-1)).run
             } yield assert(result, fails(isArrayIndexOutOfBoundsException))
           }
@@ -40,7 +41,7 @@ object TArraySpec
         suite("fold")(
           testM("is atomic") {
             for {
-              tArray    <- makeTArray(N)(0)
+              tArray    <- makeTArray(N)(0).commit
               sum1Fiber <- tArray.fold(0)(_ + _).commit.fork
               _         <- STM.foreach(0 until N)(i => tArray.array(i).update(_ + 1)).commit
               sum1      <- sum1Fiber.join
@@ -50,7 +51,7 @@ object TArraySpec
         suite("foldM")(
           testM("is atomic") {
             for {
-              tArray    <- makeTArray(N)(0)
+              tArray    <- makeTArray(N)(0).commit
               sum1Fiber <- tArray.foldM(0)((z, a) => STM.succeed(z + a)).commit.fork
               _         <- STM.foreach(0 until N)(i => tArray.array(i).update(_ + 1)).commit
               sum1      <- sum1Fiber.join
@@ -61,7 +62,7 @@ object TArraySpec
               if (acc == N / 2) STM.fail(boom) else STM.succeed(acc + a)
 
             for {
-              tArray <- makeTArray(N)(1)
+              tArray <- makeTArray(N)(1).commit
               res    <- tArray.foldM(0)(failInTheMiddle).commit.either
             } yield assert(res, isLeft(equalTo(boom)))
           }
@@ -69,8 +70,8 @@ object TArraySpec
         suite("foreach")(
           testM("side-effect is transactional") {
             for {
-              ref    <- TRef(0).commit
-              tArray <- makeTArray(n)(1)
+              ref    <- TRef.make(0).commit
+              tArray <- makeTArray(n)(1).commit
               _      <- tArray.foreach(a => ref.update(_ + a).unit).commit.fork
               value  <- ref.get.commit
             } yield assert(value, equalTo(0) || equalTo(n))
@@ -79,7 +80,7 @@ object TArraySpec
         suite("transform")(
           testM("updates values atomically") {
             for {
-              tArray         <- makeTArray(N)("a")
+              tArray         <- makeTArray(N)("a").commit
               transformFiber <- tArray.transform(_ + "+b").commit.fork
               _              <- STM.foreach(0 until N)(idx => tArray.array(idx).update(_ + "+c")).commit
               _              <- transformFiber.join
@@ -91,7 +92,7 @@ object TArraySpec
         suite("transformM")(
           testM("updates values atomically") {
             for {
-              tArray         <- makeTArray(N)("a")
+              tArray         <- makeTArray(N)("a").commit
               transformFiber <- tArray.transformM(a => STM.succeed(a + "+b")).commit.fork
               _              <- STM.foreach(0 until N)(idx => tArray.array(idx).update(_ + "+c")).commit
               _              <- transformFiber.join
@@ -101,7 +102,7 @@ object TArraySpec
           },
           testM("updates all or nothing") {
             for {
-              tArray <- makeTArray(N)(0)
+              tArray <- makeTArray(N)(0).commit
               _      <- tArray.array(N / 2).update(_ => 1).commit
               result <- tArray.transformM(a => if (a == 0) STM.succeed(42) else STM.fail(boom)).commit.either
               first  <- tArray.array(0).get.commit
@@ -111,13 +112,13 @@ object TArraySpec
         suite("update")(
           testM("happy-path") {
             for {
-              tArray <- makeTArray(1)(42)
+              tArray <- makeTArray(1)(42).commit
               items  <- (tArray.update(0, a => -a) *> valuesOf(tArray)).commit
             } yield assert(items, equalTo(List(-42)))
           },
           testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
             for {
-              tArray <- makeTArray(1)(42)
+              tArray <- makeTArray(1)(42).commit
               result <- ZIO.effect(tArray.update(-1, identity)).run
             } yield assert(result, fails(isArrayIndexOutOfBoundsException))
           }
@@ -125,19 +126,19 @@ object TArraySpec
         suite("updateM")(
           testM("happy-path") {
             for {
-              tArray <- makeTArray(1)(42)
+              tArray <- makeTArray(1)(42).commit
               items  <- (tArray.updateM(0, a => STM.succeed(-a)) *> valuesOf(tArray)).commit
             } yield assert(items, equalTo(List(-42)))
           },
           testM("dies with ArrayIndexOutOfBounds when index is out of bounds") {
             for {
-              tArray <- makeTArray(10)(0)
+              tArray <- makeTArray(10)(0).commit
               result <- ZIO.effect(tArray.updateM(10, STM.succeed)).run
             } yield assert(result, fails(isArrayIndexOutOfBoundsException))
           },
           testM("updateM failure") {
             for {
-              tArray <- makeTArray(n)(0)
+              tArray <- makeTArray(n)(0).commit
               result <- tArray.updateM(0, _ => STM.fail(boom)).commit.either
             } yield assert(result, isLeft(equalTo(boom)))
           }
@@ -153,8 +154,8 @@ object TArraySpecUtil {
   val isArrayIndexOutOfBoundsException: Assertion[Throwable] =
     Assertion.assertion[Throwable]("isArrayIndexOutOfBoundsException")()(_.isInstanceOf[ArrayIndexOutOfBoundsException])
 
-  def makeTArray[T](n: Int)(a: T): UIO[TArray[T]] =
-    ZIO.sequence(List.fill(n)(TRef.makeCommit(a))).map(refs => TArray(refs.toArray))
+  def makeTArray[T](n: Int)(a: T): STM[Nothing, TArray[T]] =
+    TArray.fromIterable(List.fill(n)(a))
 
   def valuesOf[T](array: TArray[T]): STM[Nothing, List[T]] =
     array.fold(List.empty[T])((acc, a) => a :: acc).map(_.reverse)

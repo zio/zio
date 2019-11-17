@@ -46,4 +46,7 @@ abstract class TestRuntime(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def unsafeRunWith[R, E, A](r: UIO[R])(zio: ZIO[R, E, A]): A =
     unsafeRun(r.flatMap[Any, E, A](zio.provide))
+
+  def unsafeRunWithManaged[R, E, A](r: UManaged[R])(zio: ZIO[R, E, A]): A =
+    unsafeRun(zio.provideManaged(r))
 }

@@ -12,11 +12,11 @@ object StackBoolSpec
     extends ZIOBaseSpec(
       suite("StackBoolSpec")(
         testM("Size tracking") {
-          checkAll(gen)(list => assert(StackBool(list: _*).size.toInt, equalTo(list.length)))
+          checkAll(gen)(list => assert(StackBool.fromIterable(list).size.toInt, equalTo(list.length)))
         },
         testM("From/to list identity") {
           checkAll(gen) { list =>
-            assert(StackBool(list: _*).toList, equalTo(list))
+            assert(StackBool.fromIterable(list).toList, equalTo(list))
           }
         },
         testM("Push/pop example") {

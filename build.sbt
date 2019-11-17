@@ -37,6 +37,10 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
+)
+addCommandAlias(
+  "testJVMNoBenchmarks",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
@@ -103,9 +107,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.1" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -146,6 +150,9 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
 
 lazy val streamsTestsJS = streamsTests.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  )
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
@@ -189,9 +196,9 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.1" % Test
     )
   )
 
@@ -235,8 +242,12 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
 lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm.settings(dottySettings)
 
+lazy val isScala211 = Def.setting {
+  scalaVersion.value.startsWith("2.11")
+}
+
 lazy val benchmarks = project.module
-  .dependsOn(coreJVM, streamsJVM)
+  .dependsOn(coreJVM, streamsJVM, testJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
@@ -246,18 +257,24 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                   %% "fs2-core"        % "2.0.1",
+        "co.fs2"                   %% "fs2-core"        % "2.1.0",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.26",
-        "io.monix"                 %% "monix"           % "3.0.0",
+        "io.monix"                 %% "monix"           % "3.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.14",
         "org.ow2.asm"              % "asm"              % "7.2",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.typelevel"            %% "cats-effect"     % "2.0.0"
+        "org.typelevel"            %% "cats-effect"     % "2.0.0",
+        "org.scalacheck"           %% "scalacheck"      % "1.14.2",
+        "hedgehog"                 %% "hedgehog-core"   % "0.1.0"
       ),
+    libraryDependencies ++= {
+      if (isScala211.value) Nil
+      else Seq("com.github.japgolly.nyaya" %% "nyaya-gen" % "0.9.0-RC1")
+    },
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
       .reduce(_ | _),
@@ -268,6 +285,9 @@ lazy val benchmarks = project.module
       "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
+    ),
+    resolvers += Resolver.url("bintray-scala-hedgehog", url("https://dl.bintray.com/hedgehogqa/scala-hedgehog"))(
+      Resolver.ivyStylePatterns
     )
   )
 

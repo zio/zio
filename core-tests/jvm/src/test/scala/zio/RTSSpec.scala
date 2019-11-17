@@ -60,6 +60,23 @@ object RTSSpec
 
           assertM(io, isTrue)
         } @@ flaky,
+        testM("Fiber dump looks correct") {
+          for {
+            promise <- Promise.make[Nothing, Int]
+            fiber   <- promise.await.fork
+            dump    <- fiber.dump
+            dumpStr <- dump.fold[URIO[Clock, String]](IO.succeed(""))(_.prettyPrintM)
+            _       <- UIO(println(dumpStr))
+          } yield assert(dump, anything)
+        },
+        testM("interruption causes") {
+          for {
+            queue    <- Queue.bounded[Int](100)
+            producer <- queue.offer(42).forever.fork
+            rez      <- producer.interrupt
+            _        <- UIO(println(rez.fold(_.prettyPrint, _ => "")))
+          } yield assert(rez, anything)
+        },
         testM("interruption of unending bracket") {
           val io =
             for {
@@ -79,7 +96,7 @@ object RTSSpec
             } yield (startValue + exitValue) == 42
 
           assertM(io, isTrue)
-        } @@ jvm(nonFlaky(100)),
+        } @@ jvm(nonFlaky),
         testM("deadlock regression 1") {
           if (TestVersion.isDotty) {
             assertM(ZIO.effect(true), isTrue)

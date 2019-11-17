@@ -18,6 +18,7 @@ import zio.test.Assertion.{
   isTrue,
   isUnit
 }
+
 import scala.{ Stream => _ }
 import Exit.Success
 import StreamUtils._
@@ -222,6 +223,18 @@ object StreamSpec
                          )
                          .runCollect
             } yield assert(result, equalTo(List(List(1, 1, 1, 1), List(2))))
+          }
+        ),
+        suite("access/accessM")(
+          testM("ZStream.access") {
+            for {
+              result <- ZStream.access[String](identity).provide("test").runHead.get
+            } yield assert(result, equalTo("test"))
+          },
+          testM("ZStream.accessM") {
+            for {
+              result <- ZStream.accessM[String](ZStream.succeed).provide("test").runHead.get
+            } yield assert(result, equalTo("test"))
           }
         ),
         suite("Stream.bracket")(
@@ -541,16 +554,6 @@ object StreamSpec
             execution <- log.get
           } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
         },
-        testM("Stream.finalizer") {
-          for {
-            log <- Ref.make[List[String]](Nil)
-            _ <- (for {
-                  _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-                  _ <- Stream.finalizer(log.update("Use" :: _))
-                } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
-            execution <- log.get
-          } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
-        },
         testM("Stream.filter")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
@@ -563,6 +566,25 @@ object StreamSpec
             res2 <- s.runCollect.map(_.filter(p))
           } yield assert(res1, equalTo(res2))
         }),
+        suite("Stream.finalizer")(
+          testM("happy path") {
+            for {
+              log <- Ref.make[List[String]](Nil)
+              _ <- (for {
+                    _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                    _ <- Stream.finalizer(log.update("Use" :: _))
+                  } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
+              execution <- log.get
+            } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
+          },
+          testM("finalizer is not run if stream is not pulled") {
+            for {
+              ref <- Ref.make(false)
+              _   <- Stream.finalizer(ref.set(true)).process.use(_ => UIO.unit)
+              fin <- ref.get
+            } yield assert(fin, isFalse)
+          }
+        ),
         suite("Stream.flatMap")(
           testM("deep flatMap stack safety") {
             def fib(n: Int): Stream[Nothing, Int] =
@@ -768,7 +790,7 @@ object StreamSpec
               _ <- Stream(1, 2, 3, 4)
                     .flatMapParSwitch(1) { i =>
                       if (i > 3) Stream.bracket(UIO.unit)(_ => lastExecuted.set(true)).flatMap(_ => Stream.empty)
-                      else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+                      else Stream.managed(semaphore.withPermitManaged).flatMap(_ => Stream.never)
                     }
                     .runDrain
               result <- semaphore.withPermit(lastExecuted.get)
@@ -782,7 +804,7 @@ object StreamSpec
                     .flatMapParSwitch(4) { i =>
                       if (i > 8)
                         Stream.bracket(UIO.unit)(_ => lastExecuted.update(_ + 1)).flatMap(_ => Stream.empty)
-                      else Stream.bracket(semaphore.acquire)(_ => semaphore.release).flatMap(_ => Stream.never)
+                      else Stream.managed(semaphore.withPermitManaged).flatMap(_ => Stream.never)
                     }
                     .runDrain
               result <- semaphore.withPermits(4)(lastExecuted.get)
@@ -1034,6 +1056,20 @@ object StreamSpec
             equalTo(List(List(1, 2), List(3, 4)))
           )
         ),
+        suite("Stream.runHead")(
+          testM("nonempty stream")(
+            assertM(
+              Stream(1, 2, 3, 4).runHead,
+              equalTo(Some(1))
+            )
+          ),
+          testM("empty stream")(
+            assertM(
+              Stream.empty.runHead,
+              equalTo(None)
+            )
+          )
+        ),
         suite("Stream interleaving")(
           testM("interleave") {
             val s1 = Stream(2, 3)
@@ -1079,6 +1115,20 @@ object StreamSpec
         ),
         testM("Stream.iterate")(
           assertM(Stream.iterate(1)(_ + 1).take(10).runCollect, equalTo((1 to 10).toList))
+        ),
+        suite("Stream.runLast")(
+          testM("nonempty stream")(
+            assertM(
+              Stream(1, 2, 3, 4).runLast,
+              equalTo(Some(4))
+            )
+          ),
+          testM("empty stream")(
+            assertM(
+              Stream.empty.runLast,
+              equalTo(None)
+            )
+          )
         ),
         testM("Stream.map")(checkM(pureStreamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
           for {
@@ -1566,6 +1616,7 @@ object StreamSpec
                 .tap(_ => ZIO.sleep(Duration.Infinity))
                 .timeout(Duration.Zero)
                 .runDrain
+                .sandbox
                 .ignore
                 .map(_ => true),
               isTrue
@@ -1763,20 +1814,19 @@ object StreamSpec
             import zio.test.environment.TestClock
 
             for {
-              clock <- TestClock.make(TestClock.DefaultData)
-              s1    = Stream.iterate(0)(_ + 1).fixed(100.millis).provide(clock)
-              s2    = Stream.iterate(0)(_ + 1).fixed(70.millis).provide(clock)
-              s3    = s1.zipWithLatest(s2)((_, _))
-              q     <- Queue.unbounded[(Int, Int)]
-              _     <- s3.foreach(q.offer).fork
-              a     <- q.take
-              _     <- clock.clock.setTime(70.millis)
-              b     <- q.take
-              _     <- clock.clock.setTime(100.millis)
-              c     <- q.take
-              _     <- clock.clock.setTime(140.millis)
-              d     <- q.take
-              _     <- clock.clock.setTime(210.millis)
+              q  <- Queue.unbounded[(Int, Int)]
+              s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
+              s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
+              s3 = s1.zipWithLatest(s2)((_, _))
+              _  <- s3.foreach(q.offer).fork
+              a  <- q.take
+              _  <- TestClock.setTime(70.millis)
+              b  <- q.take
+              _  <- TestClock.setTime(100.millis)
+              c  <- q.take
+              _  <- TestClock.setTime(140.millis)
+              d  <- q.take
+              _  <- TestClock.setTime(210.millis)
             } yield assert(List(a, b, c, d), equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
           }
         ),
