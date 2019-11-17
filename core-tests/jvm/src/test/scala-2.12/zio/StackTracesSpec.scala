@@ -289,6 +289,15 @@ object StackTracesSpecUtil {
     val badMethod2 = ZIO.succeed(_: ZTrace)
   }
 
+  object singleTaskForCompFixture {
+    def asyncDbCall(): Task[Unit] =
+      Task(throw new Exception)
+
+    val selectHumans: Task[Unit] = for {
+      _ <- asyncDbCall()
+    } yield ()
+  }
+
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -603,6 +612,15 @@ object StackTracesSpec_ToZioMigration
             assert(trace.executionTrace.exists(_.prettyPrint.contains("fail")), isTrue)
 
           }
+        },
+        testM("single effect for-comprehension") {
+          import StackTracesSpecUtil._
+
+          StackTracesSpecUtil.singleTaskForCompFixture.selectHumans causeMust { cause =>
+            assert(cause.traces.size, equalTo(1)) &&
+            assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
+            assert(cause.traces.head.stackTrace.head.prettyPrint.contains("selectHumans"), isTrue)
+          }
         }
       )
     )
@@ -617,11 +635,8 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   // set to true to print traces
   private val debug = false
 
-  "single effect for-comprehension" >> singleEffectForComp
   "single effectTotal for-comprehension" >> singleEffectTotalForComp
   "single suspendWith for-comprehension" >> singleSuspendWithForComp
-
-  private def show(trace: ZTrace): Unit = if (debug) println(trace.prettyPrint)
 
   private def show(cause: Cause[Any]): Unit = if (debug) println(cause.prettyPrint)
 
@@ -629,17 +644,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
     trace match {
       case s: SourceLocation => s.method contains method
       case _                 => false
-    }
-
-  private def mentionMethod(method: String)(implicit dummy: DummyImplicit): Matcher[ZTraceElement] =
-    new Matcher[ZTraceElement] {
-      def apply[S <: ZTraceElement](expectable: Expectable[S]) =
-        result(
-          mentionsMethod(method, expectable.value),
-          expectable.description + s" mentions method `$method`",
-          expectable.description + s" does not mention method `$method`",
-          expectable
-        )
     }
 
   private def mentionMethod(method: String): Matcher[List[ZTraceElement]] =
@@ -674,16 +678,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
     def doSideWork() = Task(())
 
     def doMainWork() = Task(throw new Exception("Worker failed!"))
-  }
-
-  def singleEffectForComp = {
-    import singleTaskForCompFixture._
-
-    selectHumans causeMust { cause =>
-      (cause.traces must have size 1) and
-        (cause.traces.head.stackTrace must have size 2) and
-        (cause.traces.head.stackTrace.head must mentionMethod("selectHumans"))
-    }
   }
 
   object singleTaskForCompFixture {
