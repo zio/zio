@@ -1286,8 +1286,8 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
   /**
    * Creates a sink containing the first value.
    */
-  final def head[A]: ZSink[Any, Nothing, Nothing, A, Option[A]] =
-    collectAll.map(_.headOption)
+  final def head[A]: ZSink[Any, Nothing, A, A, Option[A]] =
+    identity[A].optional
 
   /**
    * Creates a sink containing the last value.
