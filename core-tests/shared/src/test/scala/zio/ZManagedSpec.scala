@@ -974,7 +974,7 @@ object ZManagedSpec
                       }.fork
               _    <- latch1.await
               res1 <- assertM(resource.get, equalTo(1))
-              _    <- fiber.interrupt
+              _    <- fiber.interrupt.fork
               _    <- latch3.await
               res2 <- assertM(resource.get, equalTo(0))
               res3 <- assertM(latch2.isDone, isFalse)
