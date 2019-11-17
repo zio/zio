@@ -3,6 +3,8 @@ package zio
 import zio.test._
 import zio.test.Assertion._
 import zio.RefMSpecUtils._
+import zio.clock.Clock
+import zio.duration.durationInt
 
 object RefMSpec
     extends ZIOBaseSpec(
@@ -101,6 +103,23 @@ object RefMSpec
             refM  <- RefM.make[State](Active)
             value <- refM.modifySome("State doesn't change") { case Active => IO.fail(failure) }.run
           } yield assert(value, fails(equalTo(failure)))
+        },
+        testM("modifySome with fatal error") {
+          for {
+            refM  <- RefM.make[State](Active)
+            value <- refM.modifySome("State doesn't change") { case Active => IO.dieMessage(fatalError) }.run
+          } yield assert(value, dies(hasMessage(fatalError)))
+        },
+        testM("interrupt parent fiber and update") {
+          for {
+            promise     <- Promise.make[Nothing, RefM[State]]
+            latch       <- Promise.make[Nothing, Unit]
+            makeAndWait = promise.complete(RefM.make[State](Active)) *> latch.await
+            fiber       <- makeAndWait.fork
+            refM        <- promise.await
+            _           <- fiber.interrupt
+            value       <- refM.update(_ => ZIO.succeed(Closed)).timeout(1.second).provide(Clock.Live)
+          } yield assert(value, equalTo(Some(Closed)))
         }
       )
     )
@@ -109,6 +128,7 @@ object RefMSpecUtils {
 
   val (current, update) = ("value", "new value")
   val failure           = "failure"
+  val fatalError        = ":-0"
 
   sealed trait State
   case object Active  extends State
