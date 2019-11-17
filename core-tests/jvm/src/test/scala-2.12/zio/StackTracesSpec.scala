@@ -239,6 +239,23 @@ object StackTracesSpecUtil {
     val mapError = (_: Any) => ()
   }
 
+  def catchSomeWithOptimizedEffect = {
+    import catchSomeWithOptimizedEffectFixture._
+
+    for {
+      t <- Task(fail())
+            .flatMap(badMethod)
+            .catchSome {
+              case _: ArithmeticException => ZIO.fail("impossible match!")
+            }
+    } yield t
+  }
+
+  object catchSomeWithOptimizedEffectFixture {
+    val fail      = () => throw new Exception("error!")
+    val badMethod = ZIO.succeed(_: ZTrace)
+  }
+
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -504,6 +521,23 @@ object StackTracesSpec_ToZioMigration
               assert(cause.traces.head.stackTrace(1).prettyPrint.contains("mapError"), isTrue) &&
               assert(cause.traces.head.stackTrace(2).prettyPrint.contains("mapErrorPreservesTrace"), isTrue)
           }
+        },
+        testM("catchSome with optimized effect path") {
+          import StackTracesSpecUtil._
+
+          val io = for {
+            trace <- StackTracesSpecUtil.catchSomeWithOptimizedEffect
+          } yield trace
+
+          io causeMust { cause =>
+            assert(cause.traces.size, equalTo(1)) &&
+            assert(cause.traces.head.executionTrace.size, equalTo(4)) &&
+            assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("fail")), isTrue) &&
+            assert(cause.traces.head.stackTrace.size, equalTo(9)) &&
+            assert(cause.traces.head.stackTrace.head.prettyPrint.contains("badMethod"), isTrue) &&
+            assert(cause.traces.head.stackTrace(1).prettyPrint.contains("apply"), isTrue) && // PartialFunction.apply
+            assert(cause.traces.head.stackTrace(2).prettyPrint.contains("catchSomeWithOptimizedEffect"), isTrue)
+          }
         }
       )
     )
@@ -518,9 +552,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
   // set to true to print traces
   private val debug = false
 
-  "mapError fully preserves previous stack trace" >> mapErrorPreservesTrace
-
-  "catchSome with optimized effect path" >> catchSomeWithOptimizedEffect
   "catchAll with optimized effect path" >> catchAllWithOptimizedEffect
   "foldM with optimized effect path" >> foldMWithOptimizedEffect
 
@@ -638,33 +669,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()
     } yield ()
-  }
-
-  def catchSomeWithOptimizedEffect = {
-    import catchSomeWithOptimizedEffectFixture._
-
-    val io = for {
-      t <- Task(fail())
-            .flatMap(badMethod)
-            .catchSome {
-              case _: ArithmeticException => ZIO.fail("impossible match!")
-            }
-    } yield t
-
-    io causeMust { cause =>
-      (cause.traces must have size 1) and
-        (cause.traces.head.executionTrace must have size 1) and
-        (cause.traces.head.executionTrace must mentionMethod("fail")) and
-        (cause.traces.head.stackTrace must have size 4) and
-        (cause.traces.head.stackTrace.head must mentionMethod("badMethod")) and
-        (cause.traces.head.stackTrace(1) must mentionMethod("apply")) and // PartialFunction.apply
-        (cause.traces.head.stackTrace(2) must mentionMethod("catchSomeWithOptimizedEffect"))
-    }
-  }
-
-  object catchSomeWithOptimizedEffectFixture {
-    val fail      = () => throw new Exception("error!")
-    val badMethod = ZIO.succeed(_: ZTrace)
   }
 
   def catchAllWithOptimizedEffect = {
