@@ -205,6 +205,24 @@ object StackTracesSpecUtil {
           }
     } yield ()
 
+  def executionTraceConditionalExample = {
+    import executionTraceConditionalExampleFixture._
+
+    doWork(true)
+  }
+
+  object executionTraceConditionalExampleFixture {
+    def doWork(condition: Boolean) =
+      for {
+        _ <- IO.when(condition)(doSideWork)
+        _ <- doMainWork
+      } yield ()
+
+    def doSideWork() = Task(())
+
+    def doMainWork() = Task(throw new Exception("Worker failed!"))
+  }
+
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -434,6 +452,21 @@ object StackTracesSpec_ToZioMigration
             assert(cause.traces.head.stackTrace.isEmpty, isTrue) &&
             assert(cause.traces.head.parentTrace.isEmpty, isTrue)
           }
+        },
+        testM("execution trace example with conditional") {
+          import StackTracesSpecUtil._
+
+          val io = for {
+            trace <- StackTracesSpecUtil.executionTraceConditionalExample
+          } yield trace
+
+          io causeMust { cause =>
+            val trace = cause.traces.head
+
+            assert(trace.executionTrace.exists(_.prettyPrint.contains("doSideWork")), isTrue) &&
+            assert(trace.executionTrace.exists(_.prettyPrint.contains("doMainWork")), isTrue) &&
+            assert(trace.stackTrace.head.prettyPrint.contains("doWork"), isTrue)
+          }
         }
       )
     )
@@ -447,8 +480,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
   // set to true to print traces
   private val debug = false
-
-  "execution trace example with conditional" >> executionTraceConditionalExample
 
   "mapError fully preserves previous stack trace" >> mapErrorPreservesTrace
 
@@ -501,20 +532,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def executionTraceConditionalExample = {
-    import executionTraceConditionalExampleFixture._
-
-    val io = doWork(true)
-
-    io causeMust { cause =>
-      val trace = cause.traces.head
-
-      (trace.executionTrace.last must mentionMethod("doSideWork")) and
-        (trace.executionTrace must mentionMethod("doMainWork")) and
-        (trace.stackTrace.head must mentionMethod("doWork"))
-    }
   }
 
   object executionTraceConditionalExampleFixture {
