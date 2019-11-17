@@ -241,8 +241,12 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
 lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm.settings(dottySettings)
 
+lazy val isScala211 = Def.setting {
+  scalaVersion.value.startsWith("2.11")
+}
+
 lazy val benchmarks = project.module
-  .dependsOn(coreJVM, streamsJVM)
+  .dependsOn(coreJVM, streamsJVM, testJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
@@ -262,8 +266,14 @@ lazy val benchmarks = project.module
         "org.ow2.asm"              % "asm"              % "7.2",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.typelevel"            %% "cats-effect"     % "2.0.0"
+        "org.typelevel"            %% "cats-effect"     % "2.0.0",
+        "org.scalacheck"           %% "scalacheck"      % "1.14.2",
+        "hedgehog"                 %% "hedgehog-core"   % "0.1.0"
       ),
+    libraryDependencies ++= {
+      if (isScala211.value) Nil
+      else Seq("com.github.japgolly.nyaya" %% "nyaya-gen" % "0.9.0-RC1")
+    },
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
       .reduce(_ | _),
@@ -274,6 +284,9 @@ lazy val benchmarks = project.module
       "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
+    ),
+    resolvers += Resolver.url("bintray-scala-hedgehog", url("https://dl.bintray.com/hedgehogqa/scala-hedgehog"))(
+      Resolver.ivyStylePatterns
     )
   )
 
