@@ -1012,13 +1012,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       queuesRef <- Ref
                     .make[Map[Int, Queue[Take[E1, A1]]]](Map())
                     .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
-      indexRef  <- Ref.make(-1).toManaged_
-      nextIndex = indexRef.update(_ + 1)
       add <- {
-        @silent("deprecated")
-        def filterKeys[A, B](map: Map[A, B])(f: A => Boolean) =
-          map.filterKeys(f)
-
         val offer = (a: A) =>
           for {
             shouldProcess <- decide(a)
@@ -1043,6 +1037,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           } yield ()
 
         for {
+          queuesLock <- Semaphore.make(1).toManaged_
+          nextIndex  <- Ref.make(-1).map(_.update(_ + 1)).toManaged_
           newQueue <- Ref
                        .make[UIO[(Int, Queue[Take[E1, A1]])]] {
                          for {
@@ -1053,26 +1049,27 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                        }
                        .toManaged_
           finalize = (endTake: Take[E, Nothing]) =>
-            for {
-              ignored <- Ref.make[Set[Int]](Set())
-              _ <- newQueue.set {
-                    for {
-                      id    <- nextIndex
-                      queue <- Queue.bounded[Take[E1, A1]](1)
-                      _     <- queue.offer(endTake)
-                      _     <- ignored.update(_ + id)
-                      _     <- queuesRef.update(_ + (id -> queue))
-                    } yield (id, queue)
-                  }
-              queues     <- queuesRef.get
-              toFinalize <- ignored.get.map(ids => filterKeys(queues)(!ids.contains(_)).map(_._2))
-              _ <- ZIO.foreach(toFinalize) { queue =>
-                    queue.offer(endTake).catchSomeCause {
-                      case Cause.Interrupt => ZIO.unit
+            // we need to make sure that no queues are currently being added
+            queuesLock.withPermit {
+              for {
+                // all newly created queues should end immediately
+                _ <- newQueue.set {
+                      for {
+                        id    <- nextIndex
+                        queue <- Queue.bounded[Take[E1, A1]](1)
+                        _     <- queue.offer(endTake)
+                        _     <- queuesRef.update(_ + (id -> queue))
+                      } yield (id, queue)
                     }
-                  }
-              _ <- done(endTake)
-            } yield ()
+                queues <- queuesRef.get.map(_.values)
+                _ <- ZIO.foreach(queues) { queue =>
+                      queue.offer(endTake).catchSomeCause {
+                        case Cause.Interrupt => ZIO.unit
+                      }
+                    }
+                _ <- done(endTake)
+              } yield ()
+            }
           _ <- self
                 .foreachManaged(offer)
                 .foldCauseM(
@@ -1080,7 +1077,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                   _ => finalize(Take.End).toManaged_
                 )
                 .fork
-        } yield newQueue.get.flatten
+        } yield queuesLock.withPermit(newQueue.get.flatten)
       }
     } yield add
 

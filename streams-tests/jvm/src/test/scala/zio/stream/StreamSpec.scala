@@ -1332,6 +1332,14 @@ object StreamSpec
           )
         },
         suite("Stream.partitionEither")(
+          testM("allows repeated runs without hanging") {
+            val stream = ZStream
+              .fromIterable[Int](Seq.empty)
+              .partitionEither(i => ZIO.succeed(if (i % 2 == 0) Left(i) else Right(i)))
+              .map { case (evens, odds) => evens.mergeEither(odds) }
+              .use(_.runCollect)
+            assertM(ZIO.sequence(Range(0, 100).toList.map(_ => stream)).map(_ => 0), equalTo(0))
+          },
           testM("values") {
             Stream
               .range(0, 5)
