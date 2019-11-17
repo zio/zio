@@ -1028,8 +1028,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                           .foldCauseM(
                             {
                               // we ignore all downstream queues that were shut down and remove them later
-                              case Cause.Interrupt => ZIO.succeed(id :: acc)
-                              case c               => ZIO.halt(c)
+                              case c if c.interrupted => ZIO.succeed(id :: acc)
+                              case c                  => ZIO.halt(c)
                             },
                             _ => ZIO.succeed(acc)
                           )
@@ -1066,7 +1066,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 queues <- queuesRef.get.map(_.values)
                 _ <- ZIO.foreach(queues) { queue =>
                       queue.offer(endTake).catchSomeCause {
-                        case Cause.Interrupt => ZIO.unit
+                        case c if c.interrupted => ZIO.unit
                       }
                     }
                 _ <- done(endTake)
