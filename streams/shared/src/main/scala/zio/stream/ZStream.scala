@@ -2658,16 +2658,6 @@ object ZStream extends Serializable {
   final def accessM[R]: AccessMPartiallyApplied[R] =
     new AccessMPartiallyApplied[R]
 
-  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: R => A): ZStream[R, Nothing, A] =
-      ZStream.fromEffect(ZIO.access(f))
-  }
-
-  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZStream[R, Nothing, A]): ZStream[R, Nothing, A] =
-      ZStream.unwrap(ZIO.access(f))
-  }
-
   /**
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
@@ -3100,6 +3090,16 @@ object ZStream extends Serializable {
    */
   final def unwrapManaged[R, E, A](fa: ZManaged[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     ZStream[R, E, A](fa.flatMap(_.process))
+
+  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: R => A): ZStream[R, Nothing, A] =
+      ZStream.fromEffect(ZIO.access(f))
+  }
+
+  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: R => ZStream[R, Nothing, A]): ZStream[R, Nothing, A] =
+      ZStream.unwrap(ZIO.access(f))
+  }
 
   private[stream] final def exitToInputStreamRead(exit: Exit[Option[Throwable], Byte]): Int = exit match {
     case Exit.Success(value) => value.toInt
