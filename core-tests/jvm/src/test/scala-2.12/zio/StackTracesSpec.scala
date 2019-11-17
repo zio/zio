@@ -256,6 +256,22 @@ object StackTracesSpecUtil {
     val badMethod = ZIO.succeed(_: ZTrace)
   }
 
+  def catchAllWithOptimizedEffect = {
+    import catchAllWithOptimizedEffectFixture._
+
+    for {
+      t <- Task(fail())
+            .flatMap(succ)
+            .catchAll(refailAndLoseTrace)
+    } yield t
+  }
+
+  object catchAllWithOptimizedEffectFixture {
+    val succ               = ZIO.succeed(_: ZTrace)
+    val fail               = () => throw new Exception("error!")
+    val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
+  }
+
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -538,6 +554,24 @@ object StackTracesSpec_ToZioMigration
             assert(cause.traces.head.stackTrace(1).prettyPrint.contains("apply"), isTrue) && // PartialFunction.apply
             assert(cause.traces.head.stackTrace(2).prettyPrint.contains("catchSomeWithOptimizedEffect"), isTrue)
           }
+        },
+        testM("catchAll with optimized effect path") {
+          import StackTracesSpecUtil._
+
+          val io = for {
+            trace <- StackTracesSpecUtil.catchAllWithOptimizedEffect
+          } yield trace
+
+          io causeMust {
+            cause =>
+              // after we refail and lose the trace, the only continuation we have left is the map from yield
+              assert(cause.traces.size, equalTo(1)) &&
+              assert(cause.traces.head.executionTrace.size, equalTo(5)) &&
+              assert(cause.traces.head.executionTrace.head.prettyPrint.contains("refailAndLoseTrace"), isTrue) &&
+              assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("fail")), isTrue) &&
+              assert(cause.traces.head.stackTrace.size, equalTo(7)) &&
+              assert(cause.traces.head.stackTrace.head.prettyPrint.contains("catchAllWithOptimizedEffect"), isTrue)
+          }
         }
       )
     )
@@ -669,32 +703,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()
     } yield ()
-  }
-
-  def catchAllWithOptimizedEffect = {
-    import catchAllWithOptimizedEffectFixture._
-
-    val io = for {
-      t <- Task(fail())
-            .flatMap(succ)
-            .catchAll(refailAndLoseTrace)
-    } yield t
-
-    io causeMust { cause =>
-      // after we refail and lose the trace, the only continuation we have left is the map from yield
-      (cause.traces must have size 1) and
-        (cause.traces.head.executionTrace must have size 2) and
-        (cause.traces.head.executionTrace.head must mentionMethod("refailAndLoseTrace")) and
-        (cause.traces.head.executionTrace.last must mentionMethod("fail")) and
-        (cause.traces.head.stackTrace must have size 2) and
-        (cause.traces.head.stackTrace.head must mentionMethod("catchAllWithOptimizedEffect"))
-    }
-  }
-
-  object catchAllWithOptimizedEffectFixture {
-    val succ               = ZIO.succeed(_: ZTrace)
-    val fail               = () => throw new Exception("error!")
-    val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
   }
 
   def foldMWithOptimizedEffect = {
