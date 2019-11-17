@@ -192,6 +192,19 @@ object StackTracesSpecUtil {
     val traceThis: () => String = () => "trace this!"
   }
 
+  def tracingRegionsInheritance =
+    for {
+      _ <- ZIO.unit
+      _ <- ZIO.unit
+      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.checkTraced(
+                           ZIO.succeed
+                         )).fork).untraced
+      tracingStatus <- untraceableFiber.join
+      _ <- ZIO.when(tracingStatus.isTraced) {
+            ZIO.dieMessage("Expected disabled tracing")
+          }
+    } yield ()
+
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
     def causeMust(check: Cause[Any] => TestResult) =
       io.foldCause[TestResult](
@@ -407,6 +420,20 @@ object StackTracesSpec_ToZioMigration
             ) &&
             assert(cause.traces.head.stackTrace.size, equalTo(6))
           }
+        },
+        testM("tracing region is inherited on fork") {
+          import StackTracesSpecUtil._
+
+          val io = for {
+            trace <- StackTracesSpecUtil.tracingRegionsInheritance
+          } yield trace
+
+          io causeMust { cause =>
+            assert(cause.traces.size, equalTo(1)) &&
+            assert(cause.traces.head.executionTrace.isEmpty, isTrue) &&
+            assert(cause.traces.head.stackTrace.isEmpty, isTrue) &&
+            assert(cause.traces.head.parentTrace.isEmpty, isTrue)
+          }
         }
       )
     )
@@ -420,8 +447,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
 
   // set to true to print traces
   private val debug = false
-
-  "tracing region is inherited on fork" >> tracingRegionsInheritance
 
   "execution trace example with conditional" >> executionTraceConditionalExample
 
@@ -467,8 +492,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         )
     }
 
-  private def mentionedMethod(method: String): Matcher[List[ZTraceElement]] = mentionMethod(method)
-
   private implicit final class CauseMust[R >: ZEnv](io: ZIO[R, Any, Any]) {
     def causeMust(check: Cause[Any] => Result): Result =
       unsafeRunSync(io).fold[Result](
@@ -478,27 +501,6 @@ class StackTracesSpec_AwayFromSpecs2Migration(implicit ee: org.specs2.concurrent
         },
         _ => failure
       )
-  }
-
-  def tracingRegionsInheritance = {
-    val io: ZIO[Any, Nothing, Unit] = for {
-      _ <- ZIO.unit
-      _ <- ZIO.unit
-      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.checkTraced(
-                           ZIO.succeed
-                         )).fork).untraced
-      tracingStatus <- untraceableFiber.join
-      _ <- ZIO.when(tracingStatus.isTraced) {
-            ZIO.dieMessage("Expected disabled tracing")
-          }
-    } yield ()
-
-    io causeMust { cause =>
-      (cause.traces must have size 1) and
-        cause.traces.head.executionTrace.isEmpty and
-        cause.traces.head.stackTrace.isEmpty and
-        cause.traces.head.parentTrace.isEmpty
-    }
   }
 
   def executionTraceConditionalExample = {
