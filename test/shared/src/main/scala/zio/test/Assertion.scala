@@ -258,6 +258,12 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that requires an exception to have a certain message.
+   */
+  final def hasMessage(message: String): Assertion[Throwable] =
+    assertion[Throwable]("hasMessage")(param(message))(th => th.getMessage == message)
+
+  /**
    * Makes a new assertion that requires a given string to end with the specified suffix.
    */
   final def endsWith(suffix: String): Assertion[String] =
