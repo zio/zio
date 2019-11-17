@@ -101,6 +101,12 @@ object RefMSpec
             refM  <- RefM.make[State](Active)
             value <- refM.modifySome("State doesn't change") { case Active => IO.fail(failure) }.run
           } yield assert(value, fails(equalTo(failure)))
+        },
+        testM("modifySome with fatal error") {
+          for {
+            refM  <- RefM.make[State](Active)
+            value <- refM.modifySome("State doesn't change") { case Active => IO.dieMessage(fatalError) }.run
+          } yield assert(value, dies(hasMessage(fatalError)))
         }
       )
     )
@@ -109,6 +115,7 @@ object RefMSpecUtils {
 
   val (current, update) = ("value", "new value")
   val failure           = "failure"
+  val fatalError        = ":-0"
 
   sealed trait State
   case object Active  extends State
