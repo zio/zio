@@ -98,25 +98,21 @@ object RTSSpec
           assertM(io, isTrue)
         } @@ jvm(nonFlaky),
         testM("deadlock regression 1") {
-          if (TestVersion.isDotty) {
-            assertM(ZIO.effect(true), isTrue)
-          } else {
-            import java.util.concurrent.Executors
+          import java.util.concurrent.Executors
 
-            val rts = new DefaultRuntime {}
-            val e   = Executors.newSingleThreadExecutor()
+          val rts = new DefaultRuntime {}
+          val e   = Executors.newSingleThreadExecutor()
 
-            (0 until 10000).foreach { _ =>
-              rts.unsafeRun {
-                IO.effectAsync[Nothing, Int] { k =>
-                  val c: Callable[Unit] = () => k(IO.succeed(1))
-                  val _                 = e.submit(c)
-                }
+          (0 until 10000).foreach { _ =>
+            rts.unsafeRun {
+              IO.effectAsync[Nothing, Int] { k =>
+                val c: Callable[Unit] = () => k(IO.succeed(1))
+                val _                 = e.submit(c)
               }
             }
-
-            assertM(ZIO.effect(e.shutdown()), isUnit)
           }
+
+          assertM(ZIO.effect(e.shutdown()), isUnit)
         },
         testM("second callback call is ignored") {
           for {

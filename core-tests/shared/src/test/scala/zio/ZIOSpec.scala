@@ -1359,11 +1359,11 @@ object ZIOSpec
           testM("withFilter doesn't compile with UIO") {
             val result = typeCheck {
               """
-                |import zio._
-                |
-                |for {
-                |  n <- UIO(3) if n > 0
-                |} yield n
+                import zio._
+
+                for {
+                  n <- UIO(3) if n > 0
+                } yield n
                 """
             }
             assertM(result, isLeft(anything))
@@ -1371,15 +1371,16 @@ object ZIOSpec
           testM("withFilter doesn't compile with IO that fails with type other than Throwable") {
             val result = typeCheck {
               """
-                |import zio._
-                |val io: IO[String, Int] = IO.succeed(1)
-                |for {
-                |  n <- io if n > 0
-                |} yield n
+                import zio._
+                val io: IO[String, Int] = IO.succeed(1)
+                for {
+                  n <- io if n > 0
+                } yield n
               """
             }
             val expected = "Cannot prove that NoSuchElementException <:< String."
             if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
+            else if (TestVersion.isDotty) assertM(result, isRight(equalTo(())))
             else assertM(result, isLeft(anything))
           }
         ),
