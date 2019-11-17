@@ -18,6 +18,7 @@ import zio.test.Assertion.{
   isTrue,
   isUnit
 }
+
 import scala.{ Stream => _ }
 import Exit.Success
 import StreamUtils._
@@ -222,6 +223,18 @@ object StreamSpec
                          )
                          .runCollect
             } yield assert(result, equalTo(List(List(1, 1, 1, 1), List(2))))
+          }
+        ),
+        suite("access/accessM")(
+          testM("ZStream.access") {
+            for {
+              result <- ZStream.access[String](identity).provide("test").runHead.get
+            } yield assert(result, equalTo("test"))
+          },
+          testM("ZStream.accessM") {
+            for {
+              result <- ZStream.accessM[String](ZStream.succeed).provide("test").runHead.get
+            } yield assert(result, equalTo("test"))
           }
         ),
         suite("Stream.bracket")(
