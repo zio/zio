@@ -1974,7 +1974,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
+  def run[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, Any, A1, B]): ZIO[R1, E1, B] =
     sink.initial.flatMap { initial =>
       self.process.use { as =>
         def pull(state: sink.State): ZIO[R1, E1, B] =
