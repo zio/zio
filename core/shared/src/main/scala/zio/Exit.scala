@@ -21,7 +21,7 @@ package zio
  * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
  */
 sealed trait Exit[+E, +A] extends Product with Serializable { self =>
-  import Exit.{ Cause => _, _ }
+  import Exit._
 
   /**
    * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
@@ -67,9 +67,6 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
    * Maps over both the error and value type.
    */
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
-
-  @deprecated("use as", "1.0.0")
-  final def const[B](b: B): Exit[E, B] = as(b)
 
   /**
    * Flat maps over the value type.
@@ -294,11 +291,4 @@ object Exit extends Serializable {
   final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
   final def unit: Exit[Nothing, Unit] = succeed(())
-
-  @deprecated("use _root_.zio.Cause", "1.0.0")
-  type Cause[+E] = _root_.zio.Cause[E]
-
-  @deprecated("use _root_.zio.Cause", "1.0.0")
-  val Cause = _root_.zio.Cause
-
 }

@@ -246,10 +246,6 @@ object Stream extends Serializable {
   final def succeed[A](a: A): Stream[Nothing, A] =
     ZStream.succeed(a)
 
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    succeed(a)
-
   /**
    * See [[ZStream.unfold]]
    */

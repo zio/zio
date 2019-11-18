@@ -71,16 +71,6 @@ object Blocking extends Serializable {
     /**
      * Imports a synchronous effect that does blocking IO into a pure value.
      *
-     * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
-     * will be interrupted via `Thread.interrupt`.
-     */
-    @deprecated("use effectBlocking()", "1.0.0")
-    def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
-      effectBlocking(effect)
-
-    /**
-     * Imports a synchronous effect that does blocking IO into a pure value.
-     *
      * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
