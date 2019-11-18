@@ -87,7 +87,7 @@ case class TestRunner[R, E, L, -T, S](
   /**
    * Creates a copy of this runner replacing the platform
    */
-  final def withPlatform(f: Platform => Platform): TestRunner[R, L, T, E, S] =
+  final def withPlatform(f: Platform => Platform): TestRunner[R, E, L, T, S] =
     copy(platform = f(platform))
 
   private[test] def buildRuntime(
