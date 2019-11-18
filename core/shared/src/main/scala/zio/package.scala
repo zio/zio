@@ -34,7 +34,8 @@ package object zio extends ZEnvDefinition with EitherCompat {
   type UManaged[+A]      = ZManaged[Any, Nothing, A]
   type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
 
-  type Schedule[-A, +B] = ZSchedule[Any, A, B]
+  @deprecated("use Schedule", "1.0.0")
+  type ZSchedule[-R, -A, +B] = Schedule[R, A, B]
 
   type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
 

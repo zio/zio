@@ -141,7 +141,7 @@ object RTSSpec
             for {
               f <- test.fork
               c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
-                    .repeat(ZSchedule.doUntil[Int](_ >= 1)) <* f.interrupt
+                    .repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
             } yield c
 
           assertM(zio.provide(Clock.Live), isGreaterThanEqualTo(1))
