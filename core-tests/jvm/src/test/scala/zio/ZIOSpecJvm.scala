@@ -1,4 +1,5 @@
 package zio
+
 import zio.Cause.{ die, fail, interrupt }
 import zio.random.Random
 import zio.test.Assertion._
@@ -67,8 +68,7 @@ object ZIOSpecJvm extends ZIOBaseSpec {
       }
     },
     testM("`IO.foldLeft` with a failing step function returns a failed IO") {
-      val genNonEmpty = Gen.anyInt.zipWith(Gen.listOf(Gen.anyInt))(_ :: _)
-      checkM(genNonEmpty) { l =>
+      checkM(Gen.listOf1(Gen.anyInt)) { l =>
         val res = IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))
         assertM(res.run, fails(equalTo("fail")))
       }
