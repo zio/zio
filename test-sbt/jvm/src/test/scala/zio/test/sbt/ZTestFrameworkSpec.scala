@@ -19,7 +19,7 @@ package zio.test.sbt
 import sbt.testing._
 import zio.FunctionIO
 import zio.test.sbt.TestingSupport._
-import zio.test.{ Assertion, DefaultRunnableSpec, TestArgs, TestAspect }
+import zio.test.{ Assertion, DefaultRunnableSpec, Summary, TestArgs, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -105,7 +105,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          FunctionIO.succeed("foo") >>> zTestTask.sendSummary,
+          FunctionIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty
         )
       })
