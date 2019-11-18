@@ -275,7 +275,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
-    schedule: ZSchedule[R1, Option[B], C]
+    schedule: Schedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E1, Either[C, B]] = {
     /*
      * How this works:
@@ -569,7 +569,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
-    schedule: ZSchedule[R1, Option[B], C]
+    schedule: Schedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E1, B] = aggregateAsyncWithinEither(sink, schedule).collect {
     case Right(v) => v
   }
@@ -649,7 +649,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Returns a stream whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZStream[R, E2, B] =
+  final def bimap[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E]): ZStream[R, E1, A1] =
     mapError(f).map(g)
 
   /**
@@ -657,10 +657,22 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * The driver streamer will only ever advance of the maximumLag values before the
    * slowest downstream stream.
    */
-  final def broadcast[E1 >: E, A1 >: A](n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, A]]] =
-    for {
-      queues <- self.broadcastedQueues(n, maximumLag)
-    } yield queues.map(q => ZStream.fromQueueWithShutdown(q).unTake)
+  final def broadcast(n: Int, maximumLag: Int): ZManaged[R, Nothing, List[Stream[E, A]]] =
+    self
+      .broadcastedQueues(n, maximumLag)
+      .map(_.map(ZStream.fromQueueWithShutdown(_).unTake))
+
+  /**
+   * Fan out the stream, producing a dynamic number of streams that have the same elements as this stream.
+   * The driver streamer will only ever advance of the maximumLag values before the
+   * slowest downstream stream.
+   */
+  final def broadcastDynamic(
+    maximumLag: Int
+  ): ZManaged[R, Nothing, UIO[Stream[E, A]]] =
+    distributedWithDynamic[E, A](maximumLag, _ => ZIO.succeed(_ => true), _ => ZIO.unit)
+      .map(_.map(_._2))
+      .map(_.map(ZStream.fromQueueWithShutdown(_).unTake))
 
   /**
    * Converts the stream to a managed list of queues. Every value will be replicated to every queue with the
@@ -668,8 +680,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * The downstream queues will be provided with elements in the same order they are returned, so
    * the fastest queue might have seen up to (maximumLag + 1) elements more than the slowest queue if it
    * has a lower index than the slowest queue.
-   * During the finalizer the driver will wait for all queues to shutdown in order to signal completion.
-   * After the managed value is used, the queues will never again produce values and should be discarded.
+   *
+   * Queues can unsubscribe from upstream by shutting down.
    */
   final def broadcastedQueues[E1 >: E, A1 >: A](
     n: Int,
@@ -677,6 +689,22 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   ): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] = {
     val decider = ZIO.succeed((_: Int) => true)
     distributedWith(n, maximumLag, _ => decider)
+  }
+
+  /**
+   * Converts the stream to a managed dynamic amount of queues. Every value will be replicated to every queue with the
+   * slowest queue being allowed to buffer maximumLag elements before the driver is backpressured.
+   * The downstream queues will be provided with elements in the same order they are returned, so
+   * the fastest queue might have seen up to (maximumLag + 1) elements more than the slowest queue if it
+   * has a lower index than the slowest queue.
+   *
+   * Queues can unsubscribe from upstream by shutting down.
+   */
+  final def broadcastedQueuesDynamic[E1 >: E, A1 >: A](
+    maximumLag: Int
+  ): ZManaged[R, Nothing, UIO[Queue[Take[E1, A1]]]] = {
+    val decider = ZIO.succeed((_: Int) => true)
+    distributedWithDynamic[E1, A1](maximumLag, _ => decider, _ => ZIO.unit).map(_.map(_._2))
   }
 
   /**
@@ -964,7 +992,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     decide: A => UIO[Int => Boolean]
   ): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] =
     Promise.make[Nothing, A => UIO[Int => Boolean]].toManaged_.flatMap { prom =>
-      distributedDynamicWith[E1, A1](maximumLag, (a: A) => prom.await.flatMap(_(a)), _ => ZIO.unit).flatMap { next =>
+      distributedWithDynamic[E1, A1](maximumLag, (a: A) => prom.await.flatMap(_(a)), _ => ZIO.unit).flatMap { next =>
         (ZIO.collectAll(List.fill(n)(next.map(_._2))) <* prom.succeed(decide)).toManaged_
       }
     }
@@ -972,57 +1000,88 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * More powerful version of `ZStream#distributedWith`. This returns a function that will produce
    * new queues and corresponding indices.
-   * You can also provide a function that will be executed after the final events are enqueued in all queues
-   * but before the queues are actually shutdown.
+   * You can also provide a function that will be executed after the final events are enqueued in all queues.
    * Shutdown of the queues is handled by the driver.
    * Downstream users can also shutdown queues manually. In this case the driver will
    * continue but no longer backpressure on them.
    */
-  final def distributedDynamicWith[E1 >: E, A1 >: A](
+  final def distributedWithDynamic[E1 >: E, A1 >: A](
     maximumLag: Int,
     decide: A => UIO[Int => Boolean],
-    done: Take[E1, Nothing] => UIO[Any] = (_: Any) => UIO.unit
+    done: Take[E, Nothing] => UIO[Any] = (_: Any) => UIO.unit
   ): ZManaged[R, Nothing, UIO[(Int, Queue[Take[E1, A1]])]] =
-    Ref
-      .make[Vector[Queue[Take[E1, A1]]]](Vector())
-      .toManaged(_.get.flatMap(qs => ZIO.foreach(qs)(_.shutdown)))
-      .flatMap { queues =>
-        val broadcast = (a: Take[E1, Nothing]) =>
-          for {
-            queues <- queues.get
-            _ <- ZIO.foreach_(queues) { q =>
-                  q.offer(a).catchSomeCause { case c if (c.interrupted) => ZIO.unit }
-                // we don't care if downstream queues shut down
-                }
-          } yield ()
-
+    for {
+      queuesRef <- Ref
+                    .make[Map[Int, Queue[Take[E1, A1]]]](Map())
+                    .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
+      add <- {
         val offer = (a: A) =>
           for {
-            decider <- decide(a)
-            queues  <- queues.get
-            _ <- ZIO.foreach_(queues.zipWithIndex.collect { case (q, id) if decider(id) => q }) { q =>
-                  q.offer(Take.Value(a)).catchSomeCause { case c if (c.interrupted) => ZIO.unit }
-                }
+            shouldProcess <- decide(a)
+            queues        <- queuesRef.get
+            _ <- ZIO
+                  .foldLeft(queues)(List[Int]()) {
+                    case (acc, (id, queue)) =>
+                      if (shouldProcess(id)) {
+                        queue
+                          .offer(Take.Value(a))
+                          .foldCauseM(
+                            {
+                              // we ignore all downstream queues that were shut down and remove them later
+                              case c if c.interrupted => ZIO.succeed(id :: acc)
+                              case c                  => ZIO.halt(c)
+                            },
+                            _ => ZIO.succeed(acc)
+                          )
+                      } else ZIO.succeed(acc)
+                  }
+                  .flatMap(ids => if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit)
           } yield ()
 
         for {
-          add <- Ref
-                  .make[UIO[(Int, Queue[Take[E1, A1]])]] {
-                    Queue
-                      .bounded[Take[E1, A1]](maximumLag)
-                      .flatMap(q => queues.modify(old => ((old.length, q), old :+ q)))
-                      .uninterruptible
-                  }
-                  .toManaged_
+          queuesLock <- Semaphore.make(1).toManaged_
+          nextIndex  <- Ref.make(-1).map(_.update(_ + 1)).toManaged_
+          newQueue <- Ref
+                       .make[UIO[(Int, Queue[Take[E1, A1]])]] {
+                         for {
+                           id    <- nextIndex
+                           queue <- Queue.bounded[Take[E1, A1]](maximumLag)
+                           _     <- queuesRef.update(_ + (id -> queue))
+                         } yield (id, queue)
+                       }
+                       .toManaged_
+          finalize = (endTake: Take[E, Nothing]) =>
+            // we need to make sure that no queues are currently being added
+            queuesLock.withPermit {
+              for {
+                // all newly created queues should end immediately
+                _ <- newQueue.set {
+                      for {
+                        id    <- nextIndex
+                        queue <- Queue.bounded[Take[E1, A1]](1)
+                        _     <- queue.offer(endTake)
+                        _     <- queuesRef.update(_ + (id -> queue))
+                      } yield (id, queue)
+                    }
+                queues <- queuesRef.get.map(_.values)
+                _ <- ZIO.foreach(queues) { queue =>
+                      queue.offer(endTake).catchSomeCause {
+                        case c if c.interrupted => ZIO.unit
+                      }
+                    }
+                _ <- done(endTake)
+              } yield ()
+            }
           _ <- self
                 .foreachManaged(offer)
                 .foldCauseM(
-                  cause => (broadcast(Take.Fail(cause)) *> done(Take.Fail(cause))).toManaged_,
-                  _ => (broadcast(Take.End) *> done(Take.End)).toManaged_
+                  cause => finalize(Take.Fail(cause)).toManaged_,
+                  _ => finalize(Take.End).toManaged_
                 )
                 .fork
-        } yield add.get.flatten
+        } yield queuesLock.withPermit(newQueue.get.flatten)
       }
+    } yield add
 
   /**
    * Converts this stream to a stream that executes its effects but emits no
@@ -1142,7 +1201,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * takes to produce a value.
    */
   final def fixed[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
-    scheduleElementsEither(ZSchedule.spaced(duration) >>> ZSchedule.stop).collect {
+    scheduleElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
       case Right(x) => x
     }
 
@@ -1462,7 +1521,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         ref  <- Ref.make[Map[K, Int]](Map()).toManaged_
         add <- self
                 .mapM(f)
-                .distributedDynamicWith(
+                .distributedWithDynamic(
                   buffer,
                   (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
                   out.offer
@@ -1918,7 +1977,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  final def repeat[R1 <: R, B, C](schedule: ZSchedule[R1, Unit, B]): ZStream[R1, E, A] =
+  final def repeat[R1 <: R, B, C](schedule: Schedule[R1, Unit, B]): ZStream[R1, E, A] =
     repeatEither(schedule) collect { case Right(a) => a }
 
   /**
@@ -1926,7 +1985,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * and then repeat again according to the provided schedule. The schedule output will be emitted at
    * the end of each repetition.
    */
-  final def repeatEither[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZStream[R1, E, Either[B, A]] =
+  final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Unit, B]): ZStream[R1, E, Either[B, A]] =
     repeatWith(schedule)(Right(_), Left(_))
 
   /**
@@ -1935,7 +1994,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * the end of each repetition and can be unified with the stream elements using the provided functions.
    */
   final def repeatWith[R1 <: R, B, C](
-    schedule: ZSchedule[R1, Unit, B]
+    schedule: Schedule[R1, Unit, B]
   )(f: A => C, g: B => C): ZStream[R1, E, C] =
     ZStream[R1, E, C] {
       for {
@@ -2022,7 +2081,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Schedules the output of the stream using the provided `schedule` and emits its output at
    * the end (if `schedule` is finite).
    */
-  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
+  final def schedule[R1 <: R, A1 >: A](schedule: Schedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
     scheduleEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -2030,7 +2089,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * the end (if `schedule` is finite).
    */
   final def scheduleEither[R1 <: R, E1 >: E, B](
-    schedule: ZSchedule[R1, A, B]
+    schedule: Schedule[R1, A, B]
   ): ZStream[R1 with Clock, E1, Either[B, A]] =
     scheduleWith(schedule)(Right.apply, Left.apply)
 
@@ -2040,7 +2099,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
    * and if not short circuited, repeat element once".
    */
-  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
+  final def scheduleElements[R1 <: R, A1 >: A](schedule: Schedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
     scheduleElementsEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -2050,7 +2109,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * and if not short circuited, repeat element once".
    */
   final def scheduleElementsEither[R1 <: R, E1 >: E, B](
-    schedule: ZSchedule[R1, A, B]
+    schedule: Schedule[R1, A, B]
   ): ZStream[R1 with Clock, E1, Either[B, A]] =
     scheduleElementsWith(schedule)(Right.apply, Left.apply)
 
@@ -2062,7 +2121,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Uses the provided functions to align the stream and schedule outputs on a common type.
    */
   final def scheduleElementsWith[R1 <: R, E1 >: E, B, C](
-    schedule: ZSchedule[R1, A, B]
+    schedule: Schedule[R1, A, B]
   )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
     ZStream[R1 with Clock, E1, C] {
       for {
@@ -2097,7 +2156,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Uses the provided function to align the stream and schedule outputs on the same type.
    */
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
-    schedule: ZSchedule[R1, A, B]
+    schedule: Schedule[R1, A, B]
   )(f: A => C, g: B => C): ZStream[R1, E1, C] =
     ZStream[R1, E1, C] {
       for {
@@ -2137,17 +2196,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         }
       } yield pull
     }
-
-  @deprecated("use scheduleElements", "1.0.0")
-  final def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
-    scheduleElements(schedule)
-
-  /**
-   * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
-   */
-  @deprecated("use scheduleElementsEither", "1.0.0")
-  final def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
-    scheduleElementsEither(schedule)
 
   /**
    * Takes the specified number of elements from this stream.
@@ -3034,7 +3082,7 @@ object ZStream extends Serializable {
    */
   final def repeatEffectWith[R, E, A](
     fa: ZIO[R, E, A],
-    schedule: ZSchedule[R, Unit, _]
+    schedule: Schedule[R, Unit, _]
   ): ZStream[R, E, A] =
     fromEffect(fa).repeat(schedule)
 
@@ -3043,10 +3091,6 @@ object ZStream extends Serializable {
    */
   final def succeed[A](a: A): Stream[Nothing, A] =
     StreamEffect.succeed(a)
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    fromEffect(ZIO.effectTotal(a))
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`

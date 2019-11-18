@@ -132,18 +132,17 @@ object ZTestFrameworkSpec {
   }
 
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
-  object SimpleFailingSpec
-      extends DefaultRunnableSpec(
-        zio.test.suite("some suite")(
-          zio.test.test("failing test") {
-            zio.test.assert(1, Assertion.equalTo(2))
-          },
-          zio.test.test("passing test") {
-            zio.test.assert(1, Assertion.equalTo(1))
-          },
-          zio.test.test("ignored test") {
-            zio.test.assert(1, Assertion.equalTo(2))
-          } @@ TestAspect.ignore
-        )
-      )
+  object SimpleFailingSpec extends DefaultRunnableSpec {
+    def spec = zio.test.suite("some suite")(
+      zio.test.test("failing test") {
+        zio.test.assert(1, Assertion.equalTo(2))
+      },
+      zio.test.test("passing test") {
+        zio.test.assert(1, Assertion.equalTo(1))
+      },
+      zio.test.test("ignored test") {
+        zio.test.assert(1, Assertion.equalTo(2))
+      } @@ TestAspect.ignore
+    )
+  }
 }

@@ -122,7 +122,7 @@ testM("Semaphore should expose available number of permits") {
 When all of our tests are constructed, we need to have a way to actually execute them. Your first stop is the `zio.test.DefaultRunnableSpec` which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suites can hold any number of other suites. You may structure your tests like this:
 
 
-```scala mdoc
+```scala
 import zio.test._
 import zio.clock.nanoTime
 import Assertion._
@@ -140,7 +140,9 @@ val suite3 = suite("suite3") (
   testM("s3.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
 )
 
-object AllSuites extends DefaultRunnableSpec(suite("All tests")(suite1, suite2, suite3))
+object AllSuites extends DefaultRunnableSpec {
+  def spec = suite("All tests")(suite1, suite2, suite3)
+}
 ```
 
 `DefaultRunnableSpec` is very similar in its logic of operations to `zio.App`. Instead of providing one `ZIO` application
@@ -434,29 +436,28 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object MySpec
-    extends DefaultRunnableSpec(
-      suite("A Suite")(
-        test("A passing test") {
-          assert(true, isTrue)
-        },
-        test("A passing test run for JVM only") {
-          assert(true, isTrue)
-        } @@ jvmOnly, //@@ jvmOnly only runs tests on the JVM
-        test("A passing test run for JS only") {
-          assert(true, isTrue)
-        } @@ jsOnly, //@@ jsOnly only runs tests on Scala.js
-        test("A passing test with a timeout") {
-          assert(true, isTrue)
-        } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
-        test("A failing test... that passes") {
-          assert(true, isFalse)
-        } @@ failure, //@@ failure turns a failing test into a passing test
-        test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
-          assert(false, isTrue)
-        } @@ jvmOnly           // only run on the JVM
-          @@ eventually        //@@ eventually retries a test indefinitely until it succeeds
-          @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
-      ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
-    )
+object MySpec extends DefaultRunnableSpec {
+  def spec = suite("A Suite")(
+    test("A passing test") {
+      assert(true, isTrue)
+    },
+    test("A passing test run for JVM only") {
+      assert(true, isTrue)
+    } @@ jvmOnly, //@@ jvmOnly only runs tests on the JVM
+    test("A passing test run for JS only") {
+      assert(true, isTrue)
+    } @@ jsOnly, //@@ jsOnly only runs tests on Scala.js
+    test("A passing test with a timeout") {
+      assert(true, isTrue)
+    } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
+    test("A failing test... that passes") {
+      assert(true, isFalse)
+    } @@ failure, //@@ failure turns a failing test into a passing test
+    test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
+      assert(false, isTrue)
+    } @@ jvmOnly           // only run on the JVM
+      @@ eventually        //@@ eventually retries a test indefinitely until it succeeds
+      @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
+  ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
+}
 ``` 
