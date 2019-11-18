@@ -14,6 +14,7 @@ ZIO contains a small number of data types that can help you solve complex proble
  - **[FiberRef](fiberref.md)** — `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
  - **[Schedule](schedule.md)** — A `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
  - **[Semaphore](semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
+ - **[Chunk](chunk.md)** — ZIO `Chunk`: Fast, Pure Alternative to Arrays
 
 Besides the core datatypes, the following datatypes can be found in ZIO streams library:
 
