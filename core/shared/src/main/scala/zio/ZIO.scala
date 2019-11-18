@@ -277,9 +277,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
 
-  @deprecated("use as", "1.0.0")
-  final def const[B](b: => B): ZIO[R, E, B] = as(b)
-
   /**
    * Turns on daemon mode for this region, which means that any fibers forked
    * in this region will be daemon fibers—new roots in the fiber graph and
@@ -1228,15 +1225,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
 
   /**
-   * Returns an effect that models success with the specified lazily-evaluated
-   * value. This method should not be used to capture effects. See
-   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
-   * partial effects.
-   */
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] = ZIO.effectTotal(a)
-
-  /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
    * errors and defects alike, as in:
    *
@@ -1461,12 +1449,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * is not guaranteed to result in a noticeable performance increase.
    */
   final def untraced: ZIO[R, E, A] = tracingStatus(TracingStatus.Untraced)
-
-  /**
-   * Returns the effect resulting from mapping the success of this effect to unit.
-   */
-  @deprecated("use unit", "1.0.0")
-  final def void: ZIO[R, E, Unit] = unit
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -2474,17 +2456,6 @@ private[zio] trait ZIOFunctions extends Serializable {
    * evaluated value.
    */
   final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
-
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] = effectSuspendTotalWith(_ => zio)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[R, E, A](p: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.EffectSuspendTotalWith(p)
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
