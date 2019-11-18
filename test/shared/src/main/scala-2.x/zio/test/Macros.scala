@@ -16,17 +16,21 @@
 
 package zio.test
 
+import zio.UIO
+
 import scala.reflect.macros.blackbox.Context
+import scala.reflect.macros.TypecheckException
 
 private[test] object Macros {
 
-  def assertCompiles_impl(c: Context)(code: c.Expr[String]): c.Expr[TestResult] = {
+  def typeCheck_impl(c: Context)(code: c.Expr[String]): c.Expr[UIO[Either[String, Unit]]] = {
     import c.universe._
     try {
       c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))
-      c.Expr(q"assert(None, Assertion.isNone)")
+      c.Expr(q"zio.UIO.succeed(Right(()))")
     } catch {
-      case e: Throwable => c.Expr(q"assert(Some(${e.getMessage}), Assertion.isNone)")
+      case e: TypecheckException => c.Expr(q"zio.UIO.succeed(Left(${e.getMessage}))")
+      case _: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed"))""")
     }
   }
 }

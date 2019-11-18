@@ -18,6 +18,7 @@ import zio.test.Assertion.{
   isTrue,
   isUnit
 }
+
 import scala.{ Stream => _ }
 import Exit.Success
 import StreamUtils._
@@ -118,7 +119,7 @@ object StreamSpec
                                else ((acc._1, false), Chunk.single(el))
                              }
                              .map(_._1),
-                           ZSchedule.spaced(30.minutes)
+                           Schedule.spaced(30.minutes)
                          )
                          .runCollect
             } yield assert(result, equalTo(List(Right(List(1, 1, 1, 1)), Right(List(2)))))
@@ -127,7 +128,7 @@ object StreamSpec
             val e = new RuntimeException("Boom")
             assertM(
               Stream(1, 1, 1, 1)
-                .aggregateAsyncWithinEither(ZSink.die(e), ZSchedule.spaced(30.minutes))
+                .aggregateAsyncWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -141,7 +142,7 @@ object StreamSpec
 
             assertM(
               Stream(1, 1)
-                .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
+                .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -158,7 +159,7 @@ object StreamSpec
                     .onInterrupt(cancelled.set(true))
               }
               fiber <- Stream(1, 1, 2)
-                        .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                         .runCollect
                         .untraced
                         .fork
@@ -176,7 +177,7 @@ object StreamSpec
                   .onInterrupt(cancelled.set(true))
               }
               fiber <- Stream(1, 1, 2)
-                        .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                         .runCollect
                         .untraced
                         .fork
@@ -195,7 +196,7 @@ object StreamSpec
                       el :: acc
                     }
                     .map(_.reverse),
-                  ZSchedule.spaced(100.millis)
+                  Schedule.spaced(100.millis)
                 )
                 .collect {
                   case Right(v) => v
@@ -218,10 +219,22 @@ object StreamSpec
                                else ((acc._1, false), Chunk.single(el))
                              }
                              .map(_._1),
-                           ZSchedule.spaced(30.minutes)
+                           Schedule.spaced(30.minutes)
                          )
                          .runCollect
             } yield assert(result, equalTo(List(List(1, 1, 1, 1), List(2))))
+          }
+        ),
+        suite("access/accessM")(
+          testM("ZStream.access") {
+            for {
+              result <- ZStream.access[String](identity).provide("test").runHead.get
+            } yield assert(result, equalTo("test"))
+          },
+          testM("ZStream.accessM") {
+            for {
+              result <- ZStream.accessM[String](ZStream.succeed).provide("test").runHead.get
+            } yield assert(result, equalTo("test"))
           }
         ),
         suite("Stream.bracket")(
@@ -1228,7 +1241,7 @@ object StreamSpec
           (for {
             ref <- Ref.make[List[Int]](Nil)
             _ <- ZStream
-                  .repeatEffectWith(ref.update(1 :: _), ZSchedule.spaced(10.millis))
+                  .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
                   .take(2)
                   .run(Sink.drain)
             result <- ref.get
@@ -1341,6 +1354,14 @@ object StreamSpec
           )
         },
         suite("Stream.partitionEither")(
+          testM("allows repeated runs without hanging") {
+            val stream = ZStream
+              .fromIterable[Int](Seq.empty)
+              .partitionEither(i => ZIO.succeed(if (i % 2 == 0) Left(i) else Right(i)))
+              .map { case (evens, odds) => evens.mergeEither(odds) }
+              .use(_.runCollect)
+            assertM(ZIO.sequence(Range(0, 100).toList.map(_ => stream)).map(_ => 0), equalTo(0))
+          },
           testM("values") {
             Stream
               .range(0, 5)
@@ -1424,7 +1445,7 @@ object StreamSpec
               ref <- Ref.make[List[Int]](Nil)
               _ <- Stream
                     .fromEffect(ref.update(1 :: _))
-                    .repeat(ZSchedule.spaced(10.millis))
+                    .repeat(Schedule.spaced(10.millis))
                     .take(2)
                     .run(Sink.drain)
               result <- ref.get
@@ -1457,7 +1478,7 @@ object StreamSpec
               ref <- Ref.make[List[Int]](Nil)
               _ <- Stream
                     .fromEffect(ref.update(1 :: _))
-                    .repeatEither(ZSchedule.spaced(10.millis))
+                    .repeatEither(Schedule.spaced(10.millis))
                     .take(3) // take one schedule output
                     .run(Sink.drain)
               result <- ref.get
@@ -1801,20 +1822,19 @@ object StreamSpec
             import zio.test.environment.TestClock
 
             for {
-              clock <- TestClock.make(TestClock.DefaultData)
-              s1    = Stream.iterate(0)(_ + 1).fixed(100.millis).provide(clock)
-              s2    = Stream.iterate(0)(_ + 1).fixed(70.millis).provide(clock)
-              s3    = s1.zipWithLatest(s2)((_, _))
-              q     <- Queue.unbounded[(Int, Int)]
-              _     <- s3.foreach(q.offer).fork
-              a     <- q.take
-              _     <- clock.clock.setTime(70.millis)
-              b     <- q.take
-              _     <- clock.clock.setTime(100.millis)
-              c     <- q.take
-              _     <- clock.clock.setTime(140.millis)
-              d     <- q.take
-              _     <- clock.clock.setTime(210.millis)
+              q  <- Queue.unbounded[(Int, Int)]
+              s1 = Stream.iterate(0)(_ + 1).fixed(100.millis)
+              s2 = Stream.iterate(0)(_ + 1).fixed(70.millis)
+              s3 = s1.zipWithLatest(s2)((_, _))
+              _  <- s3.foreach(q.offer).fork
+              a  <- q.take
+              _  <- TestClock.setTime(70.millis)
+              b  <- q.take
+              _  <- TestClock.setTime(100.millis)
+              c  <- q.take
+              _  <- TestClock.setTime(140.millis)
+              d  <- q.take
+              _  <- TestClock.setTime(210.millis)
             } yield assert(List(a, b, c, d), equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
           }
         ),

@@ -5,7 +5,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestAspectSpecUtil._
 import zio.test.TestUtils._
-import zio.{ Cause, Promise, Ref, ZIO }
+import zio.{ Cause, Promise, Ref, Schedule, ZIO }
 
 import scala.reflect.ClassTag
 
@@ -169,6 +169,15 @@ object TestAspectSpec
             _ <- execute(spec)
             n <- ref.get
           } yield assert(n, equalTo(100))
+        },
+        testM("retry retries failed tests according to a schedule") {
+          for {
+            ref <- Ref.make(0)
+            spec = testM("retry") {
+              assertM(ref.update(_ + 1), equalTo(2))
+            } @@ retry(Schedule.recurs(1))
+            result <- isSuccess(spec)
+          } yield assert(result, isTrue)
         },
         testM("scala2 applies test aspect only on Scala 2") {
           for {

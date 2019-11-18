@@ -3,10 +3,10 @@ package zio
 import zio.Cause.Interrupt
 import zio.duration._
 import zio.Exit.Failure
-import zio.test.{ Gen, testM, _ }
 import zio.test.Assertion._
 import zio.test.environment._
 import ZManagedSpecUtil._
+import zio.test._
 
 object ZManagedSpec
     extends ZIOBaseSpec(
@@ -83,7 +83,7 @@ object ZManagedSpec
             } yield assert(result.length, equalTo(2)) && assert(cleanups, hasSize(equalTo(2)))
           },
           testM("Constructs an uninterruptible Managed value") {
-            ZManagedSpecUtil.doInterrupt(io => ZManaged.make(io)(_ => IO.unit), None)
+            ZManagedSpecUtil.doInterrupt(io => ZManaged.make(io)(_ => IO.unit), _ => None)
           }
         ),
         suite("makeEffect")(
@@ -103,7 +103,10 @@ object ZManagedSpec
         suite("reserve")(
           testM("Interruption is possible when using this form") {
             ZManagedSpecUtil
-              .doInterrupt(io => ZManaged.reserve(Reservation(io, _ => IO.unit)), Some(Failure(Interrupt)))
+              .doInterrupt(
+                io => ZManaged.reserve(Reservation(io, _ => IO.unit)),
+                selfId => Some(Failure(Interrupt(selfId)))
+              )
           }
         ),
         suite("makeExit")(
@@ -813,13 +816,15 @@ object ZManagedSpec
             } yield assert(r, equalTo(1))
           },
           testM("Does not swallow acquisition if one acquisition fails") {
-            (for {
-              latch  <- Promise.make[Nothing, Unit]
-              first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
-              second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
-              _      <- first.zipPar(second).use_(ZIO.unit)
-            } yield ()).run
-              .map(assert(_, equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.Interrupt)))))
+            ZIO.fiberId.flatMap { selfId =>
+              (for {
+                latch  <- Promise.make[Nothing, Unit]
+                first  = ZManaged.fromEffect(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
+                second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
+                _      <- first.zipPar(second).use_(ZIO.unit)
+              } yield ()).run
+                .map(assert(_, equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.interrupt(selfId))))))
+            }
           },
           testM("Run finalizers if one reservation fails") {
             for {
@@ -873,6 +878,107 @@ object ZManagedSpec
               _      <- fib.interrupt
               result <- effects.get
             } yield assert(result, equalTo(List("Second", "First")))
+          }
+        ),
+        suite("memoize")(
+          testM("acquires and releases exactly once") {
+            for {
+              effects  <- Ref.make[List[Int]](Nil)
+              res      = (x: Int) => ZManaged.make(effects.update(x :: _))(_ => effects.update(x :: _))
+              program  = res(1) *> res(2) *> res(3)
+              memoized = program.memoize
+              _ <- memoized.use { managed =>
+                    val use = managed.use_(ZIO.unit)
+                    use *> use *> use
+                  }
+              res <- effects.get
+            } yield assert(res, equalTo(List(1, 2, 3, 3, 2, 1)))
+          },
+          testM("acquires and releases nothing if the inner managed is never used") {
+            for {
+              acquired <- Ref.make(false)
+              released <- Ref.make(false)
+              managed  = Managed.make(acquired.set(true))(_ => released.set(true))
+              _        <- managed.memoize.use_(ZIO.unit)
+              res      <- assertM(acquired.get zip released.get, equalTo((false, false)))
+            } yield res
+          },
+          testM("behaves like an ordinary ZManaged if flattened") {
+            for {
+              resource <- Ref.make(0)
+              acquire  = resource.update(_ + 1)
+              release  = resource.update(_ - 1)
+              managed  = ZManaged.make(acquire)(_ => release).memoize.flatten
+              res1     <- managed.use_(assertM(resource.get, equalTo(1)))
+              res2     <- assertM(resource.get, equalTo(0))
+            } yield res1 && res2
+          },
+          testM("properly raises an error if acquiring fails") {
+            for {
+              released <- Ref.make(false)
+              error    = ":-o"
+              managed  = Managed.make(ZIO.fail(error))(_ => released.set(true))
+              res1 <- managed.memoize.use { memoized =>
+                       for {
+                         v1 <- memoized.use_(ZIO.unit).either
+                         v2 <- memoized.use_(ZIO.unit).either
+                       } yield assert(v1, equalTo(v2)) && assert(v1, isLeft(equalTo(error)))
+                     }
+              res2 <- assertM(released.get, isFalse)
+            } yield res1 && res2
+          },
+          testM("behaves properly if acquiring dies") {
+            for {
+              released <- Ref.make(false)
+              ohNoes   = ";-0"
+              managed  = Managed.make(ZIO.dieMessage(ohNoes))(_ => released.set(true))
+              res1 <- managed.memoize.use { memoized =>
+                       assertM(memoized.use_(ZIO.unit).run, dies(hasMessage(ohNoes)))
+                     }
+              res2 <- assertM(released.get, isFalse)
+            } yield res1 && res2
+          },
+          testM("behaves properly if releasing dies") {
+            val myBad   = "#@*!"
+            val managed = Managed.make(ZIO.unit)(_ => ZIO.dieMessage(myBad))
+
+            val program = managed.memoize.use { memoized =>
+              memoized.use_(ZIO.unit)
+            }
+
+            assertM(program.run, dies(hasMessage(myBad)))
+          },
+          testM("behaves properly if use dies") {
+            val darn = "darn"
+            for {
+              latch    <- Promise.make[Nothing, Unit]
+              released <- Ref.make(false)
+              managed  = Managed.make(ZIO.unit)(_ => released.set(true) *> latch.succeed(()))
+              v1 <- managed.memoize.use { memoized =>
+                     memoized.use_(ZIO.dieMessage(darn))
+                   }.run
+              v2 <- released.get
+            } yield assert(v1, dies(hasMessage(darn))) && assert(v2, isTrue)
+          },
+          testM("behaves properly if use is interrupted") {
+            for {
+              latch1   <- Promise.make[Nothing, Unit]
+              latch2   <- Promise.make[Nothing, Unit]
+              latch3   <- Promise.make[Nothing, Unit]
+              resource <- Ref.make(0)
+              acquire  = resource.update(_ + 1)
+              release  = resource.update(_ - 1) *> latch3.succeed(())
+              managed  = ZManaged.make(acquire)(_ => release)
+              fiber <- managed.memoize.use { memoized =>
+                        memoized.use_(latch1.succeed(()) *> latch2.await)
+                      }.fork
+              _    <- latch1.await
+              res1 <- assertM(resource.get, equalTo(1))
+              _    <- fiber.interrupt
+              _    <- latch3.await
+              res2 <- assertM(resource.get, equalTo(0))
+              res3 <- assertM(latch2.isDone, isFalse)
+            } yield res1 && res2 && res3
           }
         ),
         suite("catch")(
@@ -953,15 +1059,16 @@ object ZManagedSpecUtil {
 
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
-    expected: Option[Exit[Nothing, Unit]]
+    expected: Fiber.Id => Option[Exit[Nothing, Unit]]
   ) =
     for {
+      fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interrupt.timeout(5.seconds).provide(zio.clock.Clock.Live)
-    } yield assert(interruption, equalTo(expected))
+      interruption       <- managedFiber.interruptAs(fiberId).timeout(5.seconds).provide(zio.clock.Clock.Live)
+    } yield assert(interruption.map(_.untraced), equalTo(expected(fiberId)))
 
   def testFinalizersPar[R, E](
     n: Int,

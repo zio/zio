@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Cause, ZIO, ZManaged, ZSchedule }
+import zio.{ Cause, Schedule, ZIO, ZManaged }
 import zio.duration._
 import zio.clock.Clock
 import zio.system
@@ -281,7 +281,7 @@ object TestAspect extends TimeoutVariants {
    * use with flaky tests.
    */
   def flaky(n: Int): TestAspectPoly =
-    retry(ZSchedule.recurs(n))
+    retry(Schedule.recurs(n))
 
   /**
    * An aspect that only runs a test if the specified environment variable
@@ -423,10 +423,10 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries failed tests according to a schedule.
    */
   def retry[R0, E0, S0](
-    schedule: ZSchedule[R0, TestFailure[E0], S0]
-  ): TestAspect[Nothing, R0, Nothing, E0, Nothing, S0] =
-    new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, S0] {
-      def perTest[R >: Nothing <: R0, E >: Nothing <: E0, S >: Nothing <: S0](
+    schedule: Schedule[R0, TestFailure[E0], S0]
+  ): TestAspect[Nothing, R0, Nothing, E0, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, Any] {
+      def perTest[R >: Nothing <: R0, E >: Nothing <: E0, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         test.retry(schedule)

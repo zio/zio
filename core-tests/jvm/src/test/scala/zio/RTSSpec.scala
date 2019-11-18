@@ -60,6 +60,23 @@ object RTSSpec
 
           assertM(io, isTrue)
         } @@ flaky,
+        testM("Fiber dump looks correct") {
+          for {
+            promise <- Promise.make[Nothing, Int]
+            fiber   <- promise.await.fork
+            dump    <- fiber.dump
+            dumpStr <- dump.fold[URIO[Clock, String]](IO.succeed(""))(_.prettyPrintM)
+            _       <- UIO(println(dumpStr))
+          } yield assert(dump, anything)
+        },
+        testM("interruption causes") {
+          for {
+            queue    <- Queue.bounded[Int](100)
+            producer <- queue.offer(42).forever.fork
+            rez      <- producer.interrupt
+            _        <- UIO(println(rez.fold(_.prettyPrint, _ => "")))
+          } yield assert(rez, anything)
+        },
         testM("interruption of unending bracket") {
           val io =
             for {
@@ -124,7 +141,7 @@ object RTSSpec
             for {
               f <- test.fork
               c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
-                    .repeat(ZSchedule.doUntil[Int](_ >= 1)) <* f.interrupt
+                    .repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
             } yield c
 
           assertM(zio.provide(Clock.Live), isGreaterThanEqualTo(1))

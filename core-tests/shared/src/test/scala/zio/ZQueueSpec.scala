@@ -46,14 +46,14 @@ object ZQueueSpec
             values = Range.inclusive(1, 10).toList
             f      <- IO.forkAll(values.map(queue.offer))
             _      <- waitForSize(queue, 10)
-            l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collectAll)
+            l      <- queue.take.repeat(Schedule.recurs(9) *> Schedule.identity[Int].collectAll)
             _      <- f.join
           } yield assert(l.toSet, equalTo(values.toSet))
         },
         testM("offers are suspended by back pressure") {
           for {
             queue        <- Queue.bounded[Int](10)
-            _            <- queue.offer(1).repeat(ZSchedule.recurs(9))
+            _            <- queue.offer(1).repeat(Schedule.recurs(9))
             refSuspended <- Ref.make[Boolean](true)
             f            <- (queue.offer(2) *> refSuspended.set(false)).fork
             _            <- waitForSize(queue, 11)
@@ -67,7 +67,7 @@ object ZQueueSpec
             values = Range.inclusive(1, 10).toList
             _      <- IO.forkAll(values.map(queue.offer))
             _      <- waitForSize(queue, 10)
-            l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collectAll)
+            l      <- queue.take.repeat(Schedule.recurs(9) *> Schedule.identity[Int].collectAll)
           } yield assert(l.toSet, equalTo(values.toSet))
         },
         testM("take interruption") {
@@ -372,58 +372,65 @@ object ZQueueSpec
         },
         testM("shutdown with take fiber") {
           for {
-            queue <- Queue.bounded[Int](3)
-            f     <- queue.take.fork
-            _     <- waitForSize(queue, -1)
-            _     <- queue.shutdown
-            res   <- f.join.sandbox.either
-          } yield assert(res, isLeft(equalTo(Cause.interrupt)))
+            selfId <- ZIO.fiberId
+            queue  <- Queue.bounded[Int](3)
+            f      <- queue.take.fork
+            _      <- waitForSize(queue, -1)
+            _      <- queue.shutdown
+            res    <- f.join.sandbox.either
+          } yield assert(res.left.map(_.untraced), isLeft(equalTo(Cause.interrupt(selfId))))
         },
         testM("shutdown with offer fiber") {
           for {
-            queue <- Queue.bounded[Int](2)
-            _     <- queue.offer(1)
-            _     <- queue.offer(1)
-            f     <- queue.offer(1).fork
-            _     <- waitForSize(queue, 3)
-            _     <- queue.shutdown
-            res   <- f.join.sandbox.either
-          } yield assert(res, isLeft(equalTo(Cause.interrupt)))
+            selfId <- ZIO.fiberId
+            queue  <- Queue.bounded[Int](2)
+            _      <- queue.offer(1)
+            _      <- queue.offer(1)
+            f      <- queue.offer(1).fork
+            _      <- waitForSize(queue, 3)
+            _      <- queue.shutdown
+            res    <- f.join.sandbox.either
+          } yield assert(res, isLeft(equalTo(Cause.interrupt(selfId))))
         },
         testM("shutdown with offer") {
           for {
-            queue <- Queue.bounded[Int](1)
-            _     <- queue.shutdown
-            res   <- queue.offer(1).sandbox.either
-          } yield assert(res, isLeft(equalTo(Cause.interrupt)))
+            selfId <- ZIO.fiberId
+            queue  <- Queue.bounded[Int](1)
+            _      <- queue.shutdown
+            res    <- queue.offer(1).sandbox.either
+          } yield assert(res, isLeft(equalTo(Cause.interrupt(selfId))))
         },
         testM("shutdown with take") {
           for {
-            queue <- Queue.bounded[Int](1)
-            _     <- queue.shutdown
-            res   <- queue.take.sandbox.either
-          } yield assert(res, isLeft(equalTo(Cause.interrupt)))
+            selfId <- ZIO.fiberId
+            queue  <- Queue.bounded[Int](1)
+            _      <- queue.shutdown
+            res    <- queue.take.sandbox.either
+          } yield assert(res, isLeft(equalTo(Cause.interrupt(selfId))))
         },
         testM("shutdown with takeAll") {
           for {
-            queue <- Queue.bounded[Int](1)
-            _     <- queue.shutdown
-            res   <- queue.takeAll.sandbox.either
-          } yield assert(res, isLeft(equalTo(Cause.interrupt)))
+            selfId <- ZIO.fiberId
+            queue  <- Queue.bounded[Int](1)
+            _      <- queue.shutdown
+            res    <- queue.takeAll.sandbox.either
+          } yield assert(res, isLeft(equalTo(Cause.interrupt(selfId))))
         },
         testM("shutdown with takeUpTo") {
           for {
-            queue <- Queue.bounded[Int](1)
-            _     <- queue.shutdown
-            res   <- queue.takeUpTo(1).sandbox.either
-          } yield assert(res, isLeft(equalTo(Cause.interrupt)))
+            selfId <- ZIO.fiberId
+            queue  <- Queue.bounded[Int](1)
+            _      <- queue.shutdown
+            res    <- queue.takeUpTo(1).sandbox.either
+          } yield assert(res, isLeft(equalTo(Cause.interrupt(selfId))))
         },
         testM("shutdown with size") {
           for {
-            queue <- Queue.bounded[Int](1)
-            _     <- queue.shutdown
-            res   <- queue.size.sandbox.either
-          } yield assert(res, isLeft(equalTo(Cause.interrupt)))
+            selfId <- ZIO.fiberId
+            queue  <- Queue.bounded[Int](1)
+            _      <- queue.shutdown
+            res    <- queue.size.sandbox.either
+          } yield assert(res, isLeft(equalTo(Cause.interrupt(selfId))))
         },
         testM("back-pressured offer completes after take") {
           for {
@@ -732,7 +739,7 @@ object ZQueueSpec
 
 object ZQueueSpecUtil {
   def waitForValue[T](ref: UIO[T], value: T): UIO[T] =
-    (ref <* clock.sleep(10.millis)).repeat(ZSchedule.doWhile(_ != value)).provide(Clock.Live)
+    (ref <* clock.sleep(10.millis)).repeat(Schedule.doWhile(_ != value)).provide(Clock.Live)
 
   def waitForSize[A](queue: Queue[A], size: Int): UIO[Int] =
     waitForValue(queue.size, size)
