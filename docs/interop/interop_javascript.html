@@ -62,8 +62,7 @@
             });
         </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">JavaScript</h1></header><article><div><span><p>Include ZIO in your Scala.js project by adding the following to your <code>build.sbt</code>:</p>
 <pre><code class="hljs">scalaJSUseMainModuleInitializer := true
-resolvers += Resolver.sonatypeRepo(<span class="hljs-string">"snapshots"</span>)
-libraryDependencies += <span class="hljs-string">"dev.zio"</span> %%% <span class="hljs-string">"zio"</span> % <span class="hljs-string">"1.0.0-RC16+107-a2ac67fe"</span>
+libraryDependencies += <span class="hljs-string">"dev.zio"</span> %%% <span class="hljs-string">"zio"</span> % <span class="hljs-string">"1.0.0-RC17"</span>
 </code></pre>
 <p>Java Time API which is not a part of ScalaJS. You might have to add dependecy that provides <code>java.time</code> package to
 avoid linker errors when using <code>Clock</code>. ZIO uses <a href="https://github.com/cquiroz/scala-java-time">scala-java-time</a> for
