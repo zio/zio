@@ -59,7 +59,7 @@ known from operating on boolean values like and (`&&`), or (`||`), negation (`ne
 ```scala mdoc
 import zio.test.Assertion
 
-val assertionForString: Assertion[String] = Assertion.containsString("Foo") && Assertion.endsWith("Bar")
+val assertionForString: Assertion[String] = Assertion.containsString("Foo") && Assertion.endsWithString("Bar")
 ```
 
 What's more, assertions also compose with each other allowing for doing rich diffs not only simple value to value comparison.
@@ -122,7 +122,7 @@ testM("Semaphore should expose available number of permits") {
 When all of our tests are constructed, we need to have a way to actually execute them. Your first stop is the `zio.test.DefaultRunnableSpec` which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suites can hold any number of other suites. You may structure your tests like this:
 
 
-```scala
+```scala mdoc
 import zio.test._
 import zio.clock.nanoTime
 import Assertion._
@@ -157,7 +157,7 @@ libraryDependencies ++= Seq(
   "dev.zio" %% "zio-test"     % zioVersion % "test",
   "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
 ),
-testFrameworks += Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
+testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ```
 
 ## Using Test Environment
@@ -430,7 +430,7 @@ Test aspects are used to modify existing tests or even entire suites that you ha
 applied to a test or suite using the `@@` operator. This is an example test suite showing the use of aspects to modify 
 test behaviour:
 
-```scala
+```scala mdoc:reset
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
