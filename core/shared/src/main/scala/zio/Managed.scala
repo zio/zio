@@ -264,10 +264,6 @@ object Managed {
   final def succeed[A](r: A): Managed[Nothing, A] =
     ZManaged.succeed(r)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](r: => A): Managed[Nothing, A] =
-    effectTotal(r)
-
   /**
    * See [[zio.ZManaged.suspend]]
    */

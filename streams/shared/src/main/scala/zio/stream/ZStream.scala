@@ -2197,17 +2197,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       } yield pull
     }
 
-  @deprecated("use scheduleElements", "1.0.0")
-  final def spaced[R1 <: R, A1 >: A](schedule: Schedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
-    scheduleElements(schedule)
-
-  /**
-   * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
-   */
-  @deprecated("use scheduleElementsEither", "1.0.0")
-  final def spacedEither[R1 <: R, B](schedule: Schedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
-    scheduleElementsEither(schedule)
-
   /**
    * Takes the specified number of elements from this stream.
    */
@@ -3102,10 +3091,6 @@ object ZStream extends Serializable {
    */
   final def succeed[A](a: A): Stream[Nothing, A] =
     StreamEffect.succeed(a)
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    fromEffect(ZIO.effectTotal(a))
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`

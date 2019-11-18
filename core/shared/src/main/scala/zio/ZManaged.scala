@@ -231,10 +231,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   final def compose[R1, E1 >: E](that: ZManaged[R1, E1, R]): ZManaged[R1, E1, A] =
     self <<< that
 
-  @deprecated("use as", "1.0.0")
-  final def const[B](b: => B): ZManaged[R, E, B] =
-    as(b)
-
   /**
    * Maps this effect to the specified constant while preserving the
    * effects of this effect.
@@ -1408,10 +1404,6 @@ object ZManaged {
    */
   final def succeed[R, A](r: A): ZManaged[R, Nothing, A] =
     ZManaged(IO.succeed(Reservation(IO.succeed(r), _ => IO.unit)))
-
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[R, A](r: => A): ZManaged[R, Nothing, A] =
-    effectTotal(r)
 
   /**
    * Returns a lazily constructed Managed.

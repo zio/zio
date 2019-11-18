@@ -252,9 +252,6 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    */
   final def compose[R1 <: R, C](that: Schedule[R1, C, A]): Schedule[R1, C, B] = self <<< that
 
-  @deprecated("use as", "1.0.0")
-  final def const[C](c: => C): Schedule[R, A, C] = as(c)
-
   /**
    * Returns a new schedule that deals with a narrower class of inputs than
    * this schedule.
@@ -631,12 +628,6 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     )
 
   /**
-   * Returns a new schedule that maps this schedule to a Unit output.
-   */
-  @deprecated("use unit", "1.0.0")
-  final def void: Schedule[R, A, Unit] = unit
-
-  /**
    * Returns a new schedule that continues this schedule so long as the
    * predicate is satisfied on the input of the schedule.
    */
@@ -954,10 +945,6 @@ object Schedule {
    */
   final def succeed[A](a: A): Schedule[Any, Any, A] =
     forever.as(a)
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[A](a: => A): Schedule[Any, Any, A] =
-    succeed(a)
 
   /**
    * A schedule that recurs forever, dumping input values to the specified

@@ -2,51 +2,47 @@ package zio.test
 
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.GenSpecUtil._
 import zio.test.TestAspect._
 import zio.ZIO
 
-object GenSpec
-    extends ZIOBaseSpec(
-      suite("GenSpec")(
-        suite("zipWith")(
-          testM("left preservation") {
-            checkM(deterministic, deterministic) { (a, b) =>
-              for {
-                left  <- sample(a.zip(b).map(_._1))
-                right <- sample(a)
-              } yield assert(left, startsWith(right))
-            }
-          } @@ scala2Only,
-          testM("right preservation") {
-            checkM(deterministic, deterministic) { (a, b) =>
-              for {
-                left  <- sample(a.zip(b).map(_._2))
-                right <- sample(b)
-              } yield assert(left, startsWith(right))
-            }
-          } @@ scala2Only,
-          testM("shrinking") {
-            checkM(random, random) { (a, b) =>
-              for {
-                left  <- shrink(a.zip(b))
-                right <- shrink(a.cross(b))
-              } yield assert(left, equalTo(right))
-            }
-          },
-          testM("shrink search") {
-            val smallInt = Gen.int(0, 9)
-            checkM(Gen.const(shrinkable.zip(shrinkable)), smallInt, smallInt) { (gen, m, n) =>
-              for {
-                result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
-              } yield assert(result.reverse.headOption, isSome(equalTo((m, 0)) || equalTo((0, n))))
-            }
-          }
-        )
-      )
-    )
+object GenSpec extends ZIOBaseSpec {
 
-object GenSpecUtil {
+  def spec = suite("GenSpec")(
+    suite("zipWith")(
+      testM("left preservation") {
+        checkM(deterministic, deterministic) { (a, b) =>
+          for {
+            left  <- sample(a.zip(b).map(_._1))
+            right <- sample(a)
+          } yield assert(left, startsWith(right))
+        }
+      } @@ scala2Only,
+      testM("right preservation") {
+        checkM(deterministic, deterministic) { (a, b) =>
+          for {
+            left  <- sample(a.zip(b).map(_._2))
+            right <- sample(b)
+          } yield assert(left, startsWith(right))
+        }
+      } @@ scala2Only,
+      testM("shrinking") {
+        checkM(random, random) { (a, b) =>
+          for {
+            left  <- shrink(a.zip(b))
+            right <- shrink(a.cross(b))
+          } yield assert(left, equalTo(right))
+        }
+      },
+      testM("shrink search") {
+        val smallInt = Gen.int(0, 9)
+        checkM(Gen.const(shrinkable.zip(shrinkable)), smallInt, smallInt) { (gen, m, n) =>
+          for {
+            result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
+          } yield assert(result.reverse.headOption, isSome(equalTo((m, 0)) || equalTo((0, n))))
+        }
+      }
+    )
+  )
 
   val deterministic: Gen[Random with Sized, Gen[Any, Int]] =
     Gen.listOf1(Gen.int(-10, 10)).map(as => Gen.fromIterable(as))
