@@ -22,6 +22,6 @@ import zio.test.environment._
  * A `Runner` that provides a default testable environment.
  */
 object DefaultTestRunner
-    extends TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any](
+    extends TestRunner[TestEnvironment, String, Any, Any, Any](
       TestExecutor.managed(testEnvironmentManaged)
     ) {}

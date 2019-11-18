@@ -38,7 +38,7 @@ case class TestRunner[R, L, -T, E, S](
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: Spec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[L, E, S]] =
+  final def run(spec: ZSpec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[L, E, S]] =
     executor(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
       case (duration, results) => reporter(duration, results).as(results)
     }
@@ -47,7 +47,7 @@ case class TestRunner[R, L, -T, E, S](
    * An unsafe, synchronous run of the specified spec.
    */
   final def unsafeRun(
-    spec: Spec[R, E, L, T],
+    spec: ZSpec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
   ): ExecutedSpec[L, E, S] =
@@ -57,7 +57,7 @@ case class TestRunner[R, L, -T, E, S](
    * An unsafe, asynchronous run of the specified spec.
    */
   final def unsafeRunAsync(
-    spec: Spec[R, E, L, T],
+    spec: ZSpec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
   )(
@@ -72,7 +72,7 @@ case class TestRunner[R, L, -T, E, S](
    * An unsafe, synchronous run of the specified spec.
    */
   final def unsafeRunSync(
-    spec: Spec[R, E, L, T],
+    spec: ZSpec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
   ): Exit[Nothing, ExecutedSpec[L, E, S]] =
@@ -83,6 +83,12 @@ case class TestRunner[R, L, -T, E, S](
    */
   final def withReporter[L1 >: L, E1 >: E, S1 >: S](reporter: TestReporter[L1, E1, S1]) =
     copy(reporter = reporter)
+
+  /**
+   * Creates a copy of this runner replacing the platform
+   */
+  final def withPlatform(f: Platform => Platform): TestRunner[R, L, T, E, S] =
+    copy(platform = f(platform))
 
   private[test] def buildRuntime(
     loggerSvc: TestLogger = defaultTestLogger,

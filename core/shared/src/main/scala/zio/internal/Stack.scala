@@ -75,10 +75,11 @@ private[zio] final class Stack[A <: AnyRef]() {
 }
 
 private[zio] object Stack {
-  def apply[A <: AnyRef](as: A*): Stack[A] = {
+  def apply[A <: AnyRef](): Stack[A] = new Stack[A]
+  def apply[A <: AnyRef](a: A): Stack[A] = {
     val stack = new Stack[A]
 
-    as.foreach(stack.push)
+    stack.push(a)
 
     stack
   }

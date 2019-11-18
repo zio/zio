@@ -17,7 +17,7 @@
 package zio
 
 import zio.duration.Duration
-import zio.test.environment.TestEnvironment
+import zio.stream.{ ZSink, ZStream }
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -34,15 +34,15 @@ import zio.test.environment.TestEnvironment
  *  import Assertion.isGreaterThan
  *
  *  object MyTest extends DefaultRunnableSpec {
- *    suite("clock") {
+ *    def spec = suite("clock")(
  *      testM("time is non-zero") {
  *        assertM(nanoTime, isGreaterThan(0))
  *      }
- *    }
+ *    )
  *  }
  * }}}
  */
-package object test extends AssertionVariants with CheckVariants {
+package object test extends CompileVariants {
   type AssertResult = BoolAlgebra[AssertionValue]
   type TestResult   = BoolAlgebra[FailureDetails]
 
@@ -65,7 +65,7 @@ package object test extends AssertionVariants with CheckVariants {
    * tests of type `T`, annotated with labels of type `L`, that require an
    * environment `R` and may fail with an `E` or succeed with a `S`.
    */
-  type TestExecutor[+R, L, -T, E, +S] = (Spec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[L, E, S]]
+  type TestExecutor[+R, L, -T, E, +S] = (ZSpec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[L, E, S]]
 
   /**
    * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
@@ -77,7 +77,7 @@ package object test extends AssertionVariants with CheckVariants {
    * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
    * and may fail with an `E` or succeed with a `S`.
    */
-  type ZTest[-R, +E, +S] = ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
+  type ZTest[-R, +E, +S] = ZIO[R, TestFailure[E], TestSuccess[S]]
 
   /**
    * A `ZSpec[R, E, L, S]` is the canonical spec for testing ZIO programs. The
@@ -85,7 +85,7 @@ package object test extends AssertionVariants with CheckVariants {
    * `E`, might succeed with an `S`, and whose nodes are annotated with labels
    * `L`.
    */
-  type ZSpec[-R, +E, +L, +S] = Spec[R, E, L, Either[TestFailure[Nothing], TestSuccess[S]]]
+  type ZSpec[-R, +E, +L, +S] = Spec[R, TestFailure[E], L, TestSuccess[S]]
 
   /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
@@ -124,16 +124,152 @@ package object test extends AssertionVariants with CheckVariants {
     value.map(assert(_, assertion))
 
   /**
+   * Checks the test passes for "sufficient" numbers of samples from the
+   * given random variable.
+   */
+  final def check[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
+    checkSome(200)(rv)(test)
+
+  /**
+   * A version of `check` that accepts two random variables.
+   */
+  final def check[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
+    check(rv1 <*> rv2)(test.tupled)
+
+  /**
+   * A version of `check` that accepts three random variables.
+   */
+  final def check[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+    test: (A, B, C) => TestResult
+  ): ZIO[R, Nothing, TestResult] =
+    check(rv1 <*> rv2 <*> rv3)(reassociate(test))
+
+  /**
+   * A version of `check` that accepts four random variables.
+   */
+  final def check[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+    test: (A, B, C, D) => TestResult
+  ): ZIO[R, Nothing, TestResult] =
+    check(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+
+  /**
+   * Checks the effectual test passes for "sufficient" numbers of samples from
+   * the given random variable.
+   */
+  final def checkM[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
+    checkSomeM(200)(rv)(test)
+
+  /**
+   * A version of `checkM` that accepts two random variables.
+   */
+  final def checkM[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+    test: (A, B) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkM(rv1 <*> rv2)(test.tupled)
+
+  /**
+   * A version of `checkM` that accepts three random variables.
+   */
+  final def checkM[R, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+    test: (A, B, C) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkM(rv1 <*> rv2 <*> rv3)(reassociate(test))
+
+  /**
+   * A version of `checkM` that accepts four random variables.
+   */
+  final def checkM[R, R1 <: R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+    test: (A, B, C, D) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+
+  /**
+   * Checks the test passes for all values from the given random variable. This
+   * is useful for deterministic `Gen` that comprehensively explore all
+   * possibilities in a given domain.
+   */
+  final def checkAll[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
+    checkAllM(rv)(test andThen ZIO.succeed)
+
+  /**
+   * A version of `checkAll` that accepts two random variables.
+   */
+  final def checkAll[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
+    checkAll(rv1 <*> rv2)(test.tupled)
+
+  /**
+   * A version of `checkAll` that accepts three random variables.
+   */
+  final def checkAll[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+    test: (A, B, C) => TestResult
+  ): ZIO[R, Nothing, TestResult] =
+    checkAll(rv1 <*> rv2 <*> rv3)(reassociate(test))
+
+  /**
+   * A version of `checkAll` that accepts four random variables.
+   */
+  final def checkAll[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+    test: (A, B, C, D) => TestResult
+  ): ZIO[R, Nothing, TestResult] =
+    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+
+  /**
+   * Checks the effectual test passes for all values from the given random
+   * variable. This is useful for deterministic `Gen` that comprehensively
+   * explore all possibilities in a given domain.
+   */
+  final def checkAllM[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
+    checkStream(rv.sample)(test)
+
+  /**
+   * A version of `checkAllM` that accepts two random variables.
+   */
+  final def checkAllM[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+    test: (A, B) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllM(rv1 <*> rv2)(test.tupled)
+
+  /**
+   * A version of `checkAllM` that accepts three random variables.
+   */
+  final def checkAllM[R, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+    test: (A, B, C) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllM(rv1 <*> rv2 <*> rv3)(reassociate(test))
+
+  /**
+   * A version of `checkAllM` that accepts four random variables.
+   */
+  final def checkAllM[R, R1 <: R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+    test: (A, B, C, D) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+
+  /**
+   * Checks the test passes for the specified number of samples from the given
+   * random variable.
+   */
+  final def checkSome(n: Int): CheckVariants.CheckSome =
+    new CheckVariants.CheckSome(n)
+
+  /**
+   * Checks the effectual test passes for the specified number of samples from
+   * the given random variable.
+   */
+  final def checkSomeM(n: Int): CheckVariants.CheckSomeM =
+    new CheckVariants.CheckSomeM(n)
+
+  /**
    * Creates a failed test result with the specified runtime cause.
    */
-  final def fail[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
-    ZIO.halt(cause)
+  final def failed[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
+    ZIO.fail(TestFailure.Runtime(cause))
 
   /**
    * Creates an ignored test result.
    */
-  final val ignore: ZTest[Any, Nothing, Nothing] =
-    ZIO.succeed(Right(TestSuccess.Ignored))
+  final val ignored: ZTest[Any, Nothing, Nothing] =
+    ZIO.succeed(TestSuccess.Ignored)
 
   /**
    * Passes platform specific information to the specified function, which will
@@ -143,7 +279,7 @@ package object test extends AssertionVariants with CheckVariants {
   final def platformSpecific[R, E, A, S](js: => A, jvm: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
     if (TestPlatform.isJS) f(js)
     else if (TestPlatform.isJVM) f(jvm)
-    else ignore
+    else ignored
 
   /**
    * Builds a suite containing a number of other specs.
@@ -160,15 +296,19 @@ package object test extends AssertionVariants with CheckVariants {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
+  final def testM[R, E, L](label: L)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E, L, Unit] =
     Spec.test(
       label,
-      assertion.map { result =>
-        result.failures match {
-          case None           => Right(TestSuccess.Succeeded(BoolAlgebra.unit))
-          case Some(failures) => Left(TestFailure.Assertion(failures))
-        }
-      }
+      ZIO
+        .effectSuspendTotal(assertion)
+        .foldCauseM(
+          cause => ZIO.fail(TestFailure.Runtime(cause)),
+          result =>
+            result.failures match {
+              case None           => ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+              case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+            }
+        )
     )
 
   /**
@@ -179,8 +319,80 @@ package object test extends AssertionVariants with CheckVariants {
   final def versionSpecific[R, E, A, S](dotty: => A, scala2: => A)(f: A => ZTest[R, E, S]): ZTest[R, E, S] =
     if (TestVersion.isDotty) f(dotty)
     else if (TestVersion.isScala2) f(scala2)
-    else ignore
+    else ignored
 
-  val defaultTestRunner: TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Any]], Any, Any] =
-    TestRunner(TestExecutor.managed(zio.test.environment.testEnvironmentManaged))
+  object CheckVariants {
+
+    final class CheckSome(private val n: Int) extends AnyVal {
+      def apply[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
+        checkSomeM(n)(rv)(test andThen ZIO.succeed)
+      def apply[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
+        checkSome(n)(rv1 <*> rv2)(test.tupled)
+      def apply[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+        test: (A, B, C) => TestResult
+      ): ZIO[R, Nothing, TestResult] =
+        checkSome(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
+      def apply[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+        test: (A, B, C, D) => TestResult
+      ): ZIO[R, Nothing, TestResult] =
+        checkSome(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+    }
+
+    final class CheckSomeM(private val n: Int) extends AnyVal {
+      def apply[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
+        checkStream(rv.sample.forever.take(n))(test)
+      def apply[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+        test: (A, B) => ZIO[R1, E, TestResult]
+      ): ZIO[R1, E, TestResult] =
+        checkSomeM(n)(rv1 <*> rv2)(test.tupled)
+      def apply[R, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+        test: (A, B, C) => ZIO[R1, E, TestResult]
+      ): ZIO[R1, E, TestResult] =
+        checkSomeM(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
+      def apply[R, R1 <: R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+        test: (A, B, C, D) => ZIO[R1, E, TestResult]
+      ): ZIO[R1, E, TestResult] =
+        checkSomeM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+    }
+  }
+
+  private final def checkStream[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], maxShrinks: Int = 1000)(
+    test: A => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    stream.zipWithIndex.mapM {
+      case (initial, index) =>
+        initial.traverse(
+          input =>
+            test(input).traced
+              .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+              .either
+        )
+    }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
+      .take(1)                                          // Get the first failure
+      .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks))
+      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken values
+      .flatMap { shrinks =>
+        // Get the "last" failure, the smallest according to the shrinker:
+        shrinks
+          .filter(_.fold(_ => true, _.isFailure))
+          .lastOption
+          .fold[ZIO[R, E, TestResult]](
+            ZIO.succeed {
+              BoolAlgebra.success {
+                FailureDetails(
+                  ::(AssertionValue(Assertion.anything, ()), Nil)
+                )
+              }
+            }
+          )(ZIO.fromEither(_))
+      }
+      .untraced
+
+  private final def reassociate[A, B, C, D](f: (A, B, C) => D): (((A, B), C)) => D = {
+    case ((a, b), c) => f(a, b, c)
+  }
+
+  private final def reassociate[A, B, C, D, E](f: (A, B, C, D) => E): ((((A, B), C), D)) => E = {
+    case (((a, b), c), d) => f(a, b, c, d)
+  }
 }

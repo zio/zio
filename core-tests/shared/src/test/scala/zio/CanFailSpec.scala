@@ -1,33 +1,32 @@
 package zio
 
-import zio.test.{ test => test0, _ }
+import zio.test._
+import zio.test.Assertion._
 
-object CanFailSpec
-    extends ZIOBaseSpec(
-      suite("CanFailSpec")(
-        test0("useful combinators compile") {
-          assertCompiles {
-            """
+object CanFailSpec extends ZIOBaseSpec {
+
+  def spec = suite("CanFailSpec")(
+    testM("useful combinators compile") {
+      val result = typeCheck {
+        """
             import zio._
-
             val io =  IO(1 / 0)
             val uio = UIO(0)
-
             io.orElse(uio)
             """
-          }
-        },
-        test0("useless combinators don't compile") {
-          !assertCompiles {
-            """
+      }
+      assertM(result, isRight(anything))
+    },
+    testM("useless combinators don't compile") {
+      val result = typeCheck {
+        """
             import zio._
-
             val io =  IO(1 / 0)
             val uio = UIO(0)
-
             uio.orElse(io)
             """
-          }
-        }
-      )
-    )
+      }
+      assertM(result, isLeft(anything))
+    }
+  )
+}

@@ -25,6 +25,7 @@ import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 import zio.{ InterruptStatus => InterruptS }
+import zio.{ DaemonStatus => DaemonS }
 import zio.{ TracingStatus => TracingS }
 
 /**
@@ -276,8 +277,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
 
-  @deprecated("use as", "1.0.0")
-  final def const[B](b: => B): ZIO[R, E, B] = as(b)
+  /**
+   * Turns on daemon mode for this region, which means that any fibers forked
+   * in this region will be daemon fibers—new roots in the fiber graph and
+   * invisible to the their (otherwise) parent fiber, and not interrupted
+   * when their (otherwise) parent fiber is interrupted.
+   */
+  final def daemon: ZIO[R, E, A] = daemonStatus(DaemonStatus.Daemon)
+
+  /**
+   * Changes the daemon mode status for this region, either turning it off (the
+   * default), or turning it on.
+   */
+  final def daemonStatus(status: DaemonStatus): ZIO[R, E, A] =
+    new ZIO.DaemonStatus(self, status)
 
   /**
    * Returns an effect that is delayed from this effect by the specified
@@ -337,6 +350,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               )
           )
     )
+
+  /**
+   * Acts on the children of this fiber (collected into a single fiber),
+   * guaranteeing the specified callback will be invoked, whether or not
+   * this effect succeeds.
+   */
+  final def ensuringChild[R1 <: R](f: Fiber[Any, List[Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
+    ensuringChildren(children => f(Fiber.collectAll(children)))
+
+  /**
+   * Acts on the children of this fiber, guaranteeing the specified callback
+   * will be invoked, whether or not this effect succeeds.
+   */
+  final def ensuringChildren[R1 <: R](f: Iterable[Fiber[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
+    self.ensuring(ZIO.children.flatMap(f))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
@@ -491,6 +519,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def fork: URIO[R, Fiber[E, A]] = new ZIO.Fork(self)
 
   /**
+   * Forks the effect into a new independent fiber, with the specified name.
+   */
+  final def forkAs(name: String): URIO[R, Fiber[E, A]] =
+    (Fiber.fiberName.set(Some(name)) *> self).fork
+
+  /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
   final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber[E, A]] =
@@ -506,11 +540,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.absolve(self.mapError(ev1).map(ev2(_).toRight(())))
 
   /**
-   * Supervises this effect, which ensures that any fibers that are forked by
-   * the effect are handled by the provided supervisor.
+   * Returns a new effect that, on exit of this effect, invokes the specified
+   * handler with all forked (non-daemon) children of this effect.
    */
-  final def handleChildrenWith[R1 <: R](supervisor: Iterable[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E, A] =
-    ZIO.handleChildrenWith[R1, E, A](self)(supervisor)
+  final def handleChildrenWith[R1 <: R, E1 >: E](f: Iterable[Fiber[Any, Any]] => URIO[R1, Any]): ZIO[R1, E1, A] =
+    self.ensuring(ZIO.children.flatMap(f))
 
   /**
    * Returns a successful effect with the head of the list if the list is
@@ -528,12 +562,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def ignore: URIO[R, Unit] = self.foldM(_ => ZIO.unit, _ => ZIO.unit)
 
   /**
-   * Returns a new effect that ensures that any fibers that are forked by
-   * the effect are interrupted when this effect completes.
-   */
-  final def interruptChildren: ZIO[R, E, A] = ZIO.interruptChildren(self)
-
-  /**
    * Performs this effect interruptibly. Because this is the default, this
    * operation only has additional meaning if the effect is located within
    * an uninterruptible section.
@@ -548,6 +576,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def interruptStatus(flag: InterruptStatus): ZIO[R, E, A] = new ZIO.InterruptStatus(self, flag)
 
+  /**
+   * Joins this effect with the specified effect.
+   */
   final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
 
   /**
@@ -602,6 +633,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       _ <- (l.await *> ((self provide r) to p)).fork
     } yield l.succeed(()) *> p.await
 
+  /**
+   * Turns off daemon mode for this region, which means that any fibers forked
+   * in this region will not be daemon fibers, so they will be visible as
+   * children of their parent fiber, and interrupted when their parent fiber is
+   * interrupted.
+   */
+  final def nonDaemon: ZIO[R, E, A] = daemonStatus(DaemonStatus.NonDaemon)
+
+  /**
+   * Requires the option produced by this value to be `None`.
+   */
   final def none[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], Unit] =
     self.foldM(
       e => ZIO.fail(Some(e)),
@@ -628,6 +670,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         }
     )(_ => self)
 
+  /**
+   * Propagates the success value to the first element of a tuple, but
+   * passes the effect input `R` along unmodified as the second element
+   * of the tuple.
+   */
   final def onFirst[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] =
     self &&& ZIO.identity[R1]
 
@@ -636,7 +683,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def onInterrupt[R1 <: R](cleanup: URIO[R1, Any]): ZIO[R1, E, A] =
     self.ensuring(
-      ZIO.descriptorWith(descriptor => if (descriptor.interrupted) cleanup else ZIO.unit)
+      ZIO.descriptorWith(descriptor => if (descriptor.interruptors.nonEmpty) cleanup else ZIO.unit)
     )
 
   final def onLeft[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] =
@@ -645,6 +692,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def onRight[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] =
     ZIO.identity[C] +++ self
 
+  /**
+   * Propagates the success value to the second element of a tuple, but
+   * passes the effect input `R` along unmodified as the first element
+   * of the tuple.
+   */
   final def onSecond[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] =
     ZIO.identity[R1] &&& self
 
@@ -667,6 +719,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def option(implicit ev: CanFail[E]): URIO[R, Option[A]] =
     self.foldM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
+  /**
+   * Converts an option on errors into an option on values.
+   */
   final def optional[E1](implicit ev: E <:< Option[E1]): ZIO[R, E1, Option[A]] =
     self.foldM(
       e => e.fold[ZIO[R, E1, Option[A]]](ZIO.succeed(Option.empty[A]))(ZIO.fail(_)),
@@ -891,11 +946,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
                       io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                   }
 
-              inheritFiberRefs = { (res: (A1, Fiber[E1, A1])) =>
-                res._2.inheritFiberRefs.as(res._1)
+              inheritRefs = { (res: (A1, Fiber[E1, A1])) =>
+                res._2.inheritRefs.as(res._1)
               }
 
-              c <- restore(done.await >>= inheritFiberRefs)
+              c <- restore(done.await >>= inheritRefs)
                     .onInterrupt(fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt))
             } yield c
           }
@@ -919,74 +974,39 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * composed effect will fail with some error.
    */
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
-    raceWith(that)(
-      (exit, right) =>
-        exit.foldM[Any, E1, Either[A, B]](
-          _ => right.join.map(Right(_)),
-          a => ZIO.succeedLeft(a) <* right.interrupt
-        ),
-      (exit, left) =>
-        exit.foldM[Any, E1, Either[A, B]](
-          _ => left.join.map(Left(_)),
-          b => ZIO.succeedRight(b) <* left.interrupt
-        )
-    ).refailWithTrace
+    ZIO.descriptor
+      .map(_.id)
+      .flatMap(
+        parentFiberId =>
+          raceWith(that)(
+            (exit, right) =>
+              exit.foldM[Any, E1, Either[A, B]](
+                _ => right.join.map(Right(_)),
+                a => ZIO.succeedLeft(a) <* right.interruptAs(parentFiberId)
+              ),
+            (exit, left) =>
+              exit.foldM[Any, E1, Either[A, B]](
+                _ => left.join.map(Left(_)),
+                b => ZIO.succeedRight(b) <* left.interruptAs(parentFiberId)
+              )
+          )
+      )
+      .refailWithTrace
 
   /**
    * Returns an effect that races this effect with the specified effect, calling
    * the specified finisher as soon as one result or the other has been computed.
    */
-  final def raceWith[R1 <: R, E1, E2, B, C](
-    that: ZIO[R1, E1, B]
-  )(
+  final def raceWith[R1 <: R, E1, E2, B, C](that: ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
     rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
-  ): ZIO[R1, E2, C] = {
-    def arbiter[E0, E1, A, B](
-      f: (Exit[E0, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-      winner: Fiber[E0, A],
-      loser: Fiber[E1, B],
-      leftWins: Boolean,
-      raceDone: Ref[Boolean],
-      inherit: Ref[Option[Boolean]],
-      done: Promise[E2, C]
-    )(res: Exit[E0, A]): URIO[R1, Any] = {
-
-      val handleRes =
-        winner.poll.flatMap {
-          case Some(Exit.Success(_)) => winner.inheritFiberRefs
-          case _                     => ZIO.unit
-        } *> (f(res, loser) <* inherit.set(Some(leftWins))).to(done)
-
-      ZIO.flatten(raceDone.modify(b => (if (b) ZIO.unit else handleRes) -> true))
-    }
-
-    for {
-      done     <- Promise.make[E2, C]
-      raceDone <- Ref.make[Boolean](false)
-      inherit  <- Ref.make(None: Option[Boolean])
-      c <- ZIO.uninterruptibleMask { restore =>
-            for {
-              left  <- ZIO.interruptible(self).forkInternal
-              right <- ZIO.interruptible(that).forkInternal
-              left2 <- left.await
-                        .flatMap(arbiter(leftDone, left, right, true, raceDone, inherit, done))
-                        .forkInternal
-              right2 <- right.await
-                         .flatMap(arbiter(rightDone, right, left, false, raceDone, inherit, done))
-                         .forkInternal
-
-              inheritFiberRefs = inherit.get.flatMap {
-                case None        => ZIO.unit
-                case Some(true)  => left2.inheritFiberRefs
-                case Some(false) => right2.inheritFiberRefs
-              }
-
-              c <- restore(done.await <* inheritFiberRefs).onInterrupt(left.interrupt *> right.interrupt)
-            } yield c
-          }
-    } yield c
-  }
+  ): ZIO[R1, E2, C] =
+    new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
+      self,
+      that,
+      leftDone,
+      rightDone
+    )
 
   /**
    * Attach a wrapping trace pointing to this location in case of error.
@@ -1048,7 +1068,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Repeats are done in addition to the first execution so that
    * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
    */
-  final def repeat[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZIO[R1, E, B] =
+  final def repeat[R1 <: R, B](schedule: Schedule[R1, A, B]): ZIO[R1, E, B] =
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
@@ -1057,7 +1077,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * to date, together with the error, will be passed to the specified handler.
    */
   final def repeatOrElse[R1 <: R, E2, B](
-    schedule: ZSchedule[R1, A, B],
+    schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
   ): ZIO[R1, E2, B] =
     repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
@@ -1068,7 +1088,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * to date, together with the error, will be passed to the specified handler.
    */
   final def repeatOrElseEither[R1 <: R, B, E2, C](
-    schedule: ZSchedule[R1, A, B],
+    schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   ): ZIO[R1, E2, Either[C, B]] = {
     def loop(last: A, state: schedule.State): ZIO[R1, E2, Either[C, B]] =
@@ -1094,7 +1114,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
+  final def retry[R1 <: R, E1 >: E, S](policy: Schedule[R1, E1, S])(implicit ev: CanFail[E]): ZIO[R1, E, A] =
     retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
 
   /**
@@ -1103,7 +1123,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the recovery function.
    */
   final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
-    policy: ZSchedule[R1, E1, S],
+    policy: Schedule[R1, E1, S],
     orElse: (E, S) => ZIO[R1, E2, A2]
   )(implicit ev: CanFail[E]): ZIO[R1, E2, A2] =
     retryOrElseEither(policy, orElse).map(_.merge)
@@ -1114,7 +1134,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the recovery function.
    */
   final def retryOrElseEither[R1 <: R, E1 >: E, S, E2, B](
-    policy: ZSchedule[R1, E1, S],
+    policy: Schedule[R1, E1, S],
     orElse: (E, S) => ZIO[R1, E2, B]
   )(implicit ev: CanFail[E]): ZIO[R1, E2, Either[B, A]] = {
     def loop(state: policy.State): ZIO[R1, E2, Either[B, A]] =
@@ -1192,10 +1212,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
    */
-  def someOrFailException[B, E1 >: NoSuchElementException](implicit ev: A <:< Option[B], ev2: E <:< E1): ZIO[R, E1, B] =
-    self.foldM(e => ZIO.fail(ev2(e)), ev(_) match {
+  def someOrFailException[B, E1 >: E](implicit ev: A <:< Option[B], ev2: NoSuchElementException <:< E1): ZIO[R, E1, B] =
+    self.foldM(e => ZIO.fail(e), ev(_) match {
       case Some(value) => ZIO.succeed(value)
-      case None        => ZIO.fail(new NoSuchElementException("None.get"))
+      case None        => ZIO.fail(ev2(new NoSuchElementException("None.get")))
     })
 
   /**
@@ -1203,15 +1223,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * evaluated value.
    */
   final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
-
-  /**
-   * Returns an effect that models success with the specified lazily-evaluated
-   * value. This method should not be used to capture effects. See
-   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
-   * partial effects.
-   */
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
@@ -1250,12 +1261,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       value <- self
       end   <- summary
     } yield (f(start, end), value)
-
-  /**
-   * Enables supervision for this effect. This will cause fibers forked by
-   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
-   */
-  final def supervised: ZIO[R, E, A] = ZIO.supervised(self)
 
   /**
    * An integer that identifies the term in the `ZIO` sum type to which this
@@ -1357,7 +1362,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified promise will be interrupted, too.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): URIO[R, Boolean] =
-    self.run.flatMap(x => p.completeWith(ZIO.done(x))).onInterrupt(p.interrupt)
+    ZIO.uninterruptibleMask(restore => restore(self).run.flatMap(p.done(_)))
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
@@ -1436,12 +1441,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.unsandbox(ev1(self))
 
   /**
-   * Disables supervision for this effect. This will cause fibers forked by
-   * this effect to not be tracked or appear in the list returned by [[ZIO.children]].
-   */
-  final def unsupervised: ZIO[R, E, A] = ZIO.unsupervised(self)
-
-  /**
    * Disables ZIO tracing facilities for the duration of the effect.
    *
    * Note: ZIO tracing is cached, as such after the first iteration
@@ -1450,12 +1449,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * is not guaranteed to result in a noticeable performance increase.
    */
   final def untraced: ZIO[R, E, A] = tracingStatus(TracingStatus.Untraced)
-
-  /**
-   * Returns the effect resulting from mapping the success of this effect to unit.
-   */
-  @deprecated("use unit", "1.0.0")
-  final def void: ZIO[R, E, Unit] = unit
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -1528,7 +1521,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Sequentially zips this effect with the specified effect using the
    * specified combiner function.
    */
-  final def zipWith[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
+  final def zipWith[R1 <: R, E1 >: E, B, C](that: => ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
     self.flatMap(a => that.map(ZIOFn(f)(b => f(a, b))))
 
   /**
@@ -1536,23 +1529,36 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * in parallel, combining their results with the specified `f` function. If
    * either side fails, then the other side will be interrupted.
    */
-  final def zipWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] = {
+  final def zipWithPar[R1 <: R, E1 >: E, B, C](
+    that: ZIO[R1, E1, B]
+  )(f: (A, B) => C): ZIO[R1, E1, C] = {
     def coordinate[A, B](
+      fiberId: Fiber.Id,
       f: (A, B) => C,
       leftWinner: Boolean
     )(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
       winner match {
         case Exit.Success(a) => loser.join.map(f(a, _))
         case Exit.Failure(cause) =>
-          loser.interrupt.flatMap {
+          loser.interruptAs(fiberId).flatMap {
             case Exit.Success(_) => ZIO.halt(cause)
             case Exit.Failure(loserCause) =>
               if (leftWinner) ZIO.halt(cause && loserCause)
               else ZIO.halt(loserCause && cause)
           }
       }
+
     val g = (b: B, a: A) => f(a, b)
-    (self raceWith that)(coordinate(f, true), coordinate(g, false))
+    ZIO.fiberId.flatMap(
+      parentFiberId =>
+        (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).fork.flatMap {
+          f =>
+            f.await.flatMap { exit =>
+              if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
+              else ZIO.done(exit)
+            }
+        }
+    )
   }
 
   /**
@@ -1661,7 +1667,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * so, performs self-interruption
    */
   final def allowInterrupt: UIO[Unit] =
-    descriptorWith(d => if (d.interrupted) interrupt else unit)
+    descriptorWith(d => if (d.interruptors.nonEmpty) interrupt else ZIO.unit)
 
   /**
    *  Returns an effect with the value on the right part.
@@ -1723,7 +1729,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     new ZIO.BracketExitAcquire(acquire)
 
   /**
-   * Uncurried version. Doesn't offer curried syntax and have worse type-inference
+   * Uncurried version. Doesn't offer curried syntax and has worse type-inference
    * characteristics, but guarantees no extra allocations of intermediate
    * [[zio.ZIO.BracketExitAcquire]] and [[zio.ZIO.BracketExitRelease]] objects.
    */
@@ -1745,17 +1751,18 @@ private[zio] trait ZIOFunctions extends Serializable {
     )
 
   /**
+   * Checks the daemon status, and produces the effect returned by the
+   * specified callback.
+   */
+  final def checkDaemon[R, E, A](f: DaemonStatus => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.CheckDaemon(f)
+
+  /**
    * Checks the interrupt status, and produces the effect returned by the
    * specified callback.
    */
   final def checkInterruptible[R, E, A](f: InterruptStatus => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.CheckInterrupt(f)
-
-  /**
-   * Checks supervision status.
-   */
-  final def checkSupervised[R, E, A](f: SuperviseStatus => ZIO[R, E, A]): ZIO[R, E, A] =
-    descriptorWith(d => f(d.superviseStatus))
 
   /**
    * Checks the ZIO Tracing status, and produces the effect returned by the
@@ -1766,11 +1773,8 @@ private[zio] trait ZIOFunctions extends Serializable {
 
   /**
    * Provides access to the list of child fibers supervised by this fiber.
-   *
-   * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
-   * current fiber for this operation to return non-empty lists.
    */
-  final def children: UIO[IndexedSeq[Fiber[Any, Any]]] = descriptorWith(_.children)
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = descriptor.flatMap(_.children)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
@@ -1898,12 +1902,15 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * The callback function `ZIO[R, E, A] => Unit` must be called at most once.
    */
-  final def effectAsync[R, E, A](register: (ZIO[R, E, A] => Unit) => Unit): ZIO[R, E, A] =
-    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
+  final def effectAsync[R, E, A](
+    register: (ZIO[R, E, A] => Unit) => Unit,
+    blockingOn: List[Fiber.Id] = Nil
+  ): ZIO[R, E, A] =
+    effectAsyncMaybe(ZIOFn(register)((callback: ZIO[R, E, A] => Unit) => {
       register(callback)
 
       None
-    })
+    }), blockingOn)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -1918,7 +1925,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    * function must be called at most once.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
+    blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
@@ -1926,16 +1934,19 @@ private[zio] trait ZIOFunctions extends Serializable {
     effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
       case (started, cancel) =>
         flatten {
-          effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
-            started.set(true)
+          effectAsyncMaybe(
+            ZIOFn(register)((k: UIO[ZIO[R, E, A]] => Unit) => {
+              started.set(true)
 
-            try register(io => k(ZIO.succeed(io))) match {
-              case Left(canceler) =>
-                cancel.set(canceler)
-                None
-              case Right(io) => Some(ZIO.succeed(io))
-            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
-          })
+              try register(io => k(ZIO.succeed(io))) match {
+                case Left(canceler) =>
+                  cancel.set(canceler)
+                  None
+                case Right(io) => Some(ZIO.succeed(io))
+              } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+            }),
+            blockingOn
+          )
         }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
     }
   }
@@ -1952,9 +1963,8 @@ private[zio] trait ZIOFunctions extends Serializable {
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
             val f = register(k => r.unsafeRunAsync_(k.to(p)))
-            restore(f.catchAllCause(p.halt)).fork.flatMap { f =>
-              restore(p.await).onInterrupt(f.interrupt)
-            }
+
+            restore(f.catchAllCause(p.halt)).fork *> restore(p.await)
           }
     } yield a
 
@@ -1963,9 +1973,10 @@ private[zio] trait ZIOFunctions extends Serializable {
    * the value synchronously.
    */
   final def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]
+    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
+    blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] =
-    new ZIO.EffectAsync(register)
+    new ZIO.EffectAsync(register, blockingOn)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.
@@ -2018,6 +2029,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    * The moral equivalent of `throw` for pure code.
    */
   final def fail[E](error: E): IO[E, Nothing] = haltWith(trace => Cause.Traced(Cause.Fail(error), trace()))
+
+  /**
+   * Returns the `Fiber.Id` of the fiber executing the effect that calls this method.
+   */
+  final val fiberId: UIO[Fiber.Id] = ZIO.descriptor.map(_.id)
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -2150,7 +2166,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * composite fiber that produces a list of their results, in order.
    */
   final def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber[E, List[A]]] =
-    as.foldRight[URIO[R, Fiber[E, List[A]]]](succeed(Fiber.succeed[E, List[A]](List()))) { (aIO, asFiberIO) =>
+    as.foldRight[URIO[R, Fiber[E, List[A]]]](succeed(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
       asFiberIO.zip(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
@@ -2253,31 +2269,21 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] = new ZIO.Fail(function)
 
   /**
-   * Returns an effect that supervises the specified effect, ensuring that all
-   * fibers that it forks are passed to the specified supervisor as soon as the
-   * supervised effect completes.
-   */
-  final def handleChildrenWith[R, E, A](
-    zio: ZIO[R, E, A]
-  )(supervisor: IndexedSeq[Fiber[Any, Any]] => URIO[R, Any]): ZIO[R, E, A] =
-    zio.ensuring(children.flatMap(supervisor(_))).supervised
-
-  /**
    * Returns the identity effectful function, which performs no effects
    */
   final def identity[R]: URIO[R, R] = fromFunction[R, R](ZIO.identityFn[R])
 
   /**
-   * Returns an effect that is interrupted.
+   * Returns an effect that is interrupted as if by the fiber calling this
+   * method.
    */
-  final val interrupt: UIO[Nothing] = haltWith(trace => Cause.Traced(Cause.Interrupt, trace()))
+  final val interrupt: UIO[Nothing] = ZIO.fiberId >>= ZIO.interruptAs
 
   /**
-   * Returns a new effect that ensures that any fibers that are forked by
-   * the effect are interrupted when this effect completes.
+   * Returns an effect that is interrupted as if by the specified fiber.
    */
-  final def interruptChildren[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    handleChildrenWith(zio)(Fiber.interruptAll)
+  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] =
+    haltWith(trace => Cause.Traced(Cause.interrupt(fiberId), trace()))
 
   /**
    * Prefix form of `ZIO#interruptible`.
@@ -2451,31 +2457,6 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
-  /**
-   * Enables supervision for this effect. This will cause fibers forked by
-   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
-   */
-  final def supervised[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    superviseStatus[R, E, A](SuperviseStatus.Supervised)(zio)
-
-  /**
-   * Returns a new effect that has the same effects as this one, but with the
-   * supervision status changed as specified.
-   */
-  final def superviseStatus[R, E, A](status: SuperviseStatus)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.SuperviseStatus(zio, status)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] = effectSuspendTotalWith(_ => zio)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[R, E, A](p: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.EffectSuspendTotalWith(p)
-
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
@@ -2562,13 +2543,6 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def unsandbox[R, E, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] =
     v.mapErrorCause(_.flatten)
-
-  /**
-   * Disables supervision for this effect. This will cause fibers forked by
-   * this effect to not be tracked or appear in the list returned by [[ZIO.children]].
-   */
-  final def unsupervised[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    superviseStatus[R, E, A](SuperviseStatus.Unsupervised)(zio)
 
   /**
    * Prefix form of `ZIO#untraced`.
@@ -2795,19 +2769,21 @@ object ZIO extends ZIOFunctions {
     final val EffectPartial            = 7
     final val EffectAsync              = 8
     final val Fork                     = 9
-    final val SuperviseStatus          = 10
-    final val Descriptor               = 11
-    final val Lock                     = 12
-    final val Yield                    = 13
-    final val Access                   = 14
-    final val Provide                  = 15
-    final val EffectSuspendPartialWith = 16
-    final val FiberRefNew              = 17
-    final val FiberRefModify           = 18
-    final val Trace                    = 19
-    final val TracingStatus            = 20
-    final val CheckTracing             = 21
-    final val EffectSuspendTotalWith   = 22
+    final val DaemonStatus             = 10
+    final val CheckDaemon              = 11
+    final val Descriptor               = 12
+    final val Lock                     = 13
+    final val Yield                    = 14
+    final val Access                   = 15
+    final val Provide                  = 16
+    final val EffectSuspendPartialWith = 17
+    final val FiberRefNew              = 18
+    final val FiberRefModify           = 19
+    final val Trace                    = 20
+    final val TracingStatus            = 21
+    final val CheckTracing             = 22
+    final val EffectSuspendTotalWith   = 23
+    final val RaceWith                 = 24
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2826,8 +2802,10 @@ object ZIO extends ZIOFunctions {
     override def tag = Tags.EffectPartial
   }
 
-  private[zio] final class EffectAsync[R, E, A](val register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]])
-      extends ZIO[R, E, A] {
+  private[zio] final class EffectAsync[R, E, A](
+    val register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
+    val blockingOn: List[Fiber.Id]
+  ) extends ZIO[R, E, A] {
     override def tag = Tags.EffectAsync
   }
 
@@ -2858,9 +2836,12 @@ object ZIO extends ZIOFunctions {
     override def tag = Tags.CheckInterrupt
   }
 
-  private[zio] final class SuperviseStatus[R, E, A](val value: ZIO[R, E, A], val status: zio.SuperviseStatus)
-      extends ZIO[R, E, A] {
-    override def tag = Tags.SuperviseStatus
+  private[zio] final class DaemonStatus[R, E, A](val zio: ZIO[R, E, A], val flag: DaemonS) extends ZIO[R, E, A] {
+    override def tag = Tags.DaemonStatus
+  }
+
+  private[zio] final class CheckDaemon[R, E, A](val k: zio.DaemonStatus => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.CheckDaemon
   }
 
   private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] { self =>
@@ -2919,5 +2900,14 @@ object ZIO extends ZIOFunctions {
 
   private[zio] final class CheckTracing[R, E, A](val k: TracingS => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.CheckTracing
+  }
+
+  private[zio] final class RaceWith[R, EL, ER, E, A, B, C](
+    val left: ZIO[R, EL, A],
+    val right: ZIO[R, ER, B],
+    val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
+    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C]
+  ) extends ZIO[R, E, C] {
+    override def tag: Int = Tags.RaceWith
   }
 }

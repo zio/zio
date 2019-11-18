@@ -18,6 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
+import zio.Cause
 import zio.Exit
 import zio.test.Assertion._
 import zio.test.Assertion.Render._
@@ -39,6 +40,12 @@ class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult
     })
 
   /**
+   * A symbolic alias for `label`.
+   */
+  final def ??(string: String): Assertion[A] =
+    label(string)
+
+  /**
    * Returns a new assertion that succeeds if either assertion succeeds.
    */
   final def ||[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
@@ -58,6 +65,12 @@ class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult
 
   override final def hashCode: Int =
     toString.hashCode
+
+  /**
+   * Labels this assertion with the specified string.
+   */
+  final def label(string: String): Assertion[A] =
+    new Assertion(infix(param(self), "??", param(quoted(string))), run)
 
   /**
    * Returns the negation of this assertion.
@@ -223,6 +236,13 @@ object Assertion {
     Assertion.assertion("contains")(param(element))(_.exists(_ == element))
 
   /**
+   * Makes a new assertion that requires a `Cause` contain the specified
+   * cause.
+   */
+  final def containsCause[E](cause: Cause[E]): Assertion[Cause[E]] =
+    Assertion.assertion("containsCause")(param(cause))(_.contains(cause))
+
+  /**
    * Makes a new assertion that requires a substring to be present.
    */
   final def containsString(element: String): Assertion[String] =
@@ -238,10 +258,22 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that requires an exception to have a certain message.
+   */
+  final def hasMessage(message: String): Assertion[Throwable] =
+    assertion[Throwable]("hasMessage")(param(message))(th => th.getMessage == message)
+
+  /**
    * Makes a new assertion that requires a given string to end with the specified suffix.
    */
-  final def endsWith(suffix: String): Assertion[String] =
+  final def endsWith[A](suffix: Seq[A]): Assertion[Seq[A]] =
     Assertion.assertion("endsWith")(param(suffix))(_.endsWith(suffix))
+
+  /**
+   * Makes a new assertion that requires a given string to end with the specified suffix.
+   */
+  final def endsWithString(suffix: String): Assertion[String] =
+    Assertion.assertion("endsWithString")(param(suffix))(_.endsWith(suffix))
 
   /**
    * Makes a new assertion that requires a value equal the specified value.
@@ -277,6 +309,16 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that requires an exit value to fail with a cause
+   * that meets the specified assertion.
+   */
+  final def failsCause[E](assertion: Assertion[Cause[E]]): Assertion[Exit[E, Any]] =
+    Assertion.assertionRec("failsCause")(param(assertion))(assertion) {
+      case Exit.Failure(cause) => Some(cause)
+      case _                   => None
+    }
+
+  /**
    * Makes a new assertion that requires an iterable contain only elements
    * satisfying the given assertion.
    */
@@ -294,6 +336,19 @@ object Assertion {
     )
 
   /**
+   * Makes a new assertion that requires a sequence to contain an element
+   * satisfying the given assertion on the given position
+   */
+  final def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
+    Assertion.assertionRec("hasAt")(param(assertion))(assertion) { actual =>
+      if (pos >= 0 && pos < actual.size) {
+        Some(actual.apply(pos))
+      } else {
+        None
+      }
+    }
+
+  /**
    * Makes a new assertion that focuses in on a field in a case class.
    *
    * {{{
@@ -303,6 +358,24 @@ object Assertion {
   final def hasField[A, B](name: String, proj: A => B, assertion: Assertion[B]): Assertion[A] =
     Assertion.assertionRec("hasField")(param(quoted(name)), param(field(name)), param(assertion))(assertion) { actual =>
       Some(proj(actual))
+    }
+
+  /**
+   * Makes a new assertion that requires an iterable to contain the first
+   * element satisfying the given assertion
+   */
+  final def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasFirst")(param(assertion))(assertion) { actual =>
+      actual.headOption
+    }
+
+  /**
+   * Makes a new assertion that requires an iterable to contain the last
+   * element satisfying the given assertion
+   */
+  final def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
+    Assertion.assertionRec("hasLast")(param(assertion))(assertion) { actual =>
+      actual.lastOption
     }
 
   /**
@@ -509,10 +582,17 @@ object Assertion {
     Assertion.assertion("nothing")()(_ => false)
 
   /**
+   * Makes a new assertion that requires a given sequence to start with the
+   * specified prefix.
+   */
+  final def startsWith[A](prefix: Seq[A]): Assertion[Seq[A]] =
+    Assertion.assertion("startsWith")(param(prefix))(_.startsWith(prefix))
+
+  /**
    * Makes a new assertion that requires a given string to start with a specified prefix
    */
-  final def startsWith(prefix: String): Assertion[String] =
-    Assertion.assertion("startsWith")(param(prefix))(_.startsWith(prefix))
+  final def startsWithString(prefix: String): Assertion[String] =
+    Assertion.assertion("startsWithString")(param(prefix))(_.startsWith(prefix))
 
   /**
    * Makes a new assertion that requires an exit value to succeed.
