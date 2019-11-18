@@ -177,7 +177,7 @@ object Stream extends Serializable {
    */
   final def repeatEffectWith[E, A](
     fa: IO[E, A],
-    schedule: Schedule[Unit, Any]
+    schedule: Schedule[Any, Unit, Any]
   ): ZStream[Clock, E, A] = ZStream.repeatEffectWith(fa, schedule)
 
   /**
@@ -245,10 +245,6 @@ object Stream extends Serializable {
    */
   final def succeed[A](a: A): Stream[Nothing, A] =
     ZStream.succeed(a)
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[A](a: => A): Stream[Nothing, A] =
-    succeed(a)
 
   /**
    * See [[ZStream.unfold]]

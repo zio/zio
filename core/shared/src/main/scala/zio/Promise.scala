@@ -84,12 +84,6 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
   final def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.done(e))
 
   /**
-   * Alias for [[Promise.complete]]
-   */
-  @deprecated("use Promise.complete", "1.0.0")
-  final def done(io: IO[E, A]): UIO[Boolean] = complete(io)
-
-  /**
    * Completes the promise with the result of the specified effect. If the
    * promise has already been completed, the method will produce false.
    *

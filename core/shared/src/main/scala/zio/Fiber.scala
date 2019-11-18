@@ -101,8 +101,19 @@ trait Fiber[+E, +A] { self =>
    */
   def children: UIO[Iterable[Fiber[Any, Any]]]
 
-  @deprecated("use as", "1.0.0")
-  final def const[B](b: => B): Fiber[E, B] = self as b
+  /**
+   * Generates a fiber dump, if the fiber is not synthetic.
+   */
+  final def dump: UIO[Option[Fiber.Dump]] =
+    for {
+      name   <- self.getRef(Fiber.fiberName)
+      id     <- self.id
+      status <- self.status
+      trace  <- self.trace
+    } yield for {
+      id    <- id
+      trace <- trace
+    } yield Fiber.Dump(id, name, status, trace)
 
   /**
    * Gets the value of the fiber ref for this fiber, or the initial value of
@@ -115,9 +126,6 @@ trait Fiber[+E, +A] { self =>
    * from values or composite fibers do not have identities.
    */
   def id: UIO[Option[Fiber.Id]]
-
-  @deprecated("1.0.0", "Use inheritRefs instead")
-  final def inheritFiberRefs: UIO[Unit] = inheritRefs
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
@@ -318,12 +326,6 @@ trait Fiber[+E, +A] { self =>
   final def unit: Fiber[E, Unit] = as(())
 
   /**
-   * Maps the output of this fiber to `()`.
-   */
-  @deprecated("use unit", "1.0.0")
-  final def void: Fiber[E, Unit] = unit
-
-  /**
    * Named alias for `<*>`.
    *
    * @param that fiber to be zipped
@@ -417,7 +419,57 @@ object Fiber {
   )
 
   final case class Dump(fiberId: Fiber.Id, fiberName: Option[String], status: Status, trace: ZTrace)
-      extends Serializable
+      extends Serializable {
+    import zio.Fiber.Status._
+
+    /**
+     * {{{
+     * "Fiber Name" #432 (16m2s) waiting on fiber #283
+     *    Status: Suspended (interruptible, 12 asyncs, ...)
+     *     at ...
+     *     at ...
+     *     at ...
+     *     at ...
+     * }}}
+     */
+    final def prettyPrintM: UIO[String] = UIO {
+      val time = System.currentTimeMillis()
+
+      val millis  = (time - fiberId.startTimeMillis)
+      val seconds = millis / 1000L
+      val minutes = seconds / 60L
+      val hours   = minutes / 60L
+
+      val name = fiberName.fold("")(name => "\"" + name + "\" ")
+      val lifeMsg = (if (hours == 0) "" else s"${hours}h") +
+        (if (hours == 0 && minutes == 0) "" else s"${minutes}m") +
+        (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
+        (s"${millis}ms")
+      val waitMsg = status match {
+        case Done    => ""
+        case Running => ""
+        case Suspended(_, _, blockingOn, _) =>
+          if (blockingOn.nonEmpty)
+            "waiting on " + blockingOn.map(id => s"#${id.seqNumber}").mkString(", ")
+          else ""
+      }
+      val statMsg = status match {
+        case Done    => "Done"
+        case Running => "Running"
+        case Suspended(interruptible, epoch, _, asyncTrace) =>
+          val in = if (interruptible) "interruptible" else "uninterruptible"
+          val ep = s"${epoch} asyncs"
+          val as = asyncTrace.map(_.prettyPrint).mkString(" ")
+          s"Suspended(${in}, ${ep}, ${as})"
+      }
+
+      s"""
+         |${name}#${fiberId.seqNumber} (${lifeMsg}) ${waitMsg}
+         |   Status: ${statMsg}
+         |${trace.prettyPrint}
+         |""".stripMargin
+    }
+  }
 
   /**
    * The identity of a Fiber, described by the time it began life, and a
@@ -507,16 +559,9 @@ object Fiber {
     def loop(fibers: Iterable[FiberContext[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
       ZIO
         .collectAll(fibers.toIterable.map { context =>
-          for {
-            name     <- context.getRef(fiberName)
-            id       <- context.id
-            status   <- context.status
-            trace    <- context.trace
-            children <- context.children
-          } yield for {
-            id    <- id
-            trace <- trace
-          } yield (children, Dump(id, name, status, trace))
+          (context.children zip context.dump).map {
+            case (children, dump) => dump.map(dump => (children, dump))
+          }
         })
         .flatMap { (collected: List[Option[(Iterable[Fiber[Any, Any]], Dump)]]) =>
           val collected1 = collected.collect { case Some(a) => a }
@@ -662,10 +707,6 @@ object Fiber {
    */
   final def succeed[A](a: A): Fiber[Nothing, A] = done(Exit.succeed(a))
 
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[E, A](a: => A): Fiber[E, A] =
-    succeed(a)
-
   /**
    * A fiber that has already succeeded with unit.
    */
@@ -680,10 +721,16 @@ object Fiber {
 
   private[zio] def newFiberId(): Fiber.Id = Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())
 
+  private[zio] def track[E, A](context: internal.FiberContext[E, A]): Unit = {
+    Fiber._rootFibers.add(context)
+
+    context.onDone(_ => { val _ = Fiber._rootFibers.remove(context) })
+  }
+
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
 
-  private[zio] val _rootFibers: java.util.Set[internal.FiberContext[_, _]] =
+  private val _rootFibers: java.util.Set[internal.FiberContext[_, _]] =
     internal.Platform.newConcurrentSet[internal.FiberContext[_, _]]()
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0)

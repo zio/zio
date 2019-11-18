@@ -29,17 +29,16 @@ object HelloWorld {
     console.putStrLn("Hello, World!")
 }
 
-object HelloWorldSpec
-    extends DefaultRunnableSpec(
-      suite("HelloWorldSpec")(
-        testM("sayHello correctly displays output") {
-          for {
-            _      <- sayHello
-            output <- TestConsole.output
-          } yield assert(output, equalTo(Vector("Hello, World!\n")))
-        }
-      )
-    )
+object HelloWorldSpec extends DefaultRunnableSpec {
+  def spec = suite("HelloWorldSpec")(
+    testM("sayHello correctly displays output") {
+      for {
+        _      <- sayHello
+        output <- TestConsole.output
+      } yield assert(output, equalTo(Vector("Hello, World!\n")))
+    }
+  )
+}
 ```
 
 In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. In the example above, our test involved the effect of printing to the console but we didn't have to do anything differently in our test because of this other than use `testM` instead of `test`.
