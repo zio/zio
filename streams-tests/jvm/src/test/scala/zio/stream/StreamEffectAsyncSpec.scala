@@ -7,7 +7,6 @@ import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
 import zio.test._
 import zio.test.Assertion._
 import StreamUtils.inParallel
-import zio.Exit.{ Cause => _ }
 
 object StreamEffectAsyncSpec extends ZIOBaseSpec {
 
