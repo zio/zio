@@ -105,13 +105,6 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.8.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.8.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.8.1" % Test
-    )
-  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
@@ -193,13 +186,6 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(buildInfoSettings("zio.internal.stacktracer"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.8.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.8.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.8.1" % Test
-    )
-  )
 
 lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
