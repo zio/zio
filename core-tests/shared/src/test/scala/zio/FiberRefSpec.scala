@@ -249,6 +249,6 @@ object FiberRefSpec
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
   val looseTimeAndCpu: ZIO[Live[Clock], Nothing, (Int, Int)] = Live.live {
-    ZIO.yieldNow.repeat(ZSchedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100))
+    ZIO.yieldNow.repeat(Schedule.spaced(Duration.fromNanos(1)) && Schedule.recurs(100))
   }
 }

@@ -5,7 +5,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestAspectSpecUtil._
 import zio.test.TestUtils._
-import zio.{ Cause, Promise, Ref, ZIO, ZSchedule }
+import zio.{ Cause, Promise, Ref, Schedule, ZIO }
 
 import scala.reflect.ClassTag
 
@@ -175,7 +175,7 @@ object TestAspectSpec
             ref <- Ref.make(0)
             spec = testM("retry") {
               assertM(ref.update(_ + 1), equalTo(2))
-            } @@ retry(ZSchedule.recurs(1))
+            } @@ retry(Schedule.recurs(1))
             result <- isSuccess(spec)
           } yield assert(result, isTrue)
         },

@@ -127,7 +127,7 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
   }
 }
 
-object Gen extends GenZIO with FunctionVariants {
+object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
