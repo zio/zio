@@ -153,7 +153,6 @@ trait Runtime[+R] {
    * Constructs a new `Runtime` with the specified tracing configuration.
    */
   final def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
-
 }
 
 object Runtime {
