@@ -32,6 +32,8 @@ object GenSpec extends AsyncBaseSpec {
     label(charGeneratesValuesInRange, "char generates values in range"),
     label(charShrinksToBottomOfRange, "char shrinks to bottom of range"),
     label(constGeneratesConstantValue, "const generates constant value"),
+    label(crossShrinksCorrectly, "cross shrinks correctly"),
+    label(crossWithShrinksCorrectly, "crossWith shrinks correctly"),
     label(doubleGeneratesValuesInRange, "double generates values in range"),
     label(doubleShrinksToBottomOfRange, "double shrinks to bottom of range"),
     label(eitherShrinksToLeft, "either shrinks to left"),
@@ -86,8 +88,6 @@ object GenSpec extends AsyncBaseSpec {
     label(vectorOfNGeneratesVectorsOfCorrectSize, "vectorOfN generates vectors of correct size"),
     label(vectorOfNShrinksElements, "vectorOfN shrinks elements"),
     label(weightedGeneratesWeightedDistribution, "weighted generates weighted distribution"),
-    label(zipShrinksCorrectly, "zip shrinks correctly"),
-    label(zipWithShrinksCorrectly, "zipWith shrinks correctly"),
     label(testBogusReverseProperty, "integration test with bogus reverse property"),
     label(testShrinkingNonEmptyList, "integration test with shrinking nonempty list"),
     label(testBogusEvenProperty, "integration test with bogus even property"),
@@ -125,7 +125,7 @@ object GenSpec extends AsyncBaseSpec {
     def f(p: Int): Gen[Random, (Int, Int)] =
       Gen.const(p) <*> Gen.int(0, 3)
     def g(p: (Int, Int)): Gen[Random, (Int, Int, Int)] =
-      Gen.const(p).zipWith(Gen.int(0, 5)) { case ((x, y), z) => (x, y, z) }
+      Gen.const(p).crossWith(Gen.int(0, 5)) { case ((x, y), z) => (x, y, z) }
     checkEqual(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g)))
   }
 
@@ -180,6 +180,12 @@ object GenSpec extends AsyncBaseSpec {
   def constGeneratesConstantValue: Future[Boolean] =
     checkSample(Gen.const("constant"))(_.forall(_ == "constant"))
 
+  def crossShrinksCorrectly: Future[Boolean] =
+    checkShrink(three <*> three)((0, 0))
+
+  def crossWithShrinksCorrectly: Future[Boolean] =
+    checkShrink(smallInt.crossWith(smallInt)(_ + _))(-20)
+
   def doubleGeneratesValuesInRange: Future[Boolean] =
     checkSample(Gen.double(5.0, 9.0))(_.forall(n => 5.0 <= n && n < 9.0))
 
@@ -203,7 +209,7 @@ object GenSpec extends AsyncBaseSpec {
 
   def fromIterableConstructsDeterministicGenerators: Future[Boolean] = {
     val exhaustive = Gen.fromIterable(1 to 6)
-    val actual     = exhaustive.zipWith(exhaustive)(_ + _)
+    val actual     = exhaustive.crossWith(exhaustive)(_ + _)
     val expected   = (1 to 6).flatMap(x => (1 to 6).map(y => x + y))
     checkFinite(actual)(_ == expected)
   }
@@ -409,12 +415,6 @@ object GenSpec extends AsyncBaseSpec {
     val weighted = Gen.weighted((Gen.const(true), 10), (Gen.const(false), 90))
     checkSample(weighted)(ps => ps.count(!_) > ps.count(identity))
   }
-
-  def zipShrinksCorrectly: Future[Boolean] =
-    checkShrink(three <*> three)((0, 0))
-
-  def zipWithShrinksCorrectly: Future[Boolean] =
-    checkShrink(smallInt.zipWith(smallInt)(_ + _))(-20)
 
   def testBogusReverseProperty: Future[Boolean] = {
     val gen = for {
