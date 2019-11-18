@@ -1,6 +1,5 @@
 package zio
 
-import scala.language.postfixOps
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
@@ -8,6 +7,7 @@ import zio.blocking.Blocking
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestClock
+import StackTracesSpecUtil._
 
 object StackTracesSpec
     extends ZIOBaseSpec(
@@ -55,10 +55,8 @@ object StackTracesSpec
           }
         },
         testM("foreachPar fail") {
-          import StackTracesSpecUtil._
-
           val io = for {
-            trace <- TestClock.setTime(1 second) *> StackTracesSpecUtil.foreachParFail
+            trace <- TestClock.setTime(1.second) *> StackTracesSpecUtil.foreachParFail
           } yield trace
 
           io causeMust { cause =>
@@ -72,10 +70,8 @@ object StackTracesSpec
           }
         },
         testM("foreachParN fail") {
-          import StackTracesSpecUtil._
-
           val io = for {
-            _     <- TestClock.setTime(1 second)
+            _     <- TestClock.setTime(1.second)
             trace <- StackTracesSpecUtil.foreachParNFail
           } yield trace
 
@@ -128,8 +124,6 @@ object StackTracesSpec
           }
         },
         testM("fiber ancestry") {
-          import StackTracesSpecUtil._
-
           val fiber = for {
             trace <- StackTracesSpecUtil.fiberAncestry
           } yield trace
@@ -148,8 +142,6 @@ object StackTracesSpec
           }
         },
         testM("fiber ancestry example with uploads") {
-          import StackTracesSpecUtil._
-
           StackTracesSpecUtil.fiberAncestryUploadExample
             .uploadUsers(List(new StackTracesSpecUtil.fiberAncestryUploadExample.User)) causeMust {
             cause =>
@@ -173,8 +165,6 @@ object StackTracesSpec
           }
         },
         testM("fiber ancestry has a limited size") {
-          import StackTracesSpecUtil._
-
           StackTracesSpecUtil.fiberAncestryIsLimitedFixture.recursiveFork(10000) causeMust { cause =>
             assert(cause.traces.size, equalTo(1)) &&
             assert(cause.traces.head.parents.size, equalTo(10)) &&
@@ -183,8 +173,6 @@ object StackTracesSpec
           }
         },
         testM("blocking trace") {
-          import StackTracesSpecUtil._
-
           val io: ZIO[Blocking, Throwable, Unit] = for {
             trace <- StackTracesSpecUtil.blockingTrace
           } yield trace
@@ -197,8 +185,6 @@ object StackTracesSpec
           }
         },
         testM("tracing regions") {
-          import StackTracesSpecUtil._
-
           val io = for {
             trace <- StackTracesSpecUtil.tracingRegions
           } yield trace
@@ -217,8 +203,6 @@ object StackTracesSpec
           }
         },
         testM("tracing region is inherited on fork") {
-          import StackTracesSpecUtil._
-
           val io = for {
             trace <- StackTracesSpecUtil.tracingRegionsInheritance
           } yield trace
@@ -231,8 +215,6 @@ object StackTracesSpec
           }
         },
         testM("execution trace example with conditional") {
-          import StackTracesSpecUtil._
-
           val io = for {
             trace <- StackTracesSpecUtil.executionTraceConditionalExample
           } yield trace
@@ -246,8 +228,6 @@ object StackTracesSpec
           }
         },
         testM("mapError fully preserves previous stack trace") {
-          import StackTracesSpecUtil._
-
           val io = for {
             trace <- StackTracesSpecUtil.mapErrorPreservesTrace
           } yield trace
@@ -267,8 +247,6 @@ object StackTracesSpec
           }
         },
         testM("catchSome with optimized effect path") {
-          import StackTracesSpecUtil._
-
           val io = for {
             trace <- StackTracesSpecUtil.catchSomeWithOptimizedEffect
           } yield trace
@@ -284,8 +262,6 @@ object StackTracesSpec
           }
         },
         testM("catchAll with optimized effect path") {
-          import StackTracesSpecUtil._
-
           val io = for {
             trace <- StackTracesSpecUtil.catchAllWithOptimizedEffect
           } yield trace
@@ -316,8 +292,6 @@ object StackTracesSpec
           }
         },
         testM("single effect for-comprehension") {
-          import StackTracesSpecUtil._
-
           StackTracesSpecUtil.singleTaskForCompFixture.selectHumans causeMust { cause =>
             assert(cause.traces.size, equalTo(1)) &&
             assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
@@ -325,8 +299,6 @@ object StackTracesSpec
           }
         },
         testM("single effectTotal for-comprehension") {
-          import StackTracesSpecUtil._
-
           StackTracesSpecUtil.singleUIOForCompFixture.selectHumans causeMust { cause =>
             assert(cause.traces.size, equalTo(1)) &&
             assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
@@ -334,8 +306,6 @@ object StackTracesSpec
           }
         },
         testM("single suspendWith for-comprehension") {
-          import StackTracesSpecUtil._
-
           StackTracesSpecUtil.singleEffectTotalWithForCompFixture.selectHumans causeMust { cause =>
             assert(cause.traces.size, equalTo(1)) &&
             assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
