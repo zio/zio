@@ -496,6 +496,26 @@ object StreamSpec extends ZIOBaseSpec {
         } yield assert(execution, equalTo(List("First", "Second")))
       }
     ),
+    suite("Stream.distributedWithDynamic")(
+      testM("ensures no race between subscription and stream end") {
+
+        val stream: ZStream[Any, Nothing, Either[Unit, Unit]] = ZStream.empty
+        stream.distributedWithDynamic[Nothing, Either[Unit, Unit]](1, _ => UIO.succeed(_ => true)).use { add =>
+          {
+            val subscribe = ZStream.unwrap(add.map {
+              case (_, queue) =>
+                ZStream.fromQueue(queue).unTake
+            })
+            Promise.make[Nothing, Unit].flatMap { onEnd =>
+              subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
+                onEnd.await *>
+                subscribe.runDrain *>
+                ZIO.succeed(assertCompletes)
+            }
+          }
+        }
+      }
+    ),
     testM("Stream.drain")(
       for {
         ref <- Ref.make(List[Int]())
