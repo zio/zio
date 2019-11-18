@@ -38,7 +38,7 @@ abstract class RunnableSpec[R, L, T, E, S](runner0: TestRunner[R, L, T, E, S])(s
     results     <- run
     hasFailures <- results.exists { case TestCase(_, test) => test.map(_.isLeft); case _ => UIO.succeed(false) }
     summary     <- SummaryBuilder.buildSummary(results)
-    _           <- TestLogger.logLine(summary)
+    _           <- TestLogger.logLine(summary.summary)
   } yield if (hasFailures) 1 else 0
 
   /**

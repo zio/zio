@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.TestArgs
+import zio.test.{ Summary, TestArgs }
 import zio.{ Exit, Runtime }
 
 import scala.collection.mutable
@@ -30,17 +30,24 @@ sealed abstract class ZTestRunner(
 ) extends Runner {
   def sendSummary: SendSummary
 
-  val summaries: mutable.Buffer[String] = mutable.Buffer.empty
+  val summaries: mutable.Buffer[Summary] = mutable.Buffer.empty
 
-  def done(): String = summaries.filter(_.nonEmpty).flatMap(s => s :: "\n" :: Nil).mkString("", "", "Done")
+  def done(): String = {
+    val total  = summaries.map(_.total).sum
+    val ignore = summaries.map(_.ignore).sum
+
+    if (summaries.isEmpty || total == ignore)
+      s"${Console.YELLOW}No tests were executed${Console.RESET}"
+    else
+      summaries.map(_.summary).filter(_.nonEmpty).flatMap(s => s :: "\n" :: Nil).mkString("", "", "Done")
+  }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
 
-  override def receiveMessage(summary: String): Option[String] = {
-    summaries += summary
+  override def receiveMessage(summary: String): Option[String] =
+//    summaries += summary // TODO: What should be done about this?
     None
-  }
 
   override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef)

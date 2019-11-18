@@ -1,13 +1,38 @@
 package zio.test
 
 import zio.{ UIO, ZIO }
+import zio.test.Spec._
 
 object SummaryBuilder {
-  def buildSummary[L, E, S](executedSpec: ExecutedSpec[L, E, S]): UIO[String] =
+  def buildSummary[L, E, S](executedSpec: ExecutedSpec[L, E, S]): UIO[Summary] =
     for {
+      success <- executedSpec.fold[UIO[Int]] {
+                  case SuiteCase(_, counts, _) => counts.flatMap(ZIO.collectAll(_).map(_.sum))
+                  case TestCase(_, test) =>
+                    test.map {
+                      case Right(TestSuccess.Succeeded(_)) => 1
+                      case _                               => 0
+                    }
+                }
+      fail <- executedSpec.fold[UIO[Int]] {
+               case SuiteCase(_, counts, _) => counts.flatMap(ZIO.collectAll(_).map(_.sum))
+               case TestCase(_, test) =>
+                 test.map {
+                   case Left(_) => 1
+                   case _       => 0
+                 }
+             }
+      ignore <- executedSpec.fold[UIO[Int]] {
+                 case SuiteCase(_, counts, _) => counts.flatMap(ZIO.collectAll(_).map(_.sum))
+                 case TestCase(_, test) =>
+                   test.map {
+                     case Right(TestSuccess.Ignored) => 1
+                     case _                          => 0
+                   }
+               }
       failures <- extractFailures(executedSpec).map(_.map(_.mapLabel(_.toString)))
       rendered <- ZIO.foreach(failures)(DefaultTestReporter.render(_))
-    } yield rendered.flatten.flatMap(_.rendered).mkString("\n")
+    } yield Summary(success, fail, ignore, rendered.flatten.flatMap(_.rendered).mkString("\n"))
 
   private def extractFailures[L, E, S](executedSpec: ExecutedSpec[L, E, S]): UIO[Seq[ExecutedSpec[L, E, S]]] = {
     def ifM[A](condition: UIO[Boolean])(success: UIO[A])(failure: UIO[A]): UIO[A] =

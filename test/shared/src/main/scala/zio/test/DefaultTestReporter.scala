@@ -107,12 +107,6 @@ object DefaultTestReporter {
               s"Ran $total test${if (total == 1) "" else "s"} in ${duration.render}: $success succeeded, $ignore ignored, $failure failed"
             )
           )
-      _ <- if (total == 0)
-            TestLogger.logLine(yellow("No tests were executed"))
-          else if (total == ignore)
-            TestLogger.logLine(yellow("All tests were ignored"))
-          else
-            ZIO.unit
     } yield ()
   }
 
@@ -224,9 +218,6 @@ object DefaultTestReporter {
 
   private def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
-
-  private def yellow(s: String): String =
-    SConsole.YELLOW + s + SConsole.RESET
 
   private def yellowThenCyan(s: String): String =
     SConsole.YELLOW + s + SConsole.CYAN
