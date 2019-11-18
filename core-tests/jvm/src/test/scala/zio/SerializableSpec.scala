@@ -133,7 +133,7 @@ object SerializableSpec extends ZIOBaseSpec {
         deserializedValue <- deserialized.await
       } yield assert(deserializedValue, equalTo(value))
     },
-    testM("ZSchedule is serializable") {
+    testM("Schedule is serializable") {
       val schedule = Schedule.recurs(5)
       for {
         out1 <- ZIO.unit.repeat(schedule)

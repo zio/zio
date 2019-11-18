@@ -177,7 +177,7 @@ object Stream extends Serializable {
    */
   final def repeatEffectWith[E, A](
     fa: IO[E, A],
-    schedule: Schedule[Unit, Any]
+    schedule: Schedule[Any, Unit, Any]
   ): ZStream[Clock, E, A] = ZStream.repeatEffectWith(fa, schedule)
 
   /**
