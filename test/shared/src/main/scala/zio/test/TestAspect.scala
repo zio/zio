@@ -440,8 +440,8 @@ object TestAspect extends TimeoutVariants {
   val timed: TestAspect[Nothing, Live[Clock] with TestAnnotations, Nothing, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, Live[Clock] with TestAnnotations, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Live[Clock] with TestAnnotations, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]]
-      ): ZIO[R, E, Either[TestFailure[Nothing], TestSuccess[S]]] =
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         Live.withLive(test)(_.timed).flatMap {
           case (duration, result) =>
             TestAnnotations.annotate(TestAnnotation.Timing, duration) *> ZIO.succeed(result)

@@ -29,11 +29,13 @@ object TestExecutor {
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(
-              failure => ZIO.succeed(Left(failure)),
-              cause => ZIO.succeed(Left(TestFailure.Runtime(cause)))
+              failure => ZIO.succeed((Left(failure), TestAnnotationMap.empty)),
+              cause => ZIO.succeed((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
             ),
-          s => ZIO.succeed(Right(s))
+          {
+            case (s, map) => ZIO.succeed((Right(s), map))
+          }
         )
-
+        
     }
 }

@@ -98,7 +98,8 @@ object TestEnvironment extends Serializable {
       random  <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
       size    <- Sized.makeService(100).toManaged_
       system  <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
+      testAnnotations <- TestAnnotations.makeService.toManaged_
       time    <- live.provide(zio.clock.nanoTime).toManaged_
       _       <- random.setSeed(time).toManaged_
-    } yield new TestEnvironment(clock, console, live, random, size, system)
+    } yield new TestEnvironment(clock, console, live, random, size, system, testAnnotations)
 }
