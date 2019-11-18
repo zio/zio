@@ -6,7 +6,7 @@ import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestUtils.{ label, succeeded }
+import zio.test.TestUtils.{ isSuccess, label }
 import zio.ZIO
 
 object GenSpec extends AsyncBaseSpec {
@@ -15,7 +15,7 @@ object GenSpec extends AsyncBaseSpec {
     label(monadLeftIdentity, "monad left identity"),
     label(monadRightIdentity, "monad right identity"),
     label(monadAssociativity, "monad associativity"),
-    label(alphaNumericCharGeneratesValuesInRange, "alphaNumericChar generates values in range"),
+    label(alphaNumericCharGeneratesLettersAndDigits, "alphaNumericChar generates letter and digits"),
     label(alphaNumericCharShrinksToZero, "alphaNumericChar shrinks to zero"),
     label(anyByteShrinksToZero, "anyByte shrinks to zero"),
     label(anyCharShrinksToZero, "anyChar shrinks to zero"),
@@ -52,6 +52,8 @@ object GenSpec extends AsyncBaseSpec {
     label(listOf1ShrinksToSingletonList, "listOf1 shrinks to singleton list"),
     label(listOfNGeneratesListsOfCorrectSize, "listOfN generates lists of correct size"),
     label(listOfNShrinksElements, "listOfN shrinks elements"),
+    label(longGeneratesValuesInRange, "long generates values in range"),
+    label(longShrinksToBottomOfRange, "long shrinks to bottom of range"),
     label(mapMMapsAnEffectualFunctionOverAGenerator, "mapMMapsAnEffectualFunctionOverAGenerator"),
     label(mediumGeneratesSizesInRange, "medium generates sizes in range"),
     label(none, "none generates the constant empty value"),
@@ -127,10 +129,8 @@ object GenSpec extends AsyncBaseSpec {
     checkEqual(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g)))
   }
 
-  def alphaNumericCharGeneratesValuesInRange: Future[Boolean] =
-    checkSample(Gen.alphaNumericChar)(_.forall { c =>
-      (48 <= c && c <= 57) || (65 <= c && c <= 122)
-    })
+  def alphaNumericCharGeneratesLettersAndDigits: Future[Boolean] =
+    checkSample(Gen.alphaNumericChar)(_.forall(_.isLetterOrDigit))
 
   def alphaNumericCharShrinksToZero: Future[Boolean] =
     checkShrink(Gen.alphaNumericChar)('0')
@@ -266,6 +266,18 @@ object GenSpec extends AsyncBaseSpec {
   def listOfNShrinksElements: Future[Boolean] =
     checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-10))
 
+  def longGeneratesValuesInRange: Future[Boolean] = {
+    val min = -775050485969923566L
+    val max = 2826409893363053690L
+    checkSample(Gen.long(min, max))(_.forall(n => min <= n && n <= max))
+  }
+
+  def longShrinksToBottomOfRange: Future[Boolean] = {
+    val min = -8649088475068069159L
+    val max = 7907688119669724678L
+    checkShrink(Gen.long(min, max))(min)
+  }
+
   def mapMMapsAnEffectualFunctionOverAGenerator: Future[Boolean] = {
     val gen = Gen.int(1, 6).mapM(n => ZIO.succeed(n + 6))
     checkSample(gen)(_.forall(n => 7 <= n && n <= 12))
@@ -360,7 +372,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(as.reverse.reverse, equalTo(as))
         }
       }
-      succeeded(reverseProp)
+      isSuccess(reverseProp)
     }
 
   def uniformGeneratesValuesInRange: Future[Boolean] =
@@ -414,13 +426,13 @@ object GenSpec extends AsyncBaseSpec {
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
         if (p) assert((), Assertion.anything) else assert((as, bs), Assertion.nothing)
     }
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
-          failureDetails.fragment.value.toString == "(List(0),List(1))" ||
-            failureDetails.fragment.value.toString == "(List(1),List(0))" ||
-            failureDetails.fragment.value.toString == "(List(0),List(-1))" ||
-            failureDetails.fragment.value.toString == "(List(-1),List(0))"
+          failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
+            failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
+            failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
+            failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
         case _ => false
       }
     }
@@ -430,10 +442,10 @@ object GenSpec extends AsyncBaseSpec {
   def testShrinkingNonEmptyList: Future[Boolean] = {
     val gen                            = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
-          failureDetails.fragment.value.toString == "List(0)"
+          failureDetails.assertion.head.value.toString == "List(0)"
         case _ => false
       }
     }
@@ -446,10 +458,10 @@ object GenSpec extends AsyncBaseSpec {
       val p = n % 2 == 0
       if (p) assert((), Assertion.anything) else assert(n, Assertion.nothing)
     }
-    val property = checkSome(gen)(100)(test).map { result =>
+    val property = checkSome(100)(gen)(test).map { result =>
       result.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
-          failureDetails.fragment.value.toString == "1"
+          failureDetails.assertion.head.value.toString == "1"
         case _ => false
       }
     }
@@ -465,7 +477,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(as.takeWhile(f).forall(f), isTrue)
         }
       }
-      succeeded(takeWhileProp)
+      isSuccess(takeWhileProp)
     }
   }
 
@@ -481,7 +493,7 @@ object GenSpec extends AsyncBaseSpec {
           assert(f(a, b), equalTo(g(a, b)))
         }
       }
-      succeeded(swapProp)
+      isSuccess(swapProp)
     }
   }
 }

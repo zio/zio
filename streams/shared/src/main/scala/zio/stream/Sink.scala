@@ -20,7 +20,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 
-object Sink {
+object Sink extends Serializable {
 
   /**
    * see [[ZSink.await]]
@@ -190,6 +190,12 @@ object Sink {
    */
   final def fromFunction[A, B](f: A => B): Sink[Unit, Nothing, A, B] =
     ZSink.fromFunction(f)
+
+  /**
+   * see [[ZSink.fromFunctionM]]
+   */
+  final def fromFunctionM[E, A, B](f: A => ZIO[Any, E, B]): Sink[Option[E], Nothing, A, B] =
+    ZSink.fromFunctionM(f)
 
   /**
    * see [[ZSink.halt]]

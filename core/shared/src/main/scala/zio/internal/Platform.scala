@@ -16,8 +16,6 @@
 
 package zio.internal
 
-import java.util.{ Map => JMap }
-
 import zio.Cause
 import zio.internal.tracing.TracingConfig
 
@@ -77,26 +75,19 @@ trait Platform { self =>
   /**
    * Reports the specified failure.
    */
-  def reportFailure(cause: Cause[_]): Unit
+  def reportFailure(cause: Cause[Any]): Unit
 
-  def withReportFailure(f: Cause[_] => Unit): Platform =
+  def withReportFailure(f: Cause[Any] => Unit): Platform =
     new Platform.Proxy(self) {
-      override def reportFailure(cause: Cause[_]): Unit = f(cause)
+      override def reportFailure(cause: Cause[Any]): Unit = f(cause)
     }
-
-  /**
-   * Creates a new thread safe java.util.WeakHashMap if supported by the platform,
-   * otherwise any implementation of Map.
-   */
-  def newWeakHashMap[A, B](): JMap[A, B]
 }
-object Platform {
+object Platform extends PlatformSpecific {
   class Proxy(self: Platform) extends Platform {
-    def executor: Executor                   = self.executor
-    def tracing: Tracing                     = self.tracing
-    def fatal(t: Throwable): Boolean         = self.fatal(t)
-    def reportFatal(t: Throwable): Nothing   = self.reportFatal(t)
-    def reportFailure(cause: Cause[_]): Unit = self.reportFailure(cause)
-    def newWeakHashMap[A, B](): JMap[A, B]   = self.newWeakHashMap[A, B]()
+    def executor: Executor                     = self.executor
+    def tracing: Tracing                       = self.tracing
+    def fatal(t: Throwable): Boolean           = self.fatal(t)
+    def reportFatal(t: Throwable): Nothing     = self.reportFatal(t)
+    def reportFailure(cause: Cause[Any]): Unit = self.reportFailure(cause)
   }
 }

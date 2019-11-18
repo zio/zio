@@ -131,9 +131,6 @@ final class STM[+E, +A] private[stm] (
    */
   final def commit: IO[E, A] = STM.atomically(self)
 
-  @deprecated("use as", "1.0.0")
-  final def const[B](b: => B): STM[E, B] = as(b)
-
   /**
    * Converts the failure channel into an `Either`.
    */
@@ -261,12 +258,6 @@ final class STM[+E, +A] private[stm] (
    * Maps the success value of this effect to unit.
    */
   final def unit: STM[E, Unit] = as(())
-
-  /**
-   * Maps the success value of this effect to unit.
-   */
-  @deprecated("use unit", "1.0.0")
-  final def void: STM[E, Unit] = unit
 
   /**
    * Same as [[filter]]
@@ -759,9 +750,6 @@ object STM {
    * Returns an `STM` effect that succeeds with the specified value.
    */
   final def succeed[A](a: A): STM[Nothing, A] = new STM(_ => TRez.Succeed(a))
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[A](a: => A): STM[Nothing, A] = succeed(a)
 
   /**
    * Suspends creation of the specified transaction lazily.

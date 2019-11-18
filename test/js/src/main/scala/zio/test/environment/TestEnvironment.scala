@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ DefaultRuntime, Managed, ZEnv }
+import zio.{ Managed, ZEnv }
 import zio.scheduler.Scheduler
 import zio.test.Sized
 
@@ -25,7 +25,6 @@ case class TestEnvironment(
   console: TestConsole.Test,
   live: Live.Service[ZEnv],
   random: TestRandom.Test,
-  scheduler: TestClock.Test,
   sized: Sized.Service[Any],
   system: TestSystem.Test
 ) extends Live[ZEnv]
@@ -34,21 +33,68 @@ case class TestEnvironment(
     with TestRandom
     with TestSystem
     with Scheduler
-    with Sized
+    with Sized {
 
-object TestEnvironment {
+  /**
+   * Maps all test implementations in the test environment individually.
+   */
+  final def mapAll(
+    mapTestClock: TestClock.Test => TestClock.Test = identity,
+    mapTestConsole: TestConsole.Test => TestConsole.Test = identity,
+    mapTestRandom: TestRandom.Test => TestRandom.Test = identity,
+    mapTestSystem: TestSystem.Test => TestSystem.Test = identity
+  ): TestEnvironment =
+    TestEnvironment(
+      mapTestClock(clock),
+      mapTestConsole(console),
+      live,
+      mapTestRandom(random),
+      sized,
+      mapTestSystem(system)
+    )
+
+  /**
+   * Maps the [[TestClock]] implementation in the test environment, leaving
+   * all other test implementations the same.
+   */
+  final def mapTestClock(f: TestClock.Test => TestClock.Test): TestEnvironment =
+    mapAll(mapTestClock = f)
+
+  /**
+   * Maps the [[TestConsole]] implementation in the test environment, leaving
+   * all other test implementations the same.
+   */
+  final def mapTestConsole(f: TestConsole.Test => TestConsole.Test): TestEnvironment =
+    mapAll(mapTestConsole = f)
+
+  /**
+   * Maps the [[TestRandom]] implementation in the test environment, leaving
+   * all other test implementations the same.
+   */
+  final def mapTestRandom(f: TestRandom.Test => TestRandom.Test): TestEnvironment =
+    mapAll(mapTestRandom = f)
+
+  /**
+   * Maps the [[TestSystem]] implementation in the test environment, leaving
+   * all other test implementations the same.
+   */
+  final def mapTestSystem(f: TestSystem.Test => TestSystem.Test): TestEnvironment =
+    mapAll(mapTestSystem = f)
+
+  val scheduler = clock
+}
+
+object TestEnvironment extends Serializable {
 
   val Value: Managed[Nothing, TestEnvironment] =
-    Managed.fromEffect {
-      for {
-        clock   <- TestClock.makeTest(TestClock.DefaultData)
-        console <- TestConsole.makeTest(TestConsole.DefaultData)
-        live    <- Live.makeService(new DefaultRuntime {}.Environment)
-        random  <- TestRandom.makeTest(TestRandom.DefaultData)
-        time    <- live.provide(zio.clock.nanoTime)
-        _       <- random.setSeed(time)
-        size    <- Sized.makeService(100)
-        system  <- TestSystem.makeTest(TestSystem.DefaultData)
-      } yield new TestEnvironment(clock, console, live, random, clock, size, system)
-    }
+    for {
+      live    <- Live.makeService(LiveEnvironment).toManaged_
+      clock   <- TestClock.makeTest(TestClock.DefaultData, Some(live))
+      console <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
+      random  <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
+      size    <- Sized.makeService(100).toManaged_
+      system  <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
+      time    <- live.provide(zio.clock.nanoTime).toManaged_
+      _       <- random.setSeed(time).toManaged_
+    } yield new TestEnvironment(clock, console, live, random, size, system)
 }

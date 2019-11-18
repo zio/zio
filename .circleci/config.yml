@@ -10,7 +10,7 @@ scala_213: &scala_213
   SCALA_VERSION: 2.13.1
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.19.0-RC1
+  SCALA_VERSION: 0.20.0-RC1
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -122,7 +122,20 @@ testJVM: &testJVM
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJVM
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM
+    - <<: *clean_cache
+    - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
+
+testJVMNoBenchmarks: &testJVMNoBenchmarks
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMNoBenchmarks
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -146,7 +159,7 @@ testJS: &testJS
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt ++${SCALA_VERSION}! testJS
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -232,7 +245,7 @@ jobs:
       - <<: *jdk_8
 
   test_213_jdk8_jvm:
-    <<: *testJVM
+    <<: *testJVMNoBenchmarks
     <<: *machine_ubuntu
     <<: *machine_resource
     environment:

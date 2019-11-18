@@ -29,6 +29,7 @@ package object random {
   def nextInt(n: Int): ZIO[Random, Nothing, Int]                = ZIO.accessM(_.random.nextInt(n))
   val nextInt: ZIO[Random, Nothing, Int]                        = ZIO.accessM(_.random.nextInt)
   val nextLong: ZIO[Random, Nothing, Long]                      = ZIO.accessM(_.random.nextLong)
+  def nextLong(n: Long): ZIO[Random, Nothing, Long]             = ZIO.accessM(_.random.nextLong(n))
   val nextPrintableChar: ZIO[Random, Nothing, Char]             = ZIO.accessM(_.random.nextPrintableChar)
   def nextString(length: Int): ZIO[Random, Nothing, String]     = ZIO.accessM(_.random.nextString(length))
   def shuffle[A](list: List[A]): ZIO[Random, Nothing, List[A]]  = ZIO.accessM(_.random.shuffle(list))

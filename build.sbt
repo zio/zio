@@ -29,14 +29,18 @@ inThisBuild(
 
 ThisBuild / publishTo := sonatypePublishToBundle.value
 
-addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
-addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
+addCommandAlias("check", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJVM",
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
+)
+addCommandAlias(
+  "testJVMNoBenchmarks",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
@@ -103,9 +107,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.1" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -140,27 +144,26 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.stream"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
-    )
-  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
 
 lazy val streamsTestsJS = streamsTests.js
+  .settings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test
+  )
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
   .settings(
-    libraryDependencies ++= Seq(
-      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
-    )
+    scalacOptions += "-language:experimental.macros",
+    libraryDependencies ++=
+      Seq("org.portable-scala" %%% "portable-scala-reflect" % "0.1.0") ++ {
+        if (isDotty.value) Seq()
+        else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
+      }
   )
 
 lazy val testJVM = test.jvm.settings(dottySettings)
@@ -192,9 +195,9 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.7.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.7.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.8.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.8.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.8.1" % Test
     )
   )
 
@@ -238,8 +241,12 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
 lazy val examplesJS  = examples.js
 lazy val examplesJVM = examples.jvm.settings(dottySettings)
 
+lazy val isScala211 = Def.setting {
+  scalaVersion.value.startsWith("2.11")
+}
+
 lazy val benchmarks = project.module
-  .dependsOn(coreJVM, streamsJVM)
+  .dependsOn(coreJVM, streamsJVM, testJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
@@ -249,18 +256,24 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                   %% "fs2-core"        % "2.0.1",
+        "co.fs2"                   %% "fs2-core"        % "2.1.0",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.25",
-        "io.monix"                 %% "monix"           % "3.0.0",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.26",
+        "io.monix"                 %% "monix"           % "3.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.13",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.14",
         "org.ow2.asm"              % "asm"              % "7.2",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.typelevel"            %% "cats-effect"     % "2.0.0"
+        "org.typelevel"            %% "cats-effect"     % "2.0.0",
+        "org.scalacheck"           %% "scalacheck"      % "1.14.2",
+        "hedgehog"                 %% "hedgehog-core"   % "0.1.0"
       ),
+    libraryDependencies ++= {
+      if (isScala211.value) Nil
+      else Seq("com.github.japgolly.nyaya" %% "nyaya-gen" % "0.9.0-RC1")
+    },
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
       .reduce(_ | _),
@@ -271,6 +284,9 @@ lazy val benchmarks = project.module
       "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
+    ),
+    resolvers += Resolver.url("bintray-scala-hedgehog", url("https://dl.bintray.com/hedgehogqa/scala-hedgehog"))(
+      Resolver.ivyStylePatterns
     )
   )
 
@@ -292,12 +308,12 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
-      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC5",
-      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC4",
+      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
+      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
+      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC6",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.3-RC1",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC1",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
       "dev.zio"             %% "zio-macros-access"           % "0.4.0",
       "dev.zio"             %% "zio-macros-mock"             % "0.4.0"
