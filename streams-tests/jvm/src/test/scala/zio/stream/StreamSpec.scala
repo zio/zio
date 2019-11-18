@@ -119,7 +119,7 @@ object StreamSpec
                                else ((acc._1, false), Chunk.single(el))
                              }
                              .map(_._1),
-                           ZSchedule.spaced(30.minutes)
+                           Schedule.spaced(30.minutes)
                          )
                          .runCollect
             } yield assert(result, equalTo(List(Right(List(1, 1, 1, 1)), Right(List(2)))))
@@ -128,7 +128,7 @@ object StreamSpec
             val e = new RuntimeException("Boom")
             assertM(
               Stream(1, 1, 1, 1)
-                .aggregateAsyncWithinEither(ZSink.die(e), ZSchedule.spaced(30.minutes))
+                .aggregateAsyncWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -142,7 +142,7 @@ object StreamSpec
 
             assertM(
               Stream(1, 1)
-                .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
+                .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                 .runCollect
                 .run,
               dies(equalTo(e))
@@ -159,7 +159,7 @@ object StreamSpec
                     .onInterrupt(cancelled.set(true))
               }
               fiber <- Stream(1, 1, 2)
-                        .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                         .runCollect
                         .untraced
                         .fork
@@ -177,7 +177,7 @@ object StreamSpec
                   .onInterrupt(cancelled.set(true))
               }
               fiber <- Stream(1, 1, 2)
-                        .aggregateAsyncWithinEither(sink, ZSchedule.spaced(30.minutes))
+                        .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                         .runCollect
                         .untraced
                         .fork
@@ -196,7 +196,7 @@ object StreamSpec
                       el :: acc
                     }
                     .map(_.reverse),
-                  ZSchedule.spaced(100.millis)
+                  Schedule.spaced(100.millis)
                 )
                 .collect {
                   case Right(v) => v
@@ -219,7 +219,7 @@ object StreamSpec
                                else ((acc._1, false), Chunk.single(el))
                              }
                              .map(_._1),
-                           ZSchedule.spaced(30.minutes)
+                           Schedule.spaced(30.minutes)
                          )
                          .runCollect
             } yield assert(result, equalTo(List(List(1, 1, 1, 1), List(2))))
@@ -1241,7 +1241,7 @@ object StreamSpec
           (for {
             ref <- Ref.make[List[Int]](Nil)
             _ <- ZStream
-                  .repeatEffectWith(ref.update(1 :: _), ZSchedule.spaced(10.millis))
+                  .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
                   .take(2)
                   .run(Sink.drain)
             result <- ref.get
@@ -1445,7 +1445,7 @@ object StreamSpec
               ref <- Ref.make[List[Int]](Nil)
               _ <- Stream
                     .fromEffect(ref.update(1 :: _))
-                    .repeat(ZSchedule.spaced(10.millis))
+                    .repeat(Schedule.spaced(10.millis))
                     .take(2)
                     .run(Sink.drain)
               result <- ref.get
@@ -1478,7 +1478,7 @@ object StreamSpec
               ref <- Ref.make[List[Int]](Nil)
               _ <- Stream
                     .fromEffect(ref.update(1 :: _))
-                    .repeatEither(ZSchedule.spaced(10.millis))
+                    .repeatEither(Schedule.spaced(10.millis))
                     .take(3) // take one schedule output
                     .run(Sink.drain)
               result <- ref.get

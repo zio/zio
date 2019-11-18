@@ -275,7 +275,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
-    schedule: ZSchedule[R1, Option[B], C]
+    schedule: Schedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E1, Either[C, B]] = {
     /*
      * How this works:
@@ -569,7 +569,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: ZSink[R1, E1, A1, A1, B],
-    schedule: ZSchedule[R1, Option[B], C]
+    schedule: Schedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E1, B] = aggregateAsyncWithinEither(sink, schedule).collect {
     case Right(v) => v
   }
@@ -1201,7 +1201,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * takes to produce a value.
    */
   final def fixed[R1 <: R, E1 >: E, A1 >: A](duration: Duration): ZStream[R1 with Clock, E1, A1] =
-    scheduleElementsEither(ZSchedule.spaced(duration) >>> ZSchedule.stop).collect {
+    scheduleElementsEither(Schedule.spaced(duration) >>> Schedule.stop).collect {
       case Right(x) => x
     }
 
@@ -1977,7 +1977,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  final def repeat[R1 <: R, B, C](schedule: ZSchedule[R1, Unit, B]): ZStream[R1, E, A] =
+  final def repeat[R1 <: R, B, C](schedule: Schedule[R1, Unit, B]): ZStream[R1, E, A] =
     repeatEither(schedule) collect { case Right(a) => a }
 
   /**
@@ -1985,7 +1985,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * and then repeat again according to the provided schedule. The schedule output will be emitted at
    * the end of each repetition.
    */
-  final def repeatEither[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZStream[R1, E, Either[B, A]] =
+  final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Unit, B]): ZStream[R1, E, Either[B, A]] =
     repeatWith(schedule)(Right(_), Left(_))
 
   /**
@@ -1994,7 +1994,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * the end of each repetition and can be unified with the stream elements using the provided functions.
    */
   final def repeatWith[R1 <: R, B, C](
-    schedule: ZSchedule[R1, Unit, B]
+    schedule: Schedule[R1, Unit, B]
   )(f: A => C, g: B => C): ZStream[R1, E, C] =
     ZStream[R1, E, C] {
       for {
@@ -2081,7 +2081,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Schedules the output of the stream using the provided `schedule` and emits its output at
    * the end (if `schedule` is finite).
    */
-  final def schedule[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
+  final def schedule[R1 <: R, A1 >: A](schedule: Schedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
     scheduleEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -2089,7 +2089,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * the end (if `schedule` is finite).
    */
   final def scheduleEither[R1 <: R, E1 >: E, B](
-    schedule: ZSchedule[R1, A, B]
+    schedule: Schedule[R1, A, B]
   ): ZStream[R1 with Clock, E1, Either[B, A]] =
     scheduleWith(schedule)(Right.apply, Left.apply)
 
@@ -2099,7 +2099,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Repeats are done in addition to the first execution, so that `scheduleElements(Schedule.once)` means "emit element
    * and if not short circuited, repeat element once".
    */
-  final def scheduleElements[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
+  final def scheduleElements[R1 <: R, A1 >: A](schedule: Schedule[R1, A, Any]): ZStream[R1 with Clock, E, A1] =
     scheduleElementsEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -2109,7 +2109,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * and if not short circuited, repeat element once".
    */
   final def scheduleElementsEither[R1 <: R, E1 >: E, B](
-    schedule: ZSchedule[R1, A, B]
+    schedule: Schedule[R1, A, B]
   ): ZStream[R1 with Clock, E1, Either[B, A]] =
     scheduleElementsWith(schedule)(Right.apply, Left.apply)
 
@@ -2121,7 +2121,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Uses the provided functions to align the stream and schedule outputs on a common type.
    */
   final def scheduleElementsWith[R1 <: R, E1 >: E, B, C](
-    schedule: ZSchedule[R1, A, B]
+    schedule: Schedule[R1, A, B]
   )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
     ZStream[R1 with Clock, E1, C] {
       for {
@@ -2156,7 +2156,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Uses the provided function to align the stream and schedule outputs on the same type.
    */
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
-    schedule: ZSchedule[R1, A, B]
+    schedule: Schedule[R1, A, B]
   )(f: A => C, g: B => C): ZStream[R1, E1, C] =
     ZStream[R1, E1, C] {
       for {
@@ -2198,14 +2198,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }
 
   @deprecated("use scheduleElements", "1.0.0")
-  final def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+  final def spaced[R1 <: R, A1 >: A](schedule: Schedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
     scheduleElements(schedule)
 
   /**
    * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
    */
   @deprecated("use scheduleElementsEither", "1.0.0")
-  final def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
+  final def spacedEither[R1 <: R, B](schedule: Schedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
     scheduleElementsEither(schedule)
 
   /**
@@ -3093,7 +3093,7 @@ object ZStream extends Serializable {
    */
   final def repeatEffectWith[R, E, A](
     fa: ZIO[R, E, A],
-    schedule: ZSchedule[R, Unit, _]
+    schedule: Schedule[R, Unit, _]
   ): ZStream[R, E, A] =
     fromEffect(fa).repeat(schedule)
 
