@@ -31,11 +31,10 @@ object TestExecutor {
             e.failureOrCause.fold(
               failure => ZIO.succeed((Left(failure), TestAnnotationMap.empty)),
               cause => ZIO.succeed((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
-            ),
-          {
+            ), {
             case (s, map) => ZIO.succeed((Right(s), map))
           }
         )
-        
+
     }
 }

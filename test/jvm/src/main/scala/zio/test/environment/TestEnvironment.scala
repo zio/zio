@@ -96,15 +96,15 @@ object TestEnvironment extends Serializable {
 
   val Value: Managed[Nothing, TestEnvironment] =
     for {
-      live     <- Live.makeService(LiveEnvironment).toManaged_
-      clock    <- TestClock.makeTest(TestClock.DefaultData, Some(live))
-      console  <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
-      random   <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
-      size     <- Sized.makeService(100).toManaged_
-      system   <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
+      live            <- Live.makeService(LiveEnvironment).toManaged_
+      clock           <- TestClock.makeTest(TestClock.DefaultData, Some(live))
+      console         <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
+      random          <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
+      size            <- Sized.makeService(100).toManaged_
+      system          <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
       testAnnotations <- TestAnnotations.makeService.toManaged_
-      blocking = Blocking.Live.blocking
-      time     <- live.provide(zio.clock.nanoTime).toManaged_
-      _        <- random.setSeed(time).toManaged_
+      blocking        = Blocking.Live.blocking
+      time            <- live.provide(zio.clock.nanoTime).toManaged_
+      _               <- random.setSeed(time).toManaged_
     } yield new TestEnvironment(blocking, clock, console, live, random, size, system, testAnnotations)
 }
