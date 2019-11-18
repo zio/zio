@@ -505,10 +505,6 @@ object RIO {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
   /**
    *  See [[zio.ZIO.sequence]]
    */
@@ -526,12 +522,6 @@ object RIO {
    */
   final def sequenceParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequenceParN(n)(as)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[R, A](rio: => RIO[R, A]): RIO[R, A] = effectSuspendTotalWith(_ => rio)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.swap]]

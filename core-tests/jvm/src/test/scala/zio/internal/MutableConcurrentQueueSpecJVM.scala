@@ -11,39 +11,39 @@ import zio.test._
  *
  * Concurrent tests are run via jcstress and are in [[RingBufferConcurrencyTests]].
  */
-object MutableConcurrentQueueJVM
-    extends ZIOBaseSpec(
-      suite("MutableConcurrentQueueSpec")(
-        suite("Serialization works for")(
-          test("a one element queue") {
-            val q = MutableConcurrentQueue.bounded[Int](1)
-            q.offer(1)
-            val returnQ = serializeAndDeserialize(q)
-            returnQ.offer(2)
+object MutableConcurrentQueueJVM extends ZIOBaseSpec {
 
-            (assert(returnQ.poll(-1), equalTo(1))
-            && assert(returnQ.poll(-1), equalTo(-1)))
-          },
-          test("a pow 2 capacity ring buffer") {
-            val q = MutableConcurrentQueue.bounded[Int](3)
-            q.offer(1)
-            val returnQ = serializeAndDeserialize(q)
-            returnQ.offer(2)
+  def spec = suite("MutableConcurrentQueueSpec")(
+    suite("Serialization works for")(
+      test("a one element queue") {
+        val q = MutableConcurrentQueue.bounded[Int](1)
+        q.offer(1)
+        val returnQ = serializeAndDeserialize(q)
+        returnQ.offer(2)
 
-            (assert(returnQ.poll(-1), equalTo(1))
-            && assert(returnQ.poll(-1), equalTo(2))
-            && assert(returnQ.poll(-1), equalTo(-1)))
-          },
-          test("an arbitrary capacity ring buffer") {
-            val q = MutableConcurrentQueue.bounded[Int](2)
-            q.offer(1)
-            val returnQ = serializeAndDeserialize(q)
-            returnQ.offer(2)
+        (assert(returnQ.poll(-1), equalTo(1))
+        && assert(returnQ.poll(-1), equalTo(-1)))
+      },
+      test("a pow 2 capacity ring buffer") {
+        val q = MutableConcurrentQueue.bounded[Int](3)
+        q.offer(1)
+        val returnQ = serializeAndDeserialize(q)
+        returnQ.offer(2)
 
-            (assert(returnQ.poll(-1), equalTo(1))
-            && assert(returnQ.poll(-1), equalTo(2))
-            && assert(returnQ.poll(-1), equalTo(-1)))
-          }
-        )
-      )
+        (assert(returnQ.poll(-1), equalTo(1))
+        && assert(returnQ.poll(-1), equalTo(2))
+        && assert(returnQ.poll(-1), equalTo(-1)))
+      },
+      test("an arbitrary capacity ring buffer") {
+        val q = MutableConcurrentQueue.bounded[Int](2)
+        q.offer(1)
+        val returnQ = serializeAndDeserialize(q)
+        returnQ.offer(2)
+
+        (assert(returnQ.poll(-1), equalTo(1))
+        && assert(returnQ.poll(-1), equalTo(2))
+        && assert(returnQ.poll(-1), equalTo(-1)))
+      }
     )
+  )
+}

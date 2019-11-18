@@ -34,11 +34,11 @@ import zio.stream.{ ZSink, ZStream }
  *  import Assertion.isGreaterThan
  *
  *  object MyTest extends DefaultRunnableSpec {
- *    suite("clock") {
+ *    def spec = suite("clock")(
  *      testM("time is non-zero") {
  *        assertM(nanoTime, isGreaterThan(0))
  *      }
- *    }
+ *    )
  *  }
  * }}}
  */

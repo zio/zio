@@ -84,6 +84,12 @@ case class TestRunner[R, E, L, -T, S](
   final def withReporter[E1 >: E, L1 >: L, S1 >: S](reporter: TestReporter[E1, L1, S1]) =
     copy(reporter = reporter)
 
+  /**
+   * Creates a copy of this runner replacing the platform
+   */
+  final def withPlatform(f: Platform => Platform): TestRunner[R, L, T, E, S] =
+    copy(platform = f(platform))
+
   private[test] def buildRuntime(
     loggerSvc: TestLogger = defaultTestLogger,
     clockSvc: Clock = Clock.Live
