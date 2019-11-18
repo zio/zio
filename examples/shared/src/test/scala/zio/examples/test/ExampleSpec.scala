@@ -1,8 +1,8 @@
 package zio.examples.test
 
-import zio.test.{ assert, suite, test, Assertion, RunnableSpec }
+import zio.test.{ assert, suite, test, Assertion, DefaultRunnableSpec }
 
-object ExampleSpec extends RunnableSpec {
+object ExampleSpec extends DefaultRunnableSpec {
 
   def spec = suite("some suite")(
     test("failing test") {

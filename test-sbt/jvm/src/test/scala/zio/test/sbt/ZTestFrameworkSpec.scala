@@ -19,7 +19,7 @@ package zio.test.sbt
 import sbt.testing._
 import zio.FunctionIO
 import zio.test.sbt.TestingSupport._
-import zio.test.{ Assertion, RunnableSpec, TestArgs, TestAspect }
+import zio.test.{ Assertion, DefaultRunnableSpec, TestArgs, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -132,7 +132,7 @@ object ZTestFrameworkSpec {
   }
 
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
-  object SimpleFailingSpec extends RunnableSpec {
+  object SimpleFailingSpec extends DefaultRunnableSpec {
     def spec = zio.test.suite("some suite")(
       zio.test.test("failing test") {
         zio.test.assert(1, Assertion.equalTo(2))

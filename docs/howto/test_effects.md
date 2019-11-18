@@ -119,7 +119,7 @@ testM("Semaphore should expose available number of permits") {
 
 ### Running tests
 
-When all of our tests are constructed, we need to have a way to actually execute them. Your first stop is the `zio.test.RunnableSpec` which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suites can hold any number of other suites. You may structure your tests like this:
+When all of our tests are constructed, we need to have a way to actually execute them. Your first stop is the `zio.test.DefaultRunnableSpec` which accepts a single suite that will be executed. A single suite might seem to be limiting but as it was already said suites can hold any number of other suites. You may structure your tests like this:
 
 
 ```scala
@@ -140,17 +140,17 @@ val suite3 = suite("suite3") (
   testM("s3.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
 )
 
-object AllSuites extends RunnableSpec {
+object AllSuites extends DefaultRunnableSpec {
   def spec = suite("All tests")(suite1, suite2, suite3)
 }
 ```
 
-`RunnableSpec` is very similar in its logic of operations to `zio.App`. Instead of providing one `ZIO` application
-at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `RunnableSpec` provides an Environment. Here it is an instance of `TestEnvironment` which helps us with controling our systems infrastructure. More info on using test environment can be found in sections below.
-Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is expected where `R` can be at maximum of type `Environment` in `RunnableSpec` `R` cannot be more than `TestEnvironment`. So just like in normal application if our
+`DefaultRunnableSpec` is very similar in its logic of operations to `zio.App`. Instead of providing one `ZIO` application
+at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `TestEnvironment` which helps us with controling our systems infrastructure. More info on using test environment can be found in sections below.
+Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is expected where `R` can be at maximum of type `Environment` in `DefaultRunnableSpec` `R` cannot be more than `TestEnvironment`. So just like in normal application if our
 `R` is composed of some other modules we need to provide them first before test can be executed. How can we provide our dependencies?
 Here again the design of `zio-test` shines. Since our tests are ordinary values we can just transform them with a call to `mapTest`.
-It accepts a lambda of type `ZIO[R with TestSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with TestSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `RunnableSpec` cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added `zio-test-sbt` to our dependencies and `zio.test.sbt.TestFramework` to SBT's `testFrameworks` our tests should be automatically picked up by SBT on invocation of `test`. However if we're not using SBT or have some other special needs `RunnableSpec` has a `main` method which can be invoked directly or with SBTs `test:run`.
+It accepts a lambda of type `ZIO[R with TestSystem, TestFailure[Throwable], TestSuccess[Unit] ] => T1`. Without getting into too much details about types we can see that our lambda argument is a test instance (`ZIO`) that expects an environment of type `R with TestSystem`. This is no different from normal usage of ZIO in `zio.App`. We can use the same `provide`, `provideSome` methods to provide modules which `DefaultRunnableSpec` cannot provide itself as those are users modules. When all dependencies are provided we can run our tests in two ways. If we added `zio-test-sbt` to our dependencies and `zio.test.sbt.TestFramework` to SBT's `testFrameworks` our tests should be automatically picked up by SBT on invocation of `test`. However if we're not using SBT or have some other special needs `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `test:run`.
 
 ```sbt
 libraryDependencies ++= Seq(
@@ -436,7 +436,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object MySpec extends RunnableSpec {
+object MySpec extends DefaultRunnableSpec {
   def spec = suite("A Suite")(
     test("A passing test") {
       assert(true, isTrue)

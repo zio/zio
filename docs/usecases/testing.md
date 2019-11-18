@@ -13,7 +13,7 @@ libraryDependencies ++= Seq(
 testFrameworks += Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 ```
 
-From there the fastest way to start writing tests is to extend `RunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
+From there the fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
 
 ```scala
 import zio._
@@ -29,7 +29,7 @@ object HelloWorld {
     console.putStrLn("Hello, World!")
 }
 
-object HelloWorldSpec extends RunnableSpec {
+object HelloWorldSpec extends DefaultRunnableSpec {
   def spec = suite("HelloWorldSpec")(
     testM("sayHello correctly displays output") {
       for {

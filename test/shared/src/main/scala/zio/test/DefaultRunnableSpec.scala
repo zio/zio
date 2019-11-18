@@ -23,14 +23,11 @@ import zio.test.environment.TestEnvironment
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
  */
-@deprecated("use RunnableSpec", "1.0.0")
-abstract class DefaultRunnableSpec(
-  spec0: => ZSpec[TestEnvironment, Any, String, Any],
-  aspects0: List[TestAspect[Nothing, TestEnvironment, Nothing, Any, Nothing, Any]] = List(
-    TestAspect.timeoutWarning(60.seconds)
-  )
-) extends RunnableSpec {
+trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, String, Any, Any, Any] {
 
-  override def aspects = aspects0
-  override def spec    = spec0
+  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any, Nothing, Any]] =
+    List(TestAspect.timeoutWarning(60.seconds))
+
+  override def runner: TestRunner[TestEnvironment, String, Any, Any, Any] =
+    DefaultTestRunner
 }

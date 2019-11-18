@@ -242,7 +242,7 @@ val mockEnv: Managed[Nothing, MockConsole] = (
 ## Providing mocked environment
 
 ```scala
-object AccountObserverSpec extends RunnableSpec {
+object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
       val result = app.provideManaged(mockEnv.map { mockConsole =>

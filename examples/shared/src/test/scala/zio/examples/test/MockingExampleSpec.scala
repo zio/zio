@@ -1,12 +1,12 @@
 package zio.examples.test
 
 import zio.{ clock, console, random }
-import zio.test.{ assertM, suite, testM, RunnableSpec }
+import zio.test.{ assertM, suite, testM, DefaultRunnableSpec }
 import zio.test.Assertion._
 import zio.test.mock.{ MockClock, MockConsole, MockRandom }
 import zio.test.mock.Expectation.{ unit, value, valueF }
 
-object MockingExampleSpec extends RunnableSpec {
+object MockingExampleSpec extends DefaultRunnableSpec {
 
   def spec = suite("suite with mocks")(
     testM("expect call returning output") {
