@@ -73,7 +73,7 @@ private[test] object Fun {
   private def withFunExecutor[R](runtime: Runtime[R]): Runtime[R] =
     if (TestPlatform.isJS) {
       runtime.withExecutor {
-        val ec = runtime.Platform.executor.asEC
+        val ec = runtime.platform.executor.asEC
         Executor.fromExecutionContext(Int.MaxValue)(ec)
       }
     } else runtime

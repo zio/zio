@@ -26,10 +26,6 @@ package object blocking {
   def blocking[R1 <: Blocking, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
     ZIO.accessM(_.blocking.blocking(zio))
 
-  @deprecated("use effectBlocking()", "1.0.0")
-  def interruptible[A](effect: => A): ZIO[Blocking, Throwable, A] =
-    effectBlocking(effect)
-
   def effectBlocking[A](effect: => A): ZIO[Blocking, Throwable, A] =
     ZIO.accessM(_.blocking.effectBlocking(effect))
 

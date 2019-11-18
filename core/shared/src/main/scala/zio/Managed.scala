@@ -264,10 +264,6 @@ object Managed {
   final def succeed[A](r: A): Managed[Nothing, A] =
     ZManaged.succeed(r)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](r: => A): Managed[Nothing, A] =
-    effectTotal(r)
-
   /**
    * See [[zio.ZManaged.suspend]]
    */
@@ -309,11 +305,6 @@ object Managed {
    */
   final def traverseParN_[E, A](n: Int)(as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverseParN_(n)(as)(f)
-
-  /**
-   * See [[zio.ZManaged]]
-   */
-  final def unapply[E, A](v: Managed[E, A]) = ZManaged.unapply(v)
 
   /**
    * See [[zio.ZManaged.unit]]

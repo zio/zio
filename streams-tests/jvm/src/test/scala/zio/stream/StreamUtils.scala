@@ -3,6 +3,7 @@ package zio.stream
 import zio.test.{ Gen, GenZIO, Sized }
 import zio.random.Random
 import zio._
+import ZStream.Pull
 import scala.concurrent.ExecutionContext
 
 trait StreamUtils extends ChunkUtils with GenZIO {
@@ -57,6 +58,9 @@ trait StreamUtils extends ChunkUtils with GenZIO {
 
   def takeUntil[A](as: List[A])(f: A => Boolean): List[A] =
     as.takeWhile(!f(_)) ++ as.dropWhile(!f(_)).take(1)
+
+  def nPulls[R, E, A](pull: Pull[R, E, A], n: Int): ZIO[R, Nothing, List[Either[Option[E], A]]] =
+    ZIO.foreach(1 to n)(_ => pull.either)
 }
 
 object StreamUtils extends StreamUtils with GenUtils {

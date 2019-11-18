@@ -28,9 +28,9 @@ import scala.annotation.implicitNotFound
 trait =!=[A, B] extends Serializable
 
 object =!= {
-  def unexpected : Nothing = sys.error("Unexpected invocation")
+  def unexpected: Nothing = sys.error("Unexpected invocation")
 
-  implicit def neq[A, B] : A =!= B = new =!=[A, B] {}
-  implicit def neqAmbig1[A] : A =!= A = unexpected
-  implicit def neqAmbig2[A] : A =!= A = unexpected
+  implicit def neq[A, B]: A =!= B    = new =!=[A, B] {}
+  implicit def neqAmbig1[A]: A =!= A = unexpected
+  implicit def neqAmbig2[A]: A =!= A = unexpected
 }

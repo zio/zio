@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ IO, ZIO }
+import zio.{ IO, NeedsEnv, ZIO }
 
 import zio.Managed
 
@@ -26,7 +26,7 @@ import zio.Managed
  * [[TestSystem]], and [[TestRandom]] modules. See the documentation on the
  * individual modules for more detail about using each of them.
  *
- * If you are using ZIO Test and extending `DefaultRunnableSpec` a
+ * If you are using ZIO Test and extending `RunnableSpec` a
  * `TestEnvironment` containing all of them will be automatically provided to
  * each of your tests. Otherwise, the easiest way to use the test implementations
  * in ZIO Test is by providing the `TestEnvironment` to your program.
@@ -77,7 +77,7 @@ package object environment {
    * environment. This is useful for performing effects such as timing out
    * tests, accessing the real time, or printing to the real console.
    */
-  def live[R, E, A](zio: ZIO[R, E, A]): ZIO[Live[R], E, A] =
+  def live[R, E, A](zio: ZIO[R, E, A])(implicit ev: NeedsEnv[R]): ZIO[Live[R], E, A] =
     Live.live(zio)
 
   /**
@@ -91,7 +91,9 @@ package object environment {
    *  withLive(test)(_.timeout(duration))
    * }}}
    */
-  def withLive[R, R1, E, E1, A, B](zio: ZIO[R, E, A])(f: IO[E, A] => ZIO[R1, E1, B]): ZIO[R with Live[R1], E1, B] =
+  def withLive[R, R1, E, E1, A, B](
+    zio: ZIO[R, E, A]
+  )(f: IO[E, A] => ZIO[R1, E1, B])(implicit ev: NeedsEnv[R1]): ZIO[R with Live[R1], E1, B] =
     Live.withLive(zio)(f)
 
   /**

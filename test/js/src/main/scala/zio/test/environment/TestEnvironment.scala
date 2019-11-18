@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ DefaultRuntime, Managed, ZEnv }
+import zio.{ Managed, ZEnv }
 import zio.scheduler.Scheduler
 import zio.test.Sized
 import zio.test.TestAnnotations
@@ -88,20 +88,17 @@ case class TestEnvironment(
   val scheduler = clock
 }
 
-object TestEnvironment {
+object TestEnvironment extends Serializable {
 
   val Value: Managed[Nothing, TestEnvironment] =
-    Managed.fromEffect {
-      for {
-        clock           <- TestClock.makeTest(TestClock.DefaultData)
-        console         <- TestConsole.makeTest(TestConsole.DefaultData)
-        live            <- Live.makeService(new DefaultRuntime {}.Environment)
-        random          <- TestRandom.makeTest(TestRandom.DefaultData)
-        testAnnotations <- TestAnnotations.makeService
-        time            <- live.provide(zio.clock.nanoTime)
-        _               <- random.setSeed(time)
-        size            <- Sized.makeService(100)
-        system          <- TestSystem.makeTest(TestSystem.DefaultData)
-      } yield new TestEnvironment(clock, console, live, random, size, system, testAnnotations)
-    }
+    for {
+      live    <- Live.makeService(LiveEnvironment).toManaged_
+      clock   <- TestClock.makeTest(TestClock.DefaultData, Some(live))
+      console <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
+      random  <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
+      size    <- Sized.makeService(100).toManaged_
+      system  <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
+      time    <- live.provide(zio.clock.nanoTime).toManaged_
+      _       <- random.setSeed(time).toManaged_
+    } yield new TestEnvironment(clock, console, live, random, size, system)
 }

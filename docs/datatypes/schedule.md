@@ -20,7 +20,7 @@ Schedules allow you to define and compose flexible recurrence schedules, which c
 
 Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways.
 
-A `Schedule[A, B]` consumes input values of type `A` (errors in the case of `retry`, or values in the case of `repeat`), and based on these values and internal state, decides whether to recur or conclude. Every decision is accompanied by a (possibly zero) delay, indicating how much time before the next recurrence, and an output value of type `B`.
+A `Schedule[R, A, B]` consumes input values of type `A` (errors in the case of `retry`, or values in the case of `repeat`), and based on these values and internal state, decides whether to recur or conclude. Every decision is accompanied by a (possibly zero) delay, indicating how much time before the next recurrence, and an output value of type `B`.
 
 ## Base Schedules
 
@@ -69,13 +69,13 @@ val fibonacci = Schedule.fibonacci(10.milliseconds)
 Applying random jitter to a schedule:
 
 ```scala mdoc:silent
-val jitteredExp = Schedule.exponential(10.milliseconds).jittered
+val jitteredExp = Schedule.exponential(10.milliseconds).jittered()
 ```
 
 Modifies the delay of a schedule:
 
 ```scala mdoc:silent
-val boosted = Schedule.spaced(1.second).delayed(_ + 100.milliseconds)
+val boosted = Schedule.spaced(1.second).delayed(_ => 100.milliseconds)
 ```
 
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy:
@@ -100,5 +100,5 @@ val expCapped = Schedule.exponential(100.milliseconds) || Schedule.spaced(1.seco
 Stops retrying after a specified amount of time has elapsed:
 
 ```scala mdoc:silent
-val expMaxElapsed = Schedule.exponential(10.milliseconds) && ZSchedule.elapsed.whileOutput(_ < 30.seconds)
+val expMaxElapsed = Schedule.exponential(10.milliseconds) && Schedule.elapsed.whileOutput(_ < 30.seconds)
 ```

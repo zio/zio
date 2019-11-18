@@ -8,233 +8,230 @@ import zio.random.Random
 import zio.test.Assertion._
 import zio.test.{ test => testSync, _ }
 
-object SerializableSpec
-    extends ZIOBaseSpec(
-      suite("SerializableSpec")(
-        testM("Semaphore is serializable") {
-          val n = 20L
-          for {
-            semaphore   <- Semaphore.make(n)
-            count       <- semaphore.available
-            returnSem   <- serializeAndBack(semaphore)
-            returnCount <- returnSem.available
-          } yield assert(returnCount, equalTo(count))
-        },
-        testM("Clock is serializable") {
-          for {
-            time1 <- clock.nanoTime
-            time2 <- serializeAndBack(clock.nanoTime).flatten
-          } yield assert(time1, isLessThanEqualTo(time2))
-        },
-        testM("Queue is serializable") {
-          for {
-            queue       <- Queue.bounded[Int](100)
-            _           <- queue.offer(10)
-            returnQueue <- serializeAndBack(queue)
-            v1          <- returnQueue.take
-            _           <- returnQueue.offer(20)
-            v2          <- returnQueue.take
-          } yield assert(v1, equalTo(10)) &&
-            assert(v2, equalTo(20))
-        },
-        testM("Ref is serializable") {
-          val current = "This is some value"
-          for {
-            ref       <- Ref.make(current)
-            returnRef <- serializeAndBack(ref)
-            value     <- returnRef.get
-          } yield assert(value, equalTo(current))
-        },
-        testM("IO is serializable") {
-          val list = List("1", "2", "3")
-          val io   = IO.succeed(list)
-          for {
-            returnIO <- serializeAndBack(io)
-            result   <- returnIO
-          } yield assert(result, equalTo(list))
-        },
-        testM("FunctionIO is serializable") {
-          import FunctionIO._
-          val v = fromFunction[Int, Int](_ + 1)
-          for {
-            returnKleisli <- serializeAndBack(v)
-            computeV      <- returnKleisli.run(9)
-          } yield assert(computeV, equalTo(10))
-        },
-        testM("FiberStatus is serializable") {
-          val list = List("1", "2", "3")
-          val io   = IO.succeed(list)
-          for {
-            fiber          <- io.fork
-            status         <- fiber.await
-            returnedStatus <- serializeAndBack(status)
-          } yield {
-            assert(returnedStatus.getOrElse(_ => List.empty), equalTo(list))
-          }
-        },
-        testM("Duration is serializable") {
-          import zio.duration.Duration
-          val duration = Duration.fromNanos(1)
-          for {
-            returnDuration <- serializeAndBack(duration)
-          } yield assert(returnDuration, equalTo(duration))
-        },
-        testSync("Cause.die is serializable") {
-          val cause = Cause.die(TestException("test"))
-          assert(serializeAndDeserialize(cause), equalTo(cause))
-        },
-        testSync("Cause.fail is serializable") {
-          val cause = Cause.fail("test")
-          assert(serializeAndDeserialize(cause), equalTo(cause))
-        },
-        testSync("Cause.traced is serializable") {
-          val cause = Cause.traced(Cause.fail("test"), ZTrace(0L, List.empty, List.empty, None))
-          assert(serializeAndDeserialize(cause), equalTo(cause))
-        },
-        testSync("Cause.interrupt is serializable") {
-          val cause = Cause.interrupt
-          assert(serializeAndDeserialize(cause), equalTo(cause))
-        },
-        testSync("Cause.&& is serializable") {
-          val cause = Cause.fail("test") && Cause.interrupt
-          assert(serializeAndDeserialize(cause), equalTo(cause))
-        },
-        testSync("Cause.++ is serializable") {
-          val cause = Cause.fail("test") ++ Cause.interrupt
-          assert(serializeAndDeserialize(cause), equalTo(cause))
-        },
-        testSync("Exit.succeed is serializable") {
-          val exit = Exit.succeed("test")
-          assert(serializeAndDeserialize(exit), equalTo(exit))
-        },
-        testSync("Exit.fail is serializable") {
-          val exit = Exit.fail("test")
-          assert(serializeAndDeserialize(exit), equalTo(exit))
-        },
-        testSync("Exit.die is serializable") {
-          val exit = Exit.die(TestException("test"))
-          assert(serializeAndDeserialize(exit), equalTo(exit))
-        },
-        testSync("FiberFailure is serializable") {
-          val failure = FiberFailure(Cause.interrupt)
-          assert(serializeAndDeserialize(failure), equalTo(failure))
-        },
-        testSync("InterruptStatus.interruptible is serializable") {
-          val interruptStatus = InterruptStatus.interruptible
-          assert(serializeAndDeserialize(interruptStatus), equalTo(interruptStatus))
-        },
-        testSync("InterruptStatus.uninterruptible is serializable") {
-          val interruptStatus = InterruptStatus.uninterruptible
-          assert(serializeAndDeserialize(interruptStatus), equalTo(interruptStatus))
-        },
-        testM("Promise is serializable") {
-          for {
-            promise           <- Promise.make[Nothing, String]
-            _                 <- promise.succeed("test")
-            value             <- promise.await
-            deserialized      <- serializeAndBack(promise)
-            deserializedValue <- deserialized.await
-          } yield assert(deserializedValue, equalTo(value))
-        },
-        testM("ZSchedule is serializable") {
-          val schedule = Schedule.recurs(5)
-          for {
-            out1 <- schedule.run(List(1, 2, 3, 4, 5))
-            out2 <- serializeAndDeserialize(schedule).run(List(1, 2, 3, 4, 5))
-          } yield assert(out2, equalTo(out1))
-        },
-        testM("Chunk.single is serializable") {
-          val chunk = Chunk.single(1)
-          for {
-            deserialized <- serializeAndBack(chunk)
-          } yield assert(deserialized, equalTo(chunk))
-        },
-        testM("Chunk.fromArray is serializable") {
-          val chunk = Chunk.fromArray(Array(1, 2, 3))
-          for {
-            deserialized <- serializeAndBack(chunk)
-          } yield assert(deserialized, equalTo(chunk))
-        },
-        testM("Chunk.++ is serializable") {
-          val chunk = Chunk.single(1) ++ Chunk.single(2)
-          for {
-            deserialized <- serializeAndBack(chunk)
-          } yield assert(deserialized, equalTo(chunk))
-        },
-        testM("Chunk slice is serializable") {
-          val chunk = Chunk.fromArray((1 to 100).toArray).take(10)
-          for {
-            deserialized <- serializeAndBack(chunk)
-          } yield assert(deserialized, equalTo(chunk))
-        },
-        testM("Chunk.empty is serializable") {
-          val chunk = Chunk.empty
-          for {
-            deserialized <- serializeAndBack(chunk)
-          } yield assert(deserialized, equalTo(chunk))
-        },
-        testM("Chunk.fromIterable is serializable") {
-          val chunk = Chunk.fromIterable(Vector(1, 2, 3))
-          for {
-            deserialized <- serializeAndBack(chunk)
-          } yield assert(deserialized, equalTo(chunk))
-        },
-        testM("FiberRef is serializable") {
-          val value = 10
-          for {
-            init   <- FiberRef.make(value)
-            ref    <- serializeAndBack(init)
-            result <- ref.get
-          } yield assert(result, equalTo(value))
-        },
-        testM("ZManaged is serializable") {
-          for {
-            managed <- serializeAndBack(ZManaged.make(UIO.unit)(_ => UIO.unit))
-            result  <- managed.use(_ => UIO.unit)
-          } yield assert(result, equalTo(()))
-        },
-        testSync("SuperviseStatus.supervised is serializable") {
-          val supervised = SuperviseStatus.supervised
-          assert(serializeAndDeserialize(supervised), equalTo(supervised))
-        },
-        testSync("SuperviseStatus.unsupervised is serializable") {
-          val unsupervised = SuperviseStatus.unsupervised
-          assert(serializeAndDeserialize(unsupervised), equalTo(unsupervised))
-        },
-        testSync("ZTrace is serializable") {
-          val trace = ZTrace(
-            0L,
-            List(ZTraceElement.NoLocation("test")),
-            List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
-            None
-          )
+object SerializableSpec extends ZIOBaseSpec {
 
-          assert(serializeAndDeserialize(trace), equalTo(trace))
-        },
-        testM("TracingStatus.Traced is serializable") {
-          val traced = TracingStatus.Traced
-          for {
-            result <- serializeAndBack(traced)
-          } yield assert(result, equalTo(traced))
-        },
-        testM("TracingStatus.Untraced is serializable") {
-          val traced = TracingStatus.Untraced
-          for {
-            result <- serializeAndBack(traced)
-          } yield assert(result, equalTo(traced))
-        },
-        testSync("Random is serializable") {
-          val rnd = Random.Live
-          assert(serializeAndDeserialize(rnd), equalTo(rnd))
-        },
-        testM("TracingStatus.Untraced is serializable") {
-          for {
-            system <- serializeAndBack(zio.system.System.Live)
-            result <- system.system.property("notpresent")
-          } yield assert(result, equalTo(Option.empty[String]))
-        }
+  def spec = suite("SerializableSpec")(
+    testM("Semaphore is serializable") {
+      val n = 20L
+      for {
+        semaphore   <- Semaphore.make(n)
+        count       <- semaphore.available
+        returnSem   <- serializeAndBack(semaphore)
+        returnCount <- returnSem.available
+      } yield assert(returnCount, equalTo(count))
+    },
+    testM("Clock is serializable") {
+      for {
+        time1 <- clock.nanoTime
+        time2 <- serializeAndBack(clock.nanoTime).flatten
+      } yield assert(time1, isLessThanEqualTo(time2))
+    },
+    testM("Queue is serializable") {
+      for {
+        queue       <- Queue.bounded[Int](100)
+        _           <- queue.offer(10)
+        returnQueue <- serializeAndBack(queue)
+        v1          <- returnQueue.take
+        _           <- returnQueue.offer(20)
+        v2          <- returnQueue.take
+      } yield assert(v1, equalTo(10)) &&
+        assert(v2, equalTo(20))
+    },
+    testM("Ref is serializable") {
+      val current = "This is some value"
+      for {
+        ref       <- Ref.make(current)
+        returnRef <- serializeAndBack(ref)
+        value     <- returnRef.get
+      } yield assert(value, equalTo(current))
+    },
+    testM("IO is serializable") {
+      val list = List("1", "2", "3")
+      val io   = IO.succeed(list)
+      for {
+        returnIO <- serializeAndBack(io)
+        result   <- returnIO
+      } yield assert(result, equalTo(list))
+    },
+    testM("FunctionIO is serializable") {
+      import FunctionIO._
+      val v = fromFunction[Int, Int](_ + 1)
+      for {
+        returnKleisli <- serializeAndBack(v)
+        computeV      <- returnKleisli.run(9)
+      } yield assert(computeV, equalTo(10))
+    },
+    testM("FiberStatus is serializable") {
+      val list = List("1", "2", "3")
+      val io   = IO.succeed(list)
+      for {
+        fiber          <- io.fork
+        status         <- fiber.await
+        returnedStatus <- serializeAndBack(status)
+      } yield {
+        assert(returnedStatus.getOrElse(_ => List.empty), equalTo(list))
+      }
+    },
+    testM("Duration is serializable") {
+      import zio.duration.Duration
+      val duration = Duration.fromNanos(1)
+      for {
+        returnDuration <- serializeAndBack(duration)
+      } yield assert(returnDuration, equalTo(duration))
+    },
+    testSync("Cause.die is serializable") {
+      val cause = Cause.die(TestException("test"))
+      assert(serializeAndDeserialize(cause), equalTo(cause))
+    },
+    testSync("Cause.fail is serializable") {
+      val cause = Cause.fail("test")
+      assert(serializeAndDeserialize(cause), equalTo(cause))
+    },
+    testSync("Cause.traced is serializable") {
+      val fiberId = Fiber.Id(0L, 0L)
+      val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, List.empty, List.empty, None))
+      assert(serializeAndDeserialize(cause), equalTo(cause))
+    },
+    testSync("Cause.&& is serializable") {
+      val cause = Cause.fail("test") && Cause.fail("Another test")
+      assert(serializeAndDeserialize(cause), equalTo(cause))
+    },
+    testSync("Cause.++ is serializable") {
+      val cause = Cause.fail("test") ++ Cause.fail("Another test")
+      assert(serializeAndDeserialize(cause), equalTo(cause))
+    },
+    testSync("Exit.succeed is serializable") {
+      val exit = Exit.succeed("test")
+      assert(serializeAndDeserialize(exit), equalTo(exit))
+    },
+    testSync("Exit.fail is serializable") {
+      val exit = Exit.fail("test")
+      assert(serializeAndDeserialize(exit), equalTo(exit))
+    },
+    testSync("Exit.die is serializable") {
+      val exit = Exit.die(TestException("test"))
+      assert(serializeAndDeserialize(exit), equalTo(exit))
+    },
+    testSync("FiberFailure is serializable") {
+      val failure = FiberFailure(Cause.fail("Uh oh"))
+      assert(serializeAndDeserialize(failure), equalTo(failure))
+    },
+    testSync("InterruptStatus.interruptible is serializable") {
+      val interruptStatus = InterruptStatus.interruptible
+      assert(serializeAndDeserialize(interruptStatus), equalTo(interruptStatus))
+    },
+    testSync("InterruptStatus.uninterruptible is serializable") {
+      val interruptStatus = InterruptStatus.uninterruptible
+      assert(serializeAndDeserialize(interruptStatus), equalTo(interruptStatus))
+    },
+    testM("Promise is serializable") {
+      for {
+        promise           <- Promise.make[Nothing, String]
+        _                 <- promise.succeed("test")
+        value             <- promise.await
+        deserialized      <- serializeAndBack(promise)
+        deserializedValue <- deserialized.await
+      } yield assert(deserializedValue, equalTo(value))
+    },
+    testM("Schedule is serializable") {
+      val schedule = Schedule.recurs(5)
+      for {
+        out1 <- ZIO.unit.repeat(schedule)
+        out2 <- ZIO.unit.repeat(serializeAndDeserialize(schedule))
+      } yield assert(out2, equalTo(out1))
+    },
+    testM("Chunk.single is serializable") {
+      val chunk = Chunk.single(1)
+      for {
+        deserialized <- serializeAndBack(chunk)
+      } yield assert(deserialized, equalTo(chunk))
+    },
+    testM("Chunk.fromArray is serializable") {
+      val chunk = Chunk.fromArray(Array(1, 2, 3))
+      for {
+        deserialized <- serializeAndBack(chunk)
+      } yield assert(deserialized, equalTo(chunk))
+    },
+    testM("Chunk.++ is serializable") {
+      val chunk = Chunk.single(1) ++ Chunk.single(2)
+      for {
+        deserialized <- serializeAndBack(chunk)
+      } yield assert(deserialized, equalTo(chunk))
+    },
+    testM("Chunk slice is serializable") {
+      val chunk = Chunk.fromArray((1 to 100).toArray).take(10)
+      for {
+        deserialized <- serializeAndBack(chunk)
+      } yield assert(deserialized, equalTo(chunk))
+    },
+    testM("Chunk.empty is serializable") {
+      val chunk = Chunk.empty
+      for {
+        deserialized <- serializeAndBack(chunk)
+      } yield assert(deserialized, equalTo(chunk))
+    },
+    testM("Chunk.fromIterable is serializable") {
+      val chunk = Chunk.fromIterable(Vector(1, 2, 3))
+      for {
+        deserialized <- serializeAndBack(chunk)
+      } yield assert(deserialized, equalTo(chunk))
+    },
+    testM("FiberRef is serializable") {
+      val value = 10
+      for {
+        init   <- FiberRef.make(value)
+        ref    <- serializeAndBack(init)
+        result <- ref.get
+      } yield assert(result, equalTo(value))
+    },
+    testM("ZManaged is serializable") {
+      for {
+        managed <- serializeAndBack(ZManaged.make(UIO.unit)(_ => UIO.unit))
+        result  <- managed.use(_ => UIO.unit)
+      } yield assert(result, equalTo(()))
+    },
+    testSync("SuperviseStatus.supervised is serializable") {
+      val supervised = SuperviseStatus.supervised
+      assert(serializeAndDeserialize(supervised), equalTo(supervised))
+    },
+    testSync("SuperviseStatus.unsupervised is serializable") {
+      val unsupervised = SuperviseStatus.unsupervised
+      assert(serializeAndDeserialize(unsupervised), equalTo(unsupervised))
+    },
+    testSync("ZTrace is serializable") {
+      val trace = ZTrace(
+        Fiber.Id(0L, 0L),
+        List(ZTraceElement.NoLocation("test")),
+        List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
+        None
       )
-    )
+
+      assert(serializeAndDeserialize(trace), equalTo(trace))
+    },
+    testM("TracingStatus.Traced is serializable") {
+      val traced = TracingStatus.Traced
+      for {
+        result <- serializeAndBack(traced)
+      } yield assert(result, equalTo(traced))
+    },
+    testM("TracingStatus.Untraced is serializable") {
+      val traced = TracingStatus.Untraced
+      for {
+        result <- serializeAndBack(traced)
+      } yield assert(result, equalTo(traced))
+    },
+    testSync("Random is serializable") {
+      val rnd = Random.Live
+      assert(serializeAndDeserialize(rnd), equalTo(rnd))
+    },
+    testM("TracingStatus.Untraced is serializable") {
+      for {
+        system <- serializeAndBack(zio.system.System.Live)
+        result <- system.system.property("notpresent")
+      } yield assert(result, equalTo(Option.empty[String]))
+    }
+  )
+}
 
 object SerializableSpecHelpers {
   def serializeAndBack[T](a: T): IO[Any, T] =

@@ -86,13 +86,19 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     self.zip(that).map(f.tupled)
 }
 
-object Gen extends GenZIO with FunctionVariants {
+object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
    */
   final val alphaNumericChar: Gen[Random, Char] =
-    weighted((char(48, 57), 10), (char(65, 122), 52))
+    weighted(char(48, 57) -> 10, char(65, 90) -> 26, char(97, 122) -> 26)
+
+  /**
+   * A generator of alphanumeric strings. Shrinks towards the empty string.
+   */
+  final val alphaNumericString: Gen[Random with Sized, String] =
+    Gen.string(alphaNumericChar)
 
   /**
    * A generator of bytes. Shrinks toward '0'.
@@ -280,6 +286,19 @@ object Gen extends GenZIO with FunctionVariants {
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+
+  /**
+   * A generator of long values in the specified range: [start, end].
+   * The shrinker will shrink toward the lower end of the range ("smallest").
+   */
+  final def long(min: Long, max: Long): Gen[Random, Long] =
+    Gen.fromEffectSample {
+      val difference = max - min + 1
+      val effect =
+        if (difference > 0) nextLong(difference).map(min + _)
+        else nextLong.doUntil(n => min <= n && n <= max)
+      effect.map(Sample.shrinkIntegral(min))
+    }
 
   /**
    * A sized generator that uses an exponential distribution of size values.
