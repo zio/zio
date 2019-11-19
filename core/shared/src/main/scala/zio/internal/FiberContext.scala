@@ -812,7 +812,8 @@ private[zio] final class FiberContext[E, A](
           while (iterator.hasNext()) {
             val child = iterator.next()
 
-            child.parentFiber = self.parentFiber
+            if (self.parentFiber ne null) child.parentFiber = self.parentFiber
+            else Fiber.track(child)
           }
           self.parentFiber = null
           null
