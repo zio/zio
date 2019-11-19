@@ -25,8 +25,7 @@ class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVa
   final def done(v: Either[E, A]): STM[Nothing, Boolean] =
     ref.get.flatMap {
       case Some(_) => STM.succeed(false)
-      case None =>
-        ref.set(Some(v)) *> STM.succeed(true)
+      case None    => ref.set(Some(v)) *> STM.succeed(true)
     }
 
   final def fail(e: E): STM[Nothing, Boolean] =
@@ -43,6 +42,6 @@ class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVa
 }
 
 object TPromise {
-  final def apply[E, A]: STM[Nothing, TPromise[E, A]] =
-    TRef[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
+  final def make[E, A]: STM[Nothing, TPromise[E, A]] =
+    TRef.make[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
 }

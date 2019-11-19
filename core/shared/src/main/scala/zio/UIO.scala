@@ -46,16 +46,16 @@ object UIO {
     ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see See [[zio.ZIO.checkDaemon]]
+   */
+  final def checkDaemon[A](f: DaemonStatus => UIO[A]): UIO[A] =
+    ZIO.checkDaemon(f)
+
+  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   final def checkInterruptible[A](f: InterruptStatus => UIO[A]): UIO[A] =
     ZIO.checkInterruptible(f)
-
-  /**
-   * @see See [[zio.ZIO.checkSupervised]]
-   */
-  final def checkSupervised[A](f: SuperviseStatus => UIO[A]): UIO[A] =
-    ZIO.checkSupervised(f)
 
   /**
    * @see See [[zio.ZIO.checkTraced]]
@@ -66,7 +66,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.children]]
    */
-  final def children: UIO[IndexedSeq[Fiber[Any, Any]]] = ZIO.children
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see See [[zio.ZIO.collectAll]]
@@ -156,14 +156,17 @@ object UIO {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  final def effectAsync[A](register: (UIO[A] => Unit) => Unit): UIO[A] =
-    ZIO.effectAsync(register)
+  final def effectAsync[A](register: (UIO[A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): UIO[A] =
+    ZIO.effectAsync(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[A](register: (UIO[A] => Unit) => Option[UIO[A]]): UIO[A] =
-    ZIO.effectAsyncMaybe(register)
+  final def effectAsyncMaybe[A](
+    register: (UIO[A] => Unit) => Option[UIO[A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): UIO[A] =
+    ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
@@ -174,8 +177,11 @@ object UIO {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[A](register: (UIO[A] => Unit) => Either[Canceler[Any], UIO[A]]): UIO[A] =
-    ZIO.effectAsyncInterrupt(register)
+  final def effectAsyncInterrupt[A](
+    register: (UIO[A] => Unit) => Either[Canceler[Any], UIO[A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): UIO[A] =
+    ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
@@ -186,6 +192,11 @@ object UIO {
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
   final def effectSuspendTotalWith[A](p: Platform => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(p)
+
+  /**
+   * @see [[zio.ZIO.fiberId]]
+   */
+  final val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
    * @see [[zio.ZIO.firstSuccessOf]]
@@ -301,6 +312,11 @@ object UIO {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
+   * @see See [[zio.ZIO.interruptAs]]
+   */
+  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+
+  /**
    * @see See [[zio.ZIO.interruptible]]
    */
   final def interruptible[A](uio: UIO[A]): UIO[A] =
@@ -413,40 +429,6 @@ object UIO {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
-  /**
-   * @see See [[zio.ZIO.interruptChildren]]
-   */
-  final def interruptChildren[A](uio: UIO[A]): UIO[A] =
-    ZIO.interruptChildren(uio)
-
-  /**
-   * @see See [[zio.ZIO.handleChildrenWith]]
-   */
-  final def handleChildrenWith[A](uio: UIO[A])(supervisor: IndexedSeq[Fiber[Any, Any]] => UIO[Any]): UIO[A] =
-    ZIO.handleChildrenWith(uio)(supervisor)
-
-  /**
-   * @see See [[zio.ZIO.supervised]]
-   */
-  final def supervised[A](uio: UIO[A]): UIO[A] =
-    ZIO.supervised(uio)
-
-  /**
-   * @see See [[zio.ZIO.superviseStatus]]
-   */
-  final def superviseStatus[A](status: SuperviseStatus)(uio: UIO[A]): UIO[A] =
-    ZIO.superviseStatus(status)(uio)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[A](uio: => UIO[A]): UIO[A] = effectSuspendTotalWith(_ => uio)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[A](p: Platform => UIO[A]): UIO[A] = effectSuspendTotalWith(p)
-
   /**
    * @see See [[zio.ZIO.trace]]
    * */
@@ -507,12 +489,6 @@ object UIO {
    */
   final def uninterruptible[A](uio: UIO[A]): UIO[A] =
     ZIO.uninterruptible(uio)
-
-  /**
-   * @see See [[zio.ZIO.unsupervised]].
-   */
-  final def unsupervised[R, E, A](uio: UIO[A]): UIO[A] =
-    ZIO.unsupervised(uio)
 
   /**
    * @see See [[zio.ZIO.uninterruptibleMask]]

@@ -18,7 +18,6 @@ package object zio extends ZEnvDefinition with EitherCompat {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
   type Canceler[R] = URIO[R, Any]
-  type FiberId     = Long
 
   type RIO[-R, +A]  = ZIO[R, Throwable, A]
   type URIO[-R, +A] = ZIO[R, Nothing, A]
@@ -32,18 +31,10 @@ package object zio extends ZEnvDefinition with EitherCompat {
   type UManaged[+A]      = ZManaged[Any, Nothing, A]
   type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
 
-  type Schedule[-A, +B] = ZSchedule[Any, A, B]
-
   type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))
   }
-
-  @deprecated("use RIO", "1.0.0")
-  type TaskR[-R, +A] = RIO[R, A]
-
-  @deprecated("use RIO", "1.0.0")
-  val TaskR = RIO
 }

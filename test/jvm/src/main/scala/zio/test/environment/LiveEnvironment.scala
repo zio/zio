@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.test.environment
 
-trait AssertionVariants {
+import zio.blocking.Blocking
+import zio.clock.Clock
+import zio.console.Console
+import zio.random.Random
+import zio.system.System
 
-  /**
-   * Makes a new assertion that requires the specified string to be valid Scala
-   * code.
-   */
-  final def assertCompiles(code: String): TestResult =
-    macro Macros.assertCompiles_impl
-
-}
+private object LiveEnvironment extends Blocking.Live with Clock.Live with Console.Live with Random.Live with System.Live

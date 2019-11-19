@@ -71,16 +71,6 @@ object Blocking extends Serializable {
     /**
      * Imports a synchronous effect that does blocking IO into a pure value.
      *
-     * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
-     * will be interrupted via `Thread.interrupt`.
-     */
-    @deprecated("use effectBlocking()", "1.0.0")
-    def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
-      effectBlocking(effect)
-
-    /**
-     * Imports a synchronous effect that does blocking IO into a pure value.
-     *
      * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
@@ -122,29 +112,31 @@ object Blocking extends Serializable {
 
           val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 
-          for {
+          blocking(for {
             a <- (for {
-                  fiber <- blocking(ZIO.effectTotal[IO[Throwable, A]] {
-                            val current = Some(Thread.currentThread)
+                  fiber <- ZIO
+                            .effectTotal[IO[Throwable, A]] {
+                              val current = Some(Thread.currentThread)
 
-                            withMutex(thread.set(current))
+                              withMutex(thread.set(current))
 
-                            try {
-                              val a = effect
-                              ZIO.succeed(a)
-                            } catch {
-                              case _: InterruptedException =>
-                                Thread.interrupted // Clear interrupt status
-                                ZIO.interrupt
-                              case t: Throwable =>
-                                ZIO.fail(t)
-                            } finally {
-                              withMutex { thread.set(None); barrier.set(()) }
+                              try {
+                                val a = effect
+                                ZIO.succeed(a)
+                              } catch {
+                                case _: InterruptedException =>
+                                  Thread.interrupted // Clear interrupt status
+                                  ZIO.interrupt
+                                case t: Throwable =>
+                                  ZIO.fail(t)
+                              } finally {
+                                withMutex { thread.set(None); barrier.set(()) }
+                              }
                             }
-                          }).fork
+                            .fork
                   a <- fiber.join.flatten
                 } yield a).ensuring(interruptThread *> awaitInterruption)
-          } yield a
+          } yield a)
         }
       }
 
