@@ -416,6 +416,20 @@ object StreamChunkSpec extends ZIOBaseSpec {
             } yield ()).ensuringFirst(log.update("Ensuring" :: _)).run(Sink.drain)
         execution <- log.get
       } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
+    },
+    testM("StreamChunk.ChunkN") {
+      val s1 = StreamChunk(Stream(Chunk(1, 2, 3, 4, 5), Chunk(6, 7), Chunk(8, 9, 10, 11)))
+      assertM(
+        s1.chunkN(2).chunks.map(_.toSeq).runCollect,
+        equalTo(List(List(1, 2), List(3, 4), List(5, 6), List(7, 8), List(9, 10), List(11)))
+      )
+    },
+    testM("StreamChunk.ChunkN Non-Empty") {
+      val s1 = StreamChunk(Stream(Chunk(1), Chunk(2), Chunk(3)))
+      assertM(
+        s1.chunkN(1).chunks.map(_.toSeq).runCollect,
+        equalTo(List(List(1), List(2), List(3)))
+      )
     }
   )
 }
