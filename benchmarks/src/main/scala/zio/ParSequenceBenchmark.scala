@@ -1,7 +1,5 @@
 package zio
 
-package zio
-
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.Await
@@ -32,79 +30,75 @@ class ParSequenceBenchmark {
 
   @Benchmark
   def catsSequence(): Long = {
-    val tasks = (0 until count).map(_ => CIO(1)).toList
+    val tasks  = (0 until count).map(_ => CIO(1)).toList
     val result = tasks.sequence.map(_.sum.toLong)
     result.unsafeRunSync()
   }
 
   @Benchmark
   def catsParSequence(): Long = {
-    val tasks = (0 until count).map(_ => CIO(1)).toList
+    val tasks  = (0 until count).map(_ => CIO(1)).toList
     val result = tasks.parSequence.map(_.sum.toLong)
     result.unsafeRunSync()
   }
 
   @Benchmark
   def catsParSequenceN(): Long = {
-    val tasks = (0 until count).map(_ => CIO(1)).toList
+    val tasks  = (0 until count).map(_ => CIO(1)).toList
     val result = tasks.parSequenceN(parallelism).map(_.sum.toLong)
     result.unsafeRunSync()
   }
 
   @Benchmark
   def monixSequence(): Long = {
-    val tasks = (0 until count).map(_ => MTask.eval(1)).toList
+    val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
     val result = MTask.sequence(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
-
-
   @Benchmark
   def monixGather(): Long = {
-    val tasks = (0 until count).map(_ => MTask.eval(1)).toList
+    val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
     val result = MTask.gather(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
-
-
   @Benchmark
   def monixGatherUnordered(): Long = {
-    val tasks = (0 until count).map(_ => MTask.eval(1)).toList
+    val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
     val result = MTask.gatherUnordered(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 
   @Benchmark
   def monixGatherN(): Long = {
-    val tasks = (0 until count).map(_ => MTask.eval(1)).toList
+    val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
     val result = MTask.gatherN(parallelism)(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 
   @Benchmark
   def zioSequence(): Long = {
-    val tasks = (0 until count).map(_ => ZIO.effectTotal(1)).toList
+    val tasks  = (0 until count).map(_ => ZIO.effectTotal(1)).toList
     val result = ZIO.sequence(tasks).map(_.sum.toLong)
     unsafeRun(result)
   }
 
   @Benchmark
   def zioParSequence(): Long = {
-    val tasks = (0 until count).map(_ => ZIO.effectTotal(1)).toList
+    val tasks  = (0 until count).map(_ => ZIO.effectTotal(1)).toList
     val result = ZIO.collectAllPar(tasks).map(_.sum.toLong)
     unsafeRun(result)
   }
 
   @Benchmark
   def zioParSequenceN(): Long = {
-    val tasks = (0 until count).map(_ => ZIO.effectTotal(1)).toList
+    val tasks  = (0 until count).map(_ => ZIO.effectTotal(1)).toList
     val result = ZIO.collectAllParN(parallelism)(tasks).map(_.sum.toLong)
     unsafeRun(result)
   }
 
   @Benchmark
   def futureSequence(): Long = {
-    val futures = (0 until count).map(_ => Future(1)).toList
+    val futures         = (0 until count).map(_ => Future(1)).toList
     val f: Future[Long] = Future.sequence(futures).map(_.sum.toLong)
     Await.result(f, Duration.Inf)
   }
