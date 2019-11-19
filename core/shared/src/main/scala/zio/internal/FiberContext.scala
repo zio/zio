@@ -647,7 +647,6 @@ private[zio] final class FiberContext[E, A](
 
     if (!isDaemon) {
       self._children.add(childContext.asInstanceOf[FiberContext[Any, Any]])
-      childContext.onDone(_ => { val _ = self._children.remove(childContext) })
     } else {
       Fiber.track(childContext)
     }
