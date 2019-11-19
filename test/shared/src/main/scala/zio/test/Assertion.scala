@@ -324,14 +324,7 @@ object Assertion {
    */
   final def forall[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRec("forall")(param(assertion))(assertion)(
-      {
-        case head :: tail =>
-          Some(tail.foldLeft(head) {
-            case (result, next) if assertion.test(result) => next
-            case (acc, _)                                 => acc
-          })
-        case Nil => None
-      },
+      _.find(!assertion.test(_)),
       BoolAlgebra.success
     )
 
