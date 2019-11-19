@@ -258,11 +258,11 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           acc <- Ref.make[List[Int]](Nil)
           res1 <- s.foreachWhile { a =>
-            if (cont(a))
-              acc.update(a :: _) *> IO.succeed(true)
-            else
-              IO.succeed(false)
-          }.flatMap(_ => acc.update(_.reverse))
+                   if (cont(a))
+                     acc.update(a :: _) *> IO.succeed(true)
+                   else
+                     IO.succeed(false)
+                 }.flatMap(_ => acc.update(_.reverse))
           res2 <- slurp(s.takeWhile(cont)).map(_.toList)
         } yield assert(res1, equalTo(res2))
       }
@@ -318,7 +318,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         } yield {
           assert(withoutEffect, equalTo(tap)) && (assert(withoutEffect.succeeded, isFalse) || assert[
             Exit[Nothing, Seq[String]]
-            ](withoutEffect, equalTo(list.map(_.reverse))))
+          ](withoutEffect, equalTo(list.map(_.reverse))))
         }
       }
     },
@@ -393,13 +393,13 @@ object StreamChunkSpec extends ZIOBaseSpec {
       for {
         log <- Ref.make(List.empty[String])
         _ <- (for {
-          _ <- StreamChunk(
-            Stream
-              .bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-              .flatMap(_ => Stream.succeed(Chunk(())))
-          )
-          _ <- StreamChunk(Stream.fromEffect(log.update("Use" :: _)).flatMap(_ => Stream.empty))
-        } yield ()).ensuring(log.update("Ensuring" :: _)).run(Sink.drain)
+              _ <- StreamChunk(
+                    Stream
+                      .bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                      .flatMap(_ => Stream.succeed(Chunk(())))
+                  )
+              _ <- StreamChunk(Stream.fromEffect(log.update("Use" :: _)).flatMap(_ => Stream.empty))
+            } yield ()).ensuring(log.update("Ensuring" :: _)).run(Sink.drain)
         execution <- log.get
       } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
     },
@@ -407,13 +407,13 @@ object StreamChunkSpec extends ZIOBaseSpec {
       for {
         log <- Ref.make(List.empty[String])
         _ <- (for {
-          _ <- StreamChunk(
-            Stream
-              .bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-              .flatMap(_ => Stream.succeed(Chunk(())))
-          )
-          _ <- StreamChunk(Stream.fromEffect(log.update("Use" :: _)).flatMap(_ => Stream.empty))
-        } yield ()).ensuringFirst(log.update("Ensuring" :: _)).run(Sink.drain)
+              _ <- StreamChunk(
+                    Stream
+                      .bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                      .flatMap(_ => Stream.succeed(Chunk(())))
+                  )
+              _ <- StreamChunk(Stream.fromEffect(log.update("Use" :: _)).flatMap(_ => Stream.empty))
+            } yield ()).ensuringFirst(log.update("Ensuring" :: _)).run(Sink.drain)
         execution <- log.get
       } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
     },
