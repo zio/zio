@@ -26,7 +26,7 @@ package zio
  * object MyApp extends App {
  *
  *   final def run(args: List[String]) =
- *     myAppLogic.fold(_ => 1, _ => 0)
+ *     myAppLogic.as(0)
  *
  *   def myAppLogic =
  *     for {

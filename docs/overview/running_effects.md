@@ -18,7 +18,7 @@ import zio.console._
 object MyApp extends App {
 
   def run(args: List[String]) =
-    myAppLogic.fold(_ => 1, _ => 0)
+    myAppLogic.as(0)
 
   val myAppLogic =
     for {
