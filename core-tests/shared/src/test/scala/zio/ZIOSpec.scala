@@ -6,6 +6,7 @@ import zio.duration._
 import zio.test._
 import zio.test.environment._
 import zio.test.Assertion._
+import zio.Cause._
 import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
@@ -165,6 +166,30 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("on Right value") {
         assertM(ZIO.succeed(Right(2)).leftOrFailException.run, fails(Assertion.anything))
+      }
+    ),
+    suite("orElse")(
+      testM("left failed and right died with kept cause") {
+        val z1                = Task.fail(new Throwable("1"))
+        val z2: Task[Nothing] = Task.die(new Throwable("2"))
+        val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
+          case Then(Die(FiberFailure(Traced(Fail(a: Throwable), _))), Traced(Die(b: Throwable), _)) =>
+            Task(a.getMessage == "1" && b.getMessage == "2")
+          case _ =>
+            Task(false)
+        }
+        assertM(orElse, equalTo(true))
+      },
+      testM("left failed and right failed with kept cause") {
+        val z1                = Task.fail(new Throwable("1"))
+        val z2: Task[Nothing] = Task.fail(new Throwable("2"))
+        val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
+          case Then(Die(FiberFailure(Traced(Fail(a: Throwable), _))), Traced(Fail(b: Throwable), _)) =>
+            Task(a.getMessage == "1" && b.getMessage == "2")
+          case _ =>
+            Task(false)
+        }
+        assertM(orElse, equalTo(true))
       }
     ),
     suite("parallelErrors")(
