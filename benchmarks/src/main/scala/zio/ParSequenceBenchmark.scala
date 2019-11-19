@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-import monix.execution.Scheduler.Implicits.global
+import IOBenchmarks.monixScheduler
 import monix.eval.{ Task => MTask }
 
 import cats.effect.{ IO => CIO }
