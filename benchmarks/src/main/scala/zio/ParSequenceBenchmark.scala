@@ -2,18 +2,15 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Await
+import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
-
 import IOBenchmarks.monixScheduler
 import monix.eval.{ Task => MTask }
-
-import cats.effect.{ IO => CIO }
+import cats.effect.{ ContextShift, IO => CIO }
 import org.openjdk.jmh.annotations._
 import cats.effect.implicits._
 import cats.implicits._
 import IOBenchmarks.unsafeRun
-import scala.concurrent.Future
 
 @Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
 @Warmup(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
@@ -23,10 +20,13 @@ import scala.concurrent.Future
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ParSequenceBenchmark {
+
   @Param(Array("100", "1000"))
   var count: Int = _
 
   val parallelism: Int = 10
+
+  implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
   @Benchmark
   def catsSequence(): Long = {
