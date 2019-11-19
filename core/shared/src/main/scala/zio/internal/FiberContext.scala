@@ -41,7 +41,7 @@ private[zio] final class FiberContext[E, A](
   startDStatus: Boolean,
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
-  fiberRefLocals: FiberRefLocals
+  val fiberRefLocals: FiberRefLocals
 ) extends Fiber[E, A] { self =>
 
   import FiberContext._

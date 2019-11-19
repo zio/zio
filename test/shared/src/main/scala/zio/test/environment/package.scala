@@ -26,7 +26,7 @@ import zio.Managed
  * [[TestSystem]], and [[TestRandom]] modules. See the documentation on the
  * individual modules for more detail about using each of them.
  *
- * If you are using ZIO Test and extending `DefaultRunnableSpec` a
+ * If you are using ZIO Test and extending `RunnableSpec` a
  * `TestEnvironment` containing all of them will be automatically provided to
  * each of your tests. Otherwise, the easiest way to use the test implementations
  * in ZIO Test is by providing the `TestEnvironment` to your program.

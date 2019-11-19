@@ -105,13 +105,6 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
-    )
-  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
@@ -193,13 +186,6 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(buildInfoSettings("zio.internal.stacktracer"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
-    )
-  )
 
 lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
@@ -311,9 +297,9 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC6",
-      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC1",
+      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC7",
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC2",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
       "dev.zio"             %% "zio-macros-access"           % "0.4.0",
       "dev.zio"             %% "zio-macros-mock"             % "0.4.0"
