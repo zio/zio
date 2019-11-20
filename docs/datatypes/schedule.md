@@ -102,3 +102,12 @@ Stops retrying after a specified amount of time has elapsed:
 ```scala mdoc:silent
 val expMaxElapsed = Schedule.exponential(10.milliseconds) && Schedule.elapsed.whileOutput(_ < 30.seconds)
 ```
+
+Retry only when a specific exception occurs:
+
+```scala mdoc:silent
+val whileTimeout = Schedule.exponential(10.milliseconds) && Schedule.doWhile[Throwable] {
+  case _: TimeoutException => true
+  case _ => false
+}
+```
