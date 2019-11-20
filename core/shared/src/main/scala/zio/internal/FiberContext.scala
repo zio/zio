@@ -66,7 +66,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val environments    = Stack[AnyRef](startEnv)
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-  private[this] val _children       = Platform.newConcurrentSet[FiberContext[Any, Any]]()
+  private[zio] val _children        = Platform.newConcurrentSet[FiberContext[Any, Any]]()
   private[this] val daemonStatus    = StackBool(startDStatus)
 
   private[this] val tracingStatus =
@@ -647,6 +647,16 @@ private[zio] final class FiberContext[E, A](
 
     if (!isDaemon) {
       self._children.add(childContext.asInstanceOf[FiberContext[Any, Any]])
+      childContext.onDone { _ =>
+        val _ = {
+          val iterator = childContext._children.iterator()
+          while (iterator.hasNext()) {
+            val child = iterator.next()
+            self._children.add(child)
+          }
+          self._children.remove(childContext)
+        }
+      }
     } else {
       Fiber.track(childContext)
     }
