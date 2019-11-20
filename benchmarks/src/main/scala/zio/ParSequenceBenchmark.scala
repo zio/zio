@@ -45,7 +45,7 @@ class ParSequenceBenchmark {
   @Benchmark
   def catsParSequenceN(): Long = {
     val tasks  = (0 until count).map(_ => CIO(1)).toList
-    val result = tasks.parSequenceN(parallelism).map(_.sum.toLong)
+    val result = tasks.parSequenceN(parallelism.toLong).map(_.sum.toLong)
     result.unsafeRunSync()
   }
 
