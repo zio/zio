@@ -21,7 +21,7 @@ import zio.{ Managed, ZIO }
 object TestExecutor {
   def managed[R <: TestAnnotations, E, L, S](
     environment: Managed[Nothing, R]
-  ): TestExecutor[R, L, S, E, S] =
+  ): TestExecutor[R, E, L, S, S] =
     (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
       spec
         .mapTestM(ZIO.succeed(_) <*> TestAnnotations.testAnnotationMap)
