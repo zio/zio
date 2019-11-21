@@ -18,21 +18,21 @@ package zio.test.environment
 
 import zio.{ Managed, ZEnv }
 import zio.scheduler.Scheduler
+import zio.test.Annotated
 import zio.test.Sized
-import zio.test.TestAnnotations
 
 case class TestEnvironment(
+  annotated: Annotated.Service[Any],
   clock: TestClock.Test,
   console: TestConsole.Test,
   live: Live.Service[ZEnv],
   random: TestRandom.Test,
   sized: Sized.Service[Any],
-  system: TestSystem.Test,
-  testAnnotations: TestAnnotations.Service[Any]
-) extends Live[ZEnv]
+  system: TestSystem.Test
+) extends Annotated
+    with Live[ZEnv]
     with Scheduler
     with Sized
-    with TestAnnotations
     with TestClock
     with TestConsole
     with TestRandom
@@ -48,13 +48,13 @@ case class TestEnvironment(
     mapTestSystem: TestSystem.Test => TestSystem.Test = identity
   ): TestEnvironment =
     TestEnvironment(
+      annotated,
       mapTestClock(clock),
       mapTestConsole(console),
       live,
       mapTestRandom(random),
       sized,
-      mapTestSystem(system),
-      testAnnotations
+      mapTestSystem(system)
     )
 
   /**
@@ -92,14 +92,14 @@ object TestEnvironment extends Serializable {
 
   val Value: Managed[Nothing, TestEnvironment] =
     for {
-      live            <- Live.makeService(LiveEnvironment).toManaged_
-      clock           <- TestClock.makeTest(TestClock.DefaultData, Some(live))
-      console         <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
-      random          <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
-      size            <- Sized.makeService(100).toManaged_
-      system          <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
-      testAnnotations <- TestAnnotations.makeService.toManaged_
-      time            <- live.provide(zio.clock.nanoTime).toManaged_
-      _               <- random.setSeed(time).toManaged_
-    } yield new TestEnvironment(clock, console, live, random, size, system, testAnnotations)
+      live      <- Live.makeService(LiveEnvironment).toManaged_
+      annotated <- Annotated.makeService.toManaged_
+      clock     <- TestClock.makeTest(TestClock.DefaultData, Some(live))
+      console   <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
+      random    <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
+      sized     <- Sized.makeService(100).toManaged_
+      system    <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
+      time      <- live.provide(zio.clock.nanoTime).toManaged_
+      _         <- random.setSeed(time).toManaged_
+    } yield new TestEnvironment(annotated, clock, console, live, random, sized, system)
 }

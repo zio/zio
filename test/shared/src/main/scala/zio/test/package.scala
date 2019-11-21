@@ -95,7 +95,7 @@ package object test extends CompileVariants {
   /**
    * A `TestAnnotationRenderer` knows how to render a test annotation.
    */
-  type TestAnnotationRenderer = ExecutedSpec[Any, String, Any] => UIO[Option[String]]
+  type TestAnnotationRenderer[-E, -L, -S] = (ExecutedSpec[E, L, S]) => UIO[Option[String]]
 
   /**
    * Checks the assertion holds for the given value.

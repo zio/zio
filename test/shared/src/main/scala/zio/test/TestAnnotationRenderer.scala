@@ -22,7 +22,7 @@ import zio.test.ConsoleUtils._
 
 object TestAnnotationRenderer {
 
-  val Timed: TestAnnotationRenderer = { executedSpec =>
+  val Timed: TestAnnotationRenderer[Any, String, Any] = { executedSpec =>
     val results = executedSpec.fold[UIO[Vector[(String, Duration)]]] {
       case Spec.SuiteCase(_, executedSpecs, _) =>
         executedSpecs.flatMap(UIO.collectAll(_).map(_.foldLeft(Vector.empty[(String, Duration)])(_ ++ _)))

@@ -40,6 +40,17 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     aspect(self.asInstanceOf[ZSpec[R1, E2, L, S]])
 
   /**
+   * Returns a new spec with the annotation map at each node.
+   */
+  final def annotated: Spec[R with Annotated, (TestAnnotationMap, E), L, (TestAnnotationMap, T)] =
+    transform[R with Annotated, (TestAnnotationMap, E), L, (TestAnnotationMap, T)] {
+      case Spec.SuiteCase(label, specs, exec) =>
+        Spec.SuiteCase(label, specs.mapError(e => (TestAnnotationMap.empty, e)), exec)
+      case Spec.TestCase(label, test) =>
+        Spec.TestCase(label, Annotated.withAnnotation(test))
+    }
+
+  /**
    * Returns a new spec with remapped errors and tests.
    */
   final def bimap[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E]): Spec[R, E1, L, T1] =
@@ -224,17 +235,6 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     transform[R, E, L, T1] {
       case SuiteCase(label, specs, exec) => SuiteCase(label, specs, exec)
       case TestCase(label, test)         => TestCase(label, test.map(f))
-    }
-
-  /**
-   * Returns a new spec with tests remapped using the specified effectual function.
-   */
-  final def mapTestM[R1 <: R, E1 >: E, L1 >: L, T1](f: T => ZIO[R1, E1, T1]): Spec[R1, E1, L1, T1] =
-    caseValue match {
-      case SuiteCase(label, specs, exec) =>
-        Spec.suite(label, specs.map(_.map(_.mapTestM(f))), exec)
-      case TestCase(label, test) =>
-        Spec.test(label, test.flatMap(f))
     }
 
   /**

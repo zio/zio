@@ -73,7 +73,7 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply[E, S](testAnnotationRenderers: List[TestAnnotationRenderer]): TestReporter[E, String, S] = {
+  def apply[E, S](testAnnotationRenderers: List[TestAnnotationRenderer[E, String, S]]): TestReporter[E, String, S] = {
     (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
       for {
         res <- render(executedSpec.mapLabel(_.toString))

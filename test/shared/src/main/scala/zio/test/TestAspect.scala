@@ -437,17 +437,6 @@ object TestAspect extends TimeoutVariants {
    */
   val sequential: TestAspectPoly = executionStrategy(ExecutionStrategy.Sequential)
 
-  val timed: TestAspect[Nothing, Live[Clock] with TestAnnotations, Nothing, Any, Nothing, Any] =
-    new TestAspect.PerTest[Nothing, Live[Clock] with TestAnnotations, Nothing, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Live[Clock] with TestAnnotations, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, TestFailure[E], TestSuccess[S]]
-      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        Live.withLive(test)(_.timed).flatMap {
-          case (duration, result) =>
-            TestAnnotations.annotate(TestAnnotation.Timing, duration) *> ZIO.succeed(result)
-        }
-    }
-
   /**
    * An aspect that applies the specified aspect on Scala 2.
    */
@@ -474,6 +463,20 @@ object TestAspect extends TimeoutVariants {
           case TestSuccess.Ignored =>
             ZIO.fail(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
           case x => ZIO.succeed(x)
+        }
+    }
+
+  /**
+   * Annotates tests with their execution times.
+   */
+  val timed: TestAspect[Nothing, Live[Clock] with Annotated, Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[Clock] with Annotated, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Live[Clock] with Annotated, E >: Nothing <: Any, S >: Nothing <: Any](
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        Live.withLive(test.either)(_.timed).flatMap {
+          case (duration, result) =>
+            ZIO.fromEither(result) <* Annotated.annotate(TestAnnotation.Timing, duration)
         }
     }
 
