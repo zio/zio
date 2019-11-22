@@ -1005,9 +1005,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
         self,
         that,
-        leftDone,
-        rightDone
-      ).ensuring(restore(UIO.unit))
+        (exit, fiber) => restore(leftDone(exit, fiber)),
+        (exit, fiber) => restore(rightDone(exit, fiber))
+      )
     }
 
   /**
