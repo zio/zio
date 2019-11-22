@@ -498,6 +498,12 @@ object Assertion {
     Assertion.assertion("isNone")()(_.isEmpty)
 
   /**
+   * Makes a new assertion that requires a null value.
+   */
+  final val isNull: Assertion[Any] =
+    Assertion.assertion("isNull")()(_ == null)
+
+  /**
    * Makes a new assertion that requires a Right value satisfying a specified
    * assertion.
    */
