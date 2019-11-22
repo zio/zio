@@ -22,7 +22,13 @@ import scala.annotation.implicitNotFound
  * A value of type `CanFail[E]` provides implicit evidence that an effect with
  * error type `E` can fail, that is, that `E` is not equal to `Nothing`.
  */
-@implicitNotFound("This operation only makes sense for effects that can fail.")
+@implicitNotFound(
+  "This error handling operation assumes your effect can fail. However, " +
+    "your effect has Nothing for the error type, which means it cannot " +
+    "fail, so there is no need to handle the failure. To find out which " +
+    "method you can use instead of this operation, please see the " +
+    "reference chart at: https://zio.dev/docs/canfail"
+)
 sealed trait CanFail[-E]
 
 object CanFail extends CanFail[Any] {
