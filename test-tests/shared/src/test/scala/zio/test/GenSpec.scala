@@ -19,7 +19,7 @@ object GenSpec extends ZIOBaseSpec {
         b <- gen.runAll
       } yield assert(a, equalTo(domain)) &&
         assert(b, equalTo(domain))
-    },
+    } @@ scala2Only,
     testM("runSome") {
       val gen = Gen.int(-10, 10)
       for {
