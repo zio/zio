@@ -225,6 +225,12 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isNonEmptyString must fail when the string is empty") {
       assert("", isNonEmptyString)
     } @@ failure,
+    test("isNull must succeed when specified value is null") {
+      assert(null, isNull)
+    },
+    test("isNull must fail when specified value is not null") {
+      assert("not null", isNull)
+    } @@ failure,
     test("isRight must succeed when supplied value is Right and satisfy specified assertion") {
       assert(Right(42), isRight(equalTo(42)))
     },
