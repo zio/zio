@@ -29,12 +29,6 @@ object GenSpec extends ZIOBaseSpec {
     testM("runHead") {
       assertM(Gen.int(-10, 10).runHead, isSome(isWithin(-10, 10)))
     },
-    testM("test") {
-      for {
-        as <- zio.stream.ZStream(1, 2, 3).run(zio.stream.Sink.collectAllN[Int](4))
-        _  <- zio.ZIO.effectTotal(println(as))
-      } yield assertCompletes
-    },
     suite("zipWith")(
       testM("left preservation") {
         checkM(deterministic, deterministic) { (a, b) =>
