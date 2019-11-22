@@ -1001,12 +1001,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
     rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
   ): ZIO[R1, E2, C] =
-    new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
-      self,
-      that,
-      leftDone,
-      rightDone
-    )
+    ZIO.nonDaemonMask { restore =>
+      new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
+        self,
+        that,
+        leftDone,
+        rightDone
+      ).ensuring(restore(UIO.unit))
+    }
 
   /**
    * Attach a wrapping trace pointing to this location in case of error.
@@ -1852,6 +1854,9 @@ private[zio] trait ZIOFunctions extends Serializable {
   )(f: PartialFunction[A, U]): ZIO[R, E, List[U]] =
     ZIO.collectAllParN(n)(in).map(_.collect(f))
 
+  final def daemonMask[R, E, A](k: ZIO.DaemonStatusRestore => ZIO[R, E, A]): ZIO[R, E, A] =
+    checkDaemon(status => k(new ZIO.DaemonStatusRestore(status)).daemon)
+
   /**
    * Returns information about the current fiber, such as its identity.
    */
@@ -2332,6 +2337,9 @@ private[zio] trait ZIOFunctions extends Serializable {
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
 
+  final def nonDaemonMask[R, E, A](k: ZIO.DaemonStatusRestore => ZIO[R, E, A]): ZIO[R, E, A] =
+    checkDaemon(status => k(new ZIO.DaemonStatusRestore(status)).nonDaemon)
+
   /**
    * Returns an effect with the empty value.
    */
@@ -2622,6 +2630,11 @@ object ZIO extends ZIOFunctions {
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.interruptStatus(flag)
+  }
+
+  final class DaemonStatusRestore(private val status: zio.DaemonStatus) extends AnyVal {
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      zio.daemonStatus(status)
   }
 
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {

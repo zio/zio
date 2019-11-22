@@ -1451,6 +1451,70 @@ object ZIOSpec extends ZIOBaseSpec {
           fibs <- ZIO.children
         } yield assert(fibs, isEmpty)
       },
+      testM("daemon fiber race interruption") {
+        def plus1(ref: Ref[Int]) =
+          clock.sleep(200.milliseconds) *> ref.update(_ + 1)
+        def interruptHandler(ref: Ref[Int]) = ref.update(_ + 1)
+
+        val io = for {
+          ref             <- Ref.make(0)
+          interruptionRef <- Ref.make(0)
+          fiber <- plus1(ref)
+                    .onInterrupt(interruptHandler(interruptionRef))
+                    .race(plus1(ref).onInterrupt(interruptHandler(interruptionRef)))
+                    .fork
+          _           <- clock.sleep(100.milliseconds)
+          _           <- fiber.interrupt
+          _           <- clock.sleep(100.milliseconds)
+          res         <- ref.get
+          interrupted <- interruptionRef.get
+        } yield assert(interrupted, equalTo(2)) && assert(res, equalTo(0))
+
+        io.provide(Clock.Live)
+      },
+      testM("daemon mask") {
+        def sleep500 = clock.sleep(500.milliseconds)
+        def sleep100 = clock.sleep(100.milliseconds)
+
+        val io = for {
+          _         <- sleep500.fork
+          _         <- sleep100
+          children1 <- ZIO.children
+          _ <- ZIO.daemonMask { restore =>
+                sleep500.fork *> sleep500.fork *> sleep500.fork *> restore(sleep500.fork *> sleep500.fork)
+              }
+          _         <- sleep100
+          children2 <- ZIO.children
+        } yield assert(children1.size, equalTo(1)) && assert(children2.size, equalTo(3))
+
+        io.nonDaemon.provide(Clock.Live)
+      },
+      testM("nonDaemon mask") {
+        def sleep500 = clock.sleep(500.milliseconds)
+        def sleep100 = clock.sleep(100.milliseconds)
+
+        val io = for {
+          _         <- sleep500.fork
+          _         <- sleep100
+          children1 <- ZIO.children
+          children2 <- ZIO.nonDaemonMask { restore =>
+                        for {
+                          _         <- sleep500.fork *> sleep500.fork *> sleep500.fork
+                          _         <- sleep100
+                          children2 <- ZIO.children
+                          _         <- restore(sleep500.fork *> sleep500.fork)
+                        } yield children2
+                      }
+          _         <- sleep500.fork
+          _         <- sleep100
+          children3 <- ZIO.children
+        } yield assert(children1.size, equalTo(0)) && assert(children2.size, equalTo(3)) && assert(
+          children3.size,
+          equalTo(3)
+        )
+
+        io.daemon.provide(Clock.Live)
+      },
       testM("supervise fibers") {
         def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
           (clock.sleep(20.millis * n.toDouble) *> IO.never).fork
