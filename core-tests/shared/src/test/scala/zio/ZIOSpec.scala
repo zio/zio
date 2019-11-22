@@ -1471,7 +1471,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(interrupted, equalTo(2)) && assert(res, equalTo(0))
 
         io.provide(Clock.Live)
-      },
+      } @@ flaky,
       testM("daemon mask") {
         def sleep500 = clock.sleep(500.milliseconds)
         def sleep100 = clock.sleep(100.milliseconds)
@@ -1488,7 +1488,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(children1.size, equalTo(1)) && assert(children2.size, equalTo(3))
 
         io.nonDaemon.provide(Clock.Live)
-      },
+      } @@ flaky,
       testM("nonDaemon mask") {
         def sleep500 = clock.sleep(500.milliseconds)
         def sleep100 = clock.sleep(100.milliseconds)
@@ -1514,7 +1514,7 @@ object ZIOSpec extends ZIOBaseSpec {
         )
 
         io.daemon.provide(Clock.Live)
-      },
+      } @@ flaky,
       testM("supervise fibers") {
         def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
           (clock.sleep(20.millis * n.toDouble) *> IO.never).fork
