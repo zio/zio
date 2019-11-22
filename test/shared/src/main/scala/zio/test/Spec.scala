@@ -227,6 +227,26 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
+   * Provides each test in this spec with its required environment
+   */
+  final def provide(r: R)(implicit ev: NeedsEnv[R]): Spec[Any, E, L, T] =
+    provideM(ZIO.succeed(r))
+
+  /**
+   * Uses the specified effect to provide each test in this spec with its
+   * required environment.
+   */
+  final def provideM[E1 >: E](zio: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] =
+    provideManaged(zio.toManaged_)
+
+  /**
+   * Uses the specified effect once to provide all tests in this spec with a
+   * shared version of their required environment.
+   */
+  final def provideMShared[E1 >: E](zio: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] =
+    provideManagedShared(zio.toManaged_)
+
+  /**
    * Uses the specified `Managed` to provide each test in this spec with its
    * required environment.
    */
@@ -235,12 +255,31 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
 
   /**
    * Uses the specified `Managed` once to provide all tests in this spec with
-   * a shared version of their required environment. This is useful when the
-   * act of creating the environment is expensive and should only be performed
-   * once.
+   * a shared version of their required environment.
    */
   final def provideManagedShared[E1 >: E](managed: Managed[E1, R])(implicit ev: NeedsEnv[R]): Spec[Any, E1, L, T] =
     provideSomeManagedShared(managed)
+
+  /**
+   * Uses the specified function to provide each test in this spec with part of
+   * its required environment.
+   */
+  final def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): Spec[R0, E, L, T] =
+    provideSomeM(ZIO.fromFunction(f))
+
+  /**
+   * Uses the specified effect to provide each test in this spec with part of
+   * its required environment.
+   */
+  final def provideSomeM[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, L, T] =
+    provideSomeManaged(zio.toManaged_)
+
+  /**
+   * Uses the specified effect once to provide all tests in this spec with a
+   * shared version of part of their required environment.
+   */
+  final def provideSomeMShared[R0, E1 >: E](zio: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): Spec[R0, E1, L, T] =
+    provideSomeManagedShared(zio.toManaged_)
 
   /**
    * Uses the specified `ZManaged` to provide each test in this spec with part
@@ -256,9 +295,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
 
   /**
    * Uses the specified `ZManaged` once to provide all tests in this spec with
-   * a shared version of part of their required environment. This is useful
-   * when the act of creating the environment is expensive and should only be
-   * performed once.
+   * a shared version of part of their required environment.
    */
   final def provideSomeManagedShared[R0, E1 >: E](
     managed: ZManaged[R0, E1, R]
@@ -277,6 +314,13 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
         Spec.test(label, test.provideSomeManaged(managed))
     }
   }
+
+  /**
+   * Uses the specified function once to provide all tests in this spec with a
+   * shared version of part of their required environment.
+   */
+  final def provideSomeShared[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): Spec[R0, E, L, T] =
+    provideSomeMShared(ZIO.fromFunction(f))
 
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.

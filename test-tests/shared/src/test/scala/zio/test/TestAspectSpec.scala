@@ -5,7 +5,7 @@ import zio.test.environment.{ Live, TestClock }
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.{ Cause, Managed, Promise, Ref, Schedule, ZIO }
+import zio.{ Cause, Promise, Ref, Schedule, ZIO }
 
 import scala.reflect.ClassTag
 
@@ -205,7 +205,7 @@ object TestAspectSpec extends ZIOBaseSpec {
             _ <- (testClock.clock.adjust(11.milliseconds) *> ZIO.never).uninterruptible
           } yield assertCompletes
         } @@ timeout(10.milliseconds, 1.nanosecond) @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
-        result <- isSuccess(spec.provideManaged(Managed.succeed(liveClock)))
+        result <- isSuccess(spec.provide(liveClock))
       } yield assert(result, isTrue)
     }
   )
