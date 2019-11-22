@@ -8,6 +8,28 @@ import zio.ZIO
 object GenSpec extends ZIOBaseSpec {
 
   def spec = suite("GenSpec")(
+    testM("run") {
+      assertM(Gen.int(-10, 10).run, isSome(isWithin(-10, 10)))
+    },
+    testM("runAll") {
+      val domain = -10 to 10
+      val gen    = Gen.fromIterable(domain)
+      for {
+        a <- gen.runAll
+        b <- gen.runAll
+      } yield assert(a, equalTo(domain)) &&
+        assert(b, equalTo(domain))
+    },
+    testM("runSome") {
+      val gen = Gen.int(-10, 10)
+      for {
+        a <- gen.runSome(100)
+        b <- gen.runSome(100)
+      } yield assert(a, not(equalTo(b))) &&
+        assert(a, hasSize(equalTo(100))) &&
+        assert(b, hasSize(equalTo(100)))
+
+    },
     suite("zipWith")(
       testM("left preservation") {
         checkM(deterministic, deterministic) { (a, b) =>
