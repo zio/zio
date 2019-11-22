@@ -103,22 +103,23 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     Gen(sample.map(sample => f(sample.value)))
 
   /**
-   * Runs this generator returning the first value.
+   * Runs the generator and collects all of its values in a list.
    */
-  final def run: ZIO[R, Nothing, Option[A]] =
-    sample.map(_.value).runHead
-
-  /**
-   * Runs this generator and collects all of its values into a list.
-   */
-  final def runAll: ZIO[R, Nothing, List[A]] =
+  final def runCollect: ZIO[R, Nothing, List[A]] =
     sample.map(_.value).runCollect
 
   /**
-   * Runs this generator and samples the specified number of values.
+   * Repeatedly runs the generator and collects the specified number of values
+   * in a list.
    */
-  final def runSome(n: Int): ZIO[R, Nothing, List[A]] =
+  final def runCollectN(n: Int): ZIO[R, Nothing, List[A]] =
     sample.map(_.value).forever.take(n).runCollect
+
+  /**
+   * Runs the generator returning the first value of the generator.
+   */
+  final def runHead: ZIO[R, Nothing, Option[A]] =
+    sample.map(_.value).runHead
 
   /**
    * Zips two generators together pairwise. The new generator will generate

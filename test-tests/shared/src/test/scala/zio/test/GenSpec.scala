@@ -8,27 +8,32 @@ import zio.ZIO
 object GenSpec extends ZIOBaseSpec {
 
   def spec = suite("GenSpec")(
-    testM("run") {
-      assertM(Gen.int(-10, 10).run, isSome(isWithin(-10, 10)))
-    },
-    testM("runAll") {
+    testM("runCollect") {
       val domain = -10 to 10
       val gen    = Gen.fromIterable(domain)
       for {
-        a <- gen.runAll
-        b <- gen.runAll
+        a <- gen.runCollect
+        b <- gen.runCollect
       } yield assert(a, equalTo(domain)) &&
         assert(b, equalTo(domain))
     } @@ scala2Only,
-    testM("runSome") {
+    testM("runCollectN") {
       val gen = Gen.int(-10, 10)
       for {
-        a <- gen.runSome(100)
-        b <- gen.runSome(100)
+        a <- gen.runCollectN(100)
+        b <- gen.runCollectN(100)
       } yield assert(a, not(equalTo(b))) &&
         assert(a, hasSize(equalTo(100))) &&
         assert(b, hasSize(equalTo(100)))
-
+    },
+    testM("runHead") {
+      assertM(Gen.int(-10, 10).runHead, isSome(isWithin(-10, 10)))
+    },
+    testM("test") {
+      for {
+        as <- zio.stream.ZStream(1, 2, 3).run(zio.stream.Sink.collectAllN[Int](4))
+        _  <- zio.ZIO.effectTotal(println(as))
+      } yield assertCompletes
     },
     suite("zipWith")(
       testM("left preservation") {
