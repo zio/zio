@@ -30,7 +30,11 @@ object NeedsEnv extends NeedsEnv[Nothing] {
   implicit final def needsEnv[R]: NeedsEnv[R] = NeedsEnv
 
   // Provide multiple ambiguous values so an implicit NeedsEnv[Any] cannot be found.
-  @implicitAmbiguous("This operation only makes sense for effects that need an environment.")
+  @implicitAmbiguous(
+    "This operation assumes that your effect requires an environment. " +
+      "However, your effect has Any for the environment type, which means it " +
+      "has no requirement, so there is no need to provide the environment."
+  )
   implicit final val needsEnvAmbiguous1: NeedsEnv[Any] = NeedsEnv
   implicit final val needsEnvAmbiguous2: NeedsEnv[Any] = NeedsEnv
 }
