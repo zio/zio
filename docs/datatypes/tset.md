@@ -3,7 +3,7 @@ id: datatypes_tset
 title: "TSet"
 ---
 
-A `TSet[A]` is transactional data structure built on top of `TMap[A]`.
+A `TSet[A]` is is a mutable mutable set which can participate in transactions in STM.
 
 ## Create a TSet
 
@@ -25,7 +25,7 @@ import zio.stm._
 val specifiedValuesTSet: STM[Nothing, TSet[Int]] = TSet.make(1, 2, 3)
 ```
 
-Or creating a `TSet` from existing `Iterable` structure:
+Alternatively, you can create a `TSet` by providing a collection of values:
 
 ```scala mdoc:silent
 import zio._
@@ -34,9 +34,11 @@ import zio.stm._
 val iterableTSet: STM[Nothing, TSet[Int]] = TSet.fromIterable(List(1, 2, 3))
 ```
 
+In case there are duplicates provided, last one is taken.
+
 ## Put an element to a `TSet`
 
-Putting new element to a `TSet` extends it if specified element is not already present:
+New element can be added to the set in the following way:
 
 ```scala mdoc:silent
 import zio._
@@ -47,6 +49,8 @@ val putElem: UIO[TSet[Int]] = (for {
   _    <- tSet.put(3)
 } yield tSet).commit
 ```
+
+In case the set already contains the element, no modification will happen.
 
 ## Remove an element from a `TSet`
 
@@ -62,7 +66,7 @@ val deleteElem: UIO[TSet[Int]] = (for {
 } yield tSet).commit
 ```
 
-Also, it is possible to remove every element that matches predicate function:
+Also, it is possible to remove every element that satisfies provided predicate:
 
 ```scala mdoc:silent
 import zio._
@@ -88,12 +92,14 @@ val retainedEvenElems: UIO[TSet[Int]] = (for {
 
 ## Union of a `TSet`
 
-Union of the sets A and B represents the set of distinct element belongs to set A or set B, or both.
+Union of the sets A and B represents the set of elements belonging to set A or set B, or both.
+Using `A union B` method modifies set `A`.
 
 ```scala mdoc:silent
 import zio._
 import zio.stm._
 
+// unionTSet = {1, 2, 3, 4, 5, 6}
 val unionTSet: UIO[TSet[Int]] = (for {
   tSetA <- TSet.make(1, 2, 3, 4)
   tSetB <- TSet.make(3, 4, 5, 6)
@@ -103,12 +109,14 @@ val unionTSet: UIO[TSet[Int]] = (for {
 
 ## Intersection of a `TSet`
 
-Intersection of the sets A and B represents the set of elements belongs to both A and B (set of the common elements in A and B).
+Intersection of the sets A and B is the set of elements belonging to both A and B.
+Using `A intersect B` method modifies set `A`.
 
 ```scala mdoc:silent
 import zio._
 import zio.stm._
 
+// intersectionTSet = {3, 4}
 val intersectionTSet: UIO[TSet[Int]] = (for {
   tSetA <- TSet.make(1, 2, 3, 4)
   tSetB <- TSet.make(3, 4, 5, 6)
@@ -118,12 +126,14 @@ val intersectionTSet: UIO[TSet[Int]] = (for {
 
 ## Difference of a `TSet`
 
-Difference between sets A and B represents the set containing elements of set A but not in B (all elements of A except the element of B).
+Difference between sets A and B is the set containing elements of set A but not in B.
+Using `A diff B` method modifies set `A`.
 
 ```scala mdoc:silent
 import zio._
 import zio.stm._
 
+// diffTSet = {1, 2}
 val diffTSet: UIO[TSet[Int]] = (for {
   tSetA <- TSet.make(1, 2, 3, 4)
   tSetB <- TSet.make(3, 4, 5, 6)
@@ -158,7 +168,7 @@ val shrinkTSet: UIO[TSet[Int]] = (for {
 ```
 Resulting set in example above has only one element.
 
-Using `transformM` is similar to `transform` except using pure function `A => A`, effectful function `A => STM[E, A]` is used:
+The elements can be mapped effectfully via `transformM`:
 
 ```scala mdoc:silent
 import zio._
@@ -182,7 +192,7 @@ val foldTSet: UIO[Int] = (for {
 } yield sum).commit
 ```
 
-Using `foldM` is similar to `fold` except using pure function `(B, A) => B`, effectful function `(B, A) => STM[E, B]` is used:
+The elements can be folded effectfully via `foldM`:
 
 ```scala mdoc:silent
 import zio._
@@ -224,7 +234,7 @@ val tSetContainsElem: UIO[Boolean] = (for {
 
 ## Convert `TSet` to a `List`
 
-In order to convert a `TSet` to a `List`:
+List of set elements can be obtained as follows:
 
 ```scala mdoc:silent
 import zio._
@@ -238,7 +248,7 @@ val tSetToList: UIO[List[Int]] = (for {
 
 ## Size of a `TSet`
 
-Calculating the size of a `TSet`:
+Set's size can be obtained as follows:
 
 ```scala mdoc:silent
 import zio._
