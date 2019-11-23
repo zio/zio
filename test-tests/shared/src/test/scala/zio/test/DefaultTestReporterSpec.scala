@@ -3,74 +3,70 @@ package zio.test
 import zio._
 import zio.clock.Clock
 import zio.test.Assertion._
-import zio.test.DefaultTestReporterSpecUtil._
 import zio.test.ReportingTestUtils._
 import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
 
-object DefaultTestReporterSpec
-    extends ZIOBaseSpec(
-      suite("DefaultTestReporterSpec")(
-        testM("correctly reports a successful test") {
-          assertM(
-            runLog(test1),
-            equalTo(Vector(test1Expected, reportStats(1, 0, 0)))
-          )
-        },
-        testM("correctly reports a failed test") {
-          assertM(
-            runLog(test3),
-            equalTo(test3Expected :+ reportStats(0, 0, 1))
-          )
-        },
-        testM("correctly reports an error in a test") {
-          assertM(
-            runLog(test4),
-            equalTo(test4Expected :+ reportStats(0, 0, 1))
-          )
-        },
-        testM("correctly reports successful test suite") {
-          assertM(
-            runLog(suite1),
-            equalTo(suite1Expected :+ reportStats(2, 0, 0))
-          )
-        },
-        testM("correctly reports failed test suite") {
-          assertM(
-            runLog(suite2),
-            equalTo(suite2Expected :+ reportStats(2, 0, 1))
-          )
-        },
-        testM("correctly reports multiple test suites") {
-          assertM(
-            runLog(suite3),
-            equalTo(
-              Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected
-                .map(withOffset(2)) :+ reportStats(2, 0, 1)
-            )
-          )
-        },
-        testM("correctly reports failure of simple assertion") {
-          assertM(
-            runLog(test5),
-            equalTo(test5Expected :+ reportStats(0, 0, 1))
-          )
-        },
-        testM("correctly reports multiple nested failures") {
-          assertM(
-            runLog(test6),
-            equalTo(test6Expected :+ reportStats(0, 0, 1))
-          )
-        },
-        testM("correctly reports labeled failures") {
-          assertM(
-            runLog(test7),
-            equalTo(test7Expected :+ reportStats(0, 0, 1))
-          )
-        }
-      )
-    )
+object DefaultTestReporterSpec extends ZIOBaseSpec {
 
-object DefaultTestReporterSpecUtil {
+  def spec = suite("DefaultTestReporterSpec")(
+    testM("correctly reports a successful test") {
+      assertM(
+        runLog(test1),
+        equalTo(Vector(test1Expected, reportStats(1, 0, 0)))
+      )
+    },
+    testM("correctly reports a failed test") {
+      assertM(
+        runLog(test3),
+        equalTo(test3Expected :+ reportStats(0, 0, 1))
+      )
+    },
+    testM("correctly reports an error in a test") {
+      assertM(
+        runLog(test4),
+        equalTo(test4Expected :+ reportStats(0, 0, 1))
+      )
+    },
+    testM("correctly reports successful test suite") {
+      assertM(
+        runLog(suite1),
+        equalTo(suite1Expected :+ reportStats(2, 0, 0))
+      )
+    },
+    testM("correctly reports failed test suite") {
+      assertM(
+        runLog(suite2),
+        equalTo(suite2Expected :+ reportStats(2, 0, 1))
+      )
+    },
+    testM("correctly reports multiple test suites") {
+      assertM(
+        runLog(suite3),
+        equalTo(
+          Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected
+            .map(withOffset(2)) :+ reportStats(2, 0, 1)
+        )
+      )
+    },
+    testM("correctly reports failure of simple assertion") {
+      assertM(
+        runLog(test5),
+        equalTo(test5Expected :+ reportStats(0, 0, 1))
+      )
+    },
+    testM("correctly reports multiple nested failures") {
+      assertM(
+        runLog(test6),
+        equalTo(test6Expected :+ reportStats(0, 0, 1))
+      )
+    },
+    testM("correctly reports labeled failures") {
+      assertM(
+        runLog(test7),
+        equalTo(test7Expected :+ reportStats(0, 0, 1))
+      )
+    }
+  )
 
   val test1         = zio.test.test("Addition works fine")(assert(1 + 1, equalTo(2)))
   val test1Expected = expectedSuccess("Addition works fine")
@@ -178,7 +174,7 @@ object DefaultTestReporterSpecUtil {
   }
 
   private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
-    TestRunner[TestEnvironment, String, Unit, String, Unit](
+    TestRunner[TestEnvironment, String, String, Unit, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](testEnvironment),
       reporter = DefaultTestReporter()
     )
