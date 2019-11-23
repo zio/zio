@@ -13,7 +13,7 @@ Creating an empty `TArray`:
 import zio._
 import zio.stm._
 
-val emptyTSet: STM[Nothing, TArray[Int]] = TArray.empty[Int]
+val emptyTArray: STM[Nothing, TArray[Int]] = TArray.empty[Int]
 ```
 
 Or creating a `TArray` with specified values:
@@ -74,7 +74,7 @@ val tArrayUpdateMElem: UIO[TArray[Int]] = (for {
 } yield tArray).commit
 ```
 
-## Transform elements of a `TSet`
+## Transform elements of a `TArray`
 
 The transform function `A => A` allows computing a new value for every element in the array: 
 
@@ -126,7 +126,7 @@ val foldMTArray: UIO[Int] = (for {
 
 ## Perform side-effect for `TArray` elements
 
-`foreach` is used for performing side-effect for each element in set:
+`foreach` is used for performing side-effect for each element in array:
 
 ```scala mdoc:silent
 import zio._
