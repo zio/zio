@@ -196,11 +196,13 @@ class TMap[K, V] private (
 
   private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
     for {
-      buckets  <- tBuckets.get
-      capacity <- tCapacity.get
-      _        <- buckets.transform(_ => Nil)
-      updates  = data.map(kv => buckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
-      _        <- STM.collectAll(updates)
+      newMap      <- TMap.fromIterable(data)
+      newBuckets  <- newMap.tBuckets.get
+      _           <- tBuckets.set(newBuckets)
+      newCapacity <- newMap.tCapacity.get
+      _           <- tCapacity.set(newCapacity)
+      newSize     <- newMap.tSize.get
+      _           <- tSize.set(newSize)
     } yield ()
 
   private def indexOf(k: K): STM[Nothing, Int] =
