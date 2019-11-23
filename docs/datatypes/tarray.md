@@ -3,7 +3,7 @@ id: datatypes_tarray
 title: "TArray"
 ---
 
-A `TArray[A]` is a mutable reference that wraps `Array[TRef[A]]`, which can participate in transactions in STM.
+`TArray` is an array of mutable references that can participate in transactions in STM.
 
 ## Create a TArray
 
@@ -36,7 +36,7 @@ val iterableTArray: STM[Nothing, TArray[Int]] = TArray.fromIterable(List(1, 2, 3
 
 ## Retrieve the value from a `TArray`
 
-N-th element of the array can be obtained as follows:
+The n-th element of the array can be obtained as follows:
 
 ```scala mdoc:silent
 import zio._
@@ -48,9 +48,11 @@ val tArrayGetElem: UIO[Int] = (for {
 } yield elem).commit
 ```
 
+Accessing the non-existing indexes aborts the transaction with `ArrayIndexOutOfBoundsException`.
+
 ## Update the value of a `TArray`
 
-Updating n-th element of array can be done as follows:
+Updating the n-th element of an array can be done as follows:
 
 ```scala mdoc:silent
 import zio._
@@ -62,7 +64,7 @@ val tArrayUpdateElem: UIO[TArray[Int]] = (for {
 } yield tArray).commit
 ```
 
-Updating n-th element of array can be done effectfully via `updateM`:
+Updating the n-th element of an array can be done effectfully via `updateM`:
 
 ```scala mdoc:silent
 import zio._
@@ -73,6 +75,8 @@ val tArrayUpdateMElem: UIO[TArray[Int]] = (for {
   _      <- tArray.updateM(2, el => STM.succeed(el + 10))
 } yield tArray).commit
 ```
+
+Updating the non-existing indexes aborts the transaction with `ArrayIndexOutOfBoundsException`.
 
 ## Transform elements of a `TArray`
 
@@ -126,7 +130,7 @@ val foldMTArray: UIO[Int] = (for {
 
 ## Perform side-effect for `TArray` elements
 
-`foreach` is used for performing side-effect for each element in array:
+`foreach` is used for performing side-effect for each element in the array:
 
 ```scala mdoc:silent
 import zio._
