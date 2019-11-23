@@ -3,7 +3,7 @@ id: datatypes_tset
 title: "TSet"
 ---
 
-A `TSet[A]` is is a mutable mutable set which can participate in transactions in STM.
+A `TSet[A]` is a mutable set which can participate in transactions in STM.
 
 ## Create a TSet
 
