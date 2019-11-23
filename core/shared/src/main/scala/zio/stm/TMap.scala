@@ -189,10 +189,10 @@ class TMap[K, V] private (
     toList.map(_.map(_._2))
 
   private def foldMap(f: (K, V) => (K, V)): STM[Nothing, List[(K, V)]] =
-    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
+    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc).map(_.reverse)
 
   private def foldMapM[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
-    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
+    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc)).map(_.reverse)
 
   private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
     for {
