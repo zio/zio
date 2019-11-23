@@ -1477,72 +1477,118 @@ object ZIOSpec extends ZIOBaseSpec {
           interrupted <- interruptionRef.get
         } yield assert(interrupted, equalTo(2)) && assert(res, equalTo(0))
 
-        io.provide(Clock.Live)
+        io.daemon.provide(Clock.Live)
       },
       testM("daemon mask") {
-        def sleep500(latch: Promise[Nothing, Unit]) =
-          latch.succeed(()) *> clock.sleep(500.milliseconds)
-        def forkSleep500 =
+        def forkAwait =
           for {
-            latch <- Promise.make[Nothing, Unit]
-            _     <- sleep500(latch).fork
-          } yield latch
+            latch    <- Promise.make[Nothing, Unit]
+            latchEnd <- Promise.make[Nothing, Unit]
+            _        <- latchEnd.await.fork *> latch.succeed(())
+          } yield (latch, latchEnd)
+
+        def handleLatch(latches: (Promise[Nothing, Unit], Promise[Nothing, Unit])) =
+          latches._1.await.as(latches._2)
 
         val io = for {
-          l1        <- forkSleep500
-          _         <- l1.await
-          children1 <- ZIO.children
-          _ <- ZIO.daemonMask { restore =>
-                ZIO.sequence(
-                  List(
-                    forkSleep500.flatMap(_.await),
-                    forkSleep500.flatMap(_.await),
-                    forkSleep500.flatMap(_.await)
-                  )
-                ) *> restore(forkSleep500.flatMap(_.await) *> forkSleep500.flatMap(_.await))
-              }
+          latches1    <- forkAwait
+          (l1, l1End) = latches1
+          _           <- l1.await
+          children1   <- ZIO.children
+          latchEnds <- ZIO.daemonMask { restore =>
+                        for {
+                          latches1 <- ZIO.sequence(
+                                       List(
+                                         forkAwait.flatMap(handleLatch),
+                                         forkAwait.flatMap(handleLatch),
+                                         forkAwait.flatMap(handleLatch)
+                                       )
+                                     )
+                          latches2 <- restore(
+                                       ZIO.sequence(
+                                         List(
+                                           forkAwait.flatMap(handleLatch),
+                                           forkAwait.flatMap(handleLatch)
+                                         )
+                                       )
+                                     )
+                        } yield latches1 ++ latches2
+                      }
           children2 <- ZIO.children
+          _         <- l1End.succeed(())
+          _         <- ZIO.traverse_(latchEnds)(_.succeed(()))
         } yield assert(children1.size, equalTo(1)) && assert(children2.size, equalTo(3))
 
-        io.nonDaemon.provide(Clock.Live)
-      } @@ flaky(10),
+        io.nonDaemon
+      },
       testM("nonDaemon mask") {
-        def sleep500(latch: Promise[Nothing, Unit]) =
-          latch.succeed(()) *> clock.sleep(500.milliseconds)
-        def forkSleep500 =
+        def forkAwait =
           for {
-            latch <- Promise.make[Nothing, Unit]
-            _     <- sleep500(latch).fork
-          } yield latch
+            latch    <- Promise.make[Nothing, Unit]
+            latchEnd <- Promise.make[Nothing, Unit]
+            _        <- latchEnd.await.fork *> latch.succeed(())
+          } yield (latch, latchEnd)
+
+        def handleLatch(latches: (Promise[Nothing, Unit], Promise[Nothing, Unit])) =
+          latches._1.await.as(latches._2)
 
         val io =
           for {
-            l1        <- forkSleep500
-            _         <- l1.await
-            children1 <- ZIO.children
-            children2 <- ZIO.nonDaemonMask { restore =>
-                          for {
-                            _ <- ZIO.sequence(
-                                  List(
-                                    forkSleep500.flatMap(_.await),
-                                    forkSleep500.flatMap(_.await),
-                                    forkSleep500.flatMap(_.await)
-                                  )
-                                )
-                            _         <- restore(forkSleep500.flatMap(_.await) *> forkSleep500.flatMap(_.await))
-                            children2 <- ZIO.children
-                          } yield children2
-                        }
-            l2        <- forkSleep500
-            _         <- l2.await
-            children3 <- ZIO.children
+            latches     <- forkAwait
+            (l1, l1End) = latches
+            _           <- l1.await
+            children1   <- ZIO.children
+            childrenWithLatches <- ZIO.nonDaemonMask { restore =>
+                                    for {
+                                      latches1 <- ZIO.sequence(
+                                                   List(
+                                                     forkAwait.flatMap(handleLatch),
+                                                     forkAwait.flatMap(handleLatch),
+                                                     forkAwait.flatMap(handleLatch)
+                                                   )
+                                                 )
+                                      latches2 <- restore(
+                                                   ZIO.sequence(
+                                                     List(
+                                                       forkAwait.flatMap(handleLatch),
+                                                       forkAwait.flatMap(handleLatch)
+                                                     )
+                                                   )
+                                                 )
+                                      children2 <- ZIO.children
+                                    } yield (children2, latches1 ++ latches2)
+                                  }
+            (children2, latchEnds) = childrenWithLatches
+            latches2               <- forkAwait
+            (l2, l2End)            = latches
+            _                      <- l2.await
+            children3              <- ZIO.children
+            _                      <- l1End.succeed(())
+            _                      <- l2End.succeed(())
+            _                      <- ZIO.traverse_(latchEnds)(_.succeed(()))
           } yield assert(children1.size, equalTo(0)) && assert(children2.size, equalTo(3)) && assert(
             children3.size,
             equalTo(3)
           )
 
-        io.daemon.provide(Clock.Live)
-      } @@ flaky(10),
+        io.daemon
+      },
+      testM("race in daemon is executed") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          p1     <- Promise.make[Nothing, Unit]
+          p2     <- Promise.make[Nothing, Unit]
+          loser1 = ZIO.bracket(latch1.succeed(()))(_ => p1.succeed(()))(_ => ZIO.never)
+          loser2 = ZIO.bracket(latch2.succeed(()))(_ => p2.succeed(()))(_ => ZIO.never)
+          fiber  <- (loser1 race loser2).fork.daemon
+          _      <- latch1.await
+          _      <- latch2.await
+          _      <- fiber.interrupt
+          res1   <- p1.await
+          res2   <- p2.await
+        } yield assert(res1, isUnit) && assert(res2, isUnit)
+      },
       testM("supervise fibers") {
         def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
           (clock.sleep(20.millis * n.toDouble) *> IO.never).fork
