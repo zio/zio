@@ -133,7 +133,7 @@ val diffTSet: UIO[TSet[Int]] = (for {
 
 ## Transform elements of a `TSet`
 
-The transform function `A => A` allows computing a new value for every element in the set. 
+The transform function `A => A` allows computing a new value for every element in the set: 
 
 ```scala mdoc:silent
 import zio._
@@ -226,8 +226,7 @@ val tSetContainsElem: UIO[Boolean] = (for {
 
 In order to convert a `TSet` to a `List`:
 
-```
-scala mdoc:silent
+```scala mdoc:silent
 import zio._
 import zio.stm._
 
@@ -241,8 +240,7 @@ val res: UIO[List[Int]] = (for {
 
 Calculating the size of a `TSet`:
 
-```
-scala mdoc:silent
+```scala mdoc:silent
 import zio._
 import zio.stm._
 
