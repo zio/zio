@@ -208,7 +208,7 @@ lazy val stacktracerNative = stacktracer.native
   .settings(scalaVersion := "2.11.12")
   .settings(skip in Test := true)
   .settings(skip in doc := true)
-  lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
+lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(

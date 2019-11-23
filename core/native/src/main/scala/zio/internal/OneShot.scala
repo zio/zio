@@ -41,7 +41,7 @@ private[zio] class OneShot[A] private (var value: A) {
    * Retrieves the value of the variable, blocking if necessary.
    */
   final def get(): A = {
-    if (value == null) throw new Error("Cannot block for result to be set in JavaScript")
+    if (value == null) throw new Error("Cannot block for result to be set in Scala Native")
     value
   }
 }
