@@ -1529,7 +1529,7 @@ object ZIOSpec extends ZIOBaseSpec {
                                     forkSleep500.flatMap(_.await)
                                   )
                                 )
-                            _ <- restore(forkSleep500.flatMap(_.await) *> forkSleep500.flatMap(_.await))
+                            _         <- restore(forkSleep500.flatMap(_.await) *> forkSleep500.flatMap(_.await))
                             children2 <- ZIO.children
                           } yield children2
                         }
