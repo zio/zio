@@ -1560,7 +1560,7 @@ object ZIOSpec extends ZIOBaseSpec {
                                   }
             (children2, latchEnds) = childrenWithLatches
             latches2               <- forkAwait
-            (l2, l2End)            = latches
+            (l2, l2End)            = latches2
             _                      <- l2.await
             children3              <- ZIO.children
             _                      <- l1End.succeed(())
