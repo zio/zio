@@ -21,7 +21,7 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
   )
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L, Unit] =
-    zio.test.test(label)(assertion).mapTest(_.map(_ => TestSuccess.Succeeded(BoolAlgebra.unit)))
+    zio.test.test(label)(assertion)
 
   val test1 = makeTest("Addition works fine") {
     assert(1 + 1, equalTo(2))
@@ -47,7 +47,7 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
     )
   )
 
-  val test4 = Spec.test("Failing test", fail(Cause.fail("Fail")))
+  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")))
 
   val test4Expected = Vector(
     expectedFailure("Failing test"),
@@ -103,8 +103,8 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
       val zio = for {
         results <- TestTestRunner(r)
                     .run(spec)
-                    .provideSomeM(for {
-                      logSvc   <- TestLogger.fromConsoleM
+                    .provideSomeManaged(for {
+                      logSvc   <- TestLogger.fromConsoleM.toManaged_
                       clockSvc <- TestClock.make(TestClock.DefaultData)
                     } yield new TestLogger with Clock {
                       override def testLogger: TestLogger.Service = logSvc.testLogger
@@ -120,7 +120,7 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
     unsafeRunToFuture(r.use[Any, E, A](f))
 
   def TestTestRunner(testEnvironment: TestEnvironment) =
-    TestRunner[TestEnvironment, String, Either[TestFailure[Nothing], TestSuccess[Unit]], String, Unit](
+    TestRunner[TestEnvironment, String, String, Unit, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](Managed.succeed(testEnvironment)),
       reporter = DefaultTestReporter()
     )

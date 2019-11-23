@@ -3,14 +3,14 @@ id: datatypes_semaphore
 title:  "Semaphore"
 ---
 
-A `Semaphore` datatype which allows synchronization between fibers with `acquire` and `release` operations.
+A `Semaphore` datatype which allows synchronization between fibers with the `withPermit` operation, which safely acquires and releases a permit.
 `Semaphore` is based on `Ref[A]` datatype.
 
 ## Operations
 
 For example a synchronization of asynchronous tasks can 
 be done via acquiring and releasing a semaphore with given number of permits it can spend.
-When the `acquire` operation cannot be performed, due to insufficient `permits` value in the semaphore, such task 
+When the acquire operation cannot be performed, due to insufficient `permits` value in the semaphore, such task 
 is placed in internal suspended fibers queue and will be awaken when `permits` value is sufficient:
 
 ```scala mdoc:silent
@@ -26,9 +26,7 @@ val task = for {
 } yield ()
 
 val semTask = (sem: Semaphore) => for {
-  _ <- sem.acquire
-  _ <- task
-  _ <- sem.release
+  _ <- sem.withPermit(task)
 } yield ()
 
 val semTaskSeq = (sem: Semaphore) => (1 to 3).map(_ => semTask(sem))
@@ -49,18 +47,8 @@ we can acquire and release any value, regarding semaphore's permits:
 
 ```scala mdoc:silent
 val semTaskN = (sem: Semaphore) => for {
-  _ <- sem.acquireN(5)
-  _ <- task
-  _ <- sem.releaseN(5)
+  _ <- sem.withPermits(5)(task)
 } yield ()
 ```
 
-When acquiring and performing task is followed by equivalent release 
-then entire action can be done with `withPermit` 
-(or corresponding counting version `withPermits`):
-
-```scala mdoc:silent
-val permitTask = (sem: Semaphore) => for {
-  _ <- sem.withPermit(task)
-} yield ()
-```
+The guarantee of `withPermit` (and its corresponding counting version `withPermits`) is that acquisition will be followed by equivalent release, regardless of whether the task succeeds, fails, or is interrupted.

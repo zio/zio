@@ -22,7 +22,7 @@ trait App extends DefaultRuntime {
    * The main function of the application, which will be passed the command-line
    * arguments to the program.
    */
-  def run(args: List[String]): ZIO[Environment, Nothing, Int]
+  def run(args: List[String]): ZIO[ZEnv, Nothing, Int]
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.

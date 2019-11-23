@@ -41,20 +41,18 @@ class TMap[K, V] private (
       if (toRemove.isEmpty) STM.succeed(toRetain) else tSize.update(_ - toRemove.size).as(toRetain)
     }
 
-    tBuckets.get.flatMap { buckets =>
-      indexOf(k).flatMap { idx =>
-        buckets.updateM(idx, removeMatching)
-      }
-    }.unit
+    for {
+      buckets <- tBuckets.get
+      idx     <- indexOf(k)
+      _       <- buckets.updateM(idx, removeMatching)
+    } yield ()
   }
 
   /**
    * Atomically folds using pure function.
    */
   final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
-    tBuckets.get.flatMap { buckets =>
-      buckets.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op))
-    }
+    tBuckets.get.flatMap(_.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op)))
 
   /**
    * Atomically folds using effectful function.
@@ -66,11 +64,7 @@ class TMap[K, V] private (
         case head :: tail => loopM(acc.flatMap(op(_, head)), tail)
       }
 
-    tBuckets.get.flatMap { buckets =>
-      buckets.foldM(zero) { (acc, bucket) =>
-        loopM(STM.succeed(acc), bucket)
-      }
-    }
+    tBuckets.get.flatMap(_.foldM(zero)((acc, bucket) => loopM(STM.succeed(acc), bucket)))
   }
 
   /**
@@ -83,11 +77,11 @@ class TMap[K, V] private (
    * Retrieves value associated with given key.
    */
   final def get(k: K): STM[Nothing, Option[V]] =
-    tBuckets.get.flatMap { buckets =>
-      indexOf(k).flatMap { idx =>
-        buckets(idx).map(_.find(_._1 == k).map(_._2))
-      }
-    }
+    for {
+      buckets <- tBuckets.get
+      idx     <- indexOf(k)
+      bucket  <- buckets(idx)
+    } yield bucket.find(_._1 == k).map(_._2)
 
   /**
    * Retrieves value associated with given key or default value, in case the
@@ -127,26 +121,23 @@ class TMap[K, V] private (
     }
 
     def resize(newCapacity: Int): STM[Nothing, Unit] =
-      toList.flatMap { data =>
-        TMap.allocate(newCapacity, data).flatMap { tmap =>
-          tmap.tBuckets.get.flatMap { newBuckets =>
-            tBuckets.set(newBuckets) *> tCapacity.set(newCapacity)
-          }
-        }
-      }
+      for {
+        data       <- toList
+        tmap       <- TMap.allocate(newCapacity, data)
+        newBuckets <- tmap.tBuckets.get
+        _          <- tBuckets.set(newBuckets)
+        _          <- tCapacity.set(newCapacity)
+      } yield ()
 
-    tBuckets.get.flatMap { buckets =>
-      indexOf(k).flatMap { idx =>
-        buckets.updateM(idx, upsert).zipRight {
-          tSize.get.flatMap { size =>
-            tCapacity.get.flatMap { capacity =>
-              val needsResize = capacity * TMap.LoadFactor < size
-              if (needsResize) resize(capacity * 2) else STM.unit
-            }
-          }
-        }
-      }
-    }
+    for {
+      buckets     <- tBuckets.get
+      idx         <- indexOf(k)
+      _           <- buckets.updateM(idx, upsert)
+      size        <- tSize.get
+      capacity    <- tCapacity.get
+      needsResize = capacity * TMap.LoadFactor < size
+      _           <- if (needsResize) resize(capacity * 2) else STM.unit
+    } yield ()
   }
 
   /**
@@ -189,9 +180,7 @@ class TMap[K, V] private (
    * Atomically updates all values using effectful function.
    */
   final def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
-    tBuckets.get.flatMap { buckets =>
-      buckets.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _))))
-    }
+    tBuckets.get.flatMap(_.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _)))))
 
   /**
    * Collects all values stored in map.
@@ -200,23 +189,25 @@ class TMap[K, V] private (
     toList.map(_.map(_._2))
 
   private def foldMap(f: (K, V) => (K, V)): STM[Nothing, List[(K, V)]] =
-    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
+    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc).map(_.reverse)
 
   private def foldMapM[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
-    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
-
-  private def indexOf(k: K): STM[Nothing, Int] =
-    tCapacity.get.map(c => k.hashCode() % c)
+    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc)).map(_.reverse)
 
   private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
-    tBuckets.get.flatMap { buckets =>
-      tCapacity.get.flatMap { capacity =>
-        buckets.transform(_ => Nil).zipRight {
-          val updates = data.map(kv => buckets.update(kv._1.hashCode() % capacity, kv :: _))
-          STM.collectAll(updates)
-        }
-      }
-    }.unit
+    for {
+      newMap      <- TMap.fromIterable(data)
+      newBuckets  <- newMap.tBuckets.get
+      _           <- tBuckets.set(newBuckets)
+      newCapacity <- newMap.tCapacity.get
+      _           <- tCapacity.set(newCapacity)
+      newSize     <- newMap.tSize.get
+      _           <- tSize.set(newSize)
+    } yield ()
+
+  private def indexOf(k: K): STM[Nothing, Int] =
+    tCapacity.get.map(c => TMap.indexOf(k, c))
+
 }
 
 object TMap {
@@ -224,7 +215,7 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with specified values.
    */
-  final def apply[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
+  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
   /**
    * Makes an empty `TMap`.
@@ -244,20 +235,19 @@ object TMap {
     val uniqueItems = data.toMap.toList
 
     uniqueItems.foreach { kv =>
-      val idx = kv._1.hashCode() % capacity
+      val idx = indexOf(kv._1, capacity)
       buckets(idx) = kv :: buckets(idx)
     }
 
-    STM.collectAll(buckets.map(TRef(_))).flatMap { tChains =>
-      TRef(TArray(tChains.toArray)).flatMap { tBuckets =>
-        TRef(capacity).flatMap { tCapacity =>
-          TRef(uniqueItems.size).map { tSize =>
-            new TMap(tBuckets, tCapacity, tSize)
-          }
-        }
-      }
-    }
+    for {
+      tChains   <- TArray.fromIterable(buckets)
+      tBuckets  <- TRef.make(tChains)
+      tCapacity <- TRef.make(capacity)
+      tSize     <- TRef.make(uniqueItems.size)
+    } yield new TMap(tBuckets, tCapacity, tSize)
   }
+
+  private final def indexOf[K](k: K, capacity: Int): Int = Math.abs(k.hashCode() % capacity)
 
   private final val DefaultCapacity = 100
   private final val LoadFactor      = 0.75
