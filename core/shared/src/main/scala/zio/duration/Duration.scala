@@ -111,10 +111,22 @@ object Duration {
       toMillis match {
         case 0                       => s"$nanos ns"
         case millis if millis < 1000 => s"$millis ms"
-        case millis if millis < 60000 && millis % 1000 == 0 => s"${millis / 1000} s"
-        case millis if millis < 60000 => s"${millis / 1000} s ${millis % 1000} ms"
-        case millis if (millis % 60000) / 1000 == 0 => s"${millis / 60000} m"
-        case millis => s"${millis / 60000} m ${(millis % 60000) / 1000} s"
+        case millis if millis < 60000 =>
+          val maybeMs = Option(millis % 1000).filterNot(_ == 0)
+          s"${millis / 1000} s${maybeMs.fold("")(ms => s" $ms ms")}"
+        case millis if millis < 3600000 =>
+          val maybeSec = Option((millis % 60000) / 1000).filterNot(_ == 0)
+          s"${millis / 60000} m${maybeSec.fold("")(s => s" $s s")}"
+        case millis =>
+          val days    = millis / 86400000
+          val hours   = (millis % 86400000) / 3600000
+          val minutes = (millis % 3600000) / 60000
+          val seconds = (millis % 60000) / 1000
+
+          List(days, hours, minutes, seconds)
+            .zip(List("d", "h", "m", "s"))
+            .collect { case (value, unit) if value != 0 => s"$value $unit" }
+            .mkString(" ")
       }
   }
 
