@@ -194,17 +194,18 @@ class TMap[K, V] private (
   private def foldMapM[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
     foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
 
-  private def indexOf(k: K): STM[Nothing, Int] =
-    tCapacity.get.map(c => TMap.bucketIdxForKey(k, c))
-
   private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
     for {
       buckets  <- tBuckets.get
       capacity <- tCapacity.get
       _        <- buckets.transform(_ => Nil)
-      updates  = data.map(kv => buckets.update(TMap.bucketIdxForKey(kv._1, capacity), kv :: _))
+      updates  = data.map(kv => buckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
       _        <- STM.collectAll(updates)
     } yield ()
+
+  private def indexOf(k: K): STM[Nothing, Int] =
+    tCapacity.get.map(c => TMap.indexOf(k, c))
+
 }
 
 object TMap {
@@ -227,14 +228,12 @@ object TMap {
     allocate(capacity, data.toList)
   }
 
-  private final def bucketIdxForKey[K](k: K, capacity: Int): Int = Math.abs(k.hashCode() % capacity)
-
   private final def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets     = Array.fill[List[(K, V)]](capacity)(Nil)
     val uniqueItems = data.toMap.toList
 
     uniqueItems.foreach { kv =>
-      val idx = bucketIdxForKey(kv._1, capacity)
+      val idx = indexOf(kv._1, capacity)
       buckets(idx) = kv :: buckets(idx)
     }
 
@@ -245,6 +244,8 @@ object TMap {
       tSize     <- TRef.make(uniqueItems.size)
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
+
+  private final def indexOf[K](k: K, capacity: Int): Int = Math.abs(k.hashCode() % capacity)
 
   private final val DefaultCapacity = 100
   private final val LoadFactor      = 0.75

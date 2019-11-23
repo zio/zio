@@ -257,19 +257,16 @@ object TMapSpec extends ZIOBaseSpec {
       }
     )
   )
-}
 
-private final class HashContainer(val i: Int) {
-  override def hashCode(): Int = i
+  private final case class HashContainer(val i: Int) {
+    override def hashCode(): Int = i
 
-  override def equals(obj: Any): Boolean = obj match {
-    case o: HashContainer => i == o.i
-    case _                => false
+    override def equals(obj: Any): Boolean =
+      obj match {
+        case o: HashContainer => i == o.i
+        case _                => false
+      }
+
+    override def toString: String = s"HashContainer($i)"
   }
-
-  override def toString: String = s"HashContainer($i)"
-}
-
-private object HashContainer {
-  def apply(hc: Int) = new HashContainer(hc)
 }
