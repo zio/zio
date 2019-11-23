@@ -213,6 +213,12 @@ object DurationSpec extends ZIOBaseSpec {
       },
       test(" 2 min 30 s") {
         assert(Duration(150, TimeUnit.SECONDS).render, equalTo("2 m 30 s"))
+      },
+      test(" 1 h 1 min") {
+        assert(Duration(61, TimeUnit.MINUTES).render, equalTo("1 h 1 m"))
+      },
+      test(" 3 d 2 h 5 min") {
+        assert(Duration(4445, TimeUnit.MINUTES).render, equalTo("3 d 2 h 5 m"))
       }
     ),
     suite("Long:")(
