@@ -153,7 +153,7 @@ import zio.stm._
 
 val shrinkTSet: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
-  _    <- tSet.transform(_ = 1)
+  _    <- tSet.transform(_ => 1)
 } yield tSet).commit
 ```
 Resulting set in example above has only one element.
@@ -166,7 +166,7 @@ import zio.stm._
 
 val transformMTSet: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
-  _    <- tSet.transformM(a => STM.succed(a * a))
+  _    <- tSet.transformM(a => STM.succeed(a * a))
 } yield tSet).commit
 ```
 
@@ -230,9 +230,9 @@ In order to convert a `TSet` to a `List`:
 import zio._
 import zio.stm._
 
-val res: UIO[List[Int]] = (for {
-  tSet       <- TSet.make(1, 2, 3, 4)
-  tSetToList <- tSet.toList
+val tSetToList: UIO[List[Int]] = (for {
+  tSet <- TSet.make(1, 2, 3, 4)
+  list <- tSet.toList
 } yield tSetToList).commit
 ```
 
@@ -244,8 +244,8 @@ Calculating the size of a `TSet`:
 import zio._
 import zio.stm._
 
-val res: UIO[Int] = (for {
-  tSet       <- TSet.make(1, 2, 3, 4)
-  tSetSize <- tSet.size
-} yield tSetSize).commit
+val tSetSize: UIO[Int] = (for {
+  tSet <- TSet.make(1, 2, 3, 4)
+  size <- tSet.size
+} yield size).commit
 ```
