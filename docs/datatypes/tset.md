@@ -233,7 +233,7 @@ import zio.stm._
 val tSetToList: UIO[List[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
   list <- tSet.toList
-} yield tSetToList).commit
+} yield list).commit
 ```
 
 ## Size of a `TSet`
