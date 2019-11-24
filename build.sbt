@@ -45,7 +45,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVMDotty",
-  ";coreJVM/test:compile;stacktracerJVM/test:compile;streamsJVM/test:compile;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsJVM/test:compile;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
@@ -120,6 +120,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
+  .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
 
