@@ -461,10 +461,6 @@ object Task {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
   /**
    *  See [[zio.ZIO.sequence]]
    */
@@ -487,12 +483,6 @@ object Task {
    *  @see [[zio.ZIO.some]]
    */
   def some[A](a: A): Task[Option[A]] = ZIO.some(a)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[A](task: => Task[A]): Task[A] = effectSuspendTotalWith(_ => task)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[A](p: Platform => Task[A]): Task[A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]

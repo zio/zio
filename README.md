@@ -1,8 +1,8 @@
 ![ZIO Logo](./ZIO.png)
 
-| CI | Coverage | Release | Issues | Scaladex | Discord |
-| --- | --- | --- | --- | --- | --- |
-| [![Build Status][Badge-Circle]][Link-Circle] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord]
+| CI | Release | Issues | Scaladex | Discord |
+| --- | --- | --- | --- | --- |
+| [![Build Status][Badge-Circle]][Link-Circle] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord]
 
 # Welcome to ZIO
 

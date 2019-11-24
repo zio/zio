@@ -583,18 +583,6 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
-   * Effectfully traverses the elements of this chunk.
-   */
-  @deprecated("use mapM", "1.0.0")
-  final def traverse[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = mapM(f)
-
-  /**
-   * Effectfully traverses the elements of this chunk purely for the effects.
-   */
-  @deprecated("use mapM_", "1.0.0")
-  final def traverse_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = mapM_(f)
-
-  /**
    * Zips this chunk with the specified chunk using the specified combiner.
    */
   final def zipWith[B, C](that: Chunk[B])(f: (A, B) => C): Chunk[C] = {

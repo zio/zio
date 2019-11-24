@@ -101,9 +101,6 @@ trait Fiber[+E, +A] { self =>
    */
   def children: UIO[Iterable[Fiber[Any, Any]]]
 
-  @deprecated("use as", "1.0.0")
-  final def const[B](b: => B): Fiber[E, B] = self as b
-
   /**
    * Generates a fiber dump, if the fiber is not synthetic.
    */
@@ -129,9 +126,6 @@ trait Fiber[+E, +A] { self =>
    * from values or composite fibers do not have identities.
    */
   def id: UIO[Option[Fiber.Id]]
-
-  @deprecated("1.0.0", "Use inheritRefs instead")
-  final def inheritFiberRefs: UIO[Unit] = inheritRefs
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
@@ -330,12 +324,6 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E, Unit]` fiber mapped to `()`
    */
   final def unit: Fiber[E, Unit] = as(())
-
-  /**
-   * Maps the output of this fiber to `()`.
-   */
-  @deprecated("use unit", "1.0.0")
-  final def void: Fiber[E, Unit] = unit
 
   /**
    * Named alias for `<*>`.
@@ -718,10 +706,6 @@ object Fiber {
    * @return `Fiber[E, A]` succeeded fiber
    */
   final def succeed[A](a: A): Fiber[Nothing, A] = done(Exit.succeed(a))
-
-  @deprecated("use succeed", "1.0.0")
-  final def succeedLazy[E, A](a: => A): Fiber[E, A] =
-    succeed(a)
 
   /**
    * A fiber that has already succeeded with unit.
