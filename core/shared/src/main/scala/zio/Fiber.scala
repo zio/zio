@@ -104,7 +104,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `UIO[Exit[E, A]]`
    */
-  def await(t: Duration): URIO[Clock, Exit[E, A]]
+  def await(timeout: Duration): URIO[Clock, Exit[E, A]]
 
   /**
    * Children of the fiber.
