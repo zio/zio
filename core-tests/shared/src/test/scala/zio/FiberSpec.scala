@@ -91,16 +91,16 @@ object FiberSpec extends ZIOBaseSpec {
         assertM(
           Fiber
             .fromFuture(Future { Thread.sleep(2000); println("Hello") }(concurrent.ExecutionContext.global))
-            .await(100.millis)
+            .await(1.second)
             .provide(Clock.Live),
           isInterrupted
         )
       },
-      testM("`await(timeout)` for a Future that will complete before the duration, should succeed") {
+      testM("`await(timeout)` for a Future that will complete before the timeout, should succeed") {
         assertM(
           Fiber
             .fromFuture(Future(1)(concurrent.ExecutionContext.global))
-            .await(100.millis)
+            .await(1.second)
             .provide(Clock.Live),
           succeeds(equalTo(1))
         )
