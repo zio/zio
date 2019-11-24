@@ -45,9 +45,13 @@ sealed abstract class ZTestRunner(
   def tasks(defs: Array[TaskDef]): Array[Task] =
     defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
 
-  override def receiveMessage(summary: String): Option[String] =
-//    summaries += summary // TODO: What should be done about this?
+  override def receiveMessage(summary: String): Option[String] = {
+    SummaryProtocol.deserialize(summary).foreach { s =>
+      summaries += s
+    }
+
     None
+  }
 
   override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef)
