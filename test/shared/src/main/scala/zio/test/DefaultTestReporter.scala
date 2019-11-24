@@ -81,7 +81,7 @@ object DefaultTestReporter {
     } yield ()
   }
 
-  private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, Unit] = {
+  private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, Unit] = {
     def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
