@@ -31,6 +31,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [logstage](https://github.com/7mind/izumi): Automatic structural logs from Scala string interpolations
 - [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
+- [zio-interop-log4j2](https://github.com/mlangc/zio-interop-log4j2): Fiber aware MDC logging for Log4j 2
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 - [zio-saga](https://github.com/VladKopanev/zio-saga): Purely functional transaction management with Saga pattern
