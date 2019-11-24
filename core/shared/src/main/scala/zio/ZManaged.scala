@@ -462,6 +462,32 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
     ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
 
+  final def memoize: ZManaged[R, E, ZManaged[R, E, A]] =
+    ZManaged {
+      RefM.make[Option[(Reservation[R, E, A], Exit[E, A])]](None).map { ref =>
+        val acquire1: ZIO[R, E, A] =
+          ref.modify {
+            case v @ Some((_, e)) => ZIO.succeed(e -> v)
+            case None =>
+              ZIO.uninterruptibleMask { restore =>
+                self.reserve.flatMap { res =>
+                  restore(res.acquire).run.map(e => e -> Some(res -> e))
+                }
+              }
+          }.flatMap(ZIO.done)
+
+        val acquire2: ZIO[R, E, ZManaged[R, E, A]] =
+          ZIO.succeed(acquire1.toManaged_)
+
+        val release2 = (_: Exit[_, _]) =>
+          ref.updateSome {
+            case Some((res, e)) => res.release(e).as(None)
+          }
+
+        Reservation(acquire2, release2)
+      }
+    }
+
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
    * the existing finalizers.
@@ -867,41 +893,19 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
         )
       }
     }
-
-  def memoize: ZManaged[R, E, ZManaged[R, E, A]] =
-    ZManaged {
-      RefM.make[Option[(Reservation[R, E, A], Exit[E, A])]](None).map { ref =>
-        val acquire1: ZIO[R, E, A] =
-          ref.modify {
-            case v @ Some((_, e)) => ZIO.succeed(e -> v)
-            case None =>
-              ZIO.uninterruptibleMask { restore =>
-                self.reserve.flatMap { res =>
-                  restore(res.acquire).run.map(e => e -> Some(res -> e))
-                }
-              }
-          }.flatMap(ZIO.done)
-
-        val acquire2: ZIO[R, E, ZManaged[R, E, A]] =
-          ZIO.succeed(acquire1.toManaged_)
-
-        val release2 = (_: Exit[_, _]) =>
-          ref.updateSome {
-            case Some((res, e)) => res.release(e).as(None)
-          }
-
-        Reservation(acquire2, release2)
-      }
-    }
 }
 
 object ZManaged {
 
-  /**
-   * Creates new [[ZManaged]] from wrapped [[Reservation]].
-   */
-  final def apply[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
-    new ZManaged(reservation)
+  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: R => A): ZManaged[R, Nothing, A] =
+      ZManaged.environment.map(f)
+  }
+
+  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: R => ZManaged[R, E, A]): ZManaged[R, E, A] =
+      ZManaged.environment.flatMap(f)
+  }
 
   /**
    * Returns an effectful function that extracts out the first element of a
@@ -921,6 +925,24 @@ object ZManaged {
    */
   final def absolve[R, E, A](v: ZManaged[R, E, Either[E, A]]): ZManaged[R, E, A] =
     v.flatMap(fromEither(_))
+
+  /**
+   * Create a managed that acesses the environment.
+   */
+  final def access[R]: AccessPartiallyApplied[R] =
+    new AccessPartiallyApplied
+
+  /**
+   * Create a managed that acesses the environment.
+   */
+  final def accessM[R]: AccessMPartiallyApplied[R] =
+    new AccessMPartiallyApplied
+
+  /**
+   * Creates new [[ZManaged]] from wrapped [[Reservation]].
+   */
+  final def apply[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
+    new ZManaged(reservation)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
