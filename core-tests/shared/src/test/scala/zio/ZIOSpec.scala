@@ -1235,6 +1235,16 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield test
 
         assertM(io.provide(Clock.Live), isTrue)
+      },
+      testM("race inside a finalizer is executed") {
+        for {
+          ref   <- Ref.make(0)
+          latch <- Promise.make[Nothing, Unit]
+          fiber <- latch.succeed(()).bracket(_ => ref.set(1) race ZIO.never)(_ => ZIO.never).fork
+          _     <- latch.await
+          _     <- fiber.interrupt
+          ref   <- ref.get
+        } yield assert(ref, equalTo(1))
       }
     ),
     suite("RTS synchronous stack safety")(
@@ -1697,7 +1707,7 @@ object ZIOSpec extends ZIOBaseSpec {
           res <- p1.await
         } yield assert(res, isTrue)
       },
-      testM("interruption of raced") {
+      testM("interruption of race") {
         for {
           ref   <- Ref.make(0)
           cont1 <- Promise.make[Nothing, Unit]

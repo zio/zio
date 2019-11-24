@@ -285,9 +285,6 @@ private[zio] final class FiberContext[E, A](
           kTrace
         } else null
 
-      // Propagate ancestor interruption every once in a while:
-      propagateAncestorInterruption()
-
       Fiber._currentFiber.set(this)
 
       while (curZio ne null) {
@@ -746,16 +743,6 @@ private[zio] final class FiberContext[E, A](
     val _ = daemonStatus.popOrElse(false)
   }
 
-  private[this] final def propagateAncestorInterruption(): Unit = {
-    var fiber = self: FiberContext[_, _]
-
-    while (fiber ne null) {
-      addInterruptor(fiber.state.get.interrupted)
-
-      fiber = fiber.parentFiber
-    }
-  }
-
   @inline
   private final def isInterrupted(): Boolean = !state.get.interrupted.isEmpty
 
@@ -765,23 +752,6 @@ private[zio] final class FiberContext[E, A](
   @inline
   private[this] final def shouldInterrupt(): Boolean =
     isInterrupted() && isInterruptible()
-
-  @tailrec
-  private[this] final def addInterruptor(cause: Cause[Nothing]): Unit =
-    if (!cause.isEmpty) {
-      val oldState = state.get
-
-      oldState match {
-        case Executing(status, observers, interrupted) =>
-          val newInterrupted = if (!interrupted.contains(cause)) interrupted ++ cause else interrupted
-
-          val newState = Executing(status, observers, newInterrupted)
-
-          if (!state.compareAndSet(oldState, newState)) addInterruptor(cause)
-
-        case _ =>
-      }
-    }
 
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
