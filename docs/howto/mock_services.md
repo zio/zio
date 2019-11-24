@@ -231,7 +231,7 @@ import zio.test._
 import zio.test.Assertion._
 
 val event = new AccountEvent {}
-val app = AccountObserver.>.processEvent(event)
+val app: ZIO[AccountObserver, Nothing, Unit] = AccountObserver.>.processEvent(event)
 val mockEnv: Managed[Nothing, MockConsole] = (
   MockSpec.expectIn(MockConsole.Service.putStrLn)(equalTo(s"Got $event")) *>
   MockSpec.expectOut(MockConsole.Service.getStrLn)("42") *>
@@ -241,9 +241,9 @@ val mockEnv: Managed[Nothing, MockConsole] = (
 
 ## Providing mocked environment
 
-```scala mdoc:silent
-object AccountObserverSpec extends DefaultRunnableSpec(
-  suite("processEvent")(
+```scala
+object AccountObserverSpec extends DefaultRunnableSpec {
+  def spec = suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
       val result = app.provideManaged(mockEnv.map { mockConsole =>
         new AccountObserverLive with Console {
@@ -253,7 +253,7 @@ object AccountObserverSpec extends DefaultRunnableSpec(
       assertM(result, isUnit)
     }
   )
-)
+}
 ```
 
 ## Mocking multiple collaborators

@@ -1,8 +1,6 @@
 package zio.test
 
 import zio.test.TestUtils.{ report, scope }
-import zio.test.environment._
-import zio.test.mock.MockSpecSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -10,15 +8,10 @@ object TestMain {
 
   def main(args: Array[String]): Unit = {
     val allTests: List[(String, AsyncBaseSpec)] = List(
-      ("CheckSpec", CheckSpec),
-      ("ClockSpec", ClockSpec),
-      ("DefaultTestReporterSpec", DefaultTestReporterSpec),
       ("SummaryBuilderSpec", SummaryBuilderSpec),
       ("GenSpec", GenSpec),
-      ("MockSpecSpec", MockSpecSpec),
-      ("RandomSpec", RandomSpec),
       ("SampleSpec", SampleSpec),
-      ("SchedulerSpec", SchedulerSpec)
+      ("TimeVariantsSpec", TimeVariantsSpec)
     )
 
     val selectedTests = args match {

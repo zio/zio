@@ -29,7 +29,7 @@ import scala.collection.mutable
  *
  * Sinks form monads and combine in the usual ways.
  */
-trait ZSink[-R, +E, +A0, -A, +B] { self =>
+trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
   type State
 
@@ -417,7 +417,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Narrows the environment by partially building it with `f`
    */
-  final def provideSome[R1](f: R1 => R): ZSink[R1, E, A0, A, B] =
+  final def provideSome[R1](f: R1 => R)(implicit ev: NeedsEnv[R]): ZSink[R1, E, A0, A, B] =
     new ZSink[R1, E, A0, A, B] {
       type State = self.State
       val initial                  = self.initial.provideSome(f)
@@ -553,6 +553,18 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
           case _                                => false
         }
     }
+
+  /**
+   * Performs the specified effect for every element that is consumed by this sink.
+   */
+  final def tapInput[R1 <: R, E1 >: E, A1 <: A](f: A1 => ZIO[R1, E1, Unit]): ZSink[R1, E1, A0, A1, B] =
+    contramapM(a => f(a).as(a))
+
+  /**
+   * Performs the specified effect for every element that is produced by this sink.
+   */
+  final def tapOutput[R1 <: R, E1 >: E](f: B => ZIO[R1, E1, Unit]): ZSink[R1, E1, A0, A, B] =
+    mapM(b => f(b).as(b))
 
   /**
    * Times the invocation of the sink
@@ -716,7 +728,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     zip(that).map(f.tupled)
 }
 
-object ZSink extends ZSinkPlatformSpecific {
+object ZSink extends ZSinkPlatformSpecific with Serializable {
 
   implicit class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
 
@@ -1405,7 +1417,7 @@ object ZSink extends ZSinkPlatformSpecific {
    * example:
    * {{{
    * Stream(1, 5, 1)
-   *  .transduce(
+   *  .aggregate(
    *    Sink
    *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
    *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
@@ -1482,6 +1494,12 @@ object ZSink extends ZSinkPlatformSpecific {
    */
   final def fromFunction[A, B](f: A => B): ZSink[Any, Unit, Nothing, A, B] =
     identity.map(f)
+
+  /**
+   * Creates a sink that effectfully transforms incoming values.
+   */
+  final def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, Option[E], Nothing, A, B] =
+    identity.mapError(_ => None).mapM(f(_).mapError(Some(_)))
 
   /**
    * Creates a sink halting with a specified cause.
@@ -1677,6 +1695,83 @@ object ZSink extends ZSinkPlatformSpecific {
    */
   final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
     splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
+
+  /**
+   * Splits strings on a delimiter.
+   */
+  final def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
+    new SinkPure[Nothing, String, String, Chunk[String]] {
+      type State = SplitOnState
+      case class SplitOnState(
+        // Index into the delimiter
+        delimiterPointer: Int,
+        // Index into the current frame
+        framePointer: Int,
+        // Signals when extraction of the delimiter is ongoing
+        cont: Boolean,
+        // Accumulated strings from previous pulls
+        leftover: String,
+        // Frames already collected
+        frames: Chunk[String]
+      )
+
+      def initialPure: State = SplitOnState(0, 0, true, "", Chunk.empty)
+
+      def extractPure(state: State): Either[Nothing, (Chunk[String], Chunk[String])] = {
+        val (frames, leftover) =
+          if (state.cont && !state.leftover.isEmpty)
+            state.frames + state.leftover -> Chunk.empty
+          else
+            state.frames -> Chunk.single(state.leftover)
+        Right(frames -> leftover)
+      }
+
+      def stepPure(s: State, a: String): State = {
+        val frame = s.leftover + a
+        val l     = delimiter.length
+        val m     = frame.length
+
+        var start = 0
+        var i     = s.delimiterPointer
+        var j     = s.framePointer
+
+        val buf = mutable.ArrayBuffer[String]()
+
+        while (j < m) {
+          while (i < l && j < m && delimiter(i) == frame(j)) {
+            i += 1
+            j += 1
+          }
+
+          if (i == l) {
+            // We've found a new frame, store it (_without_ the delimiter),
+            // reset the delimiter pointer and advance the start pointer
+            buf += frame.substring(start, j - l)
+            i = 0
+            start = j
+          } else if (j == m) {
+            // We've reached the end of the frame in the middle of the
+            // delimiter; hence, we keep the indices intact so we can
+            // start from where we left off in the next step
+          } else {
+            // We've found a character that does not match the delimiter,
+            // reset the delimiter pointer and advance the frame pointer
+            // until we find a character that matches, or reach the end
+            // of the frame
+            i = 0
+            while (j < m && frame(j) != delimiter(0)) j += 1
+          }
+        }
+
+        if (buf.isEmpty) SplitOnState(i, j, true, frame, s.frames)
+        else {
+          val frames = Chunk.fromArray(buf.toArray[String])
+          SplitOnState(0, j - start, i > 0, frame.drop(start), s.frames ++ frames)
+        }
+      }
+
+      def cont(state: State): Boolean = state.cont
+    }
 
   /**
    * Creates a single-value sink from a value.

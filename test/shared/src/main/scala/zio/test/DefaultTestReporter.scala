@@ -16,20 +16,21 @@
 
 package zio.test
 
+import scala.annotation.tailrec
+import scala.{ Console => SConsole }
+
 import zio.duration.Duration
+import zio.test.mock.{ Method, MockException }
+import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
-import zio.test.mock.{ Expectation, MockException }
 import zio.{ Cause, UIO, URIO, ZIO }
-
-import scala.{ Console => SConsole }
 
 object DefaultTestReporter {
 
-  def render[E, S](executedSpec: ExecutedSpec[String, E, S]): UIO[Seq[RenderedResult]] = {
-    def loop(executedSpec: ExecutedSpec[String, E, S], depth: Int): UIO[Seq[RenderedResult]] =
+  def render[E, S](executedSpec: ExecutedSpec[E, String, S]): UIO[Seq[RenderedResult]] = {
+    def loop(executedSpec: ExecutedSpec[E, String, S], depth: Int): UIO[Seq[RenderedResult]] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(label, executedSpecs, _) =>
           for {
@@ -72,7 +73,7 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply[E, S](): TestReporter[String, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[String, E, S]) =>
+  def apply[E, S](): TestReporter[E, String, S] = { (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
     for {
       res <- render(executedSpec.mapLabel(_.toString))
       _   <- ZIO.foreach(res.flatMap(_.rendered))(TestLogger.logLine)
@@ -80,8 +81,8 @@ object DefaultTestReporter {
     } yield ()
   }
 
-  private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]): URIO[TestLogger, Unit] = {
-    def loop(executedSpec: ExecutedSpec[String, E, S]): UIO[(Int, Int, Int)] =
+  private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, Unit] = {
+    def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {
@@ -118,10 +119,12 @@ object DefaultTestReporter {
   private def renderFailureLabel(label: String, offset: Int) =
     withOffset(offset)(red("- " + label))
 
-  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] = failureDetails match {
-    case FailureDetails(fragment, whole, genFailureDetails) =>
-      renderGenFailureDetails(genFailureDetails, offset) ++ renderAssertion(fragment, whole, offset)
-  }
+  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] =
+    failureDetails match {
+      case FailureDetails(assertionFailureDetails, genFailureDetails) =>
+        renderGenFailureDetails(genFailureDetails, offset) ++
+          renderAssertionFailureDetails(assertionFailureDetails, offset)
+    }
 
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Seq[String] =
     failureDetails match {
@@ -136,11 +139,17 @@ object DefaultTestReporter {
       case None => Seq()
     }
 
-  private def renderAssertion(fragment: AssertionValue, whole: AssertionValue, offset: Int): Seq[String] =
-    if (whole.assertion == fragment.assertion)
-      Seq(renderFragment(fragment, offset))
-    else
-      Seq(renderWhole(fragment, whole, offset), renderFragment(fragment, offset))
+  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Seq[String] = {
+    @tailrec
+    def loop(failureDetails: List[AssertionValue], rendered: Seq[String]): Seq[String] =
+      failureDetails match {
+        case fragment :: whole :: failureDetails =>
+          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
+        case _ =>
+          rendered
+      }
+    Seq(renderFragment(failureDetails.head, offset)) ++ loop(failureDetails, Seq())
+  }
 
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int) =
     withOffset(offset + tabSize) {
@@ -173,14 +182,16 @@ object DefaultTestReporter {
       case InvalidArgumentsException(method, args, assertion) =>
         renderTestFailure(s"$method called with invalid arguments", assert(args, assertion))
 
-      case InvalidMethodException(method, expectation) =>
+      case InvalidMethodException(method, expectedMethod, assertion) =>
         List(
           red(s"- invalid call to $method"),
-          renderExpectation(expectation, tabSize)
+          renderExpectation(expectedMethod, assertion, tabSize)
         ).mkString("\n")
 
       case UnmetExpectationsException(expectations) =>
-        (red(s"- unmet expectations") :: expectations.map(renderExpectation(_, tabSize))).mkString("\n")
+        (red(s"- unmet expectations") :: expectations.map {
+          case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
+        }).mkString("\n")
     }
 
   private def renderTestFailure(label: String, testResult: TestResult): String =
@@ -190,8 +201,8 @@ object DefaultTestReporter {
       )(_ && _, _ || _, !_).rendered.mkString("\n")
     )
 
-  private def renderExpectation[A, B](expectation: Expectation[A, B], offset: Int): String =
-    withOffset(offset)(s"expected ${expectation.method} with arguments ${cyan(expectation.assertion.toString)}")
+  private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[A], offset: Int): String =
+    withOffset(offset)(s"expected $method with arguments ${cyan(assertion.toString)}")
 
   private def withOffset(n: Int)(s: String): String =
     " " * n + s
