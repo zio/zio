@@ -1453,31 +1453,27 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("daemon fiber race interruption") {
         def plus1(ref: Ref[Int], latch: Promise[Nothing, Unit]) =
-          latch.succeed(()) *> clock.sleep(200.milliseconds) *> ref.update(_ + 1)
-        def interruptHandler(ref: Ref[Int], latch: Promise[Nothing, Unit]) =
-          ref.update(_ + 1) *> latch.succeed(())
+          latch.succeed(()) *> ZIO.never *> ref.update(_ + 1)
+        def interruptHandler(ref: Ref[Int]) =
+          ref.update(_ + 1)
 
         val io = for {
           ref             <- Ref.make(0)
           interruptionRef <- Ref.make(0)
           latch1Start     <- Promise.make[Nothing, Unit]
-          latch1Interrupt <- Promise.make[Nothing, Unit]
           latch2Start     <- Promise.make[Nothing, Unit]
-          latch2Interrupt <- Promise.make[Nothing, Unit]
           fiber <- plus1(ref, latch1Start)
-                    .onInterrupt(interruptHandler(interruptionRef, latch1Interrupt))
-                    .race(plus1(ref, latch2Start).onInterrupt(interruptHandler(interruptionRef, latch2Interrupt)))
+                    .onInterrupt(interruptHandler(interruptionRef))
+                    .race(plus1(ref, latch2Start).onInterrupt(interruptHandler(interruptionRef)))
                     .fork
           _           <- latch1Start.await
           _           <- latch2Start.await
           _           <- fiber.interrupt
-          _           <- latch1Interrupt.await
-          _           <- latch2Interrupt.await
           res         <- ref.get
           interrupted <- interruptionRef.get
         } yield assert(interrupted, equalTo(2)) && assert(res, equalTo(0))
 
-        io.daemon.provide(Clock.Live)
+        io.daemon
       },
       testM("daemon mask") {
         def forkAwait =

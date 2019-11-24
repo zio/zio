@@ -1854,6 +1854,11 @@ private[zio] trait ZIOFunctions extends Serializable {
   )(f: PartialFunction[A, U]): ZIO[R, E, List[U]] =
     ZIO.collectAllParN(n)(in).map(_.collect(f))
 
+  /**
+   * Makes the effect daemon, but passes it a restore function that
+   * can be used to restore the inherited daemon status from whatever region
+   * the effect is composed into.
+   */
   final def daemonMask[R, E, A](k: ZIO.DaemonStatusRestore => ZIO[R, E, A]): ZIO[R, E, A] =
     checkDaemon(status => k(new ZIO.DaemonStatusRestore(status)).daemon)
 
@@ -2337,6 +2342,11 @@ private[zio] trait ZIOFunctions extends Serializable {
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
 
+  /**
+   * Makes the effect non-daemon, but passes it a restore function that
+   * can be used to restore the inherited daemon status from whatever region
+   * the effect is composed into.
+   */
   final def nonDaemonMask[R, E, A](k: ZIO.DaemonStatusRestore => ZIO[R, E, A]): ZIO[R, E, A] =
     checkDaemon(status => k(new ZIO.DaemonStatusRestore(status)).nonDaemon)
 

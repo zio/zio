@@ -129,6 +129,12 @@ object Task {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.die]]
    */
   final def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
@@ -404,6 +410,12 @@ object Task {
    * @see See [[zio.ZIO.never]]
    */
   final val never: UIO[Nothing] = ZIO.never
+
+  /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
+    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.none]]

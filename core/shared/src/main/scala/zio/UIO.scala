@@ -123,6 +123,12 @@ object UIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[A](k: ZIO.DaemonStatusRestore => UIO[A]): UIO[A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -355,6 +361,12 @@ object UIO {
    * @see See [[zio.ZIO.none]]
    */
   final val none: UIO[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[A](k: ZIO.DaemonStatusRestore => UIO[A]): UIO[A] =
+    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.never]]
