@@ -1,8 +1,11 @@
 package zio
 
-import zio.test._
-import zio.test.Assertion._
+import scala.concurrent.Future
 import zio.LatchOps._
+import zio.clock.Clock
+import zio.duration._
+import zio.test.Assertion._
+import zio.test._
 
 object FiberSpec extends ZIOBaseSpec {
 
@@ -68,6 +71,30 @@ object FiberSpec extends ZIOBaseSpec {
         for {
           exit <- Fiber.fail("fail").zip(Fiber.never).await
         } yield assert(exit, fails(equalTo("fail")))
+      },
+      testM("`await(duration)` for forked IO that takes more time, should be interrupted") {
+        (for {
+          f    <- IO(println("Hello Fiber")).delay(2.seconds).fork
+          exit <- f.await(1.second)
+        } yield assert(exit, isInterrupted)).provide(Clock.Live)
+      },
+      testM("`await(duration)` for forked IO that takes less time, should succeed") {
+        (for {
+          f    <- IO(1).fork
+          exit <- f.await(100.millis)
+        } yield assert(exit, succeeds(equalTo(1)))).provide(Clock.Live)
+      },
+      testM("`await(duration)` for a Fiber that is done, should succeed") {
+        assertM(Fiber.done(Exit.Success(1)).await(100.millis).provide(Clock.Live), succeeds(equalTo(1)))
+      },
+      testM("`await(duration)` for a Future that will take more time to complete, should fail") {
+        assertM(
+          Fiber
+            .fromFuture(Future { Thread.sleep(2000); println("Hello") }(concurrent.ExecutionContext.global))
+            .await(1.millis)
+            .provide(Clock.Live),
+          isInterrupted
+        )
       },
       testM("`join`") {
         for {

@@ -17,16 +17,14 @@
 package zio.internal
 
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
-
 import com.github.ghik.silencer.silent
-
 import zio._
 import FiberContext.FiberRefLocals
 import stacktracer.ZTraceElement
 import tracing.ZIOFn
-
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
+import zio.clock.Clock
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -677,6 +675,9 @@ private[zio] final class FiberContext[E, A](
   final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
   }
+
+  final def await(t: zio.duration.Duration): URIO[Clock, Exit[E, A]] =
+    await.timeoutInterrupt(t)(interrupt)
 
   final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
     val oldValue = Option(fiberRefLocals.get(ref))

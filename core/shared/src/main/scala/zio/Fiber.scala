@@ -16,11 +16,13 @@
 
 package zio
 
-import zio.internal.Executor
-
-import scala.concurrent.Future
-import scala.collection.JavaConverters._
 import com.github.ghik.silencer.silent
+import scala.collection.JavaConverters._
+import scala.concurrent.Future
+
+import zio.clock.Clock
+import zio.duration.Duration
+import zio.internal.Executor
 import zio.internal.stacktracer.ZTraceElement
 
 /**
@@ -95,6 +97,14 @@ trait Fiber[+E, +A] { self =>
    * @return `UIO[Exit[E, A]]`
    */
   def await: UIO[Exit[E, A]]
+
+  /**
+   * Awaits the fiber, which suspends the awaiting fiber for a given duration
+   * and returns the result if it exit with a Timeout failure.
+   *
+   * @return `UIO[Exit[E, A]]`
+   */
+  def await(t: Duration): URIO[Clock, Exit[E, A]]
 
   /**
    * Children of the fiber.
@@ -193,9 +203,10 @@ trait Fiber[+E, +A] { self =>
     new Fiber[E1, B] {
       final def await: UIO[Exit[E1, B]] =
         self.await.flatMap(_.foreach(f))
-      final def children: UIO[Iterable[Fiber[Any, Any]]] = self.children
-      final def getRef[A](ref: FiberRef[A]): UIO[A]      = self.getRef(ref)
-      final def id: UIO[Option[Fiber.Id]]                = self.id
+      final def await(t: Duration): ZIO[Clock, Nothing, Exit[E1, B]] = self.await(t).flatMap(_.foreach[Clock, E1, B](f))
+      final def children: UIO[Iterable[Fiber[Any, Any]]]             = self.children
+      final def getRef[A](ref: FiberRef[A]): UIO[A]                  = self.getRef(ref)
+      final def id: UIO[Option[Fiber.Id]]                            = self.id
       final def inheritRefs: UIO[Unit] =
         self.inheritRefs
       final def interruptAs(id: Fiber.Id): UIO[Exit[E1, B]] =
@@ -220,6 +231,12 @@ trait Fiber[+E, +A] { self =>
     new Fiber[E1, A1] {
       final def await: UIO[Exit[E1, A1]] =
         self.await.zipWith(that.await) {
+          case (Exit.Failure(_), e2) => e2
+          case (e1, _)               => e1
+        }
+
+      final def await(t: Duration): URIO[Clock, Exit[E1, A1]] =
+        self.await(t).zipWith(that.await(t)) {
           case (Exit.Failure(_), e2) => e2
           case (e1, _)               => e1
         }
@@ -374,6 +391,9 @@ trait Fiber[+E, +A] { self =>
     new Fiber[E1, C] {
       final def await: UIO[Exit[E1, C]] =
         self.await.flatMap(IO.done).zipWithPar(that.await.flatMap(IO.done))(f).run
+
+      final def await(t: Duration): URIO[Clock, Exit[E1, C]] =
+        self.await(t).flatMap(IO.done).zipWithPar(that.await(t).flatMap(IO.done))(f).run
 
       final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
@@ -537,15 +557,16 @@ object Fiber {
    */
   final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
-      final def await: UIO[Exit[E, A]]                     = IO.succeed(exit)
-      final def children: UIO[Iterable[Fiber[Any, Any]]]   = UIO(Nil)
-      final def getRef[A](ref: FiberRef[A]): UIO[A]        = UIO(ref.initial)
-      final def id: UIO[Option[Fiber.Id]]                  = UIO.none
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E, A]] = IO.succeed(exit)
-      final def inheritRefs: UIO[Unit]                     = IO.unit
-      final def poll: UIO[Option[Exit[E, A]]]              = IO.succeed(Some(exit))
-      final def status: UIO[Fiber.Status]                  = UIO(Fiber.Status.Done)
-      final def trace: UIO[Option[ZTrace]]                 = UIO.none
+      final def await: UIO[Exit[E, A]]                      = IO.succeed(exit)
+      final def await(t: Duration): URIO[Clock, Exit[E, A]] = IO.succeed(exit)
+      final def children: UIO[Iterable[Fiber[Any, Any]]]    = UIO(Nil)
+      final def getRef[A](ref: FiberRef[A]): UIO[A]         = UIO(ref.initial)
+      final def id: UIO[Option[Fiber.Id]]                   = UIO.none
+      final def interruptAs(id: Fiber.Id): UIO[Exit[E, A]]  = IO.succeed(exit)
+      final def inheritRefs: UIO[Unit]                      = IO.unit
+      final def poll: UIO[Option[Exit[E, A]]]               = IO.succeed(Some(exit))
+      final def status: UIO[Fiber.Status]                   = UIO(Fiber.Status.Done)
+      final def trace: UIO[Option[ZTrace]]                  = UIO.none
     }
 
   /**
@@ -613,6 +634,11 @@ object Fiber {
 
       final def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
+      final def await(t: Duration): URIO[Clock, Exit[Throwable, A]] = {
+        val task = Task.fromFuture(_ => ftr)
+        task.run.timeoutInterrupt(t)(task.fork.flatMap[Clock, Nothing, Exit[Throwable, A]](_.interrupt))
+      }
+
       final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
 
       final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
@@ -679,15 +705,16 @@ object Fiber {
    */
   final val never: Fiber[Nothing, Nothing] =
     new Fiber[Nothing, Nothing] {
-      final def await: UIO[Exit[Nothing, Nothing]]                     = IO.never
-      final def children: UIO[Iterable[Fiber[Any, Any]]]               = UIO(Nil)
-      final def getRef[A](ref: FiberRef[A]): UIO[A]                    = UIO(ref.initial)
-      final def id: UIO[Option[Fiber.Id]]                              = UIO.none
-      final def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
-      final def inheritRefs: UIO[Unit]                                 = IO.unit
-      final def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeed(None)
-      final def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0, Nil, Nil))
-      final def trace: UIO[Option[ZTrace]]                             = UIO.none
+      final def await: UIO[Exit[Nothing, Nothing]]                      = IO.never
+      final def await(t: Duration): URIO[Clock, Exit[Nothing, Nothing]] = IO.never
+      final def children: UIO[Iterable[Fiber[Any, Any]]]                = UIO(Nil)
+      final def getRef[A](ref: FiberRef[A]): UIO[A]                     = UIO(ref.initial)
+      final def id: UIO[Option[Fiber.Id]]                               = UIO.none
+      final def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]]  = IO.never
+      final def inheritRefs: UIO[Unit]                                  = IO.unit
+      final def poll: UIO[Option[Exit[Nothing, Nothing]]]               = IO.succeed(None)
+      final def status: UIO[Fiber.Status]                               = UIO(Status.Suspended(false, 0, Nil, Nil))
+      final def trace: UIO[Option[ZTrace]]                              = UIO.none
     }
 
   /**

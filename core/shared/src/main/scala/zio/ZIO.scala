@@ -1321,6 +1321,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeoutTo(None)(Some(_))(d)
 
   /**
+   * Returns an effect that will timeout this effect, interrupt if the
+   * timeout elapses before the effect has produced a value; and returning
+   * the produced value otherwise.
+   *
+   * If the timeout elapses without producing a value, the running effect
+   * will be safely interrupted
+   *
+   */
+  final def timeoutInterrupt[R1 <: R, E1 >: E, A1 >: A](
+    d: Duration
+  )(onInterrupt: => ZIO[R1, E1, A1]): ZIO[R1 with Clock, E1, A1] =
+    timeout(d).flatMap {
+      case None    => onInterrupt
+      case Some(_) => self
+    }
+
+  /**
    * The same as [[timeout]], but instead of producing a `None` in the event
    * of timeout, it will produce the specified error.
    */
