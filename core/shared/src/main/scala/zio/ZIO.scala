@@ -634,6 +634,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     } yield l.succeed(()) *> p.await
 
   /**
+   * Returns a new effect where the error channel has been merged into the
+   * success channel to their common combined type.
+   */
+  final def merge[A1 >: A](implicit ev: E <:< A1): URIO[R, A1] =
+    self.foldM(e => ZIO.succeed(ev(e)), ZIO.succeed)
+
+  /**
    * Turns off daemon mode for this region, which means that any fibers forked
    * in this region will not be daemon fibers, so they will be visible as
    * children of their parent fiber, and interrupted when their parent fiber is

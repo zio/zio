@@ -594,6 +594,16 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result, equalTo(Cause.die(boom)))
       } @@ flaky
     ),
+    suite("merge")(
+      testM("on flipped result") {
+        val zio: IO[Int, Int] = ZIO.succeed(1)
+
+        for {
+          a <- zio.merge
+          b <- zio.flip.merge
+        } yield assert(a, equalTo(b))
+      }
+    ),
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either, isRight(equalTo(1)))
@@ -1034,7 +1044,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(io, isSome(equalTo(Cause.die(ExampleError))))
       },
       testM("catch sandbox terminate") {
-        val io = IO.effectTotal(throw ExampleError).sandbox.fold(identity, identity)
+        val io = IO.effectTotal(throw ExampleError).sandbox.merge
         assertM(io, equalTo(Cause.die(ExampleError)))
       },
       testM("uncaught fail") {
