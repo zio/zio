@@ -637,8 +637,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns a new effect where the error channel has been merged into the
    * success channel to their common combined type.
    */
-  final def merge[A1 >: A](implicit ev: E <:< A1): URIO[R, A1] =
-    self.foldM(e => ZIO.succeed(ev(e)), ZIO.succeed)
+  final def merge[A1 >: A](implicit ev1: E <:< A1, ev2: CanFail[E]): URIO[R, A1] =
+    self.foldM(e => ZIO.succeed(ev1(e)), ZIO.succeed)
 
   /**
    * Turns off daemon mode for this region, which means that any fibers forked
