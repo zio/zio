@@ -82,7 +82,7 @@ lazy val root = project
   )
   .enablePlugins(ScalaJSPlugin)
 
-lazy val core = crossProject(JSPlatform, JVMPlatform)
+lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
@@ -94,6 +94,18 @@ lazy val coreJVM = core.jvm
   .settings(replSettings)
 
 lazy val coreJS = core.js
+
+lazy val coreNative = core.native
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
+      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+    )
+  )
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
@@ -182,7 +194,7 @@ lazy val testTestsJS = testTests.js.settings(
   mainClass in Compile := Some("zio.test.TestMain")
 )
 
-lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
+lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(buildInfoSettings("zio.internal.stacktracer"))
@@ -192,6 +204,10 @@ lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
 
+lazy val stacktracerNative = stacktracer.native
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
