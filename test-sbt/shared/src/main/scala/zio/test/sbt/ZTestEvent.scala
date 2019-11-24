@@ -17,8 +17,8 @@ case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def from[L, E, S](
-    executedSpec: ExecutedSpec[L, E, S],
+  def from[E, L, S](
+    executedSpec: ExecutedSpec[E, L, S],
     fullyQualifiedName: String,
     fingerprint: Fingerprint
   ): UIO[Seq[ZTestEvent]] =
@@ -31,7 +31,7 @@ object ZTestEvent {
         }
     }
 
-  private def toStatus[L, E, S](result: Either[TestFailure[E], TestSuccess[S]]) = result match {
+  private def toStatus[E, L, S](result: Either[TestFailure[E], TestSuccess[S]]) = result match {
     case Left(_)                         => Status.Failure
     case Right(TestSuccess.Succeeded(_)) => Status.Success
     case Right(TestSuccess.Ignored)      => Status.Ignored

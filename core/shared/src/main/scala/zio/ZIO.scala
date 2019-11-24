@@ -1429,10 +1429,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   ): ZIO[R1, E2, B] =
     new ZIO.Fold[R1, E, E2, A, B](
       self,
-      ZIOFn(() => that)(_.stripFailures match {
-        case None    => that
-        case Some(c) => ZIO.halt(c)
-      }),
+      ZIOFn(() => that) { cause =>
+        cause.stripFailures match {
+          case None    => that.catchAllCause(cause2 => ZIO.halt(Cause.die(FiberFailure(cause)) ++ cause2))
+          case Some(c) => ZIO.halt(c)
+        }
+      },
       succ
     )
 

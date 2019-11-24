@@ -29,8 +29,8 @@ import zio.{ Cause, UIO, URIO, ZIO }
 
 object DefaultTestReporter {
 
-  def render[E, S](executedSpec: ExecutedSpec[String, E, S]): UIO[Seq[RenderedResult]] = {
-    def loop(executedSpec: ExecutedSpec[String, E, S], depth: Int): UIO[Seq[RenderedResult]] =
+  def render[E, S](executedSpec: ExecutedSpec[E, String, S]): UIO[Seq[RenderedResult]] = {
+    def loop(executedSpec: ExecutedSpec[E, String, S], depth: Int): UIO[Seq[RenderedResult]] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(label, executedSpecs, _) =>
           for {
@@ -73,7 +73,7 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply[E, S](): TestReporter[String, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[String, E, S]) =>
+  def apply[E, S](): TestReporter[E, String, S] = { (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
     for {
       res <- render(executedSpec.mapLabel(_.toString))
       _   <- ZIO.foreach(res.flatMap(_.rendered))(TestLogger.logLine)
@@ -81,8 +81,8 @@ object DefaultTestReporter {
     } yield ()
   }
 
-  private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]): URIO[TestLogger, Unit] = {
-    def loop(executedSpec: ExecutedSpec[String, E, S]): UIO[(Int, Int, Int)] =
+  private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, Unit] = {
+    def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {

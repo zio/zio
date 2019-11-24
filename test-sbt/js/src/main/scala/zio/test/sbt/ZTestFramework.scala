@@ -32,6 +32,11 @@ final class ZTestFramework extends Framework {
     testClassLoader: ClassLoader,
     send: String => Unit
   ): Runner =
-    new ZSlaveTestRunner(args, remoteArgs, testClassLoader, SendSummary.fromSend(send))
+    new ZSlaveTestRunner(
+      args,
+      remoteArgs,
+      testClassLoader,
+      SendSummary.fromSend(summary => send(SummaryProtocol.serialize(summary)))
+    )
 
 }

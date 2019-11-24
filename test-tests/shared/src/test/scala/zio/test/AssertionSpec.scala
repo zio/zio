@@ -1,5 +1,7 @@
 package zio.test
 
+import scala.collection.immutable.SortedSet
+
 import zio.Exit
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -99,6 +101,9 @@ object AssertionSpec extends ZIOBaseSpec {
     } @@ failure,
     test("forall must succeed when an iterable is empty") {
       assert(Seq(), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+    },
+    test("forall must work with iterables that are not lists") {
+      assert(SortedSet(1, 2, 3), forall(isGreaterThan(0)))
     },
     test("hasAt must fail when an index is outside of a sequence range") {
       assert(Seq(1, 2, 3), hasAt(-1)(anything))
@@ -219,6 +224,12 @@ object AssertionSpec extends ZIOBaseSpec {
     },
     test("isNonEmptyString must fail when the string is empty") {
       assert("", isNonEmptyString)
+    } @@ failure,
+    test("isNull must succeed when specified value is null") {
+      assert(null, isNull)
+    },
+    test("isNull must fail when specified value is not null") {
+      assert("not null", isNull)
     } @@ failure,
     test("isRight must succeed when supplied value is Right and satisfy specified assertion") {
       assert(Right(42), isRight(equalTo(42)))
