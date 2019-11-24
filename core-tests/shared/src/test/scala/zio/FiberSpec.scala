@@ -72,9 +72,9 @@ object FiberSpec extends ZIOBaseSpec {
           exit <- Fiber.fail("fail").zip(Fiber.never).await
         } yield assert(exit, fails(equalTo("fail")))
       },
-      testM("`await(duration)` for forked IO that takes more time, should be interrupted") {
+      testM("`await(duration)` for forked IO that runs forever, should be interrupted") {
         (for {
-          f    <- IO(println("Hello Fiber")).delay(2.seconds).fork
+          f    <- IO(1).forever.fork
           exit <- f.await(1.second)
         } yield assert(exit, isInterrupted)).provide(Clock.Live)
       },
@@ -87,13 +87,22 @@ object FiberSpec extends ZIOBaseSpec {
       testM("`await(duration)` for a Fiber that is done, should succeed") {
         assertM(Fiber.done(Exit.Success(1)).await(100.millis).provide(Clock.Live), succeeds(equalTo(1)))
       },
-      testM("`await(duration)` for a Future that will take more time to complete, should fail") {
+      testM("`await(duration)` for a Future that will take more time to complete, should be interrupted") {
         assertM(
           Fiber
             .fromFuture(Future { Thread.sleep(2000); println("Hello") }(concurrent.ExecutionContext.global))
             .await(1.millis)
             .provide(Clock.Live),
           isInterrupted
+        )
+      },
+      testM("`await(duration)` for a Future that will complete before the duration, should succeed") {
+        assertM(
+          Fiber
+            .fromFuture(Future(1)(concurrent.ExecutionContext.global))
+            .await(100.millis)
+            .provide(Clock.Live),
+          succeeds(equalTo(1))
         )
       },
       testM("`join`") {
