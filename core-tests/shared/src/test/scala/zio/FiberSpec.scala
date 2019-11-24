@@ -1,6 +1,5 @@
 package zio
 
-import scala.concurrent.Future
 import zio.LatchOps._
 import zio.clock.Clock
 import zio.duration._
