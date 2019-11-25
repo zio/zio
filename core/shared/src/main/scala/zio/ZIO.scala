@@ -1001,12 +1001,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
     rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
   ): ZIO[R1, E2, C] =
-    new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
-      self,
-      that,
-      leftDone,
-      rightDone
-    )
+    ZIO.nonDaemonMask { restore =>
+      new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
+        self,
+        that,
+        (exit, fiber) => restore(leftDone(exit, fiber)),
+        (exit, fiber) => restore(rightDone(exit, fiber))
+      )
+    }
 
   /**
    * Attach a wrapping trace pointing to this location in case of error.
@@ -1853,6 +1855,14 @@ private[zio] trait ZIOFunctions extends Serializable {
     ZIO.collectAllParN(n)(in).map(_.collect(f))
 
   /**
+   * Makes the effect daemon, but passes it a restore function that
+   * can be used to restore the inherited daemon status from whatever region
+   * the effect is composed into.
+   */
+  final def daemonMask[R, E, A](k: ZIO.DaemonStatusRestore => ZIO[R, E, A]): ZIO[R, E, A] =
+    checkDaemon(status => k(new ZIO.DaemonStatusRestore(status)).daemon)
+
+  /**
    * Returns information about the current fiber, such as its identity.
    */
   final def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeed)
@@ -2333,6 +2343,14 @@ private[zio] trait ZIOFunctions extends Serializable {
     in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
 
   /**
+   * Makes the effect non-daemon, but passes it a restore function that
+   * can be used to restore the inherited daemon status from whatever region
+   * the effect is composed into.
+   */
+  final def nonDaemonMask[R, E, A](k: ZIO.DaemonStatusRestore => ZIO[R, E, A]): ZIO[R, E, A] =
+    checkDaemon(status => k(new ZIO.DaemonStatusRestore(status)).nonDaemon)
+
+  /**
    * Returns an effect with the empty value.
    */
   final val none: UIO[Option[Nothing]] = succeed(None)
@@ -2622,6 +2640,11 @@ object ZIO extends ZIOFunctions {
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.interruptStatus(flag)
+  }
+
+  final class DaemonStatusRestore(private val status: zio.DaemonStatus) extends AnyVal {
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      zio.daemonStatus(status)
   }
 
   final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
