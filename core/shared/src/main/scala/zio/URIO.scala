@@ -140,6 +140,12 @@ object URIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[R, A](k: ZIO.DaemonStatusRestore => URIO[R, A]): URIO[R, A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -383,6 +389,12 @@ object URIO {
    * @see [[zio.ZIO.never]]
    */
   final val never: UIO[Nothing] = ZIO.never
+
+  /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[R, A](k: ZIO.DaemonStatusRestore => URIO[R, A]): URIO[R, A] =
+    ZIO.nonDaemonMask(k)
 
   /**
    * @see [[zio.ZIO.none]]
