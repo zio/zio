@@ -18,6 +18,7 @@ package zio
 
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
+import java.nio._
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -652,6 +653,41 @@ object Chunk {
     }
 
   /**
+   * Returns a chunk backed by a [[java.nio.ByteBuffer]].
+   */
+  final def fromByteBuffer(buffer: ByteBuffer): Chunk[Byte] = ByteBufferChunk(buffer)
+
+  /**
+   * Returns a chunk backed by a [[java.nio.CharBuffer]].
+   */
+  final def fromCharBuffer(buffer: CharBuffer): Chunk[Char] = CharBufferChunk(buffer)
+
+  /**
+   * Returns a chunk backed by a [[java.nio.DoubleBuffer]].
+   */
+  final def fromDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] = DoubleBufferChunk(buffer)
+
+  /**
+   * Returns a chunk backed by a [[java.nio.FloatBuffer]].
+   */
+  final def fromFloatBuffer(buffer: FloatBuffer): Chunk[Float] = FloatBufferChunk(buffer)
+
+  /**
+   * Returns a chunk backed by a [[java.nio.IntBuffer]].
+   */
+  final def fromIntBuffer(buffer: IntBuffer): Chunk[Int] = IntBufferChunk(buffer)
+
+  /**
+   * Returns a chunk backed by a [[java.nio.LongBuffer]].
+   */
+  final def fromLongBuffer(buffer: LongBuffer): Chunk[Long] = LongBufferChunk(buffer)
+
+  /**
+   * Returns a chunk backed by a [[java.nio.ShortBuffer]].
+   */
+  final def fromShortBuffer(buffer: ShortBuffer): Chunk[Short] = ShortBufferChunk(buffer)
+
+  /**
    * Returns a singleton chunk, eagerly evaluated.
    */
   final def single[A](a: A): Chunk[A] = Singleton(a)
@@ -665,12 +701,19 @@ object Chunk {
    * Returns the `ClassTag` for the element type of the chunk.
    */
   private final def classTagOf[A](chunk: Chunk[A]): ClassTag[A] = chunk match {
-    case x: Arr[A]         => x.classTag
-    case x: Concat[A]      => x.classTag
-    case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
-    case x: Singleton[A]   => x.classTag
-    case x: Slice[A]       => x.classTag
-    case x: VectorChunk[A] => x.classTag
+    case x: Arr[A]            => x.classTag
+    case x: Concat[A]         => x.classTag
+    case Empty                => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+    case x: Singleton[A]      => x.classTag
+    case x: Slice[A]          => x.classTag
+    case x: VectorChunk[A]    => x.classTag
+    case x: ByteBufferChunk   => x.classTag.asInstanceOf[ClassTag[A]]
+    case x: CharBufferChunk   => x.classTag.asInstanceOf[ClassTag[A]]
+    case x: DoubleBufferChunk => x.classTag.asInstanceOf[ClassTag[A]]
+    case x: FloatBufferChunk  => x.classTag.asInstanceOf[ClassTag[A]]
+    case x: IntBufferChunk    => x.classTag.asInstanceOf[ClassTag[A]]
+    case x: LongBufferChunk   => x.classTag.asInstanceOf[ClassTag[A]]
+    case x: ShortBufferChunk  => x.classTag.asInstanceOf[ClassTag[A]]
   }
 
   private case class Arr[A](private val array: Array[A]) extends Chunk[A] {
@@ -1089,6 +1132,181 @@ object Chunk {
     override def foreach(f: A => Unit): Unit = vector.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
+  }
+
+  private case class ByteBufferChunk(private val buffer: ByteBuffer) extends Chunk[Byte] {
+    implicit val classTag: ClassTag[Byte] = ClassTag.Byte
+
+    override val length: Int = buffer.limit()
+
+    override def loopWhile(off: Int, len: Int)(p: Byte => Boolean)(f: Byte => Unit): Unit = {
+      var i    = off
+      val end  = math.min(off + len, length)
+      var loop = true
+      while (i < end && loop) {
+        val a = buffer.get(i)
+        if (p(a)) {
+          f(a)
+        } else {
+          loop = false
+        }
+        i += 1
+      }
+    }
+
+    override def toArray[A1 >: Byte](n: Int, dest: Array[A1]): Unit = {
+      val _ = buffer.get(dest.asInstanceOf[Array[Byte]], n, length)
+    }
+  }
+
+  private case class CharBufferChunk(private val buffer: CharBuffer) extends Chunk[Char] {
+    implicit val classTag: ClassTag[Char] = ClassTag.Char
+
+    override val length: Int = buffer.limit()
+
+    override def loopWhile(off: Int, len: Int)(p: Char => Boolean)(f: Char => Unit): Unit = {
+      var i    = off
+      val end  = math.min(off + len, length)
+      var loop = true
+      while (i < end && loop) {
+        val a = buffer.get(i)
+        if (p(a)) {
+          f(a)
+        } else {
+          loop = false
+        }
+        i += 1
+      }
+    }
+
+    override def toArray[A1 >: Char](n: Int, dest: Array[A1]): Unit = {
+      val _ = buffer.get(dest.asInstanceOf[Array[Char]], n, length)
+    }
+  }
+
+  private case class DoubleBufferChunk(private val buffer: DoubleBuffer) extends Chunk[Double] {
+    implicit val classTag: ClassTag[Double] = ClassTag.Double
+
+    override val length: Int = buffer.limit()
+
+    override def loopWhile(off: Int, len: Int)(p: Double => Boolean)(f: Double => Unit): Unit = {
+      var i    = off
+      val end  = math.min(off + len, length)
+      var loop = true
+      while (i < end && loop) {
+        val a = buffer.get(i)
+        if (p(a)) {
+          f(a)
+        } else {
+          loop = false
+        }
+        i += 1
+      }
+    }
+
+    override def toArray[A1 >: Double](n: Int, dest: Array[A1]): Unit = {
+      val _ = buffer.get(dest.asInstanceOf[Array[Double]], n, length)
+    }
+  }
+
+  private case class FloatBufferChunk(private val buffer: FloatBuffer) extends Chunk[Float] {
+    implicit val classTag: ClassTag[Float] = ClassTag.Float
+
+    override val length: Int = buffer.limit()
+
+    override def loopWhile(off: Int, len: Int)(p: Float => Boolean)(f: Float => Unit): Unit = {
+      var i    = off
+      val end  = math.min(off + len, length)
+      var loop = true
+      while (i < end && loop) {
+        val a = buffer.get(i)
+        if (p(a)) {
+          f(a)
+        } else {
+          loop = false
+        }
+        i += 1
+      }
+    }
+
+    override def toArray[A1 >: Float](n: Int, dest: Array[A1]): Unit = {
+      val _ = buffer.get(dest.asInstanceOf[Array[Float]], n, length)
+    }
+  }
+
+  private case class IntBufferChunk(private val buffer: IntBuffer) extends Chunk[Int] {
+    implicit val classTag: ClassTag[Int] = ClassTag.Int
+
+    override val length: Int = buffer.limit()
+
+    override def loopWhile(off: Int, len: Int)(p: Int => Boolean)(f: Int => Unit): Unit = {
+      var i    = off
+      val end  = math.min(off + len, length)
+      var loop = true
+      while (i < end && loop) {
+        val a = buffer.get(i)
+        if (p(a)) {
+          f(a)
+        } else {
+          loop = false
+        }
+        i += 1
+      }
+    }
+
+    override def toArray[A1 >: Int](n: Int, dest: Array[A1]): Unit = {
+      val _ = buffer.get(dest.asInstanceOf[Array[Int]], n, length)
+    }
+  }
+
+  private case class LongBufferChunk(private val buffer: LongBuffer) extends Chunk[Long] {
+    implicit val classTag: ClassTag[Long] = ClassTag.Long
+
+    override val length: Int = buffer.limit()
+
+    override def loopWhile(off: Int, len: Int)(p: Long => Boolean)(f: Long => Unit): Unit = {
+      var i    = off
+      val end  = math.min(off + len, length)
+      var loop = true
+      while (i < end && loop) {
+        val a = buffer.get(i)
+        if (p(a)) {
+          f(a)
+        } else {
+          loop = false
+        }
+        i += 1
+      }
+    }
+
+    override def toArray[A1 >: Long](n: Int, dest: Array[A1]): Unit = {
+      val _ = buffer.get(dest.asInstanceOf[Array[Long]], n, length)
+    }
+  }
+
+  private case class ShortBufferChunk(private val buffer: ShortBuffer) extends Chunk[Short] {
+    implicit val classTag: ClassTag[Short] = ClassTag.Short
+
+    override val length: Int = buffer.limit()
+
+    override def loopWhile(off: Int, len: Int)(p: Short => Boolean)(f: Short => Unit): Unit = {
+      var i    = off
+      val end  = math.min(off + len, length)
+      var loop = true
+      while (i < end && loop) {
+        val a = buffer.get(i)
+        if (p(a)) {
+          f(a)
+        } else {
+          loop = false
+        }
+        i += 1
+      }
+    }
+
+    override def toArray[A1 >: Short](n: Int, dest: Array[A1]): Unit = {
+      val _ = buffer.get(dest.asInstanceOf[Array[Short]], n, length)
+    }
   }
 
   private[zio] object Tags {

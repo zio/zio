@@ -5,6 +5,7 @@ import zio.random.Random
 import zio.test._
 import zio.test.Assertion.{ equalTo, isLeft }
 import ChunkUtils._
+import java.nio._
 
 case class Value(i: Int) extends AnyVal
 
@@ -15,6 +16,41 @@ object ChunkSpec extends ZIOBaseSpec {
       check(chunkWithIndex(Gen.unit)) {
         case (chunk, i) =>
           assert(chunk.apply(i), equalTo(chunk.toSeq.apply(i)))
+      }
+    },
+    testM("byte buffer") {
+      check(Gen.vectorOf(Gen.anyByte).map(_.toArray)) { arr =>
+        assert(Chunk.fromByteBuffer(ByteBuffer.wrap(arr)).toArray, equalTo(arr))
+      }
+    },
+    testM("char buffer") {
+      check(Gen.vectorOf(Gen.anyChar).map(_.toArray)) { arr =>
+        assert(Chunk.fromCharBuffer(CharBuffer.wrap(arr)).toArray, equalTo(arr))
+      }
+    },
+    testM("double buffer") {
+      check(Gen.vectorOf(Gen.double(Double.MinValue, Double.MaxValue)).map(_.toArray)) { arr =>
+        assert(Chunk.fromDoubleBuffer(DoubleBuffer.wrap(arr)).toArray, equalTo(arr))
+      }
+    },
+    testM("float buffer") {
+      check(Gen.vectorOf(Gen.anyFloat).map(_.toArray)) { arr =>
+        assert(Chunk.fromFloatBuffer(FloatBuffer.wrap(arr)).toArray, equalTo(arr))
+      }
+    },
+    testM("int buffer") {
+      check(Gen.vectorOf(Gen.anyInt).map(_.toArray)) { arr =>
+        assert(Chunk.fromIntBuffer(IntBuffer.wrap(arr)).toArray, equalTo(arr))
+      }
+    },
+    testM("long buffer") {
+      check(Gen.vectorOf(Gen.anyLong).map(_.toArray)) { arr =>
+        assert(Chunk.fromLongBuffer(LongBuffer.wrap(arr)).toArray, equalTo(arr))
+      }
+    },
+    testM("short buffer") {
+      check(Gen.vectorOf(Gen.anyShort).map(_.toArray)) { arr =>
+        assert(Chunk.fromShortBuffer(ShortBuffer.wrap(arr)).toArray, equalTo(arr))
       }
     },
     testM("length") {
