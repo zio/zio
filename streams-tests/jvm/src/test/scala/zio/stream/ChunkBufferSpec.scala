@@ -252,6 +252,48 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromLongBuffer(buffer), equalTo(Chunk.fromArray(array)))
         }
       }
+    ),
+    suite("ShortBuffer")(
+      testM("short array buffer no copying") {
+        UIO.effectTotal {
+          val array  = Array(1, 2, 3).map(_.toShort)
+          val buffer = ShortBuffer.wrap(array)
+          assert(Chunk.fromShortBuffer(buffer), equalTo(Chunk(1, 2, 3)))
+        }
+      },
+      testM("short array buffer partial copying") {
+        UIO.effectTotal {
+          val buffer = ShortBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toShort)
+            i += 1
+          }
+          buffer.position(5)
+          buffer.limit(8)
+          assert(Chunk.fromShortBuffer(buffer), equalTo(Chunk(5, 6, 7)))
+        }
+      },
+      testM("direct short buffer copying") {
+        UIO.effectTotal {
+          val byteBuffer = ByteBuffer.allocateDirect(20)
+          var i          = 0
+          while (i < 20) {
+            byteBuffer.put(i, i.toByte)
+            i += 1
+          }
+          val buffer = byteBuffer.asShortBuffer()
+          val array  = Array.ofDim[Short](3)
+          i = 5
+          while (i < 8) {
+            array(i - 5) = buffer.get(i)
+            i += 1
+          }
+          buffer.position(5)
+          buffer.limit(8)
+          assert(Chunk.fromShortBuffer(buffer), equalTo(Chunk.fromArray(array)))
+        }
+      }
     )
   )
 }
