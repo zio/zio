@@ -18,8 +18,7 @@ package zio.test
 
 import scala.reflect.ClassTag
 
-import zio.Cause
-import zio.Exit
+import zio.{ Cause, Exit, ZIO }
 import zio.test.Assertion._
 import zio.test.Assertion.Render._
 
@@ -81,7 +80,7 @@ class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult
   /**
    * Tests the assertion to see if it would succeed on the given element.
    */
-  final def test(a: A): Boolean =
+  final def test(a: A): ZIO[Any, Nothing, Boolean] =
     run(a).isSuccess
 
   /**
@@ -176,8 +175,23 @@ object Assertion {
    */
   final def assertion[A](name: String)(params: RenderParam*)(run: (=> A) => Boolean): Assertion[A] = {
     lazy val assertion: Assertion[A] = assertionDirect(name)(params: _*) { actual =>
-      if (run(actual)) BoolAlgebra.success(AssertionValue(assertion, actual))
-      else BoolAlgebra.failure(AssertionValue(assertion, actual))
+      if (run(actual)) BoolAlgebraM.success(AssertionValue(assertion, actual))
+      else BoolAlgebraM.failure(AssertionValue(assertion, actual))
+    }
+    assertion
+  }
+
+  /**
+   * Makes a new `Assertion` from a pretty-printing and a function.
+   */
+  final def assertionM[R, E, A](
+    name: String
+  )(params: RenderParam*)(run: (=> A) => ZIO[Any, Nothing, Boolean]): Assertion[A] = {
+    lazy val assertion: Assertion[A] = assertionDirect(name)(params: _*) { actual =>
+      BoolAlgebraM.fromEffect(run(actual)).flatMap { p =>
+        if (p) BoolAlgebraM.success(AssertionValue(assertion, actual))
+        else BoolAlgebraM.failure(AssertionValue(assertion, actual))
+      }
     }
     assertion
   }
@@ -204,9 +218,28 @@ object Assertion {
     name: String
   )(params: RenderParam*)(
     assertion: Assertion[B]
-  )(get: (=> A) => Option[B], orElse: AssertionValue => AssertResult = BoolAlgebra.failure): Assertion[A] = {
+  )(get: (=> A) => Option[B], orElse: AssertionValue => AssertResult = BoolAlgebraM.failure): Assertion[A] = {
     lazy val result: Assertion[A] = assertionDirect(name)(params: _*) { a =>
       get(a) match {
+        case Some(b) =>
+          assertion.run(b).as(AssertionValue(new Assertion(assertion.render, assertion.run), b))
+        case None =>
+          orElse(AssertionValue(result, a))
+      }
+    }
+    result
+  }
+
+  final def assertionRecM[R, E, A, B](
+    name: String
+  )(params: RenderParam*)(
+    assertion: Assertion[B]
+  )(
+    get: (=> A) => ZIO[Any, Nothing, Option[B]],
+    orElse: AssertionValue => AssertResult = BoolAlgebraM.failure
+  ): Assertion[A] = {
+    lazy val result: Assertion[A] = assertionDirect(name)(params: _*) { a =>
+      BoolAlgebraM.fromEffect(get(a)).flatMap {
         case Some(b) =>
           assertion.run(b).as(AssertionValue(new Assertion(assertion.render, assertion.run), b))
         case None =>
@@ -285,7 +318,15 @@ object Assertion {
    * satisfying the given assertion.
    */
   final def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("exists")(param(assertion))(assertion)(_.find(assertion.test))
+    Assertion.assertionRecM("exists")(param(assertion))(assertion) { actual =>
+      ZIO
+        .foreach(actual) { a =>
+          assertion.test(a).map { p =>
+            if (p) Some(a) else None
+          }
+        }
+        .map(_.find(_.isDefined).flatten)
+    }
 
   /**
    * Makes a new assertion that requires an exit value to fail.
@@ -311,16 +352,17 @@ object Assertion {
    * satisfying the given assertion.
    */
   final def forall[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("forall")(param(assertion))(assertion)(
+    Assertion.assertionRecM("forall")(param(assertion))(assertion)(
       {
         case head :: tail =>
-          Some(tail.foldLeft(head) {
-            case (result, next) if assertion.test(result) => next
-            case (acc, _)                                 => acc
-          })
-        case Nil => None
+          ZIO.foldLeft(head :: tail)(Option.empty[A]) { (_, a) =>
+            assertion.test(a).map { p =>
+              if (p) None else Some(a)
+            }
+          }
+        case Nil => ZIO.succeed(None)
       },
-      BoolAlgebra.success
+      BoolAlgebraM.success
     )
 
   /**
@@ -383,7 +425,7 @@ object Assertion {
    * by the specified assertion.
    */
   final def hasSize[A](assertion: Assertion[Int]): Assertion[Iterable[A]] =
-    Assertion.assertion("hasSize")(param(assertion)) { actual =>
+    Assertion.assertionM("hasSize")(param(assertion)) { actual =>
       assertion.test(actual.size)
     }
 
@@ -561,7 +603,7 @@ object Assertion {
    * Makes a new assertion that negates the specified assertion.
    */
   final def not[A](assertion: Assertion[A]): Assertion[A] =
-    new Assertion(assertion.render, a => BoolAlgebra.not(assertion.run(a)))
+    new Assertion(assertion.render, a => !assertion.run(a))
 
   /**
    * Makes a new assertion that always fails.

@@ -199,11 +199,11 @@ object AssertionSpec
         test("negate must succeed when negation of assertion is true") {
           assert(sampleUser, nameStartsWithA.negate)
         },
-        test("test must return true when given element satisfy assertion") {
-          assert(nameStartsWithU.test(sampleUser), isTrue)
+        testM("test must return true when given element satisfy assertion") {
+          assertM(nameStartsWithU.test(sampleUser), isTrue)
         },
-        test("test must return false when given element does not satisfy assertion") {
-          assert(nameStartsWithA.test(sampleUser), isFalse)
+        testM("test must return false when given element does not satisfy assertion") {
+          assertM(nameStartsWithA.test(sampleUser), isFalse)
         },
         test("containsString must succeed when string is found") {
           assert("this is a value", containsString("is a"))
@@ -288,12 +288,12 @@ object AssertionSpec
         test("assertCompiles must fail when string is not valid Scala code") {
           assertCompiles("1 ++ 1")
         } @@ failure,
-        test("assertCompiles must report error messages on Scala 2") {
-          assert(
-            assertCompiles("1 ++ 1").failures match {
+        testM("assertCompiles must report error messages on Scala 2") {
+          assertM(
+            assertCompiles("1 ++ 1").run.map(_.failures match {
               case Some(Value(failure)) => Some(failure.assertion.head.value)
               case _                    => None
-            },
+            }),
             isSome(equalTo(Some("value ++ is not a member of Int")))
           )
         } @@ scala2Only

@@ -47,27 +47,32 @@ object DefaultTestReporter {
             rest <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
           } yield rendered(Suite, label, status, depth, renderedLabel) +: rest
         case Spec.TestCase(label, result) =>
-          result.map {
+          result.flatMap {
             case Right(TestSuccess.Succeeded(_)) =>
-              Seq(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
+              UIO.succeed(Seq(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))))
             case Right(TestSuccess.Ignored) =>
-              Seq(rendered(Test, label, Ignored, depth))
+              UIO.succeed(Seq(rendered(Test, label, Ignored, depth)))
             case Left(TestFailure.Assertion(result)) =>
-              Seq(
-                result.fold(
-                  details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-                )(_ && _, _ || _, !_)
+              result.run.map(
+                result =>
+                  Seq(
+                    result.fold(
+                      details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
+                    )(_ && _, _ || _, !_)
+                  )
               )
             case Left(TestFailure.Runtime(cause)) =>
-              Seq(
-                rendered(
-                  Test,
-                  label,
-                  Failed,
-                  depth,
-                  (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth))): _*
+              renderCause(cause, depth).map { string =>
+                Seq(
+                  rendered(
+                    Test,
+                    label,
+                    Failed,
+                    depth,
+                    (Seq(renderFailureLabel(label, depth)) ++ Seq(string)): _*
+                  )
                 )
-              )
+              }
           }
       }
     loop(executedSpec, 0)
@@ -165,40 +170,45 @@ object DefaultTestReporter {
         cyan(fragment.assertion.toString)
     }
 
-  private def renderSatisfied(fragment: AssertionValue): String =
-    if (fragment.assertion.test(fragment.value)) " satisfied "
-    else " did not satisfy "
-
-  private def renderCause(cause: Cause[Any], offset: Int): String =
-    cause.dieOption match {
-      case Some(TestTimeoutException(message)) => message
-      case Some(exception: MockException) =>
-        renderMockException(exception).split("\n").map(withOffset(offset + tabSize)).mkString("\n")
-      case _ => cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n")
+  private def renderSatisfied(fragment: AssertionValue): UIO[String] =
+    fragment.assertion.test(fragment.value).map { p =>
+      if (p) " satisfied " else " did not satisfy "
     }
 
-  private def renderMockException(exception: MockException): String =
+  private def renderCause(cause: Cause[Any], offset: Int): UIO[String] =
+    cause.dieOption match {
+      case Some(TestTimeoutException(message)) => UIO.succeed(message)
+      case Some(exception: MockException) =>
+        renderMockException(exception).map(_.split("\n").map(withOffset(offset + tabSize)).mkString("\n"))
+      case _ => UIO.succeed(cause.prettyPrint.split("\n").map(withOffset(offset + tabSize)).mkString("\n"))
+    }
+
+  private def renderMockException(exception: MockException): UIO[String] =
     exception match {
       case InvalidArgumentsException(method, args, assertion) =>
         renderTestFailure(s"$method called with invalid arguments", assert(args, assertion))
 
       case InvalidMethodException(method, expectedMethod, assertion) =>
-        List(
-          red(s"- invalid call to $method"),
-          renderExpectation(expectedMethod, assertion, tabSize)
-        ).mkString("\n")
+        UIO.succeed(
+          List(
+            red(s"- invalid call to $method"),
+            renderExpectation(expectedMethod, assertion, tabSize)
+          ).mkString("\n")
+        )
 
       case UnmetExpectationsException(expectations) =>
-        (red(s"- unmet expectations") :: expectations.map {
+        UIO.succeed((red(s"- unmet expectations") :: expectations.map {
           case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
-        }).mkString("\n")
+        }).mkString("\n"))
     }
 
-  private def renderTestFailure(label: String, testResult: TestResult): String =
-    testResult.failures.fold("")(
-      _.fold(
-        details => rendered(Test, label, Failed, 0, renderFailure(label, 0, details): _*)
-      )(_ && _, _ || _, !_).rendered.mkString("\n")
+  private def renderTestFailure(label: String, testResult: TestResult): UIO[String] =
+    testResult.run.map(
+      _.failures.fold("")(
+        _.fold(
+          details => rendered(Test, label, Failed, 0, renderFailure(label, 0, details): _*)
+        )(_ && _, _ || _, !_).rendered.mkString("\n")
+      )
     )
 
   private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[A], offset: Int): String =
