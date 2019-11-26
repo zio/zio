@@ -66,9 +66,9 @@ object ChunkBufferSpec extends ZIOBaseSpec {
       },
       testM("direct char buffer copying") {
         UIO.effectTotal {
-          val byteBuffer = ByteBuffer.allocateDirect(20)
+          val byteBuffer = ByteBuffer.allocateDirect(java.lang.Character.BYTES * 10)
           var i          = 0
-          while (i < 20) {
+          while (i < java.lang.Character.BYTES * 10) {
             byteBuffer.put(i, i.toByte)
             i += 1
           }
@@ -108,9 +108,9 @@ object ChunkBufferSpec extends ZIOBaseSpec {
       },
       testM("direct double buffer copying") {
         UIO.effectTotal {
-          val byteBuffer = ByteBuffer.allocateDirect(80)
+          val byteBuffer = ByteBuffer.allocateDirect(java.lang.Double.BYTES * 10)
           var i          = 0
-          while (i < 80) {
+          while (i < java.lang.Double.BYTES * 10) {
             byteBuffer.put(i, i.toByte)
             i += 1
           }
@@ -150,9 +150,9 @@ object ChunkBufferSpec extends ZIOBaseSpec {
       },
       testM("direct float buffer copying") {
         UIO.effectTotal {
-          val byteBuffer = ByteBuffer.allocateDirect(40)
+          val byteBuffer = ByteBuffer.allocateDirect(java.lang.Float.BYTES * 10)
           var i          = 0
-          while (i < 40) {
+          while (i < java.lang.Float.BYTES * 10) {
             byteBuffer.put(i, i.toByte)
             i += 1
           }
@@ -192,9 +192,9 @@ object ChunkBufferSpec extends ZIOBaseSpec {
       },
       testM("direct int buffer copying") {
         UIO.effectTotal {
-          val byteBuffer = ByteBuffer.allocateDirect(40)
+          val byteBuffer = ByteBuffer.allocateDirect(java.lang.Integer.BYTES * 10)
           var i          = 0
-          while (i < 40) {
+          while (i < java.lang.Integer.BYTES * 10) {
             byteBuffer.put(i, i.toByte)
             i += 1
           }
@@ -234,9 +234,9 @@ object ChunkBufferSpec extends ZIOBaseSpec {
       },
       testM("direct long buffer copying") {
         UIO.effectTotal {
-          val byteBuffer = ByteBuffer.allocateDirect(80)
+          val byteBuffer = ByteBuffer.allocateDirect(java.lang.Long.BYTES * 10)
           var i          = 0
-          while (i < 80) {
+          while (i < java.lang.Long.BYTES * 10) {
             byteBuffer.put(i, i.toByte)
             i += 1
           }
@@ -276,9 +276,9 @@ object ChunkBufferSpec extends ZIOBaseSpec {
       },
       testM("direct short buffer copying") {
         UIO.effectTotal {
-          val byteBuffer = ByteBuffer.allocateDirect(20)
+          val byteBuffer = ByteBuffer.allocateDirect(java.lang.Short.BYTES * 10)
           var i          = 0
-          while (i < 20) {
+          while (i < java.lang.Short.BYTES * 10) {
             byteBuffer.put(i, i.toByte)
             i += 1
           }
