@@ -18,6 +18,7 @@ package zio
 
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
+import java.nio._
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -689,6 +690,12 @@ object Chunk {
   final def fromArray[A](array: Array[A]): Chunk[A] = Arr(array)
 
   /**
+   * Returns a chunk backed by a [[java.nio.ByteBuffer]].
+   */
+  final def fromByteBuffer(buffer: ByteBuffer): Chunk[Byte] =
+    Buff.arrayBacked(buffer).getOrElse(Buff.manualByteBuffer(buffer))
+
+  /**
    * Returns a chunk backed by an iterable.
    */
   final def fromIterable[A](it: Iterable[A]): Chunk[A] =
@@ -1115,6 +1122,46 @@ object Chunk {
     override def foreach(f: A => Unit): Unit = vector.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
+  }
+
+  private[zio] object Buff {
+    final def arrayBacked[A](buffer: Buffer): Option[Chunk[A]] =
+      if (!buffer.hasArray()) None
+      else {
+        val pos = buffer.position()
+        val lim = buffer.limit()
+        val cap = buffer.capacity()
+        val arr = buffer.array().asInstanceOf[Array[A]]
+        val off = buffer.arrayOffset()
+
+        val chunk = if (off == 0 && pos == 0 && cap == arr.length && lim == cap) {
+          // best case, reuse the underlying array
+          fromArray(arr)
+        } else {
+          implicit val classTag: ClassTag[A] = ClassTag(arr.getClass.getComponentType)
+          val len                            = lim - pos
+          val dest                           = Array.ofDim[A](len)
+          Array.copy(arr, pos, dest, 0, len)
+          fromArray(dest)
+        }
+
+        Some(chunk.asInstanceOf[Chunk[A]])
+      }
+
+    final def manualByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
+      val pos  = buffer.position()
+      val lim  = buffer.limit()
+      val len  = lim - pos
+      val dest = Array.ofDim[Byte](len)
+      var i    = pos
+      var j    = 0
+      while (i < lim) {
+        dest(j) = buffer.get(i)
+        i += 1
+        j += 1
+      }
+      Chunk.fromArray(dest)
+    }
   }
 
   private[zio] object Tags {
