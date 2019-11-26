@@ -696,6 +696,12 @@ object Chunk {
     Buff.arrayBacked(buffer).getOrElse(Buff.manualByteBuffer(buffer))
 
   /**
+   * Returns a chunk backed by a [[java.nio.CharBuffer]].
+   */
+  final def fromCharBuffer(buffer: CharBuffer): Chunk[Char] =
+    Buff.arrayBacked(buffer).getOrElse(Buff.manualCharBuffer(buffer))
+
+  /**
    * Returns a chunk backed by an iterable.
    */
   final def fromIterable[A](it: Iterable[A]): Chunk[A] =
@@ -1149,18 +1155,33 @@ object Chunk {
       }
 
     final def manualByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
-      val pos  = buffer.position()
-      val lim  = buffer.limit()
-      val len  = lim - pos
-      val dest = Array.ofDim[Byte](len)
-      var i    = pos
-      var j    = 0
+      val pos = buffer.position()
+      val lim = buffer.limit()
+      val len = lim - pos
+      val dst = Array.ofDim[Byte](len)
+      var i   = pos
+      var j   = 0
       while (i < lim) {
-        dest(j) = buffer.get(i)
+        dst(j) = buffer.get(i)
         i += 1
         j += 1
       }
-      Chunk.fromArray(dest)
+      Chunk.fromArray(dst)
+    }
+
+    final def manualCharBuffer(buffer: CharBuffer): Chunk[Char] = {
+      val pos = buffer.position()
+      val lim = buffer.limit()
+      val len = lim - pos
+      val dst = Array.ofDim[Char](len)
+      var i   = pos
+      var j   = 0
+      while (i < lim) {
+        dst(j) = buffer.get(i)
+        i += 1
+        j += 1
+      }
+      Chunk.fromArray(dst)
     }
   }
 
