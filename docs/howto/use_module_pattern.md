@@ -87,7 +87,7 @@ trait UserRepository {
 
 In this example we're accessing the environment to retrieve the `Database` service, from which we run the effect `connect` to retrieve a connection.
 
-> **Note:** even if we did not explicitly typed `find` method, the compier would infer the correct `R` type to be `Database with DatabaseConfig`.
+> **Note:** even if we did not explicitly typed `find` method, the compiler would infer the correct `R` type to be `Database with DatabaseConfig`.
 
 ## Module pattern
 
@@ -192,7 +192,7 @@ trait NewsletterLive extends Newsletter {
 
 In this example the dependency on `EmailRenderer.Service` and `Postman.Service` is expressed as abstract value, forceing the programmer to provide
 instances of these services when constructing the environment. Note that `Newsletter` _module_ does not depend on anything. Only `NewsletterLive`
-implementation depends on those. This allows you to create other implementations with diffrent (or zero) dependencies, like a helper object to access
+implementation depends on those. This allows you to create other implementations with different (or zero) dependencies, like a helper object to access
 service effects:
 
 ```scala mdoc:silent
@@ -207,7 +207,7 @@ object Helper extends Newsletter.Service[Newsletter] {
 > This is to have a nice syntax to access effects like `Newsletter.>.send(id, recipients)`.
 > You can use the `@accessible` macro from [zio-macros][link-zio-macros] to derrive this boilerplate code automatically.
 
-Should you need to create a test implementation it will most likely have diffrent dependencies (or none at all).
+Should you need to create a test implementation it will most likely have different dependencies (or none at all).
 
 ## Advantages using module pattern
 
