@@ -1,6 +1,5 @@
-package zio.stream
+package zio
 
-import zio.{ Chunk, UIO, ZIOBaseSpec }
 import zio.test._
 import zio.test.Assertion.equalTo
 import java.nio._
