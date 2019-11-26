@@ -126,6 +126,48 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromDoubleBuffer(buffer), equalTo(Chunk.fromArray(array)))
         }
       }
+    ),
+    suite("FloatBuffer")(
+      testM("float array buffer no copying") {
+        UIO.effectTotal {
+          val array  = Array(1, 2, 3).map(_.toFloat)
+          val buffer = FloatBuffer.wrap(array)
+          assert(Chunk.fromFloatBuffer(buffer), equalTo(Chunk(1, 2, 3)))
+        }
+      },
+      testM("float array buffer partial copying") {
+        UIO.effectTotal {
+          val buffer = FloatBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toFloat)
+            i += 1
+          }
+          buffer.position(5)
+          buffer.limit(8)
+          assert(Chunk.fromFloatBuffer(buffer), equalTo(Chunk(5, 6, 7)))
+        }
+      },
+      testM("direct float buffer copying") {
+        UIO.effectTotal {
+          val byteBuffer = ByteBuffer.allocateDirect(40)
+          var i          = 0
+          while (i < 40) {
+            byteBuffer.put(i, i.toByte)
+            i += 1
+          }
+          val buffer = byteBuffer.asFloatBuffer()
+          val array  = Array.ofDim[Float](3)
+          i = 5
+          while (i < 8) {
+            array(i - 5) = buffer.get(i)
+            i += 1
+          }
+          buffer.position(5)
+          buffer.limit(8)
+          assert(Chunk.fromFloatBuffer(buffer), equalTo(Chunk.fromArray(array)))
+        }
+      }
     )
   )
 }
