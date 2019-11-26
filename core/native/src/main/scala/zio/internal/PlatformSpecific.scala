@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.internal
 
-trait AssertionVariants {
+import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 
-  /**
-   * Makes a new assertion that requires the specified string to be valid Scala
-   * code.
-   */
-  final def assertCompiles(code: String): TestResult =
-    macro Macros.assertCompiles_impl
+trait PlatformSpecific {
+  final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
 
+  final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
 }

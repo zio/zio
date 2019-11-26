@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,19 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio
 
-import scala.compiletime.testing.typeChecks
-
-trait AssertionVariants {
+trait App extends DefaultRuntime {
 
   /**
-   * Makes a new assertion that requires the specified string to be valid Scala
-   * code.
+   * The main function of the application, which will be passed the command-line
+   * arguments to the program.
    */
-  inline final def assertCompiles(inline code: String): TestResult =
-    assert(
-      if (typeChecks(code)) None else Some(errorMessage),
-      Assertion.isNone
-    )
+  def run(args: List[String]): ZIO[ZEnv, Nothing, Int]
 
-  private val errorMessage =
-    "Reporting of compilation error messages on Dotty is not currently supported due to instability of the underlying APIs."
+  /**
+   * The Scala main function, intended to be called only by the Scala runtime.
+   */
+  final def main(args0: Array[String]): Unit =
+    unsafeRunAsync(run(args0.toList))(_ => ())
 }

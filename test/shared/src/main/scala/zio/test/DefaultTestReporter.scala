@@ -16,7 +16,6 @@
 
 package zio.test
 
-import scala.annotation.tailrec
 import scala.{ Console => SConsole }
 
 import zio.duration.Duration
@@ -29,8 +28,8 @@ import zio.{ Cause, UIO, URIO, ZIO }
 
 object DefaultTestReporter {
 
-  def render[E, S](executedSpec: ExecutedSpec[String, E, S]): UIO[Seq[RenderedResult]] = {
-    def loop(executedSpec: ExecutedSpec[String, E, S], depth: Int): UIO[Seq[RenderedResult]] =
+  def render[E, S](executedSpec: ExecutedSpec[E, String, S]): UIO[Seq[RenderedResult]] = {
+    def loop(executedSpec: ExecutedSpec[E, String, S], depth: Int): UIO[Seq[RenderedResult]] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(label, executedSpecs, _) =>
           for {
@@ -53,14 +52,17 @@ object DefaultTestReporter {
             case Right(TestSuccess.Ignored) =>
               UIO.succeed(Seq(rendered(Test, label, Ignored, depth)))
             case Left(TestFailure.Assertion(result)) =>
-              result.run.map(
+              result.run.flatMap(
                 result =>
-                  Seq(
-                    result.fold(
-                      details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-                    )(_ && _, _ || _, !_)
-                  )
+                  result
+                    .fold(
+                      details =>
+                        renderFailure(label, depth, details)
+                          .map(failures => rendered(Test, label, Failed, depth, failures: _*))
+                    )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
+                    .map(Seq(_))
               )
+
             case Left(TestFailure.Runtime(cause)) =>
               renderCause(cause, depth).map { string =>
                 Seq(
@@ -78,7 +80,7 @@ object DefaultTestReporter {
     loop(executedSpec, 0)
   }
 
-  def apply[E, S](): TestReporter[String, E, S] = { (duration: Duration, executedSpec: ExecutedSpec[String, E, S]) =>
+  def apply[E, S](): TestReporter[E, String, S] = { (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
     for {
       res <- render(executedSpec.mapLabel(_.toString))
       _   <- ZIO.foreach(res.flatMap(_.rendered))(TestLogger.logLine)
@@ -86,8 +88,8 @@ object DefaultTestReporter {
     } yield ()
   }
 
-  private def logStats[L, E, S](duration: Duration, executedSpec: ExecutedSpec[L, E, S]): URIO[TestLogger, Unit] = {
-    def loop(executedSpec: ExecutedSpec[String, E, S]): UIO[(Int, Int, Int)] =
+  private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, Unit] = {
+    def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
           for {
@@ -118,17 +120,18 @@ object DefaultTestReporter {
   private def renderSuccessLabel(label: String, offset: Int) =
     withOffset(offset)(green("+") + " " + label)
 
-  private def renderFailure(label: String, offset: Int, details: FailureDetails) =
-    renderFailureLabel(label, offset) +: renderFailureDetails(details, offset)
+  private def renderFailure(label: String, offset: Int, details: FailureDetails): UIO[Seq[String]] =
+    renderFailureDetails(details, offset).map(renderFailureLabel(label, offset) +: _)
 
-  private def renderFailureLabel(label: String, offset: Int) =
+  private def renderFailureLabel(label: String, offset: Int): String =
     withOffset(offset)(red("- " + label))
 
-  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] =
+  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): UIO[Seq[String]] =
     failureDetails match {
       case FailureDetails(assertionFailureDetails, genFailureDetails) =>
-        renderGenFailureDetails(genFailureDetails, offset) ++
-          renderAssertionFailureDetails(assertionFailureDetails, offset)
+        renderAssertionFailureDetails(assertionFailureDetails, offset).map(
+          renderGenFailureDetails(genFailureDetails, offset) ++ _
+        )
     }
 
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Seq[String] =
@@ -144,30 +147,36 @@ object DefaultTestReporter {
       case None => Seq()
     }
 
-  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Seq[String] = {
-    @tailrec
-    def loop(failureDetails: List[AssertionValue], rendered: Seq[String]): Seq[String] =
+  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): UIO[Seq[String]] = {
+    def loop(failureDetails: List[AssertionValue], rendered: Seq[String]): UIO[Seq[String]] =
       failureDetails match {
         case fragment :: whole :: failureDetails =>
-          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
+          renderWhole(fragment, whole, offset).flatMap(s => loop(whole :: failureDetails, rendered :+ s))
         case _ =>
-          rendered
+          UIO.succeed(rendered)
       }
-    Seq(renderFragment(failureDetails.head, offset)) ++ loop(failureDetails, Seq())
+    for {
+      fragment <- renderFragment(failureDetails.head, offset)
+      rest     <- loop(failureDetails, Seq())
+    } yield Seq(fragment) ++ rest
   }
 
-  private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int) =
-    withOffset(offset + tabSize) {
-      blue(whole.value.toString) +
-        renderSatisfied(whole) +
-        highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
+  private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int): UIO[String] =
+    renderSatisfied(whole).map { satisfied =>
+      withOffset(offset + tabSize) {
+        blue(whole.value.toString) +
+          satisfied +
+          highlight(cyan(whole.assertion.toString), fragment.assertion.toString)
+      }
     }
 
-  private def renderFragment(fragment: AssertionValue, offset: Int) =
-    withOffset(offset + tabSize) {
-      blue(fragment.value.toString) +
-        renderSatisfied(fragment) +
-        cyan(fragment.assertion.toString)
+  private def renderFragment(fragment: AssertionValue, offset: Int): UIO[String] =
+    renderSatisfied(fragment).map { satisfied =>
+      withOffset(offset + tabSize) {
+        blue(fragment.value.toString) +
+          satisfied +
+          cyan(fragment.assertion.toString)
+      }
     }
 
   private def renderSatisfied(fragment: AssertionValue): UIO[String] =
@@ -203,11 +212,11 @@ object DefaultTestReporter {
     }
 
   private def renderTestFailure(label: String, testResult: TestResult): UIO[String] =
-    testResult.run.map(
-      _.failures.fold("")(
+    testResult.run.flatMap(
+      _.failures.fold(UIO.succeed(""))(
         _.fold(
-          details => rendered(Test, label, Failed, 0, renderFailure(label, 0, details): _*)
-        )(_ && _, _ || _, !_).rendered.mkString("\n")
+          details => renderFailure(label, 0, details).map(failures => rendered(Test, label, Failed, 0, failures: _*))
+        )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_)).map(_.rendered.mkString("\n"))
       )
     )
 

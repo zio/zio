@@ -291,10 +291,22 @@ object Assertion {
     }
 
   /**
+   * Makes a new assertion that requires an exception to have a certain message.
+   */
+  final def hasMessage(message: String): Assertion[Throwable] =
+    assertion[Throwable]("hasMessage")(param(message))(th => th.getMessage == message)
+
+  /**
    * Makes a new assertion that requires a given string to end with the specified suffix.
    */
-  final def endsWith(suffix: String): Assertion[String] =
+  final def endsWith[A](suffix: Seq[A]): Assertion[Seq[A]] =
     Assertion.assertion("endsWith")(param(suffix))(_.endsWith(suffix))
+
+  /**
+   * Makes a new assertion that requires a given string to end with the specified suffix.
+   */
+  final def endsWithString(suffix: String): Assertion[String] =
+    Assertion.assertion("endsWithString")(param(suffix))(_.endsWith(suffix))
 
   /**
    * Makes a new assertion that requires a value equal the specified value.
@@ -353,15 +365,14 @@ object Assertion {
    */
   final def forall[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRecM("forall")(param(assertion))(assertion)(
-      {
-        case head :: tail =>
-          ZIO.foldLeft(head :: tail)(Option.empty[A]) { (_, a) =>
+      actual =>
+        ZIO
+          .foreach(actual) { a =>
             assertion.test(a).map { p =>
               if (p) None else Some(a)
             }
           }
-        case Nil => ZIO.succeed(None)
-      },
+          .map(_.find(_.isDefined).flatten),
       BoolAlgebraM.success
     )
 
@@ -535,6 +546,12 @@ object Assertion {
     Assertion.assertion("isNone")()(_.isEmpty)
 
   /**
+   * Makes a new assertion that requires a null value.
+   */
+  final val isNull: Assertion[Any] =
+    Assertion.assertion("isNull")()(_ == null)
+
+  /**
    * Makes a new assertion that requires a Right value satisfying a specified
    * assertion.
    */
@@ -612,10 +629,17 @@ object Assertion {
     Assertion.assertion("nothing")()(_ => false)
 
   /**
+   * Makes a new assertion that requires a given sequence to start with the
+   * specified prefix.
+   */
+  final def startsWith[A](prefix: Seq[A]): Assertion[Seq[A]] =
+    Assertion.assertion("startsWith")(param(prefix))(_.startsWith(prefix))
+
+  /**
    * Makes a new assertion that requires a given string to start with a specified prefix
    */
-  final def startsWith(prefix: String): Assertion[String] =
-    Assertion.assertion("startsWith")(param(prefix))(_.startsWith(prefix))
+  final def startsWithString(prefix: String): Assertion[String] =
+    Assertion.assertion("startsWithString")(param(prefix))(_.startsWith(prefix))
 
   /**
    * Makes a new assertion that requires an exit value to succeed.

@@ -111,7 +111,7 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
                       override val clock: Clock.Service[Any]      = clockSvc.clock
                     })
         actualSummary <- SummaryBuilder.buildSummary(results)
-      } yield actualSummary == expectedSummary.mkString("").stripLineEnd
+      } yield actualSummary.summary == expectedSummary.mkString("").stripLineEnd
 
       zio.provide(r)
     }
@@ -120,7 +120,7 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
     unsafeRunToFuture(r.use[Any, E, A](f))
 
   def TestTestRunner(testEnvironment: TestEnvironment) =
-    TestRunner[TestEnvironment, String, Unit, String, Unit](
+    TestRunner[TestEnvironment, String, String, Unit, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](Managed.succeed(testEnvironment)),
       reporter = DefaultTestReporter()
     )

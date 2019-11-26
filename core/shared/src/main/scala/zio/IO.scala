@@ -129,6 +129,12 @@ object IO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[E, A](k: ZIO.DaemonStatusRestore => IO[E, A]): IO[E, A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -410,6 +416,12 @@ object IO {
   final val never: UIO[Nothing] = ZIO.never
 
   /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[E, A](k: ZIO.DaemonStatusRestore => IO[E, A]): IO[E, A] =
+    ZIO.nonDaemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.none]]
    */
   final val none: UIO[Option[Nothing]] = ZIO.none
@@ -486,17 +498,6 @@ object IO {
    * @see See [[zio.ZIO.succeed]]
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
-
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[E, A](io: => IO[E, A]): IO[E, A] =
-    ZIO.suspend(io)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[E, A](p: Platform => IO[E, A]): IO[E, A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]

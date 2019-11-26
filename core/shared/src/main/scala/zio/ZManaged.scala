@@ -231,10 +231,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   final def compose[R1, E1 >: E](that: ZManaged[R1, E1, R]): ZManaged[R1, E1, A] =
     self <<< that
 
-  @deprecated("use as", "1.0.0")
-  final def const[B](b: => B): ZManaged[R, E, B] =
-    as(b)
-
   /**
    * Maps this effect to the specified constant while preserving the
    * effects of this effect.
@@ -467,6 +463,13 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged(reserve.mapErrorCause(f).map(r => Reservation(r.acquire.mapErrorCause(f), r.release)))
 
   /**
+   * Returns a new effect where the error channel has been merged into the
+   * success channel to their common combined type.
+   */
+  final def merge[A1 >: A](implicit ev1: E <:< A1, ev2: CanFail[E]): ZManaged[R, Nothing, A1] =
+    self.foldM(e => ZManaged.succeed(ev1(e)), ZManaged.succeed)
+
+  /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
    * the existing finalizers.
    */
@@ -596,7 +599,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] = {
+  final def retry[R1 <: R, E1 >: E, S](policy: Schedule[R1, E1, S])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] = {
     def loop[B](zio: ZIO[R, E1, B], state: policy.State): ZIO[R1, E1, (policy.State, B)] =
       zio.foldM(
         err =>
@@ -872,6 +875,31 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
       }
     }
 
+  def memoize: ZManaged[R, E, ZManaged[R, E, A]] =
+    ZManaged {
+      RefM.make[Option[(Reservation[R, E, A], Exit[E, A])]](None).map { ref =>
+        val acquire1: ZIO[R, E, A] =
+          ref.modify {
+            case v @ Some((_, e)) => ZIO.succeed(e -> v)
+            case None =>
+              ZIO.uninterruptibleMask { restore =>
+                self.reserve.flatMap { res =>
+                  restore(res.acquire).run.map(e => e -> Some(res -> e))
+                }
+              }
+          }.flatMap(ZIO.done)
+
+        val acquire2: ZIO[R, E, ZManaged[R, E, A]] =
+          ZIO.succeed(acquire1.toManaged_)
+
+        val release2 = (_: Exit[_, _]) =>
+          ref.updateSome {
+            case Some((res, e)) => res.release(e).as(None)
+          }
+
+        Reservation(acquire2, release2)
+      }
+    }
 }
 
 object ZManaged {
@@ -1383,10 +1411,6 @@ object ZManaged {
    */
   final def succeed[R, A](r: A): ZManaged[R, Nothing, A] =
     ZManaged(IO.succeed(Reservation(IO.succeed(r), _ => IO.unit)))
-
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[R, A](r: => A): ZManaged[R, Nothing, A] =
-    effectTotal(r)
 
   /**
    * Returns a lazily constructed Managed.

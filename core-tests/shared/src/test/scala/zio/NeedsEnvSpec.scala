@@ -1,33 +1,32 @@
 package zio
 
-import zio.test.{ test => test0, _ }
+import zio.test._
+import zio.test.Assertion._
 
-object NeedsEnvSpec
-    extends ZIOBaseSpec(
-      suite("NeedsEnvSpec")(
-        test0("useful combinators compile") {
-          assertCompiles {
-            """
+object NeedsEnvSpec extends ZIOBaseSpec {
+
+  def spec = suite("NeedsEnvSpec")(
+    testM("useful combinators compile") {
+      val result = typeCheck {
+        """
             import zio._
             import zio.console._
-
             val sayHello = console.putStrLn("Hello, World!")
-
             sayHello.provide(Console.Live)
             """
-          }
-        },
-        test0("useless combinators don't compile") {
-          !assertCompiles {
-            """
+      }
+      assertM(result, isRight(isUnit))
+    },
+    testM("useless combinators don't compile") {
+      val result = typeCheck {
+        """
             import zio._
             import zio.console._
-
             val uio = UIO.succeed("Hello, World!")
-
-            uio.provide(Clock.Live)
+            uio.provide(Console.Live)
             """
-          }
-        }
-      )
-    )
+      }
+      assertM(result, isLeft(anything))
+    }
+  )
+}

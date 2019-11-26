@@ -41,7 +41,7 @@ private[zio] final class FiberContext[E, A](
   startDStatus: Boolean,
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
-  fiberRefLocals: FiberRefLocals
+  val fiberRefLocals: FiberRefLocals
 ) extends Fiber[E, A] { self =>
 
   import FiberContext._
@@ -648,6 +648,8 @@ private[zio] final class FiberContext[E, A](
     if (!isDaemon) {
       self._children.add(childContext.asInstanceOf[FiberContext[Any, Any]])
       childContext.onDone(_ => { val _ = self._children.remove(childContext) })
+    } else {
+      Fiber.track(childContext)
     }
 
     platform.executor.submitOrThrow(() => childContext.evaluateNow(zio))
@@ -707,7 +709,7 @@ private[zio] final class FiberContext[E, A](
 
     oldState match {
       case Executing(_, observers, interrupt) =>
-        val asyncTrace = if (traceStack && inTracingRegion) tracer.traceLocation(register) :: Nil else Nil
+        val asyncTrace = if (traceStack && inTracingRegion) traceLocation(register) :: Nil else Nil
 
         val newState =
           Executing(Fiber.Status.Suspended(isInterruptible(), epoch, blockingOn, asyncTrace), observers, interrupt)
