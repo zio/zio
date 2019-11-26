@@ -64,6 +64,28 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromCharBuffer(buffer), equalTo(Chunk(5, 6, 7)))
         }
       }
+    ),
+    suite("DoubleBuffer")(
+      testM("double array buffer no copying") {
+        UIO.effectTotal {
+          val array  = Array(1, 2, 3).map(_.toDouble)
+          val buffer = DoubleBuffer.wrap(array)
+          assert(Chunk.fromDoubleBuffer(buffer), equalTo(Chunk(1, 2, 3)))
+        }
+      },
+      testM("double array buffer partial copying") {
+        UIO.effectTotal {
+          val buffer = DoubleBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toDouble)
+            i += 1
+          }
+          buffer.position(5)
+          buffer.limit(8)
+          assert(Chunk.fromDoubleBuffer(buffer), equalTo(Chunk(5, 6, 7)))
+        }
+      }
     )
   )
 }

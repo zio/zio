@@ -702,6 +702,12 @@ object Chunk {
     Buff.arrayBacked(buffer).getOrElse(Buff.manualCharBuffer(buffer))
 
   /**
+   * Returns a chunk backed by a [[java.nio.DoubleBuffer]].
+   */
+  final def fromDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] =
+    Buff.arrayBacked(buffer).getOrElse(Buff.manualDoubleBuffer(buffer))
+
+  /**
    * Returns a chunk backed by an iterable.
    */
   final def fromIterable[A](it: Iterable[A]): Chunk[A] =
@@ -1174,6 +1180,21 @@ object Chunk {
       val lim = buffer.limit()
       val len = lim - pos
       val dst = Array.ofDim[Char](len)
+      var i   = pos
+      var j   = 0
+      while (i < lim) {
+        dst(j) = buffer.get(i)
+        i += 1
+        j += 1
+      }
+      Chunk.fromArray(dst)
+    }
+
+    final def manualDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] = {
+      val pos = buffer.position()
+      val lim = buffer.limit()
+      val len = lim - pos
+      val dst = Array.ofDim[Double](len)
       var i   = pos
       var j   = 0
       while (i < lim) {
