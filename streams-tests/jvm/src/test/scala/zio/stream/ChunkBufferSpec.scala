@@ -210,6 +210,48 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromIntBuffer(buffer), equalTo(Chunk.fromArray(array)))
         }
       }
+    ),
+    suite("LongBuffer")(
+      testM("long array buffer no copying") {
+        UIO.effectTotal {
+          val array  = Array(1, 2, 3).map(_.toLong)
+          val buffer = LongBuffer.wrap(array)
+          assert(Chunk.fromLongBuffer(buffer), equalTo(Chunk(1, 2, 3)))
+        }
+      },
+      testM("long array buffer partial copying") {
+        UIO.effectTotal {
+          val buffer = LongBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toLong)
+            i += 1
+          }
+          buffer.position(5)
+          buffer.limit(8)
+          assert(Chunk.fromLongBuffer(buffer), equalTo(Chunk(5, 6, 7)))
+        }
+      },
+      testM("direct long buffer copying") {
+        UIO.effectTotal {
+          val byteBuffer = ByteBuffer.allocateDirect(80)
+          var i          = 0
+          while (i < 80) {
+            byteBuffer.put(i, i.toByte)
+            i += 1
+          }
+          val buffer = byteBuffer.asLongBuffer()
+          val array  = Array.ofDim[Long](3)
+          i = 5
+          while (i < 8) {
+            array(i - 5) = buffer.get(i)
+            i += 1
+          }
+          buffer.position(5)
+          buffer.limit(8)
+          assert(Chunk.fromLongBuffer(buffer), equalTo(Chunk.fromArray(array)))
+        }
+      }
     )
   )
 }

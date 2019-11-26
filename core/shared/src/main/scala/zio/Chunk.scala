@@ -720,6 +720,12 @@ object Chunk {
     Buff.arrayBacked(buffer).getOrElse(Buff.manualIntBuffer(buffer))
 
   /**
+   * Returns a chunk backed by a [[java.nio.LongBuffer]].
+   */
+  final def fromLongBuffer(buffer: LongBuffer): Chunk[Long] =
+    Buff.arrayBacked(buffer).getOrElse(Buff.manualLongBuffer(buffer))
+
+  /**
    * Returns a chunk backed by an iterable.
    */
   final def fromIterable[A](it: Iterable[A]): Chunk[A] =
@@ -1237,6 +1243,21 @@ object Chunk {
       val lim = buffer.limit()
       val len = lim - pos
       val dst = Array.ofDim[Int](len)
+      var i   = pos
+      var j   = 0
+      while (i < lim) {
+        dst(j) = buffer.get(i)
+        i += 1
+        j += 1
+      }
+      Chunk.fromArray(dst)
+    }
+
+    final def manualLongBuffer(buffer: LongBuffer): Chunk[Long] = {
+      val pos = buffer.position()
+      val lim = buffer.limit()
+      val len = lim - pos
+      val dst = Array.ofDim[Long](len)
       var i   = pos
       var j   = 0
       while (i < lim) {
