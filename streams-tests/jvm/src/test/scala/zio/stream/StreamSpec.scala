@@ -27,6 +27,23 @@ import StreamUtils._
 object StreamSpec extends ZIOBaseSpec {
 
   def spec = suite("StreamSpec")(
+    testM("Stream.access") {
+      for {
+        result <- ZStream.access[String](identity).provide("test").runHead.get
+      } yield assert(result, equalTo("test"))
+    },
+    suite("Stream.accessM")(
+      testM("accessM") {
+        for {
+          result <- ZStream.accessM[String](ZIO.succeed).provide("test").runHead.get
+        } yield assert(result, equalTo("test"))
+      },
+      testM("accessM fails") {
+        for {
+          result <- ZStream.accessM[Int](_ => ZIO.fail("fail")).provide(0).runHead.run
+        } yield assert(result, fails(equalTo("fail")))
+      }
+    ),
     suite("Stream.aggregateAsync")(
       testM("aggregateAsync") {
         Stream(1, 1, 1, 1)
@@ -224,18 +241,6 @@ object StreamSpec extends ZIOBaseSpec {
                      )
                      .runCollect
         } yield assert(result, equalTo(List(List(1, 1, 1, 1), List(2))))
-      }
-    ),
-    suite("access/accessM")(
-      testM("ZStream.access") {
-        for {
-          result <- ZStream.access[String](identity).provide("test").runHead.get
-        } yield assert(result, equalTo("test"))
-      },
-      testM("ZStream.accessM") {
-        for {
-          result <- ZStream.accessM[String](ZStream.succeed).provide("test").runHead.get
-        } yield assert(result, equalTo("test"))
       }
     ),
     suite("Stream.bracket")(

@@ -3141,8 +3141,8 @@ object ZStream extends Serializable {
   }
 
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZStream[R, Nothing, A]): ZStream[R, Nothing, A] =
-      ZStream.unwrap(ZIO.access(f))
+    def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
+      ZStream.fromEffect(ZIO.accessM(f))
   }
 
   private[stream] final def exitToInputStreamRead(exit: Exit[Option[Throwable], Byte]): Int = exit match {
