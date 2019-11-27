@@ -29,6 +29,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [elastic4s](https://github.com/sksamuel/elastic4s): Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
 - [idealingua](https://github.com/7mind/izumi): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
 - [logstage](https://github.com/7mind/izumi): Automatic structural logs from Scala string interpolations
+- [neotypes](https://github.com/neotypes/neotypes): A Scala lightweight, type-safe & asynchronous driver for neo4j
 - [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [zio-interop-log4j2](https://github.com/mlangc/zio-interop-log4j2): Fiber aware MDC logging for Log4j 2
