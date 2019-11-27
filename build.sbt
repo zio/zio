@@ -166,7 +166,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .settings(
     scalacOptions += "-language:experimental.macros",
     libraryDependencies ++=
-      Seq("org.portable-scala" %%% "portable-scala-reflect" % "0.1.0") ++ {
+      Seq("org.portable-scala" %%% "portable-scala-reflect" % "0.1.1") ++ {
         if (isDotty.value) Seq()
         else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
       }
@@ -214,7 +214,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.1"
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
