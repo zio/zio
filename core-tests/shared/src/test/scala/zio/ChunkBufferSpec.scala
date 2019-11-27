@@ -28,6 +28,20 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromByteBuffer(buffer), equalTo(Chunk(5, 6, 7)))
         }
       },
+      testM("byte array buffer slice copying") {
+        UIO.effectTotal {
+          val buffer = ByteBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toByte)
+            i += 1
+          }
+          buffer.position(3)
+          buffer.limit(7)
+          val newBuffer = buffer.slice()
+          assert(Chunk.fromByteBuffer(newBuffer), equalTo(Chunk(3, 4, 5, 6)))
+        }
+      },
       testM("direct byte buffer copying") {
         UIO.effectTotal {
           val buffer = ByteBuffer.allocateDirect(10)
@@ -61,6 +75,20 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           buffer.position(5)
           buffer.limit(8)
           assert(Chunk.fromCharBuffer(buffer), equalTo(Chunk(5, 6, 7)))
+        }
+      },
+      testM("char array buffer slice copying") {
+        UIO.effectTotal {
+          val buffer = CharBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toChar)
+            i += 1
+          }
+          buffer.position(3)
+          buffer.limit(7)
+          val newBuffer = buffer.slice()
+          assert(Chunk.fromCharBuffer(newBuffer), equalTo(Chunk(3, 4, 5, 6)))
         }
       },
       testM("direct char buffer copying") {
@@ -105,6 +133,20 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromDoubleBuffer(buffer), equalTo(Chunk(5, 6, 7)))
         }
       },
+      testM("double array buffer slice copying") {
+        UIO.effectTotal {
+          val buffer = DoubleBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toDouble)
+            i += 1
+          }
+          buffer.position(3)
+          buffer.limit(7)
+          val newBuffer = buffer.slice()
+          assert(Chunk.fromDoubleBuffer(newBuffer), equalTo(Chunk(3, 4, 5, 6)))
+        }
+      },
       testM("direct double buffer copying") {
         UIO.effectTotal {
           val byteBuffer = ByteBuffer.allocateDirect(java.lang.Double.BYTES * 10)
@@ -145,6 +187,20 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           buffer.position(5)
           buffer.limit(8)
           assert(Chunk.fromFloatBuffer(buffer), equalTo(Chunk(5, 6, 7)))
+        }
+      },
+      testM("float array buffer slice copying") {
+        UIO.effectTotal {
+          val buffer = FloatBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toFloat)
+            i += 1
+          }
+          buffer.position(3)
+          buffer.limit(7)
+          val newBuffer = buffer.slice()
+          assert(Chunk.fromFloatBuffer(newBuffer), equalTo(Chunk(3, 4, 5, 6)))
         }
       },
       testM("direct float buffer copying") {
@@ -189,6 +245,20 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromIntBuffer(buffer), equalTo(Chunk(5, 6, 7)))
         }
       },
+      testM("int array buffer slice copying") {
+        UIO.effectTotal {
+          val buffer = IntBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i)
+            i += 1
+          }
+          buffer.position(3)
+          buffer.limit(7)
+          val newBuffer = buffer.slice()
+          assert(Chunk.fromIntBuffer(newBuffer), equalTo(Chunk(3, 4, 5, 6)))
+        }
+      },
       testM("direct int buffer copying") {
         UIO.effectTotal {
           val byteBuffer = ByteBuffer.allocateDirect(java.lang.Integer.BYTES * 10)
@@ -231,6 +301,20 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromLongBuffer(buffer), equalTo(Chunk(5, 6, 7)))
         }
       },
+      testM("long array buffer slice copying") {
+        UIO.effectTotal {
+          val buffer = LongBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toLong)
+            i += 1
+          }
+          buffer.position(3)
+          buffer.limit(7)
+          val newBuffer = buffer.slice()
+          assert(Chunk.fromLongBuffer(newBuffer), equalTo(Chunk(3, 4, 5, 6)))
+        }
+      },
       testM("direct long buffer copying") {
         UIO.effectTotal {
           val byteBuffer = ByteBuffer.allocateDirect(java.lang.Long.BYTES * 10)
@@ -271,6 +355,20 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           buffer.position(5)
           buffer.limit(8)
           assert(Chunk.fromShortBuffer(buffer), equalTo(Chunk(5, 6, 7)))
+        }
+      },
+      testM("short array buffer slice copying") {
+        UIO.effectTotal {
+          val buffer = ShortBuffer.allocate(10)
+          var i      = 0
+          while (i < 10) {
+            buffer.put(i, i.toShort)
+            i += 1
+          }
+          buffer.position(3)
+          buffer.limit(7)
+          val newBuffer = buffer.slice()
+          assert(Chunk.fromShortBuffer(newBuffer), equalTo(Chunk(3, 4, 5, 6)))
         }
       },
       testM("direct short buffer copying") {

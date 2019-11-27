@@ -1177,7 +1177,7 @@ object Chunk {
           implicit val classTag: ClassTag[A] = ClassTag(arr.getClass.getComponentType)
           val len                            = lim - pos
           val dest                           = Array.ofDim[A](len)
-          Array.copy(arr, pos, dest, 0, len)
+          Array.copy(arr, off + pos, dest, 0, len)
           fromArray(dest)
         }
 
