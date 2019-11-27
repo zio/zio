@@ -318,8 +318,8 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC2",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
-      "dev.zio"             %% "zio-macros-core"             % "0.5.0",
-      "dev.zio"             %% "zio-macros-test"             % "0.5.0"
+      "dev.zio"             %% "zio-macros-core"             % "0.6.0",
+      "dev.zio"             %% "zio-macros-test"             % "0.6.0"
     )
   )
   .settings(macroSettings)
