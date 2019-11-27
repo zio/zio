@@ -90,6 +90,8 @@ val retainedEvenElems: UIO[TSet[Int]] = (for {
 } yield tSet).commit
 ```
 
+Note that `retainIf` and `removeIf` serve the same purpose as `filter` and `filterNot`. The reason for naming them differently was to emphasize a distinction in their nature. Namely, both `retainIf` and `removeIf` are destructive - calling them can modify the collection.
+
 ## Union of a `TSet`
 
 Union of the sets A and B represents the set of elements belonging to set A or set B, or both.
@@ -167,6 +169,8 @@ val shrinkTSet: UIO[TSet[Int]] = (for {
 } yield tSet).commit
 ```
 Resulting set in example above has only one element.
+
+Note that `transform` serves the same purpose as `map`. The reason for naming it differently was to emphasize a distinction in its nature. Namely, `transform` is destructive - calling it can modify the collection.
 
 The elements can be mapped effectfully via `transformM`:
 

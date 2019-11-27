@@ -100,6 +100,8 @@ val retainedEvenValues: UIO[TMap[String, Int]] = (for {
 } yield tMap).commit
 ```
 
+Note that `retainIf` and `removeIf` serve the same purpose as `filter` and `filterNot`. The reason for naming them differently was to emphasize a distinction in their nature. Namely, both `retainIf` and `removeIf` are destructive - calling them can modify the collection.
+
 ## Retrieve the value from a TMap
 
 Value by key can be obtained as follows: 
@@ -187,6 +189,8 @@ val transformValuesMTMap: UIO[TMap[String, Int]] = (for {
   _    <- tMap.transformValuesM(v => STM.succeed(v * v))
 } yield tMap).commit
 ```
+
+Note that both `transform` and `transformValues` serve the same purpose as `map`. The reason for naming them differently was to emphasize a distinction in their nature. Namely, both `transform` and `transformValues` are destructive - calling them can modify the collection.
 
 Folds the elements of a `TMap` using the specified associative binary operator:
 
