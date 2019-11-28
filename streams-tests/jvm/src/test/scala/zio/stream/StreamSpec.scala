@@ -44,6 +44,18 @@ object StreamSpec extends ZIOBaseSpec {
         } yield assert(result, fails(equalTo("fail")))
       }
     ),
+    suite("Stream.accessStream")(
+      testM("accessStream") {
+        for {
+          result <- ZStream.accessStream[String](ZStream.succeed).provide("test").runHead.get
+        } yield assert(result, equalTo("test"))
+      },
+      testM("accessStream fails") {
+        for {
+          result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provide(0).runHead.run
+        } yield assert(result, fails(equalTo("fail")))
+      }
+    ),
     suite("Stream.aggregateAsync")(
       testM("aggregateAsync") {
         Stream(1, 1, 1, 1)
@@ -559,6 +571,11 @@ object StreamSpec extends ZIOBaseSpec {
             } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
         execution <- log.get
       } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
+    },
+    testM("Stream.environment") {
+      for {
+        result <- ZStream.environment[String].provide("test").runHead.get
+      } yield assert(result, equalTo("test"))
     },
     testM("Stream.filter")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
       for {
