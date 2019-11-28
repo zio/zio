@@ -10,7 +10,7 @@ import zio.syntax._
 import zio.test._
 import zio.test.environment._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
+import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
 import zio.Cause._
 import zio.LatchOps._
 
@@ -805,6 +805,20 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("on failure") {
         assertM(ZIO.fail("Fail").right.either, isLeft(isSome(equalTo("Fail"))))
       }
+    ),
+    suite("refineToOrDie")(
+      testM("does not compile when refined type is not subtype of error type") {
+        val result = typeCheck {
+          """
+          ZIO
+            .fail(new RuntimeException("BOO!"))
+            .refineToOrDie[Error]
+            """
+        }
+        val expected =
+          "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
+        assertM(result, isLeft(equalTo(expected)))
+      } @@ scala2Only
     ),
     suite("rightOrFail")(
       testM("on Right value") {

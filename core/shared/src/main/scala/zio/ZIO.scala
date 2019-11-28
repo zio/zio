@@ -1048,12 +1048,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self catchAll (err => (pf lift err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
 
   /**
-   * Keeps some of the errors, and terminates the fiber with the rest.
-   */
-  final def refineToOrDie[E1: ClassTag](implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZIO[R, E1, A] =
-    refineOrDieWith { case e: E1 => e }(ev1)
-
-  /**
    * Fail with the returned value if the `PartialFunction` matches, otherwise
    * continue with our held value.
    */
@@ -2642,6 +2636,15 @@ object ZIO extends ZIOFunctions {
      * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].
      */
     def toManaged: ZManaged[R, E, A] = ZManaged.fromAutoCloseable(io)
+  }
+
+  implicit final class ZioRefineToOrDieOps[R, E <: Throwable, A](private val self: ZIO[R, E, A]) extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    final def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZIO[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
   }
 
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {
