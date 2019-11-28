@@ -341,26 +341,48 @@ object ZIOSpec extends ZIOBaseSpec {
           sequence2 <- IO.collectAll(ios)
         } yield assert(sequence1, equalTo(sequence2))
       },
-      testM("map2") {
+      testM("mapN with Tuple2") {
         checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
           def f(i: Int, s: String): String = i.toString + s
           val ios                          = (IO.succeed(int), IO.succeed(str))
-          assertM(ios.map2[String](f), equalTo(f(int, str)))
+          assertM(ios.mapN[String](f), equalTo(f(int, str)))
         }
       },
-      testM("map3") {
+      testM("mapN with Tuple3") {
         checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
           def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
           val ios                                       = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2))
-          assertM(ios.map3[String](f), equalTo(f(int, str1, str2)))
+          assertM(ios.mapN[String](f), equalTo(f(int, str1, str2)))
         }
       },
-      testM("map4") {
+      testM("mapN with Tuple4") {
         checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
           (int: Int, str1: String, str2: String, str3: String) =>
             def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
             val ios                                                   = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2), IO.succeed(str3))
-            assertM(ios.map4[String](f), equalTo(f(int, str1, str2, str3)))
+            assertM(ios.mapN[String](f), equalTo(f(int, str1, str2, str3)))
+        }
+      },
+      testM("mapParN with Tuple2") {
+        checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
+          def f(i: Int, s: String): String = i.toString + s
+          val ios                          = (IO.succeed(int), IO.succeed(str))
+          assertM(ios.mapParN[String](f), equalTo(f(int, str)))
+        }
+      },
+      testM("mapParN with Tuple3") {
+        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
+          def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
+          val ios                                       = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2))
+          assertM(ios.mapParN[String](f), equalTo(f(int, str1, str2)))
+        }
+      },
+      testM("mapParN with Tuple4") {
+        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
+          (int: Int, str1: String, str2: String, str3: String) =>
+            def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
+            val ios                                                   = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2), IO.succeed(str3))
+            assertM(ios.mapParN[String](f), equalTo(f(int, str1, str2, str3)))
         }
       }
     ),
