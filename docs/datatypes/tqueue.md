@@ -109,7 +109,7 @@ import zio._
 import zio.stm._
 
 val tQueueSize: UIO[Int] = (for {
-  tQueue <- TQueue[Int].make(3)
+  tQueue <- TQueue.make[Int](3)
   _      <- tQueue.offerAll(List(1, 2))
   size   <- tQueue.size
 } yield size).commit
