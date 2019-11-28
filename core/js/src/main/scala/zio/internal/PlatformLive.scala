@@ -40,7 +40,7 @@ object PlatformLive {
       }
 
       def reportFailure(cause: Cause[Any]): Unit =
-        if (!cause.interrupted)
+        if (!cause.isPureInterruption)
           println(cause.prettyPrint)
 
       val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)

@@ -130,6 +130,16 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       case (_, Interrupt(_))    => false
     }
 
+  /**
+   * Determines if the `Cause` is a pure interruption, a `Cause` that does not
+   * contain any `Die` or `Fail` causes.
+   */
+  final def isPureInterruption: Boolean =
+    find {
+      case Die(_)  => false
+      case Fail(_) => false
+    }.getOrElse(true)
+
   final def fold[Z](
     empty: => Z,
     failCase: E => Z,
