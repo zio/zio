@@ -146,7 +146,7 @@ object RefM extends Serializable {
       interrupted.get.flatMap {
         case Some(cause) => onDefect(cause)
         case None =>
-          update(a).foldM(e => onDefect(Cause.fail(e)) <* promise.fail(e), {
+          update(a).foldCauseM(c => onDefect(c).ensuring(promise.halt(c)), {
             case (b, a) => ref.set(a) <* promise.succeed(b)
           })
       }
@@ -169,7 +169,7 @@ object RefM extends Serializable {
     for {
       ref   <- Ref.make(a)
       queue <- Queue.bounded[Bundle[_, A, _]](n)
-      _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref, onDefect))).forever.fork
+      _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref, onDefect))).forever.fork.daemon
     } yield new RefM[A](ref, queue)
 
 }

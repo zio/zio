@@ -45,7 +45,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVMDotty",
-  ";coreJVM/test:compile;stacktracerJVM/test:compile;streamsJVM/test:compile;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsJVM/test:compile;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
@@ -82,7 +82,7 @@ lazy val root = project
   )
   .enablePlugins(ScalaJSPlugin)
 
-lazy val core = crossProject(JSPlatform, JVMPlatform)
+lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
@@ -95,6 +95,18 @@ lazy val coreJVM = core.jvm
 
 lazy val coreJS = core.js
 
+lazy val coreNative = core.native
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
+  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
+      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+    )
+  )
+
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
   .dependsOn(core)
@@ -105,16 +117,10 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
-    )
-  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
+  .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
 
@@ -160,7 +166,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .settings(
     scalacOptions += "-language:experimental.macros",
     libraryDependencies ++=
-      Seq("org.portable-scala" %%% "portable-scala-reflect" % "0.1.0") ++ {
+      Seq("org.portable-scala" %%% "portable-scala-reflect" % "0.1.1") ++ {
         if (isDotty.value) Seq()
         else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
       }
@@ -189,33 +195,30 @@ lazy val testTestsJS = testTests.js.settings(
   mainClass in Compile := Some("zio.test.TestMain")
 )
 
-lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
+lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(buildInfoSettings("zio.internal.stacktracer"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.8.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.8.0" % Test
-    )
-  )
 
 lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
 
+lazy val stacktracerNative = stacktracer.native
+  .settings(scalaVersion := "2.11.12")
+  .settings(skip in Test := true)
+  .settings(skip in doc := true)
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.1"
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.29"))
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.31"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core)
   .dependsOn(test)
@@ -261,8 +264,8 @@ lazy val benchmarks = project.module
         "com.twitter"              %% "util-collection" % "19.1.0",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.26",
         "io.monix"                 %% "monix"           % "3.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.14",
+        "io.projectreactor"        % "reactor-core"     % "3.3.1.RELEASE",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.15",
         "org.ow2.asm"              % "asm"              % "7.2",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
@@ -311,17 +314,18 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC6",
-      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC5",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC1",
+      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC7",
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC2",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
-      "dev.zio"             %% "zio-macros-access"           % "0.4.0",
-      "dev.zio"             %% "zio-macros-mock"             % "0.4.0"
+      "dev.zio"             %% "zio-macros-core"             % "0.6.0",
+      "dev.zio"             %% "zio-macros-test"             % "0.6.0"
     )
   )
   .settings(macroSettings)
   .dependsOn(
     coreJVM,
-    streamsJVM
+    streamsJVM,
+    coreTestsJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)

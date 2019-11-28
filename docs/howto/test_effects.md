@@ -59,7 +59,7 @@ known from operating on boolean values like and (`&&`), or (`||`), negation (`ne
 ```scala mdoc
 import zio.test.Assertion
 
-val assertionForString: Assertion[String] = Assertion.containsString("Foo") && Assertion.endsWith("Bar")
+val assertionForString: Assertion[String] = Assertion.containsString("Foo") && Assertion.endsWithString("Bar")
 ```
 
 What's more, assertions also compose with each other allowing for doing rich diffs not only simple value to value comparison.
@@ -140,7 +140,9 @@ val suite3 = suite("suite3") (
   testM("s3.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
 )
 
-object AllSuites extends DefaultRunnableSpec(suite("All tests")(suite1, suite2, suite3))
+object AllSuites extends DefaultRunnableSpec {
+  def spec = suite("All tests")(suite1, suite2, suite3)
+}
 ```
 
 `DefaultRunnableSpec` is very similar in its logic of operations to `zio.App`. Instead of providing one `ZIO` application
@@ -155,7 +157,7 @@ libraryDependencies ++= Seq(
   "dev.zio" %% "zio-test"     % zioVersion % "test",
   "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
 ),
-testFrameworks += Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
+testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ```
 
 ## Using Test Environment
@@ -428,35 +430,34 @@ Test aspects are used to modify existing tests or even entire suites that you ha
 applied to a test or suite using the `@@` operator. This is an example test suite showing the use of aspects to modify 
 test behaviour:
 
-```scala
+```scala mdoc:reset
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object MySpec
-    extends DefaultRunnableSpec(
-      suite("A Suite")(
-        test("A passing test") {
-          assert(true, isTrue)
-        },
-        test("A passing test run for JVM only") {
-          assert(true, isTrue)
-        } @@ jvmOnly, //@@ jvmOnly only runs tests on the JVM
-        test("A passing test run for JS only") {
-          assert(true, isTrue)
-        } @@ jsOnly, //@@ jsOnly only runs tests on Scala.js
-        test("A passing test with a timeout") {
-          assert(true, isTrue)
-        } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
-        test("A failing test... that passes") {
-          assert(true, isFalse)
-        } @@ failure, //@@ failure turns a failing test into a passing test
-        test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
-          assert(false, isTrue)
-        } @@ jvmOnly           // only run on the JVM
-          @@ eventually        //@@ eventually retries a test indefinitely until it succeeds
-          @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
-      ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
-    )
+object MySpec extends DefaultRunnableSpec {
+  def spec = suite("A Suite")(
+    test("A passing test") {
+      assert(true, isTrue)
+    },
+    test("A passing test run for JVM only") {
+      assert(true, isTrue)
+    } @@ jvmOnly, //@@ jvmOnly only runs tests on the JVM
+    test("A passing test run for JS only") {
+      assert(true, isTrue)
+    } @@ jsOnly, //@@ jsOnly only runs tests on Scala.js
+    test("A passing test with a timeout") {
+      assert(true, isTrue)
+    } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
+    test("A failing test... that passes") {
+      assert(true, isFalse)
+    } @@ failure, //@@ failure turns a failing test into a passing test
+    test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
+      assert(false, isTrue)
+    } @@ jvmOnly           // only run on the JVM
+      @@ eventually        //@@ eventually retries a test indefinitely until it succeeds
+      @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
+  ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
+}
 ``` 

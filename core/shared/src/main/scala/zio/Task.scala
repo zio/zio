@@ -129,6 +129,12 @@ object Task {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.die]]
    */
   final def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
@@ -406,6 +412,12 @@ object Task {
   final val never: UIO[Nothing] = ZIO.never
 
   /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
+    ZIO.nonDaemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.none]]
    */
   final val none: Task[Option[Nothing]] = ZIO.none
@@ -461,10 +473,6 @@ object Task {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
   /**
    *  See [[zio.ZIO.sequence]]
    */
@@ -487,12 +495,6 @@ object Task {
    *  @see [[zio.ZIO.some]]
    */
   def some[A](a: A): Task[Option[A]] = ZIO.some(a)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[A](task: => Task[A]): Task[A] = effectSuspendTotalWith(_ => task)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[A](p: Platform => Task[A]): Task[A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]

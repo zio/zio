@@ -22,15 +22,15 @@ import zio.console.Console
 import zio.internal.{ Platform, PlatformLive }
 
 /**
- * A `TestRunner[R, E, L, S]` encapsulates all the logic necessary to run specs
- * that require an environment `R` and may fail with an error `E` or succeed
- * with an `S`, using labels of type `L`. Test runners require a test executor,
- * a platform, and a reporter.
+ * A `TestRunner[R, E, L, T, S]` encapsulates all the logic necessary to run
+ * specs that contain tests of type `T`, require an environment `R` and may
+ * fail with an error `E` or succeed with an `S`, using labels of type `L`.
+ * Test runners require a test executor, a platform, and a reporter.
  */
-case class TestRunner[R, L, -T, E, S](
-  executor: TestExecutor[R, L, T, E, S],
+case class TestRunner[R, E, L, -T, S](
+  executor: TestExecutor[R, E, L, T, S],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[L, E, S] = DefaultTestReporter()
+  reporter: TestReporter[E, L, S] = DefaultTestReporter()
 ) { self =>
 
   final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
@@ -38,7 +38,7 @@ case class TestRunner[R, L, -T, E, S](
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: ZSpec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[L, E, S]] =
+  final def run(spec: ZSpec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[E, L, S]] =
     executor(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
       case (duration, results) => reporter(duration, results).as(results)
     }
@@ -50,7 +50,7 @@ case class TestRunner[R, L, -T, E, S](
     spec: ZSpec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
-  ): ExecutedSpec[L, E, S] =
+  ): ExecutedSpec[E, L, S] =
     buildRuntime(testLogger, clock).unsafeRun(run(spec))
 
   /**
@@ -61,7 +61,7 @@ case class TestRunner[R, L, -T, E, S](
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
   )(
-    k: ExecutedSpec[L, E, S] => Unit
+    k: ExecutedSpec[E, L, S] => Unit
   ): Unit =
     buildRuntime(testLogger, clock).unsafeRunAsync(run(spec)) {
       case Exit.Success(v) => k(v)
@@ -75,14 +75,20 @@ case class TestRunner[R, L, -T, E, S](
     spec: ZSpec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
-  ): Exit[Nothing, ExecutedSpec[L, E, S]] =
+  ): Exit[Nothing, ExecutedSpec[E, L, S]] =
     buildRuntime(testLogger, clock).unsafeRunSync(run(spec))
 
   /**
    * Creates a copy of this runner replacing the reporter.
    */
-  final def withReporter[L1 >: L, E1 >: E, S1 >: S](reporter: TestReporter[L1, E1, S1]) =
+  final def withReporter[E1 >: E, L1 >: L, S1 >: S](reporter: TestReporter[E1, L1, S1]) =
     copy(reporter = reporter)
+
+  /**
+   * Creates a copy of this runner replacing the platform
+   */
+  final def withPlatform(f: Platform => Platform): TestRunner[R, E, L, T, S] =
+    copy(platform = f(platform))
 
   private[test] def buildRuntime(
     loggerSvc: TestLogger = defaultTestLogger,
