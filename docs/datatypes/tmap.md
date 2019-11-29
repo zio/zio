@@ -190,7 +190,7 @@ val transformValuesMTMap: UIO[TMap[String, Int]] = (for {
 } yield tMap).commit
 ```
 
-Note that both `transform` and `transformValues` serve the same purpose as `map`. The reason for naming them differently was to emphasize a distinction in their nature. Namely, both `transform` and `transformValues` are destructive - calling them can modify the collection.
+Note that both `transform` and `transformValues` serve the same purpose as `map` and `mapValues`. The reason for naming them differently was to emphasize a distinction in their nature. Namely, both `transform` and `transformValues` are destructive - calling them can modify the collection.
 
 Folds the elements of a `TMap` using the specified associative binary operator:
 
