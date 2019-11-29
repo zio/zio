@@ -104,7 +104,7 @@ Note that `retainIf` and `removeIf` serve the same purpose as `filter` and `filt
 
 ## Retrieve the value from a TMap
 
-Value by the key can be obtained as follows: 
+Value associated with the key can be obtained as follows: 
 
 ```scala mdoc:silent
 import zio._

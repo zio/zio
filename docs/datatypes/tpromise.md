@@ -59,7 +59,7 @@ val tPromiseDoneFail: UIO[TPromise[String, Int]] = for {
 } yield tPromise
 ```
 
-Once the value is set, the following attempts to set it will result in `false`.
+Once the value is set, any following attempts to set it will result in `false`.
 
 ## Retrieve the value of a TPromise
 
