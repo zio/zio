@@ -1,6 +1,6 @@
 ---
 id: datatypes_tpromise
-title: "TPromise"
+title:  "TPromise"
 ---
 
 `TPromise` is a mutable reference that can be set exactly once and can participate in transactions in STM.
@@ -59,7 +59,7 @@ val tPromiseDoneFail: UIO[TPromise[String, Int]] = for {
 } yield tPromise
 ```
 
-Once the value is set, following attempts to set it will result in `false`.
+Once the value is set, the following attempts to set it will result in `false`.
 
 ## Retrieve the value of a TPromise
 
