@@ -42,7 +42,7 @@ val tPromiseFail: UIO[TPromise[String, Int]] = for {
 } yield tPromise
 ```
 
-Alternatively, you can use `Either[E, A]` in combining with a `done` function:
+Alternatively, you can use `done` combinator and complete the promise by passing it `Either[E, A]`:
 
 ```scala mdoc:silent
 import zio._
@@ -59,7 +59,7 @@ val tPromiseDoneFail: UIO[TPromise[String, Int]] = for {
 } yield tPromise
 ```
 
-Note that a value can be set only once and every following attempt will return `false` as a result.
+Once the value is set, following attempts to set it will result in `false`.
 
 ## Retrieve the value of a TPromise
 
