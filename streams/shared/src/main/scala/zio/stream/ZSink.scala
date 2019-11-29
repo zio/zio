@@ -1316,7 +1316,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     fold(z)(_ => true)((s, a) => (f(s, a), Chunk.empty))
 
   /**
-   * Creates a sink by effectully folding over a structure of type `S`.
+   * Creates a sink by effectfully folding over a structure of type `S`.
    */
   final def foldLeftM[R, E, A, S](z: S)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, Nothing, A, S] =
     foldM(z)(_ => true)((s, a) => f(s, a).map((_, Chunk.empty)))
