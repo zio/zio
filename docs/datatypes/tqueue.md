@@ -60,9 +60,9 @@ val tQueueTake: UIO[Int] = (for {
 } yield res).commit
 ```
 
-Note if the queue is empty it will block execution waiting for element you're asking for.
+In case the queue is empty it will block execution waiting for element you're asking for.
 
-You can avoid that behavior by using `poll` method that will return an element if exists or `None` otherwise:
+This behavior can be avoided by using `poll` method that will return an element if exists or `None` otherwise:
 
 ```scala mdoc:silent
 import zio._
