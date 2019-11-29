@@ -21,7 +21,7 @@ import zio.internal.MutableConcurrentQueue
 object RingBuffer {
 
   /**
-   * @note mimimum supported capacity is 2
+   * @note minimum supported capacity is 2
    */
   def apply[A](capacity: Int): MutableConcurrentQueue[A] = {
     assert(capacity >= 2)
@@ -84,7 +84,7 @@ class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQ
         // We're at the right spot. At this point we can try to
         // reserve the place for enqueue by doing CAS on tail.
         if (tail == curTail) {
-          // We successfuly reserved a place to enqueue.
+          // We successfully reserved a place to enqueue.
           tail = curTail + 1
           state = STATE_RESERVED
         } else {

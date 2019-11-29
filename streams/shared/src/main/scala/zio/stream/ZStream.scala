@@ -49,7 +49,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * should be preferred.
    *
    * The contract for the returned `Pull` is as follows:
-   * - It must not be evaluted concurrently from multiple fibers - it is (usually)
+   * - It must not be evaluated concurrently from multiple fibers - it is (usually)
    *   not thread-safe;
    * - If an evaluation of the `Pull` is interrupted, it is not safe to
    *   evaluate it again - it is (usually) not interruption-safe;
@@ -861,7 +861,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   }
 
   /**
-   * Chunks the stream with specifed chunkSize
+   * Chunks the stream with specified chunkSize
    * @param chunkSize size of the chunk
    */
   def chunkN(chunkSize: Int): ZStreamChunk[R, E, A] =
@@ -1576,7 +1576,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     self.groupBy(a => ZIO.succeed((f(a), a)), buffer)
 
   /**
-   * Partitions the stream with specifed chunkSize
+   * Partitions the stream with specified chunkSize
    * @param chunkSize size of the chunk
    */
   def grouped(chunkSize: Long): ZStream[R, E, List[A]] =

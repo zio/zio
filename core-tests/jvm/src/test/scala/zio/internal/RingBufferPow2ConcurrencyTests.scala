@@ -161,7 +161,7 @@ object RingBufferPow2ConcurrencyTests {
     }
 
     @Arbiter
-    def artiber(r: IIII_Result): Unit = {
+    def arbiter(r: IIII_Result): Unit = {
       r.r1 = p11
       r.r2 = p12
       r.r3 = p21

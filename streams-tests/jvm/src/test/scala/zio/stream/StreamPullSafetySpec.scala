@@ -17,7 +17,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           fin   <- ref.get
         } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(5), Left(None), Left(None))))
       },
-      testM("is safe to pull again after failed acqusition") {
+      testM("is safe to pull again after failed acquisition") {
         for {
           ref   <- Ref.make(false)
           pulls <- Stream.bracket(IO.fail("Ouch"))(_ => ref.set(true)).process.use(nPulls(_, 3))

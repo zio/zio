@@ -392,7 +392,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a generator of partial functions from `A` to `B` given a
    * generator of `B` values. Two `A` values will be considered to be equal,
    * and thus will be guaranteed to generate the same `B` value or both be
-   * outside the partial functon's domain, if they have the same `hashCode`.
+   * outside the partial function's domain, if they have the same `hashCode`.
    */
   final def partialFunction[R <: Random, A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
     partialFunctionWith(gen)(_.hashCode)
@@ -403,7 +403,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * values will be considered to be equal, and thus will be guaranteed to
    * generate the same `B` value or both be outside the partial function's
    * domain, if they have have the same hash. This is useful when `A` does not
-   * implement `hashCode` in a way that is constent with equality.
+   * implement `hashCode` in a way that is consistent with equality.
    */
   final def partialFunctionWith[R <: Random, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
     functionWith(option(gen))(hash).map(Function.unlift)
