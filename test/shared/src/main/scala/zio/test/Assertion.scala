@@ -25,7 +25,7 @@ import zio.test.Assertion.Render._
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
- * proposition, assertions compose using logical conjuction and disjunction,
+ * proposition, assertions compose using logical conjunction and disjunction,
  * and can be negated.
  */
 class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult) extends ((=> A) => AssertResult) {

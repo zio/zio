@@ -313,7 +313,7 @@ object BoolAlgebra {
     if (as.isEmpty) None else Some(as.map(f).reduce(_ && _))
 
   /**
-   * Constructs a result that is the logical negation ofthe specified result.
+   * Constructs a result that is the logical negation of the specified result.
    */
   final def not[A](result: BoolAlgebra[A]): BoolAlgebra[A] =
     Not(result)

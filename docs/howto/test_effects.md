@@ -146,7 +146,7 @@ object AllSuites extends DefaultRunnableSpec {
 ```
 
 `DefaultRunnableSpec` is very similar in its logic of operations to `zio.App`. Instead of providing one `ZIO` application
-at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `TestEnvironment` which helps us with controling our systems infrastructure. More info on using test environment can be found in sections below.
+at the end of the world we provide a suite that can be a tree of other suites and tests. Another resemblance is that `DefaultRunnableSpec` provides an Environment. Here it is an instance of `TestEnvironment` which helps us with controlling our systems infrastructure. More info on using test environment can be found in sections below.
 Just like with `zio.App` where at the very end an instance of `ZIO[R,E,A]` is expected where `R` can be at maximum of type `Environment` in `DefaultRunnableSpec` `R` cannot be more than `TestEnvironment`. So just like in normal application if our
 `R` is composed of some other modules we need to provide them first before test can be executed. How can we provide our dependencies?
 Here again the design of `zio-test` shines. Since our tests are ordinary values we can just transform them with a call to `mapTest`.

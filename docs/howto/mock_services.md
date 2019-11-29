@@ -10,14 +10,14 @@ However in larger applications there is a need for intermediate layers that dele
 
 For example, in a HTTP server the first layer of indirection are so called _routes_, whose job is to match the request and delegate the processing to
 downstream layers. Often below there is a second layer of indirection, so called _controllers_, which consist of several business logic units grouped
-by their domain. In a RESTful API that would be all operations on a certain model. The _controller_ to perform its job might call on futher
+by their domain. In a RESTful API that would be all operations on a certain model. The _controller_ to perform its job might call on further
 specialized services for communicating with the database, sending emails, logging, et cetera.
 
 If the job of the _capability_ is to call on another _capability_, how should we test it?
 
 ## Hidden outputs
 
-A pure function is such a function which operates only on its inputs and produces only its output. Command-like methods, by definition are inpure, as
+A pure function is such a function which operates only on its inputs and produces only its output. Command-like methods, by definition are impure, as
 their job is to change state of the collaborating object (performing a _side effect_). For example:
 
 ```scala mdoc:invisible
@@ -70,7 +70,7 @@ def processEvent2(event: Event): ZIO[TestConsole, Nothing, Unit] =
   ZIO.unit
 ```
 
-How can we test it did exacly what we expected it to do?
+How can we test it did exactly what we expected it to do?
 
 ## Mocking
 
@@ -261,7 +261,7 @@ object AccountObserverSpec extends DefaultRunnableSpec {
 
 ## Mocking multiple collaborators
 
-In some cases we have more than one collaborating service being called. In such situations we need to build our expectations seperately for each
+In some cases we have more than one collaborating service being called. In such situations we need to build our expectations separately for each
 service and then combine them into single environment:
 
 ```scala mdoc:silent

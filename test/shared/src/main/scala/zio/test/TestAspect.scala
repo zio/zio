@@ -152,7 +152,7 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Constucts a simple monomorphic aspect that only works with the specified
+   * Constructs a simple monomorphic aspect that only works with the specified
    * environment and error type.
    */
   def aspect[R0, E0, S0](
