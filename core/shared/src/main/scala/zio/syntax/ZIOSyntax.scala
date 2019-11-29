@@ -16,9 +16,10 @@
 
 package zio.syntax
 
-import zio.{ Fiber, ZIO }
+import zio.ZIO
 
 object ZIOSyntax {
+
   final class EagerCreationSyntax[A](val a: A) extends AnyVal {
     def fail[R]: ZIO[R, A, Nothing]                            = ZIO.fail(a)
     def require[R, AA]: ZIO[R, A, Option[AA]] => ZIO[R, A, AA] = ZIO.require(a)
@@ -28,46 +29,5 @@ object ZIOSyntax {
   final class LazyCreationSyntax[A](val a: () => A) extends AnyVal {
     def effectTotal[R, E]: ZIO[R, E, A] = ZIO.effectTotal(a())
     def effect[R]: ZIO[R, Throwable, A] = ZIO.effect(a())
-  }
-
-  final class IterableSyntax[R, E, A](val ios: Iterable[ZIO[R, E, A]]) extends AnyVal {
-    def collectAll: ZIO[R, E, Iterable[A]]                 = ZIO.collectAll(ios)
-    def collectAllPar: ZIO[R, E, Iterable[A]]              = ZIO.collectAllPar(ios)
-    def forkAll: ZIO[R, Nothing, Fiber[E, Iterable[A]]]    = ZIO.forkAll(ios)
-    def mergeAll[B](zero: B)(f: (B, A) => B): ZIO[R, E, B] = ZIO.mergeAll(ios)(zero)(f)
-  }
-
-  final class Tuple2Syntax[R, E, A, B](val ios2: (ZIO[R, E, A], ZIO[R, E, B])) extends AnyVal {
-    def mapN[C](f: (A, B) => C): ZIO[R, E, C]    = ios2._1.flatMap(a => ios2._2.map(f(a, _)))
-    def mapParN[C](f: (A, B) => C): ZIO[R, E, C] = ios2._1.zipWithPar(ios2._2)(f)
-  }
-
-  final class Tuple3Syntax[R, E, A, B, C](val ios3: (ZIO[R, E, A], ZIO[R, E, B], ZIO[R, E, C])) extends AnyVal {
-    def mapN[D](f: (A, B, C) => D): ZIO[R, E, D] =
-      for {
-        a <- ios3._1
-        b <- ios3._2
-        c <- ios3._3
-      } yield f(a, b, c)
-    def mapParN[D](f: (A, B, C) => D): ZIO[R, E, D] =
-      (ios3._1 <&> ios3._2 <&> ios3._3).map {
-        case ((a, b), c) => f(a, b, c)
-      }
-  }
-
-  final class Tuple4Syntax[R, E, A, B, C, D](
-    val ios4: (ZIO[R, E, A], ZIO[R, E, B], ZIO[R, E, C], ZIO[R, E, D])
-  ) extends AnyVal {
-    def mapN[F](f: (A, B, C, D) => F): ZIO[R, E, F] =
-      for {
-        a <- ios4._1
-        b <- ios4._2
-        c <- ios4._3
-        d <- ios4._4
-      } yield f(a, b, c, d)
-    def mapParN[F](f: (A, B, C, D) => F): ZIO[R, E, F] =
-      (ios4._1 <&> ios4._2 <&> ios4._3 <&> ios4._4).map {
-        case (((a, b), c), d) => f(a, b, c, d)
-      }
   }
 }

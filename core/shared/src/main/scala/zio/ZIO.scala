@@ -2334,6 +2334,75 @@ private[zio] trait ZIOFunctions extends Serializable {
     new ZIO.Lock(executor, zio)
 
   /**
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
+   */
+  final def mapN[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B])(f: (A, B) => C): ZIO[R, E, C] =
+    zio1.zipWith(zio2)(f)
+
+  /**
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
+   */
+  final def mapN[R, E, A, B, C, D](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C])(
+    f: (A, B, C) => D
+  ): ZIO[R, E, D] =
+    for {
+      a <- zio1
+      b <- zio2
+      c <- zio3
+    } yield f(a, b, c)
+
+  /**
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
+   */
+  final def mapN[R, E, A, B, C, D, F](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C], zio4: ZIO[R, E, D])(
+    f: (A, B, C, D) => F
+  ): ZIO[R, E, F] =
+    for {
+      a <- zio1
+      b <- zio2
+      c <- zio3
+      d <- zio4
+    } yield f(a, b, c, d)
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  final def mapParN[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B])(f: (A, B) => C): ZIO[R, E, C] =
+    zio1.zipWithPar(zio2)(f)
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  final def mapParN[R, E, A, B, C, D](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C])(
+    f: (A, B, C) => D
+  ): ZIO[R, E, D] =
+    (zio1 <&> zio2 <&> zio3).map {
+      case ((a, b), c) => f(a, b, c)
+    }
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  final def mapParN[R, E, A, B, C, D, F](
+    zio1: ZIO[R, E, A],
+    zio2: ZIO[R, E, B],
+    zio3: ZIO[R, E, C],
+    zio4: ZIO[R, E, D]
+  )(f: (A, B, C, D) => F): ZIO[R, E, F] =
+    (zio1 <&> zio2 <&> zio3 <&> zio4).map {
+      case (((a, b), c), d) => f(a, b, c, d)
+    }
+
+  /**
    * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   final def mergeAll[R, E, A, B](
