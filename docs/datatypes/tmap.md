@@ -1,6 +1,6 @@
 ---
 id: datatypes_tmap
-title: "TMap"
+title:  "TMap"
 ---
 
 A `TMap[A]` is a mutable map that can participate in transactions in STM.
@@ -76,7 +76,7 @@ val deleteElem: UIO[TMap[String, Int]] = (for {
 } yield tMap).commit
 ```
 
-Also, it is possible to remove every key-value pairs that satisfies provided predicate:
+Also, it is possible to remove every key-value pairs that satisfy provided predicate:
 
 ```scala mdoc:silent
 import zio._
@@ -104,7 +104,7 @@ Note that `retainIf` and `removeIf` serve the same purpose as `filter` and `filt
 
 ## Retrieve the value from a TMap
 
-Value by key can be obtained as follows: 
+Value by the key can be obtained as follows: 
 
 ```scala mdoc:silent
 import zio._
@@ -116,7 +116,7 @@ val elemGet: UIO[Option[Int]] = (for {
 } yield elem).commit
 ```
 
-Alternatively, you can provide default value if entry by key is not present in the map:
+Alternatively, you can provide a default value if entry by key is not present in the map:
 
 ```scala mdoc:silent
 import zio._
@@ -218,7 +218,7 @@ val foldMTMap: UIO[Int] = (for {
 
 ## Perform side-effect for TMap key-value pairs
 
-`foreach` is used for performing side-effect for each key-value pair in map:
+`foreach` is used for performing side-effect for each key-value pair in the map:
 
 ```scala mdoc:silent
 import zio._
