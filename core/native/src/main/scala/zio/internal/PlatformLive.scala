@@ -17,7 +17,6 @@
 package zio.internal
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContext.global
 import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
@@ -41,7 +40,7 @@ object PlatformLive {
       }
 
       def reportFailure(cause: Cause[Any]): Unit =
-        if (!cause.interrupted)
+        if (!cause.interruptedOnly)
           println(cause.prettyPrint)
 
       val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
