@@ -1785,6 +1785,19 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     self.flatMapPar[R1, E1, B](n)(a => ZStream.fromEffect(f(a)))
 
   /**
+   * Maps over elements of the stream with the specified effectful function,
+   * partitioned by `p` executing invocations of `f` concurrently. The number
+   * of concurrent invocations of `f` is determined by the number of different
+   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
+   * Transformed elements may be reordered but the order within a partition is maintained.
+   */
+  final def mapMPartitioned[R1 <: R, E1 >: E, B, K](
+    keyBy: A => K,
+    buffer: Int = 16
+  )(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
+    groupByKey(keyBy, buffer).apply { case (_, s) => s.mapM(f) }
+
+  /**
    * Merges this stream and the specified stream together.
    */
   final def merge[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
