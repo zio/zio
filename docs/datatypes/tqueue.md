@@ -1,6 +1,6 @@
 ---
 id: datatypes_tqueue
-title: "TQueue"
+title:  "TQueue"
 ---
 
 A `TQueue[A]` is a mutable queue that can participate in transactions in STM.
@@ -60,7 +60,7 @@ val tQueueTake: UIO[Int] = (for {
 } yield res).commit
 ```
 
-In case the queue is empty it will block execution waiting for element you're asking for.
+In case the queue is empty it will block execution waiting for the element you're asking for.
 
 This behavior can be avoided by using `poll` method that will return an element if exists or `None` otherwise:
 
