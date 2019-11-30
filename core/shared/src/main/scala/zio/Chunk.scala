@@ -1166,22 +1166,15 @@ object Chunk {
       else {
         val pos = buffer.position()
         val lim = buffer.limit()
-        val cap = buffer.capacity()
         val arr = buffer.array().asInstanceOf[Array[A]]
         val off = buffer.arrayOffset()
 
-        val chunk = if (off == 0 && pos == 0 && cap == arr.length && lim == cap) {
-          // best case, reuse the underlying array
-          fromArray(arr)
-        } else {
-          implicit val classTag: ClassTag[A] = ClassTag(arr.getClass.getComponentType)
-          val len                            = lim - pos
-          val dest                           = Array.ofDim[A](len)
-          Array.copy(arr, off + pos, dest, 0, len)
-          fromArray(dest)
-        }
+        implicit val classTag: ClassTag[A] = ClassTag(arr.getClass.getComponentType)
 
-        Some(chunk.asInstanceOf[Chunk[A]])
+        val len  = lim - pos
+        val dest = Array.ofDim[A](len)
+        Array.copy(arr, off + pos, dest, 0, len)
+        Some(fromArray(dest))
       }
 
     final def manualByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
