@@ -1365,7 +1365,7 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(unexpected, isEmpty) &&
           assert(result, isNone) // timeout happens
         }
-      },
+      } @@ flaky,
       testM("effectAsyncMaybe should not resume fiber twice after synchronous result") {
         for {
           step            <- Promise.make[Nothing, Unit]

@@ -2695,16 +2695,22 @@ object ZStream extends Serializable {
     new ZStream[R, E, A](ZStream.Structure.Iterator(pull))
 
   /**
-   * Creates a stream from a value received from the accessed environment.
+   * Accesses the environment of the stream.
    */
   final def access[R]: AccessPartiallyApplied[R] =
     new AccessPartiallyApplied[R]
 
   /**
-   * Creates a stream from a value received from the effectfully accessed environment.
+   * Accesses the environment of the stream in the context of an effect.
    */
   final def accessM[R]: AccessMPartiallyApplied[R] =
     new AccessMPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the stream in the context of a stream.
+   */
+  final def accessStream[R]: AccessStreamPartiallyApplied[R] =
+    new AccessStreamPartiallyApplied[R]
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -2944,6 +2950,12 @@ object ZStream extends Serializable {
                }
       } yield pull
     }
+
+  /**
+   * Accesses the whole environment of the stream.
+   */
+  final def environment[R]: ZStream[R, Nothing, R] =
+    ZStream.fromEffect(ZIO.environment[R])
 
   /**
    * The stream that always fails with `error`
@@ -3224,12 +3236,17 @@ object ZStream extends Serializable {
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZStream[R, Nothing, A] =
-      ZStream.fromEffect(ZIO.access(f))
+      ZStream.environment[R].map(f)
   }
 
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZStream[R, Nothing, A]): ZStream[R, Nothing, A] =
-      ZStream.unwrap(ZIO.access(f))
+    def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
+      ZStream.environment[R].mapM(f)
+  }
+
+  final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
+      ZStream.environment[R].flatMap(f)
   }
 
   private[stream] final def exitToInputStreamRead(exit: Exit[Option[Throwable], Byte]): Int = exit match {
