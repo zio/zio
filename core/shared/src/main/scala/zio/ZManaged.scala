@@ -1223,6 +1223,86 @@ object ZManaged {
     ZManaged.fromEffect(acquire).onExitFirst(_.foreach(release))
 
   /**
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
+   */
+  final def mapN[R, E, A, B, C](zManaged1: ZManaged[R, E, A], zManaged2: ZManaged[R, E, B])(
+    f: (A, B) => C
+  ): ZManaged[R, E, C] =
+    zManaged1.zipWith(zManaged2)(f)
+
+  /**
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
+   */
+  final def mapN[R, E, A, B, C, D](
+    zManaged1: ZManaged[R, E, A],
+    zManaged2: ZManaged[R, E, B],
+    zManaged3: ZManaged[R, E, C]
+  )(f: (A, B, C) => D): ZManaged[R, E, D] =
+    for {
+      a <- zManaged1
+      b <- zManaged2
+      c <- zManaged3
+    } yield f(a, b, c)
+
+  /**
+   * Sequentially zips the specified effects using the specified combiner
+   * function.
+   */
+  final def mapN[R, E, A, B, C, D, F](
+    zManaged1: ZManaged[R, E, A],
+    zManaged2: ZManaged[R, E, B],
+    zManaged3: ZManaged[R, E, C],
+    zManaged4: ZManaged[R, E, D]
+  )(f: (A, B, C, D) => F): ZManaged[R, E, F] =
+    for {
+      a <- zManaged1
+      b <- zManaged2
+      c <- zManaged3
+      d <- zManaged4
+    } yield f(a, b, c, d)
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  final def mapParN[R, E, A, B, C](zManaged1: ZManaged[R, E, A], zManaged2: ZManaged[R, E, B])(
+    f: (A, B) => C
+  ): ZManaged[R, E, C] =
+    zManaged1.zipWithPar(zManaged2)(f)
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  final def mapParN[R, E, A, B, C, D](
+    zManaged1: ZManaged[R, E, A],
+    zManaged2: ZManaged[R, E, B],
+    zManaged3: ZManaged[R, E, C]
+  )(f: (A, B, C) => D): ZManaged[R, E, D] =
+    (zManaged1 <&> zManaged2 <&> zManaged3).map {
+      case ((a, b), c) => f(a, b, c)
+    }
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  final def mapParN[R, E, A, B, C, D, F](
+    zManaged1: ZManaged[R, E, A],
+    zManaged2: ZManaged[R, E, B],
+    zManaged3: ZManaged[R, E, C],
+    zManaged4: ZManaged[R, E, D]
+  )(f: (A, B, C, D) => F): ZManaged[R, E, F] =
+    (zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map {
+      case (((a, b), c), d) => f(a, b, c, d)
+    }
+
+  /**
    * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   final def mergeAll[R, E, A, B](in: Iterable[ZManaged[R, E, A]])(zero: B)(f: (B, A) => B): ZManaged[R, E, B] =
