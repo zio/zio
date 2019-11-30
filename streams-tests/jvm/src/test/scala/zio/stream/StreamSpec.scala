@@ -382,11 +382,6 @@ object StreamSpec extends ZIOBaseSpec {
           _      <- s1.catchAllCause(_ => s2).runCollect.run
           result <- fins.get
         } yield assert(result, equalTo(List("s2", "s1")))
-      },
-      testM("failures on the scope") {
-        val s1 = Stream(1, 2) ++ ZStream(ZManaged.fail("Boom"))
-        val s2 = Stream(3, 4)
-        s1.catchAllCause(_ => s2).runCollect.map(assert(_, equalTo(List(1, 2, 3, 4))))
       }
     ),
     suite("Stream.chunkN")(
