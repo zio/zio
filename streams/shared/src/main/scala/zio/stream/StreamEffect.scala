@@ -20,7 +20,7 @@ import java.io.{ IOException, InputStream }
 
 import zio._
 
-private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E, () => A])
+private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, Nothing, () => A])
     extends ZStream[R, E, A](
       ZStream.Structure.Iterator(
         processEffect.map { thunk =>
@@ -323,7 +323,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def apply[R, E, A](pull: ZManaged[R, E, () => A]): StreamEffect[R, E, A] =
+  final def apply[R, E, A](pull: ZManaged[R, Nothing, () => A]): StreamEffect[R, E, A] =
     new StreamEffect(pull)
 
   final def fail[E](e: E): StreamEffect[Any, E, Nothing] =
@@ -365,12 +365,10 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromIterator[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): StreamEffect[R, E, A] =
+  final def fromIterator[R, E, A](iterator: Iterator[A]): StreamEffect[R, E, A] =
     StreamEffect {
-      iterator.flatMap { iterator =>
-        Managed.effectTotal { () =>
-          if (iterator.hasNext) iterator.next() else end
-        }
+      Managed.effectTotal { () =>
+        if (iterator.hasNext) iterator.next() else end
       }
     }
 

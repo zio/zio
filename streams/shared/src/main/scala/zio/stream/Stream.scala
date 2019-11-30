@@ -45,7 +45,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.apply[R,E,A]*]]
    */
-  final def apply[E, A](pull: Managed[E, Pull[Any, E, A]]): Stream[E, A] = ZStream(pull)
+  final def apply[E, A](pull: Managed[Nothing, Pull[Any, E, A]]): Stream[E, A] = ZStream(pull)
 
   /**
    * See [[ZStream.bracket]]
