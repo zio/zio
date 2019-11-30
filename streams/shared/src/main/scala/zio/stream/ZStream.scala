@@ -2723,6 +2723,60 @@ object ZStream extends Serializable {
     managed(ZManaged.makeExit(acquire)(release))
 
   /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent streams would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   */
+  final def crossN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
+    f: (A, B) => C
+  ): ZStream[R, E, C] =
+    zStream1.crossWith(zStream2)(f)
+
+  /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent stream would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   */
+  final def crossN[R, E, A, B, C, D](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C]
+  )(
+    f: (A, B, C) => D
+  ): ZStream[R, E, D] =
+    for {
+      a <- zStream1
+      b <- zStream2
+      c <- zStream3
+    } yield f(a, b, c)
+
+  /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent stream would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   */
+  final def crossN[R, E, A, B, C, D, F](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C],
+    zStream4: ZStream[R, E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): ZStream[R, E, F] =
+    for {
+      a <- zStream1
+      b <- zStream2
+      c <- zStream3
+      d <- zStream4
+    } yield f(a, b, c, d)
+
+  /**
    * The stream that always dies with `ex`.
    */
   final def die(ex: Throwable): Stream[Nothing, Nothing] =
@@ -3134,6 +3188,39 @@ object ZStream extends Serializable {
    */
   final def unwrapManaged[R, E, A](fa: ZManaged[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     ZStream[R, E, A](fa.flatMap(_.process))
+
+  /**
+   * Zips the specified streams together with the specified function.
+   */
+  final def zipN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
+    f: (A, B) => C
+  ): ZStream[R, E, C] =
+    zStream1.zipWith(zStream2)((l, r) => l.flatMap(a => r.map(b => f(a, b))))
+
+  /**
+   * Zips with specified streams together with the specified function.
+   */
+  final def zipN[R, E, A, B, C, D](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B], zStream3: ZStream[R, E, C])(
+    f: (A, B, C) => D
+  ): ZStream[R, E, D] =
+    (zStream1 <&> zStream2 <&> zStream3).map {
+      case ((a, b), c) => f(a, b, c)
+    }
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  final def zipN[R, E, A, B, C, D, F](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C],
+    zStream4: ZStream[R, E, D]
+  )(f: (A, B, C, D) => F): ZStream[R, E, F] =
+    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map {
+      case (((a, b), c), d) => f(a, b, c, d)
+    }
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZStream[R, Nothing, A] =

@@ -422,6 +422,48 @@ object RIO {
   final def left[R, A](a: A): RIO[R, Either[A, Nothing]] = ZIO.left(a)
 
   /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[R, A, B, C](rio1: RIO[R, A], rio2: RIO[R, B])(f: (A, B) => C): RIO[R, C] =
+    ZIO.mapN(rio1, rio2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[R, A, B, C, D](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C])(
+    f: (A, B, C) => D
+  ): RIO[R, D] =
+    ZIO.mapN(rio1, rio2, rio3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[R, A, B, C, D, F](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C], rio4: RIO[R, D])(
+    f: (A, B, C, D) => F
+  ): RIO[R, F] =
+    ZIO.mapN(rio1, rio2, rio3, rio4)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[R, A, B, C](rio1: RIO[R, A], rio2: RIO[R, B])(f: (A, B) => C): RIO[R, C] =
+    ZIO.mapParN(rio1, rio2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[R, A, B, C, D](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C])(f: (A, B, C) => D): RIO[R, D] =
+    ZIO.mapParN(rio1, rio2, rio3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[R, A, B, C, D, F](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C], rio4: RIO[R, D])(
+    f: (A, B, C, D) => F
+  ): RIO[R, F] =
+    ZIO.mapParN(rio1, rio2, rio3, rio4)(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   final def mergeAll[R, A, B](in: Iterable[RIO[R, A]])(zero: B)(f: (B, A) => B): RIO[R, B] =
