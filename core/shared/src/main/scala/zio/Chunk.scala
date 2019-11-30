@@ -692,44 +692,79 @@ object Chunk {
   /**
    * Returns a chunk backed by a [[java.nio.ByteBuffer]].
    */
-  final def fromByteBuffer(buffer: ByteBuffer): Chunk[Byte] =
-    Buff.arrayBacked(buffer).getOrElse(Buff.manualByteBuffer(buffer))
+  final def fromByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
+    val dest = Array.ofDim[Byte](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by a [[java.nio.CharBuffer]].
    */
-  final def fromCharBuffer(buffer: CharBuffer): Chunk[Char] =
-    Buff.arrayBacked(buffer).getOrElse(Buff.manualCharBuffer(buffer))
+  final def fromCharBuffer(buffer: CharBuffer): Chunk[Char] = {
+    val dest = Array.ofDim[Char](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by a [[java.nio.DoubleBuffer]].
    */
-  final def fromDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] =
-    Buff.arrayBacked(buffer).getOrElse(Buff.manualDoubleBuffer(buffer))
+  final def fromDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] = {
+    val dest = Array.ofDim[Double](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by a [[java.nio.FloatBuffer]].
    */
-  final def fromFloatBuffer(buffer: FloatBuffer): Chunk[Float] =
-    Buff.arrayBacked(buffer).getOrElse(Buff.manualFloatBuffer(buffer))
+  final def fromFloatBuffer(buffer: FloatBuffer): Chunk[Float] = {
+    val dest = Array.ofDim[Float](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by a [[java.nio.IntBuffer]].
    */
-  final def fromIntBuffer(buffer: IntBuffer): Chunk[Int] =
-    Buff.arrayBacked(buffer).getOrElse(Buff.manualIntBuffer(buffer))
+  final def fromIntBuffer(buffer: IntBuffer): Chunk[Int] = {
+    val dest = Array.ofDim[Int](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by a [[java.nio.LongBuffer]].
    */
-  final def fromLongBuffer(buffer: LongBuffer): Chunk[Long] =
-    Buff.arrayBacked(buffer).getOrElse(Buff.manualLongBuffer(buffer))
+  final def fromLongBuffer(buffer: LongBuffer): Chunk[Long] = {
+    val dest = Array.ofDim[Long](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by a [[java.nio.ShortBuffer]].
    */
-  final def fromShortBuffer(buffer: ShortBuffer): Chunk[Short] =
-    Buff.arrayBacked(buffer).getOrElse(Buff.manualShortBuffer(buffer))
+  final def fromShortBuffer(buffer: ShortBuffer): Chunk[Short] = {
+    val dest = Array.ofDim[Short](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by an iterable.
@@ -1158,80 +1193,6 @@ object Chunk {
     override def foreach(f: A => Unit): Unit = vector.foreach(f)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
-  }
-
-  private[zio] object Buff {
-    final def arrayBacked[A](buffer: Buffer): Option[Chunk[A]] =
-      if (!buffer.hasArray()) None
-      else {
-        val pos = buffer.position()
-        val lim = buffer.limit()
-        val arr = buffer.array().asInstanceOf[Array[A]]
-        val off = buffer.arrayOffset()
-
-        implicit val classTag: ClassTag[A] = ClassTag(arr.getClass.getComponentType)
-
-        val len  = lim - pos
-        val dest = Array.ofDim[A](len)
-        Array.copy(arr, off + pos, dest, 0, len)
-        Some(fromArray(dest))
-      }
-
-    final def manualByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
-      val dest = Array.ofDim[Byte](buffer.remaining())
-      val pos  = buffer.position()
-      buffer.get(dest)
-      buffer.position(pos)
-      Chunk.fromArray(dest)
-    }
-
-    final def manualCharBuffer(buffer: CharBuffer): Chunk[Char] = {
-      val dest = Array.ofDim[Char](buffer.remaining())
-      val pos  = buffer.position()
-      buffer.get(dest)
-      buffer.position(pos)
-      Chunk.fromArray(dest)
-    }
-
-    final def manualDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] = {
-      val dest = Array.ofDim[Double](buffer.remaining())
-      val pos  = buffer.position()
-      buffer.get(dest)
-      buffer.position(pos)
-      Chunk.fromArray(dest)
-    }
-
-    final def manualFloatBuffer(buffer: FloatBuffer): Chunk[Float] = {
-      val dest = Array.ofDim[Float](buffer.remaining())
-      val pos  = buffer.position()
-      buffer.get(dest)
-      buffer.position(pos)
-      Chunk.fromArray(dest)
-    }
-
-    final def manualIntBuffer(buffer: IntBuffer): Chunk[Int] = {
-      val dest = Array.ofDim[Int](buffer.remaining())
-      val pos  = buffer.position()
-      buffer.get(dest)
-      buffer.position(pos)
-      Chunk.fromArray(dest)
-    }
-
-    final def manualLongBuffer(buffer: LongBuffer): Chunk[Long] = {
-      val dest = Array.ofDim[Long](buffer.remaining())
-      val pos  = buffer.position()
-      buffer.get(dest)
-      buffer.position(pos)
-      Chunk.fromArray(dest)
-    }
-
-    final def manualShortBuffer(buffer: ShortBuffer): Chunk[Short] = {
-      val dest = Array.ofDim[Short](buffer.remaining())
-      val pos  = buffer.position()
-      buffer.get(dest)
-      buffer.position(pos)
-      Chunk.fromArray(dest)
-    }
   }
 
   private[zio] object Tags {
