@@ -1178,108 +1178,59 @@ object Chunk {
       }
 
     final def manualByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
-      val pos = buffer.position()
-      val lim = buffer.limit()
-      val len = lim - pos
-      val dst = Array.ofDim[Byte](len)
-      var i   = pos
-      var j   = 0
-      while (i < lim) {
-        dst(j) = buffer.get(i)
-        i += 1
-        j += 1
-      }
-      Chunk.fromArray(dst)
+      val dest = Array.ofDim[Byte](buffer.remaining())
+      val pos  = buffer.position()
+      buffer.get(dest)
+      buffer.position(pos)
+      Chunk.fromArray(dest)
     }
 
     final def manualCharBuffer(buffer: CharBuffer): Chunk[Char] = {
-      val pos = buffer.position()
-      val lim = buffer.limit()
-      val len = lim - pos
-      val dst = Array.ofDim[Char](len)
-      var i   = pos
-      var j   = 0
-      while (i < lim) {
-        dst(j) = buffer.get(i)
-        i += 1
-        j += 1
-      }
-      Chunk.fromArray(dst)
+      val dest = Array.ofDim[Char](buffer.remaining())
+      val pos  = buffer.position()
+      buffer.get(dest)
+      buffer.position(pos)
+      Chunk.fromArray(dest)
     }
 
     final def manualDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] = {
-      val pos = buffer.position()
-      val lim = buffer.limit()
-      val len = lim - pos
-      val dst = Array.ofDim[Double](len)
-      var i   = pos
-      var j   = 0
-      while (i < lim) {
-        dst(j) = buffer.get(i)
-        i += 1
-        j += 1
-      }
-      Chunk.fromArray(dst)
+      val dest = Array.ofDim[Double](buffer.remaining())
+      val pos  = buffer.position()
+      buffer.get(dest)
+      buffer.position(pos)
+      Chunk.fromArray(dest)
     }
 
     final def manualFloatBuffer(buffer: FloatBuffer): Chunk[Float] = {
-      val pos = buffer.position()
-      val lim = buffer.limit()
-      val len = lim - pos
-      val dst = Array.ofDim[Float](len)
-      var i   = pos
-      var j   = 0
-      while (i < lim) {
-        dst(j) = buffer.get(i)
-        i += 1
-        j += 1
-      }
-      Chunk.fromArray(dst)
+      val dest = Array.ofDim[Float](buffer.remaining())
+      val pos  = buffer.position()
+      buffer.get(dest)
+      buffer.position(pos)
+      Chunk.fromArray(dest)
     }
 
     final def manualIntBuffer(buffer: IntBuffer): Chunk[Int] = {
-      val pos = buffer.position()
-      val lim = buffer.limit()
-      val len = lim - pos
-      val dst = Array.ofDim[Int](len)
-      var i   = pos
-      var j   = 0
-      while (i < lim) {
-        dst(j) = buffer.get(i)
-        i += 1
-        j += 1
-      }
-      Chunk.fromArray(dst)
+      val dest = Array.ofDim[Int](buffer.remaining())
+      val pos  = buffer.position()
+      buffer.get(dest)
+      buffer.position(pos)
+      Chunk.fromArray(dest)
     }
 
     final def manualLongBuffer(buffer: LongBuffer): Chunk[Long] = {
-      val pos = buffer.position()
-      val lim = buffer.limit()
-      val len = lim - pos
-      val dst = Array.ofDim[Long](len)
-      var i   = pos
-      var j   = 0
-      while (i < lim) {
-        dst(j) = buffer.get(i)
-        i += 1
-        j += 1
-      }
-      Chunk.fromArray(dst)
+      val dest = Array.ofDim[Long](buffer.remaining())
+      val pos  = buffer.position()
+      buffer.get(dest)
+      buffer.position(pos)
+      Chunk.fromArray(dest)
     }
 
     final def manualShortBuffer(buffer: ShortBuffer): Chunk[Short] = {
-      val pos = buffer.position()
-      val lim = buffer.limit()
-      val len = lim - pos
-      val dst = Array.ofDim[Short](len)
-      var i   = pos
-      var j   = 0
-      while (i < lim) {
-        dst(j) = buffer.get(i)
-        i += 1
-        j += 1
-      }
-      Chunk.fromArray(dst)
+      val dest = Array.ofDim[Short](buffer.remaining())
+      val pos  = buffer.position()
+      buffer.get(dest)
+      buffer.position(pos)
+      Chunk.fromArray(dest)
     }
   }
 
