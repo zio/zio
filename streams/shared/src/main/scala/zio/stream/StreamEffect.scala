@@ -169,14 +169,14 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
       }
     }
 
-  override def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
+  override def run[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, Any, A1, B]): ZIO[R1, E1, B] =
     sink match {
-      case sink: SinkPure[E1, A0, A1, B] =>
+      case sink: SinkPure[E1, Any, A1, B] =>
         foldWhileManaged(sink.initialPure)(sink.cont)(sink.stepPure).use[R1, E1, B] { state =>
           ZIO.fromEither(sink.extractPure(state).map(_._1))
         }
 
-      case sink: ZSink[R1, E1, A0, A1, B] => super.run(sink)
+      case sink: ZSink[R1, E1, Any, A1, B] => super.run(sink)
     }
 
   override def take(n: Int): StreamEffect[R, E, A] =

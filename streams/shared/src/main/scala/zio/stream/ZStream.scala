@@ -2033,7 +2033,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
+  def run[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, Any, A1, B]): ZIO[R1, E1, B] =
     sink.initial.flatMap { initial =>
       self.process.use { as =>
         def pull(state: sink.State): ZIO[R1, E1, B] =
@@ -2055,12 +2055,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Runs the stream returning the first element of the stream. Later elements will not be consumed / have effects run
    */
-  def runHead: ZIO[R, E, Option[A]] = take(1).runCollect.map(_.headOption)
+  def runHead: ZIO[R, E, Option[A]] = run(ZSink.head[A])
 
   /**
    * Runs the stream returning the last element and discarding all earlier elements.
    */
-  def runLast: ZIO[R, E, Option[A]] = run(ZSink.foldLeft[A, Option[A]](None) { case (_, a) => Some(a) })
+  def runLast: ZIO[R, E, Option[A]] = run(ZSink.last[A])
 
   /**
    * Runs the stream and collects all of its elements in a list.
