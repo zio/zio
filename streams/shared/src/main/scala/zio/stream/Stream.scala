@@ -62,7 +62,7 @@ object Stream extends Serializable {
   /**
    *  @see [[zio.ZStream.crossN]]
    */
-  final def crossNN[E, A, B, C](stream1: Stream[E, A], stream2: Stream[E, B])(f: (A, B) => C): Stream[E, C] =
+  final def crossN[E, A, B, C](stream1: Stream[E, A], stream2: Stream[E, B])(f: (A, B) => C): Stream[E, C] =
     ZStream.crossN(stream1, stream2)(f)
 
   /**
