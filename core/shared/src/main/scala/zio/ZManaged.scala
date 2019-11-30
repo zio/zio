@@ -904,7 +904,7 @@ object ZManaged {
 
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZIO[R, E, A]): ZManaged[R, E, A] =
-      ZManaged.environment[R].flatMap(f(_).toManaged_)
+      ZManaged.environment.mapM(f)
   }
 
   final class AccessManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
@@ -932,19 +932,19 @@ object ZManaged {
     v.flatMap(fromEither(_))
 
   /**
-   * Create a managed that acesses the environment.
+   * Create a managed that accesses the environment.
    */
   final def access[R]: AccessPartiallyApplied[R] =
     new AccessPartiallyApplied
 
   /**
-   * Create a managed that acesses the environment.
+   * Create a managed that accesses the environment.
    */
   final def accessM[R]: AccessMPartiallyApplied[R] =
     new AccessMPartiallyApplied
 
   /**
-   * Create a managed that acesses the environment.
+   * Create a managed that accesses the environment.
    */
   final def accessManaged[R]: AccessManagedPartiallyApplied[R] =
     new AccessManagedPartiallyApplied
