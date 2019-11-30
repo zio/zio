@@ -258,11 +258,11 @@ object TestAspect extends TimeoutVariants {
         lazy val succeed = ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
         test.foldM(
           {
-            case testFailure if p.run(testFailure).isSuccess => succeed
-            case other =>
-              ZIO.fail(
-                TestFailure.Assertion(assert(other, p))
-              )
+            case testFailure =>
+              p.run(testFailure).run.flatMap { p1 =>
+                if (p1.isSuccess) succeed
+                else ZIO.fail(TestFailure.Assertion(assert(testFailure, p)))
+              }
           },
           _ => ZIO.fail(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
         )
@@ -293,11 +293,21 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         Live.live(system.env(env)).orDie.flatMap { value =>
-          value
-            .filter(assertion.test)
-            .fold[ZIO[R, TestFailure[E], TestSuccess[S]]](ZIO.succeed(TestSuccess.Ignored))(
+          val x = value match {
+            case None => ZIO.succeed(None)
+            case Some(v) =>
+              assertion.test(v).map { p =>
+                if (p) value else None
+              }
+          }
+          //value
+          //.filter(assertion.test)
+          x.flatMap { y =>
+            y.fold[ZIO[R, TestFailure[E], TestSuccess[S]]](ZIO.succeed(TestSuccess.Ignored))(
               _ => test
             )
+          }
+
         }
     }
 
@@ -321,11 +331,20 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         Live.live(system.property(prop)).orDie.flatMap { value =>
-          value
-            .filter(assertion.test)
-            .fold[ZIO[R, TestFailure[E], TestSuccess[S]]](ZIO.succeed(TestSuccess.Ignored))(
+          val x = value match {
+            case None => ZIO.succeed(None)
+            case Some(v) =>
+              assertion.test(v).map { p =>
+                if (p) value else None
+              }
+          }
+          //value
+          //.filter(assertion.test)
+          x.flatMap { y =>
+            y.fold[ZIO[R, TestFailure[E], TestSuccess[S]]](ZIO.succeed(TestSuccess.Ignored))(
               _ => test
             )
+          }
         }
     }
 

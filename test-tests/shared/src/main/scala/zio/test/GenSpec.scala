@@ -426,15 +426,15 @@ object GenSpec extends AsyncBaseSpec {
         val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
         if (p) assert((), Assertion.anything) else assert((as, bs), Assertion.nothing)
     }
-    val property = checkSome(100)(gen)(test).map { result =>
-      result.failures.fold(false) {
+    val property = checkSome(100)(gen)(test).flatMap { result =>
+      result.run.map(_.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
             failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
             failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
             failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
         case _ => false
-      }
+      })
     }
     unsafeRunToFuture(property)
   }
@@ -442,12 +442,12 @@ object GenSpec extends AsyncBaseSpec {
   def testShrinkingNonEmptyList: Future[Boolean] = {
     val gen                            = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
     def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
-    val property = checkSome(100)(gen)(test).map { result =>
-      result.failures.fold(false) {
+    val property = checkSome(100)(gen)(test).flatMap { result =>
+      result.run.map(_.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "List(0)"
         case _ => false
-      }
+      })
     }
     unsafeRunToFuture(property)
   }
@@ -458,12 +458,12 @@ object GenSpec extends AsyncBaseSpec {
       val p = n % 2 == 0
       if (p) assert((), Assertion.anything) else assert(n, Assertion.nothing)
     }
-    val property = checkSome(100)(gen)(test).map { result =>
-      result.failures.fold(false) {
+    val property = checkSome(100)(gen)(test).flatMap { result =>
+      result.run.map(_.failures.fold(false) {
         case BoolAlgebra.Value(failureDetails) =>
           failureDetails.assertion.head.value.toString == "1"
         case _ => false
-      }
+      })
     }
     unsafeRunToFuture(property)
   }
