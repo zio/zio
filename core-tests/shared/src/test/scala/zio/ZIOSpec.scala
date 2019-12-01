@@ -414,6 +414,22 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(sum, equalTo(30))
       }
     ),
+    suite("foreachOption")(
+      testM("succeeds with None given None") {
+        val task: UIO[Option[Int]] = IO.foreachOption(None)((str: String) => IO.succeed(str.length))
+        assertM(task, isNone)
+      },
+      testM("succeeds with Some given Some") {
+        for {
+          optRes <- IO.foreachOption(Some("success"))(str => IO.succeed(str.length))
+        } yield assert(optRes, equalTo(Some(7)))
+      },
+      testM("fails if the optional effect fails") {
+        val opt = Some("h")
+        val res  = IO.foreachOption(opt)(x => IO.effectTotal[Int](x.toInt))
+        assertM(res.run, dies(isSubtype[NumberFormatException](anything)))
+      }
+    ),
     suite("foreachPar")(
       testM("returns results in the same order") {
         val list = List("1", "2", "3")

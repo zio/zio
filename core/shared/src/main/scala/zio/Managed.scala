@@ -103,6 +103,12 @@ object Managed {
     ZManaged.foreach_(as)(f)
 
   /**
+   * See [[zio.ZManaged.foreachOption]]
+   */
+  final def foreachOption[E, A1, A2](v: Option[A1])(f: A1 => Managed[E, A2]): Managed[E, Option[A2]] =
+    ZManaged.foreachOption(v)(f)
+
+  /**
    * See [[zio.ZManaged.foreachPar]]
    */
   final def foreachPar[E, A1, A2](as: Iterable[A1])(f: A1 => Managed[E, A2]): Managed[E, List[A2]] =
@@ -335,6 +341,12 @@ object Managed {
    */
   final def traverse_[E, A](as: Iterable[A])(f: A => Managed[E, Any]): Managed[E, Unit] =
     ZManaged.traverse_(as)(f)
+
+  /**
+   * See [[zio.ZManaged.traverseOption]]
+   */
+  final def traverseOption[E, A1, A2](v: Option[A1])(f: A1 => Managed[E, A2]): Managed[E, Option[A2]] =
+    ZManaged.traverseOption(v)(f)
 
   /**
    * See [[zio.ZManaged.traversePar]]

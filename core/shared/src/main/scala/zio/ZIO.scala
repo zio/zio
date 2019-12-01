@@ -2104,6 +2104,13 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
+   * Applies the function `f` if the argument is non-empty and
+   * returns the results in a new `Option[B]`.
+   */
+  final def foreachOption[R, E, A, B](in: Option[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Option[B]] =
+    in.fold[ZIO[R, E, Option[B]]](none)(f(_).map(Some(_)))
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
    * and returns the results in a new `List[B]`.
    *
@@ -2575,6 +2582,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def traverse_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreach_[R, E, A](as)(f)
+
+  /**
+   * Alias for [[ZIO.foreachOption]]
+   */
+  final def traverseOption[R, E, A, B](in: Option[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Option[B]] =
+    foreachOption[R, E, A, B](in)(f)
 
   /**
    * Alias for [[ZIO.foreachPar]]

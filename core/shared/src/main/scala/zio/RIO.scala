@@ -281,6 +281,12 @@ object RIO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[zio.ZIO.foreachOption]]
+   */
+  final def foreachOption[R, A, B](in: Option[A])(f: A => RIO[R, B]): RIO[R, Option[B]] =
+    ZIO.foreachOption(in)(f)
+
+  /**
    * @see See [[zio.ZIO.foreachPar]]
    */
   final def foreachPar[R, A, B](as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
@@ -598,6 +604,12 @@ object RIO {
    */
   final def traverse[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.traverse(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.traverseOption]]
+   */
+  final def traverseOption[R, A, B](in: Option[A])(f: A => RIO[R, B]): RIO[R, Option[B]] =
+    ZIO.traverseOption(in)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar]]

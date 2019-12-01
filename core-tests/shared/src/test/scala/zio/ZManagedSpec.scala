@@ -321,6 +321,25 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(values, equalTo(List(1, 2, 3, 3, 2, 1)))
       }
     ),
+    suite("foreachOption")(
+      testM("Returns elements if Some") {
+        def res(int: Int) =
+          ZManaged.succeed(int)
+
+        val managed = ZManaged.foreachOption(Some(3))(res)
+        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res, equalTo(Some(3)))))
+      },
+      testM("Returns nothing if None") {
+        def res(int: Int) =
+          ZManaged.succeed(int)
+
+        val managed = ZManaged.foreachOption(None)(res)
+        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res, equalTo(None))))
+      },
+      testM("Runs finalizers") {
+        testFinalizersPar(1, res => ZManaged.foreachOption(Some(4))(_ => res))
+      }
+    ),
     suite("foreachPar")(
       testM("Returns elements in the correct order") {
         def res(int: Int) =

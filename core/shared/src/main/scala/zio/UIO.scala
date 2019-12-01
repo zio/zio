@@ -240,6 +240,12 @@ object UIO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[zio.ZIO.foreachOption]]
+   */
+  final def foreachOption[A, B](in: Option[A])(f: A => UIO[B]): UIO[Option[B]] =
+    ZIO.foreachOption(in)(f)
+
+  /**
    * @see See [[zio.ZIO.foreach_]]
    */
   final def foreach_[A](as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
@@ -494,6 +500,12 @@ object UIO {
    */
   final def traverse[A, B](in: Iterable[A])(f: A => UIO[B]): UIO[List[B]] =
     ZIO.traverse(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.traverseOption]]
+   */
+  final def traverseOption[A, B](in: Option[A])(f: A => UIO[B]): UIO[Option[B]] =
+    ZIO.traverseOption(in)(f)
 
   /**
    * @see See [[zio.ZIO.traverse_]]
