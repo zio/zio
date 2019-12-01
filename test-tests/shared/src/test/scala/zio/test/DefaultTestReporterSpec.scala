@@ -45,6 +45,12 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         equalTo(suite3Expected.mkString + reportStats(2, 0, 1))
       )
     },
+    testM("correctly reports empty test suite") {
+      assertM(
+        runLog(suite4),
+        equalTo(suite4Expected.mkString + reportStats(2, 0, 1))
+      )
+    },
     testM("correctly reports failure of simple assertion") {
       assertM(
         runLog(test5),
@@ -146,6 +152,11 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
 
   val suite3 = suite("Suite3")(suite1, test3)
   val suite3Expected = Vector(expectedFailure("Suite3")) ++
+    suite1Expected.map(withOffset(2)) ++
+    test3Expected.map(withOffset(2))
+
+  val suite4 = suite("Suite4")(suite1, suite("Empty")(), test3)
+  val suite4Expected = Vector(expectedFailure("Suite4")) ++
     suite1Expected.map(withOffset(2)) ++
     test3Expected.map(withOffset(2))
 
