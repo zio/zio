@@ -67,13 +67,13 @@ object ZTestFrameworkSpec {
       messages =>
         assertEquals(
           "logged messages",
-          messages.toList.dropRight(1),
+          messages.mkString.split("\n").dropRight(1).mkString("\n"),
           List(
             s"info: ${red("- some suite")}",
             s"info:   ${red("- failing test")}",
             s"info:     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
             s"info:   ${green("+")} passing test"
-          )
+          ).mkString("\n")
         )
       )
   }
@@ -87,11 +87,11 @@ object ZTestFrameworkSpec {
       messages =>
         assertEquals(
           "logged messages",
-          messages.toList.dropRight(1),
+          messages.mkString.split("\n").dropRight(1).mkString("\n"),
           List(
             s"info: ${green("+")} some suite",
             s"info:   ${green("+")} passing test"
-          )
+          ).mkString("\n")
         )
       )
   }
