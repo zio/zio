@@ -165,6 +165,16 @@ testJS: &testJS
     - store_test_results:
         path: core-tests/js/target/test-reports
 
+testNative: &testNative
+  steps:
+    - checkout
+    - <<: *load_cache
+    - run:
+        name: Run tests
+        command: ./sbt compileNative
+    - <<: *clean_cache
+    - <<: *save_cache
+
 release: &release
   steps:
       - checkout
@@ -289,6 +299,14 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
+  test_211_jdk8_native:
+    <<: *testNative
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_211
+      - <<: *jdk_8
+
   release:
     <<: *release
     <<: *machine_ubuntu
@@ -303,7 +321,7 @@ jobs:
       - <<: *jdk_8
 
 workflows:
-  version: 2
+  version: 3
   build:
     jobs:
       - lint:
@@ -359,6 +377,12 @@ workflows:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - test_213_jdk8_js:
+          requires:
+            - lint
+          filters:
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - test_211_jdk8_native:
           requires:
             - lint
           filters:
