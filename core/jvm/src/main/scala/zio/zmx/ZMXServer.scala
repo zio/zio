@@ -25,6 +25,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.Set
 
 object ZMXServer {
+  val BUFFER_SIZE = 256
+
   private def register(selector: Selector, serverSocket: ServerSocketChannel): SelectionKey = {
     val client: SocketChannel = serverSocket.accept()
     client.configureBlocking(false)
@@ -40,7 +42,7 @@ object ZMXServer {
   private def handleCommand(command: ZMXCommands): ZMXMessage = {
     command match {
       case ZMXCommands.FiberDump => ??? // use Fiber.dump
-      case ZMXCommands.Metrics => ??? // wip
+      case ZMXCommands.Metrics => ??? // wip by @dkarlinsky
       case ZMXCommands.Test => ZMXMessage("This is a TEST")
       case _ => ZMXMessage("Unknown Command")
     }
@@ -82,7 +84,7 @@ object ZMXServer {
     zmxSocket.bind(zmxAddress)
     zmxSocket.configureBlocking(false)
     zmxSocket.register(selector, SelectionKey.OP_ACCEPT)
-    val buffer: ByteBuffer = ByteBuffer.allocate(256)
+    val buffer: ByteBuffer = ByteBuffer.allocate(BUFFER_SIZE)
 
     var state: Boolean = true
     while (state) {
