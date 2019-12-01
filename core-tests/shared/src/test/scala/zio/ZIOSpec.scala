@@ -426,7 +426,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("fails if the optional effect fails") {
         val opt = Some("h")
-        val res  = IO.foreachOption(opt)(x => IO.effectTotal[Int](x.toInt))
+        val res = IO.foreachOption(opt)(x => IO.effectTotal[Int](x.toInt))
         assertM(res.run, dies(isSubtype[NumberFormatException](anything)))
       }
     ),
