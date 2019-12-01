@@ -35,6 +35,7 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
 )
+addCommandAlias("compileNative", ";coreNative/compile")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
