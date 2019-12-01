@@ -1583,6 +1583,13 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     aggregate(ZSink.collectAllN[A](chunkSize))
 
   /**
+   * Partitions the stream with the specified chunkSize or until the specified
+   * duration has passed, whichever is satisfied first.
+   */
+  def groupedWithin(chunkSize: Long, within: Duration): ZStream[R with Clock, E, List[A]] =
+    aggregateAsyncWithin(Sink.collectAllN[A](chunkSize), Schedule.spaced(within))
+
+  /**
    * Interleaves this stream and the specified stream deterministically by
    * alternating pulling values from this stream and the specified stream.
    * When one stream is exhausted all remaining values in the other stream

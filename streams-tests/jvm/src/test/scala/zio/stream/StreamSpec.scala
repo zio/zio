@@ -23,6 +23,7 @@ import zio.test.TestAspect.flaky
 import scala.{ Stream => _ }
 import Exit.Success
 import StreamUtils._
+import zio.test.environment.TestClock
 
 object StreamSpec extends ZIOBaseSpec {
 
@@ -1090,9 +1091,28 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     testM("Stream.grouped")(
       assertM(
-        Stream(1, 2, 3, 4).grouped(2).run(ZSink.collectAll[List[Int]]),
+        Stream(1, 2, 3, 4).grouped(2).runCollect,
         equalTo(List(List(1, 2), List(3, 4)))
       )
+    ),
+    suite("Stream.groupedWithin")(
+      testM("group based on time passed") {
+        assertM(
+          TestClock.make(TestClock.DefaultData).use { testClock =>
+            val stream = ZStream(1, 2, 3, 4).repeat(Schedule.recurs(1) && Schedule.spaced(1.second)) <&
+              ZStream.fromEffect(testClock.clock.adjust(1.second)).forever
+
+            stream.provide(testClock).groupedWithin(3, 3.seconds).runCollect
+          },
+          equalTo(List(List(1, 2, 3), List(4, 1, 2), List(3, 4)))
+        )
+      },
+      testM("group immediately when chunk size is reached") {
+        assertM(
+          ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect,
+          equalTo(List(List(1, 2), List(3, 4)))
+        )
+      }
     ),
     suite("Stream.runHead")(
       testM("nonempty stream")(
