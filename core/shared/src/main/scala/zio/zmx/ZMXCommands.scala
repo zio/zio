@@ -23,11 +23,11 @@ sealed trait ZMXCommands
 
 object ZMXCommands {
   def ByteBufferToString(bytes: ByteBuffer): String = {
-    return new String(bytes.array()).trim()
+    new String(bytes.array()).trim()
   }
 
   def StringToByteBuffer(message: String): ByteBuffer = {
-    return ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8))
+    ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8))
   }
 
   case object Test extends ZMXCommands
