@@ -321,7 +321,7 @@ jobs:
       - <<: *jdk_8
 
 workflows:
-  version: 3
+  version: 2
   build:
     jobs:
       - lint:
