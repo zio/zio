@@ -37,12 +37,12 @@ object ZMXServer {
     case ZMXServerRequest(command, args) if command.equalsIgnoreCase("stop") => ZMXCommands.Stop
   }
 
-  private def handleCommand(command: ZMXCommands): String = {
+  private def handleCommand(command: ZMXCommands): ZMXMessage = {
     command match {
       case ZMXCommands.FiberDump => ??? // use Fiber.dump
       case ZMXCommands.Metrics => ??? // wip
-      case ZMXCommands.Test => "This is a TEST"
-      case _ => "Unknown Command"
+      case ZMXCommands.Test => ZMXMessage("This is a TEST")
+      case _ => ZMXMessage("Unknown Command")
     }
   }
 
@@ -61,14 +61,14 @@ object ZMXServer {
     buffer.flip
     receivedCommand match {
       case Some(comm) if comm == ZMXCommands.Stop =>
-        client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply("Stopping Server", Success)))
+        client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply(ZMXMessage("Stopping Server"), Success)))
         client.close()
         return false
       case Some(comm) =>
-        val responseToSend: String = handleCommand(comm)
+        val responseToSend: ZMXMessage = handleCommand(comm)
         client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply(responseToSend, Success)))
       case None =>
-        client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply("No Response", Fail)))
+        client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply(ZMXMessage("No Response"), Fail)))
     }
     buffer.clear
     true

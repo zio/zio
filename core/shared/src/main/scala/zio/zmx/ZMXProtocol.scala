@@ -47,10 +47,10 @@ object ZMXProtocol {
    *
    *
    */
-  def generateReply(message: String, replyType: ZMXServerResponse): String = {
+  def generateReply(message: ZMXMessage, replyType: ZMXServerResponse): String = {
     replyType match {
-      case Success => s"+$message"
-      case Fail => s"-$message"
+      case Success => s"+${message.toString}"
+      case Fail => s"-${message.toString}"
     }
   }
 
