@@ -20,6 +20,13 @@ import java.nio.charset.StandardCharsets._
 import scala.annotation.tailrec
 
 object ZMXProtocol {
+  /**
+   *  Implementation of the RESP protocol to be used by ZMX for client-server communication
+   *
+   *  RESP Protocol Specs: https://redis.io/topics/protocol
+   *
+   */
+
   /** Response types */
   val MULTI   = "*"
   val PASS    = "+"
