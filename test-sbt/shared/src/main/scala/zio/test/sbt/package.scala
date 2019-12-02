@@ -20,8 +20,5 @@ package object sbt {
    * correct color by the `SBTTestLogger`.
    */
   private[sbt] def colored(s: String): String =
-    if (s.contains("\n"))
-      Render.render.run(s).map { case (_, a) => Render.colored(a).mkString }.getOrElse("")
-    else
-      s
+    Render.render.run(s).map { case (_, a) => Render.colored(a).mkString }.toOption.getOrElse("")
 }
