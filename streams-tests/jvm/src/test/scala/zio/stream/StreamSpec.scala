@@ -1097,15 +1097,14 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     suite("Stream.groupedWithin")(
       testM("group based on time passed") {
-        assertM(
-          TestClock.make(TestClock.DefaultData).use { testClock =>
-            val stream = ZStream(1, 2, 3, 4).repeat(Schedule.recurs(1) && Schedule.spaced(1.second)) <&
-              ZStream.fromEffect(testClock.clock.adjust(1.second)).forever
+        val stream = ZStream.fromIterable(1 to 8).tap(_ => TestClock.adjust(1.second))
 
-            stream.provide(testClock).groupedWithin(3, 3.seconds).runCollect
-          },
-          equalTo(List(List(1, 2, 3), List(4, 1, 2), List(3, 4)))
-        )
+        assertM(stream.groupedWithin(3, 3.seconds).runCollect, equalTo(List(List(1, 2, 3), List(4, 5, 6), List(7, 8))))
+      },
+      testM("group before chunk size is reached due to time window") {
+        val stream = ZStream.fromIterable(1 to 3).tap(_ => TestClock.adjust(1.second))
+
+        assertM(stream.groupedWithin(10, 10.millis).runCollect, equalTo(List(List(1), List(2), List(3))))
       },
       testM("group immediately when chunk size is reached") {
         assertM(
