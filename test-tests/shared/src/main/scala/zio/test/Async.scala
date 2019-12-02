@@ -68,7 +68,7 @@ object Async {
     }
 
   /**
-   * Promotes a constant value to an asychronous computation.
+   * Promotes a constant value to an asynchronous computation.
    * */
   final def succeed[A](a: A): Async[A] =
     _ => Future.successful(a)

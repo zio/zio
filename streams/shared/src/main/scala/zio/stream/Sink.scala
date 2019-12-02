@@ -95,6 +95,18 @@ object Sink extends Serializable {
     ZSink.drain
 
   /**
+   * see [[ZSink.head]]
+   */
+  final def head[A]: Sink[Nothing, A, A, Option[A]] =
+    ZSink.head
+
+  /**
+   * see [[ZSink.last]]
+   */
+  final def last[A]: Sink[Nothing, Nothing, A, Option[A]] =
+    ZSink.last
+
+  /**
    * see [[ZSink.fail]]
    */
   final def fail[E](e: E): Sink[E, Nothing, Any, Nothing] =

@@ -19,7 +19,7 @@ package zio.test.sbt
 import sbt.testing._
 import zio.FunctionIO
 import zio.test.sbt.TestingSupport._
-import zio.test.{ Assertion, DefaultRunnableSpec, TestArgs, TestAspect }
+import zio.test.{ Assertion, DefaultRunnableSpec, Summary, TestArgs, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -33,7 +33,8 @@ object ZTestFrameworkSpec {
     test("should report events")(testReportEvents()),
     test("should log messages")(testLogMessages()),
     test("should test only selected test")(testTestSelection()),
-    test("should return summary when done")(testSummary())
+    test("should return summary when done")(testSummary()),
+    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints() = {
@@ -66,13 +67,13 @@ object ZTestFrameworkSpec {
       messages =>
         assertEquals(
           "logged messages",
-          messages.toList.dropRight(1),
+          messages.mkString.split("\n").dropRight(1).mkString("\n"),
           List(
             s"info: ${red("- some suite")}",
             s"info:   ${red("- failing test")}",
             s"info:     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
             s"info:   ${green("+")} passing test"
-          )
+          ).mkString("\n")
         )
       )
   }
@@ -86,11 +87,11 @@ object ZTestFrameworkSpec {
       messages =>
         assertEquals(
           "logged messages",
-          messages.toList.dropRight(1),
+          messages.mkString.split("\n").dropRight(1).mkString("\n"),
           List(
             s"info: ${green("+")} some suite",
             s"info:   ${green("+")} passing test"
-          )
+          ).mkString("\n")
         )
       )
   }
@@ -105,7 +106,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          FunctionIO.succeed("foo") >>> zTestTask.sendSummary,
+          FunctionIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty
         )
       })
@@ -114,6 +115,27 @@ object ZTestFrameworkSpec {
     task.execute(_ => (), Array.empty)
 
     assertEquals("done contains summary", runner.done(), "foo\nDone")
+  }
+
+  def testNoTestsExecutedWarning() = {
+    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
+    val task = runner
+      .tasks(Array(taskDef))
+      .map(task => {
+        val zTestTask = task.asInstanceOf[BaseTestTask]
+        new ZTestTask(
+          zTestTask.taskDef,
+          zTestTask.testClassLoader,
+          FunctionIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          TestArgs.empty
+        )
+      })
+      .head
+
+    task.execute(_ => (), Array.empty)
+
+    assertEquals("warning is displayed", runner.done(), s"${Console.YELLOW}No tests were executed${Console.RESET}")
   }
 
   private def loadAndExecute(

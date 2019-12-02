@@ -123,6 +123,12 @@ object UIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[A](k: ZIO.DaemonStatusRestore => UIO[A]): UIO[A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -340,6 +346,44 @@ object UIO {
     ZIO.lock(executor)(uio)
 
   /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[A, B, C](uio1: UIO[A], uio2: UIO[B])(f: (A, B) => C): UIO[C] =
+    ZIO.mapN(uio1, uio2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[A, B, C, D](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C])(f: (A, B, C) => D): UIO[D] =
+    ZIO.mapN(uio1, uio2, uio3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[A, B, C, D, F](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C], uio4: UIO[D])(f: (A, B, C, D) => F): UIO[F] =
+    ZIO.mapN(uio1, uio2, uio3, uio4)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[A, B, C](uio1: UIO[A], uio2: UIO[B])(f: (A, B) => C): UIO[C] =
+    ZIO.mapParN(uio1, uio2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[A, B, C, D](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C])(f: (A, B, C) => D): UIO[D] =
+    ZIO.mapParN(uio1, uio2, uio3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[A, B, C, D, F](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C], uio4: UIO[D])(
+    f: (A, B, C, D) => F
+  ): UIO[F] =
+    ZIO.mapParN(uio1, uio2, uio3, uio4)(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   final def mergeAll[A, B](in: Iterable[UIO[A]])(zero: B)(f: (B, A) => B): UIO[B] =
@@ -355,6 +399,12 @@ object UIO {
    * @see See [[zio.ZIO.none]]
    */
   final val none: UIO[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[A](k: ZIO.DaemonStatusRestore => UIO[A]): UIO[A] =
+    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.never]]
