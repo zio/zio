@@ -102,7 +102,7 @@ trait TestClock extends Clock with Scheduler {
 
 object TestClock extends Serializable {
 
-  trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] {
+  trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] with Restorable {
     def adjust(duration: Duration): UIO[Unit]
     def fiberTime: UIO[Duration]
     def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
@@ -175,36 +175,19 @@ object TestClock extends Serializable {
       clockState.get.map(_.nanoTime)
 
     /**
-     * Sets the current clock time to the specified `OffsetDateTime`. Any
-     * effects that were scheduled to occur on or before the new time will
-     * immediately be run.
+     * Saves the `TestClock`'s current state in an effect which, when run, will restore the `TestClock`
+     * state to the saved state
      */
-    final def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
-      setTime(fromDateTime(dateTime))
-
-    /**
-     * Sets the current clock time to the specified time in terms of duration
-     * since the epoch. Any effects that were scheduled to occur on or before
-     * the new time will immediately be run.
-     */
-    final def setTime(duration: Duration): UIO[Unit] =
-      warningDone *> clockState.modify { data =>
-        val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
-        val updated = data.copy(
-          nanoTime = duration.toNanos,
-          currentTimeMillis = duration.toMillis,
-          sleeps = sleeps
-        )
-        (wakes, updated)
-      }.flatMap(run)
-
-    /**
-     * Sets the time zone to the specified time zone. The clock time in terms
-     * of nanoseconds since the epoch will not be adjusted and no scheduled
-     * effects will be run as a result of this method.
-     */
-    final def setTimeZone(zone: ZoneId): UIO[Unit] =
-      clockState.update(_.copy(timeZone = zone)).unit
+    val save: UIO[UIO[Unit]] =
+      for {
+        fState <- fiberState.get
+        cState <- clockState.get
+        wState <- warningState.get
+      } yield {
+        fiberState.set(fState) *>
+          clockState.set(cState) *>
+          warningState.set(wState)
+      }
 
     /**
      * Returns an effect that creates a new `Scheduler` backed by this
@@ -253,6 +236,38 @@ object TestClock extends Serializable {
           }
         }
       }
+
+    /**
+     * Sets the current clock time to the specified `OffsetDateTime`. Any
+     * effects that were scheduled to occur on or before the new time will
+     * immediately be run.
+     */
+    final def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
+      setTime(fromDateTime(dateTime))
+
+    /**
+     * Sets the current clock time to the specified time in terms of duration
+     * since the epoch. Any effects that were scheduled to occur on or before
+     * the new time will immediately be run.
+     */
+    final def setTime(duration: Duration): UIO[Unit] =
+      warningDone *> clockState.modify { data =>
+        val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
+        val updated = data.copy(
+          nanoTime = duration.toNanos,
+          currentTimeMillis = duration.toMillis,
+          sleeps = sleeps
+        )
+        (wakes, updated)
+      }.flatMap(run)
+
+    /**
+     * Sets the time zone to the specified time zone. The clock time in terms
+     * of nanoseconds since the epoch will not be adjusted and no scheduled
+     * effects will be run as a result of this method.
+     */
+    final def setTimeZone(zone: ZoneId): UIO[Unit] =
+      clockState.update(_.copy(timeZone = zone)).unit
 
     /**
      * Semantically blocks the current fiber until the clock time is equal to
@@ -355,6 +370,12 @@ object TestClock extends Serializable {
         refM     <- RefM.make(WarningData.start)
       } yield Test(ref, fiberRef, live, refM)
     }(_.warningDone)
+
+  /**
+   * Accesses a `TestClock` instance in the environment and saves the clock state in an effect which, when run,
+   * will restore the `TestClock` to the saved state
+   */
+  val save: ZIO[TestClock, Nothing, UIO[Unit]] = ZIO.accessM[TestClock](_.clock.save)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time

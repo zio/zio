@@ -5,6 +5,7 @@ import zio.random.Random
 import zio.test.Assertion._
 import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
 import zio.test._
+import zio.test.TestAspect._
 
 import scala.util.{ Random => SRandom }
 
@@ -49,7 +50,15 @@ object RandomSpec extends ZIOBaseSpec {
           val y = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
           assert(x, equalTo(y))
         })
-    }
+    },
+    testM("check fed ints do not survive repeating tests") {
+      for {
+        _      <- ZIO.accessM[TestRandom](_.random.setSeed(5))
+        value  <- zio.random.nextInt
+        value2 <- zio.random.nextInt
+        _      <- ZIO.accessM[TestRandom](_.random.feedInts(1, 2))
+      } yield assert(value, equalTo(-1157408321)) && assert(value2, equalTo(758500184))
+    } @@ nonFlaky
   )
 
   def checkClear[A, B <: Random](generate: SRandom => A)(feed: (ZRandom, List[A]) => UIO[Unit])(

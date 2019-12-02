@@ -5,7 +5,7 @@ import zio.test.environment.{ Live, TestClock }
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.{ Cause, Promise, Ref, Schedule, ZIO }
+import zio.{ Cause, Ref, Schedule, ZIO }
 
 import scala.reflect.ClassTag
 
@@ -154,21 +154,6 @@ object TestAspectSpec extends ZIOBaseSpec {
       val spec   = test("JVM-only")(assert(TestPlatform.isJVM, isTrue)) @@ jvmOnly
       val result = if (TestPlatform.isJVM) isSuccess(spec) else isIgnored(spec)
       assertM(result, isTrue)
-    },
-    testM("nonFlakyPar runs a test a specified number of times in parallel") {
-      for {
-        ref <- Ref.make(0)
-        p   <- Promise.make[Nothing, Unit]
-        spec = testM("test") {
-          for {
-            n <- ref.update(_ + 1)
-            _ <- p.succeed(()).when(n > 1)
-            _ <- p.await
-          } yield assertCompletes
-        } @@ TestAspect.nonFlakyPar
-        _ <- execute(spec)
-        n <- ref.get
-      } yield assert(n, equalTo(100))
     },
     testM("retry retries failed tests according to a schedule") {
       for {

@@ -21,7 +21,7 @@ import zio.duration._
 import zio.clock.Clock
 import zio.system
 import zio.system.System
-import zio.test.environment.Live
+import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -127,13 +127,24 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect that evaluates every test inside the context of a `Managed`.
    */
-  def around[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]) =
+  def around[R0, E0](
+    before: ZIO[R0, E0, Any],
+    after: ZIO[R0, Nothing, Any]
+  ): PerTest[Nothing, R0, E0, Any, Nothing, Any] = around(before)(_ => after)
+
+  /**
+   * Constructs an aspect that evaluates every test inside the context of a `Managed` where the result of `before` can
+   * be used in `after`.
+   */
+  def around[R0, E0, A0](
+    before: ZIO[R0, E0, A0]
+  )(after: A0 => ZIO[R0, Nothing, Any]): PerTest[Nothing, R0, E0, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any, Nothing, Any] {
       def perTest[R >: Nothing <: R0, E >: E0 <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         ZManaged
-          .make(before)(_ => after)
+          .make(before)(after)
           .catchAllCause(c => ZManaged.fail(TestFailure.Runtime(c)))
           .use(_ => test)
     }
@@ -193,13 +204,16 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that retries a test until success, without limit.
    */
-  val eventually: TestAspectPoly =
-    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
+  val eventually
+    : TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] = {
+    val eventually = new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         test.eventually
     }
+    restoreTestEnvironment >>> eventually
+  }
 
   /**
    * An aspect that runs tests on all versions except Dotty.
@@ -273,14 +287,17 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectPoly =
+  val flaky
+    : TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] =
     flaky(100)
 
   /**
    * An aspect that retries a test until success, with the specified limit, for
    * use with flaky tests.
    */
-  def flaky(n: Int): TestAspectPoly =
+  def flaky(
+    n: Int
+  ): TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] =
     retry(Schedule.recurs(n))
 
   /**
@@ -386,46 +403,30 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectPoly =
+  val nonFlaky
+    : TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] =
     nonFlaky(100)
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it
    * is stable ("non-flaky"). Stops at the first failure.
    */
-  def nonFlaky(n: Int): TestAspectPoly =
-    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
+  def nonFlaky(
+    n: Int
+  ): TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] = {
+    val nonFlaky = new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
         def repeat(n: Int): ZIO[R, TestFailure[E], TestSuccess[S]] =
           if (n <= 1) test
           else test.flatMap(_ => repeat(n - 1))
-
         repeat(n)
       }
     }
 
-  /**
-   * An aspect that runs the test a default number of times in parallel,
-   * ensuring it is stable ("non-flaky"). Stops at the first failure. This can
-   * be useful for testing effects during periods of high contention.
-   */
-  val nonFlakyPar: TestAspectPoly =
-    nonFlakyPar(100)
-
-  /**
-   * An aspect that runs the test a specified number of times in parallel,
-   * ensuring it is stable ("non-flaky"). Stops at the first failure. This can
-   * be useful for testing effects during periods of high contention.
-   */
-  def nonFlakyPar(n: Int): TestAspectPoly =
-    new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, TestFailure[E], TestSuccess[S]]
-      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        ZIO.collectAllPar(ZIO.replicate(n)(test)).map(_.head)
-    }
+    restoreTestEnvironment >>> nonFlaky
+  }
 
   /**
    * An aspect that executes the members of a suite in parallel.
@@ -439,17 +440,59 @@ object TestAspect extends TimeoutVariants {
   def parallelN(n: Int): TestAspectPoly = executionStrategy(ExecutionStrategy.ParallelN(n))
 
   /**
+   * An aspect that restores a given [[Restorable]]'s state to its starting state after the test is run.
+   * Note that this is only useful when repeating tests.
+   */
+  def restore[R0](service: R0 => Restorable): TestAspect[Nothing, R0, Nothing, Any, Nothing, Any] =
+    around(ZIO.accessM[R0](r => service(r).save))(restore => restore)
+
+  /**
+   * An aspect that restores the [[TestClock]]'s state to its starting state after the test is run.
+   * Note that this is only useful when repeating tests.
+   */
+  def restoreTestClock = restore[TestClock](_.clock)
+
+  /**
+   * An aspect that restores the [[TestConsole]]'s state to its starting state after the test is run.
+   * Note that this is only useful when repeating tests.
+   */
+  def restoreTestConsole = restore[TestConsole](_.console)
+
+  /**
+   * An aspect that restores the [[TestRandom]]'s state to its starting state after the test is run.
+   * Note that this is only useful when repeating tests.
+   */
+  def restoreTestRandom = restore[TestRandom](_.random)
+
+  /**
+   * An aspect that restores the [[TestSystem]]'s state to its starting state after the test is run.
+   * Note that this is only useful when repeating tests.
+   */
+  def restoreTestSystem = restore[TestSystem](_.system)
+
+  /**
+   * An aspect that restores all state in the standard provided test environments
+   * ([[TestClock]], [[TestConsole]], [[TestRandom]] and [[TestSystem]]) to their starting state after the test is run.
+   * Note that this is only useful when repeating tests.
+   */
+  def restoreTestEnvironment
+    : TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] =
+    restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
+
+  /**
    * An aspect that retries failed tests according to a schedule.
    */
-  def retry[R0, E0, S0](
+  def retry[R0 <: TestClock with TestConsole with TestRandom with TestSystem, E0, S0](
     schedule: Schedule[R0, TestFailure[E0], S0]
-  ): TestAspect[Nothing, R0, Nothing, E0, Nothing, Any] =
-    new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, Any] {
+  ): TestAspect[Nothing, R0, Nothing, E0, Nothing, Any] = {
+    val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, Any] {
       def perTest[R >: Nothing <: R0, E >: Nothing <: E0, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         test.retry(schedule)
     }
+    restoreTestEnvironment >>> retry
+  }
 
   /**
    * An aspect that executes the members of a suite sequentially.

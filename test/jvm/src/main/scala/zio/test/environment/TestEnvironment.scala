@@ -104,6 +104,7 @@ case class TestEnvironment(
         def currentTime(unit: TimeUnit): UIO[Long]           = live.provide(zio.clock.currentTime(unit))
         val fiberTime: UIO[Duration]                         = UIO.succeed(Duration.Zero)
         val nanoTime: UIO[Long]                              = live.provide(zio.clock.nanoTime)
+        override val save: UIO[UIO[Unit]]                    = UIO(UIO.unit)
         def setDateTime(dateTime: OffsetDateTime): UIO[Unit] = UIO.unit
         def setTime(duration: Duration): UIO[Unit]           = UIO.unit
         def setTimeZone(zone: ZoneId): UIO[Unit]             = UIO.unit
@@ -129,6 +130,7 @@ case class TestEnvironment(
         val output: UIO[Vector[String]]          = UIO.succeed(Vector.empty)
         def putStr(line: String): UIO[Unit]      = live.provide(zio.console.putStr(line))
         def putStrLn(line: String): UIO[Unit]    = live.provide(zio.console.putStrLn(line))
+        override val save: UIO[UIO[Unit]]        = UIO(UIO.unit)
       }
     }
 
@@ -167,6 +169,7 @@ case class TestEnvironment(
         def nextLong(n: Long): UIO[Long]                = live.provide(zio.random.nextLong(n))
         val nextPrintableChar: UIO[Char]                = live.provide(zio.random.nextPrintableChar)
         def nextString(length: Int): UIO[String]        = live.provide(zio.random.nextString(length))
+        override val save: UIO[UIO[Unit]]               = UIO(UIO.unit)
         def setSeed(seed: Long): UIO[Unit]              = UIO.unit
         def shuffle[A](list: List[A]): UIO[List[A]]     = UIO.succeed(list)
       }
@@ -187,6 +190,7 @@ case class TestEnvironment(
         def property(prop: String): Task[Option[String]]                 = live.provide(zio.system.property(prop))
         def putEnv(name: String, value: String): UIO[Unit]               = UIO.unit
         def putProperty(name: String, value: String): UIO[Unit]          = UIO.unit
+        override val save: UIO[UIO[Unit]]                                = UIO(UIO.unit)
         def setLineSeparator(lineSep: String): UIO[Unit]                 = UIO.unit
       }
     }
