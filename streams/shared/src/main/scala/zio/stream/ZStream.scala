@@ -2384,7 +2384,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Threads the stream through the transformation function `f`.
    */
-  final def via[R2, E2, B](f: self.type => ZStream[R2, E2, B]): ZStream[R2, E2, B] = f(self)
+  final def via[R2, E2, B](f: ZStream[R, E, A] => ZStream[R2, E2, B]): ZStream[R2, E2, B] = f(self)
 
   /**
    * Zips this stream together with the specified stream.

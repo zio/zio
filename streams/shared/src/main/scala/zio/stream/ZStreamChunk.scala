@@ -667,7 +667,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   /**
    * Threads the stream through the transformation function `f`.
    */
-  final def via[R2, E2, B](f: self.type => ZStreamChunk[R2, E2, B]): ZStreamChunk[R2, E2, B] = f(self)
+  final def via[R2, E2, B](f: ZStreamChunk[R, E, A] => ZStreamChunk[R2, E2, B]): ZStreamChunk[R2, E2, B] = f(self)
 
   /**
    * Zips this stream together with the index of elements of the stream across chunks.
