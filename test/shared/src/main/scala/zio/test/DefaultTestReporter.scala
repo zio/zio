@@ -40,11 +40,11 @@ object DefaultTestReporter {
                        })
             hasFailures = failures.exists(identity)
             status      = if (hasFailures) Failed else Passed
-            renderedLabel = if (specs.isEmpty) ""
-            else if (hasFailures) renderFailureLabel(label, depth)
-            else renderSuccessLabel(label, depth)
+            renderedLabel = if (specs.isEmpty) Seq.empty
+            else if (hasFailures) Seq(renderFailureLabel(label, depth))
+            else Seq(renderSuccessLabel(label, depth))
             rest <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
-          } yield rendered(Suite, label, status, depth, renderedLabel) +: rest
+          } yield rendered(Suite, label, status, depth, renderedLabel: _*) +: rest
         case Spec.TestCase(label, result) =>
           result.flatMap {
             case Right(TestSuccess.Succeeded(_)) =>
