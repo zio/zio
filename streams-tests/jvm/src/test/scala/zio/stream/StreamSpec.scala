@@ -1829,6 +1829,16 @@ object StreamSpec extends ZIOBaseSpec {
         )
       }
     ),
+    suite("Stream.via")(
+      testM("happy path") {
+        val s = Stream(1, 2, 3)
+        s.via(_.map(_.toString)).runCollect.map(assert(_, equalTo(List("1", "2", "3"))))
+      },
+      testM("introduce error") {
+        val s = Stream(1, 2, 3)
+        s.via(_ => Stream.fail("Ouch")).runCollect.either.map(assert(_, equalTo(Left("Ouch"))))
+      }
+    ),
     suite("Stream zipping")(
       testM("zipWith") {
         val s1 = Stream(1, 2, 3)

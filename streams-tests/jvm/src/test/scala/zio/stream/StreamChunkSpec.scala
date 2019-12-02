@@ -317,6 +317,16 @@ object StreamChunkSpec extends ZIOBaseSpec {
         }
       }
     },
+    suite("StreamChunk.via")(
+      testM("happy path") {
+        val s = StreamChunk.fromChunks(Chunk(1), Chunk.empty, Chunk(2, 3, 4), Chunk(5, 6))
+        s.via(_.map(_.toString)).runCollect.map(assert(_, equalTo(List("1", "2", "3", "4", "5", "6"))))
+      },
+      testM("introduce error") {
+        val s = StreamChunk.fromChunks(Chunk(1), Chunk.empty, Chunk(2, 3, 4), Chunk(5, 6))
+        s.via(_ => StreamChunk(Stream.fail("Ouch"))).runCollect.either.map(assert(_, equalTo(Left("Ouch"))))
+      }
+    ),
     testM("StreamChunk.fold") {
       checkM(chunksOfStrings, intGen, Gen.function2(intGen)) { (s, zero, f) =>
         for {
