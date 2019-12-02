@@ -20,5 +20,8 @@ package object sbt {
    * correct color by the `SBTTestLogger`.
    */
   private[sbt] def colored(s: String): String =
-    Render.render.run(s).map { case (_, a) => Render.colored(a).mkString }.toOption.getOrElse("")
+    Render.render.run(s).map { case (_, a) => Render.colored(a).mkString } match {
+      case Left(_)  => ""
+      case Right(s) => s
+    }
 }
