@@ -4,6 +4,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing.Logger
 
+import zio.test.sbt.TestingSupport._
+
 class MockLogger extends Logger {
   private val logged = new AtomicReference(Vector.empty[String])
   private def log(str: String) = {
@@ -11,7 +13,7 @@ class MockLogger extends Logger {
     ()
   }
   private def logWithPrefix(s: String)(prefix: String): Unit =
-    log(s.split("\n").map(prefix + _).mkString("\n"))
+    log(s.split("\n").map(reset(prefix) + _).mkString("\n"))
   def messages: Seq[String] = logged.get()
 
   override def ansiCodesSupported(): Boolean = false
