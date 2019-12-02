@@ -53,7 +53,7 @@ trait FunctionVariants {
    * `B` values and a hashing function for `A` values. Two `A` values will be
    * considered to be equal, and thus will be guaranteed to generate the same
    * `B` value, if they have have the same hash. This is useful when `A` does
-   * not implement `hashCode` in a way that is constent with equality.
+   * not implement `hashCode` in a way that is consistent with equality.
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
     Gen.fromEffect {

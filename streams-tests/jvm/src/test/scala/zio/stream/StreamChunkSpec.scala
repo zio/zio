@@ -36,11 +36,6 @@ object StreamChunkSpec extends ZIOBaseSpec {
         result <- fins.get
       } yield assert(result, equalTo(List("s2", "s1")))
     },
-    testM("StreamChunk.catchAllCauseScopeErrors") {
-      val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream(Managed.fail("Boom")))
-      val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
-      s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
-    },
     testM("StreamChunk.either") {
       val s = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
       s.either.flattenChunks.runCollect.map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
@@ -298,7 +293,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       val otherInts2 = pureStreamChunkGen(tinyChunks(Gen.int(-100, -1)))
       val fn1        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts1)
       val fn2        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts2)
-      checkSomeM(5)(pureStreamChunkGen(tinyChunks(intGen)), fn1, fn2) { (m, f, g) =>
+      checkNM(5)(pureStreamChunkGen(tinyChunks(intGen)), fn1, fn2) { (m, f, g) =>
         val leftStream: StreamChunk[Nothing, Int]  = m.flatMap(f).flatMap(g)
         val rightStream: StreamChunk[Nothing, Int] = m.flatMap(f(_).flatMap(g))
 

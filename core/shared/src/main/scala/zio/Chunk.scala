@@ -18,6 +18,7 @@ package zio
 
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
+import java.nio._
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -687,6 +688,83 @@ object Chunk {
    * Returns a chunk backed by an array.
    */
   final def fromArray[A](array: Array[A]): Chunk[A] = Arr(array)
+
+  /**
+   * Returns a chunk backed by a [[java.nio.ByteBuffer]].
+   */
+  final def fromByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
+    val dest = Array.ofDim[Byte](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.CharBuffer]].
+   */
+  final def fromCharBuffer(buffer: CharBuffer): Chunk[Char] = {
+    val dest = Array.ofDim[Char](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.DoubleBuffer]].
+   */
+  final def fromDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] = {
+    val dest = Array.ofDim[Double](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.FloatBuffer]].
+   */
+  final def fromFloatBuffer(buffer: FloatBuffer): Chunk[Float] = {
+    val dest = Array.ofDim[Float](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.IntBuffer]].
+   */
+  final def fromIntBuffer(buffer: IntBuffer): Chunk[Int] = {
+    val dest = Array.ofDim[Int](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.LongBuffer]].
+   */
+  final def fromLongBuffer(buffer: LongBuffer): Chunk[Long] = {
+    val dest = Array.ofDim[Long](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.ShortBuffer]].
+   */
+  final def fromShortBuffer(buffer: ShortBuffer): Chunk[Short] = {
+    val dest = Array.ofDim[Short](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by an iterable.

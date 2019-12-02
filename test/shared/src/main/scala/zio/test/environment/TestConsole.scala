@@ -25,7 +25,7 @@ import zio._
 /**
  * `TestConsole` provides a testable interface for programs interacting with
  * the console by modeling input and output as reading from and writing to
- * intput and output buffers maintained by `TestConsole` and backed by a `Ref`.
+ * input and output buffers maintained by `TestConsole` and backed by a `Ref`.
  *
  * All calls to `putStr` and `putStrLn` using the `TestConsole` will write the
  * string to the output buffer and all calls to `getStrLn` will take a string

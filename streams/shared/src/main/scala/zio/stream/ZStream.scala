@@ -49,7 +49,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * should be preferred.
    *
    * The contract for the returned `Pull` is as follows:
-   * - It must not be evaluted concurrently from multiple fibers - it is (usually)
+   * - It must not be evaluated concurrently from multiple fibers - it is (usually)
    *   not thread-safe;
    * - If an evaluation of the `Pull` is interrupted, it is not safe to
    *   evaluate it again - it is (usually) not interruption-safe;
@@ -60,7 +60,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * (or possibly forever, if the stream is infinite). The provided `Pull`
    * is valid only inside the scope of the managed resource.
    */
-  val process: ZManaged[R, E, Pull[R, E, A]] = structure.process
+  val process: ZManaged[R, Nothing, Pull[R, E, A]] = structure.process
 
   /**
    * Concatenates with another stream in strict order
@@ -227,7 +227,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         case _ => UIO.succeed((UIO.unit, s))
       }.flatten
 
-    ZStream[R1, E1, B] {
+    ZStream.managed {
       for {
         initSink  <- sink.initial.toManaged_
         initAwait <- Promise.make[Nothing, Unit].toManaged_
@@ -249,7 +249,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                .process
                .ensuringFirst(producer.interrupt.fork)
       } yield bs
-    }
+    }.flatMap(ZStream.fromPull)
   }
 
   /**
@@ -535,7 +535,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         case _ => UIO.succeed((UIO.unit, s))
       }.flatten
 
-    ZStream[R1 with Clock, E1, Either[C, B]] {
+    ZStream.managed {
       for {
         fiberId   <- ZManaged.fiberId
         initSink  <- sink.initial.toManaged_
@@ -552,7 +552,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         bs <- consumerStream(stateVar, permits).process
                .ensuringFirst(producer.interruptAs(fiberId).fork)
       } yield bs
-    }
+    }.flatMap(ZStream.fromPull)
   }
 
   /**
@@ -581,7 +581,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def aggregateManaged[R1 <: R, E1 >: E, A1 >: A, B](
     managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
   ): ZStream[R1, E1, B] =
-    ZStream[R1, E1, B] {
+    ZStream.managed {
       for {
         as           <- self.process
         sink         <- managedSink.map(_.mapError(Some(_)))
@@ -638,7 +638,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           sink.initial.flatMap(s => go(s, false))
         }
       } yield pull
-    }
+    }.flatMap(ZStream.fromPull(_))
 
   /**
    * Maps the success values of this stream to the specified constant value.
@@ -821,9 +821,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             def next(e: Cause[E]) = ZIO.uninterruptibleMask { restore =>
               for {
                 _  <- finalizer.get.flatMap(_.apply(Exit.fail(e)))
-                r  <- f(e).process.reserve.mapError(Some(_))
+                r  <- f(e).process.reserve
                 _  <- finalizer.set(r.release)
-                as <- restore(r.acquire.mapError(Some(_)))
+                as <- restore(r.acquire)
                 _  <- otherPull.set(as)
                 _  <- stateRef.set(State.Other)
                 a  <- as
@@ -840,9 +840,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             case State.NotStarted =>
               ZIO.uninterruptibleMask { restore =>
                 for {
-                  r  <- self.process.reserve.mapError(Some(_))
+                  r  <- self.process.reserve
                   _  <- finalizer.set(r.release)
-                  as <- restore(r.acquire.mapError(Some(_)))
+                  as <- restore(r.acquire)
                   _  <- selfPull.set(as)
                   _  <- stateRef.set(State.Self)
                   a  <- as
@@ -861,7 +861,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   }
 
   /**
-   * Chunks the stream with specifed chunkSize
+   * Chunks the stream with specified chunkSize
    * @param chunkSize size of the chunk
    */
   def chunkN(chunkSize: Int): ZStreamChunk[R, E, A] =
@@ -1222,7 +1222,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             bs          <- restore(reservation.acquire)
             _           <- finalizer.set(reservation.release)
             _           <- currPull.set(bs)
-          } yield ()).mapError(Some(_))
+          } yield ())
         }
       }
 
@@ -1576,7 +1576,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     self.groupBy(a => ZIO.succeed((f(a), a)), buffer)
 
   /**
-   * Partitions the stream with specifed chunkSize
+   * Partitions the stream with specified chunkSize
    * @param chunkSize size of the chunk
    */
   def grouped(chunkSize: Long): ZStream[R, E, List[A]] =
@@ -1728,7 +1728,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Transforms the errors that possibly result from this stream.
    */
   final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZStream[R, E1, A] =
-    ZStream(self.process.mapError(f).map(_.mapError(_.map(f))))
+    ZStream(self.process.map(_.mapError(_.map(f))))
 
   /**
    * Transforms the errors that possibly result from this stream.
@@ -1736,7 +1736,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZStream[R, E1, A] =
     ZStream {
       self.process
-        .mapErrorCause(f)
         .map(_.mapErrorCause(Cause.sequenceCauseOption(_) match {
           case None    => Cause.fail(None)
           case Some(c) => f(c).map(Some(_))
@@ -1783,6 +1782,19 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def mapMParUnordered[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     self.flatMapPar[R1, E1, B](n)(a => ZStream.fromEffect(f(a)))
+
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * partitioned by `p` executing invocations of `f` concurrently. The number
+   * of concurrent invocations of `f` is determined by the number of different
+   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
+   * Transformed elements may be reordered but the order within a partition is maintained.
+   */
+  final def mapMPartitioned[R1 <: R, E1 >: E, B, K](
+    keyBy: A => K,
+    buffer: Int = 16
+  )(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
+    groupByKey(keyBy, buffer).apply { case (_, s) => s.mapM(f) }
 
   /**
    * Merges this stream and the specified stream together.
@@ -1930,12 +1942,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * leaving no outstanding environments.
    */
   final def provideManaged[E1 >: E](m: Managed[E1, R])(implicit ev: NeedsEnv[R]): Stream[E1, A] =
-    ZStream {
+    ZStream.managed {
       for {
         r  <- m
         as <- self.process.provide(r)
       } yield as.provide(r)
-    }
+    }.flatMap(ZStream.fromPull)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -1954,24 +1966,19 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * leaving the remainder `R0`.
    */
   final def provideSomeM[R0, E1 >: E](env: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStream[R0, E1, A] =
-    ZStream {
-      for {
-        r  <- env.toManaged_
-        as <- self.process.provide(r)
-      } yield as.provide(r)
-    }
+    provideSomeManaged(env.toManaged_)
 
   /**
    * Uses the given [[ZManaged]] to provide some of the environment required to run
    * this stream, leaving the remainder `R0`.
    */
   final def provideSomeManaged[R0, E1 >: E](env: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZStream[R0, E1, A] =
-    ZStream {
+    ZStream.managed {
       for {
         r  <- env
         as <- self.process.provide(r)
       } yield as.provide(r)
-    }
+    }.flatMap(ZStream.fromPull(_))
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
@@ -2000,7 +2007,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       for {
         scheduleInit  <- schedule.initial.toManaged_
         schedStateRef <- Ref.make(scheduleInit).toManaged_
-        switchPull    <- ZManaged.switchable[R1, E, Pull[R1, E, C]]
+        switchPull    <- ZManaged.switchable[R1, Nothing, Pull[R1, E, C]]
         currPull      <- switchPull(self.map(f).process).flatMap(as => Ref.make(as)).toManaged_
         doneRef       <- Ref.make(false).toManaged_
         pull = {
@@ -2018,7 +2025,6 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                           _ => doneRef.set(true) *> Pull.end,
                           state =>
                             switchPull((self.map(f) ++ Stream.succeed(g(schedule.extract((), state)))).process)
-                              .mapError(Some(_))
                               .tap(currPull.set(_)) *> schedStateRef.set(state) *> go
                         )
                   },
@@ -2033,7 +2039,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
+  def run[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, Any, A1, B]): ZIO[R1, E1, B] =
     sink.initial.flatMap { initial =>
       self.process.use { as =>
         def pull(state: sink.State): ZIO[R1, E1, B] =
@@ -2055,12 +2061,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Runs the stream returning the first element of the stream. Later elements will not be consumed / have effects run
    */
-  def runHead: ZIO[R, E, Option[A]] = take(1).runCollect.map(_.headOption)
+  def runHead: ZIO[R, E, Option[A]] = run(ZSink.head[A])
 
   /**
    * Runs the stream returning the last element and discarding all earlier elements.
    */
-  def runLast: ZIO[R, E, Option[A]] = run(ZSink.foldLeft[A, Option[A]](None) { case (_, a) => Some(a) })
+  def runLast: ZIO[R, E, Option[A]] = run(ZSink.last[A])
 
   /**
    * Runs the stream and collects all of its elements in a list.
@@ -2564,19 +2570,19 @@ object ZStream extends Serializable {
   }
 
   private[stream] sealed abstract class Structure[-R, +E, +A] {
-    def process: ZManaged[R, E, Pull[R, E, A]]
+    def process: ZManaged[R, Nothing, Pull[R, E, A]]
   }
 
   private[stream] object Structure {
-    final case class Iterator[-R, +E, +A](process: ZManaged[R, E, Pull[R, E, A]]) extends Structure[R, E, A]
+    final case class Iterator[-R, +E, +A](process: ZManaged[R, Nothing, Pull[R, E, A]]) extends Structure[R, E, A]
     final case class Concat[-R, +E, +A](hd: Structure[R, E, A], tl: () => Structure[R, E, A])
         extends Structure[R, E, A] {
-      val process: ZManaged[R, E, Pull[R, E, A]] = {
+      val process: ZManaged[R, Nothing, Pull[R, E, A]] = {
         def go(
           doneRef: Ref[Boolean],
           currPull: Ref[Pull[R, E, A]],
           nextPull: Ref[Option[() => Structure[R, E, A]]],
-          switchPull: ZManaged[R, E, Pull[R, E, A]] => ZIO[R, E, Pull[R, E, A]]
+          switchPull: ZManaged[R, Nothing, Pull[R, E, A]] => ZIO[R, Nothing, Pull[R, E, A]]
         ): Pull[R, E, A] =
           doneRef.get.flatMap { done =>
             if (done) Pull.end
@@ -2589,7 +2595,7 @@ object ZStream extends Serializable {
                     case Some(tl) =>
                       tl() match {
                         case Iterator(iter) =>
-                          switchPull(iter).mapError(Some(_)).tap(currPull.set) *>
+                          switchPull(iter).tap(currPull.set) *>
                             nextPull.set(None) *> go(doneRef, currPull, nextPull, switchPull)
                         case Concat(hd, tl) =>
                           // It is extremely important in this case to *NOT* recurse using
@@ -2597,7 +2603,7 @@ object ZStream extends Serializable {
                           // will cause space leaks when used with streams that concatenate infinitely.
                           // Instead, we re-use the same ZManaged scope introduced by the ZManaged.switchable
                           // below to swap the current stream being pulled with tl.
-                          switchPull(hd.process).mapError(Some(_)).tap(currPull.set) *>
+                          switchPull(hd.process).tap(currPull.set) *>
                             nextPull.set(Some(tl)) *> go(doneRef, currPull, nextPull, switchPull)
                       }
                   }
@@ -2605,7 +2611,7 @@ object ZStream extends Serializable {
           }
 
         for {
-          switchPull <- ZManaged.switchable[R, E, Pull[R, E, A]]
+          switchPull <- ZManaged.switchable[R, Nothing, Pull[R, E, A]]
           as         <- switchPull(hd.process).toManaged_
           currPull   <- Ref.make[Pull[R, E, A]](as).toManaged_
           nextPull   <- Ref.make[Option[() => Structure[R, E, A]]](Some(tl)).toManaged_
@@ -2691,20 +2697,26 @@ object ZStream extends Serializable {
   /**
    * Creates a stream from a scoped [[Pull]].
    */
-  final def apply[R, E, A](pull: ZManaged[R, E, Pull[R, E, A]]): ZStream[R, E, A] =
+  final def apply[R, E, A](pull: ZManaged[R, Nothing, Pull[R, E, A]]): ZStream[R, E, A] =
     new ZStream[R, E, A](ZStream.Structure.Iterator(pull))
 
   /**
-   * Creates a stream from a value received from the accessed environment.
+   * Accesses the environment of the stream.
    */
   final def access[R]: AccessPartiallyApplied[R] =
     new AccessPartiallyApplied[R]
 
   /**
-   * Creates a stream from a value received from the effectfully accessed environment.
+   * Accesses the environment of the stream in the context of an effect.
    */
   final def accessM[R]: AccessMPartiallyApplied[R] =
     new AccessMPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the stream in the context of a stream.
+   */
+  final def accessStream[R]: AccessStreamPartiallyApplied[R] =
+    new AccessStreamPartiallyApplied[R]
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -2721,6 +2733,60 @@ object ZStream extends Serializable {
     acquire: ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any]): ZStream[R, E, A] =
     managed(ZManaged.makeExit(acquire)(release))
+
+  /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent streams would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   */
+  final def crossN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
+    f: (A, B) => C
+  ): ZStream[R, E, C] =
+    zStream1.crossWith(zStream2)(f)
+
+  /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent stream would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   */
+  final def crossN[R, E, A, B, C, D](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C]
+  )(
+    f: (A, B, C) => D
+  ): ZStream[R, E, D] =
+    for {
+      a <- zStream1
+      b <- zStream2
+      c <- zStream3
+    } yield f(a, b, c)
+
+  /**
+   * Composes the specified streams to create a cartesian product of elements
+   * with a specified function. Subsequent stream would be run multiple times,
+   * for every combination of elements in the prior streams.
+   *
+   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   */
+  final def crossN[R, E, A, B, C, D, F](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C],
+    zStream4: ZStream[R, E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): ZStream[R, E, F] =
+    for {
+      a <- zStream1
+      b <- zStream2
+      c <- zStream3
+      d <- zStream4
+    } yield f(a, b, c, d)
 
   /**
    * The stream that always dies with `ex`.
@@ -2807,7 +2873,7 @@ object ZStream extends Serializable {
     register: (ZIO[R, Option[E], A] => Unit) => ZIO[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    ZStream {
+    managed {
       for {
         output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
@@ -2838,7 +2904,7 @@ object ZStream extends Serializable {
             Pull.emit
           )
       }
-    }
+    }.flatMap(fromPull)
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
@@ -2890,6 +2956,12 @@ object ZStream extends Serializable {
                }
       } yield pull
     }
+
+  /**
+   * Accesses the whole environment of the stream.
+   */
+  final def environment[R]: ZStream[R, Nothing, R] =
+    ZStream.fromEffect(ZIO.environment[R])
 
   /**
    * The stream that always fails with `error`
@@ -2969,13 +3041,13 @@ object ZStream extends Serializable {
    * Creates a stream from an iterator
    */
   final def fromIterator[R, E, A](iterator: ZIO[R, E, Iterator[A]]): ZStream[R, E, A] =
-    fromIteratorManaged(iterator.toManaged_)
+    fromEffect(iterator).flatMap(StreamEffect.fromIterator)
 
   /**
    * Creates a stream from an iterator
    */
   final def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
-    StreamEffect.fromIterator(iterator)
+    managed(iterator).flatMap(StreamEffect.fromIterator)
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
@@ -3133,16 +3205,54 @@ object ZStream extends Serializable {
    * Creates a stream produced from a [[ZManaged]]
    */
   final def unwrapManaged[R, E, A](fa: ZManaged[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
-    ZStream[R, E, A](fa.flatMap(_.process))
+    flatten(managed(fa))
+
+  /**
+   * Zips the specified streams together with the specified function.
+   */
+  final def zipN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
+    f: (A, B) => C
+  ): ZStream[R, E, C] =
+    zStream1.zipWith(zStream2)((l, r) => l.flatMap(a => r.map(b => f(a, b))))
+
+  /**
+   * Zips with specified streams together with the specified function.
+   */
+  final def zipN[R, E, A, B, C, D](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B], zStream3: ZStream[R, E, C])(
+    f: (A, B, C) => D
+  ): ZStream[R, E, D] =
+    (zStream1 <&> zStream2 <&> zStream3).map {
+      case ((a, b), c) => f(a, b, c)
+    }
+
+  /**
+   * Returns an effect that executes the specified effects in parallel,
+   * combining their results with the specified `f` function. If any effect
+   * fails, then the other effects will be interrupted.
+   */
+  final def zipN[R, E, A, B, C, D, F](
+    zStream1: ZStream[R, E, A],
+    zStream2: ZStream[R, E, B],
+    zStream3: ZStream[R, E, C],
+    zStream4: ZStream[R, E, D]
+  )(f: (A, B, C, D) => F): ZStream[R, E, F] =
+    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map {
+      case (((a, b), c), d) => f(a, b, c, d)
+    }
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZStream[R, Nothing, A] =
-      ZStream.fromEffect(ZIO.access(f))
+      ZStream.environment[R].map(f)
   }
 
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZStream[R, Nothing, A]): ZStream[R, Nothing, A] =
-      ZStream.unwrap(ZIO.access(f))
+    def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
+      ZStream.environment[R].mapM(f)
+  }
+
+  final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
+      ZStream.environment[R].flatMap(f)
   }
 
   private[stream] final def exitToInputStreamRead(exit: Exit[Option[Throwable], Byte]): Int = exit match {
