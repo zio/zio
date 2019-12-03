@@ -100,8 +100,8 @@ object ZManagedSpec extends ZIOBaseSpec {
         def managed2: ZManaged[R with R1, E, A]  = ZManaged.make(acquire2)(release1)
         def managed3: ZManaged[R2, E, A]         = ZManaged.make(acquire2)(release3)
         def managed4: ZManaged[R2, E, A]         = ZManaged.make(acquire3)(release2)
-        lazy val _                               = (managed1, managed2, managed3, managed4)
-        ZIO.succeed(assertCompletes)
+        lazy val result                          = (managed1, managed2, managed3, managed4)
+        ZIO.succeed(assert(result, anything))
       }
     ),
     suite("makeEffect")(
