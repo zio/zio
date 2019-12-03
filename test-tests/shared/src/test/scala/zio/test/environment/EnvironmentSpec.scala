@@ -106,6 +106,29 @@ object EnvironmentSpec extends ZIOBaseSpec {
                    .env("k1")
                    .provide(testEnvironment.mapTestSystem(_ => testSystem))
       } yield assert(result, isNone)
-    }
+    },
+    testM("withLiveClock maps the `TestClock` implementation to one that uses the live environment") {
+      for {
+        _ <- clock.sleep(1.nanosecond)
+      } yield assertCompletes
+    }.provideSome[TestEnvironment](_.withLiveClock),
+    testM("withLiveConsole maps the `TestConsole` implementation to one that uses the live environment") {
+      for {
+        _      <- console.putStr("")
+        output <- TestConsole.output
+      } yield assert(output, isEmpty)
+    }.provideSome[TestEnvironment](_.withLiveConsole),
+    testM("withLiveRandom maps the `TestRandom` implementation to one that uses the live environment") {
+      for {
+        _ <- TestRandom.feedInts(0)
+        n <- random.nextInt
+      } yield assert(n, not(equalTo(0)))
+    }.provideSome[TestEnvironment](_.withLiveRandom),
+    testM("withLiveSystem maps the `TestSystem` implementation to one that uses the live environment") {
+      for {
+        _   <- TestSystem.putEnv("k1", "v1")
+        env <- system.env("k1")
+      } yield assert(env, isNone)
+    }.provideSome[TestEnvironment](_.withLiveSystem)
   )
 }
