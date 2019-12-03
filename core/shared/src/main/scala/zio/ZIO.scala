@@ -1373,7 +1373,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * will be performed uninterruptibly.
    */
   final def toManaged[R1 <: R](release: A => URIO[R1, Any]): ZManaged[R1, E, A] =
-    ZManaged.make[R1, E, A](this)(release)
+    ZManaged.make(this)(release)
 
   /**
    * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be performed
