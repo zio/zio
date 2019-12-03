@@ -6,7 +6,6 @@ import scala.util.{ Failure, Success }
 import zio.clock.Clock
 import zio.duration._
 import zio.random.Random
-import zio.syntax._
 import zio.test._
 import zio.test.environment._
 import zio.test.Assertion._
@@ -252,58 +251,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield n
 
         assertM(test, equalTo(10))
-      }
-    ),
-    suite("extension methods")(
-      testM("succeed") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.succeed
-            b <- IO.succeed(str)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("fail") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.fail.either
-            b <- IO.fail(str).either
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("ensure") {
-        checkM(Gen.alphaNumericString) { str =>
-          val ioSome = IO.succeed(Some(42))
-          for {
-            a <- str.require(ioSome)
-            b <- IO.require(str)(ioSome)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with pure function") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.effect
-            b <- IO.effectTotal(str)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with exception throwing function") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.effect
-            b <- IO.effect(str)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with partial function") {
-        checkM(Gen.alphaNumericString) { str =>
-          val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
-          for {
-            a <- str.effect.refineOrDie(partial)
-            b <- IO.effect(str).refineOrDie(partial)
-          } yield assert(a, equalTo(b))
-        }
       }
     ),
     suite("filterOrElse")(
