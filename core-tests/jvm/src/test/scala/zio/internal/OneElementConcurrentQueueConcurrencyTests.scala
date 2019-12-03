@@ -39,7 +39,7 @@ object OneElementConcurrentQueueConcurrencyTests {
   }
 
   /*
-   * Tests that offer is atomic and values don't get overriden in
+   * Tests that offer is atomic and values don't get overridden in
    * presence of concurrent polls.
    *
    * The invariant is: # of successful offers should equal to # of

@@ -169,6 +169,6 @@ val transferredMoney: UIO[String] = for {
 } yield s"sender: $senderBalance & receiver: $receiverBalance"
 ```
 
-In this example, we create and commit two transactional references for sender and receiver to be able to extract their value. 
-On the following step, we create an atomic transactional that updates both accounts only when there is sufficient balance available in the sender account. At the end we fork to run asynchronously.
-On the running fiber, we suspend until the sender balance suffer changes, in this case to reach `zero`. Finally, we extract the new values out of the accounts and combine in one result. 
+In this example, we create and commit two transactional references for the sender and receiver to be able to extract their value. 
+On the following step, we create an atomic transactional that updates both accounts only when there is sufficient balance available in the sender account. In the end, we fork to run asynchronously.
+On the running fiber, we suspend until the sender balance suffers changes, in this case, to reach `zero`. Finally, we extract the new values out of the accounts and combine them in one result. 
