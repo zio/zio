@@ -417,10 +417,10 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
       }
     ),
-    suite("Stream.paginate")(
+    suite("Stream.paginateM")(
       testM("is safe to pull again after success") {
         Stream
-          .paginate(0)(n => UIO.succeed((n, None)))
+          .paginateM(0)(n => UIO.succeed((n, None)))
           .process
           .use(nPulls(_, 3))
           .map(assert(_, equalTo(List(Right(0), Left(None), Left(None)))))
@@ -429,7 +429,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         for {
           ref <- Ref.make(false)
           pulls <- Stream
-                    .paginate(1) { n =>
+                    .paginateM(1) { n =>
                       ref.get.flatMap { done =>
                         if (n == 2 && !done) ref.set(true) *> IO.fail("Ouch")
                         else UIO.succeed((n, Some(n + 1)))
