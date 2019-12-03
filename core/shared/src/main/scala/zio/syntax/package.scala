@@ -23,17 +23,4 @@ package object syntax {
 
   implicit final def zioEagerCreationSyntax[A](a: A): EagerCreationSyntax[A]  = new EagerCreationSyntax[A](a)
   implicit final def zioLazyCreationSyntax[A](a: => A): LazyCreationSyntax[A] = new LazyCreationSyntax[A](() => a)
-  implicit final def zioIterableSyntax[R, E, A](zios: Iterable[ZIO[R, E, A]]): IterableSyntax[R, E, A] =
-    new IterableSyntax[R, E, A](zios)
-
-  implicit final def zioTuple2Syntax[R, E, A, B](zios: (ZIO[R, E, A], ZIO[R, E, B])): Tuple2Syntax[R, E, A, B] =
-    new Tuple2Syntax(zios)
-  implicit final def zioTuple3Syntax[R, E, A, B, C](
-    zios: (ZIO[R, E, A], ZIO[R, E, B], ZIO[R, E, C])
-  ): Tuple3Syntax[R, E, A, B, C] =
-    new Tuple3Syntax(zios)
-  implicit final def zioTuple4Syntax[R, E, A, B, C, D](
-    zios: (ZIO[R, E, A], ZIO[R, E, B], ZIO[R, E, C], ZIO[R, E, D])
-  ): Tuple4Syntax[R, E, A, B, C, D] =
-    new Tuple4Syntax(zios)
 }

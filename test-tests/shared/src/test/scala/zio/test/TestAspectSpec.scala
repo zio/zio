@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.duration._
+import zio.test.environment.{ Live, TestClock }
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
@@ -196,9 +197,17 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ timeout(1.nanos)
       @@ failure(diesWithSubtypeOf[TestTimeoutException]),
     testM("timeout reports problem with interruption") {
-      assertM(ZIO.never.uninterruptible *> ZIO.unit, equalTo(()))
-    } @@ timeout(10.millis, 1.nano)
-      @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
+      for {
+        testClock <- ZIO.environment[TestClock]
+        liveClock <- Live.make(testClock)
+        spec = testM("uninterruptible test") {
+          for {
+            _ <- (testClock.clock.adjust(11.milliseconds) *> ZIO.never).uninterruptible
+          } yield assertCompletes
+        } @@ timeout(10.milliseconds, 1.nanosecond) @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
+        result <- isSuccess(spec.provide(liveClock))
+      } yield assert(result, isTrue)
+    }
   )
 
   def diesWithSubtypeOf[E](implicit ct: ClassTag[E]): Assertion[TestFailure[E]] =

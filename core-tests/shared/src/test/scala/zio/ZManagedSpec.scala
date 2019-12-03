@@ -975,6 +975,16 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield res1 && res2 && res3
       }
     ),
+    suite("merge")(
+      testM("on flipped result") {
+        val managed: Managed[Int, Int] = ZManaged.succeed(1)
+
+        for {
+          a <- managed.merge.use(ZIO.succeed)
+          b <- managed.flip.merge.use(ZIO.succeed)
+        } yield assert(a, equalTo(b))
+      }
+    ),
     suite("catch")(
       testM("catchAllCause") {
         val zm: ZManaged[Any, String, String] =

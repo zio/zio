@@ -103,6 +103,25 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
     Gen(sample.map(sample => f(sample.value)))
 
   /**
+   * Runs the generator and collects all of its values in a list.
+   */
+  final def runCollect: ZIO[R, Nothing, List[A]] =
+    sample.map(_.value).runCollect
+
+  /**
+   * Repeatedly runs the generator and collects the specified number of values
+   * in a list.
+   */
+  final def runCollectN(n: Int): ZIO[R, Nothing, List[A]] =
+    sample.map(_.value).forever.take(n).runCollect
+
+  /**
+   * Runs the generator returning the first value of the generator.
+   */
+  final def runHead: ZIO[R, Nothing, Option[A]] =
+    sample.map(_.value).runHead
+
+  /**
    * Zips two generators together pairwise. The new generator will generate
    * elements as long as either generator is generating elements, running the
    * other generator multiple times if necessary.
@@ -232,6 +251,38 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   final def constSample[R, A](sample: => Sample[R, A]): Gen[R, A] =
     fromEffectSample(ZIO.succeed(sample))
+
+  /**
+   * Composes the specified generators to create a cartesian product of
+   * elements with the specified function.
+   */
+  final def crossN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
+    gen1.crossWith(gen2)(f)
+
+  /**
+   * Composes the specified generators to create a cartesian product of
+   * elements with the specified function.
+   */
+  final def crossN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
+    for {
+      a <- gen1
+      b <- gen2
+      c <- gen3
+    } yield f(a, b, c)
+
+  /**
+   * Composes the specified generators to create a cartesian product of
+   * elements with the specified function.
+   */
+  final def crossN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
+    f: (A, B, C, D) => F
+  ): Gen[R, F] =
+    for {
+      a <- gen1
+      b <- gen2
+      c <- gen3
+      d <- gen4
+    } yield f(a, b, c, d)
 
   /**
    * A generator of double values inside the specified range: [start, end].
@@ -373,7 +424,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a generator of partial functions from `A` to `B` given a
    * generator of `B` values. Two `A` values will be considered to be equal,
    * and thus will be guaranteed to generate the same `B` value or both be
-   * outside the partial functon's domain, if they have the same `hashCode`.
+   * outside the partial function's domain, if they have the same `hashCode`.
    */
   final def partialFunction[R <: Random, A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
     partialFunctionWith(gen)(_.hashCode)
@@ -384,7 +435,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * values will be considered to be equal, and thus will be guaranteed to
    * generate the same `B` value or both be outside the partial function's
    * domain, if they have have the same hash. This is useful when `A` does not
-   * implement `hashCode` in a way that is constent with equality.
+   * implement `hashCode` in a way that is consistent with equality.
    */
   final def partialFunctionWith[R <: Random, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
     functionWith(option(gen))(hash).map(Function.unlift)
@@ -481,6 +532,36 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generator multiple times if necessary.
+   */
+  final def zipN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
+    gen1.zipWith(gen2)(f)
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generator multiple times if necessary.
+   */
+  final def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
+    (gen1 <&> gen2 <&> gen3).map {
+      case ((a, b), c) => f(a, b, c)
+    }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generator multiple times if necessary.
+   */
+  final def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
+    f: (A, B, C, D) => F
+  ): Gen[R, F] =
+    (gen1 <&> gen2 <&> gen3 <&> gen4).map {
+      case (((a, b), c), d) => f(a, b, c, d)
+    }
 
   /**
    * Restricts an integer to the specified range.
