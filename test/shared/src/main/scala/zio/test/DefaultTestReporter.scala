@@ -24,7 +24,7 @@ import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodExc
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.{ Cause, UIO, URIO, ZIO }
+import zio.{ Cause, UIO, URIO }
 
 object DefaultTestReporter {
 
@@ -40,11 +40,11 @@ object DefaultTestReporter {
                        })
             hasFailures = failures.exists(identity)
             status      = if (hasFailures) Failed else Passed
-            renderedLabel = if (specs.isEmpty) ""
-            else if (hasFailures) renderFailureLabel(label, depth)
-            else renderSuccessLabel(label, depth)
+            renderedLabel = if (specs.isEmpty) Seq.empty
+            else if (hasFailures) Seq(renderFailureLabel(label, depth))
+            else Seq(renderSuccessLabel(label, depth))
             rest <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
-          } yield rendered(Suite, label, status, depth, renderedLabel) +: rest
+          } yield rendered(Suite, label, status, depth, renderedLabel: _*) +: rest
         case Spec.TestCase(label, result) =>
           result.flatMap {
             case Right(TestSuccess.Succeeded(_)) =>
@@ -82,13 +82,13 @@ object DefaultTestReporter {
 
   def apply[E, S](): TestReporter[E, String, S] = { (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
     for {
-      res <- render(executedSpec.mapLabel(_.toString))
-      _   <- ZIO.foreach(res.flatMap(_.rendered))(TestLogger.logLine)
-      _   <- logStats(duration, executedSpec)
+      rendered <- render(executedSpec.mapLabel(_.toString)).map(_.flatMap(_.rendered))
+      stats    <- logStats(duration, executedSpec)
+      _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
     } yield ()
   }
 
-  private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, Unit] = {
+  private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, String] = {
     def loop(executedSpec: ExecutedSpec[E, String, S]): UIO[(Int, Int, Int)] =
       executedSpec.caseValue match {
         case Spec.SuiteCase(_, executedSpecs, _) =>
@@ -109,12 +109,9 @@ object DefaultTestReporter {
       stats                      <- loop(executedSpec.mapLabel(_.toString))
       (success, ignore, failure) = stats
       total                      = success + ignore + failure
-      _ <- TestLogger.logLine(
-            cyan(
-              s"Ran $total test${if (total == 1) "" else "s"} in ${duration.render}: $success succeeded, $ignore ignored, $failure failed"
-            )
-          )
-    } yield ()
+    } yield cyan(
+      s"Ran $total test${if (total == 1) "" else "s"} in ${duration.render}: $success succeeded, $ignore ignored, $failure failed"
+    )
   }
 
   private def renderSuccessLabel(label: String, offset: Int) =

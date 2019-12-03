@@ -142,19 +142,25 @@ git commit -am "merged upstream changes"
 At this point, you should re-run all tests to make sure everything is passing:
 
 ```bash
-test
+# If you are already in a SBT session you can type only 'test'
+
+sbt test
 ```
 
 If all the tests are passing, then you can format your code:
 
 ```bash
-fmt
+# If you are already in a SBT session you can type only 'fmt'
+
+sbt fmt
 ```
 
 If your changes altered an API, then you may need to rebuild the microsite to make sure none of the (compiled) documentation breaks:
 
 ```bash
-docs/docusaurusCreateSite
+# If you are already in a SBT session you can type only 'docs/docusaurusCreateSite'
+
+sbt docs/docusaurusCreateSite
 ```
 
 (If you get an error about _Jekyll_, that means all the code examples work and you can ignore the rest.)

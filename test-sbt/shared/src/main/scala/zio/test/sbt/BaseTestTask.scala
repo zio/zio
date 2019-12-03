@@ -50,7 +50,7 @@ abstract class BaseTestTask(
 class SbtTestLogger(loggers: Array[Logger]) extends TestLogger {
   override def testLogger: TestLogger.Service = (line: String) => {
     ZIO
-      .effect(loggers.foreach(_.info(line)))
+      .effect(loggers.foreach(_.info(colored(line))))
       .catchAll(_ => ZIO.unit)
   }
 }
