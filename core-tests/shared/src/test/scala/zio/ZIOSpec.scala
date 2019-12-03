@@ -540,7 +540,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("calls provided function when task fails") {
         for {
           p <- Promise.make[Nothing, Unit]
-          _ <- ZIO.fail(()).forkWithErrorHandler(_ => p.succeed(()).unit)
+          _ <- ZIO.fail(()).forkWithErrorHandler(p.succeed(_).unit)
           _ <- p.await
         } yield assertCompletes
       }

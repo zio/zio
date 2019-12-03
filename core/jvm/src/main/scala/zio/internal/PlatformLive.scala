@@ -59,7 +59,7 @@ object PlatformLive {
       }
 
       def reportFailure(cause: Cause[Any]): Unit =
-        if (!cause.interruptedOnly && cause.died)
+        if (cause.died)
           System.err.println(cause.prettyPrint)
 
     }
