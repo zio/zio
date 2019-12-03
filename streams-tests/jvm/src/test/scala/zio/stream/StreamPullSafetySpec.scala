@@ -440,6 +440,13 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(2))))
       }
     ),
+    testM("Stream.range is safe to pull again") {
+      Stream
+        .range(1, 3)
+        .process
+        .use(nPulls(_, 5))
+        .map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left(None), Left(None)))))
+    },
     testM("Stream.unfold is safe to pull again") {
       Stream
         .unfold(0) { n =>
