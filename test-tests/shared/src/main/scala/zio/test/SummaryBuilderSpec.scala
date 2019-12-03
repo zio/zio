@@ -111,7 +111,7 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
                       override val clock: Clock.Service[Any]      = clockSvc.clock
                     })
         actualSummary <- SummaryBuilder.buildSummary(results)
-      } yield actualSummary == expectedSummary.mkString("").stripLineEnd
+      } yield actualSummary.summary == expectedSummary.mkString("").stripLineEnd
 
       zio.provide(r)
     }

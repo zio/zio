@@ -180,6 +180,60 @@ object Managed {
     ZManaged.makeInterruptible(acquire)(release)
 
   /**
+   *  @see [[zio.ZManaged.mapN]]
+   */
+  final def mapN[E, A, B, C](managed1: Managed[E, A], managed2: Managed[E, B])(f: (A, B) => C): Managed[E, C] =
+    ZManaged.mapN(managed1, managed2)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapN]]
+   */
+  final def mapN[E, A, B, C, D](managed1: Managed[E, A], managed2: Managed[E, B], managed3: Managed[E, C])(
+    f: (A, B, C) => D
+  ): Managed[E, D] =
+    ZManaged.mapN(managed1, managed2, managed3)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapN]]
+   */
+  final def mapN[E, A, B, C, D, F](
+    managed1: Managed[E, A],
+    managed2: Managed[E, B],
+    managed3: Managed[E, C],
+    managed4: Managed[E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): Managed[E, F] =
+    ZManaged.mapN(managed1, managed2, managed3, managed4)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapParN]]
+   */
+  final def mapParN[E, A, B, C](managed1: Managed[E, A], managed2: Managed[E, B])(f: (A, B) => C): Managed[E, C] =
+    ZManaged.mapParN(managed1, managed2)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapParN]]
+   */
+  final def mapParN[E, A, B, C, D](managed1: Managed[E, A], managed2: Managed[E, B], managed3: Managed[E, C])(
+    f: (A, B, C) => D
+  ): Managed[E, D] =
+    ZManaged.mapParN(managed1, managed2, managed3)(f)
+
+  /**
+   *  @see [[zio.ZManaged.mapParN]]
+   */
+  final def mapParN[E, A, B, C, D, F](
+    managed1: Managed[E, A],
+    managed2: Managed[E, B],
+    managed3: Managed[E, C],
+    managed4: Managed[E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): Managed[E, F] =
+    ZManaged.mapParN(managed1, managed2, managed3, managed4)(f)
+
+  /**
    * See [[zio.ZManaged.mergeAll]]
    */
   final def mergeAll[E, A, B](in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =

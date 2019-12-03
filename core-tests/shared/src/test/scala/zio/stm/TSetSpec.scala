@@ -133,6 +133,16 @@ object TSetSpec extends ZIOBaseSpec {
 
         assertM(tx.commit, hasSameElements(List(2, 4, 6)))
       },
+      testM("transform and shrink") {
+        val tx =
+          for {
+            tset <- TSet.make(1, 2, 3)
+            _    <- tset.transform(_ => 1)
+            res  <- tset.toList
+          } yield res
+
+        assertM(tx.commit, hasSameElements(List(1)))
+      },
       testM("transformM") {
         val tx =
           for {
@@ -142,6 +152,16 @@ object TSetSpec extends ZIOBaseSpec {
           } yield res
 
         assertM(tx.commit, hasSameElements(List(2, 4, 6)))
+      },
+      testM("transformM and shrink") {
+        val tx =
+          for {
+            tset <- TSet.make(1, 2, 3)
+            _    <- tset.transformM(_ => STM.succeed(1))
+            res  <- tset.toList
+          } yield res
+
+        assertM(tx.commit, hasSameElements(List(1)))
       }
     ),
     suite("folds")(

@@ -174,7 +174,7 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit, hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
       },
-      testM("transform with keys with negative hashCodes") {
+      testM("transform with keys with negative hash codes") {
         val tx =
           for {
             tmap <- TMap.make(HashContainer(-1) -> 1, HashContainer(-2) -> 2, HashContainer(-3) -> 3)
@@ -187,6 +187,16 @@ object TMapSpec extends ZIOBaseSpec {
           hasSameElements(List(HashContainer(2) -> 2, HashContainer(4) -> 4, HashContainer(6) -> 6))
         )
       },
+      testM("transform and shrink") {
+        val tx =
+          for {
+            tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
+            _    <- tmap.transform((_, v) => "key" -> v * 2)
+            res  <- tmap.toList
+          } yield res
+
+        assertM(tx.commit, hasSameElements(List("key" -> 6)))
+      },
       testM("transformM") {
         val tx =
           for {
@@ -196,6 +206,16 @@ object TMapSpec extends ZIOBaseSpec {
           } yield res
 
         assertM(tx.commit, hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
+      },
+      testM("transformM and shrink") {
+        val tx =
+          for {
+            tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
+            _    <- tmap.transformM((_, v) => STM.succeed("key" -> v * 2))
+            res  <- tmap.toList
+          } yield res
+
+        assertM(tx.commit, hasSameElements(List("key" -> 6)))
       },
       testM("transformValues") {
         val tx =
@@ -257,19 +277,16 @@ object TMapSpec extends ZIOBaseSpec {
       }
     )
   )
-}
 
-private final class HashContainer(val i: Int) {
-  override def hashCode(): Int = i
+  private final case class HashContainer(val i: Int) {
+    override def hashCode(): Int = i
 
-  override def equals(obj: Any): Boolean = obj match {
-    case o: HashContainer => i == o.i
-    case _                => false
+    override def equals(obj: Any): Boolean =
+      obj match {
+        case o: HashContainer => i == o.i
+        case _                => false
+      }
+
+    override def toString: String = s"HashContainer($i)"
   }
-
-  override def toString: String = s"HashContainer($i)"
-}
-
-private object HashContainer {
-  def apply(hc: Int) = new HashContainer(hc)
 }

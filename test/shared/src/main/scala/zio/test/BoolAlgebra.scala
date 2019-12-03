@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.ZIO
+
 /**
  * A `BoolAlgebra[A]` is a description of logical operations on values of type
  * `A`.
@@ -98,6 +100,13 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
     fold(f)(and, or, not)
 
   /**
+   * Returns a new result, with all values mapped to new results using the
+   * specified effectual function.
+   */
+  final def flatMapM[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]]): ZIO[R, E, BoolAlgebra[B]] =
+    fold(a => f(a))(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
+
+  /**
    * Folds over the result bottom up, first converting values to `B`
    * values, and then combining the `B` values, using the specified functions.
    */
@@ -147,6 +156,13 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
    */
   final def map[B](f: A => B): BoolAlgebra[B] =
     flatMap(f andThen success)
+
+  /**
+   * Returns a new result, with all values mapped by the specified effectual
+   * function.
+   */
+  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, BoolAlgebra[B]] =
+    flatMapM(a => f(a).map(success))
 
   /**
    * Negates this result, converting all successes into failures and failures
@@ -313,7 +329,7 @@ object BoolAlgebra {
     if (as.isEmpty) None else Some(as.map(f).reduce(_ && _))
 
   /**
-   * Constructs a result that is the logical negation ofthe specified result.
+   * Constructs a result that is the logical negation of the specified result.
    */
   final def not[A](result: BoolAlgebra[A]): BoolAlgebra[A] =
     Not(result)

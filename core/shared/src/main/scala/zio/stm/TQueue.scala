@@ -55,6 +55,7 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       .flatMap(split => ref.set(split._2) *> STM.succeed(split._1))
       .map(_.toList)
 }
+
 object TQueue {
   final def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
     TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))

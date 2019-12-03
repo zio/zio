@@ -12,58 +12,61 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     testM("correctly reports a successful test") {
       assertM(
         runLog(test1),
-        equalTo(Vector(test1Expected, reportStats(1, 0, 0)))
+        equalTo(test1Expected.mkString + reportStats(1, 0, 0))
       )
     },
     testM("correctly reports a failed test") {
       assertM(
         runLog(test3),
-        equalTo(test3Expected :+ reportStats(0, 0, 1))
+        equalTo(test3Expected.mkString + reportStats(0, 0, 1))
       )
     },
     testM("correctly reports an error in a test") {
       assertM(
         runLog(test4),
-        equalTo(test4Expected :+ reportStats(0, 0, 1))
+        equalTo(test4Expected.mkString + reportStats(0, 0, 1))
       )
     },
     testM("correctly reports successful test suite") {
       assertM(
         runLog(suite1),
-        equalTo(suite1Expected :+ reportStats(2, 0, 0))
+        equalTo(suite1Expected.mkString + reportStats(2, 0, 0))
       )
     },
     testM("correctly reports failed test suite") {
       assertM(
         runLog(suite2),
-        equalTo(suite2Expected :+ reportStats(2, 0, 1))
+        equalTo(suite2Expected.mkString + reportStats(2, 0, 1))
       )
     },
     testM("correctly reports multiple test suites") {
       assertM(
         runLog(suite3),
-        equalTo(
-          Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected
-            .map(withOffset(2)) :+ reportStats(2, 0, 1)
-        )
+        equalTo(suite3Expected.mkString + reportStats(2, 0, 1))
+      )
+    },
+    testM("correctly reports empty test suite") {
+      assertM(
+        runLog(suite4),
+        equalTo(suite4Expected.mkString + reportStats(2, 0, 1))
       )
     },
     testM("correctly reports failure of simple assertion") {
       assertM(
         runLog(test5),
-        equalTo(test5Expected :+ reportStats(0, 0, 1))
+        equalTo(test5Expected.mkString + reportStats(0, 0, 1))
       )
     },
     testM("correctly reports multiple nested failures") {
       assertM(
         runLog(test6),
-        equalTo(test6Expected :+ reportStats(0, 0, 1))
+        equalTo(test6Expected.mkString + reportStats(0, 0, 1))
       )
     },
     testM("correctly reports labeled failures") {
       assertM(
         runLog(test7),
-        equalTo(test7Expected :+ reportStats(0, 0, 1))
+        equalTo(test7Expected.mkString + reportStats(0, 0, 1))
       )
     }
   )
@@ -148,6 +151,14 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
   ) ++ test3Expected.map(withOffset(2)(_))
 
   val suite3 = suite("Suite3")(suite1, test3)
+  val suite3Expected = Vector(expectedFailure("Suite3")) ++
+    suite1Expected.map(withOffset(2)) ++
+    test3Expected.map(withOffset(2))
+
+  val suite4 = suite("Suite4")(suite1, suite("Empty")(), test3)
+  val suite4Expected = Vector(expectedFailure("Suite4")) ++
+    suite1Expected.map(withOffset(2)) ++
+    test3Expected.map(withOffset(2))
 
   def reportStats(success: Int, ignore: Int, failure: Int) = {
     val total = success + ignore + failure
@@ -156,8 +167,8 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     ) + "\n"
   }
 
-  def runLog[E](spec: ZSpec[TestEnvironment, String, String, Unit]) = {
-    val zio = for {
+  def runLog[E](spec: ZSpec[TestEnvironment, String, String, Unit]) =
+    for {
       _ <- TestTestRunner(testEnvironmentManaged)
             .run(spec)
             .provideSomeManaged(for {
@@ -169,9 +180,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
               override val clock: Clock.Service[Any] = clockSvc.clock
             })
       output <- TestConsole.output
-    } yield output
-    zio
-  }
+    } yield output.mkString
 
   private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String, String, Unit, Unit](

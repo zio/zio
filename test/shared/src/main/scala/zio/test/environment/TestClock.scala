@@ -176,7 +176,7 @@ object TestClock extends Serializable {
 
     /**
      * Sets the current clock time to the specified `OffsetDateTime`. Any
-     * effets that were scheduled to occur on or before the new time will
+     * effects that were scheduled to occur on or before the new time will
      * immediately be run.
      */
     final def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
@@ -389,7 +389,7 @@ object TestClock extends Serializable {
     ZIO.accessM(_.clock.sleeps)
 
   /**
-   * Accesses a `TestClock` instance in the environemtn and returns the current
+   * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
   val timeZone: ZIO[TestClock, Nothing, ZoneId] =

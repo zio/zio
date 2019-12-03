@@ -34,7 +34,7 @@ trait RunnableSpec[R, E, L, T, S] extends AbstractRunnableSpec {
     results     <- run
     hasFailures <- results.exists { case TestCase(_, test) => test.map(_._1.isLeft); case _ => UIO.succeed(false) }
     summary     <- SummaryBuilder.buildSummary(results)
-    _           <- TestLogger.logLine(summary)
+    _           <- TestLogger.logLine(summary.summary)
   } yield if (hasFailures) 1 else 0
 
   /**

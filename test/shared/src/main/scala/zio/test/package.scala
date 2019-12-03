@@ -43,8 +43,8 @@ import zio.stream.{ ZSink, ZStream }
  * }}}
  */
 package object test extends CompileVariants {
-  type AssertResult = BoolAlgebra[AssertionValue]
-  type TestResult   = BoolAlgebra[FailureDetails]
+  type AssertResult = BoolAlgebraM[Any, Nothing, AssertionValue]
+  type TestResult   = BoolAlgebraM[Any, Nothing, FailureDetails]
 
   /**
    * A `TestReporter[E, L, S]` is capable of reporting test results annotated
@@ -104,13 +104,15 @@ package object test extends CompileVariants {
     assertion.run(value).flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.assertion == failureDetails.assertion.head.assertion)
-          BoolAlgebra.success(failureDetails)
+          BoolAlgebraM.success(failureDetails)
         else {
-          val satisfied = whole.assertion.test(whole.value)
+          val satisfied = BoolAlgebraM(whole.assertion.test(whole.value).map(BoolAlgebra.success))
           val fragment  = whole.assertion.run(whole.value)
-          val result    = if (satisfied) fragment else !fragment
-          result.flatMap { fragment =>
-            loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
+          satisfied.flatMap { p =>
+            val result = if (p) fragment else !fragment
+            result.flatMap { fragment =>
+              loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
+            }
           }
         }
       loop(fragment, FailureDetails(::(AssertionValue(assertion, value), Nil)))
@@ -133,7 +135,7 @@ package object test extends CompileVariants {
    * given random variable.
    */
   final def check[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
-    checkSome(200)(rv)(test)
+    checkN(200)(rv)(test)
 
   /**
    * A version of `check` that accepts two random variables.
@@ -162,7 +164,7 @@ package object test extends CompileVariants {
    * the given random variable.
    */
   final def checkM[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
-    checkSomeM(200)(rv)(test)
+    checkNM(200)(rv)(test)
 
   /**
    * A version of `checkM` that accepts two random variables.
@@ -254,15 +256,15 @@ package object test extends CompileVariants {
    * Checks the test passes for the specified number of samples from the given
    * random variable.
    */
-  final def checkSome(n: Int): CheckVariants.CheckSome =
-    new CheckVariants.CheckSome(n)
+  final def checkN(n: Int): CheckVariants.CheckN =
+    new CheckVariants.CheckN(n)
 
   /**
    * Checks the effectual test passes for the specified number of samples from
    * the given random variable.
    */
-  final def checkSomeM(n: Int): CheckVariants.CheckSomeM =
-    new CheckVariants.CheckSomeM(n)
+  final def checkNM(n: Int): CheckVariants.CheckNM =
+    new CheckVariants.CheckNM(n)
 
   /**
    * Creates a failed test result with the specified runtime cause.
@@ -309,10 +311,10 @@ package object test extends CompileVariants {
         .foldCauseM(
           cause => ZIO.fail(TestFailure.Runtime(cause)),
           result =>
-            result.failures match {
+            result.run.flatMap(_.failures match {
               case None           => ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
-              case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-            }
+              case Some(failures) => ZIO.fail(TestFailure.Assertion(BoolAlgebraM(ZIO.succeed(failures))))
+            })
         )
     )
 
@@ -328,36 +330,36 @@ package object test extends CompileVariants {
 
   object CheckVariants {
 
-    final class CheckSome(private val n: Int) extends AnyVal {
+    final class CheckN(private val n: Int) extends AnyVal {
       def apply[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
-        checkSomeM(n)(rv)(test andThen ZIO.succeed)
+        checkNM(n)(rv)(test andThen ZIO.succeed)
       def apply[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
-        checkSome(n)(rv1 <*> rv2)(test.tupled)
+        checkN(n)(rv1 <*> rv2)(test.tupled)
       def apply[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => TestResult
       ): ZIO[R, Nothing, TestResult] =
-        checkSome(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
+        checkN(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
       def apply[R, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => TestResult
       ): ZIO[R, Nothing, TestResult] =
-        checkSome(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+        checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
     }
 
-    final class CheckSomeM(private val n: Int) extends AnyVal {
+    final class CheckNM(private val n: Int) extends AnyVal {
       def apply[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
         checkStream(rv.sample.forever.take(n))(test)
       def apply[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
-        checkSomeM(n)(rv1 <*> rv2)(test.tupled)
+        checkNM(n)(rv1 <*> rv2)(test.tupled)
       def apply[R, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
-        checkSomeM(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
+        checkNM(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
       def apply[R, R1 <: R, E, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
-        checkSomeM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
     }
   }
 
@@ -372,10 +374,11 @@ package object test extends CompileVariants {
               .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
               .either
         )
-    }.dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
+    }.mapM(_.traverse(_.fold(e => ZIO.succeed(Left(e)), a => a.run.map(Right(_)))))
+      .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
       .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks))
-      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken values
+      .run(ZSink.collectAll[Either[E, BoolAlgebra[FailureDetails]]]) // Collect all the shrunken values
       .flatMap { shrinks =>
         // Get the "last" failure, the smallest according to the shrinker:
         shrinks
@@ -383,13 +386,13 @@ package object test extends CompileVariants {
           .lastOption
           .fold[ZIO[R, E, TestResult]](
             ZIO.succeed {
-              BoolAlgebra.success {
+              BoolAlgebraM.success {
                 FailureDetails(
                   ::(AssertionValue(Assertion.anything, ()), Nil)
                 )
               }
             }
-          )(ZIO.fromEither(_))
+          )(_.fold(e => ZIO.fail(e), a => ZIO.succeed(BoolAlgebraM(ZIO.succeed(a)))))
       }
       .untraced
 

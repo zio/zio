@@ -25,12 +25,12 @@ import zio.test.Sized
 case class TestEnvironment(
   annotated: Annotated.Service[Any],
   blocking: Blocking.Service[Any],
-  clock: TestClock.Test,
-  console: TestConsole.Test,
+  clock: TestClock.Service[Any],
+  console: TestConsole.Service[Any],
   live: Live.Service[ZEnv],
-  random: TestRandom.Test,
+  random: TestRandom.Service[Any],
   sized: Sized.Service[Any],
-  system: TestSystem.Test
+  system: TestSystem.Service[Any]
 ) extends Annotated
     with Blocking
     with Live[ZEnv]
@@ -45,10 +45,10 @@ case class TestEnvironment(
    * Maps all test implementations in the test environment individually.
    */
   final def mapAll(
-    mapTestClock: TestClock.Test => TestClock.Test = identity,
-    mapTestConsole: TestConsole.Test => TestConsole.Test = identity,
-    mapTestRandom: TestRandom.Test => TestRandom.Test = identity,
-    mapTestSystem: TestSystem.Test => TestSystem.Test = identity
+    mapTestClock: TestClock.Service[Any] => TestClock.Service[Any] = identity,
+    mapTestConsole: TestConsole.Service[Any] => TestConsole.Service[Any] = identity,
+    mapTestRandom: TestRandom.Service[Any] => TestRandom.Service[Any] = identity,
+    mapTestSystem: TestSystem.Service[Any] => TestSystem.Service[Any] = identity
   ): TestEnvironment =
     TestEnvironment(
       annotated,
@@ -65,28 +65,28 @@ case class TestEnvironment(
    * Maps the [[TestClock]] implementation in the test environment, leaving
    * all other test implementations the same.
    */
-  final def mapTestClock(f: TestClock.Test => TestClock.Test): TestEnvironment =
+  final def mapTestClock(f: TestClock.Service[Any] => TestClock.Service[Any]): TestEnvironment =
     mapAll(mapTestClock = f)
 
   /**
    * Maps the [[TestConsole]] implementation in the test environment, leaving
    * all other test implementations the same.
    */
-  final def mapTestConsole(f: TestConsole.Test => TestConsole.Test): TestEnvironment =
+  final def mapTestConsole(f: TestConsole.Service[Any] => TestConsole.Service[Any]): TestEnvironment =
     mapAll(mapTestConsole = f)
 
   /**
    * Maps the [[TestRandom]] implementation in the test environment, leaving
    * all other test implementations the same.
    */
-  final def mapTestRandom(f: TestRandom.Test => TestRandom.Test): TestEnvironment =
+  final def mapTestRandom(f: TestRandom.Service[Any] => TestRandom.Service[Any]): TestEnvironment =
     mapAll(mapTestRandom = f)
 
   /**
    * Maps the [[TestSystem]] implementation in the test environment, leaving
    * all other test implementations the same.
    */
-  final def mapTestSystem(f: TestSystem.Test => TestSystem.Test): TestEnvironment =
+  final def mapTestSystem(f: TestSystem.Service[Any] => TestSystem.Service[Any]): TestEnvironment =
     mapAll(mapTestSystem = f)
 
   val scheduler = clock

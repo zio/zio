@@ -706,13 +706,13 @@ object Schedule {
     this.doWhileM(f).collectAll
 
   /**
-   * A schedule that recurs until the condition f failes, collecting all inputs into a list.
+   * A schedule that recurs until the condition f fails, collecting all inputs into a list.
    */
   final def collectUntil[A](f: A => Boolean): Schedule[Any, A, List[A]] =
     this.doUntil(f).collectAll
 
   /**
-   * A schedule that recurs until the effectful condition f failes, collecting all inputs into a list.
+   * A schedule that recurs until the effectful condition f fails, collecting all inputs into a list.
    */
   final def collectUntilM[A](f: A => UIO[Boolean]): Schedule[Any, A, List[A]] =
     this.doUntilM(f).collectAll

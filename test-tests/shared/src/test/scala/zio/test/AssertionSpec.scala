@@ -225,6 +225,12 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isNonEmptyString must fail when the string is empty") {
       assert("", isNonEmptyString)
     } @@ failure,
+    test("isNull must succeed when specified value is null") {
+      assert(null, isNull)
+    },
+    test("isNull must fail when specified value is not null") {
+      assert("not null", isNull)
+    } @@ failure,
     test("isRight must succeed when supplied value is Right and satisfy specified assertion") {
       assert(Right(42), isRight(equalTo(42)))
     },
@@ -288,11 +294,11 @@ object AssertionSpec extends ZIOBaseSpec {
     test("succeeds must fail when supplied value is Exit.fail") {
       assert(Exit.fail("Some Error"), succeeds(equalTo("Some Error")))
     } @@ failure,
-    test("test must return true when given element satisfy assertion") {
-      assert(nameStartsWithU.test(sampleUser), isTrue)
+    testM("test must return true when given element satisfy assertion") {
+      assertM(nameStartsWithU.test(sampleUser), isTrue)
     },
-    test("test must return false when given element does not satisfy assertion") {
-      assert(nameStartsWithA.test(sampleUser), isFalse)
+    testM("test must return false when given element does not satisfy assertion") {
+      assertM(nameStartsWithA.test(sampleUser), isFalse)
     },
     test("throws must succeed when given assertion is correct") {
       assert(throw sampleException, throws(equalTo(sampleException)))

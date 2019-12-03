@@ -397,8 +397,11 @@ object Mock {
                       ZIO.die(
                         InvalidMethodException(invokedMethod.asInstanceOf[Method[Any, Any, Any]], method, assertion)
                       )
-                    else if (!assertion.test(args)) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
-                    else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
+                    else
+                      assertion.test(args).flatMap { p =>
+                        if (!p) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
+                        else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
+                      }
                   case None => ZIO.die(new IllegalStateException)
                 }
           output <- promise.await
