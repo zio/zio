@@ -291,6 +291,62 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
       }
     ),
+    suite("Stream.fromIteratorManaged")(
+      testM("is safe to pull again after success") {
+        for {
+          ref <- Ref.make(false)
+          pulls <- Stream
+                    .fromIteratorManaged(Managed.make(UIO.succeed(List(1, 2).iterator))(_ => ref.set(true)))
+                    .process
+                    .use(nPulls(_, 4))
+          fin <- ref.get
+        } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(1), Right(2), Left(None), Left(None))))
+      },
+      testM("is safe to pull again after failed acquisition") {
+        for {
+          ref <- Ref.make(false)
+          pulls <- Stream
+                    .fromIteratorManaged(Managed.make(IO.fail("Ouch"))(_ => ref.set(true)))
+                    .process
+                    .use(nPulls(_, 3))
+          fin <- ref.get
+        } yield assert(fin, isFalse) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+      },
+      testM("is safe to pull again after inner failure") {
+        for {
+          ref <- Ref.make(false)
+          pulls <- Stream
+                    .fromIteratorManaged(Managed.make(UIO.succeed(List(1, 2).iterator))(_ => ref.set(true)))
+                    .flatMap(
+                      n => Stream.succeed((n * 2).toString) ++ Stream.fail("Ouch") ++ Stream.succeed((n * 3).toString)
+                    )
+                    .process
+                    .use(nPulls(_, 8))
+          fin <- ref.get
+        } yield assert(fin, isTrue) && assert(
+          pulls,
+          equalTo(
+            List(
+              Right("2"),
+              Left(Some("Ouch")),
+              Right("3"),
+              Right("4"),
+              Left(Some("Ouch")),
+              Right("6"),
+              Left(None),
+              Left(None)
+            )
+          )
+        )
+      },
+      testM("is safe to pull again from a failed Managed") {
+        Stream
+          .fromIteratorManaged(Managed.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      }
+    ),
     testM("Stream.fromQueue is safe to pull again") {
       for {
         queue <- Queue.bounded[Int](1)
