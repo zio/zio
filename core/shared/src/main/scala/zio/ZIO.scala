@@ -1192,11 +1192,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail, ZIO.succeed)
 
-  /**
-   *  Returns an effect with the optional value.
-   */
-  def some[A](a: A): UIO[Option[A]] = succeed(Some(a))
-
   final def some[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], B] =
     self.foldM(
       e => ZIO.fail(Some(e)),
@@ -1220,12 +1215,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       case Some(value) => ZIO.succeed(value)
       case None        => ZIO.fail(ev2(new NoSuchElementException("None.get")))
     })
-
-  /**
-   * Returns an effect that models success with the specified strictly-
-   * evaluated value.
-   */
-  final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
 
   /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
