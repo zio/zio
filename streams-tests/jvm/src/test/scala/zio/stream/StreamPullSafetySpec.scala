@@ -336,6 +336,13 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .use(nPulls(_, 3))
           fin <- ref.get
         } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+      },
+      testM("is safe to pull again from a failed Managed") {
+        Stream
+          .managed(Managed.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
       }
     ),
     suite("Stream.paginate")(
