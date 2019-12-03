@@ -263,14 +263,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * succeed with the returned value.
    */
-  final def collect[E1 >: E, B](e: E1)(pf: PartialFunction[A, B]): ZIO[R, E1, B] =
+  final def collect[E1 >: E, B](e: => E1)(pf: PartialFunction[A, B]): ZIO[R, E1, B] =
     collectM(e)(pf.andThen(ZIO.succeed(_)))
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * continue with the returned value.
    */
-  final def collectM[R1 <: R, E1 >: E, B](e: E1)(pf: PartialFunction[A, ZIO[R1, E1, B]]): ZIO[R1, E1, B] =
+  final def collectM[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZIO[R1, E1, B]]): ZIO[R1, E1, B] =
     self.flatMap { v =>
       pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e))
     }
@@ -859,7 +859,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a successful effect if the value is `Left`, or fails with the error e.
    */
-  def leftOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, B] =
+  def leftOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, B] =
     self.flatMap(ev(_) match {
       case Right(_)    => ZIO.fail(e)
       case Left(value) => ZIO.succeed(value)
@@ -889,7 +889,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a successful effect if the value is `Right`, or fails with the given error 'e'.
    */
-  def rightOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, C] =
+  def rightOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, C] =
     self.flatMap(ev(_) match {
       case Right(value) => ZIO.succeed(value)
       case Left(_)      => ZIO.fail(e)
@@ -1201,7 +1201,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
-  def someOrFail[B, E1 >: E](e: E1)(implicit ev: A <:< Option[B]): ZIO[R, E1, B] =
+  def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZIO[R, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZIO.succeed(value)
       case None        => ZIO.fail(e)
