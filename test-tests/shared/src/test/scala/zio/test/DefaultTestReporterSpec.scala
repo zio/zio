@@ -68,6 +68,12 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         runLog(test7),
         equalTo(test7Expected.mkString + reportStats(0, 0, 1))
       )
+    },
+    testM("correctly reports negated failures") {
+      assertM(
+        runLog(test8),
+        equalTo(test8Expected.mkString + reportStats(0, 0, 1))
+      )
     }
   )
 
@@ -133,6 +139,17 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
     withOffset(2)(
       s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(" + yellowThenCyan("equalTo(1)") + ") ?? \"third\")")}\n"
+    )
+  )
+
+  val test8 = test("Not combinator") {
+    assert(100, not(equalTo(100)))
+  }
+  val test8Expected = Vector(
+    expectedFailure("Not combinator"),
+    withOffset(2)(s"${blue("100")} satisfied ${cyan("equalTo(100)")}\n"),
+    withOffset(2)(
+      s"${blue("100")} did not satisfy ${cyan("not(" + yellowThenCyan("equalTo(100)") + ")")}\n"
     )
   )
 
