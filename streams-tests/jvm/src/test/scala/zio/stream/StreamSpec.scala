@@ -1378,6 +1378,17 @@ object StreamSpec extends ZIOBaseSpec {
       val s2 = Stream(4, 5, 6)
       s1.orElse(s2).runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
     },
+    testM("Stream.paginate") {
+      val s = (0, List(1, 2, 3))
+
+      ZStream
+        .paginate(s) {
+          case (x, Nil)      => x -> None
+          case (x, x0 :: xs) => x -> Some(x0 -> xs)
+        }
+        .runCollect
+        .map(assert(_, equalTo(List(0, 1, 2, 3))))
+    },
     testM("Stream.paginateM") {
       val s = (0, List(1, 2, 3))
 

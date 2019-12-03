@@ -3128,6 +3128,14 @@ object ZStream extends Serializable {
   ): ZStream[R, E, A] = mergeAll(Int.MaxValue, outputBuffer)(streams: _*)
 
   /**
+   * Like [[unfold]], but allows the emission of values to end one step further
+   * the unfolding of the state. This is useful for embedding paginated APIs,
+   * hence the name.
+   */
+  final def paginate[A, S](s: S)(f: S => (A, Option[S])): Stream[Nothing, A] =
+    StreamEffect.paginate(s)(f)
+
+  /**
    * Like [[unfoldM]], but allows the emission of values to end one step further than
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.

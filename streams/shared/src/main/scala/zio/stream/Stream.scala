@@ -188,6 +188,12 @@ object Stream extends Serializable {
     ZStream.fromPull(pull)
 
   /**
+   * See [[ZStream.paginate]]
+   */
+  final def paginate[A, S](s: S)(f: S => (A, Option[S])): Stream[Nothing, A] =
+    ZStream.paginate(s)(f)
+
+  /**
    * See [[ZStream.paginateM]]
    */
   final def paginateM[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
