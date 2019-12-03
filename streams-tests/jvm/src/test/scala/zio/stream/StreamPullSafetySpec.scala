@@ -275,6 +275,22 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         .use(nPulls(_, 3))
         .map(assert(_, equalTo(List(Right(1), Left(None), Left(None)))))
     },
+    suite("Stream.fromIterator")(
+      testM("is safe to pull again after success") {
+        Stream
+          .fromIterator(UIO.succeed(List(1, 2).iterator))
+          .process
+          .use(nPulls(_, 4))
+          .map(assert(_, equalTo(List(Right(1), Right(2), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after failure") {
+        Stream
+          .fromIterator(IO.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      }
+    ),
     testM("Stream.fromQueue is safe to pull again") {
       for {
         queue <- Queue.bounded[Int](1)
