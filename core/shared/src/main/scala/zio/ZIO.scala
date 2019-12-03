@@ -519,6 +519,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def fork: URIO[R, Fiber[E, A]] = new ZIO.Fork(self)
 
   /**
+   * Like [[fork]] but handles an error with the provided handler.
+   */
+  final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber[E, A]] =
+    onError(new ZIO.FoldCauseMFailureFn(handler)).run.fork.map(_.mapM(IO.done))
+
+  /**
    * Forks the effect into a new independent fiber, with the specified name.
    */
   final def forkAs(name: String): URIO[R, Fiber[E, A]] =
@@ -1622,14 +1628,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self &&& that
-
-  /**
-   * Forks an effect that will be executed without unhandled failures being
-   * reported. This is useful for implementing combinators that handle failures
-   * themselves.
-   */
-  private[zio] final def forkInternal: URIO[R, Fiber[E, A]] =
-    run.fork.map(_.mapM(IO.done))
 }
 
 private[zio] trait ZIOFunctions extends Serializable {
