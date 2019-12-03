@@ -536,6 +536,15 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result, equalTo(Cause.die(boom)))
       } @@ flaky
     ),
+    suite("forkWithErrorHandler")(
+      testM("calls provided function when task fails") {
+        for {
+          p <- Promise.make[Nothing, Unit]
+          _ <- ZIO.fail(()).forkWithErrorHandler(_ => p.succeed(()).unit)
+          _ <- p.await
+        } yield assertCompletes
+      }
+    ),
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either, isRight(equalTo(1)))
