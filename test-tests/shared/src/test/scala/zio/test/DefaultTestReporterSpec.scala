@@ -142,7 +142,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     )
   )
 
-  val test8 = test("Not combinator") {
+  val test8 = zio.test.test("Not combinator") {
     assert(100, not(equalTo(100)))
   }
   val test8Expected = Vector(
