@@ -126,7 +126,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Shorthand for the curried version of `ZIO.bracket`.
    */
-  final def bracket[R1 <: R, E1 >: E]: ZIO.BracketAcquire[R1, E1, A] = ZIO.bracket(self)
+  final def bracket: ZIO.BracketAcquire[R, E, A] = ZIO.bracket(self)
 
   /**
    * A less powerful variant of `bracket` where the resource acquired by this
@@ -2745,8 +2745,8 @@ object ZIO extends ZIOFunctions {
   }
 
   final class BracketAcquire[-R, +E, +A](private val acquire: ZIO[R, E, A]) extends AnyVal {
-    def apply[R1 <: R](release: A => URIO[R1, Any]): BracketRelease[R1, E, A] =
-      new BracketRelease[R1, E, A](acquire, release)
+    def apply[R1](release: A => URIO[R1, Any]): BracketRelease[R with R1, E, A] =
+      new BracketRelease[R with R1, E, A](acquire, release)
   }
   final class BracketRelease[-R, +E, +A](acquire: ZIO[R, E, A], release: A => URIO[R, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
