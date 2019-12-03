@@ -90,19 +90,19 @@ object ZManagedSpec extends ZIOBaseSpec {
         trait R2 extends R1
         trait E
         trait A
-        def acquire1: ZIO[R, E, A] = ???
-        def acquire2: ZIO[R1, E, A] = ???
-        def acquire3: ZIO[R2, E, A] = ???
-        def release1: A => ZIO[R, Nothing, Any] = ???
+        def acquire1: ZIO[R, E, A]               = ???
+        def acquire2: ZIO[R1, E, A]              = ???
+        def acquire3: ZIO[R2, E, A]              = ???
+        def release1: A => ZIO[R, Nothing, Any]  = ???
         def release2: A => ZIO[R1, Nothing, Any] = ???
         def release3: A => ZIO[R2, Nothing, Any] = ???
-        def managed1: ZManaged[R with R1, E, A] = ZManaged.make(acquire1)(release2)
-        def managed2: ZManaged[R with R1, E, A] = ZManaged.make(acquire2)(release1)
-        def managed3: ZManaged[R2, E, A] = ZManaged.make(acquire2)(release3)
-        def managed4: ZManaged[R2, E, A] = ZManaged.make(acquire3)(release2)
-        lazy val _ = (managed1, managed2, managed3, managed4)
+        def managed1: ZManaged[R with R1, E, A]  = ZManaged.make(acquire1)(release2)
+        def managed2: ZManaged[R with R1, E, A]  = ZManaged.make(acquire2)(release1)
+        def managed3: ZManaged[R2, E, A]         = ZManaged.make(acquire2)(release3)
+        def managed4: ZManaged[R2, E, A]         = ZManaged.make(acquire3)(release2)
+        lazy val _                               = (managed1, managed2, managed3, managed4)
         ZIO.succeed(assertCompletes)
-      },
+      }
     ),
     suite("makeEffect")(
       testM("Invokes cleanups in reverse order of acquisition.") {
