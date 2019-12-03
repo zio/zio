@@ -103,8 +103,8 @@ object prototype {
     def log(line: String): ZIO[LoggingEffect[ZEnv with Logging], Nothing, Unit] =
       ZIO.accessM[LoggingEffect[ZEnv with Logging]](service => service.useM(service.logging)(_.log(line)))
 
-    def addPrefix(prefix: String): ZIO[LoggingEffect[ZEnv with Logging], Nothing, Unit] =
-      ZIO.accessM[LoggingEffect[ZEnv with Logging]] { logging =>
+    def addPrefix[R <: Logging](prefix: String): ZIO[LoggingEffect[R], Nothing, Unit] =
+      ZIO.accessM[LoggingEffect[R]] { logging =>
         EnvironmentalEffect.update(logging.logging)(
           service =>
             new Logging.Service {
@@ -124,7 +124,7 @@ object Example extends App {
   val myAppLogic =
     for {
       _ <- LoggingEffect.log("All clear.")
-      _ <- LoggingEffect.addPrefix("Warning: ")
+      _ <- LoggingEffect.addPrefix[ZEnv with Logging]("Warning: ")
       _ <- LoggingEffect.log("Missiles detected!")
     } yield ()
 }
