@@ -620,7 +620,7 @@ object Assertion {
    * Makes a new assertion that negates the specified assertion.
    */
   final def not[A](assertion: Assertion[A]): Assertion[A] =
-    new Assertion(assertion.render, a => !assertion.run(a))
+    Assertion.assertionDirect("not")(param(assertion))(!assertion.run(_))
 
   /**
    * Makes a new assertion that always fails.
