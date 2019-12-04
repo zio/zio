@@ -466,13 +466,13 @@ object Cause extends Serializable {
   object Empty {
     def unapply[E](cause: Cause[E]): Boolean =
       cause.find {
-        case Internal.Empty        => true
-        case Internal.Fail(_)      => false
-        case Internal.Die(_)       => false
-        case Internal.Interrupt(_) => false
-        case Internal.Traced(_, _) => false
-        case Internal.Then(_, _)   => false
-        case Internal.Both(_, _)   => false
+        case cause if cause eq Internal.Empty => true
+        case Internal.Fail(_)                 => false
+        case Internal.Die(_)                  => false
+        case Internal.Interrupt(_)            => false
+        case Internal.Traced(_, _)            => false
+        case Internal.Then(_, _)              => false
+        case Internal.Both(_, _)              => false
       }.getOrElse(false)
   }
 
@@ -481,13 +481,13 @@ object Cause extends Serializable {
       new Internal.Fail(value)
     def unapply[E](cause: Cause[E]): Option[E] =
       cause.find {
-        case Internal.Fail(e)      => Some(e)
-        case Internal.Empty        => None
-        case Internal.Die(_)       => None
-        case Internal.Interrupt(_) => None
-        case Internal.Traced(_, _) => None
-        case Internal.Then(_, _)   => None
-        case Internal.Both(_, _)   => None
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(e)                 => Some(e)
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(_, _)              => None
+        case Internal.Both(_, _)              => None
       }.flatten
   }
 
@@ -496,13 +496,13 @@ object Cause extends Serializable {
       new Internal.Die(value)
     def unapply[E](cause: Cause[E]): Option[Throwable] =
       cause.find {
-        case Internal.Die(t)       => Some(t)
-        case Internal.Empty        => None
-        case Internal.Fail(_)      => None
-        case Internal.Interrupt(_) => None
-        case Internal.Traced(_, _) => None
-        case Internal.Then(_, _)   => None
-        case Internal.Both(_, _)   => None
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(t)                  => Some(t)
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(_, _)              => None
+        case Internal.Both(_, _)              => None
       }.flatten
   }
 
@@ -511,13 +511,13 @@ object Cause extends Serializable {
       Internal.Interrupt(fiberId)
     def unapply[E](cause: Cause[E]): Option[Fiber.Id] =
       cause.find {
-        case Internal.Interrupt(fiberId) => Some(fiberId)
-        case Internal.Empty              => None
-        case Internal.Fail(_)            => None
-        case Internal.Die(_)             => None
-        case Internal.Traced(_, _)       => None
-        case Internal.Then(_, _)         => None
-        case Internal.Both(_, _)         => None
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(fiberId)      => Some(fiberId)
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(_, _)              => None
+        case Internal.Both(_, _)              => None
       }.flatten
   }
 
@@ -526,13 +526,13 @@ object Cause extends Serializable {
       Internal.Traced(cause, trace)
     def unapply[E](cause: Cause[E]): Option[(Cause[E], ZTrace)] =
       cause.find {
-        case Internal.Traced(cause, trace) => Some((cause, trace))
-        case Internal.Empty                => None
-        case Internal.Fail(_)              => None
-        case Internal.Die(_)               => None
-        case Internal.Interrupt(_)         => None
-        case Internal.Then(_, _)           => None
-        case Internal.Both(_, _)           => None
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(cause, trace)    => Some((cause, trace))
+        case Internal.Then(_, _)              => None
+        case Internal.Both(_, _)              => None
       }.flatten
   }
 
@@ -541,13 +541,13 @@ object Cause extends Serializable {
       new Internal.Then(left, right)
     def unapply[E](cause: Cause[E]): Option[(Cause[E], Cause[E])] =
       cause.find {
-        case Internal.Then(left, right) => Some((left, right))
-        case Internal.Empty             => None
-        case Internal.Fail(_)           => None
-        case Internal.Die(_)            => None
-        case Internal.Interrupt(_)      => None
-        case Internal.Traced(_, _)      => None
-        case Internal.Both(_, _)        => None
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(left, right)       => Some((left, right))
+        case Internal.Both(_, _)              => None
       }.flatten
   }
 
@@ -556,13 +556,13 @@ object Cause extends Serializable {
       new Internal.Both(left, right)
     def unapply[E](cause: Cause[E]): Option[(Cause[E], Cause[E])] =
       cause.find {
-        case Internal.Both(left, right) => Some((left, right))
-        case Internal.Empty             => None
-        case Internal.Fail(_)           => None
-        case Internal.Die(_)            => None
-        case Internal.Interrupt(_)      => None
-        case Internal.Traced(_, _)      => None
-        case Internal.Then(_, _)        => None
+        case cause if cause eq Internal.Empty => None
+        case Internal.Fail(_)                 => None
+        case Internal.Die(_)                  => None
+        case Internal.Interrupt(_)            => None
+        case Internal.Traced(_, _)            => None
+        case Internal.Then(_, _)              => None
+        case Internal.Both(left, right)       => Some((left, right))
       }.flatten
   }
 
