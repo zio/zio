@@ -1465,23 +1465,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.whenM(b)(self)
 
   /**
-   * Enables to check conditions in the value produced by ZIO
-   * If the condition is not satisfied, it fails with NoSuchElementException
-   * this provide the syntax sugar in for-comprehension:
-   * for {
-   *   (i, j) <- io1
-   *   positive <- io2 if positive > 0
-   *  } yield ()
-   */
-  final def withFilter[E1 >: E](
-    predicate: A => Boolean
-  )(implicit ev1: NoSuchElementException <:< E1, ev2: CanFail[E]): ZIO[R, E1, A] =
-    self.flatMap { a =>
-      if (predicate(a)) ZIO.succeed(a)
-      else ZIO.fail(new NoSuchElementException("The value doesn't satisfy the predicate"))
-    }
-
-  /**
    * A named alias for `&&&` or `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
@@ -2701,6 +2684,25 @@ object ZIO extends ZIOFunctions {
      */
     final def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZIO[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
+  }
+
+  implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A])
+      extends AnyVal {
+
+    /**
+     * Enables to check conditions in the value produced by ZIO
+     * If the condition is not satisfied, it fails with NoSuchElementException
+     * this provide the syntax sugar in for-comprehension:
+     * for {
+     *   (i, j) <- io1
+     *   positive <- io2 if positive > 0
+     *  } yield ()
+     */
+    final def withFilter(predicate: A => Boolean)(implicit ev: NoSuchElementException <:< E): ZIO[R, E, A] =
+      self.flatMap { a =>
+        if (predicate(a)) ZIO.succeed(a)
+        else ZIO.fail(new NoSuchElementException("The value doesn't satisfy the predicate"))
+      }
   }
 
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {

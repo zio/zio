@@ -2175,18 +2175,6 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield n
         assertM(task.run, fails(isSubtype[NoSuchElementException](anything)))
       },
-      testM("withFilter doesn't compile with UIO") {
-        val result = typeCheck {
-          """
-            import zio._
-
-            for {
-              n <- UIO(3) if n > 0
-            } yield n
-                """
-        }
-        assertM(result, isLeft(anything))
-      },
       testM("withFilter doesn't compile with IO that fails with type other than Throwable") {
         val result = typeCheck {
           """
@@ -2199,7 +2187,6 @@ object ZIOSpec extends ZIOBaseSpec {
         }
         val expected = "Cannot prove that NoSuchElementException <:< String."
         if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
-        else if (TestVersion.isDotty) assertM(result, isRight(equalTo(())))
         else assertM(result, isLeft(anything))
       }
     ),
