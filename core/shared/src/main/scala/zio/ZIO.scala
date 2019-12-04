@@ -2686,8 +2686,7 @@ object ZIO extends ZIOFunctions {
       self.refineOrDie { case e: E1 => e }
   }
 
-  implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A])
-      extends AnyVal {
+  implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
 
     /**
      * Enables to check conditions in the value produced by ZIO
