@@ -371,15 +371,21 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule that folds over the outputs of this one.
    */
   final def fold[Z](z: Z)(f: (Z, B) => Z): Schedule[R, A, Z] =
-    new Schedule[R, A, Z] {
+    foldM(z)((z, b) => ZIO.succeed(f(z, b)))
+
+  /**
+   * Returns a new schedule that effectfully folds over the outputs of this one.
+   */
+  final def foldM[R1 <: R, Z](z: Z)(f: (Z, B) => ZIO[R1, Nothing, Z]): Schedule[R1, A, Z] =
+    new Schedule[R1, A, Z] {
       type State = (self.State, Z)
       val initial = self.initial.map((_, z))
-      val extract = (a: A, s: (self.State, Z)) => f(s._2, self.extract(a, s._1))
-
+      val extract = (_: A, s: (self.State, Z)) => s._2
       val update = (a: A, s: (self.State, Z)) =>
-        self
-          .update(a, s._1)
-          .map(s1 => (s1, f(s._2, self.extract(a, s._1))))
+        for {
+          s1 <- self.update(a, s._1)
+          z1 <- f(s._2, self.extract(a, s._1))
+        } yield (s1, z1)
     }
 
   /**

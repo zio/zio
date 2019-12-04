@@ -46,7 +46,9 @@ object ZQueueSpec extends ZIOBaseSpec {
         values = Range.inclusive(1, 10).toList
         f      <- IO.forkAll(values.map(queue.offer))
         _      <- waitForSize(queue, 10)
-        l      <- queue.take.repeat(Schedule.recurs(9) *> Schedule.identity[Int].collectAll)
+        out    <- Ref.make[List[Int]](Nil)
+        _      <- queue.take.flatMap(i => out.update(i :: _)).repeat(Schedule.recurs(9))
+        l      <- out.get
         _      <- f.join
       } yield assert(l.toSet, equalTo(values.toSet))
     },
@@ -65,9 +67,12 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         queue  <- Queue.bounded[Int](5)
         values = Range.inclusive(1, 10).toList
-        _      <- IO.forkAll(values.map(queue.offer))
+        f      <- IO.forkAll(values.map(queue.offer))
         _      <- waitForSize(queue, 10)
-        l      <- queue.take.repeat(Schedule.recurs(9) *> Schedule.identity[Int].collectAll)
+        out    <- Ref.make[List[Int]](Nil)
+        _      <- queue.take.flatMap(i => out.update(i :: _)).repeat(Schedule.recurs(9))
+        l      <- out.get
+        _      <- f.join
       } yield assert(l.toSet, equalTo(values.toSet))
     },
     testM("take interruption") {
