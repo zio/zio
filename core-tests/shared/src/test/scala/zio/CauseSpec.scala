@@ -112,6 +112,83 @@ object CauseSpec extends ZIOBaseSpec {
           assert(c.flatMap(f).flatMap(g), equalTo(c.flatMap(e => f(e).flatMap(g))))
         }
       }
+    ),
+    suite("Extractors")(
+      testM("Fail") {
+        check(errors) { e1 =>
+          val result = Cause.Fail(e1) match {
+            case Cause.Fail(e2) => e1 == e2
+            case _              => false
+          }
+          assert(result, isTrue)
+        }
+      },
+      testM("Die") {
+        check(throwables) { t1 =>
+          val result = Cause.Die(t1) match {
+            case Cause.Die(t2) => t1 == t2
+            case _             => false
+          }
+          assert(result, isTrue)
+        }
+      },
+      testM("Interrupt") {
+        check(fiberIds) { fiberId1 =>
+          val result = Cause.Interrupt(fiberId1) match {
+            case Cause.Interrupt(fiberId2) => fiberId1 == fiberId2
+            case _                         => false
+          }
+          assert(result, isTrue)
+        }
+      },
+      testM("Traced") {
+        check(causes) { cause1 =>
+          val trace1 = ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None)
+          val result = Cause.traced(cause1, trace1) match {
+            case Cause.Traced(cause2, trace2) => cause1 == cause2 && trace1 == trace2
+            case _                            => false
+          }
+          assert(result, isTrue)
+        }
+      },
+      testM("Meta") {
+        check(causes) {
+          cause =>
+            val result = (cause, Cause.stackless(cause)) match {
+              case (Cause.Empty(), Cause.Empty())                               => true
+              case (Cause.Fail(e1), Cause.Fail(e2))                             => e1 == e2
+              case (Cause.Die(t1), Cause.Die(t2))                               => t1 == t2
+              case (Cause.Interrupt(fiberId1), Cause.Interrupt(fiberId2))       => fiberId1 == fiberId2
+              case (Cause.Traced(cause1, trace1), Cause.Traced(cause2, trace2)) => cause1 == cause2 && trace1 == trace2
+              case (Cause.Then(left1, right1), Cause.Then(left2, right2))       => left1 == left2 && right1 == right2
+              case (Cause.Both(left1, right1), Cause.Both(left2, right2))       => left1 == left2 && right1 == right2
+              case _                                                            => false
+            }
+            assert(result, isTrue)
+        }
+      },
+      testM("Then") {
+        check(causes, causes) { (left1, right1) =>
+          val result = Cause.Then(left1, right1) match {
+            case Cause.Then(left2, right2) => left1 == left2 && right1 == right2
+            case e =>
+              println(e)
+              println(Cause.Then(left1, right1))
+              println("WARNING!!!")
+              false
+          }
+          assert(result, isTrue)
+        }
+      },
+      testM("Both") {
+        check(causes, causes) { (left1, right1) =>
+          val result = Cause.Both(left1, right1) match {
+            case Cause.Both(left2, right2) => left1 == left2 && right1 == right2
+            case _                         => false
+          }
+          assert(result, isTrue)
+        }
+      }
     )
   )
 
@@ -140,4 +217,10 @@ object CauseSpec extends ZIOBaseSpec {
 
   val errors: Gen[Random with Sized, String] =
     Gen.anyString
+
+  val fiberIds: Gen[Random, Fiber.Id] =
+    Gen.anyLong.zipWith(Gen.anyLong)(Fiber.Id(_, _))
+
+  val throwables: Gen[Random, Throwable] =
+    Gen.throwable
 }
