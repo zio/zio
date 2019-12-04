@@ -73,7 +73,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
       }
     ),
     suite("Stream.effectAsyncM")(
-      testM("effectAsyncM")(checkM(Gen.listOf(Gen.anyInt)) { list =>
+      testM("effectAsyncM")(checkM(Gen.listOf(Gen.anyInt).filter(_.nonEmpty)) { list =>
         for {
           latch <- Promise.make[Nothing, Unit]
           fiber <- ZStream

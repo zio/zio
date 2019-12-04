@@ -111,6 +111,16 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     find { case Interrupt(_) => () }.isDefined
 
   /**
+   * Determines if the `Cause` contains only interruptions and not any `Die` or
+   * `Fail` causes.
+   */
+  final def interruptedOnly: Boolean =
+    find {
+      case Die(_)  => false
+      case Fail(_) => false
+    }.getOrElse(true)
+
+  /**
    * Returns a set of interruptors, fibers that interrupted the fiber described
    * by this `Cause`.
    */

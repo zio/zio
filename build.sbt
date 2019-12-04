@@ -35,6 +35,7 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
 )
+addCommandAlias("compileNative", ";coreNative/compile")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
@@ -311,7 +312,7 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
-      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
+      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC10",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC7",

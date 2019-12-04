@@ -46,7 +46,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
       allSummaries
         .map(_.summary)
         .filter(_.nonEmpty)
-        .flatMap(summary => summary :: "\n" :: Nil)
+        .flatMap(summary => colored(summary) :: "\n" :: Nil)
         .mkString("", "", "Done")
   }
 

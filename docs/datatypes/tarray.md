@@ -1,6 +1,6 @@
 ---
 id: datatypes_tarray
-title: "TArray"
+title:  "TArray"
 ---
 
 `TArray` is an array of mutable references that can participate in transactions in STM.
@@ -34,7 +34,7 @@ import zio.stm._
 val iterableTArray: STM[Nothing, TArray[Int]] = TArray.fromIterable(List(1, 2, 3))
 ```
 
-## Retrieve the value from a `TArray`
+## Retrieve the value from a TArray
 
 The n-th element of the array can be obtained as follows:
 
@@ -50,7 +50,7 @@ val tArrayGetElem: UIO[Int] = (for {
 
 Accessing the non-existing indexes aborts the transaction with `ArrayIndexOutOfBoundsException`.
 
-## Update the value of a `TArray`
+## Update the value of a TArray
 
 Updating the n-th element of an array can be done as follows:
 
@@ -78,7 +78,7 @@ val tArrayUpdateMElem: UIO[TArray[Int]] = (for {
 
 Updating the non-existing indexes aborts the transaction with `ArrayIndexOutOfBoundsException`.
 
-## Transform elements of a `TArray`
+## Transform elements of a TArray
 
 The transform function `A => A` allows computing a new value for every element in the array: 
 
@@ -128,7 +128,7 @@ val foldMTArray: UIO[Int] = (for {
 } yield sum).commit
 ```
 
-## Perform side-effect for `TArray` elements
+## Perform side-effect for TArray elements
 
 `foreach` is used for performing side-effect for each element in the array:
 

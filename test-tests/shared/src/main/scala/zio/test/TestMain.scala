@@ -20,7 +20,7 @@ object TestMain {
       case Array(spec) =>
         val found = allTests.filter(_._1 == spec)
         if (found.isEmpty)
-          sys.error("Unknown specfication: " ++ spec)
+          sys.error("Unknown specification: " ++ spec)
 
         found
       case _ =>

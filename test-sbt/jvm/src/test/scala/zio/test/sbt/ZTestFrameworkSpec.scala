@@ -32,6 +32,7 @@ object ZTestFrameworkSpec {
     test("should return correct fingerprints")(testFingerprints()),
     test("should report events")(testReportEvents()),
     test("should log messages")(testLogMessages()),
+    test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
     test("should return summary when done")(testSummary()),
     test("should warn when no tests are executed")(testNoTestsExecutedWarning())
@@ -67,13 +68,32 @@ object ZTestFrameworkSpec {
       messages =>
         assertEquals(
           "logged messages",
-          messages.toList.dropRight(1),
+          messages.mkString.split("\n").dropRight(1).mkString("\n"),
           List(
-            s"info: ${red("- some suite")}",
-            s"info:   ${red("- failing test")}",
-            s"info:     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-            s"info:   ${green("+")} passing test"
-          )
+            s"${reset("info:")} ${red("- some suite")}",
+            s"${reset("info:")}   ${red("- failing test")}",
+            s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
+            s"${reset("info:")}   ${green("+")} passing test"
+          ).mkString("\n")
+        )
+      )
+  }
+
+  def testColored() = {
+    val loggers = Seq.fill(3)(new MockLogger)
+
+    loadAndExecute(multiLineSpecFQN, loggers = loggers)
+
+    loggers.map(_.messages) foreach (
+      messages =>
+        assertEquals(
+          "logged messages",
+          messages.mkString.split("\n").dropRight(1).mkString("\n"),
+          List(
+            s"${reset("info:")} ${red("- multi-line test")}",
+            s"${reset("info:")}   ${Console.BLUE}Hello,",
+            s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}"
+          ).mkString("\n")
         )
       )
   }
@@ -87,11 +107,11 @@ object ZTestFrameworkSpec {
       messages =>
         assertEquals(
           "logged messages",
-          messages.toList.dropRight(1),
+          messages.mkString.split("\n").dropRight(1).mkString("\n"),
           List(
-            s"info: ${green("+")} some suite",
-            s"info:   ${green("+")} passing test"
-          )
+            s"${reset("info:")} ${green("+")} some suite",
+            s"${reset("info:")}   ${green("+")} passing test"
+          ).mkString("\n")
         )
       )
   }
@@ -166,5 +186,12 @@ object ZTestFrameworkSpec {
         zio.test.assert(1, Assertion.equalTo(2))
       } @@ TestAspect.ignore
     )
+  }
+
+  lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
+  object MultiLineSpec extends DefaultRunnableSpec {
+    def spec = zio.test.test("multi-line test") {
+      zio.test.assert("Hello,\nWorld!", Assertion.equalTo("Hello, World!"))
+    }
   }
 }
