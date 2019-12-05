@@ -204,12 +204,13 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[R, A](rio: => URIO[R, A]): URIO[R, A] = new ZIO.EffectSuspendTotalWith(_ => rio)
+  final def effectSuspendTotal[R, A](rio: => URIO[R, A]): URIO[R, A] = ZIO.effectSuspendTotal(rio)
 
   /**
    * @see [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[R, A](p: Platform => URIO[R, A]): URIO[R, A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[R, A](p: (Platform, Fiber.Id) => URIO[R, A]): URIO[R, A] =
+    ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see [[zio.ZIO.effectTotal]]

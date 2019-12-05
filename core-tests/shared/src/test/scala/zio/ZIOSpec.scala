@@ -899,7 +899,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(io, isLeft(equalTo(ExampleError)))
       },
       testM("effectSuspendWith must catch throwable") {
-        val io = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either
+        val io = ZIO.effectSuspendWith[Any, Nothing]((_, _) => throw ExampleError).either
         assertM(io, isLeft(equalTo(ExampleError)))
       },
       testM("effectSuspendTotal must be evaluatable") {
