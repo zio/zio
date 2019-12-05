@@ -494,16 +494,20 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("fromFutureInterrupt")(
       testM("running Future can be interrupted") {
+        import java.util.concurrent.atomic.AtomicInteger
+        import scala.concurrent.{ ExecutionContext, Future }
+        def infiniteFuture(ref: AtomicInteger)(implicit ec: ExecutionContext): Future[Nothing] =
+          Future(ref.getAndIncrement()).flatMap(_ => infiniteFuture(ref))
         for {
-          p1     <- ZIO.effectTotal(scala.concurrent.Promise[Unit])
-          p2     <- ZIO.effectTotal(scala.concurrent.Promise[Unit])
-          fiber  <- ZIO.fromFutureInterrupt(ec => p1.future.map(p2.success)(ec)).fork
-          _      <- fiber.interrupt
-          _      <- ZIO.effectTotal(p1.success(()))
-          result <- ZIO.effectTotal(p2.isCompleted)
-        } yield assert(result, isFalse)
+          ref   <- ZIO.effectTotal(new AtomicInteger(0))
+          fiber <- ZIO.fromFutureInterrupt(ec => infiniteFuture(ref)(ec)).fork
+          _     <- fiber.interrupt
+          v1    <- ZIO.effectTotal(ref.get)
+          _     <- Live.live(clock.sleep(10.milliseconds))
+          v2    <- ZIO.effectTotal(ref.get)
+        } yield assert(v1, equalTo(v2))
       }
-    ) @@ nonFlaky,
+    ),
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either, isRight(equalTo(1)))
