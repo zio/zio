@@ -543,7 +543,7 @@ private[zio] final class FiberContext[E, A](
                     val k = zio.f
                     if (traceExec && inTracingRegion) addTrace(k)
 
-                    curZio = try k(platform).asInstanceOf[ZIO[Any, E, Any]]
+                    curZio = try k(platform, fiberId).asInstanceOf[ZIO[Any, E, Any]]
                     catch {
                       case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
                     }
@@ -554,7 +554,7 @@ private[zio] final class FiberContext[E, A](
                     val k = zio.f
                     if (traceExec && inTracingRegion) addTrace(k)
 
-                    curZio = k(platform)
+                    curZio = k(platform, fiberId)
 
                   case ZIO.Tags.Trace =>
                     curZio = nextInstr(captureTrace(null))
