@@ -63,6 +63,29 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
       }
     ),
+    suite("Stream.flatten")(
+      testM("is safe to pull again after success") {
+        Stream
+          .flatten(Stream(Stream.fromEffect(UIO.succeed(5))))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Right(5), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after inner failure") {
+        Stream
+          .flatten(Stream(Stream.fail("Ouch")))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after outer failure") {
+        Stream
+          .flatten(Stream.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      }
+    ),
     testM("Stream.empty is safe to pull again") {
       Stream.empty.process
         .use(nPulls(_, 3))
