@@ -35,7 +35,7 @@ object URIO {
   /**
    * @see bracket in [[zio.ZIO]]
    */
-  final def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Throwable, A] =
+  final def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =
     ZIO.bracket(acquire)
 
   /**
@@ -58,7 +58,7 @@ object URIO {
    */
   final def bracketExit[R, A, B](
     acquire: URIO[R, A],
-    release: (A, Exit[Throwable, B]) => URIO[R, Any],
+    release: (A, Exit[Nothing, B]) => URIO[R, Any],
     use: A => URIO[R, B]
   ): URIO[R, B] = ZIO.bracketExit(acquire, release, use)
 
