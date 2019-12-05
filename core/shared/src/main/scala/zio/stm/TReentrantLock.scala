@@ -40,7 +40,7 @@ class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
 
   /**
    * Acquires a read lock. The transaction will suspend until no other fibers
-   * are holding write locks. Succeeds with the number of write locks held by
+   * are holding read locks. Succeeds with the number of write locks held by
    * this fiber.
    */
   lazy val acquireRead: STM[Nothing, Int] =
@@ -115,7 +115,7 @@ class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
           case Right(WriteLock(n, m, `fiberId`)) if n > 1 =>
             val newCount = n - 1
 
-            newCount -> Right(WriteLock(n - 1, m, fiberId))
+            newCount -> Right(WriteLock(newCount, m, fiberId))
 
           case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
         }
@@ -139,8 +139,12 @@ class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
 
   private def adjustRead(fiberId: Fiber.Id, delta: Int): STM[Nothing, Int] =
     (data.get.collect {
-      case Left(readLock)                    => Left(readLock.adjust(fiberId, delta))
-      case Right(WriteLock(w, r, `fiberId`)) => Right(WriteLock(w, r + delta, fiberId))
+      case Left(readLock) => Left(readLock.adjust(fiberId, delta))
+      case Right(wl @ WriteLock(w, r, `fiberId`)) =>
+        val newTotal = r + delta
+
+        if (newTotal < 0) die(s"Defect: Fiber ${fiberId} releasing read locks it does not hold: ${wl}")
+        else Right(WriteLock(w, newTotal, fiberId))
     }.flatMap(data.set(_)) *> data.get.map(_.fold(_.readLocks, _.readLocks)))
 }
 object TReentrantLock {
@@ -177,7 +181,7 @@ object TReentrantLock {
     /**
      * Computes the number of read locks held by the specified fiber id.
      */
-    final def readLocks(fiberId: Fiber.Id): Int = readers.get(fiberId).fold(0)(identity)
+    final def readLocks(fiberId: Fiber.Id): Int = readers.get(fiberId).getOrElse(0)
 
     /**
      * Adjusts the number of read locks held by the specified fiber id.
