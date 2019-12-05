@@ -492,6 +492,18 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assertCompletes
       }
     ),
+    suite("fromFutureInterrupt")(
+      testM("running Future can be interrupted") {
+        for {
+          p1     <- ZIO.effectTotal(scala.concurrent.Promise[Unit])
+          p2     <- ZIO.effectTotal(scala.concurrent.Promise[Unit])
+          fiber  <- ZIO.fromFutureInterrupt(ec => p1.future.map(p2.success)(ec)).fork
+          _      <- fiber.interrupt
+          _      <- ZIO.effectTotal(p1.success(()))
+          result <- ZIO.effectTotal(p2.isCompleted)
+        } yield assert(result, isFalse)
+      }
+    ) @@ nonFlaky,
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either, isRight(equalTo(1)))

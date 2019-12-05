@@ -2240,6 +2240,29 @@ private[zio] trait ZIOFunctions extends Serializable {
       }
     }
 
+  final def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    Task.descriptorWith { d =>
+      val ec          = d.executor.asEC
+      val interrupted = new java.util.concurrent.atomic.AtomicBoolean(false)
+      val interruptibleEC = new scala.concurrent.ExecutionContext {
+        def execute(runnable: Runnable): Unit =
+          if (!interrupted.get) ec.execute(runnable) else ()
+        def reportFailure(cause: Throwable): Unit =
+          ec.reportFailure(cause)
+      }
+      effect(make(interruptibleEC)).flatMap { f =>
+        f.value
+          .fold(
+            Task.effectAsync { (cb: Task[A] => Unit) =>
+              f.onComplete {
+                case Success(a) => cb(Task.succeed(a))
+                case Failure(t) => cb(Task.fail(t))
+              }(interruptibleEC)
+            }
+          )(Task.fromTry(_))
+      }.onInterrupt(Task.effectTotal(interrupted.set(true)))
+    }
+
   /**
    * Lifts an `Option` into a `ZIO`.
    */
