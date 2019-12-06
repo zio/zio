@@ -20,7 +20,7 @@ import java.io.{ IOException, InputStream }
 
 import zio._
 
-private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E, () => A])
+private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, Nothing, () => A])
     extends ZStream[R, E, A](
       ZStream.Structure.Iterator(
         processEffect.map { thunk =>
@@ -169,14 +169,14 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, E,
       }
     }
 
-  override def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
+  override def run[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, Any, A1, B]): ZIO[R1, E1, B] =
     sink match {
-      case sink: SinkPure[E1, A0, A1, B] =>
+      case sink: SinkPure[E1, Any, A1, B] =>
         foldWhileManaged(sink.initialPure)(sink.cont)(sink.stepPure).use[R1, E1, B] { state =>
           ZIO.fromEither(sink.extractPure(state).map(_._1))
         }
 
-      case sink: ZSink[R1, E1, A0, A1, B] => super.run(sink)
+      case sink: ZSink[R1, E1, Any, A1, B] => super.run(sink)
     }
 
   override def take(n: Int): StreamEffect[R, E, A] =
@@ -312,25 +312,6 @@ private[stream] object StreamEffect extends Serializable {
     override def fillInStackTrace() = this
   }
 
-  final def memoizeEnd[R, E, A](pull: ZManaged[R, E, () => A]): ZManaged[R, E, () => A] =
-    pull.flatMap { thunk =>
-      ZManaged.effectTotal {
-        var done = false
-
-        () => {
-          if (done) end
-          else {
-            try thunk()
-            catch {
-              case t: Throwable =>
-                done = true
-                throw t
-            }
-          }
-        }
-      }
-    }
-
   def end[A]: A = throw End
 
   def fail[E, A](e: E): A = throw Failure(e)
@@ -342,11 +323,21 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def apply[R, E, A](pull: ZManaged[R, E, () => A]): StreamEffect[R, E, A] =
+  final def apply[R, E, A](pull: ZManaged[R, Nothing, () => A]): StreamEffect[R, E, A] =
     new StreamEffect(pull)
 
   final def fail[E](e: E): StreamEffect[Any, E, Nothing] =
-    StreamEffect(memoizeEnd(Managed.effectTotal(() => fail(e))))
+    StreamEffect {
+      Managed.effectTotal {
+        var done = false
+        () =>
+          if (done) end
+          else {
+            done = true
+            fail(e)
+          }
+      }
+    }
 
   final def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
@@ -374,12 +365,10 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromIterator[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): StreamEffect[R, E, A] =
+  final def fromIterator[A](iterator: Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
-      iterator.flatMap { iterator =>
-        Managed.effectTotal { () =>
-          if (iterator.hasNext) iterator.next() else end
-        }
+      Managed.effectTotal { () =>
+        if (iterator.hasNext) iterator.next() else end
       }
     }
 
@@ -390,19 +379,23 @@ private[stream] object StreamEffect extends Serializable {
     StreamEffectChunk {
       StreamEffect {
         Managed.effectTotal {
+          var done = false
+
           def pull(): Chunk[Byte] = {
             val buf = Array.ofDim[Byte](chunkSize)
             try {
               val bytesRead = is.read(buf)
-              if (bytesRead < 0) end
-              else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
+              if (bytesRead < 0) {
+                done = true
+                end
+              } else if (0 < bytesRead && bytesRead < buf.length) Chunk.fromArray(buf).take(bytesRead)
               else Chunk.fromArray(buf)
             } catch {
               case e: IOException => fail(e)
             }
           }
 
-          () => pull()
+          () => if (done) end else pull()
         }
       }
     }
@@ -420,19 +413,39 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def paginate[A, S](s0: S)(f: S => (A, Option[S])): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
+      Managed.effectTotal {
+        var state = Option(s0)
+
+        () =>
+          state.fold(end) { s =>
+            val res = f(s)
+            state = res._2
+            res._1
+          }
+      }
+    }
+
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
+        var done  = false
         var state = s
 
-        () => {
-          val opt = f0(state)
-          if (opt.isDefined) {
-            val res = opt.get
-            state = res._2
-            res._1
-          } else end
-        }
+        () =>
+          if (done) end
+          else {
+            val opt = f0(state)
+            if (opt.isDefined) {
+              val res = opt.get
+              state = res._2
+              res._1
+            } else {
+              done = true
+              end
+            }
+          }
       }
     }
 

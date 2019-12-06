@@ -42,45 +42,45 @@ object TestExecutor {
   }
 }
 
-object ExecutorSpec
-    extends ZIOBaseSpec(
-      suite("ExecutorSpec")(
-        suite("Create the default unyielding executor and check that:")(
-          test("When converted to an EC, it reports Throwables to stdout") {
-            val t = new CheckPrintThrowable
-            TestExecutor.failing.asEC.reportFailure(t)
-            assert(t.printed, isTrue)
-          }
-        ),
-        suite("Create an executor that cannot have tasks submitted to and check that:")(
-          test("It throws an exception upon submission") {
-            assert(
-              TestExecutor.failing.submitOrThrow(TestExecutor.runnable),
-              throwsA[RejectedExecutionException]
-            )
-          }
-        ),
-        suite("Create a yielding executor and check that:")(
-          test("Runnables can be submitted ") {
-            assert(TestExecutor.y.submitOrThrow(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
-          },
-          test("When converted to an ExecutionContext, it accepts Runnables") {
-            assert(TestExecutor.y.asEC.execute(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
-          },
-          test("When created from an EC, must not throw when fed an effect ") {
-            assert(
-              Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable),
-              not(throwsA[RejectedExecutionException])
-            )
-          }
-        ),
-        suite("Create an unyielding executor and check that:")(
-          test("Runnables can be submitted") {
-            assert(TestExecutor.u.submitOrThrow(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
-          },
-          test("When converted to an ExecutionContext, it accepts Runnables") {
-            assert(TestExecutor.u.asEC.execute(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
-          }
+object ExecutorSpec extends ZIOBaseSpec {
+
+  def spec = suite("ExecutorSpec")(
+    suite("Create the default unyielding executor and check that:")(
+      test("When converted to an EC, it reports Throwables to stdout") {
+        val t = new CheckPrintThrowable
+        TestExecutor.failing.asEC.reportFailure(t)
+        assert(t.printed, isTrue)
+      }
+    ),
+    suite("Create an executor that cannot have tasks submitted to and check that:")(
+      test("It throws an exception upon submission") {
+        assert(
+          TestExecutor.failing.submitOrThrow(TestExecutor.runnable),
+          throwsA[RejectedExecutionException]
         )
-      )
+      }
+    ),
+    suite("Create a yielding executor and check that:")(
+      test("Runnables can be submitted ") {
+        assert(TestExecutor.y.submitOrThrow(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
+      },
+      test("When converted to an ExecutionContext, it accepts Runnables") {
+        assert(TestExecutor.y.asEC.execute(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
+      },
+      test("When created from an EC, must not throw when fed an effect ") {
+        assert(
+          Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable),
+          not(throwsA[RejectedExecutionException])
+        )
+      }
+    ),
+    suite("Create an unyielding executor and check that:")(
+      test("Runnables can be submitted") {
+        assert(TestExecutor.u.submitOrThrow(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
+      },
+      test("When converted to an ExecutionContext, it accepts Runnables") {
+        assert(TestExecutor.u.asEC.execute(TestExecutor.runnable), not(throwsA[RejectedExecutionException]))
+      }
     )
+  )
+}

@@ -28,8 +28,31 @@ import zio.stream.{ Stream, ZStream }
  */
 case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
-  final def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+  /**
+   * A symbolic alias for `zip`.
+   */
+  final def <&>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zip(that)
+
+  /**
+   * A symbolic alias for `cross`.
+   */
+  final def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+    self.cross(that)
+
+  /**
+   * Composes this generator with the specified generator to create a cartesian
+   * product of elements.
+   */
+  final def cross[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+    self.crossWith(that)((_, _))
+
+  /**
+   * Composes this generator with the specified generator to create a cartesian
+   * product of elements with the specified function.
+   */
+  final def crossWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
+    self.flatMap(a => that.map(b => f(a, b)))
 
   /**
    * Filters the values produced by this generator, discarding any values that
@@ -79,20 +102,63 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
   final def reshrink[R1 <: R, B](f: A => Sample[R1, B]): Gen[R1, B] =
     Gen(sample.map(sample => f(sample.value)))
 
-  final def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
-    self.flatMap(a => that.map(b => (a, b)))
+  /**
+   * Runs the generator and collects all of its values in a list.
+   */
+  final def runCollect: ZIO[R, Nothing, List[A]] =
+    sample.map(_.value).runCollect
 
-  final def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
-    self.zip(that).map(f.tupled)
+  /**
+   * Repeatedly runs the generator and collects the specified number of values
+   * in a list.
+   */
+  final def runCollectN(n: Int): ZIO[R, Nothing, List[A]] =
+    sample.map(_.value).forever.take(n).runCollect
+
+  /**
+   * Runs the generator returning the first value of the generator.
+   */
+  final def runHead: ZIO[R, Nothing, Option[A]] =
+    sample.map(_.value).runHead
+
+  /**
+   * Zips two generators together pairwise. The new generator will generate
+   * elements as long as either generator is generating elements, running the
+   * other generator multiple times if necessary.
+   */
+  final def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+    self.zipWith(that)((_, _))
+
+  /**
+   * Zips two generators together pairwise with the specified function. The new
+   * generator will generate elements as long as either generator is generating
+   * elements, running the other generator multiple times if necessary.
+   */
+  final def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
+    val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
+    val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
+    left.zipWith(right) {
+      case (Some(Right(l)), Some(Right(r))) => Some(l.zipWith(r)(f))
+      case (Some(Right(l)), Some(Left(r)))  => Some(l.zipWith(r)(f))
+      case (Some(Left(l)), Some(Right(r)))  => Some(l.zipWith(r)(f))
+      case _                                => None
+    }
+  }
 }
 
-object Gen extends GenZIO with FunctionVariants {
+object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
    */
   final val alphaNumericChar: Gen[Random, Char] =
-    weighted((char(48, 57), 10), (char(65, 122), 52))
+    weighted(char(48, 57) -> 10, char(65, 90) -> 26, char(97, 122) -> 26)
+
+  /**
+   * A generator of alphanumeric strings. Shrinks towards the empty string.
+   */
+  final val alphaNumericString: Gen[Random with Sized, String] =
+    Gen.string(alphaNumericChar)
 
   /**
    * A generator of bytes. Shrinks toward '0'.
@@ -187,6 +253,38 @@ object Gen extends GenZIO with FunctionVariants {
     fromEffectSample(ZIO.succeed(sample))
 
   /**
+   * Composes the specified generators to create a cartesian product of
+   * elements with the specified function.
+   */
+  final def crossN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
+    gen1.crossWith(gen2)(f)
+
+  /**
+   * Composes the specified generators to create a cartesian product of
+   * elements with the specified function.
+   */
+  final def crossN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
+    for {
+      a <- gen1
+      b <- gen2
+      c <- gen3
+    } yield f(a, b, c)
+
+  /**
+   * Composes the specified generators to create a cartesian product of
+   * elements with the specified function.
+   */
+  final def crossN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
+    f: (A, B, C, D) => F
+  ): Gen[R, F] =
+    for {
+      a <- gen1
+      b <- gen2
+      c <- gen3
+      d <- gen4
+    } yield f(a, b, c, d)
+
+  /**
    * A generator of double values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
@@ -279,7 +377,7 @@ object Gen extends GenZIO with FunctionVariants {
     small(listOfN(_)(g), 1)
 
   final def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
-    List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.zipWith(gen)(_ :: _))
+    List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.crossWith(gen)(_ :: _))
 
   /**
    * A generator of long values in the specified range: [start, end].
@@ -326,7 +424,7 @@ object Gen extends GenZIO with FunctionVariants {
    * Constructs a generator of partial functions from `A` to `B` given a
    * generator of `B` values. Two `A` values will be considered to be equal,
    * and thus will be guaranteed to generate the same `B` value or both be
-   * outside the partial functon's domain, if they have the same `hashCode`.
+   * outside the partial function's domain, if they have the same `hashCode`.
    */
   final def partialFunction[R <: Random, A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
     partialFunctionWith(gen)(_.hashCode)
@@ -337,7 +435,7 @@ object Gen extends GenZIO with FunctionVariants {
    * values will be considered to be equal, and thus will be guaranteed to
    * generate the same `B` value or both be outside the partial function's
    * domain, if they have have the same hash. This is useful when `A` does not
-   * implement `hashCode` in a way that is constent with equality.
+   * implement `hashCode` in a way that is consistent with equality.
    */
   final def partialFunctionWith[R <: Random, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
     functionWith(option(gen))(hash).map(Function.unlift)
@@ -434,6 +532,36 @@ object Gen extends GenZIO with FunctionVariants {
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generator multiple times if necessary.
+   */
+  final def zipN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
+    gen1.zipWith(gen2)(f)
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generator multiple times if necessary.
+   */
+  final def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
+    (gen1 <&> gen2 <&> gen3).map {
+      case ((a, b), c) => f(a, b, c)
+    }
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generator multiple times if necessary.
+   */
+  final def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
+    f: (A, B, C, D) => F
+  ): Gen[R, F] =
+    (gen1 <&> gen2 <&> gen3 <&> gen4).map {
+      case (((a, b), c), d) => f(a, b, c, d)
+    }
 
   /**
    * Restricts an integer to the specified range.

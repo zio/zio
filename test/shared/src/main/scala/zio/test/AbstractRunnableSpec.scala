@@ -24,19 +24,20 @@ import zio.test.reflect.Reflect.EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {
 
   type Environment
+  type Failure
   type Label
   type Test
-  type Failure
   type Success
 
-  def runner: TestRunner[Environment, Label, Test, Failure, Success]
-  def spec: Spec[Environment, Failure, Label, Test]
+  def aspects: List[TestAspect[Nothing, Environment, Nothing, Any, Nothing, Any]]
+  def runner: TestRunner[Environment, Failure, Label, Test, Success]
+  def spec: ZSpec[Environment, Failure, Label, Test]
 
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final def run: URIO[TestLogger with Clock, ExecutedSpec[Label, Failure, Success]] =
-    runner.run(spec)
+  final def run: URIO[TestLogger with Clock, ExecutedSpec[Failure, Label, Success]] =
+    runner.run(aspects.foldLeft(spec)(_ @@ _))
 
   /**
    * the platform used by the runner

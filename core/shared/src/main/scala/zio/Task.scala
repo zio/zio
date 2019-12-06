@@ -52,16 +52,16 @@ object Task {
     ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see See [[zio.ZIO.checkDaemon]]
+   */
+  final def checkDaemon[A](f: DaemonStatus => Task[A]): Task[A] =
+    ZIO.checkDaemon(f)
+
+  /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   final def checkInterruptible[A](f: InterruptStatus => Task[A]): Task[A] =
     ZIO.checkInterruptible(f)
-
-  /**
-   * @see See [[zio.ZIO.checkSupervised]]
-   */
-  final def checkSupervised[A](f: SuperviseStatus => Task[A]): Task[A] =
-    ZIO.checkSupervised(f)
 
   /**
    * @see See [[zio.ZIO.checkTraced]]
@@ -72,7 +72,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.children]]
    */
-  final def children: UIO[IndexedSeq[Fiber[Any, Any]]] = ZIO.children
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see See [[zio.ZIO.collectAll]]
@@ -129,6 +129,12 @@ object Task {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.die]]
    */
   final def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
@@ -162,14 +168,17 @@ object Task {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  final def effectAsync[A](register: (Task[A] => Unit) => Unit): Task[A] =
-    ZIO.effectAsync(register)
+  final def effectAsync[A](register: (Task[A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): Task[A] =
+    ZIO.effectAsync(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[A](register: (Task[A] => Unit) => Option[Task[A]]): Task[A] =
-    ZIO.effectAsyncMaybe(register)
+  final def effectAsyncMaybe[A](
+    register: (Task[A] => Unit) => Option[Task[A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): Task[A] =
+    ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
@@ -180,28 +189,31 @@ object Task {
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[A](register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]]): Task[A] =
-    ZIO.effectAsyncInterrupt(register)
+  final def effectAsyncInterrupt[A](
+    register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): Task[A] =
+    ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.RIO.effectSuspend]]
    */
-  final def effectSuspend[A](task: => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(_ => task)
+  final def effectSuspend[A](task: => Task[A]): Task[A] = ZIO.effectSuspend(task)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[A](task: => Task[A]): Task[A] = new ZIO.EffectSuspendTotalWith(_ => task)
+  final def effectSuspendTotal[A](task: => Task[A]): Task[A] = ZIO.effectSuspendTotal(task)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] = ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.RIO.effectSuspendWith]]
    */
-  final def effectSuspendWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(p)
+  final def effectSuspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] = ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -212,6 +224,11 @@ object Task {
    * @see See [[zio.ZIO.fail]]
    */
   final def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
+
+  /**
+   * @see [[zio.ZIO.fiberId]]
+   */
+  final val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
@@ -350,6 +367,11 @@ object Task {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
+   * @see See [[zio.ZIO.interruptAs]]
+   */
+  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+
+  /**
    * @see See [[zio.ZIO.interruptible]]
    */
   final def interruptible[A](task: Task[A]): Task[A] =
@@ -373,6 +395,46 @@ object Task {
     ZIO.lock(executor)(task)
 
   /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[A, B, C](task1: Task[A], task2: Task[B])(f: (A, B) => C): Task[C] =
+    ZIO.mapN(task1, task2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[A, B, C, D](task1: Task[A], task2: Task[B], task3: Task[C])(f: (A, B, C) => D): Task[D] =
+    ZIO.mapN(task1, task2, task3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[A, B, C, D, F](task1: Task[A], task2: Task[B], task3: Task[C], task4: Task[D])(
+    f: (A, B, C, D) => F
+  ): Task[F] =
+    ZIO.mapN(task1, task2, task3, task4)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[A, B, C](task1: Task[A], task2: Task[B])(f: (A, B) => C): Task[C] =
+    ZIO.mapParN(task1, task2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[A, B, C, D](task1: Task[A], task2: Task[B], task3: Task[C])(f: (A, B, C) => D): Task[D] =
+    ZIO.mapParN(task1, task2, task3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[A, B, C, D, F](task1: Task[A], task2: Task[B], task3: Task[C], task4: Task[D])(
+    f: (A, B, C, D) => F
+  ): Task[F] =
+    ZIO.mapParN(task1, task2, task3, task4)(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   final def mergeAll[A, B](in: Iterable[Task[A]])(zero: B)(f: (B, A) => B): Task[B] =
@@ -388,6 +450,12 @@ object Task {
    * @see See [[zio.ZIO.never]]
    */
   final val never: UIO[Nothing] = ZIO.never
+
+  /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[A](k: ZIO.DaemonStatusRestore => Task[A]): Task[A] =
+    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.none]]
@@ -445,34 +513,6 @@ object Task {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
-  /**
-   * @see See [[zio.ZIO.supervised]]
-   */
-  final def supervised[A](task: Task[A]): Task[A] =
-    ZIO.supervised(task)
-
-  /**
-   * @see See [[zio.ZIO.superviseStatus]]
-   */
-  final def superviseStatus[A](status: SuperviseStatus)(task: Task[A]): Task[A] =
-    ZIO.superviseStatus(status)(task)
-
-  /**
-   * @see See [[zio.ZIO.interruptChildren]]
-   */
-  final def interruptChildren[A](task: Task[A]): Task[A] =
-    ZIO.interruptChildren(task)
-
-  /**
-   * @see See [[zio.ZIO.handleChildrenWith]]
-   */
-  final def handleChildrenWith[A](task: Task[A])(supervisor: IndexedSeq[Fiber[Any, Any]] => UIO[Any]): Task[A] =
-    ZIO.handleChildrenWith(task)(supervisor)
-
   /**
    *  See [[zio.ZIO.sequence]]
    */
@@ -495,12 +535,6 @@ object Task {
    *  @see [[zio.ZIO.some]]
    */
   def some[A](a: A): Task[Option[A]] = ZIO.some(a)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[A](task: => Task[A]): Task[A] = effectSuspendTotalWith(_ => task)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[A](p: Platform => Task[A]): Task[A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -573,11 +607,6 @@ object Task {
    * @see [[zio.ZIO.unsandbox]]
    */
   final def unsandbox[A](v: IO[Cause[Throwable], A]): Task[A] = ZIO.unsandbox(v)
-
-  /**
-   * @see [[zio.ZIO.unsupervised]]
-   */
-  final def unsupervised[A](task: Task[A]): Task[A] = ZIO.unsupervised(task)
 
   /**
    * @see See [[zio.ZIO.untraced]]

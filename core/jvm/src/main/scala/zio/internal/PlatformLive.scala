@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import java.util.{ Collections, WeakHashMap, Map => JMap }
 import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
@@ -60,11 +59,8 @@ object PlatformLive {
       }
 
       def reportFailure(cause: Cause[Any]): Unit =
-        if (!cause.interrupted)
+        if (cause.died)
           System.err.println(cause.prettyPrint)
-
-      def newWeakHashMap[A, B](): JMap[A, B] =
-        Collections.synchronizedMap(new WeakHashMap[A, B]())
 
     }
 

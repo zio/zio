@@ -20,25 +20,24 @@ package zio
  * The `InterruptStatus` of a fiber determines whether or not it can be
  * interrupted. The status can change over time in different regions.
  */
-sealed abstract class InterruptStatus extends Serializable with Product {
-  final def isInterruptible: Boolean   = this match { case InterruptStatus.Interruptible => true; case _ => false }
+sealed abstract class InterruptStatus(val isInterruptible: Boolean) extends Serializable with Product {
   final def isUninterruptible: Boolean = !isInterruptible
 
   private[zio] final def toBoolean: Boolean = isInterruptible
 }
 object InterruptStatus {
-  def interruptible: InterruptStatus   = Interruptible
-  def uninterruptible: InterruptStatus = Uninterruptible
+  final def interruptible: InterruptStatus   = Interruptible
+  final def uninterruptible: InterruptStatus = Uninterruptible
 
   /**
    * Indicates the fiber can be interrupted right now.
    */
-  case object Interruptible extends InterruptStatus
+  case object Interruptible extends InterruptStatus(true)
 
   /**
    * Indicates the fiber cannot be interrupted right now.
    */
-  case object Uninterruptible extends InterruptStatus
+  case object Uninterruptible extends InterruptStatus(false)
 
   private[zio] def fromBoolean(b: Boolean): InterruptStatus = if (b) Interruptible else Uninterruptible
 }

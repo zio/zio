@@ -7,6 +7,7 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [How to write a command line application with ZIO?](https://scalac.io/write-command-line-application-with-zio/) by Piotr Gołębiewski (November 2019)
 - [Simulating IoT Events with ZIO Streams](https://timpigden.github.io/_pages/zio-streams/GeneratingChillEvents.html) by Tim Pigden (November 2019)
 - [Speeding up time with ZIO TestClock](https://timpigden.github.io/_pages/zio-streams/SpeedingUpTime.html) by Tim Pigden (October 2019)
 - [ZIO with http4s, Auth, Codecs and zio-tests](https://timpigden.github.io/_pages/zio-http4s/intro.html) by Tim Pigden (October 2019)
@@ -53,6 +54,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [TicTacToe command line game using Module Pattern](https://github.com/ioleo/zio-by-example) by [ioleo](https://github.com/ioleo)
 - [Hello world with ZIO and http4s](https://gitlab.com/maplambda/zio-http4s) by [maplambda](https://gitlab.com/maplambda)
 - [STM Partitioning - Code for the 'Exploring the STM functionality in ZIO' blog post](https://github.com/freskog/stm-partitioning)
 - [ZIO Todo Backend](https://github.com/mschuwalow/zio-todo-backend) by [mschuwalow](https://github.com/mschuwalow)
@@ -60,6 +62,8 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [Zorechka Bot](https://github.com/wix-incubator/zorechka-bot) by [wix-incubator](https://github.com/wix-incubator)
 - [A ZIO + http4s + Circe + Quill + Tapir giter8 template](https://github.com/pandaforme/ultron.g8) by [pandaforme](https://github.com/pandaforme)
 - [More ZIO/http4s: with http4s authentication, encoding/decoding + zio tests](https://github.com/TimPigden/zio-http4s-examples) by [Tim Pigden](https://github.com/TimPigden)
+- [GitHub Release Pager with ZIO](https://github.com/psisoyev/release-pager) by [Pavels Sisojevs](https://github.com/psisoyev)
+
 ## Projects using ZIO
 
 - [Rudder](https://github.com/normation/rudder): an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Uses queues, brackets, interop with Java, and historical code. See [context and references](https://issues.rudder.io/issues/14870).
