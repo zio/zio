@@ -447,6 +447,13 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         .use(nPulls(_, 5))
         .map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left(None), Left(None)))))
     },
+    testM("Stream.succeed is safe to pull again") {
+      Stream
+        .succeed(5)
+        .process
+        .use(nPulls(_, 3))
+        .map(assert(_, equalTo(List(Right(5), Left(None), Left(None)))))
+    },
     testM("Stream.unfold is safe to pull again") {
       Stream
         .unfold(0) { n =>
