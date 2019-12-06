@@ -373,12 +373,11 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] =
-    StreamEffect {
-      Managed.effectTotal { () =>
-        if (iterator.hasNext) iterator.next() else end
-      }
-    }
+  final def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
+    import scala.collection.JavaConverters._
+    fromIterator(iterator.asScala)
+  }
+
 
   final def fromInputStream(
     is: InputStream,
