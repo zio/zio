@@ -635,7 +635,7 @@ object Fiber {
       final def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
       final def await(t: Duration): URIO[Clock, Exit[Throwable, A]] = {
-        val task = Task.fromFuture(_ => ftr)
+        val task = ZIO.fromFutureInterrupt(_ => ftr)
         task.run.timeoutInterrupt(t)(task.fork.flatMap[Clock, Nothing, Exit[Throwable, A]](_.interrupt))
       }
 

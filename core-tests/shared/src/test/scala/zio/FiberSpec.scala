@@ -86,6 +86,24 @@ object FiberSpec extends ZIOBaseSpec {
       testM("`await(timeout)` for a Fiber that is done, should succeed") {
         assertM(Fiber.done(Exit.Success(1)).await(100.millis).provide(Clock.Live), succeeds(equalTo(1)))
       },
+      testM("`await`a short time for a Future before it completes, should interrupt the Future") {
+        assertM(
+          Fiber
+            .fromFuture(scala.concurrent.Future(println("go"))(concurrent.ExecutionContext.global))
+            .await(1.nanos)
+            .provide(Clock.Live),
+          isInterrupted
+        )
+      },
+      testM("`await(timeout)` for a Future that will complete before the timeout, should succeed") {
+        assertM(
+          Fiber
+            .fromFuture(scala.concurrent.Future(1)(concurrent.ExecutionContext.global))
+            .await(1.second)
+            .provide(Clock.Live),
+          succeeds(equalTo(1))
+        )
+      },
       testM("`join`") {
         for {
           exit <- Fiber.fail("fail").zip(Fiber.never).join.run
