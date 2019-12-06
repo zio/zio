@@ -413,6 +413,20 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def paginate[A, S](s0: S)(f: S => (A, Option[S])): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
+      Managed.effectTotal {
+        var state = Option(s0)
+
+        () =>
+          state.fold(end) { s =>
+            val res = f(s)
+            state = res._2
+            res._1
+          }
+      }
+    }
+
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
