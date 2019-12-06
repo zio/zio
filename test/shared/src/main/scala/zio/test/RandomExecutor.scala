@@ -2,7 +2,7 @@ package zio.test
 
 import java.util.concurrent.atomic.AtomicReference
 
-import zio.internal.Executor
+import zio.internal.{ ExecutionMetrics, Executor }
 import zio.stream.ZStream
 import zio.{ Exit, UIO, ZIO }
 
@@ -31,16 +31,16 @@ object RandomExecutor {
       new Executor {
         case class ExecutorState(pendingRunnables: Vector[Runnable], isRunning: Boolean)
 
-        val state = new AtomicReference(ExecutorState(Vector.empty, false))
+        val state = new AtomicReference(ExecutorState(Vector.empty, isRunning = false))
 
-        override def here              = true
-        override def metrics           = None
-        override def yieldOpCount: Int = Int.MaxValue
+        override def here: Boolean                     = true
+        override def metrics: Option[ExecutionMetrics] = None
+        override def yieldOpCount: Int                 = Int.MaxValue
         override def submit(runnable: Runnable): Boolean = {
-          val isAllreadyRunning: Boolean =
+          val isAlreadyRunning: Boolean =
             addToPendingAndReturnOldState(runnable).isRunning
 
-          if (!isAllreadyRunning) {
+          if (!isAlreadyRunning) {
             runRandomPath()
           }
 
@@ -92,20 +92,24 @@ object RandomExecutor {
   /** Inserts yields before every effect */
   private def yieldingEffects[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio match {
-      // Introduce yields before every effect to be catched by the neverYieldingExecutor
-      case effect: ZIO.EffectTotal[A]   => (ZIO.yieldNow *> effect): ZIO[Any, E, A]
-      case effect: ZIO.EffectPartial[A] => (ZIO.yieldNow *> effect): ZIO[Any, E, A]
-      // TODO: Modifiy callback?
-      case effect: ZIO.EffectAsync[R, E, A] => ZIO.yieldNow *> effect
-
-      // TODO: Handle this effects too
+      // Introduce yields before every effect to be caught by the neverYieldingExecutor
+      case effect: ZIO.EffectTotal[A] =>
+        (ZIO.yieldNow *> effect): ZIO[Any, E, A]
+      case effect: ZIO.EffectPartial[A] =>
+        (ZIO.yieldNow *> effect): ZIO[Any, E, A]
+      case effect: ZIO.EffectAsync[R, E, A] =>
+        ZIO.yieldNow *> new ZIO.EffectAsync(
+          register = reg => yieldingEffectsO(effect.register(yieldingEffectsFI(reg))),
+          blockingOn = effect.blockingOn
+        )
       case suspend: ZIO.EffectSuspendTotalWith[R, E, A] =>
-        new ZIO.EffectSuspendTotalWith(yieldingEffectsF2(suspend.f))
+        ZIO.yieldNow *> new ZIO.EffectSuspendTotalWith(yieldingEffectsF2(suspend.f))
       case suspend: ZIO.EffectSuspendPartialWith[R, A] =>
-        new ZIO.EffectSuspendPartialWith(yieldingEffectsF2(suspend.f))
+        ZIO.yieldNow *> new ZIO.EffectSuspendPartialWith(yieldingEffectsF2(suspend.f))
 
       // Drop other yields
       case ZIO.Yield => ZIO.unit
+
       // Recursively apply the rewrite of yielding effects
       case lock: ZIO.Lock[R, E, A] =>
         new ZIO.Lock(lock.executor, yieldingEffects(lock.zio))
@@ -158,5 +162,12 @@ object RandomExecutor {
 
   private def yieldingEffectsF2[P1, P2, R, E, A](f: (P1, P2) => ZIO[R, E, A]): (P1, P2) => ZIO[R, E, A] =
     (p1: P1, p2: P2) => yieldingEffects(f(p1, p2))
+
+  def yieldingEffectsO[R, E, A](optionalZio: Option[ZIO[R, E, A]]): Option[ZIO[R, E, A]] =
+    optionalZio.map(yieldingEffects)
+
+  def yieldingEffectsFI[R, E, A](callback: ZIO[R, E, A] => Unit): ZIO[R, E, A] => Unit = { argument =>
+    callback(yieldingEffects(argument))
+  }
 
 }
