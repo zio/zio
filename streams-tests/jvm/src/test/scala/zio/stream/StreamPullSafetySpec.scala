@@ -63,6 +63,29 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
       }
     ),
+    suite("Stream.flatten")(
+      testM("is safe to pull again after success") {
+        Stream
+          .flatten(Stream(Stream.fromEffect(UIO.succeed(5))))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Right(5), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after inner failure") {
+        Stream
+          .flatten(Stream(Stream.fail("Ouch")))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after outer failure") {
+        Stream
+          .flatten(Stream.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      }
+    ),
     testM("Stream.empty is safe to pull again") {
       Stream.empty.process
         .use(nPulls(_, 3))
@@ -489,6 +512,69 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 5))
         } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(2), Left(None), Left(None))))
+      }
+    ),
+    suite("Stream.unwrap")(
+      testM("is safe to pull again after success") {
+        Stream
+          .unwrap(UIO.succeed(Stream.fromEffect(UIO.succeed(5))))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Right(5), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after inner failure") {
+        Stream
+          .unwrap(UIO.succeed(Stream.fail("Ouch")))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after outer failure") {
+        Stream
+          .unwrap(IO.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      }
+    ),
+    suite("Stream.unwrapManaged")(
+      testM("is safe to pull again after success") {
+        for {
+          ref <- Ref.make(false)
+          pulls <- Stream
+                    .unwrapManaged(Managed.make(UIO.succeed(Stream.fromEffect(UIO.succeed(5))))(_ => ref.set(true)))
+                    .process
+                    .use(nPulls(_, 3))
+          fin <- ref.get
+        } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(5), Left(None), Left(None))))
+      },
+      testM("is safe to pull again after failed acquisition") {
+        for {
+          ref <- Ref.make(false)
+          pulls <- Stream
+                    .unwrapManaged(Managed.make(IO.fail("Ouch"))(_ => ref.set(true)))
+                    .process
+                    .use(nPulls(_, 3))
+          fin <- ref.get
+        } yield assert(fin, isFalse) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+      },
+      testM("is safe to pull again after inner failure") {
+        for {
+          ref <- Ref.make(false)
+          pulls <- Stream
+                    .unwrapManaged(Managed.make(UIO.succeed(Stream.fromEffect(UIO.succeed(5))))(_ => ref.set(true)))
+                    .flatMap(_ => Stream.fail("Ouch"))
+                    .process
+                    .use(nPulls(_, 3))
+          fin <- ref.get
+        } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+      },
+      testM("is safe to pull again from a failed Managed") {
+        Stream
+          .unwrapManaged(Managed.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
       }
     )
   )
