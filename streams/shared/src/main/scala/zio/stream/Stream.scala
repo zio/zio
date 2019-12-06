@@ -239,18 +239,6 @@ object Stream extends Serializable {
     ZStream.fromJavaIteratorManaged(iterator)
 
   /**
-   * See [[ZStream.fromJavaIterator]]
-   */
-  final def fromJavaStream[E, A](stream: IO[E, ju.stream.Stream[A]]): Stream[E, A] =
-    ZStream.fromJavaStream(stream)
-
-  /**
-   * See [[ZStream.fromJavaIteratorManaged]]
-   */
-  final def fromJavaStreamManaged[E, A](stream: Managed[E, ju.stream.Stream[A]]): Stream[E, A] =
-    ZStream.fromJavaStreamManaged(stream)
-
-  /**
    * See [[ZStream.fromQueue]]
    */
   final def fromQueue[E, A](queue: ZQueue[Nothing, Any, Any, E, Nothing, A]): Stream[E, A] =

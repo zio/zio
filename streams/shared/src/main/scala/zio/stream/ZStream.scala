@@ -2548,7 +2548,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     self zipRight that
 }
 
-object ZStream extends Serializable {
+object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
@@ -3066,18 +3066,6 @@ object ZStream extends Serializable {
    */
   final def fromJavaIteratorManaged[R, E, A](iterator: ZManaged[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
     managed(iterator).flatMap(StreamEffect.fromJavaIterator)
-
-  /**
-   * Creates a stream from a Java stream
-   */
-  final def fromJavaStream[R, E, A](stream: ZIO[R, E, ju.stream.Stream[A]]): ZStream[R, E, A] =
-    fromJavaIterator(stream.flatMap(s => UIO(s.iterator())))
-
-  /**
-   * Creates a stream from a managed Java stream
-   */
-  final def fromJavaStreamManaged[R, E, A](stream: ZManaged[R, E, ju.stream.Stream[A]]): ZStream[R, E, A] =
-    fromJavaIteratorManaged(stream.mapM(s => UIO(s.iterator())))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values

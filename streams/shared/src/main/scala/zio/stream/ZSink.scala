@@ -728,7 +728,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     zip(that).map(f.tupled)
 }
 
-object ZSink extends ZSinkPlatformSpecific with Serializable {
+object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
 
   implicit class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
 
