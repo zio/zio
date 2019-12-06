@@ -26,7 +26,14 @@
       "datatypes/datatypes_schedule",
       "datatypes/datatypes_semaphore",
       "datatypes/datatypes_sink",
-      "datatypes/datatypes_stream"
+      "datatypes/datatypes_stream",
+      "datatypes/datatypes_chunk",
+      "datatypes/datatypes_tarray",
+      "datatypes/datatypes_tmap",
+      "datatypes/datatypes_tpromise",
+      "datatypes/datatypes_tqueue",
+      "datatypes/datatypes_tref",
+      "datatypes/datatypes_tset"
     ]
   },
   "interop-sidebar": {

@@ -20,11 +20,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
 import zio.ZIO
-import zio.test.TestArgs
+import zio.test.{ Summary, TestArgs }
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
-  val summaries: AtomicReference[Vector[String]] = new AtomicReference(Vector.empty)
+  val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
   val sendSummary: SendSummary = SendSummary.fromSendM(
     summary =>
@@ -34,11 +34,21 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
       }
   )
 
-  def done(): String =
-    summaries.get
-      .filter(_.nonEmpty)
-      .flatMap(summary => summary :: "\n" :: Nil)
-      .mkString("", "", "Done")
+  def done(): String = {
+    val allSummaries = summaries.get
+
+    val total  = allSummaries.map(_.total).sum
+    val ignore = allSummaries.map(_.ignore).sum
+
+    if (allSummaries.isEmpty || total == ignore)
+      s"${Console.YELLOW}No tests were executed${Console.RESET}"
+    else
+      allSummaries
+        .map(_.summary)
+        .filter(_.nonEmpty)
+        .flatMap(summary => colored(summary) :: "\n" :: Nil)
+        .mkString("", "", "Done")
+  }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))

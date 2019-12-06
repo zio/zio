@@ -21,13 +21,17 @@ import zio.{ Managed, ZIO }
 object TestExecutor {
   def managed[R, E, L, S](
     environment: Managed[Nothing, R]
-  ): TestExecutor[R, L, Either[TestFailure[Nothing], TestSuccess[S]], E, S] =
+  ): TestExecutor[R, E, L, S, S] =
     (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
       spec
         .provideManaged(environment)
         .foreachExec(defExec)(
-          e => ZIO.succeed(Left(TestFailure.Runtime(e))),
-          ZIO.succeed
+          e =>
+            e.failureOrCause.fold(
+              failure => ZIO.succeed(Left(failure)),
+              cause => ZIO.succeed(Left(TestFailure.Runtime(cause)))
+            ),
+          s => ZIO.succeed(Right(s))
         )
 
     }

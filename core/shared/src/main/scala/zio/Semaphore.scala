@@ -35,64 +35,11 @@ import scala.collection.immutable.{ Queue => IQueue }
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
   /**
-   * Acquires a single permit. This must be paired with `release` in a safe
-   * fashion in order to avoid leaking permits.
-   *
-   * If a permit is not available, the fiber invoking this method will be
-   * suspended until a permit is available.
-   */
-  final def acquire: UIO[Unit] = acquireN(1)
-
-  /**
-   * Acquires a specified number of permits.
-   *
-   * If the specified number of permits are not available, the fiber invoking
-   * this method will be suspended until the permits are available.
-   *
-   * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
-   */
-  final def acquireN(n: Long): UIO[Unit] =
-    assertNonNegative(n) *> IO.bracketExit(prepare(n))(cleanup)(_.awaitAcquire)
-
-  /**
    * The number of permits currently available.
    */
   final def available: UIO[Long] = state.get.map {
     case Left(_)  => 0
     case Right(n) => n
-  }
-
-  /**
-   * Releases a single permit.
-   */
-  final def release: UIO[Unit] = releaseN(1)
-
-  /**
-   * Releases a specified number of permits.
-   *
-   * If fibers are currently suspended until enough permits are available,
-   * they will be woken up (in FIFO order) if this action releases enough
-   * of them.
-   */
-  final def releaseN(toRelease: Long): UIO[Unit] = {
-
-    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
-      case Right(m) => acc -> Right(n + m)
-      case Left(q) =>
-        q.dequeueOption match {
-          case None => acc -> Right(n)
-          case Some(((p, m), q)) =>
-            if (n > m)
-              loop(n - m, Left(q), acc <* p.succeed(()))
-            else if (n == m)
-              (acc <* p.succeed(())) -> Left(q)
-            else
-              acc -> Left((p -> (m - n)) +: q)
-        }
-    }
-
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
-
   }
 
   /**
@@ -111,19 +58,15 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * Acquires `n` permits, executes the action and releases the permits right after.
    */
   final def withPermits[R, E, A](n: Long)(task: ZIO[R, E, A]): ZIO[R, E, A] =
-    prepare(n).bracket(_.release)(_.awaitAcquire *> task)
+    prepare(n).bracket(
+      e => e.release
+    )(r => r.awaitAcquire *> task)
 
   /**
    * Acquires `n` permits in a [[zio.ZManaged]] and releases the permits in the finalizer.
    */
   final def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
     ZManaged(prepare(n).map(a => Reservation(a.awaitAcquire, _ => a.release)))
-
-  final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): UIO[Unit] =
-    res match {
-      case Exit.Failure(c) if c.interrupted => ops.release
-      case _                                => IO.unit
-    }
 
   /**
    * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
@@ -132,7 +75,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     def restore(p: Promise[Nothing, Unit], n: Long): UIO[Unit] =
       IO.flatten(state.modify {
         case Left(q) =>
-          q.find(_._1 == p).fold(releaseN(n) -> Left(q))(x => releaseN(n - x._2) -> Left(q.filter(_._1 != p)))
+          q.find(_._1 == p).fold(releaseN0(n) -> Left(q))(x => releaseN0(n - x._2) -> Left(q.filter(_._1 != p)))
         case Right(m) => IO.unit -> Right(m + n)
       })
 
@@ -141,11 +84,39 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     else
       Promise.make[Nothing, Unit].flatMap { p =>
         state.modify {
-          case Right(m) if m >= n => Acquisition(IO.unit, releaseN(n))   -> Right(m - n)
+          case Right(m) if m >= n => Acquisition(IO.unit, releaseN0(n))  -> Right(m - n)
           case Right(m)           => Acquisition(p.await, restore(p, n)) -> Left(IQueue(p -> (n - m)))
           case Left(q)            => Acquisition(p.await, restore(p, n)) -> Left(q.enqueue(p -> n))
         }
       }
+  }
+
+  /**
+   * Releases a specified number of permits.
+   *
+   * If fibers are currently suspended until enough permits are available,
+   * they will be woken up (in FIFO order) if this action releases enough
+   * of them.
+   */
+  final private def releaseN0(toRelease: Long): UIO[Unit] = {
+
+    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
+      case Right(m) => acc -> Right(n + m)
+      case Left(q) =>
+        q.dequeueOption match {
+          case None => acc -> Right(n)
+          case Some(((p, m), q)) =>
+            if (n > m)
+              loop(n - m, Left(q), acc <* p.succeed(()))
+            else if (n == m)
+              (acc <* p.succeed(())) -> Left(q)
+            else
+              acc -> Left((p -> (m - n)) +: q)
+        }
+    }
+
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
+
   }
 
 }

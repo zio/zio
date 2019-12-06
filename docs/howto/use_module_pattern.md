@@ -21,7 +21,7 @@ trait Connection
 trait DatabaseConfig
 ```
 
-```scala mdoc
+```scala mdoc:silent
 import scala.concurrent.Future
 
 def connect(host: String, port: Int): Future[Connection] = ???
@@ -31,7 +31,7 @@ The signature of the method `(String, Int) => Future[Connection]` tells the whol
 so it will suffer all of its limitations, but there is nothing wrong with it. However, as your application grows and you start to group methods that
 are conceptually tightly related, you may end up with something like this:
 
-```scala mdoc
+```scala mdoc:silent
 class Database(config: DatabaseConfig) {
 
   def connect(): Future[Connection] = ???
@@ -49,7 +49,7 @@ trait DatabaseConfig
 
 With ZIO we can use the environment to provide our function with additional context it needs to run.
 
-```scala mdoc
+```scala mdoc:silent
 import zio._
 
 trait Database {
@@ -73,7 +73,7 @@ trait UserId
 trait User
 ```
 
-```scala mdoc
+```scala mdoc:silent
 trait UserRepository {
 
   def find(id: UserId): ZIO[Database with DatabaseConfig, Unit, Option[User]] =
@@ -87,7 +87,7 @@ trait UserRepository {
 
 In this example we're accessing the environment to retrieve the `Database` service, from which we run the effect `connect` to retrieve a connection.
 
-> **Note:** even if we did not explicitly typed `find` method, the compier would infer the correct `R` type to be `Database with DatabaseConfig`.
+> **Note:** even if we did not explicitly typed `find` method, the compiler would infer the correct `R` type to be `Database with DatabaseConfig`.
 
 ## Module pattern
 
@@ -99,7 +99,7 @@ trait DeliveryStatus
 trait Email
 ```
 
-```scala mdoc
+```scala mdoc:silent
 trait Postman {
   val postman: Postman.Service[Any]
 }
@@ -119,7 +119,7 @@ The `Postman` trait is the _module_, which is just a container for the `Postman.
 The _service_ is just an ordinary interface, defining the _capabilities_ it provides.
 
 > **Note:** By convention we place the _service_ inside the companion object of the _module_ and name it `Service`.
-> This is to have a consitent naming scheme `<Module>.Service[R]` across the entire application.
+> This is to have a consistent naming scheme `<Module>.Service[R]` across the entire application.
 > It is also the structure required by some macros in [zio-macros][link-zio-macros] project.
 
 The _capability_ is a method or value defined by the _service_. While these may be ordinary functions, if you want all the benefits ZIO provides,
@@ -151,7 +151,7 @@ object EmailRenderer {
 }
 ```
 
-```scala mdoc
+```scala mdoc:silent
 trait Newsletter {
   val newsletter: Newsletter.Service[Any]
 }
@@ -165,7 +165,7 @@ object Newsletter {
 
 With _module pattern_ specifying dependencies is as simple as:
 
-```scala mdoc
+```scala mdoc:silent
 import zio.stream._
 
 trait NewsletterLive extends Newsletter {
@@ -190,12 +190,12 @@ trait NewsletterLive extends Newsletter {
 }
 ```
 
-In this example the dependency on `EmailRenderer.Service` and `Postman.Service` is expressed as abstract value, forceing the programmer to provide
+In this example the dependency on `EmailRenderer.Service` and `Postman.Service` is expressed as abstract value, forcing the programmer to provide
 instances of these services when constructing the environment. Note that `Newsletter` _module_ does not depend on anything. Only `NewsletterLive`
-implementation depends on those. This allows you to create other implementations with diffrent (or zero) dependencies, like a helper object to access
+implementation depends on those. This allows you to create other implementations with different (or zero) dependencies, like a helper object to access
 service effects:
 
-```scala mdoc
+```scala mdoc:silent
 object Helper extends Newsletter.Service[Newsletter] {
 
   def send(id: TemplateId, recipients: List[EmailAddress]) =
@@ -205,9 +205,9 @@ object Helper extends Newsletter.Service[Newsletter] {
 
 > **Note:** by convention such a helper would be defined inside module's companion object and named `>`.
 > This is to have a nice syntax to access effects like `Newsletter.>.send(id, recipients)`.
-> You can use the `@Accessable` macro from [zio-macros][link-zio-macros] to derrive this boilerplate code automatically.
+> You can use the `@accessible` macro from [zio-macros][link-zio-macros] to derive this boilerplate code automatically.
 
-Should you need to create a test implementation it will most likely have diffrent dependencies (or none at all).
+Should you need to create a test implementation it will most likely have different dependencies (or none at all).
 
 ## Advantages using module pattern
 
@@ -277,7 +277,7 @@ trait PostmanLive extends Postman {
 }
 ```
 
-```scala mdoc
+```scala mdoc:silent
 val app = Helper.send(id, recipients)
 
 val result3 = app.provide(new EmailRendererLive with PostmanLive with NewsletterLive {})

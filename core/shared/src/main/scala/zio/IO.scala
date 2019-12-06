@@ -32,7 +32,7 @@ object IO {
   /**
    * @see See bracket [[zio.ZIO]]
    */
-  final def bracket[E, A, B](acquire: IO[E, A], release: A => UIO[_], use: A => IO[E, B]): IO[E, B] =
+  final def bracket[E, A, B](acquire: IO[E, A], release: A => UIO[Any], use: A => IO[E, B]): IO[E, B] =
     ZIO.bracket(acquire, release, use)
 
   /**
@@ -44,20 +44,24 @@ object IO {
   /**
    * @see See bracketExit [[zio.ZIO]]
    */
-  final def bracketExit[E, A, B](acquire: IO[E, A], release: (A, Exit[E, B]) => UIO[_], use: A => IO[E, B]): IO[E, B] =
+  final def bracketExit[E, A, B](
+    acquire: IO[E, A],
+    release: (A, Exit[E, B]) => UIO[Any],
+    use: A => IO[E, B]
+  ): IO[E, B] =
     ZIO.bracketExit(acquire, release, use)
+
+  /**
+   * @see See [[zio.ZIO.checkDaemon]]
+   */
+  final def checkDaemon[E, A](f: DaemonStatus => IO[E, A]): IO[E, A] =
+    ZIO.checkDaemon(f)
 
   /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
   final def checkInterruptible[E, A](f: InterruptStatus => IO[E, A]): IO[E, A] =
     ZIO.checkInterruptible(f)
-
-  /**
-   * @see See [[zio.ZIO.checkSupervised]]
-   */
-  final def checkSupervised[E, A](f: SuperviseStatus => IO[E, A]): IO[E, A] =
-    ZIO.checkSupervised(f)
 
   /**
    * @see See [[zio.ZIO.checkTraced]]
@@ -68,7 +72,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.children]]
    */
-  final def children: UIO[IndexedSeq[Fiber[_, _]]] = ZIO.children
+  final def children: UIO[Iterable[Fiber[Any, Any]]] = ZIO.children
 
   /**
    * @see See [[zio.ZIO.collectAll]]
@@ -125,6 +129,12 @@ object IO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[E, A](k: ZIO.DaemonStatusRestore => IO[E, A]): IO[E, A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -158,26 +168,32 @@ object IO {
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
-  final def effectAsync[E, A](register: (IO[E, A] => Unit) => Unit): IO[E, A] =
-    ZIO.effectAsync(register)
+  final def effectAsync[E, A](register: (IO[E, A] => Unit) => Unit, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
+    ZIO.effectAsync(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncInterrupt]]
    */
-  final def effectAsyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]]): IO[E, A] =
-    ZIO.effectAsyncInterrupt(register)
+  final def effectAsyncInterrupt[E, A](
+    register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): IO[E, A] =
+    ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
    */
-  final def effectAsyncM[E, A](register: (IO[E, A] => Unit) => IO[E, _]): IO[E, A] =
+  final def effectAsyncM[E, A](register: (IO[E, A] => Unit) => IO[E, Any]): IO[E, A] =
     ZIO.effectAsyncM(register)
 
   /**
    * @see See [[zio.ZIO.effectAsyncMaybe]]
    */
-  final def effectAsyncMaybe[E, A](register: (IO[E, A] => Unit) => Option[IO[E, A]]): IO[E, A] =
-    ZIO.effectAsyncMaybe(register)
+  final def effectAsyncMaybe[E, A](
+    register: (IO[E, A] => Unit) => Option[IO[E, A]],
+    blockingOn: List[Fiber.Id] = Nil
+  ): IO[E, A] =
+    ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see [[zio.ZIO.effectSuspend]]
@@ -187,17 +203,18 @@ object IO {
   /**
    * @see [[zio.ZIO.effectSuspendWith]]
    */
-  final def effectSuspendWith[A](p: Platform => IO[Throwable, A]): IO[Throwable, A] = ZIO.effectSuspendWith(p)
+  final def effectSuspendWith[A](p: (Platform, Fiber.Id) => IO[Throwable, A]): IO[Throwable, A] =
+    ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[E, A](io: => IO[E, A]): IO[E, A] = new ZIO.EffectSuspendTotalWith(_ => io)
+  final def effectSuspendTotal[E, A](io: => IO[E, A]): IO[E, A] = ZIO.effectSuspendTotal(io)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[E, A](p: Platform => IO[E, A]): IO[E, A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[E, A](p: (Platform, Fiber.Id) => IO[E, A]): IO[E, A] = ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -208,6 +225,11 @@ object IO {
    * @see See [[zio.ZIO.fail]]
    */
   final def fail[E](error: E): IO[E, Nothing] = ZIO.fail(error)
+
+  /**
+   * @see [[zio.ZIO.fiberId]]
+   */
+  final val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
@@ -250,19 +272,19 @@ object IO {
   /**
    * @see See [[zio.ZIO.foreach_]]
    */
-  final def foreach_[E, A](as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+  final def foreach_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachPar_]]
    */
-  final def foreachPar_[E, A, B](as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+  final def foreachPar_[E, A, B](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[E, A, B](n: Int)(as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+  final def foreachParN_[E, A, B](n: Int)(as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -299,6 +321,12 @@ object IO {
    * @see [[zio.ZIO.fromFunction]]
    */
   final def fromFunction[A](f: Any => A): IO[Nothing, A] = ZIO.fromFunction(f)
+
+  /**
+   * @see [[zio.ZIO.fromFunctionFuture]]
+   */
+  final def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFunctionFuture(f)
 
   /**
    * @see [[zio.ZIO.fromFunctionM]]
@@ -344,6 +372,11 @@ object IO {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
+   * @see See [[zio.ZIO.interruptAs]]
+   */
+  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+
+  /**
    * @see See [[zio.ZIO.interruptible]]
    */
   final def interruptible[E, A](io: IO[E, A]): IO[E, A] =
@@ -367,6 +400,46 @@ object IO {
     ZIO.lock(executor)(io)
 
   /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[E, A, B, C](io1: IO[E, A], io2: IO[E, B])(f: (A, B) => C): IO[E, C] =
+    ZIO.mapN(io1, io2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[E, A, B, C, D](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C])(f: (A, B, C) => D): IO[E, D] =
+    ZIO.mapN(io1, io2, io3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[E, A, B, C, D, F](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C], io4: IO[E, D])(
+    f: (A, B, C, D) => F
+  ): IO[E, F] =
+    ZIO.mapN(io1, io2, io3, io4)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[E, A, B, C](io1: IO[E, A], io2: IO[E, B])(f: (A, B) => C): IO[E, C] =
+    ZIO.mapParN(io1, io2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[E, A, B, C, D](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C])(f: (A, B, C) => D): IO[E, D] =
+    ZIO.mapParN(io1, io2, io3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[E, A, B, C, D, F](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C], io4: IO[E, D])(
+    f: (A, B, C, D) => F
+  ): IO[E, F] =
+    ZIO.mapParN(io1, io2, io3, io4)(f)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B)(f: (B, A) => B): IO[E, B] =
@@ -382,6 +455,12 @@ object IO {
    * @see See [[zio.ZIO.never]]
    */
   final val never: UIO[Nothing] = ZIO.never
+
+  /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[E, A](k: ZIO.DaemonStatusRestore => IO[E, A]): IO[E, A] =
+    ZIO.nonDaemonMask(k)
 
   /**
    * @see See [[zio.ZIO.none]]
@@ -461,40 +540,6 @@ object IO {
    */
   final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
 
-  @deprecated("use effectTotal", "1.0.0")
-  final def succeedLazy[A](a: => A): UIO[A] =
-    effectTotal(a)
-
-  /**
-   * @see See [[zio.ZIO.interruptChildren]]
-   */
-  final def interruptChildren[E, A](io: IO[E, A]): IO[E, A] =
-    ZIO.interruptChildren(io)
-
-  /**
-   * @see See [[zio.ZIO.supervised]]
-   */
-  final def supervised[E, A](io: IO[E, A]): IO[E, A] =
-    ZIO.supervised(io)
-
-  /**
-   * @see See [[zio.ZIO.handleChildrenWith]]
-   */
-  final def handleChildrenWith[E, A](io: IO[E, A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): IO[E, A] =
-    ZIO.handleChildrenWith(io)(supervisor)
-
-  /**
-   * @see See [[zio.ZIO.superviseStatus]]
-   */
-  final def superviseStatus[E, A](status: SuperviseStatus)(io: IO[E, A]): IO[E, A] =
-    ZIO.superviseStatus(status)(io)
-
-  @deprecated("use effectSuspendTotal", "1.0.0")
-  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = effectSuspendTotalWith(_ => io)
-
-  @deprecated("use effectSuspendTotalWith", "1.0.0")
-  final def suspendWith[E, A](p: Platform => IO[E, A]): IO[E, A] = effectSuspendTotalWith(p)
-
   /**
    * @see See [[zio.ZIO.trace]]
    * */
@@ -528,13 +573,13 @@ object IO {
   /**
    * @see See [[zio.ZIO.traverse_]]
    */
-  final def traverse_[E, A](as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+  final def traverse_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traverse_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar_]]
    */
-  final def traversePar_[E, A](as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+  final def traversePar_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traversePar_(as)(f)
 
   /**
@@ -542,7 +587,7 @@ object IO {
    */
   final def traverseParN_[E, A](
     n: Int
-  )(as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+  )(as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traverseParN_(n)(as)(f)
 
   /**
@@ -568,12 +613,6 @@ object IO {
   final def unsandbox[E, A](v: IO[Cause[E], A]): IO[E, A] = ZIO.unsandbox(v)
 
   /**
-   * @see See [[zio.ZIO.unsupervised]]
-   */
-  final def unsupervised[E, A](io: IO[E, A]): IO[E, A] =
-    ZIO.unsupervised(io)
-
-  /**
    * @see See [[zio.ZIO.untraced]]
    */
   final def untraced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.untraced(zio)
@@ -581,25 +620,25 @@ object IO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  final def when[E](b: Boolean)(io: IO[E, _]): IO[E, Unit] =
+  final def when[E](b: Boolean)(io: IO[E, Any]): IO[E, Unit] =
     ZIO.when(b)(io)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenCaseM]]
    */
-  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenM]]
    */
-  final def whenM[E](b: IO[E, Boolean])(io: IO[E, _]): IO[E, Unit] =
+  final def whenM[E](b: IO[E, Boolean])(io: IO[E, Any]): IO[E, Unit] =
     ZIO.whenM(b)(io)
 
   /**
@@ -607,20 +646,20 @@ object IO {
    */
   final val yieldNow: UIO[Unit] = ZIO.yieldNow
 
-  final class BracketAcquire_[E](private val acquire: IO[E, _]) extends AnyVal {
-    def apply(release: IO[Nothing, _]): BracketRelease_[E] =
+  final class BracketAcquire_[E](private val acquire: IO[E, Any]) extends AnyVal {
+    def apply(release: IO[Nothing, Any]): BracketRelease_[E] =
       new BracketRelease_(acquire, release)
   }
-  final class BracketRelease_[E](acquire: IO[E, _], release: IO[Nothing, _]) {
+  final class BracketRelease_[E](acquire: IO[E, Any], release: IO[Nothing, Any]) {
     def apply[E1 >: E, B](use: IO[E1, B]): IO[E1, B] =
       ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
   }
 
   final class BracketAcquire[E, A](private val acquire: IO[E, A]) extends AnyVal {
-    def apply(release: A => IO[Nothing, _]): BracketRelease[E, A] =
+    def apply(release: A => IO[Nothing, Any]): BracketRelease[E, A] =
       new BracketRelease[E, A](acquire, release)
   }
-  class BracketRelease[E, A](acquire: IO[E, A], release: A => IO[Nothing, _]) {
+  class BracketRelease[E, A](acquire: IO[E, A], release: A => IO[Nothing, Any]) {
     def apply[E1 >: E, B](use: A => IO[E1, B]): IO[E1, B] =
       ZIO.bracket(acquire, release, use)
   }

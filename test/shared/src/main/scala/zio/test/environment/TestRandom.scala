@@ -62,14 +62,14 @@ import zio.random.Random
  * Just generate random values as you normally would to get pseudo-random
  * values, or feed in values of your own to get those values back. You can also
  * use methods like `clearInts` to clear the buffer of values of a given type
- * so you can fill the buffer with new values or go back to pseuedo-random
+ * so you can fill the buffer with new values or go back to pseudo-random
  * number generation.
  */
 trait TestRandom extends Random {
   val random: TestRandom.Service[Any]
 }
 
-object TestRandom {
+object TestRandom extends Serializable {
 
   trait Service[R] extends Random.Service[R] {
     def clearBooleans: UIO[Unit]
@@ -212,7 +212,7 @@ object TestRandom {
       randomBits(1).map(_ != 0)
 
     private def randomBytes(length: Int): UIO[Chunk[Byte]] = {
-      //  Our RNG generates 32 bit integers so to maximize efficieny we want to
+      //  Our RNG generates 32 bit integers so to maximize efficiency we want to
       //  pull 8 bit bytes from the current integer until it is exhausted
       //  before generating another random integer
       def loop(i: Int, rnd: UIO[Int], n: Int, acc: UIO[List[Byte]]): UIO[List[Byte]] =

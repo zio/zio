@@ -10,14 +10,14 @@ However in larger applications there is a need for intermediate layers that dele
 
 For example, in a HTTP server the first layer of indirection are so called _routes_, whose job is to match the request and delegate the processing to
 downstream layers. Often below there is a second layer of indirection, so called _controllers_, which consist of several business logic units grouped
-by their domain. In a RESTful API that would be all operations on a certain model. The _controller_ to perform its job might call on futher
+by their domain. In a RESTful API that would be all operations on a certain model. The _controller_ to perform its job might call on further
 specialized services for communicating with the database, sending emails, logging, et cetera.
 
 If the job of the _capability_ is to call on another _capability_, how should we test it?
 
 ## Hidden outputs
 
-A pure function is such a function which operates only on its inputs and produces only its output. Command-like methods, by definition are inpure, as
+A pure function is such a function which operates only on its inputs and produces only its output. Command-like methods, by definition are impure, as
 their job is to change state of the collaborating object (performing a _side effect_). For example:
 
 ```scala mdoc:invisible
@@ -26,7 +26,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 trait Event
 ```
 
-```scala mdoc
+```scala mdoc:silent
 import scala.concurrent.Future
 
 def processEvent(event: Event): Future[Unit] = Future(println(s"Got $event"))
@@ -42,18 +42,16 @@ Inside the future there may be happening any side effects. It may open a file, p
 have a look how this problem would be solved using ZIO's effect system:
 
 ```scala mdoc:invisible:reset
-import zio._
-
 trait Event
 ```
 
-```scala mdoc:fail
+```scala mdoc:silent
 import zio._
 import zio.test.environment.TestConsole
 
 def processEvent(event: Event): ZIO[TestConsole, Nothing, Unit] =
   for {
-    console <- ZIO.environment[TestConsole]
+    console <- ZIO.environment[TestConsole].map(_.console)
     _       <- console.putStrLn(s"Got $event")
   } yield ()
 ```
@@ -67,12 +65,12 @@ so even though we still have `Unit` as the result, we have narrowed the possible
 
 However, the same method could be implemented as:
 
-```
+```scala mdoc:silent
 def processEvent2(event: Event): ZIO[TestConsole, Nothing, Unit] =
   ZIO.unit
 ```
 
-How can we test it did exacly what we expected it to do?
+How can we test it did exactly what we expected it to do?
 
 ## Mocking
 
@@ -92,7 +90,7 @@ helpers (within `>` object) in the service companion object:
 trait AccountEvent
 ```
 
-```scala mdoc:fail:silent
+```scala mdoc:silent
 import zio.test.mock._
 
 trait AccountObserver {
@@ -105,7 +103,7 @@ object AccountObserver {
   }
 
   object Service {
-    object processEvent extends Method[AccountEvent, Unit]
+    object processEvent extends Method[AccountObserver, AccountEvent, Unit]
   }
 
   object > extends Service[AccountObserver] {
@@ -115,38 +113,43 @@ object AccountObserver {
 }
 ```
 
-A _capability tag_ is just a value which extends the `zio.test.mock.Method[A, B]` type constructor, where:
-- `A` is the type of methods input arguments
-- `B` is the return type of method
+A _capability tag_ is just a value which extends the `zio.test.mock.Method[M, I, A]` type constructor, where:
+- `M` is the type of module the method applies to
+- `I` is the type of methods input arguments
+- `A` is the return type of method
 
 We model input arguments according to following scheme:
 - for zero arguments the type is `Unit`
 - for one or more arguments, regardless in how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
 
-```scala mdoc:fail:silent
-trait ExampleService[R] {
-  val static                                 : ZIO[R, Nothing, String]
-  def zeroArgs                               : ZIO[R, Nothing, Int]
-  def zeroArgsWithParens()                   : ZIO[R, Nothing, Long]
-  def singleArg(arg1: Int)                   : ZIO[R, Nothing, String]
-  def multiArgs(arg1: Int, arg2: Long)       : ZIO[R, Nothing, String]
-  def multiParamLists(arg1: Int)(arg2: Long) : ZIO[R, Nothing, String]
-  def command(arg1: Int)                     : ZIO[R, Nothing, Unit]
-  def overloaded(arg1: Int)                  : ZIO[R, Nothing, String]
-  def overloaded(arg1: Long)                 : ZIO[R, Nothing, String]
+```scala mdoc:silent
+trait ExampleService {
+  val exampleService: ExampleService.Service[Any]
 }
 
 object ExampleService {
-  object static             extends Method[Unit, String]
-  object zeroArgs           extends Method[Unit, Int]
-  object zeroArgsWithParens extends Method[Unit, Long]
-  object singleArg          extends Method[Int, String]
-  object multiArgs          extends Method[(Int, Long), String]
-  object multiParamLists    extends Method[(Int, Long), String]
-  object command            extends Method[Int, Unit]
+  trait Service[R] {
+    val static                                 : ZIO[R, Nothing, String]
+    def zeroArgs                               : ZIO[R, Nothing, Int]
+    def zeroArgsWithParens()                   : ZIO[R, Nothing, Long]
+    def singleArg(arg1: Int)                   : ZIO[R, Nothing, String]
+    def multiArgs(arg1: Int, arg2: Long)       : ZIO[R, Nothing, String]
+    def multiParamLists(arg1: Int)(arg2: Long) : ZIO[R, Nothing, String]
+    def command(arg1: Int)                     : ZIO[R, Nothing, Unit]
+    def overloaded(arg1: Int)                  : ZIO[R, Nothing, String]
+    def overloaded(arg1: Long)                 : ZIO[R, Nothing, String]
+  }
+
+  object static             extends Method[ExampleService, Unit, String]
+  object zeroArgs           extends Method[ExampleService, Unit, Int]
+  object zeroArgsWithParens extends Method[ExampleService, Unit, Long]
+  object singleArg          extends Method[ExampleService, Int, String]
+  object multiArgs          extends Method[ExampleService, (Int, Long), String]
+  object multiParamLists    extends Method[ExampleService, (Int, Long), String]
+  object command            extends Method[ExampleService, Int, Unit]
   object overloaded {
-    object _1 extends Method[Int, String]
-    object _2 extends Method[Long, String]
+    object _1 extends Method[ExampleService, Int, String]
+    object _2 extends Method[ExampleService, Long, String]
   }
 }
 ```
@@ -157,7 +160,7 @@ For overloaded methods we simply nest a list of numbered objects, each represent
 
 Next, we create the mockable implementation of the service:
 
-```scala mdoc:fail:silent
+```scala mdoc:silent
 implicit val mockable: Mockable[AccountObserver] = (mock: Mock) =>
   new AccountObserver {
     val accountObserver = new AccountObserver.Service[Any] {
@@ -170,15 +173,14 @@ implicit val mockable: Mockable[AccountObserver] = (mock: Mock) =>
 
 ## Scrapping the boilerplate
 
-All of this machinery is repetitive and boring work, prone to simple mistakes. Using the `@accessable` and `@mockable` macros provided by
+All of this machinery is repetitive and boring work, prone to simple mistakes. Using the `@accessible` and `@mockable` macros provided by
 [zio-macros][link-zio-macros] we get the _capability tags_, _access helper_ and _mockable implementation_ autogenerated for us:
 
-```scala mdoc:fail:silent
-import zio.macros.access.accessable
-import zio.macros.mock.mockable
+```scala
+import zio.macros.annotation.{ accessible, mockable }
 import zio.console.Console
 
-@accessable
+@accessible(">")
 @mockable
 trait AccountObserver {
   val accountObserver: AccountObserver.Service[Any]
@@ -193,6 +195,11 @@ object AccountObserver {
   // autogenerated `object > extends Service[AccountObserver] { ... }`
   // autogenerated `implicit val mockable: Mockable[AccountObserver] = ...`
 }
+```
+
+Next we create the live version of the service with the implementation of the capabilities
+``` scala mdoc
+import zio.console.Console
 
 trait AccountObserverLive extends AccountObserver {
   // dependency on Console module
@@ -221,24 +228,25 @@ For each built-in ZIO service you will find their mockable counterparts in `zio.
 
 Finally we're all set and can create ad-hoc mock environments with our services.
 
-```scala mdoc:fail:silent
+```scala mdoc:silent
 import zio.test._
 import zio.test.Assertion._
+import zio.test.mock.Expectation._
 
 val event = new AccountEvent {}
-val app = AccountObserver.>.processEvent(event)
+val app: ZIO[AccountObserver, Nothing, Unit] = AccountObserver.>.processEvent(event)
 val mockEnv: Managed[Nothing, MockConsole] = (
-  MockSpec.expectIn(MockConsole.Service.putStrLn)(equalTo(s"Got $event")) *>
-  MockSpec.expectOut(MockConsole.Service.getStrLn)("42") *>
-  MockSpec.expectIn(MockConsole.Service.putStrLn)(equalTo("You entered: 42"))
+  (MockConsole.putStrLn(equalTo(s"Got $event")) returns unit) *>
+  (MockConsole.getStrLn returns value("42")) *>
+  (MockConsole.putStrLn(equalTo("You entered: 42")) returns unit)
 )
 ```
 
 ## Providing mocked environment
 
-```scala mdoc:fail:silent
-object AccountObserverSpec extends DefaultRunnableSpec(
-  suite("processEvent")(
+```scala mdoc
+object AccountObserverSpec extends DefaultRunnableSpec {
+  def spec = suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
       val result = app.provideManaged(mockEnv.map { mockConsole =>
         new AccountObserverLive with Console {
@@ -248,26 +256,26 @@ object AccountObserverSpec extends DefaultRunnableSpec(
       assertM(result, isUnit)
     }
   )
-)
+}
 ```
 
 ## Mocking multiple collaborators
 
-In some cases we have more than one collaborating service being called. In such situations we need to build our expectations seperately for each
+In some cases we have more than one collaborating service being called. In such situations we need to build our expectations separately for each
 service and then combine them into single environment:
 
-```scala mdoc:fail:silent
+```scala mdoc:silent
 import zio.console.Console
 import zio.random.Random
 
 val mockConsole: Managed[Nothing, MockConsole] = (
-  MockSpec.expectIn(MockConsole.Service.putStrLn)(equalTo("What is your name?")) *>
-  MockSpec.expectOut(MockConsole.Service.getStrLn)("Mike") *>
-  MockSpec.expectIn(MockConsole.Service.putStrLn)("Mike, your lucky number today is 42!")
+  (MockConsole.putStrLn(equalTo("What is your name?")) returns unit) *>
+  (MockConsole.getStrLn returns value("Mike")) *>
+  (MockConsole.putStrLn(equalTo("Mike, your lucky number today is 42!")) returns unit)
 )
 
 val mockRandom: Managed[Nothing, MockRandom] =
-  MockSpec.expectOut(MockRandom.Service.nextInt._1)(42)
+  MockRandom.nextInt._1 returns value(42)
 
 val combinedEnv: Managed[Nothing, Console with Random] =
   (mockConsole &&& mockRandom)

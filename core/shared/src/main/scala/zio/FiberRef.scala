@@ -45,7 +45,8 @@ package zio
  * @param initial
  * @tparam A
  */
-final class FiberRef[A](private[zio] val initial: A, private[zio] val combine: (A, A) => A) extends Serializable {
+final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] val combine: (A, A) => A)
+    extends Serializable { self =>
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
@@ -103,6 +104,49 @@ final class FiberRef[A](private[zio] val initial: A, private[zio] val combine: (
     (result, result)
   }
 
+  /**
+   * Returns a `ThreadLocal` that can be used to interact with this `FiberRef` from side effecting code.
+   *
+   * This feature is meant to be used for integration with side effecting code, that needs to access fiber specific data,
+   * like MDC contexts and the like. The returned `ThreadLocal` will be backed by this `FiberRef` on all threads that are
+   * currently managed by ZIO, and behave like an ordinary `ThreadLocal` on all other threads.
+   */
+  final def unsafeAsThreadLocal: UIO[ThreadLocal[A]] =
+    ZIO.effectTotal {
+      new ThreadLocal[A] {
+        override def get(): A = {
+          val fiberContext = Fiber._currentFiber.get()
+
+          Option {
+            if (fiberContext eq null) null
+            else fiberContext.fiberRefLocals.get(self)
+          }.map(_.asInstanceOf[A]).getOrElse(super.get())
+        }
+
+        override def set(a: A): Unit = {
+          val fiberContext = Fiber._currentFiber.get()
+          val fiberRef     = self.asInstanceOf[FiberRef[Any]]
+
+          if (fiberContext eq null) super.set(a)
+          else fiberContext.fiberRefLocals.put(fiberRef, a)
+
+          ()
+        }
+
+        override def remove(): Unit = {
+          val fiberContext = Fiber._currentFiber.get()
+          val fiberRef     = self.asInstanceOf[FiberRef[Any]]
+
+          if (fiberContext eq null) super.remove()
+          else {
+            fiberContext.fiberRefLocals.remove(fiberRef)
+            ()
+          }
+        }
+
+        override def initialValue(): A = initial
+      }
+    }
 }
 
 object FiberRef extends Serializable {

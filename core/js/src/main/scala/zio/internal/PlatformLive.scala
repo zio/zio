@@ -16,8 +16,6 @@
 
 package zio.internal
 
-import java.util.{ HashMap, Map => JMap }
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.global
 import zio.Cause
@@ -41,12 +39,9 @@ object PlatformLive {
         throw t
       }
 
-      def reportFailure(cause: Cause[_]): Unit =
-        if (!cause.interrupted)
+      def reportFailure(cause: Cause[Any]): Unit =
+        if (cause.died)
           println(cause.prettyPrint)
-
-      def newWeakHashMap[A, B](): JMap[A, B] =
-        new HashMap[A, B]()
 
       val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
     }

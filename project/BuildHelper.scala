@@ -56,7 +56,7 @@ object BuildHelper {
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.19.0-RC1",
+    crossScalaVersions += "0.20.0-RC1",
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")
@@ -80,7 +80,7 @@ object BuildHelper {
        |import zio.duration._
        |object replRTS extends DefaultRuntime {}
        |import replRTS._
-       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -91,7 +91,7 @@ object BuildHelper {
        |import zio.stream._
        |object replRTS extends DefaultRuntime {}
        |import replRTS._
-       |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -121,7 +121,9 @@ object BuildHelper {
           "-Xignore-scala2-macros"
         )
       case Some((2, 13)) =>
-        std2xOptions ++ optimizerOptions(optimize)
+        Seq(
+          "-Ywarn-unused:params,-implicits"
+        ) ++ std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -134,6 +136,7 @@ object BuildHelper {
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit",
+          "-Ywarn-unused:params,-implicits",
           "-Xfuture",
           "-Xsource:2.13",
           "-Xmax-classfile-name",
@@ -182,14 +185,16 @@ object BuildHelper {
         case Some((2, x)) if x <= 11 =>
           Seq(
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11"))
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
           ).flatten
         case Some((2, x)) if x >= 12 =>
           Seq(
             Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
             Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
           ).flatten
         case _ =>
           if (isDotty.value)
@@ -197,7 +202,8 @@ object BuildHelper {
               Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
               Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-dotty"))
             ).flatten
           else
             Nil
@@ -206,18 +212,41 @@ object BuildHelper {
     Test / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
-          Seq(file(sourceDirectory.value.getPath + "/test/scala-2.11"))
+          Seq(
+            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.11")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
+          ).flatten
         case Some((2, x)) if x >= 12 =>
           Seq(
-            file(sourceDirectory.value.getPath + "/test/scala-2.12"),
-            file(sourceDirectory.value.getPath + "/test/scala-2.12+")
-          )
+            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12")),
+            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
+          ).flatten
         case _ =>
           if (isDotty.value)
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
-              Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+"))
+            Seq(
+              Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-dotty"))
+            ).flatten
           else
             Nil
+      }
+    }
+  )
+
+  def macroSettings = Seq(
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 13)) => Seq("-Ymacro-annotations")
+        case _             => Seq.empty
+      }
+    },
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 12 =>
+          Seq(compilerPlugin(("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)))
+        case _ => Seq.empty
       }
     }
   )
@@ -230,7 +259,7 @@ object BuildHelper {
     def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
 
     s"""|${header(" ________ ___")}
-        |${header("|__  /_ _/ _ \\")} 
+        |${header("|__  /_ _/ _ \\")}
         |${header("  / / | | | | |")}
         |${header(" / /_ | | |_| |")}
         |${header(s"/____|___\\___/   ${version.value}")}
@@ -240,7 +269,9 @@ object BuildHelper {
         |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
         |${item("testJVM")} - Runs all JVM tests
         |${item("testJS")} - Runs all ScalaJS tests
-        |${item("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")} - Only runs tests with matching term
+        |${item("testOnly *.YourSpec -- -t \"YourLabel\"")} - Only runs tests with matching term e.g. ${item(
+         "coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\""
+       )}
         |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
       """.stripMargin
   }

@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
-import zio.test.TestRuntime
+import zio.test.RandomExecutor
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -16,19 +16,19 @@ class TestRuntimeBenchmark {
 
   @Benchmark
   def runInDefaultRuntime(): Int =
-    unsafeRun(io.repeat(ZSchedule.recurs(100)))
+    unsafeRun(io.repeat(Schedule.recurs(100)))
 
   @Benchmark
   def analyseInDefaultRuntime(): Unit =
-    unsafeRun(TestRuntime.analyse(io).sample.forever.take(100).runDrain)
+    unsafeRun(RandomExecutor.paths(io).forever.take(100).runDrain)
 
   @Benchmark
   def runInSyncRuntime(): Int =
-    SyncRuntime.unsafeRun(io.repeat(ZSchedule.recurs(100)))
+    SyncRuntime.unsafeRun(io.repeat(Schedule.recurs(100)))
 
   @Benchmark
   def analyseInSyncRuntime(): Unit =
-    SyncRuntime.unsafeRun(TestRuntime.analyse(io).sample.forever.take(100).runDrain)
+    SyncRuntime.unsafeRun(RandomExecutor.paths(io).forever.take(100).runDrain)
 
   val io: ZIO[Any, Nothing, Int] = for {
     queue  <- Queue.bounded[Int](totalSize)

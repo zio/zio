@@ -26,9 +26,9 @@ As shown in the previous example, a `Managed` can be created by passing an `acqu
 It can also be created from an effect. In this case the release function will do nothing.
 ```scala mdoc:silent
 import zio._
-def acquire: IO[String, Int] = IO.effect(???).refineToOrDie[String]
+def acquire: IO[Throwable, Int] = IO.effect(???)
 
-val managedFromEffect: Managed[String, Int] = Managed.fromEffect(acquire)
+val managedFromEffect: Managed[Throwable, Int] = Managed.fromEffect(acquire)
 ```
 
 You can create a `Managed` from a pure value as well.

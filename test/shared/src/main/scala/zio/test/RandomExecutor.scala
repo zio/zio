@@ -1,11 +1,11 @@
 package zio.test
 
-import zio.Exit
-import zio.UIO
-import zio.ZIO
+import java.util.concurrent.atomic.AtomicReference
+
 import zio.internal.Executor
 import zio.stream.ZStream
-import java.util.concurrent.atomic.AtomicReference
+import zio.{ Exit, UIO, ZIO }
+
 import scala.annotation.tailrec
 
 object RandomExecutor {
@@ -22,9 +22,10 @@ object RandomExecutor {
     ZStream.repeatEffect(singleRun)
   }
 
-  def run[R, E, A](zio: ZIO[R, E, A]) =
+  def run[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Nothing, Exit[E, A]] =
     makeRandomExecutor.flatMap(yieldingEffects(zio).lock(_).run)
 
+  /** An single threaded executor which resumes a random fiber after each yield  */
   private val makeRandomExecutor: UIO[Executor] =
     ZIO.effectTotal {
       new Executor {
@@ -32,9 +33,9 @@ object RandomExecutor {
 
         val state = new AtomicReference(ExecutorState(Vector.empty, false))
 
-        override def here         = true
-        override def metrics      = None
-        override def yieldOpCount = Int.MaxValue
+        override def here              = true
+        override def metrics           = None
+        override def yieldOpCount: Int = Int.MaxValue
         override def submit(runnable: Runnable): Boolean = {
           val isAllreadyRunning: Boolean =
             addToPendingAndReturnOldState(runnable).isRunning
@@ -88,6 +89,7 @@ object RandomExecutor {
       }
     }
 
+  /** Inserts yields before every effect */
   private def yieldingEffects[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio match {
       // Introduce yields before every effect to be catched by the neverYieldingExecutor
@@ -98,48 +100,63 @@ object RandomExecutor {
 
       // TODO: Handle this effects too
       case suspend: ZIO.EffectSuspendTotalWith[R, E, A] =>
-        new ZIO.EffectSuspendTotalWith(p => yieldingEffects(suspend.f(p)))
+        new ZIO.EffectSuspendTotalWith(yieldingEffectsF2(suspend.f))
       case suspend: ZIO.EffectSuspendPartialWith[R, A] =>
-        new ZIO.EffectSuspendPartialWith(p => yieldingEffects(suspend.f(p)))
+        new ZIO.EffectSuspendPartialWith(yieldingEffectsF2(suspend.f))
 
-      // Don't allow to change executor
-      case lock: ZIO.Lock[R, E, A] => new ZIO.Lock(lock.executor, yieldingEffects(lock.zio))
       // Drop other yields
       case ZIO.Yield => ZIO.unit
-      // Recursively apply the rewrite
+      // Recursively apply the rewrite of yielding effects
+      case lock: ZIO.Lock[R, E, A] =>
+        new ZIO.Lock(lock.executor, yieldingEffects(lock.zio))
       case value: ZIO.Succeed[A] => value
       case fork: ZIO.Fork[R, _, _] =>
         new ZIO.Fork(yieldingEffects(fork.value))
-      case value: ZIO.FlatMap[R, E, _, A] =>
-        yieldingEffects(value.zio).flatMap(x => yieldingEffects(value.k(x)))
-      case value: ZIO.CheckInterrupt[R, E, A] =>
-        new ZIO.CheckInterrupt[R, E, A](value.k.andThen(yieldingEffects))
+      case flatMap: ZIO.FlatMap[R, E, _, A] =>
+        yieldingEffects(flatMap.zio).flatMap(yieldingEffectsF1(flatMap.k))
+      case interrupt: ZIO.CheckInterrupt[R, E, A] =>
+        new ZIO.CheckInterrupt[R, E, A](yieldingEffectsF1(interrupt.k))
       case value: ZIO.InterruptStatus[R, E, A] =>
         new ZIO.InterruptStatus[R, E, A](yieldingEffects(value.zio), value.flag)
-      case status: ZIO.SuperviseStatus[R, E, A] =>
-        new ZIO.SuperviseStatus(yieldingEffects(status.value), status.status)
       case fail: ZIO.Fail[E, A]       => fail
       case d: ZIO.Descriptor[R, E, A] => d
       case fold: ZIO.Fold[_, _, _, _, _] =>
         new ZIO.Fold(
-          yieldingEffects(fold.value),
-          fold.failure.andThen(yieldingEffects),
-          fold.success.andThen(yieldingEffects)
+          value = yieldingEffects(fold.value),
+          failure = yieldingEffectsF1(fold.failure),
+          success = yieldingEffectsF1(fold.success)
         )
       case provide: ZIO.Provide[_, E, A] =>
         yieldingEffects(provide.next).provide(provide.r)
       case read: ZIO.Read[R, E, A] =>
-        ZIO.accessM(read.k.andThen(yieldingEffects))
+        ZIO.accessM(yieldingEffectsF1(read.k))
       case newFib: ZIO.FiberRefNew[_] =>
         newFib
       case modify: ZIO.FiberRefModify[_, A] =>
         modify
-      case ZIO.Trace =>
-        ZIO.Trace
+      case trace @ ZIO.Trace =>
+        trace
       case status: ZIO.TracingStatus[R, E, A] =>
         new ZIO.TracingStatus(yieldingEffects(status.zio), status.flag)
       case check: ZIO.CheckTracing[R, E, A] =>
         new ZIO.CheckTracing(t => yieldingEffects(check.k(t)))
+      case race: ZIO.RaceWith[R, _, _, E, _, _, A] =>
+        new ZIO.RaceWith(
+          left = yieldingEffects(race.left),
+          right = yieldingEffects(race.right),
+          leftWins = yieldingEffectsF2(race.leftWins),
+          rightWins = yieldingEffectsF2(race.rightWins)
+        )
+      case daemon: ZIO.DaemonStatus[R, E, A] =>
+        new ZIO.DaemonStatus[R, E, A](yieldingEffects(daemon.zio), daemon.flag)
+      case daemon: ZIO.CheckDaemon[R, E, A] =>
+        new ZIO.CheckDaemon[R, E, A](yieldingEffectsF1(daemon.k))
     }
+
+  private def yieldingEffectsF1[P, R, E, A](f: P => ZIO[R, E, A]): P => ZIO[R, E, A] =
+    p => yieldingEffects(f(p))
+
+  private def yieldingEffectsF2[P1, P2, R, E, A](f: (P1, P2) => ZIO[R, E, A]): (P1, P2) => ZIO[R, E, A] =
+    (p1: P1, p2: P2) => yieldingEffects(f(p1, p2))
 
 }

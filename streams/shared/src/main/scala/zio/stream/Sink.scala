@@ -20,7 +20,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 
-object Sink {
+object Sink extends Serializable {
 
   /**
    * see [[ZSink.await]]
@@ -93,6 +93,18 @@ object Sink {
    */
   final def drain: Sink[Nothing, Nothing, Any, Unit] =
     ZSink.drain
+
+  /**
+   * see [[ZSink.head]]
+   */
+  final def head[A]: Sink[Nothing, A, A, Option[A]] =
+    ZSink.head
+
+  /**
+   * see [[ZSink.last]]
+   */
+  final def last[A]: Sink[Nothing, Nothing, A, Option[A]] =
+    ZSink.last
 
   /**
    * see [[ZSink.fail]]
@@ -192,6 +204,12 @@ object Sink {
     ZSink.fromFunction(f)
 
   /**
+   * see [[ZSink.fromFunctionM]]
+   */
+  final def fromFunctionM[E, A, B](f: A => ZIO[Any, E, B]): Sink[Option[E], Nothing, A, B] =
+    ZSink.fromFunctionM(f)
+
+  /**
    * see [[ZSink.halt]]
    */
   final def halt[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
@@ -276,12 +294,6 @@ object Sink {
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, A]] =
     ZSink.throttleShapeM[Any, E, A](units, duration, burst)(costFn)
-
-  /**
-   * see [[ZSink.utf8Decode]]
-   */
-  final def utf8Decode(bufferSize: Int = ZStreamChunk.DefaultChunkSize): Sink[Nothing, Byte, Byte, String] =
-    ZSink.utf8Decode(bufferSize)
 
   /**
    * see [[ZSink.utf8DecodeChunk]]

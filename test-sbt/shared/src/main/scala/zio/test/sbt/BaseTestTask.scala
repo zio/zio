@@ -24,11 +24,15 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler, loggers: Array[Logger]) =
     for {
-      spec <- args.testSearchTerm
-               .fold(spec.run)(
-                 s => spec.runner.run(spec.spec.filterTestLabels(_.toString.contains(s)).getOrElse(spec.spec))
-               )
-               .provide(new SbtTestLogger(loggers) with Clock.Live)
+      spec <- (args.testSearchTerms match {
+               case Nil => spec.run
+               case searchTerms =>
+                 spec.runner.run {
+                   spec.spec.filterLabels { label =>
+                     searchTerms.exists(term => label.toString.contains(term))
+                   }.getOrElse(spec.spec)
+                 }
+             }).provide(new SbtTestLogger(loggers) with Clock.Live)
       summary <- SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.run(summary)
       events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
@@ -46,7 +50,7 @@ abstract class BaseTestTask(
 class SbtTestLogger(loggers: Array[Logger]) extends TestLogger {
   override def testLogger: TestLogger.Service = (line: String) => {
     ZIO
-      .effect(loggers.foreach(_.info(line)))
+      .effect(loggers.foreach(_.info(colored(line))))
       .catchAll(_ => ZIO.unit)
   }
 }
