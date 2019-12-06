@@ -406,6 +406,13 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         fin <- queue.isShutdown
       } yield assert(fin, isTrue) && assert(pulls, equalTo(List(Right(1), Right(2))))
     },
+    testM("Stream.halt is safe to pull again if failing with a checked error") {
+      Stream
+        .halt(Cause.fail("Ouch"))
+        .process
+        .use(nPulls(_, 3))
+        .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+    },
     suite("Stream.managed")(
       testM("is safe to pull again after success") {
         for {
