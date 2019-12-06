@@ -89,7 +89,7 @@ object FiberSpec extends ZIOBaseSpec {
       testM("`await`a short time for a Future before it completes, should interrupt the Future") {
         assertM(
           Fiber
-            .fromFuture(scala.concurrent.Future(println("go"))(concurrent.ExecutionContext.global))
+            .fromFuture(scala.concurrent.Future.successful(println("go")))
             .await(1.nanos)
             .provide(Clock.Live),
           isInterrupted
