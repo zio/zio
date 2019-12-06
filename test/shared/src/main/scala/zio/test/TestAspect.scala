@@ -90,6 +90,9 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS] { self =>
     self >>> that
 }
 object TestAspect extends TimeoutVariants {
+  type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
+  type TestAspectTE =
+    TestAspect[Nothing, ZTestEnv, Nothing, Any, Nothing, Any]
 
   /**
    * An aspect that returns the tests unchanged
@@ -125,16 +128,8 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Constructs an aspect that evaluates every test inside the context of a `Managed`.
-   */
-  def around[R0, E0](
-    before: ZIO[R0, E0, Any],
-    after: ZIO[R0, Nothing, Any]
-  ): PerTest[Nothing, R0, E0, Any, Nothing, Any] = around(before)(_ => after)
-
-  /**
-   * Constructs an aspect that evaluates every test inside the context of a `Managed` where the result of `before` can
-   * be used in `after`.
+   * Constructs an aspect that evaluates every test is evaluated between two effects, `before` and `after`,
+   * where the result of `before` can be used in `after`.
    */
   def around[R0, E0, A0](
     before: ZIO[R0, E0, A0]
@@ -148,6 +143,14 @@ object TestAspect extends TimeoutVariants {
           .catchAllCause(c => ZManaged.fail(TestFailure.Runtime(c)))
           .use(_ => test)
     }
+
+  /**
+   * A less powerful variant of `around` where the result of `before` is not required by after.
+   */
+  def around_[R0, E0](
+    before: ZIO[R0, E0, Any],
+    after: ZIO[R0, Nothing, Any]
+  ): PerTest[Nothing, R0, E0, Any, Nothing, Any] = around(before)(_ => after)
 
   /**
    * Constructs an aspect that evaluates every test inside the context of the managed function.
@@ -204,8 +207,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that retries a test until success, without limit.
    */
-  val eventually
-    : TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] = {
+  val eventually: TestAspectTE = {
     val eventually = new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
@@ -287,8 +289,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky
-    : TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] =
+  val flaky: TestAspectTE =
     flaky(100)
 
   /**
@@ -297,7 +298,7 @@ object TestAspect extends TimeoutVariants {
    */
   def flaky(
     n: Int
-  ): TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] =
+  ): TestAspectTE =
     retry(Schedule.recurs(n))
 
   /**
@@ -403,8 +404,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky
-    : TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] =
+  val nonFlaky: TestAspectTE =
     nonFlaky(100)
 
   /**
@@ -413,7 +413,7 @@ object TestAspect extends TimeoutVariants {
    */
   def nonFlaky(
     n: Int
-  ): TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] = {
+  ): TestAspectTE = {
     val nonFlaky = new TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any] {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
@@ -450,39 +450,38 @@ object TestAspect extends TimeoutVariants {
    * An aspect that restores the [[TestClock]]'s state to its starting state after the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestClock = restore[TestClock](_.clock)
+  def restoreTestClock: TestAspect[Nothing, TestClock, Nothing, Any, Nothing, Any] = restore[TestClock](_.clock)
 
   /**
    * An aspect that restores the [[TestConsole]]'s state to its starting state after the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestConsole = restore[TestConsole](_.console)
+  def restoreTestConsole: TestAspect[Nothing, TestConsole, Nothing, Any, Nothing, Any] = restore[TestConsole](_.console)
 
   /**
    * An aspect that restores the [[TestRandom]]'s state to its starting state after the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestRandom = restore[TestRandom](_.random)
+  def restoreTestRandom: TestAspect[Nothing, TestRandom, Nothing, Any, Nothing, Any] = restore[TestRandom](_.random)
 
   /**
    * An aspect that restores the [[TestSystem]]'s state to its starting state after the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestSystem = restore[TestSystem](_.system)
+  def restoreTestSystem: TestAspect[Nothing, TestSystem, Nothing, Any, Nothing, Any] = restore[TestSystem](_.system)
 
   /**
    * An aspect that restores all state in the standard provided test environments
    * ([[TestClock]], [[TestConsole]], [[TestRandom]] and [[TestSystem]]) to their starting state after the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestEnvironment
-    : TestAspect[Nothing, TestClock with TestConsole with TestRandom with TestSystem, Nothing, Any, Nothing, Any] =
+  def restoreTestEnvironment: TestAspectTE =
     restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
    * An aspect that retries failed tests according to a schedule.
    */
-  def retry[R0 <: TestClock with TestConsole with TestRandom with TestSystem, E0, S0](
+  def retry[R0 <: ZTestEnv, E0, S0](
     schedule: Schedule[R0, TestFailure[E0], S0]
   ): TestAspect[Nothing, R0, Nothing, E0, Nothing, Any] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, Any] {

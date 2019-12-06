@@ -17,7 +17,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         ref <- Ref.make(0)
         spec = testM("test") {
           assertM(ref.get, equalTo(1))
-        } @@ around(ref.set(1), ref.set(-1))
+        } @@ around_(ref.set(1), ref.set(-1))
         result <- isSuccess(spec)
         after  <- ref.get
       } yield {
