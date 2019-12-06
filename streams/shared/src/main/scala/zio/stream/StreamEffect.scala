@@ -17,6 +17,7 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream }
+import java.{ util => ju }
 
 import zio._
 
@@ -366,6 +367,13 @@ private[stream] object StreamEffect extends Serializable {
     }
 
   final def fromIterator[A](iterator: Iterator[A]): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
+      Managed.effectTotal { () =>
+        if (iterator.hasNext) iterator.next() else end
+      }
+    }
+
+  final def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal { () =>
         if (iterator.hasNext) iterator.next() else end

@@ -17,6 +17,7 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream }
+import java.{ util => ju }
 
 import com.github.ghik.silencer.silent
 import zio._
@@ -3049,10 +3050,34 @@ object ZStream extends Serializable {
     fromEffect(iterator).flatMap(StreamEffect.fromIterator)
 
   /**
-   * Creates a stream from an iterator
+   * Creates a stream from a Java iterator
+   */
+  final def fromJavaIterator[R, E, A](iterator: ZIO[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
+    fromEffect(iterator).flatMap(StreamEffect.fromJavaIterator)
+
+  /**
+   * Creates a stream from a managed iterator
    */
   final def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
     managed(iterator).flatMap(StreamEffect.fromIterator)
+
+  /**
+   * Creates a stream from a managed iterator
+   */
+  final def fromJavaIteratorManaged[R, E, A](iterator: ZManaged[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
+    managed(iterator).flatMap(StreamEffect.fromJavaIterator)
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  final def fromJavaStream[R, E, A](stream: ZIO[R, E, ju.stream.Stream[A]]): ZStream[R, E, A] =
+    fromJavaIterator(stream.flatMap(s => UIO(s.iterator())))
+
+  /**
+   * Creates a stream from a managed Java stream
+   */
+  final def fromJavaStreamManaged[R, E, A](stream: ZManaged[R, E, ju.stream.Stream[A]]): ZStream[R, E, A] =
+    fromJavaIteratorManaged(stream.mapM(s => UIO(s.iterator())))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
