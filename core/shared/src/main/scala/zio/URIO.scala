@@ -35,7 +35,7 @@ object URIO {
   /**
    * @see bracket in [[zio.ZIO]]
    */
-  final def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Throwable, A] =
+  final def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =
     ZIO.bracket(acquire)
 
   /**
@@ -58,7 +58,7 @@ object URIO {
    */
   final def bracketExit[R, A, B](
     acquire: URIO[R, A],
-    release: (A, Exit[Throwable, B]) => URIO[R, Any],
+    release: (A, Exit[Nothing, B]) => URIO[R, Any],
     use: A => URIO[R, B]
   ): URIO[R, B] = ZIO.bracketExit(acquire, release, use)
 
@@ -140,6 +140,12 @@ object URIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.daemonMask]]
+   */
+  final def daemonMask[R, A](k: ZIO.DaemonStatusRestore => URIO[R, A]): URIO[R, A] =
+    ZIO.daemonMask(k)
+
+  /**
    * @see [[zio.ZIO.descriptor]]
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
@@ -198,12 +204,13 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[R, A](rio: => URIO[R, A]): URIO[R, A] = new ZIO.EffectSuspendTotalWith(_ => rio)
+  final def effectSuspendTotal[R, A](rio: => URIO[R, A]): URIO[R, A] = ZIO.effectSuspendTotal(rio)
 
   /**
    * @see [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[R, A](p: Platform => URIO[R, A]): URIO[R, A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[R, A](p: (Platform, Fiber.Id) => URIO[R, A]): URIO[R, A] =
+    ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see [[zio.ZIO.effectTotal]]
@@ -368,6 +375,50 @@ object URIO {
   final def left[R, A](a: A): URIO[R, Either[A, Nothing]] = ZIO.left(a)
 
   /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[R, A, B, C](urio1: URIO[R, A], urio2: URIO[R, B])(f: (A, B) => C): URIO[R, C] =
+    ZIO.mapN(urio1, urio2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[R, A, B, C, D](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C])(
+    f: (A, B, C) => D
+  ): URIO[R, D] =
+    ZIO.mapN(urio1, urio2, urio3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapN]]
+   */
+  final def mapN[R, A, B, C, D, F](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C], urio4: URIO[R, D])(
+    f: (A, B, C, D) => F
+  ): URIO[R, F] =
+    ZIO.mapN(urio1, urio2, urio3, urio4)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[R, A, B, C](urio1: URIO[R, A], urio2: URIO[R, B])(f: (A, B) => C): URIO[R, C] =
+    ZIO.mapParN(urio1, urio2)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[R, A, B, C, D](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C])(
+    f: (A, B, C) => D
+  ): URIO[R, D] =
+    ZIO.mapParN(urio1, urio2, urio3)(f)
+
+  /**
+   *  @see [[zio.ZIO.mapParN]]
+   */
+  final def mapParN[R, A, B, C, D, F](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C], urio4: URIO[R, D])(
+    f: (A, B, C, D) => F
+  ): URIO[R, F] =
+    ZIO.mapParN(urio1, urio2, urio3, urio4)(f)
+
+  /**
    * @see [[zio.ZIO.mergeAll]]
    */
   final def mergeAll[R, A, B](in: Iterable[URIO[R, A]])(zero: B)(f: (B, A) => B): URIO[R, B] =
@@ -383,6 +434,12 @@ object URIO {
    * @see [[zio.ZIO.never]]
    */
   final val never: UIO[Nothing] = ZIO.never
+
+  /**
+   * @see See [[zio.ZIO.nonDaemonMask]]
+   */
+  final def nonDaemonMask[R, A](k: ZIO.DaemonStatusRestore => URIO[R, A]): URIO[R, A] =
+    ZIO.nonDaemonMask(k)
 
   /**
    * @see [[zio.ZIO.none]]

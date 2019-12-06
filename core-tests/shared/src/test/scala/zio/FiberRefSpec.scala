@@ -139,29 +139,29 @@ object FiberRefSpec extends ZIOBaseSpec {
       },
       testM("its value is inherited after a race with a bad winner") {
         for {
-          fiberRef   <- FiberRef.make(initial)
-          badWinner  = fiberRef.set(update1) *> ZIO.fail("ups")
-          goodLooser = fiberRef.set(update2) *> looseTimeAndCpu
-          _          <- badWinner.race(goodLooser)
-          value      <- fiberRef.get
+          fiberRef  <- FiberRef.make(initial)
+          badWinner = fiberRef.set(update1) *> ZIO.fail("ups")
+          goodLoser = fiberRef.set(update2) *> looseTimeAndCpu
+          _         <- badWinner.race(goodLoser)
+          value     <- fiberRef.get
         } yield assert(value, equalTo(update2))
       },
       testM("its value is not inherited after a race of losers") {
         for {
           fiberRef <- FiberRef.make(initial)
-          looser1  = fiberRef.set(update1) *> ZIO.fail("ups1")
-          looser2  = fiberRef.set(update2) *> ZIO.fail("ups2")
-          _        <- looser1.race(looser2).catchAll(_ => ZIO.unit)
+          loser1   = fiberRef.set(update1) *> ZIO.fail("ups1")
+          loser2   = fiberRef.set(update2) *> ZIO.fail("ups2")
+          _        <- loser1.race(loser2).catchAll(_ => ZIO.unit)
           value    <- fiberRef.get
         } yield assert(value, equalTo(initial))
       },
-      testM("the value of the looser is inherited in zipPar") {
+      testM("the value of the loser is inherited in zipPar") {
         for {
           fiberRef <- FiberRef.make(initial)
           latch    <- Promise.make[Nothing, Unit]
           winner   = fiberRef.set(update1) *> latch.succeed(()).unit
-          looser   = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
-          _        <- winner.zipPar(looser)
+          loser    = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
+          _        <- winner.zipPar(loser)
           value    <- fiberRef.get
         } yield assert(value, equalTo(update2))
       },
@@ -205,13 +205,13 @@ object FiberRefSpec extends ZIOBaseSpec {
 
           latch   <- Promise.make[Nothing, Unit]
           winner1 = fiberRef.set(update1) *> latch.succeed(())
-          looser1 = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
-          _       <- looser1.raceAll(List(winner1))
+          loser1  = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
+          _       <- loser1.raceAll(List(winner1))
           value1  <- fiberRef.get <* fiberRef.set(initial)
 
           winner2 = fiberRef.set(update1)
-          looser2 = fiberRef.set(update2) *> ZIO.fail(":-O")
-          _       <- looser2.raceAll(List(winner2))
+          loser2  = fiberRef.set(update2) *> ZIO.fail(":-O")
+          _       <- loser2.raceAll(List(winner2))
           value2  <- fiberRef.get <* fiberRef.set(initial)
         } yield assert((value1, value2), equalTo((update1, update1)))
       } @@ flaky,
@@ -220,25 +220,25 @@ object FiberRefSpec extends ZIOBaseSpec {
           fiberRef <- FiberRef.make(initial)
           n        = 63
 
-          latch    <- Promise.make[Nothing, Unit]
-          winner1  = fiberRef.set(update1) *> latch.succeed(())
-          looser1  = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
-          loosers1 = Iterable.fill(n)(looser1)
-          _        <- winner1.raceAll(loosers1)
-          value1   <- fiberRef.get <* fiberRef.set(initial)
+          latch   <- Promise.make[Nothing, Unit]
+          winner1 = fiberRef.set(update1) *> latch.succeed(())
+          loser1  = latch.await *> fiberRef.set(update2) *> looseTimeAndCpu
+          losers1 = Iterable.fill(n)(loser1)
+          _       <- winner1.raceAll(losers1)
+          value1  <- fiberRef.get <* fiberRef.set(initial)
 
-          winner2  = fiberRef.set(update1) *> looseTimeAndCpu
-          looser2  = fiberRef.set(update2) *> ZIO.fail("Nooooo")
-          loosers2 = Iterable.fill(n)(looser2)
-          _        <- winner2.raceAll(loosers2)
-          value2   <- fiberRef.get <* fiberRef.set(initial)
+          winner2 = fiberRef.set(update1) *> looseTimeAndCpu
+          loser2  = fiberRef.set(update2) *> ZIO.fail("Nooooo")
+          losers2 = Iterable.fill(n)(loser2)
+          _       <- winner2.raceAll(losers2)
+          value2  <- fiberRef.get <* fiberRef.set(initial)
         } yield assert((value1, value2), equalTo((update1, update1)))
       },
       testM("nothing gets inherited when racing failures with raceAll") {
         for {
           fiberRef <- FiberRef.make(initial)
-          looser   = fiberRef.set(update) *> ZIO.fail("darn")
-          _        <- looser.raceAll(Iterable.fill(63)(looser)).orElse(ZIO.unit)
+          loser    = fiberRef.set(update) *> ZIO.fail("darn")
+          _        <- loser.raceAll(Iterable.fill(63)(loser)).orElse(ZIO.unit)
           value    <- fiberRef.get
         } yield assert(value, equalTo(initial))
       },

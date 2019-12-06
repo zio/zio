@@ -46,7 +46,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         def cond: Int => Boolean = _ < 10
         checkRepeat(Schedule.doWhile(cond), expected = 10)
       },
-      testM("for 'doWhileM(cond)' repeats while the effectul cond still holds") {
+      testM("for 'doWhileM(cond)' repeats while the effectful cond still holds") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
         checkRepeat(Schedule.doWhileM(cond), expected = 1)
       },
@@ -68,19 +68,19 @@ object ScheduleSpec extends ZIOBaseSpec {
     suite("Collect all inputs into a list")(
       testM("as long as the condition f holds") {
         def cond: Int => Boolean = _ < 10
-        checkRepeat(Schedule.collectWhile(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        checkRepeat(Schedule.collectWhile(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9))
       },
       testM("as long as the effectful condition f holds") {
         def cond = (x: Int) => IO.succeed(x > 10)
-        checkRepeat(Schedule.collectWhileM(cond), expected = List(1))
+        checkRepeat(Schedule.collectWhileM(cond), expected = Nil)
       },
       testM("until the effectful condition f fails") {
-        def cond = (_: Int) < 10
+        def cond = (i: Int) => i < 10 && i > 1
         checkRepeat(Schedule.collectUntil(cond), expected = List(1))
       },
       testM("until the effectful condition f fails") {
         def cond = (x: Int) => IO.succeed(x > 10)
-        checkRepeat(Schedule.collectUntilM(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11))
+        checkRepeat(Schedule.collectUntilM(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
       }
     ),
     testM("Repeat on failure does not actually repeat") {

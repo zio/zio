@@ -35,6 +35,7 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
 )
+addCommandAlias("compileNative", ";coreNative/compile")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
@@ -166,7 +167,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .settings(
     scalacOptions += "-language:experimental.macros",
     libraryDependencies ++=
-      Seq("org.portable-scala" %%% "portable-scala-reflect" % "0.1.0") ++ {
+      Seq("org.portable-scala" %%% "portable-scala-reflect" % "0.1.1") ++ {
         if (isDotty.value) Seq()
         else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
       }
@@ -214,7 +215,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.0"
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.1"
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
@@ -264,8 +265,8 @@ lazy val benchmarks = project.module
         "com.twitter"              %% "util-collection" % "19.1.0",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.26",
         "io.monix"                 %% "monix"           % "3.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.3.0.RELEASE",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.14",
+        "io.projectreactor"        % "reactor-core"     % "3.3.1.RELEASE",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.15",
         "org.ow2.asm"              % "asm"              % "7.2",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
@@ -311,20 +312,21 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.3" % "provided",
-      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC6",
+      "dev.zio"             %% "zio-interop-cats"            % "2.0.0.0-RC10",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC6",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC7",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC2",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
-      "dev.zio"             %% "zio-macros-access"           % "0.4.0",
-      "dev.zio"             %% "zio-macros-mock"             % "0.4.0"
+      "dev.zio"             %% "zio-macros-core"             % "0.6.0",
+      "dev.zio"             %% "zio-macros-test"             % "0.6.0"
     )
   )
   .settings(macroSettings)
   .dependsOn(
     coreJVM,
-    streamsJVM
+    streamsJVM,
+    coreTestsJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)

@@ -92,7 +92,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     ZStreamChunk(chunks.catchAllCause(c => f(c).chunks))
 
   /**
-   * Chunks the stream with specifed chunkSize
+   * Chunks the stream with specified chunkSize
    *
    * @param chunkSize size of the chunk
    */
@@ -511,7 +511,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     provideSomeManaged(m)
 
   /**
-   * Provides some of the environment reuqired to run this effect,
+   * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
   final def provideSome[R0](env: R0 => R)(implicit ev: NeedsEnv[R]): ZStreamChunk[R0, E, A] =
@@ -663,6 +663,11 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     capacity: Int = 1
   ): ZIO[R1, E1, Z] =
     toQueue[E1, A1](capacity).use(f)
+
+  /**
+   * Threads the stream through the transformation function `f`.
+   */
+  final def via[R2, E2, B](f: ZStreamChunk[R, E, A] => ZStreamChunk[R2, E2, B]): ZStreamChunk[R2, E2, B] = f(self)
 
   /**
    * Zips this stream together with the index of elements of the stream across chunks.

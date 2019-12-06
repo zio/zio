@@ -45,7 +45,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.apply[R,E,A]*]]
    */
-  final def apply[E, A](pull: Managed[E, Pull[Any, E, A]]): Stream[E, A] = ZStream(pull)
+  final def apply[E, A](pull: Managed[Nothing, Pull[Any, E, A]]): Stream[E, A] = ZStream(pull)
 
   /**
    * See [[ZStream.bracket]]
@@ -58,6 +58,33 @@ object Stream extends Serializable {
    */
   final def bracketExit[E, A](acquire: IO[E, A])(release: (A, Exit[Any, Any]) => UIO[Any]): Stream[E, A] =
     ZStream.bracketExit(acquire)(release)
+
+  /**
+   *  @see [[zio.ZStream.crossN]]
+   */
+  final def crossN[E, A, B, C](stream1: Stream[E, A], stream2: Stream[E, B])(f: (A, B) => C): Stream[E, C] =
+    ZStream.crossN(stream1, stream2)(f)
+
+  /**
+   *  @see [[zio.ZStream.crossN]]
+   */
+  final def crossN[E, A, B, C, D](stream1: Stream[E, A], stream2: Stream[E, B], stream3: Stream[E, C])(
+    f: (A, B, C) => D
+  ): Stream[E, D] =
+    ZStream.crossN(stream1, stream2, stream3)(f)
+
+  /**
+   *  @see [[zio.ZStream.crossN]]
+   */
+  final def crossN[E, A, B, C, D, F](
+    stream1: Stream[E, A],
+    stream2: Stream[E, B],
+    stream3: Stream[E, C],
+    stream4: Stream[E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): Stream[E, F] =
+    ZStream.crossN(stream1, stream2, stream3, stream4)(f)
 
   /**
    * See [[ZStream.die]]
@@ -163,8 +190,14 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.paginate]]
    */
-  final def paginate[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
+  final def paginate[A, S](s: S)(f: S => (A, Option[S])): Stream[Nothing, A] =
     ZStream.paginate(s)(f)
+
+  /**
+   * See [[ZStream.paginateM]]
+   */
+  final def paginateM[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
+    ZStream.paginateM(s)(f)
 
   /**
    * See [[ZStream.repeatEffect]]
@@ -269,4 +302,32 @@ object Stream extends Serializable {
    */
   final def unwrapManaged[E, A](fa: Managed[E, ZStream[Any, E, A]]): Stream[E, A] =
     ZStream.unwrapManaged(fa)
+
+  /**
+   *  @see [[zio.ZStream.zipN]]
+   */
+  final def zipN[E, A, B, C](stream1: Stream[E, A], stream2: Stream[E, B])(f: (A, B) => C): Stream[E, C] =
+    ZStream.zipN(stream1, stream2)(f)
+
+  /**
+   *  @see [[zio.ZStream.zipN]]
+   */
+  final def zipN[E, A, B, C, D](stream1: Stream[E, A], stream2: Stream[E, B], stream3: Stream[E, C])(
+    f: (A, B, C) => D
+  ): Stream[E, D] =
+    ZStream.zipN(stream1, stream2, stream3)(f)
+
+  /**
+   *  @see [[zio.ZStream.zipN]]
+   */
+  final def zipN[E, A, B, C, D, F](
+    stream1: Stream[E, A],
+    stream2: Stream[E, B],
+    stream3: Stream[E, C],
+    stream4: Stream[E, D]
+  )(
+    f: (A, B, C, D) => F
+  ): Stream[E, F] =
+    ZStream.zipN(stream1, stream2, stream3, stream4)(f)
+
 }

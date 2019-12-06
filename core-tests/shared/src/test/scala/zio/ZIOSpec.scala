@@ -6,11 +6,10 @@ import scala.util.{ Failure, Success }
 import zio.clock.Clock
 import zio.duration._
 import zio.random.Random
-import zio.syntax._
 import zio.test._
 import zio.test.environment._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
+import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
 import zio.Cause._
 import zio.LatchOps._
 
@@ -254,116 +253,6 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(test, equalTo(10))
       }
     ),
-    suite("extension methods")(
-      testM("succeed") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.succeed
-            b <- IO.succeed(str)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("fail") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.fail.either
-            b <- IO.fail(str).either
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("ensure") {
-        checkM(Gen.alphaNumericString) { str =>
-          val ioSome = IO.succeed(Some(42))
-          for {
-            a <- str.require(ioSome)
-            b <- IO.require(str)(ioSome)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with pure function") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.effect
-            b <- IO.effectTotal(str)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with exception throwing function") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.effect
-            b <- IO.effect(str)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with partial function") {
-        checkM(Gen.alphaNumericString) { str =>
-          val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
-          for {
-            a <- str.effect.refineOrDie(partial)
-            b <- IO.effect(str).refineOrDie(partial)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("mergeAll") {
-        val TestData                     = testString.toList
-        val ios                          = TestData.map(IO.succeed)
-        val zero                         = List.empty[Char]
-        def merger[A](as: List[A], a: A) = a :: as
-        for {
-          merged1 <- ios.mergeAll(zero)(merger)
-          merged2 <- IO.mergeAll(ios)(zero)(merger)
-        } yield assert(merged1, equalTo(merged2))
-      },
-      testM("parAll") {
-        val TestData = testString.toList
-        val ios      = TestData.map(IO.effectTotal(_))
-        for {
-          parAll1 <- ios.collectAllPar
-          parAll2 <- IO.collectAllPar(ios)
-        } yield assert(parAll1, equalTo(parAll2))
-      },
-      testM("forkAll") {
-        val TestData                        = testString.toList
-        val ios: Iterable[IO[String, Char]] = TestData.map(IO.effectTotal(_))
-        for {
-          f1       <- ios.forkAll
-          forkAll1 <- f1.join
-          f2       <- IO.forkAll(ios)
-          forkAll2 <- f2.join
-        } yield assert(forkAll1, equalTo(forkAll2))
-      },
-      testM("sequence") {
-        val TestData = testString.toList
-        val ios      = TestData.map(IO.effectTotal(_))
-        for {
-          sequence1 <- ios.collectAll
-          sequence2 <- IO.collectAll(ios)
-        } yield assert(sequence1, equalTo(sequence2))
-      },
-      testM("map2") {
-        checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
-          def f(i: Int, s: String): String = i.toString + s
-          val ios                          = (IO.succeed(int), IO.succeed(str))
-          assertM(ios.map2[String](f), equalTo(f(int, str)))
-        }
-      },
-      testM("map3") {
-        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
-          def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
-          val ios                                       = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2))
-          assertM(ios.map3[String](f), equalTo(f(int, str1, str2)))
-        }
-      },
-      testM("map4") {
-        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
-          (int: Int, str1: String, str2: String, str3: String) =>
-            def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
-            val ios                                                   = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2), IO.succeed(str3))
-            assertM(ios.map4[String](f), equalTo(f(int, str1, str2, str3)))
-        }
-      }
-    ),
     suite("filterOrElse")(
       testM("returns checked failure from held value") {
         val goodCase =
@@ -594,6 +483,42 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result, equalTo(Cause.die(boom)))
       } @@ flaky
     ),
+    suite("forkWithErrorHandler")(
+      testM("calls provided function when task fails") {
+        for {
+          p <- Promise.make[Nothing, Unit]
+          _ <- ZIO.fail(()).forkWithErrorHandler(p.succeed(_).unit)
+          _ <- p.await
+        } yield assertCompletes
+      }
+    ),
+    suite("fromFutureInterrupt")(
+      testM("running Future can be interrupted") {
+        import java.util.concurrent.atomic.AtomicInteger
+        import scala.concurrent.{ ExecutionContext, Future }
+        def infiniteFuture(ref: AtomicInteger)(implicit ec: ExecutionContext): Future[Nothing] =
+          Future(ref.getAndIncrement()).flatMap(_ => infiniteFuture(ref))
+        for {
+          ref   <- ZIO.effectTotal(new AtomicInteger(0))
+          fiber <- ZIO.fromFutureInterrupt(ec => infiniteFuture(ref)(ec)).fork
+          _     <- fiber.interrupt
+          v1    <- ZIO.effectTotal(ref.get)
+          _     <- Live.live(clock.sleep(10.milliseconds))
+          v2    <- ZIO.effectTotal(ref.get)
+        } yield assert(v1, equalTo(v2))
+      },
+      testM("interruption blocks on interruption of the Future") {
+        import scala.concurrent.Promise
+        for {
+          latch <- ZIO.effectTotal(Promise[Unit]())
+          fiber <- ZIO.fromFutureInterrupt { _ =>
+                    latch.success(()); Promise[Unit]().future
+                  }.fork
+          _      <- ZIO.fromFuture(_ => latch.future).orDie
+          result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
+        } yield assert(result, isNone)
+      }
+    ),
     suite("head")(
       testM("on non empty list") {
         assertM(ZIO.succeed(List(1, 2, 3)).head.either, isRight(equalTo(1)))
@@ -643,6 +568,60 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.succeed(Right(2)).leftOrFailException.run, fails(Assertion.anything))
       }
     ),
+    suite("mapN")(
+      testM("with Tuple2") {
+        checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
+          def f(i: Int, s: String): String = i.toString + s
+          val actual                       = ZIO.mapN(ZIO.succeed(int), ZIO.succeed(str))(f)
+          val expected                     = f(int, str)
+          assertM(actual, equalTo(expected))
+        }
+      },
+      testM("with Tuple3") {
+        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
+          def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
+          val actual                                    = ZIO.mapN(ZIO.succeed(int), ZIO.succeed(str1), ZIO.succeed(str2))(f)
+          val expected                                  = f(int, str1, str2)
+          assertM(actual, equalTo(expected))
+        }
+      },
+      testM("with Tuple4") {
+        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
+          (int: Int, str1: String, str2: String, str3: String) =>
+            def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
+            val actual                                                = ZIO.mapN(ZIO.succeed(int), ZIO.succeed(str1), ZIO.succeed(str2), ZIO.succeed(str3))(f)
+            val expected                                              = f(int, str1, str2, str3)
+            assertM(actual, equalTo(expected))
+        }
+      }
+    ),
+    suite("mapParN")(
+      testM("with Tuple2") {
+        checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
+          def f(i: Int, s: String): String = i.toString + s
+          val actual                       = ZIO.mapParN(ZIO.succeed(int), ZIO.succeed(str))(f)
+          val expected                     = f(int, str)
+          assertM(actual, equalTo(expected))
+        }
+      },
+      testM("with Tuple3") {
+        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
+          def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
+          val actual                                    = ZIO.mapParN(ZIO.succeed(int), ZIO.succeed(str1), ZIO.succeed(str2))(f)
+          val expected                                  = f(int, str1, str2)
+          assertM(actual, equalTo(expected))
+        }
+      },
+      testM("with Tuple4") {
+        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
+          (int: Int, str1: String, str2: String, str3: String) =>
+            def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
+            val actual                                                = ZIO.mapParN(ZIO.succeed(int), ZIO.succeed(str1), ZIO.succeed(str2), ZIO.succeed(str3))(f)
+            val expected                                              = f(int, str1, str2, str3)
+            assertM(actual, equalTo(expected))
+        }
+      }
+    ),
     suite("memoize")(
       testM("non-memoized returns new instances on repeated calls") {
         val io = random.nextString(10)
@@ -654,6 +633,16 @@ object ZIOSpec extends ZIOBaseSpec {
         ioMemo
           .flatMap(io => io <*> io)
           .map(tuple => assert(tuple._1, equalTo(tuple._2)))
+      }
+    ),
+    suite("merge")(
+      testM("on flipped result") {
+        val zio: IO[Int, Int] = ZIO.succeed(1)
+
+        for {
+          a <- zio.merge
+          b <- zio.flip.merge
+        } yield assert(a, equalTo(b))
       }
     ),
     suite("none")(
@@ -796,6 +785,20 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("Fail").right.either, isLeft(isSome(equalTo("Fail"))))
       }
     ),
+    suite("refineToOrDie")(
+      testM("does not compile when refined type is not subtype of error type") {
+        val result = typeCheck {
+          """
+          ZIO
+            .fail(new RuntimeException("BOO!"))
+            .refineToOrDie[Error]
+            """
+        }
+        val expected =
+          "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
+        assertM(result, isLeft(equalTo(expected)))
+      } @@ scala2Only
+    ),
     suite("rightOrFail")(
       testM("on Right value") {
         assertM(UIO(Right(42)).rightOrFail(ExampleError), equalTo(42))
@@ -923,7 +926,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(io, isLeft(equalTo(ExampleError)))
       },
       testM("effectSuspendWith must catch throwable") {
-        val io = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either
+        val io = ZIO.effectSuspendWith[Any, Nothing]((_, _) => throw ExampleError).either
         assertM(io, isLeft(equalTo(ExampleError)))
       },
       testM("effectSuspendTotal must be evaluatable") {
@@ -1034,7 +1037,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(io, isSome(equalTo(Cause.die(ExampleError))))
       },
       testM("catch sandbox terminate") {
-        val io = IO.effectTotal(throw ExampleError).sandbox.fold(identity, identity)
+        val io = IO.effectTotal(throw ExampleError).sandbox.merge
         assertM(io, equalTo(Cause.die(ExampleError)))
       },
       testM("uncaught fail") {
@@ -1345,7 +1348,7 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(unexpected, isEmpty) &&
           assert(result, isNone) // timeout happens
         }
-      },
+      } @@ flaky,
       testM("effectAsyncMaybe should not resume fiber twice after synchronous result") {
         for {
           step            <- Promise.make[Nothing, Unit]
@@ -1450,6 +1453,140 @@ object ZIOSpec extends ZIOBaseSpec {
           _    <- withLatch(release => (release *> UIO.never).fork.daemon.tap(fiber => ref.set(Some(fiber))))
           fibs <- ZIO.children
         } yield assert(fibs, isEmpty)
+      },
+      testM("daemon fiber race interruption") {
+        def plus1(ref: Ref[Int], latch: Promise[Nothing, Unit]) =
+          latch.succeed(()) *> ZIO.never *> ref.update(_ + 1)
+        def interruptHandler(ref: Ref[Int]) =
+          ref.update(_ + 1)
+
+        val io = for {
+          ref             <- Ref.make(0)
+          interruptionRef <- Ref.make(0)
+          latch1Start     <- Promise.make[Nothing, Unit]
+          latch2Start     <- Promise.make[Nothing, Unit]
+          fiber <- plus1(ref, latch1Start)
+                    .onInterrupt(interruptHandler(interruptionRef))
+                    .race(plus1(ref, latch2Start).onInterrupt(interruptHandler(interruptionRef)))
+                    .fork
+          _           <- latch1Start.await
+          _           <- latch2Start.await
+          _           <- fiber.interrupt
+          res         <- ref.get
+          interrupted <- interruptionRef.get
+        } yield assert(interrupted, equalTo(2)) && assert(res, equalTo(0))
+
+        io.daemon
+      },
+      testM("daemon mask") {
+        def forkAwait =
+          for {
+            latch    <- Promise.make[Nothing, Unit]
+            latchEnd <- Promise.make[Nothing, Unit]
+            _        <- latchEnd.await.fork *> latch.succeed(())
+          } yield (latch, latchEnd)
+
+        def handleLatch(latches: (Promise[Nothing, Unit], Promise[Nothing, Unit])) =
+          latches._1.await.as(latches._2)
+
+        val io = for {
+          latches1    <- forkAwait
+          (l1, l1End) = latches1
+          _           <- l1.await
+          children1   <- ZIO.children
+          latchEnds <- ZIO.daemonMask { restore =>
+                        for {
+                          latches1 <- ZIO.sequence(
+                                       List(
+                                         forkAwait.flatMap(handleLatch),
+                                         forkAwait.flatMap(handleLatch),
+                                         forkAwait.flatMap(handleLatch)
+                                       )
+                                     )
+                          latches2 <- restore(
+                                       ZIO.sequence(
+                                         List(
+                                           forkAwait.flatMap(handleLatch),
+                                           forkAwait.flatMap(handleLatch)
+                                         )
+                                       )
+                                     )
+                        } yield latches1 ++ latches2
+                      }
+          children2 <- ZIO.children
+          _         <- l1End.succeed(())
+          _         <- ZIO.traverse_(latchEnds)(_.succeed(()))
+        } yield assert(children1.size, equalTo(1)) && assert(children2.size, equalTo(3))
+
+        io.nonDaemon
+      },
+      testM("nonDaemon mask") {
+        def forkAwait =
+          for {
+            latch    <- Promise.make[Nothing, Unit]
+            latchEnd <- Promise.make[Nothing, Unit]
+            _        <- latchEnd.await.fork *> latch.succeed(())
+          } yield (latch, latchEnd)
+
+        def handleLatch(latches: (Promise[Nothing, Unit], Promise[Nothing, Unit])) =
+          latches._1.await.as(latches._2)
+
+        val io =
+          for {
+            latches     <- forkAwait
+            (l1, l1End) = latches
+            _           <- l1.await
+            children1   <- ZIO.children
+            childrenWithLatches <- ZIO.nonDaemonMask { restore =>
+                                    for {
+                                      latches1 <- ZIO.sequence(
+                                                   List(
+                                                     forkAwait.flatMap(handleLatch),
+                                                     forkAwait.flatMap(handleLatch),
+                                                     forkAwait.flatMap(handleLatch)
+                                                   )
+                                                 )
+                                      latches2 <- restore(
+                                                   ZIO.sequence(
+                                                     List(
+                                                       forkAwait.flatMap(handleLatch),
+                                                       forkAwait.flatMap(handleLatch)
+                                                     )
+                                                   )
+                                                 )
+                                      children2 <- ZIO.children
+                                    } yield (children2, latches1 ++ latches2)
+                                  }
+            (children2, latchEnds) = childrenWithLatches
+            latches2               <- forkAwait
+            (l2, l2End)            = latches2
+            _                      <- l2.await
+            children3              <- ZIO.children
+            _                      <- l1End.succeed(())
+            _                      <- l2End.succeed(())
+            _                      <- ZIO.traverse_(latchEnds)(_.succeed(()))
+          } yield assert(children1.size, equalTo(0)) && assert(children2.size, equalTo(3)) && assert(
+            children3.size,
+            equalTo(3)
+          )
+
+        io.daemon
+      },
+      testM("race in daemon is executed") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          p1     <- Promise.make[Nothing, Unit]
+          p2     <- Promise.make[Nothing, Unit]
+          loser1 = ZIO.bracket(latch1.succeed(()))(_ => p1.succeed(()))(_ => ZIO.never)
+          loser2 = ZIO.bracket(latch2.succeed(()))(_ => p2.succeed(()))(_ => ZIO.never)
+          fiber  <- (loser1 race loser2).fork.daemon
+          _      <- latch1.await
+          _      <- latch2.await
+          _      <- fiber.interrupt
+          res1   <- p1.await
+          res2   <- p2.await
+        } yield assert(res1, isUnit) && assert(res2, isUnit)
       },
       testM("supervise fibers") {
         def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
@@ -2065,18 +2202,6 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield n
         assertM(task.run, fails(isSubtype[NoSuchElementException](anything)))
       },
-      testM("withFilter doesn't compile with UIO") {
-        val result = typeCheck {
-          """
-            import zio._
-
-            for {
-              n <- UIO(3) if n > 0
-            } yield n
-                """
-        }
-        assertM(result, isLeft(anything))
-      },
       testM("withFilter doesn't compile with IO that fails with type other than Throwable") {
         val result = typeCheck {
           """
@@ -2089,7 +2214,6 @@ object ZIOSpec extends ZIOBaseSpec {
         }
         val expected = "Cannot prove that NoSuchElementException <:< String."
         if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
-        else if (TestVersion.isDotty) assertM(result, isRight(equalTo(())))
         else assertM(result, isLeft(anything))
       }
     ),

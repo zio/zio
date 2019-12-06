@@ -83,6 +83,25 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       testM("Constructs an uninterruptible Managed value") {
         doInterrupt(io => ZManaged.make(io)(_ => IO.unit), _ => None)
+      },
+      testM("Infers the environment type correctly") {
+        trait R
+        trait R1
+        trait R2 extends R1
+        trait E
+        trait A
+        def acquire1: ZIO[R, E, A]               = ???
+        def acquire2: ZIO[R1, E, A]              = ???
+        def acquire3: ZIO[R2, E, A]              = ???
+        def release1: A => ZIO[R, Nothing, Any]  = ???
+        def release2: A => ZIO[R1, Nothing, Any] = ???
+        def release3: A => ZIO[R2, Nothing, Any] = ???
+        def managed1: ZManaged[R with R1, E, A]  = ZManaged.make(acquire1)(release2)
+        def managed2: ZManaged[R with R1, E, A]  = ZManaged.make(acquire2)(release1)
+        def managed3: ZManaged[R2, E, A]         = ZManaged.make(acquire2)(release3)
+        def managed4: ZManaged[R2, E, A]         = ZManaged.make(acquire3)(release2)
+        lazy val result                          = (managed1, managed2, managed3, managed4)
+        ZIO.succeed(assert(result, anything))
       }
     ),
     suite("makeEffect")(
@@ -973,6 +992,16 @@ object ZManagedSpec extends ZIOBaseSpec {
           res2 <- assertM(resource.get, equalTo(0))
           res3 <- assertM(latch2.isDone, isFalse)
         } yield res1 && res2 && res3
+      }
+    ),
+    suite("merge")(
+      testM("on flipped result") {
+        val managed: Managed[Int, Int] = ZManaged.succeed(1)
+
+        for {
+          a <- managed.merge.use(ZIO.succeed)
+          b <- managed.flip.merge.use(ZIO.succeed)
+        } yield assert(a, equalTo(b))
       }
     ),
     suite("catch")(

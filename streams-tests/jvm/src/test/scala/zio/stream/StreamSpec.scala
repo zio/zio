@@ -27,6 +27,35 @@ import StreamUtils._
 object StreamSpec extends ZIOBaseSpec {
 
   def spec = suite("StreamSpec")(
+    testM("Stream.access") {
+      for {
+        result <- ZStream.access[String](identity).provide("test").runHead.get
+      } yield assert(result, equalTo("test"))
+    },
+    suite("Stream.accessM")(
+      testM("accessM") {
+        for {
+          result <- ZStream.accessM[String](ZIO.succeed).provide("test").runHead.get
+        } yield assert(result, equalTo("test"))
+      },
+      testM("accessM fails") {
+        for {
+          result <- ZStream.accessM[Int](_ => ZIO.fail("fail")).provide(0).runHead.run
+        } yield assert(result, fails(equalTo("fail")))
+      }
+    ),
+    suite("Stream.accessStream")(
+      testM("accessStream") {
+        for {
+          result <- ZStream.accessStream[String](ZStream.succeed).provide("test").runHead.get
+        } yield assert(result, equalTo("test"))
+      },
+      testM("accessStream fails") {
+        for {
+          result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provide(0).runHead.run
+        } yield assert(result, fails(equalTo("fail")))
+      }
+    ),
     suite("Stream.aggregateAsync")(
       testM("aggregateAsync") {
         Stream(1, 1, 1, 1)
@@ -226,18 +255,6 @@ object StreamSpec extends ZIOBaseSpec {
         } yield assert(result, equalTo(List(List(1, 1, 1, 1), List(2))))
       }
     ),
-    suite("access/accessM")(
-      testM("ZStream.access") {
-        for {
-          result <- ZStream.access[String](identity).provide("test").runHead.get
-        } yield assert(result, equalTo("test"))
-      },
-      testM("ZStream.accessM") {
-        for {
-          result <- ZStream.accessM[String](ZStream.succeed).provide("test").runHead.get
-        } yield assert(result, equalTo("test"))
-      }
-    ),
     suite("Stream.bracket")(
       testM("bracket")(
         for {
@@ -365,11 +382,6 @@ object StreamSpec extends ZIOBaseSpec {
           _      <- s1.catchAllCause(_ => s2).runCollect.run
           result <- fins.get
         } yield assert(result, equalTo(List("s2", "s1")))
-      },
-      testM("failures on the scope") {
-        val s1 = Stream(1, 2) ++ ZStream(ZManaged.fail("Boom"))
-        val s2 = Stream(3, 4)
-        s1.catchAllCause(_ => s2).runCollect.map(assert(_, equalTo(List(1, 2, 3, 4))))
       }
     ),
     suite("Stream.chunkN")(
@@ -496,6 +508,26 @@ object StreamSpec extends ZIOBaseSpec {
         } yield assert(execution, equalTo(List("First", "Second")))
       }
     ),
+    suite("Stream.distributedWithDynamic")(
+      testM("ensures no race between subscription and stream end") {
+
+        val stream: ZStream[Any, Nothing, Either[Unit, Unit]] = ZStream.empty
+        stream.distributedWithDynamic[Nothing, Either[Unit, Unit]](1, _ => UIO.succeed(_ => true)).use { add =>
+          {
+            val subscribe = ZStream.unwrap(add.map {
+              case (_, queue) =>
+                ZStream.fromQueue(queue).unTake
+            })
+            Promise.make[Nothing, Unit].flatMap { onEnd =>
+              subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
+                onEnd.await *>
+                subscribe.runDrain *>
+                ZIO.succeed(assertCompletes)
+            }
+          }
+        }
+      }
+    ),
     testM("Stream.drain")(
       for {
         ref <- Ref.make(List[Int]())
@@ -554,6 +586,11 @@ object StreamSpec extends ZIOBaseSpec {
             } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
         execution <- log.get
       } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
+    },
+    testM("Stream.environment") {
+      for {
+        result <- ZStream.environment[String].provide("test").runHead.get
+      } yield assert(result, equalTo("test"))
     },
     testM("Stream.filter")(checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
       for {
@@ -1344,9 +1381,20 @@ object StreamSpec extends ZIOBaseSpec {
     testM("Stream.paginate") {
       val s = (0, List(1, 2, 3))
 
+      ZStream
+        .paginate(s) {
+          case (x, Nil)      => x -> None
+          case (x, x0 :: xs) => x -> Some(x0 -> xs)
+        }
+        .runCollect
+        .map(assert(_, equalTo(List(0, 1, 2, 3))))
+    },
+    testM("Stream.paginateM") {
+      val s = (0, List(1, 2, 3))
+
       assertM(
         ZStream
-          .paginate(s) {
+          .paginateM(s) {
             case (x, Nil)      => ZIO.succeed(x -> None)
             case (x, x0 :: xs) => ZIO.succeed(x -> Some(x0 -> xs))
           }
@@ -1790,6 +1838,16 @@ object StreamSpec extends ZIOBaseSpec {
             .run,
           fails(equalTo(e))
         )
+      }
+    ),
+    suite("Stream.via")(
+      testM("happy path") {
+        val s = Stream(1, 2, 3)
+        s.via(_.map(_.toString)).runCollect.map(assert(_, equalTo(List("1", "2", "3"))))
+      },
+      testM("introduce error") {
+        val s = Stream(1, 2, 3)
+        s.via(_ => Stream.fail("Ouch")).runCollect.either.map(assert(_, equalTo(Left("Ouch"))))
       }
     ),
     suite("Stream zipping")(

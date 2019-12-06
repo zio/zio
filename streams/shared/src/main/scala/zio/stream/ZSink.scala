@@ -1284,6 +1284,18 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     foldLeft(())((s, _) => s)
 
   /**
+   * Creates a sink containing the first value.
+   */
+  final def head[A]: ZSink[Any, Nothing, A, A, Option[A]] =
+    identity[A].optional
+
+  /**
+   * Creates a sink containing the last value.
+   */
+  final def last[A]: ZSink[Any, Nothing, Nothing, A, Option[A]] =
+    foldLeft[A, Option[A]](None) { case (_, a) => Some(a) }
+
+  /**
    * Creates a sink failing with a value of type `E`.
    */
   final def fail[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
@@ -1316,7 +1328,7 @@ object ZSink extends ZSinkPlatformSpecific with Serializable {
     fold(z)(_ => true)((s, a) => (f(s, a), Chunk.empty))
 
   /**
-   * Creates a sink by effectully folding over a structure of type `S`.
+   * Creates a sink by effectfully folding over a structure of type `S`.
    */
   final def foldLeftM[R, E, A, S](z: S)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, Nothing, A, S] =
     foldM(z)(_ => true)((s, a) => f(s, a).map((_, Chunk.empty)))

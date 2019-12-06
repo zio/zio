@@ -169,7 +169,7 @@ trait Fiber[+E, +A] { self =>
    * fiber has been determined. Attempting to join a fiber that has errored will
    * result in a catchable error. Joining an interrupted fiber will result in an
    * "inner interruption" of this fiber, unlike interruption triggered by another
-   * fiber, "inner interruption" can be catched and recovered.
+   * fiber, "inner interruption" can be caught and recovered.
    *
    * @return `IO[E, A]`
    */
@@ -499,7 +499,7 @@ object Fiber {
   object Id {
 
     /**
-     * A sentinal value to indicate a fiber without identity.
+     * A sentinel value to indicate a fiber without identity.
      */
     final val None = Id(0L, 0L)
   }
