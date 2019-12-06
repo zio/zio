@@ -378,7 +378,6 @@ private[stream] object StreamEffect extends Serializable {
     fromIterator(iterator.asScala)
   }
 
-
   final def fromInputStream(
     is: InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize

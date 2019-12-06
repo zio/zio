@@ -7,6 +7,7 @@ import zio._
 import zio.blocking._
 
 trait ZSinkPlatformSpecificConstructors {
+
   /**
    * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
    * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
@@ -28,6 +29,7 @@ trait ZSinkPlatformSpecificConstructors {
 }
 
 trait ZStreamPlatformSpecificConstructors {
+
   /**
    * Creates a stream from a Java stream
    */
@@ -42,6 +44,7 @@ trait ZStreamPlatformSpecificConstructors {
 }
 
 trait StreamPlatformSpecificConstructors {
+
   /**
    * See [[ZStream.fromJavaIterator]]
    */
