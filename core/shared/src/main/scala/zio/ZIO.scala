@@ -2244,9 +2244,10 @@ private[zio] trait ZIOFunctions extends Serializable {
     Task.descriptorWith { d =>
       val ec          = d.executor.asEC
       val interrupted = new java.util.concurrent.atomic.AtomicBoolean(false)
+      val latch       = scala.concurrent.Promise[Unit]()
       val interruptibleEC = new scala.concurrent.ExecutionContext {
         def execute(runnable: Runnable): Unit =
-          if (!interrupted.get) ec.execute(runnable) else ()
+          if (!interrupted.get) ec.execute(runnable) else (latch.success(()))
         def reportFailure(cause: Throwable): Unit =
           ec.reportFailure(cause)
       }
@@ -2255,12 +2256,14 @@ private[zio] trait ZIOFunctions extends Serializable {
           .fold(
             Task.effectAsync { (cb: Task[A] => Unit) =>
               f.onComplete {
-                case Success(a) => cb(Task.succeed(a))
-                case Failure(t) => cb(Task.fail(t))
+                case Success(a) => latch.success(()); cb(Task.succeed(a))
+                case Failure(t) => latch.success(()); cb(Task.fail(t))
               }(interruptibleEC)
             }
           )(Task.fromTry(_))
-      }.onInterrupt(Task.effectTotal(interrupted.set(true)))
+      }.onInterrupt(
+        Task.effectTotal(interrupted.set(true)) *> Task.fromFuture(_ => latch.future).orDie
+      )
     }
 
   /**

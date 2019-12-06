@@ -506,6 +506,12 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- Live.live(clock.sleep(10.milliseconds))
           v2    <- ZIO.effectTotal(ref.get)
         } yield assert(v1, equalTo(v2))
+      },
+      testM("interruption blocks on interruption of the Future") {
+        for {
+          fiber  <- ZIO.fromFutureInterrupt(_ => scala.concurrent.Future.never).fork
+          result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
+        } yield assert(result, isNone)
       }
     ),
     suite("head")(
