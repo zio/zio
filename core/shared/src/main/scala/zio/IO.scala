@@ -343,7 +343,7 @@ object IO {
    * @see See [[zio.ZIO.fromFutureInterrupt]]
    */
   final def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
-    ZIO.fromFuture(make)
+    ZIO.fromFutureInterrupt(make)
 
   /**
    * @see See [[zio.ZIO.fromOption]]
