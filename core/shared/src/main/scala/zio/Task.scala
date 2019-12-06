@@ -323,6 +323,12 @@ object Task {
   final def fromFunction[A](f: Any => A): Task[A] = ZIO.fromFunction(f)
 
   /**
+   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   */
+  final def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFutureInterrupt(make)
+
+  /**
    * @see [[zio.ZIO.fromFunctionFuture]]
    */
   final def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
