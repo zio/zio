@@ -470,6 +470,28 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         .use(nPulls(_, 5))
         .map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left(None), Left(None)))))
     },
+    testM("Stream.repeatEffect is safe to pull again after error") {
+      Stream
+        .repeatEffect(IO.fail("Ouch"))
+        .process
+        .use(nPulls(_, 3))
+        .map(assert(_, equalTo(List(Left(Some("Ouch")), Left(Some("Ouch")), Left(Some("Ouch"))))))
+    },
+    testM("Stream.repeatEffectWith is safe to pull again") {
+      def effect(ref: Ref[Int]): IO[String, Int] =
+        for {
+          cnt <- ref.update(_ + 1)
+          res <- if (cnt == 2) IO.fail("Ouch") else UIO.succeed(cnt)
+        } yield res
+
+      for {
+        ref <- Ref.make(0)
+        pulls <- Stream
+                  .repeatEffectWith(effect(ref), Schedule.recurs(2))
+                  .process
+                  .use(nPulls(_, 5))
+      } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(3), Left(None), Left(None))))
+    },
     testM("Stream.succeed is safe to pull again") {
       Stream
         .succeed(5)
