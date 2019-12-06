@@ -2230,7 +2230,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * [[scala.concurrent.ExecutionContext]] into a `ZIO`. The provided
    * `ExecutionContext` will interrupt the `Future` between asynchronous
    * operations such as `map` and `flatMap` if this effect is interrupted. Note
-   * that no attempt will will be made to interrupt a `Future` blocking on a
+   * that no attempt will be made to interrupt a `Future` blocking on a
    * synchronous operation and that the `Future` must be created using the
    * provided `ExecutionContext`.
    */
