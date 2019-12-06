@@ -1,10 +1,10 @@
 package zio
 
-import zio.LatchOps._
-import zio.clock.Clock
-import zio.duration._
-import zio.test.Assertion._
 import zio.test._
+import zio.test.Assertion._
+import zio.clock.Clock
+import zio.LatchOps._
+import zio.duration._
 
 object FiberSpec extends ZIOBaseSpec {
 
