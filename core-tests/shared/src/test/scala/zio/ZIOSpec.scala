@@ -508,8 +508,13 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v1, equalTo(v2))
       },
       testM("interruption blocks on interruption of the Future") {
+        import scala.concurrent.Promise
         for {
-          fiber  <- ZIO.fromFutureInterrupt(_ => scala.concurrent.Future.never).fork
+          latch <- ZIO.effectTotal(Promise[Unit]())
+          fiber <- ZIO.fromFutureInterrupt { _ =>
+                    latch.success(()); Promise[Unit]().future
+                  }.fork
+          _      <- ZIO.fromFuture(_ => latch.future).orDie
           result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
         } yield assert(result, isNone)
       }

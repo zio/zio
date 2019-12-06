@@ -2247,7 +2247,10 @@ private[zio] trait ZIOFunctions extends Serializable {
       val latch       = scala.concurrent.Promise[Unit]()
       val interruptibleEC = new scala.concurrent.ExecutionContext {
         def execute(runnable: Runnable): Unit =
-          if (!interrupted.get) ec.execute(runnable) else (latch.success(()))
+          if (!interrupted.get) ec.execute(runnable)
+          else {
+            val _ = latch.success(())
+          }
         def reportFailure(cause: Throwable): Unit =
           ec.reportFailure(cause)
       }
