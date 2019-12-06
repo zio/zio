@@ -33,7 +33,7 @@ object RandomExecutor {
 
         val state = new AtomicReference(ExecutorState(Vector.empty, isRunning = false))
 
-        override def here: Boolean                     = true
+        override def here: Boolean                     = false
         override def metrics: Option[ExecutionMetrics] = None
         override def yieldOpCount: Int                 = Int.MaxValue
         override def submit(runnable: Runnable): Boolean = {
