@@ -39,8 +39,8 @@ import TReentrantLock._
 class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
 
   /**
-   * Acquires a read lock. The transaction will suspend until no other fibers
-   * are holding read locks. Succeeds with the number of write locks held by
+   * Acquires a read lock. The transaction will suspend until no other fiber
+   * is holding a write lock. Succeeds with the number of read locks held by
    * this fiber.
    */
   lazy val acquireRead: STM[Nothing, Int] =
