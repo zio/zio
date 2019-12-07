@@ -195,12 +195,20 @@ final class STM[+E, +A] private[stm] (
    */
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
     new STM(
-      (journal, fiberId, stackSize) =>
-        self.exec(journal, fiberId, stackSize) match {
+      (journal, fiberId, stackSize) => {
+        val framesCount = stackSize.getAndIncrement()
+
+        val continue: TRez[E, A] => TRez[Nothing, B] = {
           case TRez.Fail(e)    => TRez.Succeed(f(e))
           case TRez.Succeed(a) => TRez.Succeed(g(a))
           case TRez.Retry      => TRez.Retry
         }
+
+        if (framesCount > STM.MaxFrames)
+          throw new STM.Resumable(self, continue)
+        else
+          continue(self.exec(journal, fiberId, stackSize))
+      }
     )
 
   /**
@@ -209,12 +217,20 @@ final class STM[+E, +A] private[stm] (
    */
   final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
     new STM(
-      (journal, fiberId, stackSize) =>
-        self.exec(journal, fiberId, stackSize) match {
+      (journal, fiberId, stackSize) => {
+        val framesCount = stackSize.getAndIncrement()
+
+        val continue: TRez[E, A] => TRez[E1, B] = {
           case TRez.Fail(e)    => f(e).exec(journal, fiberId, stackSize)
           case TRez.Succeed(a) => g(a).exec(journal, fiberId, stackSize)
           case TRez.Retry      => TRez.Retry
         }
+
+        if (framesCount > STM.MaxFrames)
+          throw new STM.Resumable(self, continue)
+        else
+          continue(self.exec(journal, fiberId, stackSize))
+      }
     )
 
   /**
