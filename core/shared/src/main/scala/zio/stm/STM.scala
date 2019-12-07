@@ -19,7 +19,7 @@ package zio.stm
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import zio.{ Fiber, IO, UIO }
-import zio.internal.{ Platform, Sync }
+import zio.internal.{ Platform, Stack, Sync }
 import java.util.{ HashMap => MutableMap }
 
 import com.github.ghik.silencer.silent
@@ -211,12 +211,21 @@ final class STM[+E, +A] private[stm] (
    */
   final def map[B](f: A => B): STM[E, B] =
     new STM(
-      (journal, fiberId, counter) =>
-        self.exec(journal, fiberId, counter) match {
-          case TRez.Succeed(a)  => TRez.Succeed(f(a))
-          case t @ TRez.Fail(_) => t
-          case TRez.Retry       => TRez.Retry
-        }
+      (journal, fiberId, counter) => {
+        val count = counter.getAndIncrement()
+
+        val continue: TRez[E, A] => TRez[E, B] =
+          _ match {
+            case TRez.Succeed(a)  => TRez.Succeed(f(a))
+            case t @ TRez.Fail(_) => t
+            case TRez.Retry       => TRez.Retry
+          }
+
+        if (count > STM.MaxFrames)
+          throw new STM.Resumable(self, continue)
+        else
+          continue(self.exec(journal, fiberId, counter))
+      }
     )
 
   /**
@@ -296,15 +305,46 @@ final class STM[+E, +A] private[stm] (
    */
   final def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
     self flatMap (a => that map (b => f(a, b)))
+
+  private def run(journal: STM.internal.Journal, fiberId: Fiber.Id): STM.internal.TRez[E, A] = {
+    type Cont = Any => STM[Any, Any]
+
+    val counter = new AtomicLong()
+    val stack   = Stack[Cont]()
+    var current = self.asInstanceOf[STM[Any, Any]]
+    var result  = null: AnyRef
+
+    while (result eq null) {
+      try {
+        val v = current.exec(journal, fiberId, counter).asInstanceOf[AnyRef]
+
+        if (stack.isEmpty)
+          result = v
+        else {
+          val next = stack.pop()
+          current = next(v)
+        }
+      } catch {
+        case cont: STM.Resumable[_, _, _] =>
+          current = cont.stm
+          stack.push(cont.f.asInstanceOf[Cont])
+          counter.set(0)
+      }
+    }
+
+    result.asInstanceOf[TRez[E, A]]
+  }
 }
 
 object STM {
 
+  private final class Resumable[E, A, B](val stm: STM[E, A], val f: internal.TRez[E, A] => internal.TRez[E, B])
+      extends Throwable(null, null, false, false)
+
+  private final val MaxFrames = 200
+
   private[stm] object internal {
     final val DefaultJournalSize = 4
-    final val MaxFrames = 200
-
-    class Continuation[E, A, B](val fa: STM[E, A], val f: A => STM[E, B]) extends Throwable(null, null, false, false)
 
     class Versioned[A](val value: A)
 
@@ -537,11 +577,9 @@ object STM {
 
       var loop = true
 
-      val counter = new AtomicLong()
-
       while (loop) {
         journal = allocJournal(journal)
-        value = stm.exec(journal, fiberId, counter)
+        value = stm.run(journal, fiberId)
 
         val analysis = analyzeJournal(journal)
 
