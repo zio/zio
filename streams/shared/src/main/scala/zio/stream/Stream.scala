@@ -17,6 +17,7 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream }
+import java.{ util => ju }
 
 import zio._
 import zio.clock.Clock
@@ -230,6 +231,18 @@ object Stream extends Serializable {
    */
   final def fromIteratorManaged[E, A](iterator: Managed[E, Iterator[A]]): Stream[E, A] =
     ZStream.fromIteratorManaged(iterator)
+
+  /**
+   * See [[ZStream.fromJavaIterator]]
+   */
+  final def fromJavaIterator[E, A](iterator: IO[E, ju.Iterator[A]]): Stream[E, A] =
+    ZStream.fromJavaIterator(iterator)
+
+  /**
+   * See [[ZStream.fromJavaIteratorManaged]]
+   */
+  final def fromJavaIteratorManaged[E, A](iterator: Managed[E, ju.Iterator[A]]): Stream[E, A] =
+    ZStream.fromJavaIteratorManaged(iterator)
 
   /**
    * See [[ZStream.fromQueue]]
