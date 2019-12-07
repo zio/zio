@@ -398,8 +398,43 @@ object STMSpec extends ZIOBaseSpec {
       testM("long map chains") {
         assertM(chain(10000)(_.map(_ + 1)), equalTo(10000))
       },
+      testM("long collect chains") {
+        assertM(chain(10000)(_.collect { case a: Int => a + 1 }), equalTo(10000))
+      },
       testM("long flatMap chains") {
         assertM(chain(10000)(_.flatMap(a => STM.succeed(a + 1))), equalTo(10000))
+      },
+      testM("long fold chains") {
+        assertM(chain(10000)(_.fold(_ => 0, _ + 1)), equalTo(10000))
+      },
+      testM("long foldM chains") {
+        assertM(chain(10000)(_.foldM(_ => STM.succeed(0), a => STM.succeed(a + 1))), equalTo(10000))
+      },
+      testM("long mapError chains") {
+        def chain(depth: Int): ZIO[Any, Int, Nothing] = {
+          @annotation.tailrec
+          def loop(n: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
+            if (n <= 0) acc.commit else loop(n - 1, acc.mapError(_ + 1))
+
+          loop(depth, STM.fail(0))
+        }
+
+        assertM(chain(10000).run, fails(equalTo(10000)))
+      },
+      testM("long orElse chains") {
+        def chain(depth: Int): ZIO[Any, Int, Nothing] = {
+          @annotation.tailrec
+          def loop(n: Int, curr: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
+            if (n <= 0) acc.commit
+            else {
+              val inc = curr + 1
+              loop(n - 1, inc, acc.orElse(STM.fail(inc)))
+            }
+
+          loop(depth, 0, STM.fail(0))
+        }
+
+        assertM(chain(10000).run, fails(equalTo(10000)))
       }
     )
   )
@@ -472,5 +507,4 @@ object STMSpec extends ZIOBaseSpec {
 
     loop(depth, STM.succeed(0))
   }
-
 }
