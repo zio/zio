@@ -167,11 +167,11 @@ final class STM[+E, +A] private[stm] (
    */
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     new STM(
-      (journal, fiberId, counter) => {
-        val count = counter.getAndIncrement()
+      (journal, fiberId, stackSize) => {
+        val count = stackSize.getAndIncrement()
 
         val continue: TRez[E, A] => TRez[E1, B] = {
-          case TRez.Succeed(a)  => f(a).exec(journal, fiberId, counter)
+          case TRez.Succeed(a)  => f(a).exec(journal, fiberId, stackSize)
           case t @ TRez.Fail(_) => t
           case TRez.Retry       => TRez.Retry
         }
@@ -179,7 +179,7 @@ final class STM[+E, +A] private[stm] (
         if (count > STM.MaxFrames)
           throw new STM.Resumable(self, continue)
         else
-          continue(self.exec(journal, fiberId, counter))
+          continue(self.exec(journal, fiberId, stackSize))
       }
     )
 
@@ -195,8 +195,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
     new STM(
-      (journal, fiberId, counter) =>
-        self.exec(journal, fiberId, counter) match {
+      (journal, fiberId, stackSize) =>
+        self.exec(journal, fiberId, stackSize) match {
           case TRez.Fail(e)    => TRez.Succeed(f(e))
           case TRez.Succeed(a) => TRez.Succeed(g(a))
           case TRez.Retry      => TRez.Retry
@@ -209,10 +209,10 @@ final class STM[+E, +A] private[stm] (
    */
   final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
     new STM(
-      (journal, fiberId, counter) =>
-        self.exec(journal, fiberId, counter) match {
-          case TRez.Fail(e)    => f(e).exec(journal, fiberId, counter)
-          case TRez.Succeed(a) => g(a).exec(journal, fiberId, counter)
+      (journal, fiberId, stackSize) =>
+        self.exec(journal, fiberId, stackSize) match {
+          case TRez.Fail(e)    => f(e).exec(journal, fiberId, stackSize)
+          case TRez.Succeed(a) => g(a).exec(journal, fiberId, stackSize)
           case TRez.Retry      => TRez.Retry
         }
     )
@@ -227,8 +227,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def map[B](f: A => B): STM[E, B] =
     new STM(
-      (journal, fiberId, counter) => {
-        val count = counter.getAndIncrement()
+      (journal, fiberId, stackSize) => {
+        val count = stackSize.getAndIncrement()
 
         val continue: TRez[E, A] => TRez[E, B] = {
           case TRez.Succeed(a)  => TRez.Succeed(f(a))
@@ -239,7 +239,7 @@ final class STM[+E, +A] private[stm] (
         if (count > STM.MaxFrames)
           throw new STM.Resumable(self, continue)
         else
-          continue(self.exec(journal, fiberId, counter))
+          continue(self.exec(journal, fiberId, stackSize))
       }
     )
 
@@ -248,8 +248,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def mapError[E1](f: E => E1): STM[E1, A] =
     new STM(
-      (journal, fiberId, counter) => {
-        val count = counter.getAndIncrement()
+      (journal, fiberId, stackSize) => {
+        val count = stackSize.getAndIncrement()
 
         val continue: TRez[E, A] => TRez[E1, A] = {
           case t @ TRez.Succeed(_) => t
@@ -260,7 +260,7 @@ final class STM[+E, +A] private[stm] (
         if (count > STM.MaxFrames)
           throw new STM.Resumable(self, continue)
         else
-          continue(self.exec(journal, fiberId, counter))
+          continue(self.exec(journal, fiberId, stackSize))
       }
     )
 
@@ -274,15 +274,15 @@ final class STM[+E, +A] private[stm] (
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
     new STM(
-      (journal, fiberId, counter) => {
+      (journal, fiberId, stackSize) => {
         val reset = prepareResetJournal(journal)
 
-        val executed = self.exec(journal, fiberId, counter)
+        val executed = self.exec(journal, fiberId, stackSize)
 
         executed match {
-          case TRez.Fail(_)        => { reset(); that.exec(journal, fiberId, counter) }
+          case TRez.Fail(_)        => { reset(); that.exec(journal, fiberId, stackSize) }
           case t @ TRez.Succeed(_) => t
-          case TRez.Retry          => { reset(); that.exec(journal, fiberId, counter) }
+          case TRez.Retry          => { reset(); that.exec(journal, fiberId, stackSize) }
         }
       }
     )
@@ -332,14 +332,14 @@ final class STM[+E, +A] private[stm] (
   private def run(journal: STM.internal.Journal, fiberId: Fiber.Id): STM.internal.TRez[E, A] = {
     type Cont = Any => TRez[Any, Any]
 
-    val counter = new AtomicLong()
-    val stack   = Stack[Cont]()
-    var current = self.asInstanceOf[STM[Any, Any]]
-    var result  = null: AnyRef
+    val stackSize = new AtomicLong()
+    val stack     = Stack[Cont]()
+    var current   = self.asInstanceOf[STM[Any, Any]]
+    var result    = null: AnyRef
 
     while (result eq null) {
       try {
-        val v = current.exec(journal, fiberId, counter).asInstanceOf[AnyRef]
+        val v = current.exec(journal, fiberId, stackSize).asInstanceOf[AnyRef]
 
         if (stack.isEmpty)
           result = v
@@ -351,7 +351,7 @@ final class STM[+E, +A] private[stm] (
         case cont: STM.Resumable[_, _, _, _] =>
           current = cont.stm
           stack.push(cont.f.asInstanceOf[Cont])
-          counter.set(0)
+          stackSize.set(0)
       }
     }
 
