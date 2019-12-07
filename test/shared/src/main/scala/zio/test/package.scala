@@ -48,18 +48,6 @@ package object test extends CompileVariants {
   type AssertResult = BoolAlgebraM[Any, Nothing, AssertionValue]
 
   /**
-   * A `PerTestAtLeastR[R]` is a `TestAspect.PerTest` that that requires at least an R in its environment
-   */
-  type PerTestAtLeastR[R] =
-    TestAspect.PerTest[Nothing, R, Nothing, Any, Nothing, Any]
-
-  /**
-   * A `PerTestPoly` is a `TestAspect.PerTest` that is completely polymorphic,
-   * having no requirements on error or environment.
-   */
-  type PerTestPoly = TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any]
-
-  /**
    * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
    */
   type TestAspectAtLeastR[R] =
@@ -97,7 +85,7 @@ package object test extends CompileVariants {
   /**
    * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable]] [[TestEnvironment]] objects
    */
-  type ZRTestEnv = TestClock with TestConsole with TestRandom with TestSystem
+  type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
   /**
    * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`

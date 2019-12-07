@@ -106,7 +106,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that marks tests as ignored.
    */
   val ignore: TestAspectPoly =
-    new PerTestPoly {
+    new PerTest.Poly {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
@@ -126,11 +126,11 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that evaluates every test between two effects, `before` and `after`,
-   * where the result of `before` can be `used` in after.
+   * where the result of `before` can be used in `after`.
    */
   def around[R0, E0, A0](
     before: ZIO[R0, E0, A0]
-  )(after: A0 => ZIO[R0, Nothing, Any]): PerTest[Nothing, R0, E0, Any, Nothing, Any] =
+  )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any, Nothing, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any, Nothing, Any] {
       def perTest[R >: Nothing <: R0, E >: E0 <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
@@ -144,7 +144,7 @@ object TestAspect extends TimeoutVariants {
   def around_[R0, E0](
     before: ZIO[R0, E0, Any],
     after: ZIO[R0, Nothing, Any]
-  ): PerTest[Nothing, R0, E0, Any, Nothing, Any] = around(before)(_ => after)
+  ): TestAspect[Nothing, R0, E0, Any, Nothing, Any] = around(before)(_ => after)
 
   /**
    * Constructs an aspect that evaluates every test inside the context of the managed function.
@@ -201,8 +201,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that retries a test until success, without limit.
    */
-  val eventually: TestAspectAtLeastR[ZRTestEnv] = {
-    val eventually = new PerTestPoly {
+  val eventually: TestAspectAtLeastR[ZTestEnv] = {
+    val eventually = new PerTest.Poly {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
@@ -283,7 +283,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectAtLeastR[ZRTestEnv] =
+  val flaky: TestAspectAtLeastR[ZTestEnv] =
     flaky(100)
 
   /**
@@ -292,7 +292,7 @@ object TestAspect extends TimeoutVariants {
    */
   def flaky(
     n: Int
-  ): TestAspectAtLeastR[ZRTestEnv] =
+  ): TestAspectAtLeastR[ZTestEnv] =
     retry(Schedule.recurs(n))
 
   /**
@@ -300,7 +300,7 @@ object TestAspect extends TimeoutVariants {
    * satisfies the specified assertion.
    */
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live[System]] =
-    new PerTestAtLeastR[Live[System]] {
+    new PerTest.AtLeast[Live[System]] {
       def perTest[R <: Live[System], E, S](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
@@ -338,7 +338,7 @@ object TestAspect extends TimeoutVariants {
     prop: String,
     assertion: Assertion[String]
   ): TestAspectAtLeastR[Live[System]] =
-    new PerTestAtLeastR[Live[System]] {
+    new PerTest.AtLeast[Live[System]] {
       def perTest[R <: Live[System], E, S](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
@@ -398,7 +398,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectAtLeastR[ZRTestEnv] =
+  val nonFlaky: TestAspectAtLeastR[ZTestEnv] =
     nonFlaky(100)
 
   /**
@@ -407,8 +407,8 @@ object TestAspect extends TimeoutVariants {
    */
   def nonFlaky(
     n: Int
-  ): TestAspectAtLeastR[ZRTestEnv] = {
-    val nonFlaky = new PerTestPoly {
+  ): TestAspectAtLeastR[ZTestEnv] = {
+    val nonFlaky = new PerTest.Poly {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
@@ -462,20 +462,20 @@ object TestAspect extends TimeoutVariants {
    * An aspect that restores the [[TestSystem]]'s state to its starting state after the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestSystem: TestAspectAtLeastR[ZRTestEnv] = restore[TestSystem](_.system)
+  def restoreTestSystem: TestAspectAtLeastR[ZTestEnv] = restore[TestSystem](_.system)
 
   /**
    * An aspect that restores all state in the standard provided test environments
    * ([[TestClock]], [[TestConsole]], [[TestRandom]] and [[TestSystem]]) to their starting state after the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestEnvironment: TestAspectAtLeastR[ZRTestEnv] =
+  def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =
     restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
    * An aspect that retries failed tests according to a schedule.
    */
-  def retry[R0 <: ZRTestEnv, E0, S0](
+  def retry[R0 <: ZTestEnv, E0, S0](
     schedule: Schedule[R0, TestFailure[E0], S0]
   ): TestAspect[Nothing, R0, Nothing, E0, Nothing, Any] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, Any] {
@@ -510,7 +510,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that converts ignored tests into test failures.
    */
   val success: TestAspectPoly =
-    new PerTestPoly {
+    new PerTest.Poly {
       def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
@@ -530,7 +530,7 @@ object TestAspect extends TimeoutVariants {
     duration: Duration,
     interruptDuration: Duration = 1.second
   ): TestAspectAtLeastR[Live[Clock]] =
-    new PerTestAtLeastR[Live[Clock]] {
+    new PerTest.AtLeast[Live[Clock]] {
       def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
@@ -555,6 +555,7 @@ object TestAspect extends TimeoutVariants {
 
   trait PerTest[+LowerR, -UpperR, +LowerE, -UpperE, +LowerS, -UpperS]
       extends TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] {
+
     def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE, S >: LowerS <: UpperS](
       test: ZIO[R, TestFailure[E], TestSuccess[S]]
     ): ZIO[R, TestFailure[E], TestSuccess[S]]
@@ -568,5 +569,19 @@ object TestAspect extends TimeoutVariants {
         case Spec.TestCase(label, test) =>
           Spec.TestCase(label, if (predicate(label)) perTest(test) else test)
       }
+  }
+  object PerTest {
+
+    /**
+     * A `PerTest.AtLeast[R]` is a `TestAspect.PerTest` that that requires at least an R in its environment
+     */
+    type AtLeast[R] =
+      TestAspect.PerTest[Nothing, R, Nothing, Any, Nothing, Any]
+
+    /**
+     * A `PerTest.Poly` is a `TestAspect.PerTest` that is completely polymorphic,
+     * having no requirements ZRTestEnv on error or environment.
+     */
+    type Poly = TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any]
   }
 }
