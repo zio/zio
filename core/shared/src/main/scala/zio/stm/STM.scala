@@ -298,7 +298,7 @@ final class STM[+E, +A] private[stm] (
   private def continueWith[E1, B](journal: STM.internal.Journal, fiberId: Fiber.Id, stackSize: AtomicLong)(
     continue: TRez[E, A] => TRez[E1, B]
   ): TRez[E1, B] = {
-    val framesCount = stackSize.getAndIncrement()
+    val framesCount = stackSize.incrementAndGet()
 
     if (framesCount > STM.MaxFrames)
       throw new STM.Resumable(self, continue)
