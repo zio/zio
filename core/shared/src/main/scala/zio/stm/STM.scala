@@ -168,7 +168,7 @@ final class STM[+E, +A] private[stm] (
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     new STM(
       (journal, fiberId, stackSize) => {
-        val count = stackSize.getAndIncrement()
+        val framesCount = stackSize.getAndIncrement()
 
         val continue: TRez[E, A] => TRez[E1, B] = {
           case TRez.Succeed(a)  => f(a).exec(journal, fiberId, stackSize)
@@ -176,7 +176,7 @@ final class STM[+E, +A] private[stm] (
           case TRez.Retry       => TRez.Retry
         }
 
-        if (count > STM.MaxFrames)
+        if (framesCount > STM.MaxFrames)
           throw new STM.Resumable(self, continue)
         else
           continue(self.exec(journal, fiberId, stackSize))
@@ -228,7 +228,7 @@ final class STM[+E, +A] private[stm] (
   final def map[B](f: A => B): STM[E, B] =
     new STM(
       (journal, fiberId, stackSize) => {
-        val count = stackSize.getAndIncrement()
+        val framesCount = stackSize.getAndIncrement()
 
         val continue: TRez[E, A] => TRez[E, B] = {
           case TRez.Succeed(a)  => TRez.Succeed(f(a))
@@ -236,7 +236,7 @@ final class STM[+E, +A] private[stm] (
           case TRez.Retry       => TRez.Retry
         }
 
-        if (count > STM.MaxFrames)
+        if (framesCount > STM.MaxFrames)
           throw new STM.Resumable(self, continue)
         else
           continue(self.exec(journal, fiberId, stackSize))
@@ -249,7 +249,7 @@ final class STM[+E, +A] private[stm] (
   final def mapError[E1](f: E => E1): STM[E1, A] =
     new STM(
       (journal, fiberId, stackSize) => {
-        val count = stackSize.getAndIncrement()
+        val framesCount = stackSize.getAndIncrement()
 
         val continue: TRez[E, A] => TRez[E1, A] = {
           case t @ TRez.Succeed(_) => t
@@ -257,7 +257,7 @@ final class STM[+E, +A] private[stm] (
           case TRez.Retry          => TRez.Retry
         }
 
-        if (count > STM.MaxFrames)
+        if (framesCount > STM.MaxFrames)
           throw new STM.Resumable(self, continue)
         else
           continue(self.exec(journal, fiberId, stackSize))
