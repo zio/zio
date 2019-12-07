@@ -377,7 +377,7 @@ private[stream] object StreamEffect extends Serializable {
     fromIterator(
       new Iterator[A] {
         def next(): A        = iterator.next()
-        def hasNext: Boolean = iterator.hasNext()
+        def hasNext: Boolean = iterator.hasNext
       }
     )
 
