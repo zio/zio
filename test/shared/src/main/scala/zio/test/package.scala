@@ -18,6 +18,7 @@ package zio
 
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
+import zio.test.environment.{ TestClock, TestConsole, TestRandom, TestSystem }
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -43,8 +44,34 @@ import zio.stream.{ ZSink, ZStream }
  * }}}
  */
 package object test extends CompileVariants {
+
   type AssertResult = BoolAlgebraM[Any, Nothing, AssertionValue]
-  type TestResult   = BoolAlgebraM[Any, Nothing, FailureDetails]
+
+  /**
+   * A `PerTestAtLeastR[R]` is a `TestAspect.PerTest` that that requires at least an R in its environment
+   */
+  type PerTestAtLeastR[R] =
+    TestAspect.PerTest[Nothing, R, Nothing, Any, Nothing, Any]
+
+  /**
+   * A `PerTestPoly` is a `TestAspect.PerTest` that is completely polymorphic,
+   * having no requirements on error or environment.
+   */
+  type PerTestPoly = TestAspect.PerTest[Nothing, Any, Nothing, Any, Nothing, Any]
+
+  /**
+   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
+   */
+  type TestAspectAtLeastR[R] =
+    TestAspect[Nothing, R, Nothing, Any, Nothing, Any]
+
+  /**
+   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
+   * having no requirements on error or environment.
+   */
+  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any, Nothing, Any]
+
+  type TestResult = BoolAlgebraM[Any, Nothing, FailureDetails]
 
   /**
    * A `TestReporter[E, L, S]` is capable of reporting test results annotated
@@ -68,10 +95,9 @@ package object test extends CompileVariants {
   type TestExecutor[+R, E, L, -T, +S] = (ZSpec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[E, L, S]]
 
   /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
-   * having no requirements on error or environment.
+   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable]] [[TestEnvironment]] objects
    */
-  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any, Nothing, Any]
+  type ZRTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
   /**
    * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
