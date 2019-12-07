@@ -393,7 +393,15 @@ object STMSpec extends ZIOBaseSpec {
           sum      <- sumFiber.join
         } yield assert(sum, equalTo(0) || equalTo(2))
       } @@ nonFlaky(5000)
-    }
+    },
+    suite("STM stack safety")(
+      testM("long map chains") {
+        assertM(chain(10000)(_.map(_ + 1)), equalTo(10000))
+      },
+      testM("long flatMap chains") {
+        assertM(chain(10000)(_.flatMap(a => STM.succeed(a + 1))), equalTo(10000))
+      }
+    )
   )
 
   def unpureSuspend(ms: Long) = STM.succeed {
@@ -456,4 +464,13 @@ object STMSpec extends ZIOBaseSpec {
       _ <- tvar1.set(b)
       _ <- tvar2.set(a)
     } yield ()
+
+  def chain(depth: Int)(next: STM[Nothing, Int] => STM[Nothing, Int]): UIO[Int] = {
+    @annotation.tailrec
+    def loop(n: Int, acc: STM[Nothing, Int]): UIO[Int] =
+      if (n <= 0) acc.commit else loop(n - 1, next(acc))
+
+    loop(depth, STM.succeed(0))
+  }
+
 }
