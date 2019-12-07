@@ -49,7 +49,7 @@ trait App extends DefaultRuntime {
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   // $COVERAGE-OFF$ Bootstrap to `Unit`
-  final def main(args0: Array[String]): Unit = {
+  final def main(args0: Array[String]): Unit =
     try sys.exit(
       unsafeRun(
         for {
@@ -66,5 +66,4 @@ trait App extends DefaultRuntime {
     )
     catch { case _: SecurityException => }
   // $COVERAGE-ON$
-  }
 }
