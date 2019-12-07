@@ -17,6 +17,7 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream }
+import java.{ util => ju }
 
 import com.github.ghik.silencer.silent
 import zio._
@@ -2547,7 +2548,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     self zipRight that
 }
 
-object ZStream extends Serializable {
+object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
@@ -3049,10 +3050,22 @@ object ZStream extends Serializable {
     fromEffect(iterator).flatMap(StreamEffect.fromIterator)
 
   /**
-   * Creates a stream from an iterator
+   * Creates a stream from a Java iterator
+   */
+  final def fromJavaIterator[R, E, A](iterator: ZIO[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
+    fromEffect(iterator).flatMap(StreamEffect.fromJavaIterator)
+
+  /**
+   * Creates a stream from a managed iterator
    */
   final def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
     managed(iterator).flatMap(StreamEffect.fromIterator)
+
+  /**
+   * Creates a stream from a managed iterator
+   */
+  final def fromJavaIteratorManaged[R, E, A](iterator: ZManaged[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
+    managed(iterator).flatMap(StreamEffect.fromJavaIterator)
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
