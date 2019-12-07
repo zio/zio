@@ -72,7 +72,7 @@ import scala.annotation.tailrec
  *
  */
 final class STM[+E, +A] private[stm] (
-  val exec: (STM.internal.Journal, Fiber.Id) => STM.internal.TRez[E, A]
+  val exec: (STM.internal.Journal, Fiber.Id, AtomicLong) => STM.internal.TRez[E, A]
 ) extends AnyVal { self =>
   import STM.internal.{ prepareResetJournal, TRez }
 
@@ -118,8 +118,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
     new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
+      (journal, fiberId, counter) =>
+        self.exec(journal, fiberId, counter) match {
           case t @ TRez.Fail(_) => t
           case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) TRez.Succeed(pf(a)) else TRez.Retry
           case TRez.Retry       => TRez.Retry
@@ -159,9 +159,9 @@ final class STM[+E, +A] private[stm] (
    */
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
-          case TRez.Succeed(a)  => f(a).exec(journal, fiberId)
+      (journal, fiberId, counter) =>
+        self.exec(journal, fiberId, counter) match {
+          case TRez.Succeed(a)  => f(a).exec(journal, fiberId, counter)
           case t @ TRez.Fail(_) => t
           case TRez.Retry       => TRez.Retry
         }
@@ -179,8 +179,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
     new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
+      (journal, fiberId, counter) =>
+        self.exec(journal, fiberId, counter) match {
           case TRez.Fail(e)    => TRez.Succeed(f(e))
           case TRez.Succeed(a) => TRez.Succeed(g(a))
           case TRez.Retry      => TRez.Retry
@@ -193,10 +193,10 @@ final class STM[+E, +A] private[stm] (
    */
   final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
     new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
-          case TRez.Fail(e)    => f(e).exec(journal, fiberId)
-          case TRez.Succeed(a) => g(a).exec(journal, fiberId)
+      (journal, fiberId, counter) =>
+        self.exec(journal, fiberId, counter) match {
+          case TRez.Fail(e)    => f(e).exec(journal, fiberId, counter)
+          case TRez.Succeed(a) => g(a).exec(journal, fiberId, counter)
           case TRez.Retry      => TRez.Retry
         }
     )
@@ -211,8 +211,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def map[B](f: A => B): STM[E, B] =
     new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
+      (journal, fiberId, counter) =>
+        self.exec(journal, fiberId, counter) match {
           case TRez.Succeed(a)  => TRez.Succeed(f(a))
           case t @ TRez.Fail(_) => t
           case TRez.Retry       => TRez.Retry
@@ -224,8 +224,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def mapError[E1](f: E => E1): STM[E1, A] =
     new STM(
-      (journal, fiberId) =>
-        self.exec(journal, fiberId) match {
+      (journal, fiberId, counter) =>
+        self.exec(journal, fiberId, counter) match {
           case t @ TRez.Succeed(_) => t
           case TRez.Fail(e)        => TRez.Fail(f(e))
           case TRez.Retry          => TRez.Retry
@@ -242,15 +242,15 @@ final class STM[+E, +A] private[stm] (
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
     new STM(
-      (journal, fiberId) => {
+      (journal, fiberId, counter) => {
         val reset = prepareResetJournal(journal)
 
-        val executed = self.exec(journal, fiberId)
+        val executed = self.exec(journal, fiberId, counter)
 
         executed match {
-          case TRez.Fail(_)        => { reset(); that.exec(journal, fiberId) }
+          case TRez.Fail(_)        => { reset(); that.exec(journal, fiberId, counter) }
           case t @ TRez.Succeed(_) => t
-          case TRez.Retry          => { reset(); that.exec(journal, fiberId) }
+          case TRez.Retry          => { reset(); that.exec(journal, fiberId, counter) }
         }
       }
     )
@@ -302,6 +302,9 @@ object STM {
 
   private[stm] object internal {
     final val DefaultJournalSize = 4
+    final val MaxFrames = 200
+
+    class Continuation[E, A, B](val fa: STM[E, A], val f: A => STM[E, B]) extends Throwable(null, null, false, false)
 
     class Versioned[A](val value: A)
 
@@ -534,9 +537,11 @@ object STM {
 
       var loop = true
 
+      val counter = new AtomicLong()
+
       while (loop) {
         journal = allocJournal(journal)
-        value = stm.exec(journal, fiberId)
+        value = stm.exec(journal, fiberId, counter)
 
         val analysis = analyzeJournal(journal)
 
@@ -713,12 +718,12 @@ object STM {
   /**
    * Returns a value that models failure in the transaction.
    */
-  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _) => TRez.Fail(e))
+  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _, _) => TRez.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  final val fiberId: STM[Nothing, Fiber.Id] = new STM((_, fiberId) => TRez.Succeed(fiberId))
+  final val fiberId: STM[Nothing, Fiber.Id] = new STM((_, fiberId, _) => TRez.Succeed(fiberId))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -758,12 +763,12 @@ object STM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  final val retry: STM[Nothing, Nothing] = new STM((_, _) => TRez.Retry)
+  final val retry: STM[Nothing, Nothing] = new STM((_, _, _) => TRez.Retry)
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _) => TRez.Succeed(a))
+  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _, _) => TRez.Succeed(a))
 
   /**
    * Suspends creation of the specified transaction lazily.
