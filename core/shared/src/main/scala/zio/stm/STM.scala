@@ -117,7 +117,7 @@ final class STM[+E, +A] private[stm] (
    * Simultaneously filters and maps the value produced by this effect.
    */
   final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
-    collectM(pf.andThen(STM.succeed))
+    collectM(pf.andThen(STM.succeed(_)))
 
   /**
    * Simultaneously filters and flatMaps the value produced by this effect.
