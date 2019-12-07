@@ -117,14 +117,18 @@ final class STM[+E, +A] private[stm] (
    * Simultaneously filters and maps the value produced by this effect.
    */
   final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
-    new STM(
+    collectM(pf.andThen(STM.succeed))
+
+  final def collectM[E1 >: E, B](pf: PartialFunction[A, STM[E1, B]]): STM[E1, B] =
+   new STM(
       (journal, fiberId) =>
         self.exec(journal, fiberId) match {
           case t @ TRez.Fail(_) => t
-          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) TRez.Succeed(pf(a)) else TRez.Retry
+          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) pf(a).exec(journal, fiberId) else TRez.Retry
           case TRez.Retry       => TRez.Retry
         }
     )
+
 
   /**
    * Commits this transaction atomically.

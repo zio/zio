@@ -275,6 +275,12 @@ object STMSpec extends ZIOBaseSpec {
           STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.commit,
           equalTo("Positive")
         )
+      },
+      testM("Using `collectM` filter and map simultaneously the value produced by the transaction") {
+        assertM(
+          STM.succeed((1 to 20).toList).collectM { case l if l.forall(_ > 0) => STM.succeed("Positive")}.commit,
+          equalTo("Positive")
+        )
       }
     ),
     testM("Permute 2 variables") {
