@@ -118,12 +118,20 @@ final class STM[+E, +A] private[stm] (
    */
   final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
     new STM(
-      (journal, fiberId, counter) =>
-        self.exec(journal, fiberId, counter) match {
+      (journal, fiberId, stackSize) => {
+        val framesCount = stackSize.getAndIncrement()
+
+        val continue: TRez[E, A] => TRez[E, B] = {
           case t @ TRez.Fail(_) => t
           case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) TRez.Succeed(pf(a)) else TRez.Retry
           case TRez.Retry       => TRez.Retry
         }
+
+        if (framesCount > STM.MaxFrames)
+          throw new STM.Resumable(self, continue)
+        else
+          continue(self.exec(journal, fiberId, stackSize))
+      }
     )
 
   /**
