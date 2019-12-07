@@ -159,12 +159,20 @@ final class STM[+E, +A] private[stm] (
    */
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     new STM(
-      (journal, fiberId, counter) =>
-        self.exec(journal, fiberId, counter) match {
+      (journal, fiberId, counter) => {
+        val count = counter.getAndIncrement()
+
+        val continue: TRez[E, A] => TRez[E1, B] = {
           case TRez.Succeed(a)  => f(a).exec(journal, fiberId, counter)
           case t @ TRez.Fail(_) => t
           case TRez.Retry       => TRez.Retry
         }
+
+        if (count > STM.MaxFrames)
+          throw new STM.Resumable(self, continue)
+        else
+          continue(self.exec(journal, fiberId, counter))
+      }
     )
 
   /**
@@ -214,12 +222,11 @@ final class STM[+E, +A] private[stm] (
       (journal, fiberId, counter) => {
         val count = counter.getAndIncrement()
 
-        val continue: TRez[E, A] => TRez[E, B] =
-          _ match {
-            case TRez.Succeed(a)  => TRez.Succeed(f(a))
-            case t @ TRez.Fail(_) => t
-            case TRez.Retry       => TRez.Retry
-          }
+        val continue: TRez[E, A] => TRez[E, B] = {
+          case TRez.Succeed(a)  => TRez.Succeed(f(a))
+          case t @ TRez.Fail(_) => t
+          case TRez.Retry       => TRez.Retry
+        }
 
         if (count > STM.MaxFrames)
           throw new STM.Resumable(self, continue)
@@ -307,7 +314,7 @@ final class STM[+E, +A] private[stm] (
     self flatMap (a => that map (b => f(a, b)))
 
   private def run(journal: STM.internal.Journal, fiberId: Fiber.Id): STM.internal.TRez[E, A] = {
-    type Cont = Any => STM[Any, Any]
+    type Cont = Any => TRez[Any, Any]
 
     val counter = new AtomicLong()
     val stack   = Stack[Cont]()
@@ -322,10 +329,10 @@ final class STM[+E, +A] private[stm] (
           result = v
         else {
           val next = stack.pop()
-          current = next(v)
+          current = new STM((_, _, _) => next(v))
         }
       } catch {
-        case cont: STM.Resumable[_, _, _] =>
+        case cont: STM.Resumable[_, _, _, _] =>
           current = cont.stm
           stack.push(cont.f.asInstanceOf[Cont])
           counter.set(0)
@@ -338,7 +345,7 @@ final class STM[+E, +A] private[stm] (
 
 object STM {
 
-  private final class Resumable[E, A, B](val stm: STM[E, A], val f: internal.TRez[E, A] => internal.TRez[E, B])
+  private final class Resumable[E, E1, A, B](val stm: STM[E, A], val f: internal.TRez[E, A] => internal.TRez[E1, B])
       extends Throwable(null, null, false, false)
 
   private final val MaxFrames = 200
