@@ -72,7 +72,7 @@ import scala.annotation.tailrec
  *
  */
 final class STM[+E, +A] private[stm] (
-  val exec: (STM.internal.Journal, Fiber.Id, AtomicLong) => STM.internal.TRez[E, A]
+  private val exec: (STM.internal.Journal, Fiber.Id, AtomicLong) => STM.internal.TRez[E, A]
 ) extends AnyVal { self =>
   import STM.internal.{ prepareResetJournal, TRez }
 
