@@ -240,12 +240,20 @@ final class STM[+E, +A] private[stm] (
    */
   final def mapError[E1](f: E => E1): STM[E1, A] =
     new STM(
-      (journal, fiberId, counter) =>
-        self.exec(journal, fiberId, counter) match {
+      (journal, fiberId, counter) => {
+        val count = counter.getAndIncrement()
+
+        val continue: TRez[E, A] => TRez[E1, A] = {
           case t @ TRez.Succeed(_) => t
           case TRez.Fail(e)        => TRez.Fail(f(e))
           case TRez.Retry          => TRez.Retry
         }
+
+        if (count > STM.MaxFrames)
+          throw new STM.Resumable(self, continue)
+        else
+          continue(self.exec(journal, fiberId, counter))
+      }
     )
 
   /**
