@@ -4,6 +4,8 @@ import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.{ Executor, Platform }
 
+import scala.collection.immutable.Iterable
+
 object URIO {
 
   /**

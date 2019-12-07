@@ -16,6 +16,8 @@
 
 package zio
 
+import scala.collection.immutable.Iterable
+
 object Managed {
 
   /**

@@ -1,6 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+import scala.collection.immutable.Seq
 
 import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
 import zio.UIO

@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import scala.collection.immutable.Iterable
+
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
@@ -215,7 +217,7 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with specified values.
    */
-  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
+  final def make[K, V](a: (K, V), as: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(a :: as.toList)
 
   /**
    * Makes an empty `TMap`.
@@ -240,7 +242,7 @@ object TMap {
     }
 
     for {
-      tChains   <- TArray.fromIterable(buckets)
+      tChains   <- TArray.fromIterable(buckets.toList)
       tBuckets  <- TRef.make(tChains)
       tCapacity <- TRef.make(capacity)
       tSize     <- TRef.make(uniqueItems.size)

@@ -16,6 +16,7 @@
 
 package zio
 
+import scala.collection.immutable.Iterable
 import scala.reflect.ClassTag
 import zio.clock.Clock
 import zio.duration.Duration

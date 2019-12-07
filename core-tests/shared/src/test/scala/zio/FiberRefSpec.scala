@@ -1,5 +1,6 @@
 package zio
 
+import scala.collection.immutable.Iterable
 import zio.FiberRefSpecUtil._
 import zio.clock.Clock
 import zio.duration._

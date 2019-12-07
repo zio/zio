@@ -1,6 +1,6 @@
 package zio.test
 
-import scala.collection.immutable.SortedSet
+import scala.collection.immutable.{ Seq, SortedSet }
 
 import zio.Exit
 import zio.test.Assertion._

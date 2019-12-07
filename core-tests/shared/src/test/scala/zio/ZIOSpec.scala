@@ -1,6 +1,7 @@
 package zio
 
 import scala.annotation.tailrec
+import scala.collection.immutable.{ Iterable, Seq }
 import scala.util.{ Failure, Success }
 
 import zio.clock.Clock

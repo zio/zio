@@ -7,6 +7,7 @@ import zio.test.Assertion.{ equalTo, isFalse, isLeft, succeeds }
 import zio.test._
 import zio._
 
+import scala.collection.immutable.{ Iterable, Seq }
 import scala.{ Stream => _ }
 
 object StreamChunkSpec extends ZIOBaseSpec {

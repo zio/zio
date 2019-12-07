@@ -16,7 +16,7 @@
 
 package zio.test
 
-import scala.collection.immutable.SortedMap
+import scala.collection.immutable.{ Iterable, SortedMap }
 
 import zio.{ UIO, ZIO }
 import zio.random._

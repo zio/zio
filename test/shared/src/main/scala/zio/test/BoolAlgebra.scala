@@ -16,6 +16,7 @@
 
 package zio.test
 
+import scala.collection.immutable.Iterable
 import zio.ZIO
 
 /**

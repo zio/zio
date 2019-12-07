@@ -17,6 +17,7 @@
 package zio.test
 
 import scala.reflect.ClassTag
+import scala.collection.immutable.{ Iterable, Seq }
 
 import zio.{ Cause, Exit, ZIO }
 import zio.test.Assertion._

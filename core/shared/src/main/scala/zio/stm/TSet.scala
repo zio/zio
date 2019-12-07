@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import scala.collection.immutable.Iterable
+
 /**
  * Transactional set implemented on top of [[TMap]].
  */
@@ -118,7 +120,7 @@ object TSet {
   /**
    * Makes a new `TSet` that is initialized with specified values.
    */
-  final def make[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
+  final def make[A](as: A*): STM[Nothing, TSet[A]] = fromIterable(as.toList)
 
   /**
    * Makes an empty `TSet`.

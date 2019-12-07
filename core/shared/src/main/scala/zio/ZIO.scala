@@ -16,6 +16,7 @@
 
 package zio
 
+import scala.collection.immutable.Iterable
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }

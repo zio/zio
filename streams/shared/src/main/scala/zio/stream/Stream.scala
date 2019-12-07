@@ -22,6 +22,8 @@ import zio._
 import zio.clock.Clock
 import zio.Cause
 
+import scala.collection.immutable.Iterable
+
 object Stream extends Serializable {
   import ZStream.Pull
 

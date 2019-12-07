@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import scala.collection.immutable.Iterable
+
 /** Wraps array of [[TRef]] and adds methods for convenience.
  * Caution: most of methods are not stack-safe.
  * */
@@ -78,7 +80,7 @@ object TArray {
   /**
    * Makes a new `TArray` that is initialized with specified values.
    */
-  final def make[A](data: A*): STM[Nothing, TArray[A]] = fromIterable(data)
+  final def make[A](as: A*): STM[Nothing, TArray[A]] = fromIterable(as.toList)
 
   /**
    * Makes an empty `TArray`.

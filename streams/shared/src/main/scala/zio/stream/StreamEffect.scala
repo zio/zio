@@ -20,6 +20,8 @@ import java.io.{ IOException, InputStream }
 
 import zio._
 
+import scala.collection.immutable.Iterable
+
 private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, Nothing, () => A])
     extends ZStream[R, E, A](
       ZStream.Structure.Iterator(

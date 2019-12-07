@@ -17,6 +17,7 @@
 package zio
 
 import scala.annotation.tailrec
+import scala.collection.immutable.Iterable
 import zio.internal.MutableConcurrentQueue
 import zio.ZQueue.internal._
 

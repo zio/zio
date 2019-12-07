@@ -19,6 +19,8 @@ package zio.stream
 import com.github.ghik.silencer.silent
 import zio._
 
+import scala.collection.immutable.Iterable
+
 /**
  * A `ZStreamChunk[R, E, A]` represents an effectful stream that can produce values of
  * type `A`, or potentially fail with a value of type `E`.
@@ -699,7 +701,7 @@ object ZStreamChunk extends Serializable {
    * Creates a `ZStreamChunk` from a variable list of chunks
    */
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    new StreamEffectChunk(StreamEffect.fromIterable(as))
+    new StreamEffectChunk(StreamEffect.fromIterable(as.toList))
 
   /**
    * Creates a `ZStreamChunk` from a chunk

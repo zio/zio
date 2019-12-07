@@ -24,6 +24,8 @@ import zio.clock.Clock
 import zio.duration.Duration
 import zio.stream.ZStream.Pull
 
+import scala.collection.immutable.Iterable
+
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of
  * type `A`, or potentially fail with a value of type `E`.
@@ -1013,7 +1015,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     for {
       queuesRef <- Ref
                     .make[Map[Int, Queue[Take[E1, A1]]]](Map())
-                    .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
+                    .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values.toList)(_.shutdown)))
       add <- {
         val offer = (a: A) =>
           for {
@@ -1064,7 +1066,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                       } yield (id, queue)
                     }
                 queues <- queuesRef.get.map(_.values)
-                _ <- ZIO.foreach(queues) { queue =>
+                _ <- ZIO.foreach(queues.toList) { queue =>
                       queue.offer(endTake).catchSomeCause {
                         case c if c.interrupted => ZIO.unit
                       }
@@ -2697,7 +2699,7 @@ object ZStream extends Serializable {
   /**
    * Creates a pure stream from a variable list of values
    */
-  final def apply[A](as: A*): Stream[Nothing, A] = fromIterable(as)
+  final def apply[A](as: A*): Stream[Nothing, A] = fromIterable(as.toList)
 
   /**
    * Creates a stream from a scoped [[Pull]].
@@ -3118,7 +3120,7 @@ object ZStream extends Serializable {
   final def mergeAll[R, E, A](n: Int, outputBuffer: Int = 16)(
     streams: ZStream[R, E, A]*
   ): ZStream[R, E, A] =
-    flattenPar(n, outputBuffer)(fromIterable(streams))
+    flattenPar(n, outputBuffer)(fromIterable(streams.toList))
 
   /**
    * Like [[mergeAll]], but runs all streams concurrently.

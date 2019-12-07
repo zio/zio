@@ -1,5 +1,6 @@
 package zio.test
 
+import scala.collection.immutable.Seq
 import zio.{ UIO, ZIO }
 import zio.test.Spec._
 

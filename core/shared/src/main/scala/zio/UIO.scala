@@ -2,6 +2,8 @@ package zio
 
 import zio.internal.{ Executor, Platform }
 
+import scala.collection.immutable.Iterable
+
 object UIO {
 
   /**

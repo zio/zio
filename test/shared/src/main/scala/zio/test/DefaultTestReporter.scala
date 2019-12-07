@@ -17,6 +17,7 @@
 package zio.test
 
 import scala.{ Console => SConsole }
+import scala.collection.immutable.Seq
 
 import zio.duration.Duration
 import zio.test.mock.{ Method, MockException }
@@ -250,7 +251,7 @@ object DefaultTestReporter {
     offset: Int,
     rendered: String*
   ): RenderedResult =
-    RenderedResult(caseType, label, result, offset, rendered)
+    RenderedResult(caseType, label, result, offset, rendered.toList)
 }
 
 object RenderedResult {

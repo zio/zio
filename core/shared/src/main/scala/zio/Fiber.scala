@@ -19,6 +19,7 @@ package zio
 import zio.internal.Executor
 
 import scala.concurrent.Future
+import scala.collection.immutable.Iterable
 import scala.collection.JavaConverters._
 import com.github.ghik.silencer.silent
 import zio.internal.stacktracer.ZTraceElement
@@ -556,23 +557,21 @@ object Fiber {
   final val dump: UIO[Iterable[Dump]] = UIO.effectSuspendTotal {
     import internal.FiberContext
 
-    def loop(fibers: Iterable[FiberContext[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
+    def loop(fibers: List[FiberContext[_, _]], acc: UIO[Vector[Dump]]): UIO[Vector[Dump]] =
       ZIO
-        .collectAll(fibers.toIterable.map { context =>
+        .collectAll(fibers.map { context =>
           (context.children zip context.dump).map {
             case (children, dump) => dump.map(dump => (children, dump))
           }
         })
         .flatMap { (collected: List[Option[(Iterable[Fiber[Any, Any]], Dump)]]) =>
-          val collected1 = collected.collect { case Some(a) => a }
-          val children   = collected1.map(_._1).flatten
-          val dumps      = collected1.map(_._2)
-          val acc2       = acc.map(_ ++ dumps.toVector)
-
-          if (children.isEmpty) acc2 else loop(children.asInstanceOf[Iterable[FiberContext[Any, Any]]], acc2)
+          val (children, dumps) = collected.collect { case Some(a) => a }.unzip
+          val children1         = children.flatten.asInstanceOf[List[FiberContext[Any, Any]]]
+          val acc2              = acc.map(_ ++ dumps.toVector)
+          if (children1.isEmpty) acc2 else loop(children1, acc2)
         }
 
-    loop(_rootFibers.asScala: @silent("JavaConverters"), UIO(Vector()))
+    loop(_rootFibers.asScala.toList: @silent("JavaConverters"), UIO(Vector()))
   }
 
   /**

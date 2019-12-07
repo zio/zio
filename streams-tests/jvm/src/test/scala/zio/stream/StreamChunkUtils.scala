@@ -1,6 +1,7 @@
 package zio.stream
 
 import scala.annotation.tailrec
+import scala.collection.immutable.Seq
 import scala.reflect.ClassTag
 import zio.random.Random
 import zio.test.{ Gen, Sized }

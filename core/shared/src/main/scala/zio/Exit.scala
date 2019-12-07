@@ -16,6 +16,8 @@
 
 package zio
 
+import scala.collection.immutable.Iterable
+
 /**
  * An `Exit[E, A]` describes the result of executing an `IO` value. The
  * result is either succeeded with a value `A`, or failed with a `Cause[E]`.

@@ -26,6 +26,7 @@ import stacktracer.ZTraceElement
 import tracing.ZIOFn
 
 import scala.annotation.{ switch, tailrec }
+import scala.collection.immutable.Iterable
 import scala.collection.JavaConverters._
 
 /**
@@ -692,7 +693,7 @@ private[zio] final class FiberContext[E, A](
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
-      UIO.foreach_(locals) {
+      UIO.foreach_(locals.toList) {
         case (fiberRef, value) =>
           val ref = fiberRef.asInstanceOf[FiberRef[Any]]
           ref.update(old => ref.combine(old, value))

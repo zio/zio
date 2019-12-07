@@ -21,6 +21,7 @@ import zio.test.Assertion.{
 import zio.test.TestAspect.flaky
 
 import scala.{ Stream => _ }
+import scala.collection.immutable.Seq
 import Exit.Success
 import StreamUtils._
 

@@ -1,6 +1,7 @@
 package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.collection.immutable.Iterable
 
 import zio.{ UIO, ZIO }
 import zio.test.environment.TestEnvironment

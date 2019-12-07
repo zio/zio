@@ -24,6 +24,7 @@ import java.util.{ HashMap => MutableMap }
 
 import com.github.ghik.silencer.silent
 
+import scala.collection.immutable.Iterable
 import scala.util.{ Failure, Success, Try }
 import scala.annotation.tailrec
 

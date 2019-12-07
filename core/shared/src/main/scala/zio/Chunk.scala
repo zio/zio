@@ -16,6 +16,7 @@
 
 package zio
 
+import scala.collection.immutable.{ Iterable, Seq }
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
 import java.nio._
@@ -296,7 +297,7 @@ sealed trait Chunk[+A] { self =>
   }
 
   override final def hashCode: Int = toArrayOption match {
-    case None        => Seq.empty[A].hashCode
+    case None        => List.empty[A].hashCode
     case Some(array) => array.toSeq.hashCode
   }
 
@@ -682,7 +683,7 @@ object Chunk {
   /**
    * Returns a chunk from a number of values.
    */
-  final def apply[A](as: A*): Chunk[A] = fromIterable(as)
+  final def apply[A](as: A*): Chunk[A] = fromIterable(as.toList)
 
   /**
    * Returns a chunk backed by an array.

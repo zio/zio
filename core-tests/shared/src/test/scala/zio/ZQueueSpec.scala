@@ -1,6 +1,6 @@
 package zio
 
-import scala.collection.immutable.Range
+import scala.collection.immutable.{ Iterable, Range }
 import zio.clock.Clock
 import zio.duration._
 import zio.test._

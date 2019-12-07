@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import java.util.concurrent.atomic.AtomicReference
-
+import scala.collection.immutable.Seq
 import sbt.testing.Logger
 
 import zio.test.sbt.TestingSupport._

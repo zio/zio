@@ -22,6 +22,7 @@ import zio.test.sbt.TestingSupport._
 import zio.test.{ Assertion, DefaultRunnableSpec, Summary, TestArgs, TestAspect }
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.immutable.Seq
 
 object ZTestFrameworkSpec {
 
