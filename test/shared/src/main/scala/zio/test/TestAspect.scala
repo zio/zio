@@ -300,7 +300,7 @@ object TestAspect extends TimeoutVariants {
    * satisfies the specified assertion.
    */
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live[System]] =
-    new PerTest.AtLeast[Live[System]] {
+    new PerTest.AtLeastR[Live[System]] {
       def perTest[R <: Live[System], E, S](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
@@ -338,7 +338,7 @@ object TestAspect extends TimeoutVariants {
     prop: String,
     assertion: Assertion[String]
   ): TestAspectAtLeastR[Live[System]] =
-    new PerTest.AtLeast[Live[System]] {
+    new PerTest.AtLeastR[Live[System]] {
       def perTest[R <: Live[System], E, S](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
@@ -530,7 +530,7 @@ object TestAspect extends TimeoutVariants {
     duration: Duration,
     interruptDuration: Duration = 1.second
   ): TestAspectAtLeastR[Live[Clock]] =
-    new PerTest.AtLeast[Live[Clock]] {
+    new PerTest.AtLeastR[Live[Clock]] {
       def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
@@ -575,7 +575,7 @@ object TestAspect extends TimeoutVariants {
     /**
      * A `PerTest.AtLeast[R]` is a `TestAspect.PerTest` that that requires at least an R in its environment
      */
-    type AtLeast[R] =
+    type AtLeastR[R] =
       TestAspect.PerTest[Nothing, R, Nothing, Any, Nothing, Any]
 
     /**
