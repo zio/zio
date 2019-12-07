@@ -292,14 +292,18 @@ final class STM[+E, +A] private[stm] (
     new STM(
       (journal, fiberId, stackSize) => {
         val reset = prepareResetJournal(journal)
+        val framesCount = stackSize.getAndIncrement()
 
-        val executed = self.exec(journal, fiberId, stackSize)
-
-        executed match {
+        val continue: TRez[E, A] => TRez[E1, A1] = {
           case TRez.Fail(_)        => { reset(); that.exec(journal, fiberId, stackSize) }
           case t @ TRez.Succeed(_) => t
           case TRez.Retry          => { reset(); that.exec(journal, fiberId, stackSize) }
         }
+
+        if (framesCount > STM.MaxFrames)
+          throw new STM.Resumable(self, continue)
+        else
+          continue(self.exec(journal, fiberId, stackSize))
       }
     )
 
