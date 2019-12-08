@@ -16,13 +16,12 @@
 
 package zio.stm
 
+import java.util.{ ArrayList, HashMap => MutableMap }
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
+import com.github.ghik.silencer.silent
 import zio.{ Fiber, IO, UIO }
 import zio.internal.{ Platform, Stack, Sync }
-import java.util.{ HashMap => MutableMap }
-
-import com.github.ghik.silencer.silent
 
 import scala.util.{ Failure, Success, Try }
 import scala.annotation.tailrec
@@ -124,14 +123,11 @@ final class STM[+E, +A] private[stm] (
    * Continues on the effect returned from pf.
    */
   final def collectM[E1 >: E, B](pf: PartialFunction[A, STM[E1, B]]): STM[E1, B] =
-    new STM(
-      (journal, fiberId, stackSize) =>
-        continueWith(journal, fiberId, stackSize) {
-          case t @ TRez.Fail(_) => t
-          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) pf(a).exec(journal, fiberId, stackSize) else TRez.Retry
-          case TRez.Retry       => TRez.Retry
-        }
-    )
+    self.continueWithM {
+      case TRez.Fail(e)    => STM.fail(e)
+      case TRez.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else STM.retry
+      case TRez.Retry      => STM.retry
+    }
 
   /**
    * Commits this transaction atomically.
@@ -165,14 +161,11 @@ final class STM[+E, +A] private[stm] (
    * and then runs the returned effect as well to produce its results.
    */
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
-    new STM(
-      (journal, fiberId, stackSize) =>
-        continueWith(journal, fiberId, stackSize) {
-          case TRez.Succeed(a)  => f(a).exec(journal, fiberId, stackSize)
-          case t @ TRez.Fail(_) => t
-          case TRez.Retry       => TRez.Retry
-        }
-    )
+    self.continueWithM {
+      case TRez.Succeed(a) => f(a)
+      case TRez.Fail(e)    => STM.fail(e)
+      case TRez.Retry      => STM.retry
+    }
 
   /**
    * Flattens out a nested `STM` effect.
@@ -185,28 +178,22 @@ final class STM[+E, +A] private[stm] (
    * retry.
    */
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
-    new STM(
-      (journal, fiberId, stackSize) =>
-        continueWith(journal, fiberId, stackSize) {
-          case TRez.Fail(e)    => TRez.Succeed(f(e))
-          case TRez.Succeed(a) => TRez.Succeed(g(a))
-          case TRez.Retry      => TRez.Retry
-        }
-    )
+    self.continueWithM {
+      case TRez.Fail(e)    => STM.succeed(f(e))
+      case TRez.Succeed(a) => STM.succeed(g(a))
+      case TRez.Retry      => STM.retry
+    }
 
   /**
    * Effectfully folds over the `STM` effect, handling both failure and
    * success.
    */
   final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
-    new STM(
-      (journal, fiberId, stackSize) =>
-        continueWith(journal, fiberId, stackSize) {
-          case TRez.Fail(e)    => f(e).exec(journal, fiberId, stackSize)
-          case TRez.Succeed(a) => g(a).exec(journal, fiberId, stackSize)
-          case TRez.Retry      => TRez.Retry
-        }
-    )
+    self.continueWithM {
+      case TRez.Fail(e)    => f(e)
+      case TRez.Succeed(a) => g(a)
+      case TRez.Retry      => STM.retry
+    }
 
   /**
    * Returns a new effect that ignores the success or failure of this effect.
@@ -217,27 +204,21 @@ final class STM[+E, +A] private[stm] (
    * Maps the value produced by the effect.
    */
   final def map[B](f: A => B): STM[E, B] =
-    new STM(
-      (journal, fiberId, stackSize) =>
-        continueWith(journal, fiberId, stackSize) {
-          case TRez.Succeed(a)  => TRez.Succeed(f(a))
-          case t @ TRez.Fail(_) => t
-          case TRez.Retry       => TRez.Retry
-        }
-    )
+    self.continueWithM {
+      case TRez.Succeed(a) => STM.succeed(f(a))
+      case TRez.Fail(e)    => STM.fail(e)
+      case TRez.Retry      => STM.retry
+    }
 
   /**
    * Maps from one error type to another.
    */
   final def mapError[E1](f: E => E1): STM[E1, A] =
-    new STM(
-      (journal, fiberId, stackSize) =>
-        continueWith(journal, fiberId, stackSize) {
-          case t @ TRez.Succeed(_) => t
-          case TRez.Fail(e)        => TRez.Fail(f(e))
-          case TRez.Retry          => TRez.Retry
-        }
-    )
+    self.continueWithM {
+      case TRez.Succeed(a) => STM.succeed(a)
+      case TRez.Fail(e)    => STM.fail(f(e))
+      case TRez.Retry      => STM.retry
+    }
 
   /**
    * Converts the failure channel into an `Option`.
@@ -248,17 +229,26 @@ final class STM[+E, +A] private[stm] (
    * Tries this effect first, and if it fails, tries the other effect.
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
-    new STM(
-      (journal, fiberId, stackSize) => {
-        val reset = prepareResetJournal(journal)
+    ???
+  // new STM(
+  //   (journal, fiberId, stackSize) => {
+  //     val framesCount = stackSize.incrementAndGet()
 
-        continueWith(journal, fiberId, stackSize) {
-          case TRez.Fail(_)        => { reset(); that.exec(journal, fiberId, stackSize) }
-          case t @ TRez.Succeed(_) => t
-          case TRez.Retry          => { reset(); that.exec(journal, fiberId, stackSize) }
-        }
-      }
-    )
+  //     val reset = prepareResetJournal(journal)
+
+  //     val continue = {
+  //       case TRez.Fail(_)        => { reset(); that }
+  //       case TRez.Succeed(a) => STM.succeed(a)
+  //       case TRez.Retry          => { reset(); that }
+  //     }
+
+  //     if (framesCount > STM.MaxFrames)
+  //       throw new STM.Resumable(self, continue)
+  //     else
+  //       self.exec(journal, fiberId, stackSize)
+  //       // continue(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
+  //   }
+  // )
 
   /**
    * Returns a transactional effect that will produce the value of this effect in left side, unless it
@@ -302,19 +292,29 @@ final class STM[+E, +A] private[stm] (
   final def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def continueWith[E1, B](journal: STM.internal.Journal, fiberId: Fiber.Id, stackSize: AtomicLong)(
-    continue: TRez[E, A] => TRez[E1, B]
-  ): TRez[E1, B] = {
-    val framesCount = stackSize.incrementAndGet()
+  private def continueWithM[E1, B](continueM: TRez[E, A] => STM[E1, B]): STM[E1, B] =
+    new STM(
+      (journal, fiberId, stackSize) => {
+        val framesCount = stackSize.incrementAndGet()
 
-    if (framesCount > STM.MaxFrames)
-      throw new STM.Resumable(self, continue)
-    else
-      continue(self.exec(journal, fiberId, stackSize))
-  }
+        if (framesCount > STM.MaxFrames) {
+          val ks = new ArrayList[TRez[E, A] => STM[E, A]]()
+          ks.add(STM.done)
+          throw new STM.Resumable(self, ks)
+        } else {
+          try {
+            continueM(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
+          } catch {
+            case res: STM.Resumable[e, e1, a, b] =>
+              res.ks.add(continueM.asInstanceOf[TRez[e, a] => STM[e1, b]])
+              throw res
+          }
+        }
+      }
+    )
 
   private def run(journal: STM.internal.Journal, fiberId: Fiber.Id): TRez[E, A] = {
-    type Cont = Any => TRez[Any, Any]
+    type Cont = TRez[Any, Any] => STM[Any, Any]
 
     val stackSize = new AtomicLong()
     val stack     = Stack[Cont]()
@@ -323,18 +323,21 @@ final class STM[+E, +A] private[stm] (
 
     while (result eq null) {
       try {
-        val v = current.exec(journal, fiberId, stackSize).asInstanceOf[AnyRef]
+        val v = current.exec(journal, fiberId, stackSize)
 
         if (stack.isEmpty)
           result = v
         else {
           val next = stack.pop()
-          current = new STM((_, _, _) => next(v))
+          current = next(v)
         }
       } catch {
         case cont: STM.Resumable[_, _, _, _] =>
           current = cont.stm
-          stack.push(cont.f.asInstanceOf[Cont])
+
+          val it = cont.ks.iterator()
+          while (it.hasNext()) stack.push(it.next().asInstanceOf[Cont])
+
           stackSize.set(0)
       }
     }
@@ -345,7 +348,7 @@ final class STM[+E, +A] private[stm] (
 
 object STM {
 
-  private final class Resumable[E, E1, A, B](val stm: STM[E, A], val f: internal.TRez[E, A] => internal.TRez[E1, B])
+  private final class Resumable[E, E1, A, B](val stm: STM[E, A], val ks: ArrayList[internal.TRez[E, A] => STM[E1, B]])
       extends Throwable(null, null, false, false)
 
   private final val MaxFrames = 200
@@ -759,6 +762,14 @@ object STM {
    * the specified message.
    */
   final def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
+
+  // TODO: rename to exit
+  final def done[E, A](rez: TRez[E, A]): STM[E, A] =
+    rez match {
+      case TRez.Retry      => STM.retry
+      case TRez.Fail(e)    => STM.fail(e)
+      case TRez.Succeed(a) => STM.succeed(a)
+    }
 
   /**
    * Returns a value that models failure in the transaction.
