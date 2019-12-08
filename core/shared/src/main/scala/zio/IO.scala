@@ -340,6 +340,12 @@ object IO {
     ZIO.fromFuture(make)
 
   /**
+   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   */
+  final def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFutureInterrupt(make)
+
+  /**
    * @see See [[zio.ZIO.fromOption]]
    */
   final def fromOption[A](v: => Option[A]): IO[Unit, A] = ZIO.fromOption(v)

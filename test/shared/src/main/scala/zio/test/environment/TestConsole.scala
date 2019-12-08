@@ -62,7 +62,7 @@ trait TestConsole extends Console {
 
 object TestConsole extends Serializable {
 
-  trait Service[R] extends Console.Service[R] {
+  trait Service[R] extends Console.Service[R] with Restorable {
     def feedLines(lines: String*): UIO[Unit]
     def output: UIO[Vector[String]]
     def clearInput: UIO[Unit]
@@ -72,21 +72,25 @@ object TestConsole extends Serializable {
   case class Test(consoleState: Ref[TestConsole.Data]) extends TestConsole.Service[Any] {
 
     /**
-     * Writes the specified string to the output buffer.
+     * Clears the contents of the input buffer.
      */
-    override def putStr(line: String): UIO[Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output :+ line)
-      }.unit
+    val clearInput: UIO[Unit] =
+      consoleState.update(data => data.copy(input = List.empty)).unit
 
     /**
-     * Writes the specified string to the output buffer followed by a newline
-     * character.
+     * Clears the contents of the output buffer.
      */
-    override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output :+ s"$line\n")
-      }.unit
+    val clearOutput: UIO[Unit] =
+      consoleState.update(data => data.copy(output = Vector.empty)).unit
+
+    /**
+     * Writes the specified sequence of strings to the input buffer. The
+     * first string in the sequence will be the first to be taken. These
+     * strings will be taken before any strings that were previously in the
+     * input buffer.
+     */
+    def feedLines(lines: String*): UIO[Unit] =
+      consoleState.update(data => data.copy(input = lines.toList ::: data.input)).unit
 
     /**
      * Takes the first value from the input buffer, if one exists, or else
@@ -106,15 +110,6 @@ object TestConsole extends Serializable {
     }
 
     /**
-     * Writes the specified sequence of strings to the input buffer. The
-     * first string in the sequence will be the first to be taken. These
-     * strings will be taken before any strings that were previously in the
-     * input buffer.
-     */
-    def feedLines(lines: String*): UIO[Unit] =
-      consoleState.update(data => data.copy(input = lines.toList ::: data.input)).unit
-
-    /**
      * Returns the contents of the output buffer. The first value written to
      * the output buffer will be the first in the sequence.
      */
@@ -122,16 +117,30 @@ object TestConsole extends Serializable {
       consoleState.get.map(_.output)
 
     /**
-     * Clears the contents of the input buffer.
+     * Writes the specified string to the output buffer.
      */
-    val clearInput: UIO[Unit] =
-      consoleState.update(data => data.copy(input = List.empty)).unit
+    override def putStr(line: String): UIO[Unit] =
+      consoleState.update { data =>
+        Data(data.input, data.output :+ line)
+      }.unit
 
     /**
-     * Clears the contents of the output buffer.
+     * Writes the specified string to the output buffer followed by a newline
+     * character.
      */
-    val clearOutput: UIO[Unit] =
-      consoleState.update(data => data.copy(output = Vector.empty)).unit
+    override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
+      consoleState.update { data =>
+        Data(data.input, data.output :+ s"$line\n")
+      }.unit
+
+    /**
+     * Saves the `TestConsole`'s current state in an effect which, when run, will restore the `TestConsole`
+     * state to the saved state
+     */
+    val save: UIO[UIO[Unit]] =
+      for {
+        cState <- consoleState.get
+      } yield consoleState.set(cState)
   }
 
   /**
@@ -187,6 +196,12 @@ object TestConsole extends Serializable {
    * buffers both empty.
    */
   val DefaultData: Data = Data(Nil, Vector())
+
+  /**
+   * Accesses a `TestConsole` instance in the environment and saves the console state in an effect which, when run,
+   * will restore the `TestConsole` to the saved state
+   */
+  val save: ZIO[TestConsole, Nothing, UIO[Unit]] = ZIO.accessM[TestConsole](_.console.save)
 
   /**
    * The state of the `TestConsole`.

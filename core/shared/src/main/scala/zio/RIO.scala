@@ -365,6 +365,12 @@ object RIO {
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     ZIO.fromFuture(make)
 
+  /**
+   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   */
+  final def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFutureInterrupt(make)
+
   final def fromOption[A](v: => Option[A]): IO[Unit, A] = ZIO.fromOption(v)
 
   /**
