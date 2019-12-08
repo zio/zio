@@ -4,10 +4,17 @@ import zio.system
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestSystem._
+import zio.test.TestAspect.nonFlaky
 
 object SystemSpec extends ZIOBaseSpec {
 
   def spec = suite("SystemSpec")(
+    testM("check set values are cleared at the start of repeating tests") {
+      for {
+        env <- system.env("k1")
+        _   <- putEnv("k1", "v1")
+      } yield assert(env, isNone)
+    } @@ nonFlaky,
     testM("fetch an environment variable and check that if it exists, return a reasonable value") {
       for {
         _   <- putEnv("k1", "v1")
