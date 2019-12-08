@@ -306,7 +306,7 @@ final class STM[+E, +A] private[stm] (
       continue(self.exec(journal, fiberId, stackSize))
   }
 
-  private def run(journal: STM.internal.Journal, fiberId: Fiber.Id): STM.internal.TRez[E, A] = {
+  private def run(journal: STM.internal.Journal, fiberId: Fiber.Id): TRez[E, A] = {
     type Cont = Any => TRez[Any, Any]
 
     val stackSize = new AtomicLong()
