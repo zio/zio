@@ -407,6 +407,9 @@ object STMSpec extends ZIOBaseSpec {
       testM("long collect chains") {
         assertM(chain(10000)(_.collect { case a: Int => a + 1 }), equalTo(10000))
       },
+      testM("long collectM chains") {
+        assertM(chain(10000)(_.collectM { case a: Int => STM.succeed(a + 1) }), equalTo(10000))
+      },
       testM("long flatMap chains") {
         assertM(chain(10000)(_.flatMap(a => STM.succeed(a + 1))), equalTo(10000))
       },
