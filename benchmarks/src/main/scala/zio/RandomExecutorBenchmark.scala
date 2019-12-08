@@ -3,13 +3,15 @@ package zio
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.internal.{ Executor, PlatformLive }
+import zio.IOBenchmarks.unsafeRun
+import zio.IOBenchmarks.repeat
 import zio.test.RandomExecutor
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class TestRuntimeBenchmark {
+class RandomExecutorBenchmark {
 
   val totalSize   = 1000
   val parallelism = 5
@@ -37,4 +39,32 @@ class TestRuntimeBenchmark {
     _      <- offers.join
     _      <- takes.join
   } yield 0
+
+  object SyncRuntime extends DefaultRuntime {
+    override val platform = PlatformLive.Benchmark.withExecutor(new Executor {
+
+      /**
+       * The number of operations a fiber should run before yielding.
+       */
+      override def yieldOpCount: Int = Int.MaxValue
+
+      /**
+       * Current sampled execution metrics, if available.
+       */
+      override def metrics: Option[Nothing] = None
+
+      /**
+       * Submits an effect for execution.
+       */
+      override def submit(runnable: Runnable): Boolean = {
+        runnable.run()
+        true
+      }
+
+      /**
+       * Whether or not the caller is being run on this executor.
+       */
+      override def here: Boolean = true
+    })
+  }
 }
