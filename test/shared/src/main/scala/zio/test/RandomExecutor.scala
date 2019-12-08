@@ -90,6 +90,18 @@ object RandomExecutor {
     }
 
   /** Inserts yields before every effect */
+  /*
+   * If you changed or added a basic ZIO type (i.e. class extending ZIO) you need to update
+   * this file as well.
+   *
+   * 1. If you didn't change or added an effect be happy and go to step 3.
+   * 2. If you added an effect, you need to add an ZIO.yieldNew before the execution of the effect
+   *    and do also step 3.
+   * 3. Apply `yieldingEffects` to every value of your class which is, contains or produces an ZIO.
+   *    See below for the `yieldingEffects*` helper functions.
+   *
+   * A modification of the executor above shouldn't be needed.
+   */
   private def yieldingEffects[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio match {
       // Introduce yields before every effect to be caught by the neverYieldingExecutor
