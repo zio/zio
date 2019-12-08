@@ -231,8 +231,6 @@ final class STM[+E, +A] private[stm] (
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
     new STM(
       (journal, fiberId, stackSize) => {
-        val framesCount = stackSize.incrementAndGet()
-
         val reset = prepareResetJournal(journal)
 
         val continueM: TExit[E, A] => STM[E1, A1] = {
@@ -241,18 +239,23 @@ final class STM[+E, +A] private[stm] (
           case TExit.Retry      => { reset(); that }
         }
 
+        val framesCount = stackSize.incrementAndGet()
+
         if (framesCount > STM.MaxFrames) {
           val ks = new ArrayList[TExit[E, A] => STM[E1, A1]]()
           ks.add(continueM)
           throw new STM.Resumable(self, ks)
         } else {
-          try {
-            continueM(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
-          } catch {
-            case res: STM.Resumable[e, e1, a, b] =>
-              res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-              throw res
-          }
+          val continued =
+            try {
+              continueM(self.exec(journal, fiberId, stackSize))
+            } catch {
+              case res: STM.Resumable[e, e1, a, b] =>
+                res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+                throw res
+            }
+
+          continued.exec(journal, fiberId, stackSize)
         }
       }
     )
@@ -309,13 +312,16 @@ final class STM[+E, +A] private[stm] (
           ks.add(continueM)
           throw new STM.Resumable(self, ks)
         } else {
-          try {
-            continueM(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
-          } catch {
-            case res: STM.Resumable[e, e1, a, b] =>
-              res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-              throw res
-          }
+          val continued =
+            try {
+              continueM(self.exec(journal, fiberId, stackSize))
+            } catch {
+              case res: STM.Resumable[e, e1, a, b] =>
+                res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+                throw res
+            }
+
+          continued.exec(journal, fiberId, stackSize)
         }
       }
     )
