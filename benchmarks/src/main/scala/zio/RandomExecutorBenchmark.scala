@@ -15,22 +15,25 @@ class RandomExecutorBenchmark {
 
   val totalSize   = 1000
   val parallelism = 5
+  val times       = 100
 
   @Benchmark
   def runInDefaultRuntime(): Int =
-    unsafeRun(io.repeat(Schedule.recurs(100)))
+    unsafeRun(io.run.repeat(hundredTimes))
 
   @Benchmark
-  def analyseInDefaultRuntime(): Unit =
-    unsafeRun(RandomExecutor.paths(io).forever.take(100).runDrain)
+  def RandomExecutorInDefaultRuntime(): Int =
+    unsafeRun(RandomExecutor.run(io).repeat(hundredTimes))
 
   @Benchmark
   def runInSyncRuntime(): Int =
-    SyncRuntime.unsafeRun(io.repeat(Schedule.recurs(100)))
+    SyncRuntime.unsafeRun(io.run.repeat(hundredTimes))
 
   @Benchmark
-  def analyseInSyncRuntime(): Unit =
-    SyncRuntime.unsafeRun(RandomExecutor.paths(io).forever.take(100).runDrain)
+  def RandomExecutorInSyncRuntime(): Int =
+    SyncRuntime.unsafeRun(RandomExecutor.run(io).repeat(hundredTimes))
+
+  private def hundredTimes = Schedule.recurs(times)
 
   val io: ZIO[Any, Nothing, Int] = for {
     queue  <- Queue.bounded[Int](totalSize)
