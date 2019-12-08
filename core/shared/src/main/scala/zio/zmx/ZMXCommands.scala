@@ -22,17 +22,14 @@ import java.nio.charset.StandardCharsets
 sealed trait ZMXCommands
 
 object ZMXCommands {
-  def ByteBufferToString(bytes: ByteBuffer): String = {
+  def ByteBufferToString(bytes: ByteBuffer): String =
     new String(bytes.array()).trim()
-  }
 
-  def StringToByteBuffer(message: String): ByteBuffer = {
+  def StringToByteBuffer(message: String): ByteBuffer =
     ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8))
-  }
 
-  case object Test extends ZMXCommands
-  case object Stop extends ZMXCommands
-  case object Metrics extends ZMXCommands
+  case object Test      extends ZMXCommands
+  case object Stop      extends ZMXCommands
+  case object Metrics   extends ZMXCommands
   case object FiberDump extends ZMXCommands
 }
-

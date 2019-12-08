@@ -18,7 +18,7 @@ package zio.zmx
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.{SelectionKey, Selector, ServerSocketChannel, SocketChannel}
+import java.nio.channels.{ SelectionKey, Selector, ServerSocketChannel, SocketChannel }
 import java.util.Iterator
 
 import scala.collection.JavaConverters._
@@ -39,14 +39,13 @@ object ZMXServer {
     case ZMXServerRequest(command, args) if command.equalsIgnoreCase("stop") => ZMXCommands.Stop
   }
 
-  private def handleCommand(command: ZMXCommands): ZMXMessage = {
+  private def handleCommand(command: ZMXCommands): ZMXMessage =
     command match {
       case ZMXCommands.FiberDump => ??? // use Fiber.dump
-      case ZMXCommands.Metrics => ??? // wip by @dkarlinsky
-      case ZMXCommands.Test => ZMXMessage("This is a TEST")
-      case _ => ZMXMessage("Unknown Command")
+      case ZMXCommands.Metrics   => ??? // wip by @dkarlinsky
+      case ZMXCommands.Test      => ZMXMessage("This is a TEST")
+      case _                     => ZMXMessage("Unknown Command")
     }
-  }
 
   private def processCommand(received: String): Option[ZMXCommands] = {
     val request: Option[ZMXServerRequest] = ZMXProtocol.serverReceived(received)
@@ -77,9 +76,9 @@ object ZMXServer {
   }
 
   def apply(config: ZMXConfig): Unit = {
-    val selector: Selector = Selector.open()
+    val selector: Selector             = Selector.open()
     val zmxSocket: ServerSocketChannel = ServerSocketChannel.open()
-    val zmxAddress: InetSocketAddress = new InetSocketAddress(config.host, config.port)
+    val zmxAddress: InetSocketAddress  = new InetSocketAddress(config.host, config.port)
     zmxSocket.socket.setReuseAddress(true)
     zmxSocket.bind(zmxAddress)
     zmxSocket.configureBlocking(false)
@@ -89,13 +88,13 @@ object ZMXServer {
     var state: Boolean = true
     while (state) {
       selector.select()
-      val zmxKeys: Set[SelectionKey] = selector.selectedKeys.asScala
+      val zmxKeys: Set[SelectionKey]      = selector.selectedKeys.asScala
       val zmxIter: Iterator[SelectionKey] = zmxKeys.iterator.asJava
       while (zmxIter.hasNext) {
         val currentKey: SelectionKey = zmxIter.next
         if (currentKey.isAcceptable) {
           register(selector, zmxSocket)
-        } 
+        }
         if (currentKey.isReadable) {
           state = responseReceived(buffer, currentKey, config.debug)
           if (!state) {
@@ -105,6 +104,6 @@ object ZMXServer {
         }
         zmxIter.remove()
       }
-    } 
+    }
   }
 }

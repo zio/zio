@@ -19,5 +19,4 @@ package zio.zmx
 sealed trait ZMXServerResponse
 
 case object Success extends ZMXServerResponse
-case object Fail extends ZMXServerResponse
-
+case object Fail    extends ZMXServerResponse

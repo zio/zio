@@ -19,4 +19,4 @@ package zio.zmx
 final case class ZMXServerRequest(
   command: String,
   args: Option[List[String]]
-  )
+)

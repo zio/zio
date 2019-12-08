@@ -20,25 +20,25 @@ import java.nio.charset.StandardCharsets._
 import scala.annotation.tailrec
 
 object ZMXProtocol {
+
   /**
    *  Implementation of the RESP protocol to be used by ZMX for client-server communication
    *
    *  RESP Protocol Specs: https://redis.io/topics/protocol
    *
    */
-
   /** Response types */
-  val MULTI   = "*"
-  val PASS    = "+"
-  val FAIL    = "-"
-  val BULK    = "$"
+  val MULTI = "*"
+  val PASS  = "+"
+  val FAIL  = "-"
+  val BULK  = "$"
 
   /**
-   * Generate message to send to server 
+   * Generate message to send to server
    *
    *
-   */ 
-  def generateRespCommand(args: List[String]): String  = {
+   */
+  def generateRespCommand(args: List[String]): String = {
     val protocol = new StringBuilder().append("*").append(args.length).append("\r\n")
 
     args.foreach { arg =>
@@ -54,12 +54,11 @@ object ZMXProtocol {
    *
    *
    */
-  def generateReply(message: ZMXMessage, replyType: ZMXServerResponse): String = {
+  def generateReply(message: ZMXMessage, replyType: ZMXServerResponse): String =
     replyType match {
       case Success => s"+${message.toString}"
-      case Fail => s"-${message.toString}"
+      case Fail    => s"-${message.toString}"
     }
-  }
 
   final val getSuccessfulResponse: PartialFunction[String, String] = {
     case s: String if s startsWith PASS => s.slice(1, s.length)
@@ -82,14 +81,12 @@ object ZMXProtocol {
   }
 
   @tailrec
-  final def getArgs(received: List[String], acc: List[String] = List()): List[String] = {
+  final def getArgs(received: List[String], acc: List[String] = List()): List[String] =
     if (received.size > 1 && (received.head startsWith BULK)) {
       val result: String = getBulkString((received.slice(0, 2), sizeOfBulkString(received.head)))
       getArgs(received.slice(2, received.size), acc :+ result)
-    }
-    else
+    } else
       acc
-  }
 
   /**
    * Extracts command and arguments received from client
@@ -104,26 +101,28 @@ object ZMXProtocol {
    */
   def serverReceived(received: String): Option[ZMXServerRequest] = {
     val receivedList: List[String] = received.split("\r\n").toList
-    val receivedCount: Int = numberOfBulkStrings(receivedList.head)
+    val receivedCount: Int         = numberOfBulkStrings(receivedList.head)
     if (receivedList.size < 1 || receivedCount < 1)
       return None
-    val command: String = getBulkString((receivedList.slice(1,3), sizeOfBulkString(receivedList(1))))
+    val command: String = getBulkString((receivedList.slice(1, 3), sizeOfBulkString(receivedList(1))))
     if (receivedList.size < 4)
-      Some(ZMXServerRequest(
-        command = command,
-        args = None
+      Some(
+        ZMXServerRequest(
+          command = command,
+          args = None
         )
       )
     else
-      Some(ZMXServerRequest(
-        command = command,
-        args = Some(getArgs(receivedList.slice(3, receivedList.size)))
+      Some(
+        ZMXServerRequest(
+          command = command,
+          args = Some(getArgs(receivedList.slice(3, receivedList.size)))
+        )
       )
-    )
   }
 
   /**
-   * Extract response received by client 
+   * Extract response received by client
    *
    * Success of format: +<message>
    * Error of format: -<message>
@@ -131,4 +130,3 @@ object ZMXProtocol {
    */
   val clientReceived: PartialFunction[String, String] = getSuccessfulResponse orElse getErrorResponse
 }
-

@@ -20,4 +20,3 @@ case class ZMXConfig(host: String, port: Int, debug: Boolean)
 object ZMXConfig {
   def empty = new ZMXConfig(host = "localhost", port = 1111, debug = false)
 }
-

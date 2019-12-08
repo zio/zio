@@ -28,14 +28,13 @@ object ZMXClient {
     println(s"Server Response was: $response")
   }
 
-  def SendMessage(message: String): Boolean = {
-   client.write(Buffer.from(message))
-  }
+  def SendMessage(message: String): Boolean =
+    client.write(Buffer.from(message))
   client.connect(
     1111,
     "localhost",
     SendMessage(_)
-    )
+  )
   client.on("data", responseListener(_))
   client.on("close", println("Closed Client connection").asInstanceOf[js.Function])
 }

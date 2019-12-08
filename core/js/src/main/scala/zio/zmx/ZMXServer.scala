@@ -21,7 +21,6 @@ import io.scalajs.nodejs.buffer.Buffer
 import io.scalajs.nodejs.net._
 import scala.collection.mutable.ListBuffer
 
-
 object ZMXServer {
   val sockets = ListBuffer[Socket]()
   private def responseReceived(buffer: Buffer): Boolean = {
@@ -33,12 +32,10 @@ object ZMXServer {
     responseReceived(buffer)
     sockets.foreach(
       _.write("Received message thank you")
-      )
+    )
   }
   private def closeListener(s: Socket, buffer: Buffer) = {
-    val removeSocketIndex = sockets.indexWhere( x =>
-      x.remoteAddress == s.remoteAddress && x.remotePort == s.remotePort
-      )
+    val removeSocketIndex = sockets.indexWhere(x => x.remoteAddress == s.remoteAddress && x.remotePort == s.remotePort)
     sockets.remove(removeSocketIndex)
     println(s"Closed Socket: $s.remoteAddress : $s.remotePort")
   }
@@ -51,12 +48,11 @@ object ZMXServer {
   def apply(config: ZMXConfig): Unit = {
     val server: Server = Net.createServer()
     server.listen(
-      port=config.port,
-      hostname=config.host,
-      backlog=128,
-      callback=println(s"JS Server is running: port: $config.port host: $config.host").asInstanceOf[js.Function]
-      )
+      port = config.port,
+      hostname = config.host,
+      backlog = 128,
+      callback = println(s"JS Server is running: port: $config.port host: $config.host").asInstanceOf[js.Function]
+    )
     server.on("connection", connectionListener(_))
   }
 }
-
