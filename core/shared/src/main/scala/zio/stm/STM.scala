@@ -128,7 +128,7 @@ final class STM[+E, +A] private[stm] (
       (journal, fiberId, stackSize) =>
         continueWith(journal, fiberId, stackSize) {
           case t @ TRez.Fail(_) => t
-          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) pf(a).exec(journal, fiberId) else TRez.Retry
+          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) pf(a).exec(journal, fiberId, stackSize) else TRez.Retry
           case TRez.Retry       => TRez.Retry
         }
     )
