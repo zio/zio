@@ -71,7 +71,7 @@ trait TestRandom extends Random {
 
 object TestRandom extends Serializable {
 
-  trait Service[R] extends Random.Service[R] {
+  trait Service[R] extends Random.Service[R] with Restorable {
     def clearBooleans: UIO[Unit]
     def clearBytes: UIO[Unit]
     def clearChars: UIO[Unit]
@@ -381,6 +381,19 @@ object TestRandom extends Serializable {
       getOrElse(bufferedString)(randomString(length))
 
     /**
+     * Saves the `TestRandom`'s current state in an effect which, when run, will restore the `TestRandom`
+     * state to the saved state
+     */
+    val save: UIO[UIO[Unit]] =
+      for {
+        rState <- randomState.get
+        bState <- bufferState.get
+      } yield {
+        randomState.set(rState) *>
+          bufferState.set(bState)
+      }
+
+    /**
      * Sets the seed of this `TestRandom` to the specified value.
      */
     def setSeed(seed: Long): UIO[Unit] =
@@ -607,6 +620,12 @@ object TestRandom extends Serializable {
       data   <- Ref.make(data)
       buffer <- Ref.make(Buffer())
     } yield Test(data, buffer)
+
+  /**
+   * Accesses a `TestRandom` instance in the environment and saves the random state in an effect which, when run,
+   * will restore the `TestRandom` to the saved state
+   */
+  val save: ZIO[TestRandom, Nothing, UIO[Unit]] = ZIO.accessM[TestRandom](_.random.save)
 
   /**
    * Accesses a `TestRandom` instance in the environment and sets the seed to
