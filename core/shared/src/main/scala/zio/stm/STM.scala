@@ -242,8 +242,8 @@ final class STM[+E, +A] private[stm] (
       }
 
       if (framesCount > STM.MaxFrames) {
-        val ks = new ArrayList[TRez[E, A] => STM[E, A]]()
-        ks.add(STM.done)
+        val ks = new ArrayList[TRez[E, A] => STM[E1, A1]]()
+        ks.add(continueM)
         throw new STM.Resumable(self, ks)
       } else {
         try {
@@ -305,8 +305,8 @@ final class STM[+E, +A] private[stm] (
         val framesCount = stackSize.incrementAndGet()
 
         if (framesCount > STM.MaxFrames) {
-          val ks = new ArrayList[TRez[E, A] => STM[E, A]]()
-          ks.add(STM.done)
+          val ks = new ArrayList[TRez[E, A] => STM[E1, B]]()
+          ks.add(continueM)
           throw new STM.Resumable(self, ks)
         } else {
           try {
