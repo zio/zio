@@ -229,26 +229,33 @@ final class STM[+E, +A] private[stm] (
    * Tries this effect first, and if it fails, tries the other effect.
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
-    ???
-  // new STM(
-  //   (journal, fiberId, stackSize) => {
-  //     val framesCount = stackSize.incrementAndGet()
+  new STM(
+    (journal, fiberId, stackSize) => {
+      val framesCount = stackSize.incrementAndGet()
 
-  //     val reset = prepareResetJournal(journal)
+      val reset = prepareResetJournal(journal)
 
-  //     val continue = {
-  //       case TRez.Fail(_)        => { reset(); that }
-  //       case TRez.Succeed(a) => STM.succeed(a)
-  //       case TRez.Retry          => { reset(); that }
-  //     }
+      val continueM: TRez[E, A] => STM[E1, A1] = {
+        case TRez.Fail(_)        => { reset(); that }
+        case TRez.Succeed(a) => STM.succeed(a)
+        case TRez.Retry          => { reset(); that }
+      }
 
-  //     if (framesCount > STM.MaxFrames)
-  //       throw new STM.Resumable(self, continue)
-  //     else
-  //       self.exec(journal, fiberId, stackSize)
-  //       // continue(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
-  //   }
-  // )
+      if (framesCount > STM.MaxFrames) {
+        val ks = new ArrayList[TRez[E, A] => STM[E, A]]()
+        ks.add(STM.done)
+        throw new STM.Resumable(self, ks)
+      } else {
+        try {
+          continueM(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
+        } catch {
+          case res: STM.Resumable[e, e1, a, b] =>
+            res.ks.add(continueM.asInstanceOf[TRez[e, a] => STM[e1, b]])
+            throw res
+        }
+      }
+    }
+  )
 
   /**
    * Returns a transactional effect that will produce the value of this effect in left side, unless it
