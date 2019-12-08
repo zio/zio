@@ -229,33 +229,33 @@ final class STM[+E, +A] private[stm] (
    * Tries this effect first, and if it fails, tries the other effect.
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
-  new STM(
-    (journal, fiberId, stackSize) => {
-      val framesCount = stackSize.incrementAndGet()
+    new STM(
+      (journal, fiberId, stackSize) => {
+        val framesCount = stackSize.incrementAndGet()
 
-      val reset = prepareResetJournal(journal)
+        val reset = prepareResetJournal(journal)
 
-      val continueM: TExit[E, A] => STM[E1, A1] = {
-        case TExit.Fail(_)        => { reset(); that }
-        case TExit.Succeed(a) => STM.succeed(a)
-        case TExit.Retry          => { reset(); that }
-      }
+        val continueM: TExit[E, A] => STM[E1, A1] = {
+          case TExit.Fail(_)    => { reset(); that }
+          case TExit.Succeed(a) => STM.succeed(a)
+          case TExit.Retry      => { reset(); that }
+        }
 
-      if (framesCount > STM.MaxFrames) {
-        val ks = new ArrayList[TExit[E, A] => STM[E1, A1]]()
-        ks.add(continueM)
-        throw new STM.Resumable(self, ks)
-      } else {
-        try {
-          continueM(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
-        } catch {
-          case res: STM.Resumable[e, e1, a, b] =>
-            res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
-            throw res
+        if (framesCount > STM.MaxFrames) {
+          val ks = new ArrayList[TExit[E, A] => STM[E1, A1]]()
+          ks.add(continueM)
+          throw new STM.Resumable(self, ks)
+        } else {
+          try {
+            continueM(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
+          } catch {
+            case res: STM.Resumable[e, e1, a, b] =>
+              res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+              throw res
+          }
         }
       }
-    }
-  )
+    )
 
   /**
    * Returns a transactional effect that will produce the value of this effect in left side, unless it
@@ -771,8 +771,8 @@ object STM {
   final def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
 
   /**
-    * Returns a value modelled on provided exit status.
-    */
+   * Returns a value modelled on provided exit status.
+   */
   final def done[E, A](exit: TExit[E, A]): STM[E, A] =
     exit match {
       case TExit.Retry      => STM.retry
