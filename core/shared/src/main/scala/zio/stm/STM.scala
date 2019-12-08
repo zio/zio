@@ -71,9 +71,9 @@ import scala.annotation.tailrec
  *
  */
 final class STM[+E, +A] private[stm] (
-  private val exec: (STM.internal.Journal, Fiber.Id, AtomicLong) => STM.internal.TRez[E, A]
+  private val exec: (STM.internal.Journal, Fiber.Id, AtomicLong) => STM.internal.TExit[E, A]
 ) extends AnyVal { self =>
-  import STM.internal.{ prepareResetJournal, TRez }
+  import STM.internal.{ prepareResetJournal, TExit }
 
   /**
    * Sequentially zips this value with the specified one.
@@ -124,9 +124,9 @@ final class STM[+E, +A] private[stm] (
    */
   final def collectM[E1 >: E, B](pf: PartialFunction[A, STM[E1, B]]): STM[E1, B] =
     self.continueWithM {
-      case TRez.Fail(e)    => STM.fail(e)
-      case TRez.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else STM.retry
-      case TRez.Retry      => STM.retry
+      case TExit.Fail(e)    => STM.fail(e)
+      case TExit.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else STM.retry
+      case TExit.Retry      => STM.retry
     }
 
   /**
@@ -162,9 +162,9 @@ final class STM[+E, +A] private[stm] (
    */
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     self.continueWithM {
-      case TRez.Succeed(a) => f(a)
-      case TRez.Fail(e)    => STM.fail(e)
-      case TRez.Retry      => STM.retry
+      case TExit.Succeed(a) => f(a)
+      case TExit.Fail(e)    => STM.fail(e)
+      case TExit.Retry      => STM.retry
     }
 
   /**
@@ -179,9 +179,9 @@ final class STM[+E, +A] private[stm] (
    */
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
     self.continueWithM {
-      case TRez.Fail(e)    => STM.succeed(f(e))
-      case TRez.Succeed(a) => STM.succeed(g(a))
-      case TRez.Retry      => STM.retry
+      case TExit.Fail(e)    => STM.succeed(f(e))
+      case TExit.Succeed(a) => STM.succeed(g(a))
+      case TExit.Retry      => STM.retry
     }
 
   /**
@@ -190,9 +190,9 @@ final class STM[+E, +A] private[stm] (
    */
   final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
     self.continueWithM {
-      case TRez.Fail(e)    => f(e)
-      case TRez.Succeed(a) => g(a)
-      case TRez.Retry      => STM.retry
+      case TExit.Fail(e)    => f(e)
+      case TExit.Succeed(a) => g(a)
+      case TExit.Retry      => STM.retry
     }
 
   /**
@@ -205,9 +205,9 @@ final class STM[+E, +A] private[stm] (
    */
   final def map[B](f: A => B): STM[E, B] =
     self.continueWithM {
-      case TRez.Succeed(a) => STM.succeed(f(a))
-      case TRez.Fail(e)    => STM.fail(e)
-      case TRez.Retry      => STM.retry
+      case TExit.Succeed(a) => STM.succeed(f(a))
+      case TExit.Fail(e)    => STM.fail(e)
+      case TExit.Retry      => STM.retry
     }
 
   /**
@@ -215,9 +215,9 @@ final class STM[+E, +A] private[stm] (
    */
   final def mapError[E1](f: E => E1): STM[E1, A] =
     self.continueWithM {
-      case TRez.Succeed(a) => STM.succeed(a)
-      case TRez.Fail(e)    => STM.fail(f(e))
-      case TRez.Retry      => STM.retry
+      case TExit.Succeed(a) => STM.succeed(a)
+      case TExit.Fail(e)    => STM.fail(f(e))
+      case TExit.Retry      => STM.retry
     }
 
   /**
@@ -235,14 +235,14 @@ final class STM[+E, +A] private[stm] (
 
       val reset = prepareResetJournal(journal)
 
-      val continueM: TRez[E, A] => STM[E1, A1] = {
-        case TRez.Fail(_)        => { reset(); that }
-        case TRez.Succeed(a) => STM.succeed(a)
-        case TRez.Retry          => { reset(); that }
+      val continueM: TExit[E, A] => STM[E1, A1] = {
+        case TExit.Fail(_)        => { reset(); that }
+        case TExit.Succeed(a) => STM.succeed(a)
+        case TExit.Retry          => { reset(); that }
       }
 
       if (framesCount > STM.MaxFrames) {
-        val ks = new ArrayList[TRez[E, A] => STM[E1, A1]]()
+        val ks = new ArrayList[TExit[E, A] => STM[E1, A1]]()
         ks.add(continueM)
         throw new STM.Resumable(self, ks)
       } else {
@@ -250,7 +250,7 @@ final class STM[+E, +A] private[stm] (
           continueM(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
         } catch {
           case res: STM.Resumable[e, e1, a, b] =>
-            res.ks.add(continueM.asInstanceOf[TRez[e, a] => STM[e1, b]])
+            res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
             throw res
         }
       }
@@ -299,13 +299,13 @@ final class STM[+E, +A] private[stm] (
   final def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def continueWithM[E1, B](continueM: TRez[E, A] => STM[E1, B]): STM[E1, B] =
+  private def continueWithM[E1, B](continueM: TExit[E, A] => STM[E1, B]): STM[E1, B] =
     new STM(
       (journal, fiberId, stackSize) => {
         val framesCount = stackSize.incrementAndGet()
 
         if (framesCount > STM.MaxFrames) {
-          val ks = new ArrayList[TRez[E, A] => STM[E1, B]]()
+          val ks = new ArrayList[TExit[E, A] => STM[E1, B]]()
           ks.add(continueM)
           throw new STM.Resumable(self, ks)
         } else {
@@ -313,15 +313,15 @@ final class STM[+E, +A] private[stm] (
             continueM(self.exec(journal, fiberId, stackSize)).exec(journal, fiberId, stackSize)
           } catch {
             case res: STM.Resumable[e, e1, a, b] =>
-              res.ks.add(continueM.asInstanceOf[TRez[e, a] => STM[e1, b]])
+              res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
               throw res
           }
         }
       }
     )
 
-  private def run(journal: STM.internal.Journal, fiberId: Fiber.Id): TRez[E, A] = {
-    type Cont = TRez[Any, Any] => STM[Any, Any]
+  private def run(journal: STM.internal.Journal, fiberId: Fiber.Id): TExit[E, A] = {
+    type Cont = TExit[Any, Any] => STM[Any, Any]
 
     val stackSize = new AtomicLong()
     val stack     = Stack[Cont]()
@@ -349,13 +349,13 @@ final class STM[+E, +A] private[stm] (
       }
     }
 
-    result.asInstanceOf[TRez[E, A]]
+    result.asInstanceOf[TExit[E, A]]
   }
 }
 
 object STM {
 
-  private final class Resumable[E, E1, A, B](val stm: STM[E, A], val ks: ArrayList[internal.TRez[E, A] => STM[E1, B]])
+  private final class Resumable[E, E1, A, B](val stm: STM[E, A], val ks: ArrayList[internal.TExit[E, A] => STM[E1, B]])
       extends Throwable(null, null, false, false)
 
   private final val MaxFrames = 200
@@ -590,7 +590,7 @@ object STM {
 
     final def tryCommit[E, A](platform: Platform, fiberId: Fiber.Id, stm: STM[E, A]): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
-      var value   = null.asInstanceOf[TRez[E, A]]
+      var value   = null.asInstanceOf[TExit[E, A]]
 
       var loop = true
 
@@ -604,7 +604,7 @@ object STM {
           loop = false
 
           value match {
-            case _: TRez.Succeed[_] =>
+            case _: TExit.Succeed[_] =>
               if (analysis eq JournalAnalysis.ReadWrite) {
                 Sync(globalLock) {
                   if (isValid(journal)) commitJournal(journal) else loop = true
@@ -621,13 +621,13 @@ object STM {
       }
 
       value match {
-        case TRez.Succeed(a) => completeTodos(IO.succeed(a), journal, platform)
-        case TRez.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
-        case TRez.Retry      => TryCommit.Suspend(journal)
+        case TExit.Succeed(a) => completeTodos(IO.succeed(a), journal, platform)
+        case TExit.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
+        case TExit.Retry      => TryCommit.Suspend(journal)
       }
     }
 
-    final val succeedUnit: TRez[Nothing, Unit] = TRez.Succeed(())
+    final val succeedUnit: TExit[Nothing, Unit] = TExit.Succeed(())
 
     final def makeTxnId(): Long = txnCounter.incrementAndGet()
 
@@ -635,11 +635,11 @@ object STM {
 
     final val globalLock = new AnyRef {}
 
-    sealed trait TRez[+A, +B] extends Serializable with Product
-    object TRez {
-      final case class Fail[A](value: A)    extends TRez[A, Nothing]
-      final case class Succeed[B](value: B) extends TRez[Nothing, B]
-      case object Retry                     extends TRez[Nothing, Nothing]
+    sealed trait TExit[+A, +B] extends Serializable with Product
+    object TExit {
+      final case class Fail[A](value: A)    extends TExit[A, Nothing]
+      final case class Succeed[B](value: B) extends TExit[Nothing, B]
+      case object Retry                     extends TExit[Nothing, Nothing]
     }
 
     abstract class Entry { self =>
@@ -770,23 +770,25 @@ object STM {
    */
   final def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
 
-  // TODO: rename to exit
-  final def done[E, A](rez: TRez[E, A]): STM[E, A] =
-    rez match {
-      case TRez.Retry      => STM.retry
-      case TRez.Fail(e)    => STM.fail(e)
-      case TRez.Succeed(a) => STM.succeed(a)
+  /**
+    * Returns a value modelled on provided exit status.
+    */
+  final def done[E, A](exit: TExit[E, A]): STM[E, A] =
+    exit match {
+      case TExit.Retry      => STM.retry
+      case TExit.Fail(e)    => STM.fail(e)
+      case TExit.Succeed(a) => STM.succeed(a)
     }
 
   /**
    * Returns a value that models failure in the transaction.
    */
-  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _, _) => TRez.Fail(e))
+  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _, _) => TExit.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  final val fiberId: STM[Nothing, Fiber.Id] = new STM((_, fiberId, _) => TRez.Succeed(fiberId))
+  final val fiberId: STM[Nothing, Fiber.Id] = new STM((_, fiberId, _) => TExit.Succeed(fiberId))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -826,12 +828,12 @@ object STM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  final val retry: STM[Nothing, Nothing] = new STM((_, _, _) => TRez.Retry)
+  final val retry: STM[Nothing, Nothing] = new STM((_, _, _) => TExit.Retry)
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _, _) => TRez.Succeed(a))
+  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _, _) => TExit.Succeed(a))
 
   /**
    * Suspends creation of the specified transaction lazily.

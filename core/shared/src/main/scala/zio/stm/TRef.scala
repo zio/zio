@@ -37,7 +37,7 @@ class TRef[A] private (
     new STM((journal, _, _) => {
       val entry = getOrMakeEntry(journal)
 
-      TRez.Succeed(entry.unsafeGet[A])
+      TExit.Succeed(entry.unsafeGet[A])
     })
 
   /**
@@ -66,7 +66,7 @@ class TRef[A] private (
 
       entry.unsafeSet(newValue)
 
-      TRez.Succeed(newValue)
+      TExit.Succeed(newValue)
     })
 
   /**
@@ -87,7 +87,7 @@ class TRef[A] private (
 
       entry.unsafeSet(newValue)
 
-      TRez.Succeed(retValue)
+      TExit.Succeed(retValue)
     })
 
   /**
@@ -122,7 +122,7 @@ object TRef {
 
       journal.put(tref, Entry(tref, true))
 
-      TRez.Succeed(tref)
+      TExit.Succeed(tref)
     })
 
   /**
