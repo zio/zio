@@ -34,9 +34,9 @@ object ZMXServer {
   }
 
   final val getCommand: PartialFunction[ZMXServerRequest, ZMXCommands] = {
-    case ZMXServerRequest(command, args) if command.equalsIgnoreCase("dump") => ZMXCommands.FiberDump
-    case ZMXServerRequest(command, args) if command.equalsIgnoreCase("test") => ZMXCommands.Test
-    case ZMXServerRequest(command, args) if command.equalsIgnoreCase("stop") => ZMXCommands.Stop
+    case ZMXServerRequest(command) if command.equalsIgnoreCase("dump") => ZMXCommands.FiberDump
+    case ZMXServerRequest(command) if command.equalsIgnoreCase("test") => ZMXCommands.Test
+    case ZMXServerRequest(command) if command.equalsIgnoreCase("stop") => ZMXCommands.Stop
   }
 
   private def handleCommand(command: ZMXCommands): ZMXMessage =
