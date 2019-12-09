@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import java.util.{ ArrayList, HashMap => MutableMap }
+import java.util.{ HashMap => MutableMap }
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import com.github.ghik.silencer.silent
@@ -242,16 +242,14 @@ final class STM[+E, +A] private[stm] (
         val framesCount = stackSize.incrementAndGet()
 
         if (framesCount > STM.MaxFrames) {
-          val ks = new ArrayList[TExit[E, A] => STM[E1, A1]]()
-          ks.add(continueM)
-          throw new STM.Resumable(self, ks)
+          throw new STM.Resumable(self, Stack(continueM))
         } else {
           val continued =
             try {
               continueM(self.exec(journal, fiberId, stackSize))
             } catch {
               case res: STM.Resumable[e, e1, a, b] =>
-                res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+                res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
                 throw res
             }
 
@@ -308,16 +306,14 @@ final class STM[+E, +A] private[stm] (
         val framesCount = stackSize.incrementAndGet()
 
         if (framesCount > STM.MaxFrames) {
-          val ks = new ArrayList[TExit[E, A] => STM[E1, B]]()
-          ks.add(continueM)
-          throw new STM.Resumable(self, ks)
+          throw new STM.Resumable(self, Stack(continueM))
         } else {
           val continued =
             try {
               continueM(self.exec(journal, fiberId, stackSize))
             } catch {
               case res: STM.Resumable[e, e1, a, b] =>
-                res.ks.add(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
+                res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
                 throw res
             }
 
@@ -330,7 +326,7 @@ final class STM[+E, +A] private[stm] (
     type Cont = TExit[Any, Any] => STM[Any, Any]
 
     val stackSize = new AtomicLong()
-    val stack     = Stack[Cont]()
+    val stack     = new Stack[Cont]()
     var current   = self.asInstanceOf[STM[Any, Any]]
     var result    = null: AnyRef
 
@@ -348,8 +344,7 @@ final class STM[+E, +A] private[stm] (
         case cont: STM.Resumable[_, _, _, _] =>
           current = cont.stm
 
-          val it = cont.ks.iterator()
-          while (it.hasNext()) stack.push(it.next().asInstanceOf[Cont])
+          while (!cont.ks.isEmpty) stack.push(cont.ks.pop().asInstanceOf[Cont])
 
           stackSize.set(0)
       }
@@ -361,7 +356,7 @@ final class STM[+E, +A] private[stm] (
 
 object STM {
 
-  private final class Resumable[E, E1, A, B](val stm: STM[E, A], val ks: ArrayList[internal.TExit[E, A] => STM[E1, B]])
+  private final class Resumable[E, E1, A, B](val stm: STM[E, A], val ks: Stack[internal.TExit[E, A] => STM[E1, B]])
       extends Throwable(null, null, false, false)
 
   private final val MaxFrames = 200
