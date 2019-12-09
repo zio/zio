@@ -375,6 +375,20 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result, isSome(equalTo(5)))
       }
     ),
+    suite("firstOption")(
+      testM("retrieves the first item") {
+        for {
+          tArray <- makeStair(n).commit
+          result <- tArray.firstOption.commit
+        } yield assert(result, isSome(equalTo(1)))
+      },
+      testM("is none for an empty array") {
+        for {
+          tArray <- TArray.empty[Int].commit
+          result <- tArray.firstOption.commit
+        } yield assert(result, isNone)
+      }
+    ),
     suite("fold")(
       testM("is atomic") {
         for {
@@ -464,34 +478,6 @@ object TArraySpec extends ZIOBaseSpec {
           _      <- tArray.foreach(a => ref.update(_ + a).unit).commit.fork
           value  <- ref.get.commit
         } yield assert(value, equalTo(0) || equalTo(n))
-      }
-    ),
-    suite("head")(
-      testM("retrieves the head") {
-        for {
-          tArray <- makeStair(n).commit
-          result <- tArray.head.commit
-        } yield assert(result, equalTo(1))
-      },
-      testM("dies with NoSuchElementException for empty array") {
-        for {
-          tArray <- TArray.empty[Int].commit
-          result <- ZIO.effect(tArray.head).run
-        } yield assert(result, fails(isNoSuchElementException))
-      }
-    ),
-    suite("headOption")(
-      testM("retrieves the head") {
-        for {
-          tArray <- makeStair(n).commit
-          result <- tArray.headOption.commit
-        } yield assert(result, isSome(equalTo(1)))
-      },
-      testM("is none for an empty array") {
-        for {
-          tArray <- TArray.empty[Int].commit
-          result <- tArray.headOption.commit
-        } yield assert(result, isNone)
       }
     ),
     suite("indexOf")(
@@ -660,20 +646,6 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result, equalTo(4))
       }
     ),
-    suite("last")(
-      testM("retrieves the last entry") {
-        for {
-          tArray <- makeStair(n).commit
-          result <- tArray.last.commit
-        } yield assert(result, equalTo(n))
-      },
-      testM("dies with NoSuchElementException for empty array") {
-        for {
-          tArray <- TArray.empty[Int].commit
-          result <- ZIO.effect(tArray.last).run
-        } yield assert(result, fails(isNoSuchElementException))
-      }
-    ),
     suite("lastIndexOf")(
       testM("correct index if in array") {
         for {
@@ -798,20 +770,6 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result, isLeft(equalTo(boom)))
       }
     ),
-    suite("max")(
-      testM("computes correct maximum") {
-        for {
-          tArray <- makeStair(n).commit
-          result <- tArray.max.commit
-        } yield assert(result, equalTo(n))
-      },
-      testM("dies with UnsupportedOperationException for empty array") {
-        for {
-          tArray <- TArray.empty[Int].commit
-          result <- ZIO.effect(tArray.max).run
-        } yield assert(result, fails(isUnsupportedOperationException))
-      }
-    ),
     suite("maxOption")(
       testM("computes correct maximum") {
         for {
@@ -826,20 +784,6 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result, isNone)
       }
     ),
-    suite("min")(
-      testM("computes correct minimum") {
-        for {
-          tArray <- makeStair(n).commit
-          result <- tArray.min.commit
-        } yield assert(result, equalTo(1))
-      },
-      testM("dies with UnsupportedOperationException for empty array") {
-        for {
-          tArray <- TArray.empty[Int].commit
-          result <- ZIO.effect(tArray.min).run
-        } yield assert(result, fails(isUnsupportedOperationException))
-      }
-    ),
     suite("minOption")(
       testM("computes correct minimum") {
         for {
@@ -852,34 +796,6 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- TArray.empty[Int].commit
           result <- tArray.minOption.commit
         } yield assert(result, isNone)
-      }
-    ),
-    suite("reduce")(
-      testM("reduces correctly") {
-        for {
-          tArray <- makeStair(n).commit
-          result <- tArray.reduce(_ + _).commit
-        } yield assert(result, equalTo((n * (n + 1)) / 2))
-      },
-      testM("returns single entry") {
-        for {
-          tArray <- makeTArray(1)(1).commit
-          result <- tArray.reduce(_ + _).commit
-        } yield assert(result, equalTo(1))
-      },
-      testM("dies with UnsupportedOperationException for empty array") {
-        for {
-          tArray <- TArray.empty[Int].commit
-          result <- ZIO.effect(tArray.reduce(_ + _)).run
-        } yield assert(result, fails(isUnsupportedOperationException))
-      },
-      testM("is atomic") {
-        for {
-          tArray    <- makeStair(N).commit
-          findFiber <- tArray.reduce(_ + _).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
-          result    <- findFiber.join
-        } yield assert(result, equalTo((N * (N + 1)) / 2) || equalTo(N))
       }
     ),
     suite("reduceOption")(
@@ -908,40 +824,6 @@ object TArraySpec extends ZIOBaseSpec {
           _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
           result    <- findFiber.join
         } yield assert(result, isSome(equalTo((N * (N + 1)) / 2)) || isSome(equalTo(N)))
-      }
-    ),
-    suite("reduceM")(
-      testM("reduces correctly") {
-        for {
-          tArray <- makeStair(n).commit
-          result <- tArray.reduceM(sumSucceed).commit
-        } yield assert(result, equalTo((n * (n + 1)) / 2))
-      },
-      testM("returns single entry") {
-        for {
-          tArray <- makeTArray(1)(1).commit
-          result <- tArray.reduceM(sumSucceed).commit
-        } yield assert(result, equalTo(1))
-      },
-      testM("dies with UnsupportedOperationException for empty array") {
-        for {
-          tArray <- TArray.empty[Int].commit
-          result <- ZIO.effect(tArray.reduceM(sumSucceed)).run
-        } yield assert(result, fails(isUnsupportedOperationException))
-      },
-      testM("is atomic") {
-        for {
-          tArray    <- makeStair(N).commit
-          findFiber <- tArray.reduceM(sumSucceed).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
-          result    <- findFiber.join
-        } yield assert(result, equalTo((N * (N + 1)) / 2) || equalTo(N))
-      },
-      testM("fails on errors") {
-        for {
-          tArray <- makeStair(n).commit
-          result <- tArray.reduceM((a, b) => if (b == 4) STM.fail(boom) else STM.succeed(a + b)).commit.flip
-        } yield assert(result, equalTo(boom))
       }
     ),
     suite("reduceOptionM")(
@@ -988,12 +870,6 @@ object TArraySpec extends ZIOBaseSpec {
 
   val isArrayIndexOutOfBoundsException: Assertion[Throwable] =
     Assertion.assertion[Throwable]("isArrayIndexOutOfBoundsException")()(_.isInstanceOf[ArrayIndexOutOfBoundsException])
-
-  val isNoSuchElementException: Assertion[Throwable] =
-    Assertion.assertion[Throwable]("isNoSuchElementException")()(_.isInstanceOf[NoSuchElementException])
-
-  val isUnsupportedOperationException: Assertion[Throwable] =
-    Assertion.assertion[Throwable]("isUnsupportedOperationException")()(_.isInstanceOf[UnsupportedOperationException])
 
   def sumSucceed(a: Int, b: Int): STM[Nothing, Int] = STM.succeed(a + b)
 

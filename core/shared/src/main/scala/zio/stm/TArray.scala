@@ -85,6 +85,9 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
         }
       }
 
+  /** The first entry of the array, if it exists. */
+  final def firstOption: STM[Nothing, Option[A]] = if (array.isEmpty) STM.succeed(None) else array.head.get.map(Some(_))
+
   /** Atomically folds [[TArray]] with pure function. */
   final def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
     if (array.isEmpty) STM.succeed(acc)
@@ -108,14 +111,6 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
   /** Atomically performs side-effect for each item in array */
   final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
     this.foldM(())((_, a) => f(a))
-
-  /** The head of the array. */
-  final def head: STM[Nothing, A] =
-    if (array.isEmpty) STM.die(new NoSuchElementException("head of empty array"))
-    else array.head.get
-
-  /** The head of the array, if it exists. */
-  final def headOption: STM[Nothing, Option[A]] = if (array.isEmpty) STM.succeed(None) else array.head.get.map(Some(_))
 
   /** Get the first index of a specific value in the array or -1 if it does not occur. */
   final def indexOf(a: A): STM[Nothing, Int] = indexOf(a, 0)
@@ -149,11 +144,6 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
     if (from >= 0) forIndex(from) else STM.succeed(-1)
   }
 
-  /** The last entry in the array. */
-  final def last: STM[Nothing, A] =
-    if (array.isEmpty) STM.die(new NoSuchElementException("last of empty array"))
-    else array.last.get
-
   /** Get the last index of a specific value in the array or -1 if it does not occur. */
   final def lastIndexOf(a: A): STM[Nothing, Int] =
     if (array.isEmpty) STM.succeed(-1) else lastIndexOf(a, array.length - 1)
@@ -170,33 +160,13 @@ class TArray[A] private (val array: Array[TRef[A]]) extends AnyVal {
   /** The last entry in the array, if it exists. */
   final def lastOption: STM[Nothing, Option[A]] = if (array.isEmpty) STM.succeed(None) else array.last.get.map(Some(_))
 
-  /** Atomically compute he greatest element in the array. */
-  final def max(implicit ord: Ordering[A]): STM[Nothing, A] =
-    reduce((acc, a) => if (ord.gt(a, acc)) a else acc)
-
   /** Atomically compute the greatest element in the array, if it exists. */
   final def maxOption(implicit ord: Ordering[A]): STM[Nothing, Option[A]] =
     reduceOption((acc, a) => if (ord.gt(a, acc)) a else acc)
 
-  /** Atomically compute the least element in the array. */
-  final def min(implicit ord: Ordering[A]): STM[Nothing, A] =
-    reduce((acc, a) => if (ord.lt(a, acc)) a else acc)
-
   /** Atomically compute the least element in the array, if it exists. */
   final def minOption(implicit ord: Ordering[A]): STM[Nothing, Option[A]] =
     reduceOption((acc, a) => if (ord.lt(a, acc)) a else acc)
-
-  /** Atomically reduce the array by a binary operator. */
-  final def reduce(op: (A, A) => A): STM[Nothing, A] =
-    if (array.isEmpty) STM.die(new UnsupportedOperationException("reduction of empty array"))
-    else
-      array.head.get
-        .flatMap(h => new TArray(array.tail).fold(h)((m, a) => op(m, a)))
-
-  /** Atomically reduce the array by an STM binary operator. */
-  final def reduceM[E](op: (A, A) => STM[E, A]): STM[E, A] =
-    if (array.isEmpty) STM.die(new UnsupportedOperationException("reduction of empty array"))
-    else array.head.get.flatMap(h => new TArray(array.tail).foldM(h)((acc, a) => op(acc, a)))
 
   /** Atomically reduce the array, if non-empty, by a binary operator. */
   final def reduceOption(op: (A, A) => A): STM[Nothing, Option[A]] =
