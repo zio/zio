@@ -3,39 +3,27 @@ package zio
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
-import zio.system.System
 import zio.random.Random
+import zio.system.System
 
 object prototype {
 
   type Lens[S, A] = (S => A, A => S => S)
 
-  // All environmental effects extend this trait:
-  trait EnvironmentalEffect[Environment] {
+  trait EnvironmentalEffect {
+
+    type Environment
 
     def modify[A, B](lens: Lens[Environment, A])(f: A => (B, A)): UIO[B]
 
+    final def get[A](lens: Lens[Environment, A]): UIO[A] =
+      modify(lens)(a => (a, a))
+
+    final def set[A](lens: Lens[Environment, A])(a: A): UIO[Unit] =
+      modify(lens)(_ => ((), a))
+
     final def update[A](lens: Lens[Environment, A])(f: A => A): UIO[Unit] =
       modify(lens)(a => ((), f(a)))
-
-    final def use[A, B](lens: Lens[Environment, A])(f: A => B): UIO[B] =
-      modify(lens)(a => (f(a), a))
-
-    final def useM[A, B](lens: Lens[Environment, A])(f: A => UIO[B]): UIO[B] =
-      modify(lens)(a => (f(a), a)).flatten
-  }
-
-  object EnvironmentalEffect {
-
-    def modify[R <: EnvironmentalEffect[Environment], Environment, A, B](
-      lens: Lens[Environment, A]
-    )(f: A => (B, A)): ZIO[R, Nothing, B] =
-      ZIO.accessM[R](_.modify(lens)(f))
-
-    def update[R <: EnvironmentalEffect[Environment], Environment, A](
-      lens: Lens[Environment, A]
-    )(f: A => A): ZIO[R, Nothing, Unit] =
-      ZIO.accessM[R](_.update(lens)(f))
   }
 
   trait Logging {
@@ -43,74 +31,88 @@ object prototype {
   }
 
   object Logging {
+
     trait Service {
       def log(line: String): UIO[Unit]
     }
+
+    def fromConsole(console: Console): Logging =
+      new Logging {
+        override val logging: Service = new Service {
+          def log(line: String): UIO[Unit] =
+            console.console.putStrLn(line)
+        }
+      }
   }
 
-  trait LoggingEffect[R] extends EnvironmentalEffect[R] {
-    def logging: Lens[R, Logging.Service]
+  trait LoggingEffect extends EnvironmentalEffect {
+    def logging: Lens[Environment, Logging.Service]
   }
 
   object LoggingEffect {
 
-    trait Live extends LoggingEffect[ZEnv with Logging] {
+    trait Live extends LoggingEffect {
+
+      type Environment = ZEnv with Logging
 
       val environment: Ref[ZEnv with Logging]
 
-      def logging: Lens[ZEnv with Logging, Logging.Service] =
+      def logging: Lens[Environment, Logging.Service] =
         (
-          s => s.logging,
-          a =>
-            s =>
-              new Clock with Console with System with Random with Blocking with Logging {
-                val clock    = s.clock
-                val console  = s.console
-                val system   = s.system
-                val random   = s.random
-                val blocking = s.blocking
-                val logging  = a
+          _.logging,
+          logging0 =>
+            env =>
+              new Clock with Console with Random with System with Blocking with Logging {
+                val clock    = env.clock
+                val console  = env.console
+                val random   = env.random
+                val system   = env.system
+                val blocking = env.blocking
+                val logging  = logging0
               }
         )
 
-      def modify[A, B](lens: Lens[ZEnv with Logging, A])(f: A => (B, A)): UIO[B] =
-        environment.get.flatMap { r =>
-          val a       = lens._1(r)
-          val (b, a1) = f(a)
-          environment.set(lens._2(a1)(r)) *> ZIO.succeed(b)
+      def modify[A, B](lens: Lens[Environment, A])(f: A => (B, A)): UIO[B] =
+        environment.modify { old =>
+          val a0     = lens._1(old)
+          val (b, a) = f(a0)
+          val env    = lens._2(a)(old)
+          (b, env)
         }
     }
 
-    def make: ZIO[ZEnv, Nothing, LoggingEffect[ZEnv with Logging]] =
-      ZIO.accessM[ZEnv] { r =>
-        val env: ZEnv with Logging = new Clock with Console with System with Random with Blocking with Logging {
-          val clock    = r.clock
-          val console  = r.console
-          val system   = r.system
-          val random   = r.random
-          val blocking = r.blocking
-          val logging = new Logging.Service {
-            def log(line: String): UIO[Unit] = console.putStrLn(line)
+    object Live {
+      val make: ZIO[ZEnv, Nothing, LoggingEffect] =
+        ZIO.accessM[ZEnv] { old =>
+          val env: ZEnv with Logging =
+            new Clock with Console with Random with System with Blocking with Logging {
+              val clock    = old.clock
+              val console  = old.console
+              val random   = old.random
+              val system   = old.system
+              val blocking = old.blocking
+              val logging  = Logging.fromConsole(old).logging
+            }
+          Ref.make(env).map { ref =>
+            new Live {
+              val environment = ref
+            }
           }
         }
-        Ref.make(env).map { ref =>
-          new LoggingEffect.Live {
-            val environment: Ref[ZEnv with Logging] = ref
-          }
-        }
+    }
+
+    def log(line: String): ZIO[LoggingEffect, Nothing, Unit] =
+      ZIO.accessM[LoggingEffect] { logging =>
+        logging.get(logging.logging).flatMap[Any, Nothing, Unit](_.log(line))
       }
 
-    def log(line: String): ZIO[LoggingEffect[ZEnv with Logging], Nothing, Unit] =
-      ZIO.accessM[LoggingEffect[ZEnv with Logging]](service => service.useM(service.logging)(_.log(line)))
-
-    def addPrefix[R <: Logging](prefix: String): ZIO[LoggingEffect[R], Nothing, Unit] =
-      ZIO.accessM[LoggingEffect[R]] { logging =>
-        EnvironmentalEffect.update(logging.logging)(
-          service =>
-            new Logging.Service {
-              def log(line: String): UIO[Unit] = service.log(prefix + line)
-            }
-        )
+    def addPrefix(prefix: String): ZIO[LoggingEffect, Nothing, Unit] =
+      ZIO.accessM[LoggingEffect] { logging =>
+        logging.update(logging.logging) { service =>
+          new Logging.Service {
+            def log(line: String): UIO[Unit] = service.log(prefix + line)
+          }
+        }
       }
   }
 }
@@ -119,12 +121,12 @@ object Example extends App {
   import prototype._
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
-    myAppLogic.provideSomeM(LoggingEffect.make).as(0)
+    myAppLogic.provideSomeM(LoggingEffect.Live.make).as(0)
 
   val myAppLogic =
     for {
       _ <- LoggingEffect.log("All clear.")
-      _ <- LoggingEffect.addPrefix[ZEnv with Logging]("Warning: ")
+      _ <- LoggingEffect.addPrefix("Warning: ")
       _ <- LoggingEffect.log("Missiles detected!")
     } yield ()
 }
