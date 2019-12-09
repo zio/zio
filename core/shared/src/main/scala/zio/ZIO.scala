@@ -575,6 +575,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def interruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Interruptible)
 
   /**
+   * Returns an effect that when interrupted returns immediately.
+   * However, the effect and its interruption occurs in a forked fiber
+   */
+  final def interruptibleFork: ZIO[R, E, A] =
+    self.fork.uninterruptible.flatMap(_.join.interruptible)
+
+  /**
    * Switches the interrupt status for this effect. If `true` is used, then the
    * effect becomes interruptible (the default), while if `false` is used, then
    * the effect becomes uninterruptible. These changes are compositional, so
@@ -2313,6 +2320,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def interruptible[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.interruptible
+
+  /**
+   * Prefix form of `ZIO#interruptibleFork`.
+   */
+  final def interruptibleFork[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.interruptibleFork
 
   /**
    * Makes the effect interruptible, but passes it a restore function that
