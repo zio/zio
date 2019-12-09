@@ -157,7 +157,7 @@ final class STM[+E, +A] private[stm] (
    * Tries this effect first, and if it fails, succeeds with the specified
    * value.
    */
-  final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): STM[E, A1] =
+  final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): STM[Nothing, A1] =
     fold(_ => a, identity)
 
   /**
