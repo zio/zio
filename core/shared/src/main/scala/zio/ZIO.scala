@@ -2436,6 +2436,17 @@ private[zio] trait ZIOFunctions extends Serializable {
   final val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
+   * Feeds elements of type A to f. Collects all the failures on the left side and successes on the right.
+   */
+  final def partitionM[R, A, E, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, Nothing, (List[E], List[B])] =
+    in.foldRight[ZIO[R, Nothing, (List[E], List[B])]](effectTotal((Nil, Nil))) { (a, io) =>
+      f(a).foldM(
+        e => io.map { case (errors, bs) => (errors :+ e, bs) },
+        a => io.map { case (errors, bs) => (errors, bs :+ a) }
+      )
+    }
+
+  /**
    * Given an environment `R`, returns a function that can supply the
    * environment to programs that require it, removing their need for any
    * specific environment.
@@ -2649,6 +2660,29 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def untraced[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.untraced
+
+  /**
+   * Feeds elements of type A to f and accumulates all errors in error channel or successes in success channel.
+   */
+  final def validateM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, List[E], List[B]] =
+    in.foldRight[ZIO[R, List[E], List[B]]](effectTotal(Nil)) { (a, io) =>
+      f(a).foldM(
+        e => io.mapError( _:+ e),
+        a => io.map( _ :+ a)
+      )
+    }
+
+  /**
+   * Feeds elements of type A to f until it succeeds. Returns first success or the accumulation of all errors.
+   */
+  final def validateFirstM[R, A, E, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, List[E], B] = {
+    in.foldRight[ZIO[R, B, List[E]]](effectTotal(Nil)) { (a, io) =>
+      f(a).foldM(
+        e => io.map(_ :+ e) ,
+        a => ZIO.fail(a)
+      )
+    }.flip
+  }
 
   /**
    * The moral equivalent of `if (p) exp`
