@@ -94,7 +94,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("bracketForkExit happy path") {
         for {
           release <- Ref.make(false)
-          result <- ZIO.bracketExit(
+          result <- ZIO.bracketForkExit(
                      IO.succeed(42),
                      (_: Int, _: Exit[Any, Any]) => release.set(true),
                      (_: Int) => IO.succeed(0L)
@@ -106,7 +106,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val releaseDied: Throwable = new RuntimeException("release died")
         for {
           exit <- ZIO
-                   .bracketExit[Any, String, Int, Int](
+                   .bracketForkExit[Any, String, Int, Int](
                      ZIO.succeed(42),
                      (_, _) => ZIO.die(releaseDied),
                      _ => ZIO.fail("use failed")
