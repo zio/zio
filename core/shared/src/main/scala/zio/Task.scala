@@ -52,6 +52,34 @@ object Task {
     ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see See bracketFork [[zio.ZIO]]
+   */
+  final def bracketFork[A](acquire: Task[A]): ZIO.BracketForkAcquire[Any, Throwable, A] =
+    ZIO.bracketFork(acquire)
+
+  /**
+   * @see See bracketFork [[zio.ZIO]]
+   */
+  final def bracketFork[A, B](acquire: Task[A], release: A => UIO[Any], use: A => Task[B]): Task[B] =
+    ZIO.bracketFork(acquire, release, use)
+
+  /**
+   * @see See bracketForkExit [[zio.ZIO]]
+   */
+  final def bracketForkExit[A](acquire: Task[A]): ZIO.BracketForkExitAcquire[Any, Throwable, A] =
+    ZIO.bracketForkExit(acquire)
+
+  /**
+   * @see See bracketForkExit [[zio.ZIO]]
+   */
+  final def bracketForkExit[A, B](
+    acquire: Task[A],
+    release: (A, Exit[Throwable, B]) => UIO[Any],
+    use: A => Task[B]
+  ): Task[B] =
+    ZIO.bracketForkExit(acquire, release, use)
+
+  /**
    * @see See [[zio.ZIO.checkDaemon]]
    */
   final def checkDaemon[A](f: DaemonStatus => Task[A]): Task[A] =
@@ -382,6 +410,12 @@ object Task {
    */
   final def interruptible[A](task: Task[A]): Task[A] =
     ZIO.interruptible(task)
+
+  /**
+   * @see See [[zio.ZIO.interruptibleFork]]
+   */
+  final def interruptibleFork[A](task: Task[A]): Task[A] =
+    ZIO.interruptibleFork(task)
 
   /**
    * @see See [[zio.ZIO.interruptibleMask]]

@@ -76,6 +76,47 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(cause.defects, equalTo(List(releaseDied)))
       }
     ),
+    suite("bracketFork")(
+      testM("bracketFork happy path") {
+        for {
+          release  <- Ref.make(false)
+          result   <- ZIO.bracketFork(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.effectTotal(a + 1))
+          released <- release.get
+        } yield assert(result, equalTo(43)) && assert(released, isTrue)
+      },
+      testM("bracketFork_ happy path") {
+        for {
+          release  <- Ref.make(false)
+          result   <- IO.succeed(42).bracketFork_(release.set(true), ZIO.effectTotal(0))
+          released <- release.get
+        } yield assert(result, equalTo(0)) && assert(released, isTrue)
+      },
+      testM("bracketForkExit happy path") {
+        for {
+          release <- Ref.make(false)
+          result <- ZIO.bracketExit(
+                     IO.succeed(42),
+                     (_: Int, _: Exit[Any, Any]) => release.set(true),
+                     (_: Int) => IO.succeed(0L)
+                   )
+          released <- release.get
+        } yield assert(result, equalTo(0L)) && assert(released, isTrue)
+      },
+      testM("bracketForkExit error handling") {
+        val releaseDied: Throwable = new RuntimeException("release died")
+        for {
+          exit <- ZIO
+                   .bracketExit[Any, String, Int, Int](
+                     ZIO.succeed(42),
+                     (_, _) => ZIO.die(releaseDied),
+                     _ => ZIO.fail("use failed")
+                   )
+                   .run
+          cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+        } yield assert(cause.failures, equalTo(List("use failed"))) &&
+          assert(cause.defects, equalTo(List(releaseDied)))
+      }
+    ),
     suite("cached")(
       testM("returns new instances after duration") {
         def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
@@ -1798,6 +1839,67 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(io.timeoutTo(42)(_ => 0)(1.second), equalTo(0))
       },
       testM("bracketExit release called on interrupt") {
+        for {
+          done <- Promise.make[Nothing, Unit]
+          fiber <- withLatch { release =>
+                    IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
+                        _ => release *> IO.never
+                      )
+                      .fork
+                  }
+
+          _ <- fiber.interrupt
+          r <- done.await.timeoutTo(42)(_ => 0)(60.second)
+        } yield assert(r, equalTo(0))
+      },
+      testM("bracketFork is interruptible") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          fiber   <- promise.await.bracketFork(_ => IO.unit)(_ => IO.unit).fork
+          res     <- fiber.interrupt
+          _       <- promise.succeed(())
+        } yield assert(res, isInterrupted)
+      },
+      testM("bracketForkExit is interruptible") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          fiber <- IO
+                    .bracketForkExit(promise.await)(
+                      (_, _: Exit[Any, Any]) => IO.unit
+                    )(
+                      _ => IO.unit: IO[Nothing, Unit]
+                    )
+                    .fork
+          res <- fiber.interrupt
+          _   <- promise.succeed(())
+        } yield assert(res, isInterrupted)
+      },
+      testM("bracketFork use is interruptible") {
+        for {
+          fiber <- IO.unit.bracketFork(_ => IO.unit)(_ => IO.never).fork
+          res   <- fiber.interrupt
+        } yield assert(res, isInterrupted)
+      },
+      testM("bracketForkExit use is interruptible") {
+        for {
+          fiber <- IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => IO.unit)(_ => IO.never).fork
+          res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+        } yield assert(res, equalTo(0))
+      },
+      testM("bracketFork release called on interrupt") {
+        val io =
+          for {
+            p1    <- Promise.make[Nothing, Unit]
+            p2    <- Promise.make[Nothing, Unit]
+            fiber <- IO.bracketFork(IO.unit)(_ => p2.succeed(()) *> IO.unit)(_ => p1.succeed(()) *> IO.never).fork
+            _     <- p1.await
+            _     <- fiber.interrupt
+            _     <- p2.await
+          } yield ()
+
+        assertM(io.timeoutTo(42)(_ => 0)(1.second), equalTo(0))
+      },
+      testM("bracketForkExit release called on interrupt") {
         for {
           done <- Promise.make[Nothing, Unit]
           fiber <- withLatch { release =>
