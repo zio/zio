@@ -373,6 +373,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self orElse eventually
 
   /**
+   * Executes this effect and returns its value, if it succeeds, but otherwise
+   * returns the specified value.
+   */
+  final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): ZIO[R, Nothing, A1] =
+    fold(_ => a, identity)
+
+  /**
    * Dies with specified `Throwable` if the predicate fails.
    */
   final def filterOrDie(p: A => Boolean)(t: => Throwable): ZIO[R, E, A] =
