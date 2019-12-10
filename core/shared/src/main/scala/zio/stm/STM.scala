@@ -20,7 +20,7 @@ import java.util.{ HashMap => MutableMap }
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import com.github.ghik.silencer.silent
-import zio.{ Fiber, IO, UIO }
+import zio.{ CanFail, Fiber, IO, UIO }
 import zio.internal.{ Platform, Stack, Sync }
 
 import scala.util.{ Failure, Success, Try }

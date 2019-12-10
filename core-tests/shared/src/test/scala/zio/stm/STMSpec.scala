@@ -430,9 +430,11 @@ object STMSpec extends ZIOBaseSpec {
         assertM(chain(10000)(_.flatMap(a => STM.succeed(a + 1))), equalTo(10000))
       },
       testM("long fold chains") {
+        import zio.CanFail.canFail
         assertM(chain(10000)(_.fold(_ => 0, _ + 1)), equalTo(10000))
       },
       testM("long foldM chains") {
+        import zio.CanFail.canFail
         assertM(chain(10000)(_.foldM(_ => STM.succeed(0), a => STM.succeed(a + 1))), equalTo(10000))
       },
       testM("long mapError chains") {
