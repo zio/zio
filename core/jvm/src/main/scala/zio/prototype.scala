@@ -14,20 +14,18 @@ object prototype {
 
     type Environment
 
-    def modify[A, B](lens: Lens[Environment, A])(f: A => (B, A)): UIO[B]
+    def locallyM[R, R1, E, A, B](lens: Lens[Environment, A])(f: A => ZIO[R, E, A])(
+      zio: ZIO[R1, E, B]
+    ): ZIO[R with R1, E, B]
 
-    final def get[A](lens: Lens[Environment, A]): UIO[A] =
-      modify(lens)(a => (a, a))
+    def use[R, E, A, B](lens: Lens[Environment, A])(f: A => ZIO[R, E, B]): ZIO[R, E, B]
 
-    final def set[A](lens: Lens[Environment, A])(a: A): UIO[Unit] =
-      modify(lens)(_ => ((), a))
-
-    final def update[A](lens: Lens[Environment, A])(f: A => A): UIO[Unit] =
-      modify(lens)(a => ((), f(a)))
+    final def locally[R, E, A, B](lens: Lens[Environment, A])(f: A => A)(zio: ZIO[R, E, B]): ZIO[R, E, B] =
+      locallyM(lens)(f andThen ZIO.succeed)(zio)
   }
 
-  trait Logging {
-    def logging: Logging.Service
+  trait Logging extends EnvironmentalEffect {
+    def logging: Lens[Environment, Logging.Service]
   }
 
   object Logging {
@@ -36,84 +34,77 @@ object prototype {
       def log(line: String): UIO[Unit]
     }
 
-    def fromConsole(console: Console): Logging =
-      new Logging {
-        override val logging: Service = new Service {
+    object Service {
+      final def fromConsole(console: Console.Service[Any]): Logging.Service =
+        new Logging.Service {
           def log(line: String): UIO[Unit] =
-            console.console.putStrLn(line)
-        }
-      }
-  }
-
-  trait LoggingEffect extends EnvironmentalEffect {
-    def logging: Lens[Environment, Logging.Service]
-  }
-
-  object LoggingEffect {
-
-    trait Live extends LoggingEffect {
-
-      type Environment = ZEnv with Logging
-
-      val environment: Ref[ZEnv with Logging]
-
-      def logging: Lens[Environment, Logging.Service] =
-        (
-          _.logging,
-          logging0 =>
-            env =>
-              new Clock with Console with Random with System with Blocking with Logging {
-                val clock    = env.clock
-                val console  = env.console
-                val random   = env.random
-                val system   = env.system
-                val blocking = env.blocking
-                val logging  = logging0
-              }
-        )
-
-      def modify[A, B](lens: Lens[Environment, A])(f: A => (B, A)): UIO[B] =
-        environment.modify { old =>
-          val a0     = lens._1(old)
-          val (b, a) = f(a0)
-          val env    = lens._2(a)(old)
-          (b, env)
+            console.putStrLn(line)
         }
     }
 
-    object Live {
-      val make: ZIO[ZEnv, Nothing, LoggingEffect] =
-        ZIO.accessM[ZEnv] { old =>
-          val env: ZEnv with Logging =
-            new Clock with Console with Random with System with Blocking with Logging {
-              val clock    = old.clock
-              val console  = old.console
-              val random   = old.random
-              val system   = old.system
-              val blocking = old.blocking
-              val logging  = Logging.fromConsole(old).logging
-            }
-          Ref.make(env).map { ref =>
-            new Live {
-              val environment = ref
-            }
-          }
+    final def log(line: String): ZIO[Logging, Nothing, Unit] =
+      ZIO.accessM[Logging] { logging =>
+        logging.use[Any, Nothing, Logging.Service, Unit](logging.logging) { service =>
+          service.log(line)
         }
-    }
-
-    def log(line: String): ZIO[LoggingEffect, Nothing, Unit] =
-      ZIO.accessM[LoggingEffect] { logging =>
-        logging.get(logging.logging).flatMap[Any, Nothing, Unit](_.log(line))
       }
 
-    def addPrefix(prefix: String): ZIO[LoggingEffect, Nothing, Unit] =
-      ZIO.accessM[LoggingEffect] { logging =>
-        logging.update(logging.logging) { service =>
+    final def addPrefix[R <: Logging, E, A](prefix: String)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      ZIO.accessM[R] { logging =>
+        logging.locally(logging.logging) { service =>
           new Logging.Service {
             def log(line: String): UIO[Unit] = service.log(prefix + line)
           }
-        }
+        }(zio)
       }
+  }
+
+  object Environment {
+
+    final case class Live(liveState: FiberRef[Data]) extends Logging {
+
+      type Environment = Data
+
+      final def locallyM[R, R1, E, A, B](
+        lens: Lens[Environment, A]
+      )(f: A => ZIO[R, E, A])(zio: ZIO[R1, E, B]): ZIO[R with R1, E, B] =
+        for {
+          data <- liveState.get
+          a    <- f(lens._1(data))
+          b    <- liveState.locally(lens._2(a)(data))(zio)
+        } yield b
+
+      final def logging: Lens[Environment, Logging.Service] =
+        (s => s.logging, a => s => s.copy(logging = a))
+
+      final def use[R, E, A, B](lens: Lens[Environment, A])(f: A => ZIO[R, E, B]): ZIO[R, E, B] =
+        liveState.get.flatMap(data => f(lens._1(data)))
+    }
+
+    object Live {
+
+      final val make: ZIO[ZEnv, Nothing, Live] =
+        ZIO.accessM[ZEnv] { env =>
+          val data = Environment.Data(
+            clock = env.clock,
+            console = env.console,
+            random = env.random,
+            system = env.system,
+            blocking = env.blocking,
+            logging = Logging.Service.fromConsole(env.console)
+          )
+          FiberRef.make(data).map(Live(_))
+        }
+    }
+
+    final case class Data(
+      clock: Clock.Service[Any],
+      console: Console.Service[Any],
+      random: Random.Service[Any],
+      system: System.Service[Any],
+      blocking: Blocking.Service[Any],
+      logging: Logging.Service
+    )
   }
 }
 
@@ -121,12 +112,12 @@ object Example extends App {
   import prototype._
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
-    myAppLogic.provideSomeM(LoggingEffect.Live.make).as(0)
+    myAppLogic.provideSomeM(Environment.Live.make).as(0)
 
   val myAppLogic =
     for {
-      _ <- LoggingEffect.log("All clear.")
-      _ <- LoggingEffect.addPrefix("Warning: ")
-      _ <- LoggingEffect.log("Missiles detected!")
+      _ <- Logging.log("All clear.")
+      _ <- Logging.addPrefix("Warning: ")(Logging.log("Missiles detected!"))
+      _ <- Logging.log("Crisis averted.")
     } yield ()
 }
