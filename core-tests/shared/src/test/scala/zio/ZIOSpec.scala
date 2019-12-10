@@ -749,6 +749,26 @@ object ZIOSpec extends ZIOBaseSpec {
         )
       } @@ nonFlaky
     ),
+    suite("partitionM")(
+      testM("collect only successes") {
+        val in = List.fill(10)(0)
+        for {
+          res <- ZIO.partitionM(in)(a => UIO.succeed(a))
+        } yield assert(res._1, isEmpty) && assert(res._2, hasSize(equalTo(in.length)))
+      },
+      testM("collect only failures") {
+        val in = List.fill(10)(0)
+        for {
+          res <- ZIO.partitionM(in)(a => ZIO.fail(a))
+        } yield assert(res._1, hasSize(equalTo(in.length))) && assert(res._2, isEmpty)
+      },
+      testM("collect failures and successes") {
+        val in = List.range(0, 10)
+        for {
+          res <- ZIO.partitionM(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
+        } yield assert(res._1, hasSize(equalTo(in.length / 2))) && assert(res._2, hasSize(equalTo(in.length / 2)))
+      }
+    ),
     suite("raceAll")(
       testM("returns first success") {
         assertM(ZIO.fail("Fail").raceAll(List(IO.succeed(24))), equalTo(24))
@@ -2113,6 +2133,40 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield assert(result, equalTo(c)) &&
             assert(result.prettyPrint, equalTo(c.prettyPrint))
         }
+      }
+    ),
+    suite("validateM")(
+      testM("returns all errors if never valid") {
+        val in  = List.fill(10)(0)
+        val res = ZIO.validateM(in)(a => ZIO.fail(a)).flip
+        assertM(res, hasSize(equalTo(in.length)))
+      },
+      testM("accumulate errors and ignore successes") {
+        val in  = List.range(0, 10)
+        val res = ZIO.validateM(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
+        assertM(res.flip, hasSize(equalTo(in.length / 2)))
+      },
+      testM("accumulate successes") {
+        val in  = List.range(0, 10)
+        val res = ZIO.validateM(in)(a => ZIO.succeed(a))
+        assertM(res, hasSize(equalTo(in.length)))
+      }
+    ),
+    suite("validateFirstM")(
+      testM("returns all errors if never valid") {
+        val in  = List.fill(10)(0)
+        val res = ZIO.validateFirstM(in)(a => ZIO.fail(a)).flip
+        assertM(res, hasSize(equalTo(in.length)))
+      },
+      testM("short circuits on first success validation") {
+        val in = List.range(1, 10)
+        for {
+          counter <- Ref.make(0)
+          res <- ZIO.validateFirstM(in) { a =>
+                  counter.update(_ + 1) *> (if (a == 5) ZIO.succeed(a) else ZIO.fail(a))
+                }
+          assertions <- assertM(ZIO.succeed(res), equalTo(5)) && assertM(counter.get, equalTo(5))
+        } yield assertions
       }
     ),
     suite("when")(

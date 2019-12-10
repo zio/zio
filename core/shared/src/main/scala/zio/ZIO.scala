@@ -2436,15 +2436,15 @@ private[zio] trait ZIOFunctions extends Serializable {
   final val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
-   * Feeds elements of type A to f. Collects all the failures on the left side and successes on the right.
+   * Feeds elements of type A to f and collects all successes and failures in a tupled fashion.
    */
-  final def partitionM[R, A, E, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, Nothing, (List[E], List[B])] =
-    in.foldRight[ZIO[R, Nothing, (List[E], List[B])]](effectTotal((Nil, Nil))) { (a, io) =>
-      f(a).foldM(
-        e => io.map { case (errors, bs) => (errors :+ e, bs) },
-        a => io.map { case (errors, bs) => (errors, bs :+ a) }
-      )
-    }
+  final def partitionM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, Nothing, (List[E], List[B])] =
+    ZIO
+      .foreach(in)(f(_).either)
+      .map(_.foldRight((List.empty[E], List.empty[B])) {
+        case (Left(e), (es, bs))  => (e :: es, bs)
+        case (Right(b), (es, bs)) => (es, b :: bs)
+      })
 
   /**
    * Given an environment `R`, returns a function that can supply the
@@ -2663,26 +2663,25 @@ private[zio] trait ZIOFunctions extends Serializable {
 
   /**
    * Feeds elements of type A to f and accumulates all errors in error channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes will be lost.
+   * To retain all information please use ZIO#partitionM
    */
   final def validateM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, List[E], List[B]] =
-    in.foldRight[ZIO[R, List[E], List[B]]](effectTotal(Nil)) { (a, io) =>
-      f(a).foldM(
-        e => io.mapError( _:+ e),
-        a => io.map( _ :+ a)
-      )
+    partitionM(in)(f).flatMap {
+      case (es, bs) => if (es.isEmpty) ZIO.succeed(bs) else ZIO.fail(es)
     }
 
   /**
    * Feeds elements of type A to f until it succeeds. Returns first success or the accumulation of all errors.
    */
-  final def validateFirstM[R, A, E, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, List[E], B] = {
-    in.foldRight[ZIO[R, B, List[E]]](effectTotal(Nil)) { (a, io) =>
-      f(a).foldM(
-        e => io.map(_ :+ e) ,
-        a => ZIO.fail(a)
-      )
-    }.flip
-  }
+  final def validateFirstM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, List[E], B] =
+    ZIO
+      .foldLeft(in)(List.empty[E]) {
+        case (es, a) =>
+          f(a).foldM(e => ZIO.succeed(e :: es), b => ZIO.fail(b))
+      }
+      .flip
 
   /**
    * The moral equivalent of `if (p) exp`
