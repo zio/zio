@@ -52,25 +52,25 @@ object IO {
     ZIO.bracketExit(acquire, release, use)
 
   /**
-   * @see See bracket [[zio.ZIO]]
+   * @see See bracketFork [[zio.ZIO]]
    */
   final def bracketFork[E, A](acquire: IO[E, A]): BracketForkAcquire[E, A] =
     new BracketForkAcquire(acquire)
 
   /**
-   * @see See bracket [[zio.ZIO]]
+   * @see See bracketFork [[zio.ZIO]]
    */
   final def bracketFork[E, A, B](acquire: IO[E, A], release: A => UIO[Any], use: A => IO[E, B]): IO[E, B] =
     ZIO.bracketFork(acquire, release, use)
 
   /**
-   * @see See bracketExit [[zio.ZIO]]
+   * @see See bracketForkExit [[zio.ZIO]]
    */
   final def bracketForkExit[E, A](acquire: IO[E, A]): ZIO.BracketForkExitAcquire[Any, E, A] =
     ZIO.bracketForkExit(acquire)
 
   /**
-   * @see See bracketExit [[zio.ZIO]]
+   * @see See bracketForkExit [[zio.ZIO]]
    */
   final def bracketForkExit[E, A, B](
     acquire: IO[E, A],

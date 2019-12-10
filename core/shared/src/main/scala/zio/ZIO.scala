@@ -173,30 +173,54 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         }
     )(use)
 
+  /**
+   * Shorthand for the uncurried version of `ZIO.bracketFork`.
+   */
   final def bracketFork[R1 <: R, E1 >: E, B](
     release: A => URIO[R1, Any],
     use: A => ZIO[R1, E1, B]
   ): ZIO[R1, E1, B] = ZIO.bracketFork(self, release, use)
 
+  /**
+   * Shorthand for the curried version of `ZIO.bracketFork`.
+   */
   final def bracketFork: ZIO.BracketForkAcquire[R, E, A] = ZIO.bracketFork(self)
 
+  /**
+   * A less powerful variant of `bracketFork` where the resource acquired by this
+   * effect is not needed.
+   */
   final def bracketFork_[R1 <: R, E1 >: E]: ZIO.BracketForkAcquire_[R1, E1] =
     new ZIO.BracketForkAcquire_(self)
 
+  /**
+   * Uncurried version of `bracketFork_` Doesn't offer curried syntax and has worse
+   * type-inference characteristics, but it doesn't allocate intermediate
+   * [[zio.ZIO.BracketForkAcquire_]] and [[zio.ZIO.BracketForkRelease_]] objects.
+   */
   final def bracketFork_[R1 <: R, E1 >: E, B](
     release: URIO[R1, Any],
     use: ZIO[R1, E1, B]
   ): ZIO[R1, E1, B] =
     ZIO.bracketFork(self, (_: A) => release, (_: A) => use)
 
+  /**
+   * Shorthand for the uncurried version of `ZIO.bracketForkExit`.
+   */
   final def bracketForkExit[R1 <: R, E1 >: E, B](
     release: (A, Exit[E1, B]) => URIO[R1, Any],
     use: A => ZIO[R1, E1, B]
   ): ZIO[R1, E1, B] = ZIO.bracketForkExit(self, release, use)
 
+  /**
+   * Shorthand for the curried version of `ZIO.bracketForkExit`.
+   */
   final def bracketForkExit[R1 <: R, E1 >: E, A1 >: A]: ZIO.BracketForkExitAcquire[R1, E1, A1] =
     ZIO.bracketForkExit(self)
 
+  /**
+   * Executes the release effect only if there was an error.
+   */
   final def bracketForkOnError[R1 <: R, E1 >: E, B](
     release: A => URIO[R1, Any]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
@@ -1779,9 +1803,21 @@ private[zio] trait ZIOFunctions extends Serializable {
         })
     )
 
+  /**
+   * A variant of `bracket` which returns immediately on interruption.
+   * however, it does not actually interrupt the underlying acquisition, but rather, in a separate fiber,
+   * awaits the acquisition and then gracefully and immediately releases the resource after acquisition.
+   * Thus the fiber executing bracketFork is able to be interrupted right away even if in the middle
+   * of a lengthy acquisition operation.
+   */
   final def bracketFork[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketForkAcquire[R, E, A] =
     new ZIO.BracketForkAcquire[R, E, A](acquire)
 
+  /**
+   * Uncurried version of `bracketFork`. Doesn't offer curried syntax and has worse type-inference
+   * characteristics, but guarantees no extra allocations of intermediate
+   * [[zio.ZIO.BracketForkAcquire]] and [[zio.ZIO.BracketForkRelease]] objects.
+   */
   final def bracketFork[R, E, A, B](
     acquire: ZIO[R, E, A],
     release: A => URIO[R, Any],
@@ -1789,9 +1825,19 @@ private[zio] trait ZIOFunctions extends Serializable {
   ): ZIO[R, E, B] =
     bracketForkExit(acquire, new ZIO.BracketReleaseFn(release): (A, Exit[E, B]) => URIO[R, Any], use)
 
+  /**
+   * A variant of `bracketExit` which returns immediately on interruption.
+   * However, it does not actually interrupt the underlying acquisition, but rather, in a separate fiber,
+   * awaits the acquisition and then gracefully and immediately releases the resource after acquisition.
+   */
   final def bracketForkExit[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketForkExitAcquire[R, E, A] =
     new ZIO.BracketForkExitAcquire(acquire)
 
+  /**
+   * Uncurried version of `bracketForkExit`. Doesn't offer curried syntax and has worse type-inference
+   * characteristics, but guarantees no extra allocations of intermediate
+   * [[zio.ZIO.BracketForkExitAcquire]] and [[zio.ZIO.BracketForkExitRelease]] objects.
+   */
   final def bracketForkExit[R, E, A, B](
     acquire: ZIO[R, E, A],
     release: (A, Exit[E, B]) => URIO[R, Any],
