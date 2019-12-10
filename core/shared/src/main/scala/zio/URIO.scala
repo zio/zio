@@ -35,7 +35,7 @@ object URIO {
   /**
    * @see bracket in [[zio.ZIO]]
    */
-  final def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Throwable, A] =
+  final def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =
     ZIO.bracket(acquire)
 
   /**
@@ -58,7 +58,7 @@ object URIO {
    */
   final def bracketExit[R, A, B](
     acquire: URIO[R, A],
-    release: (A, Exit[Throwable, B]) => URIO[R, Any],
+    release: (A, Exit[Nothing, B]) => URIO[R, Any],
     use: A => URIO[R, B]
   ): URIO[R, B] = ZIO.bracketExit(acquire, release, use)
 
@@ -204,12 +204,13 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[R, A](rio: => URIO[R, A]): URIO[R, A] = new ZIO.EffectSuspendTotalWith(_ => rio)
+  final def effectSuspendTotal[R, A](rio: => URIO[R, A]): URIO[R, A] = ZIO.effectSuspendTotal(rio)
 
   /**
    * @see [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[R, A](p: Platform => URIO[R, A]): URIO[R, A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[R, A](p: (Platform, Fiber.Id) => URIO[R, A]): URIO[R, A] =
+    ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see [[zio.ZIO.effectTotal]]

@@ -293,7 +293,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       val otherInts2 = pureStreamChunkGen(tinyChunks(Gen.int(-100, -1)))
       val fn1        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts1)
       val fn2        = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](otherInts2)
-      checkSomeM(5)(pureStreamChunkGen(tinyChunks(intGen)), fn1, fn2) { (m, f, g) =>
+      checkNM(5)(pureStreamChunkGen(tinyChunks(intGen)), fn1, fn2) { (m, f, g) =>
         val leftStream: StreamChunk[Nothing, Int]  = m.flatMap(f).flatMap(g)
         val rightStream: StreamChunk[Nothing, Int] = m.flatMap(f(_).flatMap(g))
 
@@ -317,6 +317,16 @@ object StreamChunkSpec extends ZIOBaseSpec {
         }
       }
     },
+    suite("StreamChunk.via")(
+      testM("happy path") {
+        val s = StreamChunk.fromChunks(Chunk(1), Chunk.empty, Chunk(2, 3, 4), Chunk(5, 6))
+        s.via(_.map(_.toString)).runCollect.map(assert(_, equalTo(List("1", "2", "3", "4", "5", "6"))))
+      },
+      testM("introduce error") {
+        val s = StreamChunk.fromChunks(Chunk(1), Chunk.empty, Chunk(2, 3, 4), Chunk(5, 6))
+        s.via(_ => StreamChunk(Stream.fail("Ouch"))).runCollect.either.map(assert(_, equalTo(Left("Ouch"))))
+      }
+    ),
     testM("StreamChunk.fold") {
       checkM(chunksOfStrings, intGen, Gen.function2(intGen)) { (s, zero, f) =>
         for {

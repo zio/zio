@@ -18,7 +18,7 @@ package zio.stm
 
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
-import zio.{ IO, UIO }
+import zio.{ Fiber, IO, UIO }
 import zio.internal.{ Platform, Sync }
 import java.util.{ HashMap => MutableMap }
 
@@ -72,7 +72,7 @@ import scala.annotation.tailrec
  *
  */
 final class STM[+E, +A] private[stm] (
-  val exec: STM.internal.Journal => STM.internal.TRez[E, A]
+  val exec: (STM.internal.Journal, Fiber.Id) => STM.internal.TRez[E, A]
 ) extends AnyVal { self =>
   import STM.internal.{ prepareResetJournal, TRez }
 
@@ -117,11 +117,18 @@ final class STM[+E, +A] private[stm] (
    * Simultaneously filters and maps the value produced by this effect.
    */
   final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
+    collectM(pf.andThen(STM.succeed(_)))
+
+  /**
+   * Simultaneously filters and flatMaps the value produced by this effect.
+   * Continues on the effect returned from pf.
+   */
+  final def collectM[E1 >: E, B](pf: PartialFunction[A, STM[E1, B]]): STM[E1, B] =
     new STM(
-      journal =>
-        self.exec(journal) match {
+      (journal, fiberId) =>
+        self.exec(journal, fiberId) match {
           case t @ TRez.Fail(_) => t
-          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) TRez.Succeed(pf(a)) else TRez.Retry
+          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) pf(a).exec(journal, fiberId) else TRez.Retry
           case TRez.Retry       => TRez.Retry
         }
     )
@@ -135,6 +142,14 @@ final class STM[+E, +A] private[stm] (
    * Converts the failure channel into an `Either`.
    */
   final def either: STM[Nothing, Either[E, A]] = fold(Left(_), Right(_))
+
+  /**
+   * Executes the specified finalization transaction whether or
+   * not this effect succeeds. Note that as with all STM transactions,
+   * if the full transaction fails, everything will be rolled back.
+   */
+  final def ensuring(finalizer: STM[Nothing, Any]): STM[E, A] =
+    foldM(e => finalizer *> STM.fail(e), a => finalizer *> STM.succeed(a))
 
   /**
    * Filters the value produced by this effect, retrying the transaction until
@@ -151,9 +166,9 @@ final class STM[+E, +A] private[stm] (
    */
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     new STM(
-      journal =>
-        self.exec(journal) match {
-          case TRez.Succeed(a)  => f(a).exec(journal)
+      (journal, fiberId) =>
+        self.exec(journal, fiberId) match {
+          case TRez.Succeed(a)  => f(a).exec(journal, fiberId)
           case t @ TRez.Fail(_) => t
           case TRez.Retry       => TRez.Retry
         }
@@ -171,8 +186,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
     new STM(
-      journal =>
-        self.exec(journal) match {
+      (journal, fiberId) =>
+        self.exec(journal, fiberId) match {
           case TRez.Fail(e)    => TRez.Succeed(f(e))
           case TRez.Succeed(a) => TRez.Succeed(g(a))
           case TRez.Retry      => TRez.Retry
@@ -185,10 +200,10 @@ final class STM[+E, +A] private[stm] (
    */
   final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
     new STM(
-      journal =>
-        self.exec(journal) match {
-          case TRez.Fail(e)    => f(e).exec(journal)
-          case TRez.Succeed(a) => g(a).exec(journal)
+      (journal, fiberId) =>
+        self.exec(journal, fiberId) match {
+          case TRez.Fail(e)    => f(e).exec(journal, fiberId)
+          case TRez.Succeed(a) => g(a).exec(journal, fiberId)
           case TRez.Retry      => TRez.Retry
         }
     )
@@ -203,8 +218,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def map[B](f: A => B): STM[E, B] =
     new STM(
-      journal =>
-        self.exec(journal) match {
+      (journal, fiberId) =>
+        self.exec(journal, fiberId) match {
           case TRez.Succeed(a)  => TRez.Succeed(f(a))
           case t @ TRez.Fail(_) => t
           case TRez.Retry       => TRez.Retry
@@ -216,8 +231,8 @@ final class STM[+E, +A] private[stm] (
    */
   final def mapError[E1](f: E => E1): STM[E1, A] =
     new STM(
-      journal =>
-        self.exec(journal) match {
+      (journal, fiberId) =>
+        self.exec(journal, fiberId) match {
           case t @ TRez.Succeed(_) => t
           case TRez.Fail(e)        => TRez.Fail(f(e))
           case TRez.Retry          => TRez.Retry
@@ -234,15 +249,15 @@ final class STM[+E, +A] private[stm] (
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
     new STM(
-      journal => {
+      (journal, fiberId) => {
         val reset = prepareResetJournal(journal)
 
-        val executed = self.exec(journal)
+        val executed = self.exec(journal, fiberId)
 
         executed match {
-          case TRez.Fail(_)        => { reset(); that.exec(journal) }
+          case TRez.Fail(_)        => { reset(); that.exec(journal, fiberId) }
           case t @ TRez.Succeed(_) => t
-          case TRez.Retry          => { reset(); that.exec(journal) }
+          case TRez.Retry          => { reset(); that.exec(journal, fiberId) }
         }
       }
     )
@@ -482,6 +497,7 @@ object STM {
     final def tryCommitAsync[E, A](
       journal: Journal,
       platform: Platform,
+      fiberId: Fiber.Id,
       stm: STM[E, A],
       txnId: TxnId,
       done: AtomicBoolean
@@ -492,9 +508,9 @@ object STM {
 
       @tailrec
       def suspend(accum: Journal, journal: Journal): Unit = {
-        addTodo(txnId, journal, () => tryCommitAsync(null, platform, stm, txnId, done)(k))
+        addTodo(txnId, journal, () => tryCommitAsync(null, platform, fiberId, stm, txnId, done)(k))
 
-        if (isInvalid(journal)) tryCommit(platform, stm) match {
+        if (isInvalid(journal)) tryCommit(platform, fiberId, stm) match {
           case TryCommit.Done(io) => complete(io)
           case TryCommit.Suspend(journal2) =>
             val untracked = untrackedTodoTargets(accum, journal2)
@@ -511,7 +527,7 @@ object STM {
         if (!done.get) {
           if (journal ne null) suspend(journal, journal)
           else
-            tryCommit(platform, stm) match {
+            tryCommit(platform, fiberId, stm) match {
               case TryCommit.Done(io)         => complete(io)
               case TryCommit.Suspend(journal) => suspend(journal, journal)
             }
@@ -519,7 +535,7 @@ object STM {
       }
     }
 
-    final def tryCommit[E, A](platform: Platform, stm: STM[E, A]): TryCommit[E, A] = {
+    final def tryCommit[E, A](platform: Platform, fiberId: Fiber.Id, stm: STM[E, A]): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TRez[E, A]]
 
@@ -527,7 +543,7 @@ object STM {
 
       while (loop) {
         journal = allocJournal(journal)
-        value = stm.exec(journal)
+        value = stm.exec(journal, fiberId)
 
         val analysis = analyzeJournal(journal)
 
@@ -662,14 +678,14 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-    IO.effectSuspendTotalWith { platform =>
-      tryCommit(platform, stm) match {
+    IO.effectSuspendTotalWith { (platform, fiberId) =>
+      tryCommit(platform, fiberId, stm) match {
         case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
         case TryCommit.Suspend(journal) =>
           val txnId     = makeTxnId()
           val done      = new AtomicBoolean(false)
           val interrupt = UIO(Sync(done) { done.set(true) })
-          val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, stm, txnId, done))
+          val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, fiberId, stm, txnId, done))
 
           async ensuring interrupt
       }
@@ -704,7 +720,12 @@ object STM {
   /**
    * Returns a value that models failure in the transaction.
    */
-  final def fail[E](e: E): STM[E, Nothing] = new STM(_ => TRez.Fail(e))
+  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _) => TRez.Fail(e))
+
+  /**
+   * Returns the fiber id of the fiber committing the transaction.
+   */
+  final val fiberId: STM[Nothing, Fiber.Id] = new STM((_, fiberId) => TRez.Succeed(fiberId))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -744,12 +765,12 @@ object STM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  final val retry: STM[Nothing, Nothing] = new STM(_ => TRez.Retry)
+  final val retry: STM[Nothing, Nothing] = new STM((_, _) => TRez.Retry)
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  final def succeed[A](a: A): STM[Nothing, A] = new STM(_ => TRez.Succeed(a))
+  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _) => TRez.Succeed(a))
 
   /**
    * Suspends creation of the specified transaction lazily.

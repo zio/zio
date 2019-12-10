@@ -875,7 +875,7 @@ object StreamSpec extends ZIOBaseSpec {
           _         <- fiber.interrupt
           cancelled <- substreamCancelled.get
         } yield assert(cancelled, isTrue)
-      },
+      } @@ flaky,
       testM("inner errors interrupt all fibers") {
         for {
           substreamCancelled <- Ref.make[Boolean](false)
@@ -1400,9 +1400,20 @@ object StreamSpec extends ZIOBaseSpec {
     testM("Stream.paginate") {
       val s = (0, List(1, 2, 3))
 
+      ZStream
+        .paginate(s) {
+          case (x, Nil)      => x -> None
+          case (x, x0 :: xs) => x -> Some(x0 -> xs)
+        }
+        .runCollect
+        .map(assert(_, equalTo(List(0, 1, 2, 3))))
+    },
+    testM("Stream.paginateM") {
+      val s = (0, List(1, 2, 3))
+
       assertM(
         ZStream
-          .paginate(s) {
+          .paginateM(s) {
             case (x, Nil)      => ZIO.succeed(x -> None)
             case (x, x0 :: xs) => ZIO.succeed(x -> Some(x0 -> xs))
           }
@@ -1846,6 +1857,16 @@ object StreamSpec extends ZIOBaseSpec {
             .run,
           fails(equalTo(e))
         )
+      }
+    ),
+    suite("Stream.via")(
+      testM("happy path") {
+        val s = Stream(1, 2, 3)
+        s.via(_.map(_.toString)).runCollect.map(assert(_, equalTo(List("1", "2", "3"))))
+      },
+      testM("introduce error") {
+        val s = Stream(1, 2, 3)
+        s.via(_ => Stream.fail("Ouch")).runCollect.either.map(assert(_, equalTo(Left("Ouch"))))
       }
     ),
     suite("Stream zipping")(
