@@ -110,7 +110,8 @@ final class STM[+E, +A] private[stm] (
   /**
    * Maps the error value of this effect to the specified constant value.
    */
-  final def asError[E1](e: => E1): STM[E1, A] = self mapError (_ => e)
+  final def asError[E1](e: => E1)(implicit ev: CanFail[E]): STM[E1, A] =
+    self mapError (_ => e)
 
   /**
    * Simultaneously filters and maps the value produced by this effect.
@@ -137,7 +138,8 @@ final class STM[+E, +A] private[stm] (
   /**
    * Converts the failure channel into an `Either`.
    */
-  final def either: STM[Nothing, Either[E, A]] = fold(Left(_), Right(_))
+  final def either(implicit ev: CanFail[E]): STM[Nothing, Either[E, A]] =
+    fold(Left(_), Right(_))
 
   /**
    * Executes the specified finalization transaction whether or
@@ -146,6 +148,13 @@ final class STM[+E, +A] private[stm] (
    */
   final def ensuring(finalizer: STM[Nothing, Any]): STM[E, A] =
     foldM(e => finalizer *> STM.fail(e), a => finalizer *> STM.succeed(a))
+
+  /**
+   * Tries this effect first, and if it fails, succeeds with the specified
+   * value.
+   */
+  final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): STM[Nothing, A1] =
+    fold(_ => a, identity)
 
   /**
    * Filters the value produced by this effect, retrying the transaction until
@@ -177,7 +186,7 @@ final class STM[+E, +A] private[stm] (
    * Folds over the `STM` effect, handling both failure and success, but not
    * retry.
    */
-  final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
+  final def fold[B](f: E => B, g: A => B)(implicit ev: CanFail[E]): STM[Nothing, B] =
     self.continueWithM {
       case TExit.Fail(e)    => STM.succeed(f(e))
       case TExit.Succeed(a) => STM.succeed(g(a))
@@ -188,7 +197,7 @@ final class STM[+E, +A] private[stm] (
    * Effectfully folds over the `STM` effect, handling both failure and
    * success.
    */
-  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
+  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B])(implicit ev: CanFail[E]): STM[E1, B] =
     self.continueWithM {
       case TExit.Fail(e)    => f(e)
       case TExit.Succeed(a) => g(a)
@@ -213,7 +222,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Maps from one error type to another.
    */
-  final def mapError[E1](f: E => E1): STM[E1, A] =
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): STM[E1, A] =
     self.continueWithM {
       case TExit.Succeed(a) => STM.succeed(a)
       case TExit.Fail(e)    => STM.fail(f(e))
@@ -223,12 +232,13 @@ final class STM[+E, +A] private[stm] (
   /**
    * Converts the failure channel into an `Option`.
    */
-  final def option: STM[Nothing, Option[A]] = fold(_ => None, Some(_))
+  final def option(implicit ev: CanFail[E]): STM[Nothing, Option[A]] =
+    fold(_ => None, Some(_))
 
   /**
    * Tries this effect first, and if it fails, tries the other effect.
    */
-  final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
+  final def orElse[E1, A1 >: A](that: => STM[E1, A1])(implicit ev: CanFail[E]): STM[E1, A1] =
     new STM(
       (journal, fiberId, stackSize) => {
         val reset = prepareResetJournal(journal)
@@ -262,7 +272,7 @@ final class STM[+E, +A] private[stm] (
    * Returns a transactional effect that will produce the value of this effect in left side, unless it
    * fails, in which case, it will produce the value of the specified effect in right side.
    */
-  final def orElseEither[E1 >: E, B](that: => STM[E1, B]): STM[E1, Either[A, B]] =
+  final def orElseEither[E1 >: E, B](that: => STM[E1, B])(implicit ev: CanFail[E]): STM[E1, Either[A, B]] =
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
