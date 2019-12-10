@@ -8,12 +8,12 @@ import zio._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class FlatMapBenchmark {
+class STMFlatMapBenchmark {
   @Param(Array("20"))
   var depth: Int = _
 
   @Benchmark
-  def deepFlatMap(runtime: Runtime[Any]): BigInt = {
+  def deepFlatMap(): BigInt = {
     def fib(n: Int): STM[Nothing, BigInt] =
       if (n <= 1) STM.succeed[BigInt](n)
       else
@@ -21,6 +21,6 @@ class FlatMapBenchmark {
           fib(n - 2).flatMap(b => STM.succeed(a + b))
         }
 
-    runtime.unsafeRun(fib(depth).commit)
+    IOBenchmarks.unsafeRun(fib(depth).commit)
   }
 }
