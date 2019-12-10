@@ -645,10 +645,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * However, the effect and its interruption occurs in a forked fiber
    */
   final def interruptibleFork: ZIO[R, E, A] =
-    ZIO.uninterruptibleMask { restore =>
+    ZIO.uninterruptible {
       for {
-        fiber <- restore(self.fork.daemon)
-        res   <- restore(fiber.join).onInterrupt(fiber.interrupt.fork.daemon)
+        fiber <- self.fork.daemon.interruptible
+        res   <- fiber.join.interruptible.onInterrupt(fiber.interrupt.fork.daemon)
       } yield res
     }
 
