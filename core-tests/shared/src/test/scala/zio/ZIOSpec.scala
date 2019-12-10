@@ -83,14 +83,14 @@ object ZIOSpec extends ZIOBaseSpec {
           result   <- ZIO.bracketFork(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.effectTotal(a + 1))
           released <- release.get
         } yield assert(result, equalTo(43)) && assert(released, isTrue)
-      },
+      } @@ jvm(nonFlaky(1000)),
       testM("bracketFork_ happy path") {
         for {
           release  <- Ref.make(false)
           result   <- IO.succeed(42).bracketFork_(release.set(true), ZIO.effectTotal(0))
           released <- release.get
         } yield assert(result, equalTo(0)) && assert(released, isTrue)
-      },
+      } @@ jvm(nonFlaky(1000)),
       testM("bracketForkExit happy path") {
         for {
           release <- Ref.make(false)
@@ -101,7 +101,7 @@ object ZIOSpec extends ZIOBaseSpec {
                    )
           released <- release.get
         } yield assert(result, equalTo(0L)) && assert(released, isTrue)
-      },
+      } @@ jvm(nonFlaky(1000)),
       testM("bracketForkExit error handling") {
         val releaseDied: Throwable = new RuntimeException("release died")
         for {
@@ -115,7 +115,7 @@ object ZIOSpec extends ZIOBaseSpec {
           cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
         } yield assert(cause.failures, equalTo(List("use failed"))) &&
           assert(cause.defects, equalTo(List(releaseDied)))
-      }
+      } @@ jvm(nonFlaky(1000))
     ),
     suite("cached")(
       testM("returns new instances after duration") {
@@ -1859,7 +1859,7 @@ object ZIOSpec extends ZIOBaseSpec {
           res     <- fiber.interrupt
           _       <- promise.succeed(())
         } yield assert(res, isInterrupted)
-      },
+      } @@ jvm(nonFlaky(1000)),
       testM("bracketForkExit is interruptible") {
         for {
           promise <- Promise.make[Nothing, Unit]
@@ -1873,19 +1873,19 @@ object ZIOSpec extends ZIOBaseSpec {
           res <- fiber.interrupt
           _   <- promise.succeed(())
         } yield assert(res, isInterrupted)
-      },
+      } @@ jvm(nonFlaky(1000)),
       testM("bracketFork use is interruptible") {
         for {
           fiber <- IO.unit.bracketFork(_ => IO.unit)(_ => IO.never).fork
           res   <- fiber.interrupt
         } yield assert(res, isInterrupted)
-      },
+      } @@ jvm(nonFlaky(1000)),
       testM("bracketForkExit use is interruptible") {
         for {
           fiber <- IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => IO.unit)(_ => IO.never).fork
-          res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+          res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second).provide(Clock.Live)
         } yield assert(res, equalTo(0))
-      },
+      } @@ jvm(nonFlaky(1000)),
       testM("bracketFork release called on interrupt") {
         val io =
           for {
@@ -1897,22 +1897,22 @@ object ZIOSpec extends ZIOBaseSpec {
             _     <- p2.await
           } yield ()
 
-        assertM(io.timeoutTo(42)(_ => 0)(1.second), equalTo(0))
-      },
+        assertM(io.timeoutTo(42)(_ => 0)(1.second), equalTo(0)).provide(Clock.Live)
+      } @@ jvm(nonFlaky(1000)),
       testM("bracketForkExit release called on interrupt") {
         for {
           done <- Promise.make[Nothing, Unit]
           fiber <- withLatch { release =>
-                    IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
+                    IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
                         _ => release *> IO.never
                       )
                       .fork
                   }
 
           _ <- fiber.interrupt
-          r <- done.await.timeoutTo(42)(_ => 0)(60.second)
+          r <- done.await.timeoutTo(42)(_ => 0)(2.second).provide(Clock.Live)
         } yield assert(r, equalTo(0))
-      },
+      } @@ jvm(nonFlaky(1000)),
       testM("catchAll + ensuring + interrupt") {
         import zio.CanFail.canFail
         for {
