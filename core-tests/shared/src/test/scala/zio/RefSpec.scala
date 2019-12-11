@@ -29,7 +29,7 @@ object RefSpec extends ZIOBaseSpec {
       for {
         ref   <- Ref.make[State](Active)
         value <- ref.updateSome { case Closed => Changed }
-      } yield assert(value, equalTo(Active))
+      } yield assert(value)(equalTo(Active))
     },
     testM("updateSome twice") {
       for {
@@ -39,7 +39,7 @@ object RefSpec extends ZIOBaseSpec {
                    case Active  => Changed
                    case Changed => Closed
                  }
-      } yield assert(value1, equalTo(Changed)) && assert(value2, equalTo(Closed))
+      } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
     },
     testM("modify") {
       for {

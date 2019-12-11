@@ -568,7 +568,7 @@ object Cause extends Serializable {
 
   private object Internal {
 
-    final case object Empty extends Cause[Nothing] {
+    case object Empty extends Cause[Nothing] {
       override final def equals(that: Any): Boolean = that match {
         case _: Empty.type     => true
         case Then(left, right) => this == left && this == right

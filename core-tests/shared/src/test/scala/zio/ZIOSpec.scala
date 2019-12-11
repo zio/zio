@@ -424,9 +424,9 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("works on large lists") {
         val n   = 10
-        val seq = 0 to 100000
+        val seq = List.range(0, 100000)
         val res = IO.foreachParN(n)(seq)(UIO.succeed)
-        assertM(res, equalTo(seq))
+        assertM(res)(equalTo(seq))
       },
       testM("runs effects in parallel") {
         val io = for {
@@ -666,23 +666,23 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("fails with Some(ex) when effect fails with ex") {
         val ex                                = new RuntimeException("Failed Task")
         val task: IO[Option[Throwable], Unit] = Task.fail(ex).none
-        assertM(task.run, fails(isSome(equalTo(ex))))
+        assertM(task.run)(fails(isSome(equalTo(ex))))
       }
     ),
     suite("option")(
       testM("return success in Some") {
         import zio.CanFail.canFail
-        assertM(ZIO.succeed(11).option, equalTo(Some(11)))
+        assertM(ZIO.succeed(11).option)(equalTo(Some(11)))
       },
       testM("return failure as None") {
-        assertM(ZIO.fail(123).option, equalTo(None))
+        assertM(ZIO.fail(123).option)(equalTo(None))
       },
       testM("not catch throwable") {
         import zio.CanFail.canFail
         assertM(ZIO.die(ExampleError).option.run, dies(equalTo(ExampleError)))
       },
       testM("catch throwable after sandboxing") {
-        assertM(ZIO.die(ExampleError).sandbox.option, equalTo(None))
+        assertM(ZIO.die(ExampleError).sandbox.option)(equalTo(None))
       }
     ),
     suite("optional")(
@@ -772,11 +772,11 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("replicate")(
       testM("zero") {
         val lst: Iterable[UIO[Int]] = ZIO.replicate(0)(ZIO.succeed(12))
-        assertM(ZIO.sequence(lst), equalTo(List.empty))
+        assertM(ZIO.sequence(lst))(equalTo(List.empty))
       },
       testM("negative") {
         val anotherList: Iterable[UIO[Int]] = ZIO.replicate(-2)(ZIO.succeed(12))
-        assertM(ZIO.sequence(anotherList), equalTo(List.empty))
+        assertM(ZIO.sequence(anotherList))(equalTo(List.empty))
       },
       testM("positive") {
         val lst: Iterable[UIO[Int]] = ZIO.replicate(2)(ZIO.succeed(12))
@@ -836,7 +836,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("fails when given an exception") {
         val ex                               = new RuntimeException("Failed Task")
         val task: IO[Option[Throwable], Int] = Task.fail(ex).some
-        assertM(task.run, fails(isSome(equalTo(ex))))
+        assertM(task.run)(fails(isSome(equalTo(ex))))
       }
     ),
     suite("someOrFailException")(
@@ -1166,7 +1166,7 @@ object ZIOSpec extends ZIOBaseSpec {
           .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.effectTotal { reported = e }))
 
         for {
-          a1 <- assertM(io, isUnit)
+          a1 <- assertM(io, anything)
           a2 = assert(reported.succeeded, isFalse)
         } yield a1 && a2
       },
@@ -2074,7 +2074,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("fails when given a None") {
         val task: Task[Int] = UIO(Option.empty[Int]).someOrFail(exampleError)
-        assertM(task.run, fails(equalTo(exampleError)))
+        assertM(task.run)(fails(equalTo(exampleError)))
       }
     ),
     suite("summarized")(

@@ -42,7 +42,7 @@ trait Method[M, I, A] { self =>
    */
   @silent("parameter value ev in method returns is never used")
   def returns[E](returns: ReturnExpectation[I, E, A])(implicit ev: I <:< Unit): Expectation[M, E, A] =
-    Expectation.Call[M, I, E, A](self, Assertion.isUnit, returns.io)
+    Expectation.Call[M, I, E, A](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
 
   /**
    * Render method fully qualified name.

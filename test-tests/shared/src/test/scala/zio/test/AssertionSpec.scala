@@ -73,11 +73,12 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(Array(1, 2, 3), equalTo(Array(1, 2, 4)))
     } @@ failure,
     test("equalTo must not have type inference issues") {
-      assert(List(1, 2, 3).filter(_ => false), equalTo(List.empty))
+      assert(List(1, 2, 3).filter(_ => false))(equalTo(List.empty))
     },
-    test("equalTo must fail when comparing two unrelated types") {
-      assert(1, equalTo("abc"))
-    } @@ failure,
+    testM("equalTo must not compile when comparing two unrelated types") {
+      val result = typeCheck("assert(1, equalTo(\"abc\"))")
+      assertM(result)(isLeft(anything))
+    } @@ scala2Only,
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assert(Seq(1, 42, 5), exists(equalTo(42)))
     },
@@ -246,9 +247,10 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isUnit must succeed when supplied value is ()") {
       assert((), isUnit)
     },
-    test("isUnit must fail when supplied value is not ()") {
-      assert(10, isUnit)
-    } @@ failure,
+    testM("isUnit must not compile when supplied value is not ()") {
+      val result = typeCheck("assert(10, isUnit)")
+      assertM(result)(isLeft(anything))
+    },
     test("isWithin must succeed when supplied value is within range (inclusive)") {
       assert(10, isWithin(0, 10))
     },

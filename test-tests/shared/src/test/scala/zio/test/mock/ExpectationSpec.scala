@@ -2,7 +2,7 @@ package zio.test.mock
 
 import zio.{ IO, UIO }
 import zio.duration._
-import zio.test.{ suite, ZIOBaseSpec }
+import zio.test.{ suite, Assertion, ZIOBaseSpec }
 import zio.test.Assertion.{ equalTo, isNone, isUnit, isWithin }
 import zio.test.mock.Expectation.{ failure, failureF, failureM, never, unit, value, valueF, valueM }
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
@@ -288,7 +288,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         Module.command(equalTo(1)) returns unit,
         Module.>.singleParam(1),
         equalTo(
-          InvalidMethodException(Module.singleParam, Module.command, equalTo(1))
+          InvalidMethodException(Module.singleParam, Module.command, equalTo(1): Assertion[Any])
         )
       ),
       testSpecDied("unmet expectations")(
@@ -301,8 +301,8 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo(
           UnmetExpectationsException(
             List(
-              Module.command -> equalTo(2),
-              Module.command -> equalTo(3)
+              Module.command -> (equalTo(2): Assertion[Any]),
+              Module.command -> (equalTo(3): Assertion[Any])
             )
           )
         )

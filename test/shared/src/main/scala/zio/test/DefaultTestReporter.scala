@@ -192,7 +192,7 @@ object DefaultTestReporter {
   private def renderMockException(exception: MockException): UIO[String] =
     exception match {
       case InvalidArgumentsException(method, args, assertion) =>
-        renderTestFailure(s"$method called with invalid arguments", assert(args, assertion))
+        renderTestFailure(s"$method called with invalid arguments", assert(args)(assertion))
 
       case InvalidMethodException(method, expectedMethod, assertion) =>
         UIO.succeed(

@@ -90,7 +90,7 @@ class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult
     render.toString
 }
 
-object Assertion {
+object Assertion extends AssertionVariants {
 
   /**
    * `Render` captures both the name of an assertion as well as the parameters
@@ -307,17 +307,6 @@ object Assertion {
    */
   final def endsWithString(suffix: String): Assertion[String] =
     Assertion.assertion("endsWithString")(param(suffix))(_.endsWith(suffix))
-
-  /**
-   * Makes a new assertion that requires a value equal the specified value.
-   */
-  final def equalTo(expected: Any): Assertion[Any] =
-    Assertion.assertion("equalTo")(param(expected)) { actual =>
-      (actual, expected) match {
-        case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
-        case (left, right)                     => left == right
-      }
-    }
 
   /**
    * Makes a new assertion that requires a given string to equal another ignoring case
@@ -591,13 +580,8 @@ object Assertion {
   /**
    * Makes a new assertion that requires the value be unit.
    */
-  final def isUnit: Assertion[Any] =
-    Assertion.assertion("isUnit")() { actual =>
-      actual match {
-        case () => true
-        case _  => false
-      }
-    }
+  final val isUnit: Assertion[Unit] =
+    Assertion.assertion("isUnit")()(_ => true)
 
   /**
    * Returns a new assertion that requires a numeric value to fall within a
