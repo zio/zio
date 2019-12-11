@@ -346,8 +346,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 8))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(
-          pulls,
+        } yield assert(fin, isTrue) && assert(pulls)(
           equalTo(
             List(
               Right("2"),
@@ -504,7 +503,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                   .repeatEffectWith(effect(ref), Schedule.recurs(2))
                   .process
                   .use(nPulls(_, 5))
-      } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(3), Left(None), Left(None))))
+      } yield assert(pulls)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3), Left(None), Left(None))))
     },
     testM("Stream.succeed is safe to pull again") {
       Stream
@@ -547,7 +546,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     }
                     .process
                     .use(nPulls(_, 5))
-        } yield assert(pulls, equalTo(List(Right(1), Left(Some("Ouch")), Right(2), Left(None), Left(None))))
+        } yield assert(pulls)(equalTo(List(Right(1), Left(Some("Ouch")), Right(2), Left(None), Left(None))))
       }
     ),
     suite("Stream.unwrap")(

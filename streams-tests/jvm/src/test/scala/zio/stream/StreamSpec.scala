@@ -565,7 +565,7 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     testM("Stream.either") {
       val s = Stream(1, 2, 3) ++ Stream.fail("Boom")
-      s.either.runCollect.map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
+      s.either.runCollect.map(assert(_)(equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
     },
     testM("Stream.ensuring") {
       for {
@@ -1334,7 +1334,7 @@ object StreamSpec extends ZIOBaseSpec {
 
         for {
           merge <- s1.mergeEither(s2).runCollect
-        } yield assert[List[Either[Int, Int]]](merge, hasSameElements(List(Left(1), Left(2), Right(1), Right(2))))
+        } yield assert(merge)(hasSameElements(List(Left(1), Left(2), Right(1), Right(2))))
       },
       testM("mergeWith") {
         val s1 = Stream(1, 2)
@@ -1493,7 +1493,8 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(
           Stream(1)
             .repeatEither(Schedule.recurs(4))
-            .run(Sink.collectAll[Either[Int, Int]]),
+            .run(Sink.collectAll[Either[Int, Int]])
+        )(
           equalTo(
             List(
               Right(1),
@@ -1534,9 +1535,8 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(
           Stream("A", "B", "C")
             .scheduleElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
-            .run(Sink.collectAll[Either[Int, String]]),
-          equalTo(List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123)))
-        )
+            .run(Sink.collectAll[Either[Int, String]])
+        )(equalTo(List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123))))
       ),
       testM("scheduleWith")(
         assertM(
@@ -1550,9 +1550,8 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(
           Stream("A", "B", "C")
             .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
-            .run(Sink.collectAll[Either[String, String]]),
-          equalTo(List(Right("A"), Right("B"), Right("C"), Left("!")))
-        )
+            .run(Sink.collectAll[Either[String, String]])
+        )(equalTo(List(Right("A"), Right("B"), Right("C"), Left("!"))))
       ),
       testM("repeated && assertspaced")(
         assertM(
@@ -1694,21 +1693,15 @@ object StreamSpec extends ZIOBaseSpec {
     }),
     testM("Stream.toQueue")(checkM(smallChunks(Gen.anyInt)) { c: Chunk[Int] =>
       val s = Stream.fromChunk(c)
-      assertM(
-        s.toQueue(1000).use { queue: Queue[Take[Nothing, Int]] =>
-          waitForSize(queue, c.length + 1) *> queue.takeAll
-        },
-        equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
-      )
+      assertM(s.toQueue(1000).use { queue: Queue[Take[Nothing, Int]] =>
+        waitForSize(queue, c.length + 1) *> queue.takeAll
+      })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End))
     }),
     testM("Stream.toQueueUnbounded")(checkM(smallChunks(Gen.anyInt)) { c: Chunk[Int] =>
       val s = Stream.fromChunk(c)
-      assertM(
-        s.toQueueUnbounded.use { queue: Queue[Take[Nothing, Int]] =>
-          waitForSize(queue, c.length + 1) *> queue.takeAll
-        },
-        equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
-      )
+      assertM(s.toQueueUnbounded.use { queue: Queue[Take[Nothing, Int]] =>
+        waitForSize(queue, c.length + 1) *> queue.takeAll
+      })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End))
     }),
     suite("Stream.aggregate")(
       testM("aggregate") {
