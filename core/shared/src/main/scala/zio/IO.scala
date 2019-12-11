@@ -77,55 +77,55 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAll]]
    */
-  final def collectAll[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def collectAll[E, A](in: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.collectAll(in)
 
   /**
    * @see See [[zio.ZIO.collectAllPar]]
    */
-  final def collectAllPar[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def collectAllPar[E, A](as: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.collectAllPar(as)
 
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  final def collectAllParN[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def collectAllParN[E, A](n: => Int)(as: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccesses]]
    */
-  final def collectAllSuccesses[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def collectAllSuccesses[E, A](in: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.collectAllSuccesses(in)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccessesPar]]
    */
-  final def collectAllSuccessesPar[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def collectAllSuccessesPar[E, A](as: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.collectAllSuccessesPar(as)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
-  final def collectAllSuccessesParN[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def collectAllSuccessesParN[E, A](n: => Int)(as: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.collectAllSuccessesParN(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllWith]]
    */
-  final def collectAllWith[E, A, B](in: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
+  final def collectAllWith[E, A, B](in: => Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
     ZIO.collectAllWith(in)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithPar]]
    */
-  final def collectAllWithPar[E, A, B](as: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
+  final def collectAllWithPar[E, A, B](as: => Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
     ZIO.collectAllWithPar(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  final def collectAllWithParN[E, A, B](n: Int)(as: Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
+  final def collectAllWithParN[E, A, B](n: Int)(as: => Iterable[IO[E, A]])(f: PartialFunction[A, B]): IO[E, List[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
@@ -148,12 +148,12 @@ object IO {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  final def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  final def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
    */
-  final def dieMessage(message: String): UIO[Nothing] = ZIO.dieMessage(message)
+  final def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
    * @see See [[zio.ZIO.done]]
@@ -224,7 +224,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.fail]]
    */
-  final def fail[E](error: E): IO[E, Nothing] = ZIO.fail(error)
+  final def fail[E](error: => E): IO[E, Nothing] = ZIO.fail(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -236,7 +236,7 @@ object IO {
    */
   final def firstSuccessOf[E, A](
     io: IO[E, A],
-    rest: Iterable[IO[E, A]]
+    rest: => Iterable[IO[E, A]]
   ): IO[E, A] = ZIO.firstSuccessOf(io, rest)
 
   /**
@@ -248,55 +248,55 @@ object IO {
   /**
    * @see See [[zio.ZIO.foldLeft]]
    */
-  final def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => IO[E, S]): IO[E, S] =
+  final def foldLeft[E, S, A](in: => Iterable[A])(zero: => S)(f: (S, A) => IO[E, S]): IO[E, S] =
     ZIO.foldLeft(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.foreach]]
    */
-  final def foreach[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
+  final def foreach[E, A, B](in: => Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
     ZIO.foreach(in)(f)
 
   /**
    * @see See [[zio.ZIO.foreachPar]]
    */
-  final def foreachPar[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+  final def foreachPar[E, A, B](as: => Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  final def foreachParN[E, A, B](n: Int)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+  final def foreachParN[E, A, B](n: => Int)(as: => Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
    * @see See [[zio.ZIO.foreach_]]
    */
-  final def foreach_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  final def foreach_[E, A](as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachPar_]]
    */
-  final def foreachPar_[E, A, B](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  final def foreachPar_[E, A, B](as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[E, A, B](n: Int)(as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  final def foreachParN_[E, A, B](n: => Int)(as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  final def forkAll[E, A](as: Iterable[IO[E, A]]): UIO[Fiber[E, List[A]]] =
+  final def forkAll[E, A](as: => Iterable[IO[E, A]]): UIO[Fiber[E, List[A]]] =
     ZIO.forkAll(as)
 
   /**
    * @see See [[zio.ZIO.forkAll_]]
    */
-  final def forkAll_[E, A](as: Iterable[IO[E, A]]): UIO[Unit] =
+  final def forkAll_[E, A](as: => Iterable[IO[E, A]]): UIO[Unit] =
     ZIO.forkAll_(as)
 
   /**
@@ -359,7 +359,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  final def halt[E](cause: Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
+  final def halt[E](cause: => Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -380,7 +380,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  final def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
@@ -402,7 +402,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  final def lock[E, A](executor: Executor)(io: IO[E, A]): IO[E, A] =
+  final def lock[E, A](executor: => Executor)(io: IO[E, A]): IO[E, A] =
     ZIO.lock(executor)(io)
 
   /**
@@ -448,13 +448,13 @@ object IO {
   /**
    * @see See [[zio.ZIO.mergeAll]]
    */
-  final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B)(f: (B, A) => B): IO[E, B] =
+  final def mergeAll[E, A, B](in: => Iterable[IO[E, A]])(zero: B)(f: (B, A) => B): IO[E, B] =
     ZIO.mergeAll(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.mergeAllPar]]
    */
-  final def mergeAllPar[E, A, B](in: Iterable[IO[E, A]])(zero: B)(f: (B, A) => B): IO[E, B] =
+  final def mergeAllPar[E, A, B](in: => Iterable[IO[E, A]])(zero: B)(f: (B, A) => B): IO[E, B] =
     ZIO.mergeAllPar(in)(zero)(f)
 
   /**
@@ -476,30 +476,30 @@ object IO {
   /**
    * @see See [[zio.ZIO.raceAll]]
    */
-  final def raceAll[E, A](io: IO[E, A], ios: Iterable[IO[E, A]]): IO[E, A] = ZIO.raceAll(io, ios)
+  final def raceAll[E, A](io: IO[E, A], ios: => Iterable[IO[E, A]]): IO[E, A] = ZIO.raceAll(io, ios)
 
   /**
    * @see See [[zio.ZIO.reduceAll]]
    */
-  final def reduceAll[E, A](a: IO[E, A], as: Iterable[IO[E, A]])(f: (A, A) => A): IO[E, A] =
+  final def reduceAll[E, A](a: IO[E, A], as: => Iterable[IO[E, A]])(f: (A, A) => A): IO[E, A] =
     ZIO.reduceAll(a, as)(f)
 
   /**
    * @see See [[zio.ZIO.reduceAllPar]]
    */
-  final def reduceAllPar[E, A](a: IO[E, A], as: Iterable[IO[E, A]])(f: (A, A) => A): IO[E, A] =
+  final def reduceAllPar[E, A](a: IO[E, A], as: => Iterable[IO[E, A]])(f: (A, A) => A): IO[E, A] =
     ZIO.reduceAllPar(a, as)(f)
 
   /**
    * @see See [[zio.ZIO.replicate]]
    */
-  def replicate[E, A](n: Int)(effect: IO[E, A]): Iterable[IO[E, A]] =
+  def replicate[E, A](n: => Int)(effect: IO[E, A]): Iterable[IO[E, A]] =
     ZIO.replicate(n)(effect)
 
   /**
    * @see See [[zio.ZIO.require]]
    */
-  final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
+  final def require[E, A](error: => E): IO[E, Option[A]] => IO[E, A] =
     ZIO.require[Any, E, A](error)
 
   /**
@@ -511,7 +511,7 @@ object IO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[E, B](b: B): IO[E, Either[Nothing, B]] = ZIO.right(b)
+  def right[E, B](b: => B): IO[E, Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -521,30 +521,30 @@ object IO {
   /**
    *  See [[zio.ZIO.sequence]]
    */
-  final def sequence[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def sequence[E, A](in: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.sequence(in)
 
   /**
    *  See [[zio.ZIO.sequencePar]]
    */
-  final def sequencePar[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def sequencePar[E, A](as: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.sequencePar(as)
 
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
-  final def sequenceParN[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def sequenceParN[E, A](n: => Int)(as: => Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.sequenceParN(n)(as)
 
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[E, A](a: A): IO[E, Option[A]] = ZIO.some(a)
+  def some[E, A](a: => A): IO[E, Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
+  final def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -559,40 +559,40 @@ object IO {
   /**
    * @see See [[zio.ZIO.traverse]]
    */
-  final def traverse[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
+  final def traverse[E, A, B](in: => Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
     ZIO.traverse(in)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar]]
    */
-  final def traversePar[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+  final def traversePar[E, A, B](as: => Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     ZIO.traversePar(as)(fn)
 
   /**
    * Alias for [[ZIO.foreachParN]]
    */
   final def traverseParN[E, A, B](
-    n: Int
-  )(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    n: => Int
+  )(as: => Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     ZIO.traverseParN(n)(as)(fn)
 
   /**
    * @see See [[zio.ZIO.traverse_]]
    */
-  final def traverse_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  final def traverse_[E, A](as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traverse_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar_]]
    */
-  final def traversePar_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  final def traversePar_[E, A](as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traversePar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traverseParN_]]
    */
   final def traverseParN_[E, A](
-    n: Int
+    n: => Int
   )(as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traverseParN_(n)(as)(f)
 
@@ -632,7 +632,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  final def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**
