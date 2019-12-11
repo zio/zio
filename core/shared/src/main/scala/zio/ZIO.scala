@@ -418,7 +418,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * yielding the value of the first effect to succeed with a value.
    * Losers of the race will be interrupted immediately
    */
-  final def firstSuccessOf[R1 <: R, E1 >: E, A1 >: A](rest: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] =
+  def firstSuccessOf[R1 <: R, E1 >: E, A1 >: A](rest: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] =
     ZIO.firstSuccessOf(self, rest)
 
   /**
@@ -937,7 +937,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * yielding the value of the first effect to succeed with a value.
    * Losers of the race will be interrupted immediately
    */
-  final def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = {
+  def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = {
     def arbiter[E1, A1](
       fibers: List[Fiber[E1, A1]],
       winner: Fiber[E1, A1],
@@ -1875,7 +1875,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect from a [[zio.Exit]] value.
    */
-  final def done[E, A](r: Exit[E, A]): IO[E, A] = r match {
+  final def done[E, A](r: => Exit[E, A]): IO[E, A] = r match {
     case Exit.Success(b)     => succeed(b)
     case Exit.Failure(cause) => halt(cause)
   }
@@ -2304,7 +2304,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  final def halt[E](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
+  final def halt[E](cause: => Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
@@ -2323,12 +2323,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Returns an effect that is interrupted as if by the fiber calling this
    * method.
    */
-  final val interrupt: UIO[Nothing] = ZIO.fiberId >>= ZIO.interruptAs
+  final val interrupt: UIO[Nothing] = ZIO.fiberId >>= (ZIO.interruptAs(_))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
-  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] =
+  final def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] =
     haltWith(trace => Cause.Traced(Cause.interrupt(fiberId), trace()))
 
   /**
@@ -2582,7 +2582,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Sleeps for the specified duration. This method is asynchronous, and does
    * not actually block the fiber.
    */
-  final def sleep(duration: Duration): URIO[Clock, Unit] =
+  final def sleep(duration: => Duration): URIO[Clock, Unit] =
     clock.sleep(duration)
 
   /**

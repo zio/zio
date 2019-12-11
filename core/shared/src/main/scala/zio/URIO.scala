@@ -169,7 +169,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.done]]
    */
-  final def done[A](r: Exit[Nothing, A]): UIO[A] = ZIO.done(r)
+  final def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)
 
   /**
    * @see [[zio.ZIO.effectAsync]]
@@ -334,7 +334,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.halt]]
    */
-  final def halt(cause: Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
+  final def halt(cause: => Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
 
   /**
    * @see [[zio.ZIO.haltWith]]
@@ -355,7 +355,7 @@ object URIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  final def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see [[zio.ZIO.interruptible]]
@@ -501,7 +501,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.sleep]]
    */
-  final def sleep(duration: Duration): URIO[Clock, Unit] = ZIO.sleep(duration)
+  final def sleep(duration: => Duration): URIO[Clock, Unit] = ZIO.sleep(duration)
 
   /**
    *  @see [[zio.ZIO.some]]

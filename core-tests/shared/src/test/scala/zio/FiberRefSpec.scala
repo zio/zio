@@ -60,7 +60,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         for {
           child <- FiberRef.make(initial).fork
           // Don't use join as it inherits values from child.
-          fiberRef   <- child.await.flatMap(ZIO.done)
+          fiberRef   <- child.await.flatMap(ZIO.done(_))
           localValue <- fiberRef.locally(update)(fiberRef.get)
           value      <- fiberRef.get
         } yield assert(localValue, equalTo(update)) && assert(value, equalTo(initial))
@@ -76,7 +76,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       testM("initial value is always available") {
         for {
           child    <- FiberRef.make(initial).fork
-          fiberRef <- child.await.flatMap(ZIO.done)
+          fiberRef <- child.await.flatMap(ZIO.done(_))
           value    <- fiberRef.get
         } yield assert(value, equalTo(initial))
       },

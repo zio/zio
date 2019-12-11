@@ -119,7 +119,7 @@ object TestConsole extends Serializable {
     /**
      * Writes the specified string to the output buffer.
      */
-    override def putStr(line: => String): UIO[Unit] =
+    def putStr(line: => String): UIO[Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ line)
       }.unit
@@ -128,7 +128,7 @@ object TestConsole extends Serializable {
      * Writes the specified string to the output buffer followed by a newline
      * character.
      */
-    override def putStrLn(line: => String): ZIO[Any, Nothing, Unit] =
+    def putStrLn(line: => String): ZIO[Any, Nothing, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ s"$line\n")
       }.unit

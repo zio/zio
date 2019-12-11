@@ -306,7 +306,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  final def halt(cause: Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
+  final def halt(cause: => Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
 
   /**
    * @see [[zio.ZIO.haltWith]]
@@ -326,7 +326,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  final def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]

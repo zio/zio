@@ -175,7 +175,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.done]]
    */
-  final def done[A](r: Exit[Throwable, A]): Task[A] = ZIO.done(r)
+  final def done[A](r: => Exit[Throwable, A]): Task[A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
@@ -388,7 +388,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  final def halt(cause: Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
+  final def halt(cause: => Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -409,7 +409,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  final def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
@@ -567,7 +567,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.sleep]]
    */
-  final def sleep(duration: Duration): RIO[Clock, Unit] =
+  final def sleep(duration: => Duration): RIO[Clock, Unit] =
     ZIO.sleep(duration)
 
   /**

@@ -298,7 +298,7 @@ object StreamSpec extends ZIOBaseSpec {
         for {
           leftAssoc <- Stream
                         .bracket(Ref.make(true))(_.set(false))
-                        .flatMap(Stream.succeed)
+                        .flatMap(Stream.succeed(_))
                         .flatMap(r => Stream.fromEffect(r.get))
                         .run(Sink.await[Boolean])
           rightAssoc <- Stream

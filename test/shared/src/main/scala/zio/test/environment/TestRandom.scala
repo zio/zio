@@ -311,7 +311,7 @@ object TestRandom extends Serializable {
      * Takes a chunk of bytes from the buffer if one exists or else generates a
      * pseudo-random chunk of bytes of the specified length.
      */
-    override def nextBytes(length: => Int): UIO[Chunk[Byte]] =
+    def nextBytes(length: => Int): UIO[Chunk[Byte]] =
       getOrElse(bufferedBytes)(randomBytes(length))
 
     /**
@@ -348,7 +348,7 @@ object TestRandom extends Serializable {
      * pseudo-random integer between 0 (inclusive) and the specified value
      * (exclusive).
      */
-    override def nextInt(n: => Int): UIO[Int] =
+    def nextInt(n: => Int): UIO[Int] =
       getOrElse(bufferedInt)(randomInt(n))
 
     /**
@@ -363,7 +363,7 @@ object TestRandom extends Serializable {
      * pseudo-random long between 0 (inclusive) and the specified value
      * (exclusive).
      */
-    override def nextLong(n: => Long): UIO[Long] =
+    def nextLong(n: => Long): UIO[Long] =
       getOrElse(bufferedLong)(randomLong(n))
 
     /**
@@ -377,7 +377,7 @@ object TestRandom extends Serializable {
      * Takes a string from the buffer if one exists or else generates a
      * pseudo-random string of the specified length.
      */
-    override def nextString(length: => Int): UIO[String] =
+    def nextString(length: => Int): UIO[String] =
       getOrElse(bufferedString)(randomString(length))
 
     /**

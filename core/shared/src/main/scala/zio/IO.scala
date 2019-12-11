@@ -158,7 +158,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.done]]
    */
-  final def done[E, A](r: Exit[E, A]): IO[E, A] = ZIO.done(r)
+  final def done[E, A](r: => Exit[E, A]): IO[E, A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
@@ -365,7 +365,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  final def halt[E](cause: Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
+  final def halt[E](cause: => Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -386,7 +386,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  final def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
