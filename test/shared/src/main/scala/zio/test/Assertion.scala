@@ -19,16 +19,17 @@ package zio.test
 import scala.reflect.ClassTag
 
 import zio.{ Cause, Exit, ZIO }
-import zio.test.Assertion._
-import zio.test.Assertion.Render._
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
  * proposition, assertions compose using logical conjunction and disjunction,
  * and can be negated.
  */
-class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult) extends ((=> A) => AssertResult) {
-  self =>
+class Assertion[-A] private (
+  val render: Assertion.Render,
+  val run: (=> A) => AssertResult
+) extends ((=> A) => AssertResult) { self =>
+  import zio.test.Assertion.Render._
 
   /**
    * Returns a new assertion that succeeds only if both assertions succeed.
@@ -91,6 +92,7 @@ class Assertion[-A] private (val render: Render, val run: (=> A) => AssertResult
 }
 
 object Assertion extends AssertionVariants {
+  import zio.test.Assertion.Render._
 
   /**
    * `Render` captures both the name of an assertion as well as the parameters
