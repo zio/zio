@@ -91,7 +91,7 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(Seq(1, 42, 5), exists(equalTo(0)))
     } @@ failure,
     test("exists must fail when iterable is empty") {
-      assert(Seq(), exists(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+      assert(Seq[String]())(exists(hasField("length", _.length, isWithin(0, 3))))
     } @@ failure,
     test("fails must succeed when error value satisfy specified assertion") {
       assert(Exit.fail("Some Error"), fails(equalTo("Some Error")))
@@ -100,13 +100,13 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(Exit.fail("Other Error"), fails(equalTo("Some Error")))
     } @@ failure,
     test("forall must succeed when all elements of iterable satisfy specified assertion") {
-      assert(Seq("a", "bb", "ccc"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+      assert(Seq("a", "bb", "ccc"))(forall(hasField("length", _.length, isWithin(0, 3))))
     },
     test("forall must fail when one element of iterable do not satisfy specified assertion") {
-      assert(Seq("a", "bb", "dddd"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+      assert(Seq("a", "bb", "dddd"))(forall(hasField("length", _.length, isWithin(0, 3))))
     } @@ failure,
     test("forall must succeed when an iterable is empty") {
-      assert(Seq(), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+      assert(Seq[String]())(forall(hasField("length", _.length, isWithin(0, 3))))
     },
     test("forall must work with iterables that are not lists") {
       assert(SortedSet(1, 2, 3), forall(isGreaterThan(0)))
@@ -316,10 +316,10 @@ object AssertionSpec extends ZIOBaseSpec {
   val sampleUser      = SampleUser("User", 42)
   val sampleException = new Exception
 
-  val nameStartsWithA  = hasField[SampleUser, Boolean]("name", _.name.startsWith("A"), isTrue)
-  val nameStartsWithU  = hasField[SampleUser, Boolean]("name", _.name.startsWith("U"), isTrue)
-  val ageLessThan20    = hasField[SampleUser, Int]("age", _.age, isLessThan(20))
-  val ageGreaterThan20 = hasField[SampleUser, Int]("age", _.age, isGreaterThan(20))
+  val nameStartsWithA: Assertion[SampleUser]  = hasField("name", _.name.startsWith("A"), isTrue)
+  val nameStartsWithU: Assertion[SampleUser]  = hasField("name", _.name.startsWith("U"), isTrue)
+  val ageLessThan20: Assertion[SampleUser]    = hasField("age", _.age, isLessThan(20))
+  val ageGreaterThan20: Assertion[SampleUser] = hasField("age", _.age, isGreaterThan(20))
 
   val someException = new RuntimeException("Boom!")
 }
