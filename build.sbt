@@ -263,7 +263,7 @@ lazy val benchmarks = project.module
         "co.fs2"                   %% "fs2-core"        % "2.1.0",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.26",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.27",
         "io.monix"                 %% "monix"           % "3.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.1.RELEASE",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.15",
