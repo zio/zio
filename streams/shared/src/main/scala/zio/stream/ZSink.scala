@@ -680,10 +680,8 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def cont(state: State) =
         state match {
-          case (Left(s1), Left(s2)) => self.cont(s1) || that.cont(s2)
-          case (Left(s), Right(_))  => self.cont(s)
-          case (Right(_), Left(s))  => that.cont(s)
-          case (Right(_), Right(_)) => false
+          case (Left(s1), Left(s2)) => self.cont(s1) && that.cont(s2)
+          case _                    => false
         }
     }
 
