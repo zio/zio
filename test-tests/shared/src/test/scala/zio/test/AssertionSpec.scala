@@ -76,8 +76,13 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(List(1, 2, 3).filter(_ => false))(equalTo(List.empty))
     },
     testM("equalTo must not compile when comparing two unrelated types") {
-      val result = typeCheck("assert(1, equalTo(\"abc\"))")
-      assertM(result)(isLeft(anything))
+      val result = typeCheck("assert(1)(equalTo(\"abc\"))")
+      assertM(result)(
+        isLeft(
+          containsString("found   : zio.test.Assertion[String]") &&
+          containsString("required: zio.test.Assertion[Int]")
+        )
+      )
     } @@ scala2Only,
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assert(Seq(1, 42, 5), exists(equalTo(42)))
