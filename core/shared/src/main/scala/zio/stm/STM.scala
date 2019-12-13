@@ -638,8 +638,6 @@ object STM {
       }
     }
 
-    final val succeedUnit: TExit[Nothing, Unit] = TExit.Succeed(())
-
     final def makeTxnId(): Long = txnCounter.incrementAndGet()
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()

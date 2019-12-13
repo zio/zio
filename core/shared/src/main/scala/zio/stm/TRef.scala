@@ -49,7 +49,7 @@ class TRef[A] private (
 
       entry.unsafeSet(newValue)
 
-      succeedUnit
+      TExit.Succeed(())
     })
 
   override final def toString =
