@@ -1692,7 +1692,15 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         done <- Ref.make(false).toManaged_
         pull = done.get flatMap {
           if (_) Pull.end
-          else as.raceAttempt(p.await.mapError(Some(_)).ensuring(done set true) *> Pull.end)
+          else
+            as.raceAttempt(
+              p.await
+                .mapError(Some(_))
+                .foldCauseM(
+                  c => done.set(true) *> ZIO.halt(c),
+                  _ => done.set(true) *> Pull.end
+                )
+            )
         }
       } yield pull
     }

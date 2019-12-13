@@ -18,9 +18,10 @@ object StreamDrainForkSpec extends ZIOBaseSpec {
     testM("interrupts the background stream when the foreground exits") {
       for {
         bgInterrupted <- Ref.make(false)
-        _ <- ZStream(1, 2, 3)
+        latch         <- Promise.make[Nothing, Unit]
+        _ <- (ZStream(1, 2, 3) ++ ZStream.fromEffect(latch.await).drain)
               .drainFork(
-                ZStream.fromEffect(ZIO.never.onInterrupt(bgInterrupted.set(true)))
+                ZStream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(bgInterrupted.set(true)))
               )
               .runDrain
         result <- bgInterrupted.get
