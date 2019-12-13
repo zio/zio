@@ -80,7 +80,7 @@ object AssertionSpec extends ZIOBaseSpec {
       assertM(result)(
         isLeft(
           containsString("found   : zio.test.Assertion[String]") &&
-          containsString("required: zio.test.Assertion[Int]")
+            containsString("required: zio.test.Assertion[Int]")
         )
       )
     } @@ scala2Only,
