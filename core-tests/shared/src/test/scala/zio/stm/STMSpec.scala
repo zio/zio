@@ -18,13 +18,24 @@ object STMSpec extends ZIOBaseSpec {
       },
       suite("`either` to convert")(
         testM("A successful computation into Right(a)") {
+          import zio.CanFail.canFail
           assertM(STM.succeed(42).either.commit, isRight(equalTo(42)))
         },
         testM("A failed computation into Left(e)") {
           assertM(STM.fail("oh no!").either.commit, isLeft(equalTo("oh no!")))
         }
       ),
+      suite("fallback")(
+        testM("Tries this effect first") {
+          import zio.CanFail.canFail
+          assertM(STM.succeed(1).fallback(2).commit, equalTo(1))
+        },
+        testM("If it fails, succeeds with the specified value") {
+          assertM(STM.fail("fail").fallback(1).commit, equalTo(1))
+        }
+      ),
       testM("`fold` to handle both failure and success") {
+        import zio.CanFail.canFail
         val stm = for {
           s <- STM.succeed("Yes!").fold(_ => -1, _ => 1)
           f <- STM.fail("No!").fold(_ => -1, _ => 1)
@@ -32,6 +43,7 @@ object STMSpec extends ZIOBaseSpec {
         assertM(stm.commit, equalTo((1, -1)))
       },
       testM("`foldM` to fold over the `STM` effect, and handle failure and success") {
+        import zio.CanFail.canFail
         val stm = for {
           s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
           f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
@@ -42,6 +54,7 @@ object STMSpec extends ZIOBaseSpec {
         assertM(STM.fail(-1).mapError(_ => "oh no!").commit.run, fails(equalTo("oh no!")))
       },
       testM("`orElse` to try another computation when the computation is failed") {
+        import zio.CanFail.canFail
         (for {
           s <- STM.succeed(1) orElse STM.succeed(2)
           f <- STM.fail("failed") orElse STM.succeed("try this")
@@ -49,6 +62,7 @@ object STMSpec extends ZIOBaseSpec {
       },
       suite("`option` to convert:")(
         testM("A successful computation into Some(a)") {
+          import zio.CanFail.canFail
           assertM(STM.succeed(42).option.commit, isSome(equalTo(42)))
         },
         testM("A failed computation into None") {
@@ -326,6 +340,7 @@ object STMSpec extends ZIOBaseSpec {
     testM(
       "Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed"
     ) {
+      import zio.CanFail.canFail
       for {
         rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).commit
         leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
@@ -360,6 +375,7 @@ object STMSpec extends ZIOBaseSpec {
     ),
     suite("orElse must")(
       testM("rollback left retry") {
+        import zio.CanFail.canFail
         for {
           tvar  <- TRef.makeCommit(0)
           left  = tvar.update(_ + 100) *> STM.retry
