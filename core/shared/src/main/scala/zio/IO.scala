@@ -386,7 +386,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  final def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  final def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
