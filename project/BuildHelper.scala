@@ -9,7 +9,7 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.2" % "test")
+  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.3" % "test")
 
   private val stdOptions = Seq(
     "-deprecation",
