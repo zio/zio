@@ -142,17 +142,17 @@ object UIO {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  final def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  final def die(t: =>Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
    */
-  final def dieMessage(message: String): UIO[Nothing] = ZIO.dieMessage(message)
+  final def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
    * @see See [[zio.ZIO.done]]
    */
-  final def done[A](r: Exit[Nothing, A]): UIO[A] = ZIO.done(r)
+  final def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -337,7 +337,7 @@ object UIO {
   /**
    *  @see See [[zio.ZIO.left]]
    */
-  final def left[A](a: A): UIO[Either[A, Nothing]] = ZIO.left(a)
+  final def left[A](a: => A): UIO[Either[A, Nothing]] = ZIO.left(a)
 
   /**
    * @see See [[zio.ZIO.lock]]
@@ -444,7 +444,7 @@ object UIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[B](b: B): UIO[Either[Nothing, B]] = ZIO.right(b)
+  def right[B](b: =>B): UIO[Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -472,12 +472,12 @@ object UIO {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[A](a: A): UIO[Option[A]] = ZIO.some(a)
+  def some[A](a: => A): UIO[Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
+  final def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
    * @see See [[zio.ZIO.trace]]

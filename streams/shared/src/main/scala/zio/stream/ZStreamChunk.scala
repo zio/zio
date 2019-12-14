@@ -293,7 +293,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
       .foldWhileManagedM[R, E, Chunk[A1], S](s)(_ => true) { (s: S, as: Chunk[A1]) =>
         as.foldM[Any, Nothing, S](s)((s, a) => ZIO.succeed(f(s, a)))
       }
-      .use(ZIO.succeed)
+      .use(ZIO.succeed(_))
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -304,7 +304,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
       .foldWhileManagedM[R1, E1, Chunk[A1], S](s)(_ => true) { (s, as) =>
         as.foldM(s)(f)
       }
-      .use(ZIO.succeed)
+      .use(ZIO.succeed(_))
 
   /**
    * Executes a pure fold over the stream of values.
@@ -337,7 +337,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
       .foldWhileManagedM[R, E, Chunk[A1], S](s)(cont) { (s: S, as: Chunk[A1]) =>
         as.foldWhileM(s)(cont)((s, a) => ZIO.succeed(f(s, a)))
       }
-      .use(ZIO.succeed)
+      .use(ZIO.succeed(_))
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -351,7 +351,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
       .foldWhileManagedM[R1, E1, Chunk[A1], S](s)(cont) { (s, as) =>
         as.foldWhileM(s)(cont)(f)
       }
-      .use(ZIO.succeed)
+      .use(ZIO.succeed(_))
 
   /**
    * Executes a pure fold over the stream of values.

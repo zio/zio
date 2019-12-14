@@ -159,17 +159,17 @@ object URIO {
   /**
    * @see [[zio.ZIO.die]]
    */
-  final def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  final def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see [[zio.ZIO.dieMessage]]
    */
-  final def dieMessage(message: String): UIO[Nothing] = ZIO.dieMessage(message)
+  final def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
    * @see [[zio.ZIO.done]]
    */
-  final def done[A](r: Exit[Nothing, A]): UIO[A] = ZIO.done(r)
+  final def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)
 
   /**
    * @see [[zio.ZIO.effectAsync]]
@@ -485,7 +485,7 @@ object URIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[R, B](b: B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
+  def right[R, B](b: => B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see [[zio.ZIO.runtime]]
@@ -500,12 +500,12 @@ object URIO {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[R, A](a: A): URIO[R, Option[A]] = ZIO.some(a)
+  def some[R, A](a: => A): URIO[R, Option[A]] = ZIO.some(a)
 
   /**
    * @see [[zio.ZIO.succeed]]
    */
-  final def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
+  final def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
    *  [[zio.ZIO.sequence]]

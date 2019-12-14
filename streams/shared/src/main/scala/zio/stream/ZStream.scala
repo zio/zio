@@ -1376,13 +1376,13 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
    */
   final def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
-    foldWhileManagedM[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a))).use(ZIO.succeed)
+    foldWhileManagedM[R, E, A1, S](s)(_ => true)((s, a) => ZIO.succeed(f(s, a))).use(ZIO.succeed(_))
 
   /**
    * Executes an effectful fold over the stream of values.
    */
   final def foldM[R1 <: R, E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    foldWhileManagedM[R1, E1, A1, S](s)(_ => true)(f).use(ZIO.succeed)
+    foldWhileManagedM[R1, E1, A1, S](s)(_ => true)(f).use(ZIO.succeed(_))
 
   /**
    * Executes a pure fold over the stream of values.
@@ -1407,7 +1407,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * }}}
    */
   final def foldWhile[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZIO[R, E, S] =
-    foldWhileManagedM[R, E, A1, S](s)(cont)((s, a) => ZIO.succeed(f(s, a))).use(ZIO.succeed)
+    foldWhileManagedM[R, E, A1, S](s)(cont)((s, a) => ZIO.succeed(f(s, a))).use(ZIO.succeed(_))
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1424,7 +1424,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def foldWhileM[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    foldWhileManagedM[R1, E1, A1, S](s)(cont)(f).use(ZIO.succeed)
+    foldWhileManagedM[R1, E1, A1, S](s)(cont)(f).use(ZIO.succeed(_))
 
   /**
    * Executes a pure fold over the stream of values.
@@ -1443,7 +1443,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    *   Stream(1)
    *     .forever                                // an infinite Stream of 1's
    *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
-   *     .use(ZIO.succeed)                       // UIO[Int] == 5
+   *     .use(ZIO.succeed(_))                    // UIO[Int] == 5
    * }}}
    *
    * @param cont function which defines the early termination condition
@@ -2029,7 +2029,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                               .tap(currPull.set(_)) *> schedStateRef.set(state) *> go
                         )
                   },
-                  ZIO.succeed
+                  ZIO.succeed(_)
                 )
             }
           go

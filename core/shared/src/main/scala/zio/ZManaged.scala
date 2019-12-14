@@ -481,7 +481,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
                   restore(res.acquire).run.map(e => e -> Some(res -> e))
                 }
               }
-          }.flatMap(ZIO.done)
+          }.flatMap(ZIO.done(_))
 
         val acquire2: ZIO[R, E, ZManaged[R, E, A]] =
           ZIO.succeed(acquire1.toManaged_)
@@ -734,7 +734,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
                 rightFiber.interrupt.flatMap(
                   _ =>
                     leftDone.foldM(
-                      ZIO.halt,
+                      ZIO.halt(_),
                       succ => clock.nanoTime.map(end => Some((Duration.fromNanos(end - start), succ)))
                     )
                 )
