@@ -252,6 +252,12 @@ object Task {
     ZIO.foldLeft(in)(zero)(f)
 
   /**
+   * @see See [[zio.ZIO.foldRight]]
+   */
+  final def foldRight[S, A](in: Iterable[A])(zero: S)(f: (A, S) => Task[S]): Task[S] =
+    ZIO.foldRight(in)(zero)(f)
+
+  /**
    * @see See [[zio.ZIO.foreach]]
    */
   final def foreach[A, B](in: Iterable[A])(f: A => Task[B]): Task[List[B]] =

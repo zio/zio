@@ -320,6 +320,20 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("foldRight")(
+      testM("with a successful step function sums the list properly") {
+        checkM(Gen.listOf(Gen.anyInt)) { l =>
+          val res = IO.foldRight(l)(0)((el, acc) => IO.succeed(acc + el))
+          assertM(res, equalTo(l.sum))
+        }
+      },
+      testM("`with a failing step function returns a failed IO") {
+        checkM(Gen.listOf1(Gen.anyInt)) { l =>
+          val res = IO.foldRight(l)(0)((_, _) => IO.fail("fail"))
+          assertM(res.run, fails(equalTo("fail")))
+        }
+      }
+    ),
     suite("foreach")(
       testM("returns the list of results") {
         checkAllM(functionIOGen, listGen) { (f, list) =>

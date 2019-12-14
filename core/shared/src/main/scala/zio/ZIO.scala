@@ -2050,6 +2050,16 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
+   * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
+   */
+  final def foldRight[R, E, S, A](
+    in: Iterable[A]
+  )(zero: S)(f: (A, S) => ZIO[R, E, S]): ZIO[R, E, S] =
+    in.foldRight(IO.succeed(zero): ZIO[R, E, S]) { (el, acc) =>
+      acc.flatMap(f(el, _))
+    }
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns the results in a new `List[B]`.
    *
@@ -2436,15 +2446,19 @@ private[zio] trait ZIOFunctions extends Serializable {
   final val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
-   * Feeds elements of type A to f and collects all successes and failures in a tupled fashion.
+   * Feeds elements of type A to a function f that returns an effect.
+   *
+   * Collects all successes and failures in a tupled fashion.
    */
   final def partitionM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, Nothing, (List[E], List[B])] =
     ZIO
-      .foreach(in)(f(_).either)
-      .map(_.foldRight((List.empty[E], List.empty[B])) {
-        case (Left(e), (es, bs))  => (e :: es, bs)
-        case (Right(b), (es, bs)) => (es, b :: bs)
-      })
+      .foldRight(in)(List.empty[E] -> List.empty[B])(
+        (x, acc) =>
+          f(x).fold(
+            e => (e :: acc._1, acc._2),
+            a => (acc._1, a :: acc._2)
+          )
+      )
 
   /**
    * Given an environment `R`, returns a function that can supply the
