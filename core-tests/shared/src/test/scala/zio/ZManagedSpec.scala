@@ -83,6 +83,25 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       testM("Constructs an uninterruptible Managed value") {
         doInterrupt(io => ZManaged.make(io)(_ => IO.unit), _ => None)
+      },
+      testM("Infers the environment type correctly") {
+        trait R
+        trait R1
+        trait R2 extends R1
+        trait E
+        trait A
+        def acquire1: ZIO[R, E, A]               = ???
+        def acquire2: ZIO[R1, E, A]              = ???
+        def acquire3: ZIO[R2, E, A]              = ???
+        def release1: A => ZIO[R, Nothing, Any]  = ???
+        def release2: A => ZIO[R1, Nothing, Any] = ???
+        def release3: A => ZIO[R2, Nothing, Any] = ???
+        def managed1: ZManaged[R with R1, E, A]  = ZManaged.make(acquire1)(release2)
+        def managed2: ZManaged[R with R1, E, A]  = ZManaged.make(acquire2)(release1)
+        def managed3: ZManaged[R2, E, A]         = ZManaged.make(acquire2)(release3)
+        def managed4: ZManaged[R2, E, A]         = ZManaged.make(acquire3)(release2)
+        lazy val result                          = (managed1, managed2, managed3, managed4)
+        ZIO.succeed(assert(result, anything))
       }
     ),
     suite("makeEffect")(
@@ -217,6 +236,15 @@ object ZManagedSpec extends ZIOBaseSpec {
                 .run
           result <- effects.get
         } yield assert(result, equalTo(List("Ensured")))
+      }
+    ),
+    suite("fallback")(
+      testM("executes an effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        assertM(ZManaged.succeed(1).fallback(2).use(ZIO.succeed), equalTo(1))
+      },
+      testM("returns the specified value if the effect fails") {
+        assertM(ZManaged.fail("fail").fallback(1).use(ZIO.succeed), equalTo(1))
       }
     ),
     testM("eventually") {

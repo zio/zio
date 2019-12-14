@@ -6,7 +6,6 @@ import scala.util.{ Failure, Success }
 import zio.clock.Clock
 import zio.duration._
 import zio.random.Random
-import zio.syntax._
 import zio.test._
 import zio.test.environment._
 import zio.test.Assertion._
@@ -254,56 +253,13 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(test, equalTo(10))
       }
     ),
-    suite("extension methods")(
-      testM("succeed") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.succeed
-            b <- IO.succeed(str)
-          } yield assert(a, equalTo(b))
-        }
+    suite("fallback")(
+      testM("executes an effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        assertM(ZIO.succeed(1).fallback(2), equalTo(1))
       },
-      testM("fail") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.fail.either
-            b <- IO.fail(str).either
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("ensure") {
-        checkM(Gen.alphaNumericString) { str =>
-          val ioSome = IO.succeed(Some(42))
-          for {
-            a <- str.require(ioSome)
-            b <- IO.require(str)(ioSome)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with pure function") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.effect
-            b <- IO.effectTotal(str)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with exception throwing function") {
-        checkM(Gen.alphaNumericString) { str =>
-          for {
-            a <- str.effect
-            b <- IO.effect(str)
-          } yield assert(a, equalTo(b))
-        }
-      },
-      testM("effect with partial function") {
-        checkM(Gen.alphaNumericString) { str =>
-          val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
-          for {
-            a <- str.effect.refineOrDie(partial)
-            b <- IO.effect(str).refineOrDie(partial)
-          } yield assert(a, equalTo(b))
-        }
+      testM("returns the specified value if the effect fails") {
+        assertM(ZIO.fail("fail").fallback(1), equalTo(1))
       }
     ),
     suite("filterOrElse")(
@@ -535,6 +491,42 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- fiber.join.sandbox.flip
         } yield assert(result, equalTo(Cause.die(boom)))
       } @@ flaky
+    ),
+    suite("forkWithErrorHandler")(
+      testM("calls provided function when task fails") {
+        for {
+          p <- Promise.make[Nothing, Unit]
+          _ <- ZIO.fail(()).forkWithErrorHandler(p.succeed(_).unit)
+          _ <- p.await
+        } yield assertCompletes
+      }
+    ),
+    suite("fromFutureInterrupt")(
+      testM("running Future can be interrupted") {
+        import java.util.concurrent.atomic.AtomicInteger
+        import scala.concurrent.{ ExecutionContext, Future }
+        def infiniteFuture(ref: AtomicInteger)(implicit ec: ExecutionContext): Future[Nothing] =
+          Future(ref.getAndIncrement()).flatMap(_ => infiniteFuture(ref))
+        for {
+          ref   <- ZIO.effectTotal(new AtomicInteger(0))
+          fiber <- ZIO.fromFutureInterrupt(ec => infiniteFuture(ref)(ec)).fork
+          _     <- fiber.interrupt
+          v1    <- ZIO.effectTotal(ref.get)
+          _     <- Live.live(clock.sleep(10.milliseconds))
+          v2    <- ZIO.effectTotal(ref.get)
+        } yield assert(v1, equalTo(v2))
+      },
+      testM("interruption blocks on interruption of the Future") {
+        import scala.concurrent.Promise
+        for {
+          latch <- ZIO.effectTotal(Promise[Unit]())
+          fiber <- ZIO.fromFutureInterrupt { _ =>
+                    latch.success(()); Promise[Unit]().future
+                  }.fork
+          _      <- ZIO.fromFuture(_ => latch.future).orDie
+          result <- Live.withLive(fiber.interrupt)(_.timeout(10.milliseconds))
+        } yield assert(result, isNone)
+      }
     ),
     suite("head")(
       testM("on non empty list") {
@@ -943,7 +935,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(io, isLeft(equalTo(ExampleError)))
       },
       testM("effectSuspendWith must catch throwable") {
-        val io = ZIO.effectSuspendWith[Any, Nothing](_ => throw ExampleError).either
+        val io = ZIO.effectSuspendWith[Any, Nothing]((_, _) => throw ExampleError).either
         assertM(io, isLeft(equalTo(ExampleError)))
       },
       testM("effectSuspendTotal must be evaluatable") {
@@ -2219,18 +2211,6 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield n
         assertM(task.run, fails(isSubtype[NoSuchElementException](anything)))
       },
-      testM("withFilter doesn't compile with UIO") {
-        val result = typeCheck {
-          """
-            import zio._
-
-            for {
-              n <- UIO(3) if n > 0
-            } yield n
-                """
-        }
-        assertM(result, isLeft(anything))
-      },
       testM("withFilter doesn't compile with IO that fails with type other than Throwable") {
         val result = typeCheck {
           """
@@ -2243,7 +2223,6 @@ object ZIOSpec extends ZIOBaseSpec {
         }
         val expected = "Cannot prove that NoSuchElementException <:< String."
         if (TestVersion.isScala2) assertM(result, isLeft(equalTo(expected)))
-        else if (TestVersion.isDotty) assertM(result, isRight(equalTo(())))
         else assertM(result, isLeft(anything))
       }
     ),

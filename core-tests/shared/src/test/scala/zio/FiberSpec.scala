@@ -2,6 +2,7 @@ package zio
 
 import zio.test._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.LatchOps._
 
 object FiberSpec extends ZIOBaseSpec {
@@ -97,7 +98,20 @@ object FiberSpec extends ZIOBaseSpec {
           _      <- queue.shutdown
         } yield assert(exit, fails(equalTo("fail")))
       }
-    )
+    ),
+    testM("grandparent interruption is propagated to grandchild despite parent termination") {
+      for {
+        latch1 <- Promise.make[Nothing, Unit]
+        latch2 <- Promise.make[Nothing, Unit]
+        c      = ZIO.never.interruptible.onInterrupt(latch2.succeed(()))
+        b      = c.fork
+        a      = (latch1.succeed(()) *> b.fork).uninterruptible *> ZIO.never
+        fiber  <- a.fork
+        _      <- latch1.await
+        _      <- fiber.interrupt
+        _      <- latch2.await
+      } yield assertCompletes
+    } @@ nonFlaky
   )
 
   val (initial, update) = ("initial", "update")

@@ -17,6 +17,7 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream }
+import java.{ util => ju }
 
 import zio._
 
@@ -372,6 +373,16 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
+  final def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
+    val _ = iterator // Scala 2.13 wrongly warns that iterator is unused
+    fromIterator(
+      new Iterator[A] {
+        def next(): A        = iterator.next()
+        def hasNext: Boolean = iterator.hasNext
+      }
+    )
+  }
+
   final def fromInputStream(
     is: InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
@@ -410,6 +421,20 @@ private[stream] object StreamEffect extends Serializable {
           state = f(state)
           out
         }
+      }
+    }
+
+  final def paginate[A, S](s0: S)(f: S => (A, Option[S])): StreamEffect[Any, Nothing, A] =
+    StreamEffect {
+      Managed.effectTotal {
+        var state = Option(s0)
+
+        () =>
+          state.fold(end) { s =>
+            val res = f(s)
+            state = res._2
+            res._1
+          }
       }
     }
 

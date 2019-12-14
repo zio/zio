@@ -43,7 +43,7 @@ trait TestSystem extends System {
 
 object TestSystem extends Serializable {
 
-  trait Service[R] extends System.Service[R] {
+  trait Service[R] extends System.Service[R] with Restorable {
     def putEnv(name: String, value: String): UIO[Unit]
     def putProperty(name: String, value: String): UIO[Unit]
     def setLineSeparator(lineSep: String): UIO[Unit]
@@ -103,6 +103,15 @@ object TestSystem extends Serializable {
      */
     def clearProperty(prop: String): UIO[Unit] =
       systemState.update(data => data.copy(properties = data.properties - prop)).unit
+
+    /**
+     * Saves the `TestSystem``'s current state in an effect which, when run, will restore the `TestSystem`
+     * state to the saved state.
+     */
+    val save: UIO[UIO[Unit]] =
+      for {
+        sState <- systemState.get
+      } yield systemState.set(sState)
   }
 
   /**
@@ -137,6 +146,12 @@ object TestSystem extends Serializable {
    */
   def putProperty(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
     ZIO.accessM(_.system.putProperty(name, value))
+
+  /**
+   * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
+   * will restore the `TestSystem` to the saved state
+   */
+  val save: ZIO[TestSystem, Nothing, UIO[Unit]] = ZIO.accessM[TestSystem](_.system.save)
 
   /**
    * Accesses a `TestSystem` instance in the environment and sets the line
