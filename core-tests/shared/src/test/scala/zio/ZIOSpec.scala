@@ -765,10 +765,10 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("partitionM")(
       testM("collect only successes") {
-        val in = List.fill(10)(0)
+        val in = List.range(0, 10)
         for {
           res <- ZIO.partitionM(in)(a => UIO.succeed(a))
-        } yield assert(res._1, isEmpty) && assert(res._2, hasSize(equalTo(in.length)))
+        } yield assert(res._1, isEmpty) && assert(res._2, equalTo(List.range(0, 10)))
       },
       testM("collect only failures") {
         val in = List.fill(10)(0)
