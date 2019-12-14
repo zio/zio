@@ -254,16 +254,13 @@ lazy val benchmarks = project.module
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
-    // skip 2.13 benchmarks until twitter-util publishes for 2.13
-    crossScalaVersions -= "2.13.1",
-    //
     skip in publish := true,
     libraryDependencies ++=
       Seq(
         "co.fs2"                   %% "fs2-core"        % "2.1.0",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
-        "com.twitter"              %% "util-collection" % "19.1.0",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.26",
+        "com.twitter"              %% "util-core"       % "19.12.0",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.6.1",
         "io.monix"                 %% "monix"           % "3.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.3.1.RELEASE",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.15",
