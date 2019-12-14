@@ -51,61 +51,61 @@ class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal {
   /**
    * Count the values in the array matching a predicate.
    */
-  final def count(predicate: A => Boolean): STM[Nothing, Int] = fold(0) { (n, a) =>
-    if (predicate(a)) n + 1 else n
+  final def count(p: A => Boolean): STM[Nothing, Int] = fold(0) { (n, a) =>
+    if (p(a)) n + 1 else n
   }
 
   /**
    * Count the values in the array matching an STM predicate.
    */
-  final def countM[E](predicate: A => STM[E, Boolean]): STM[E, Int] = foldM[E, Int](0) { (n, a) =>
-    predicate(a).map(result => if (result) n + 1 else n)
+  final def countM[E](p: A => STM[E, Boolean]): STM[E, Int] = foldM[E, Int](0) { (n, a) =>
+    p(a).map(result => if (result) n + 1 else n)
   }
 
   /**
    * Determine if the array contains a value satisfying a predicate.
    */
-  final def exists(predicate: A => Boolean): STM[Nothing, Boolean] = find(predicate).map(_.isDefined)
+  final def exists(p: A => Boolean): STM[Nothing, Boolean] = find(p).map(_.isDefined)
 
   /**
    * Determine if the array contains a value satisfying an STM predicate.
    */
-  final def existsM[E](predicate: A => STM[E, Boolean]): STM[E, Boolean] =
-    countM(predicate).map(_ > 0) //Existence should not be order dependent so the entire array needs to be observed.
+  final def existsM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
+    countM(p).map(_ > 0) //Existence should not be order dependent so the entire array needs to be observed.
 
   /**
    * Find the first element in the array matching a predicate.
    */
-  final def find(predicate: A => Boolean): STM[Nothing, Option[A]] =
+  final def find(p: A => Boolean): STM[Nothing, Option[A]] =
     if (array.isEmpty) STM.succeed(None)
     else
       array.head.get.flatMap { a =>
-        if (predicate(a)) STM.succeed(Some(a))
-        else new TArray(array.tail).find(predicate)
+        if (p(a)) STM.succeed(Some(a))
+        else new TArray(array.tail).find(p)
       }
 
   /**
    * Find the last element in the array matching a predicate.
    */
-  final def findLast(predicate: A => Boolean): STM[Nothing, Option[A]] =
-    new TArray(array.reverse).find(predicate)
+  final def findLast(p: A => Boolean): STM[Nothing, Option[A]] =
+    new TArray(array.reverse).find(p)
 
   /**
    * Find the last element in the array matching an STM predicate.
    */
-  final def findLastM[E](predicate: A => STM[E, Boolean]): STM[E, Option[A]] =
-    new TArray(array.reverse).findM(predicate)
+  final def findLastM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
+    new TArray(array.reverse).findM(p)
 
   /**
    * Find the first element in the array matching an STM predicate.
    */
-  final def findM[E](predicate: A => STM[E, Boolean]): STM[E, Option[A]] =
+  final def findM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
     if (array.isEmpty) STM.succeed(None)
     else
       array.head.get.flatMap { a =>
-        predicate(a).flatMap { result =>
+        p(a).flatMap { result =>
           if (result) STM.succeed(Some(a))
-          else new TArray(array.tail).findM(predicate)
+          else new TArray(array.tail).findM(p)
         }
       }
 
@@ -134,13 +134,13 @@ class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal {
   /**
    * Atomically evaluate the conjunction of a predicate across the members of the array.
    */
-  final def forall(predicate: A => Boolean): STM[Nothing, Boolean] = exists(a => !predicate(a)).map(!_)
+  final def forall(p: A => Boolean): STM[Nothing, Boolean] = exists(a => !p(a)).map(!_)
 
   /**
    * Atomically evaluate the conjunction of an STM predicate across the members of the array.
    */
-  final def forallM[E](predicate: A => STM[E, Boolean]): STM[E, Boolean] =
-    countM(predicate).map(_ == array.length) //Universal quantification should not be order dependent so the entire array needs to be observed.
+  final def forallM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
+    countM(p).map(_ == array.length) //Universal quantification should not be order dependent so the entire array needs to be observed.
 
   /**
    * Atomically performs side-effect for each item in array.
@@ -162,17 +162,17 @@ class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal {
   /**
    * Get the index of the first entry in the array matching a predicate.
    */
-  final def indexWhere(predicate: A => Boolean): STM[Nothing, Int] = indexWhere(predicate, 0)
+  final def indexWhere(p: A => Boolean): STM[Nothing, Int] = indexWhere(p, 0)
 
   /**
    * Get the index of the first entry in the array, starting at a specific index,
    * matching a predicate.
    */
-  final def indexWhere(predicate: A => Boolean, from: Int): STM[Nothing, Int] = {
+  final def indexWhere(p: A => Boolean, from: Int): STM[Nothing, Int] = {
     val len = array.length
     def forIndex(i: Int): STM[Nothing, Int] =
       if (i >= len) STM.succeed(-1)
-      else apply(i).flatMap(a => if (predicate(a)) STM.succeed(i) else forIndex(i + 1))
+      else apply(i).flatMap(a => if (p(a)) STM.succeed(i) else forIndex(i + 1))
 
     if (from >= 0) forIndex(from) else STM.succeed(-1)
   }
@@ -180,16 +180,16 @@ class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal {
   /**
    * Get the index of the first entry in the array matching an STM predicate.
    */
-  final def indexWhereM[E](predicate: A => STM[E, Boolean]): STM[E, Int] = indexWhereM(predicate, 0)
+  final def indexWhereM[E](p: A => STM[E, Boolean]): STM[E, Int] = indexWhereM(p, 0)
 
   /**
    * Get the index of the first entry in the array, starting at a specific index, matching an STM predicate.
    */
-  final def indexWhereM[E](predicate: A => STM[E, Boolean], from: Int): STM[E, Int] = {
+  final def indexWhereM[E](p: A => STM[E, Boolean], from: Int): STM[E, Int] = {
     val len = array.length
     def forIndex(i: Int): STM[E, Int] =
       if (i >= len) STM.succeed(-1)
-      else apply(i).flatMap(a => predicate(a).flatMap(result => if (result) STM.succeed(i) else forIndex(i + 1)))
+      else apply(i).flatMap(a => p(a).flatMap(result => if (result) STM.succeed(i) else forIndex(i + 1)))
 
     if (from >= 0) forIndex(from) else STM.succeed(-1)
   }
