@@ -2288,7 +2288,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  final def halt[E](cause: =>Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
+  final def halt[E](cause: => Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
@@ -2425,7 +2425,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
    */
   final def mergeAllPar[R, E, A, B](
-    in: =>Iterable[ZIO[R, E, A]]
+    in: => Iterable[ZIO[R, E, A]]
   )(zero: => B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
 
@@ -2550,7 +2550,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Sleeps for the specified duration. This method is asynchronous, and does
    * not actually block the fiber.
    */
-  final def sleep(duration: =>Duration): URIO[Clock, Unit] =
+  final def sleep(duration: => Duration): URIO[Clock, Unit] =
     clock.sleep(duration)
 
   /**
