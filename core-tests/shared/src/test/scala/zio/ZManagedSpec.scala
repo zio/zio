@@ -36,14 +36,6 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- assertM(ref.get, equalTo(1))
         } yield result
       },
-      testM("runs finalizer on interruption") {
-        for {
-          ref    <- Ref.make(0)
-          res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
-          _      <- res.preallocate.run.ignore
-          result <- assertM(ref.get, equalTo(1))
-        } yield result
-      },
       testM("runs finalizer when resource closes") {
         for {
           ref    <- Ref.make(0)
@@ -61,6 +53,75 @@ object ZManagedSpec extends ZIOBaseSpec {
         for {
           exit <- ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit).preallocate.either
         } yield assert(exit, isLeft(equalTo("boom")))
+      }
+    ),
+    suite("preallocateManaged")(
+      testM("runs finalizer on interruption") {
+        ZManaged.preallocateManaged.use { preallocate =>
+          for {
+            ref    <- Ref.make(0)
+            res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+            _      <- preallocate(res).run.ignore
+            result <- assertM(ref.get, equalTo(1))
+          } yield result
+        }
+      },
+      testM("runs finalizer when resource closes") {
+        ZManaged.preallocateManaged.use { preallocate =>
+          for {
+            ref    <- Ref.make(0)
+            res    = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+            _      <- preallocate(res).flatMap(_.use_(ZIO.unit))
+            result <- assertM(ref.get, equalTo(1))
+          } yield result
+        }
+      },
+      testM("propagates failures in acquire") {
+        ZManaged.preallocateManaged.use { preallocate =>
+          for {
+            exit <- preallocate(ZManaged.fromEffect(ZIO.fail("boom"))).either
+          } yield assert(exit, isLeft(equalTo("boom")))
+        }
+      },
+      testM("propagates failures in reserve") {
+        ZManaged.preallocateManaged.use { preallocate =>
+          for {
+            exit <- preallocate(ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit)).either
+          } yield assert(exit, isLeft(equalTo("boom")))
+        }
+      },
+      testM("eagerly run acquisition when preallocate is invoked") {
+        ZManaged.preallocateManaged.use { preallocate =>
+          for {
+            ref <- Ref.make(0)
+            res <- preallocate(ZManaged.reserve(Reservation(ref.update(_ + 1), _ => ZIO.unit)))
+            r1  <- ref.get
+            _   <- res.use_(ZIO.unit)
+            r2  <- ref.get
+          } yield assert(r1, equalTo(1)) && assert(r2, equalTo(1))
+        }
+      },
+      testM("run release on scope exit") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.preallocateManaged.use { preallocate =>
+            preallocate(ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1))))
+          } *> assertM(ref.get, equalTo(1))
+        }
+      },
+      testM("don't run release twice") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.preallocateManaged.use { preallocate =>
+            preallocate(ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))).flatMap(_.use_(ZIO.unit))
+          } *> assertM(ref.get, equalTo(1))
+        }
+      },
+      testM("allow preallocate to be called multiple times") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.preallocateManaged.use { preallocate =>
+            val res = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+            preallocate(res) *> preallocate(res)
+          } *> assertM(ref.get, equalTo(2))
+        }
       }
     ),
     suite("make")(

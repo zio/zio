@@ -572,6 +572,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
 
   /**
    * Preallocates the managed resource, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
+   * You should take care that you are not interrupted between running preallocate and actually acquiring the resource
+   * as you might leak otherwise.
    */
   final def preallocate: ZIO[R, E, Managed[Nothing, A]] =
     ZIO.uninterruptibleMask { restore =>
@@ -924,6 +926,10 @@ object ZManaged {
   final class AccessManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZManaged[R, E, A]): ZManaged[R, E, A] =
       ZManaged.environment.flatMap(f)
+  }
+
+  trait Preallocate {
+    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
   /**
@@ -1412,6 +1418,41 @@ object ZManaged {
    * Returns a `ZManaged` that never acquires a resource.
    */
   val never: ZManaged[Any, Nothing, Nothing] = ZManaged.fromEffect(ZIO.never)
+
+  /**
+   * Creates a scope in which resources can be safely preallocated.
+   */
+  final def preallocateManaged[R, E, A]: ZManaged[R, Nothing, Preallocate] =
+    ZManaged {
+      Ref.make(Map.empty[Int, Exit[Any, Any] => ZIO[R, Nothing, Any]]).flatMap { finalizers =>
+        Ref.make(-1).map(_.update(_ + 1)).map { nextIndex =>
+          Reservation(
+            acquire = ZIO.succeed {
+              new Preallocate {
+                override def apply[R, E, A](managed: ZManaged[R, E, A]) =
+                  ZIO.uninterruptibleMask { restore =>
+                    for {
+                      env      <- ZIO.environment[R]
+                      res      <- managed.reserve
+                      resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
+                      index    <- nextIndex
+                      release  = res.release.andThen(_.provide(env))
+                      _        <- finalizers.update(_ + (index -> release))
+                    } yield ZManaged
+                      .make(ZIO.succeed(resource))(_ => release(Exit.Success(resource)) *> finalizers.update(_ - index))
+                  }
+              }
+            },
+            release = exitU =>
+              for {
+                fs    <- finalizers.get.map(_.values)
+                exits <- ZIO.foreachPar(fs)(_(exitU).run)
+                _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+              } yield ()
+          )
+        }
+      }
+    }
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
