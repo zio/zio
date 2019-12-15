@@ -243,6 +243,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
             Managed.effectTotal {
               var state: AggregateState[sink.State, A1] = AggregateState.Pull(sink.initialPure, false)
 
+              @annotation.tailrec
               def go(): B = state match {
                 case AggregateState.Pull(s, dirty) =>
                   try {
@@ -250,12 +251,11 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
                     val ns = sink.stepPure(s, a)
                     state =
                       if (sink.cont(ns)) AggregateState.Pull(ns, true) else AggregateState.Extract(ns, Chunk.empty)
-                    go()
                   } catch {
                     case StreamEffect.End =>
                       state = if (dirty) AggregateState.DirtyDone(s) else AggregateState.Done
-                      go()
                   }
+                  go()
 
                 case AggregateState.Extract(s, chunk) =>
                   sink
