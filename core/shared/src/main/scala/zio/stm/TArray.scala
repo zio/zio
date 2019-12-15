@@ -51,16 +51,14 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
   /**
    * Count the values in the array matching a predicate.
    */
-  final def count(p: A => Boolean): STM[Nothing, Int] = fold(0) { (n, a) =>
-    if (p(a)) n + 1 else n
-  }
+  final def count(p: A => Boolean): STM[Nothing, Int] =
+    fold(0)((n, a) => if (p(a)) n + 1 else n)
 
   /**
    * Count the values in the array matching an STM predicate.
    */
-  final def countM[E](p: A => STM[E, Boolean]): STM[E, Int] = foldM[E, Int](0) { (n, a) =>
-    p(a).map(result => if (result) n + 1 else n)
-  }
+  final def countM[E](p: A => STM[E, Boolean]): STM[E, Int] =
+    foldM(0)((n, a) => p(a).map(result => if (result) n + 1 else n))
 
   /**
    * Determine if the array contains a value satisfying a predicate.
@@ -71,7 +69,7 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
    * Determine if the array contains a value satisfying an STM predicate.
    */
   final def existsM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
-    countM(p).map(_ > 0) //Existence should not be order dependent so the entire array needs to be observed.
+    countM(p).map(_ > 0)
 
   /**
    * Find the first element in the array matching a predicate.
@@ -112,7 +110,8 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
   /**
    * The first entry of the array, if it exists.
    */
-  final def firstOption: STM[Nothing, Option[A]] = if (array.isEmpty) STM.succeed(None) else array.head.get.map(Some(_))
+  final def firstOption: STM[Nothing, Option[A]] =
+    if (array.isEmpty) STM.succeed(None) else array.head.get.map(Some(_))
 
   /**
    * Atomically folds [[TArray]] with pure function.
@@ -140,13 +139,13 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
    * Atomically evaluate the conjunction of an STM predicate across the members of the array.
    */
   final def forallM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
-    countM(p).map(_ == array.length) //Universal quantification should not be order dependent so the entire array needs to be observed.
+    countM(p).map(_ == array.length)
 
   /**
    * Atomically performs side-effect for each item in array.
    */
   final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
-    this.foldM(())((_, a) => f(a))
+    foldM(())((_, a) => f(a))
 
   /**
    * Get the first index of a specific value in the array or -1 if it does not occur.
@@ -243,13 +242,12 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
    * Atomically reduce the array, if non-empty, by an STM binary operator.
    */
   final def reduceOptionM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
-    foldM[E, Option[A]](None)(
-      (optAcc, a) =>
-        optAcc match {
-          case Some(acc) => op(acc, a).map(Some(_))
-          case _         => STM.succeed(Some(a))
-        }
-    )
+    foldM[E, Option[A]](None) { (optAcc, a) =>
+      optAcc match {
+        case Some(acc) => op(acc, a).map(Some(_))
+        case _         => STM.succeed(Some(a))
+      }
+    }
 
   /**
    * Atomically updates all elements using pure function.
