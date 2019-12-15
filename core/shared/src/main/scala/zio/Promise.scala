@@ -75,7 +75,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def die(e: Throwable): UIO[Boolean] = completeWith(IO.die(e))
+  final def die(e: => Throwable): UIO[Boolean] = completeWith(IO.die(e))
 
   /**
    * Exits the promise with the specified exit, which will be propagated to all
@@ -136,7 +136,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
+  final def fail(e: => E): UIO[Boolean] = completeWith(IO.fail(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
@@ -179,7 +179,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]], bl
   /**
    * Completes the promise with the specified value.
    */
-  final def succeed(a: A): UIO[Boolean] = completeWith(IO.succeed(a))
+  final def succeed(a: => A): UIO[Boolean] = completeWith(IO.succeed(a))
 
   private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
     var retry = true

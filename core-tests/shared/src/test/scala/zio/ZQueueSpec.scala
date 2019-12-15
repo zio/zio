@@ -661,7 +661,7 @@ object ZQueueSpec extends ZIOBaseSpec {
     },
     testM("queue mapM") {
       for {
-        q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed))
+        q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed(_)))
         _ <- q.offer(10)
         v <- q.take
       } yield assert(v, equalTo(10))

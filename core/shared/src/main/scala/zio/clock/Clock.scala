@@ -29,20 +29,20 @@ trait Clock extends Serializable {
 
 object Clock extends Serializable {
   trait Service[R] extends Serializable {
-    def currentTime(unit: TimeUnit): ZIO[R, Nothing, Long]
+    def currentTime(unit: => TimeUnit): ZIO[R, Nothing, Long]
     def currentDateTime: ZIO[R, Nothing, OffsetDateTime]
     val nanoTime: ZIO[R, Nothing, Long]
-    def sleep(duration: Duration): ZIO[R, Nothing, Unit]
+    def sleep(duration: => Duration): ZIO[R, Nothing, Unit]
   }
 
   trait Live extends SchedulerLive with Clock {
     val clock: Service[Any] = new Service[Any] {
-      def currentTime(unit: TimeUnit): UIO[Long] =
+      def currentTime(unit: => TimeUnit): UIO[Long] =
         IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
       val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
 
-      def sleep(duration: Duration): UIO[Unit] =
+      def sleep(duration: => Duration): UIO[Unit] =
         scheduler.scheduler.flatMap(
           scheduler =>
             ZIO.effectAsyncInterrupt[Any, Nothing, Unit] { k =>

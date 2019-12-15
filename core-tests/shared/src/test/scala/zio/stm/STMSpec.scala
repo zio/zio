@@ -45,8 +45,8 @@ object STMSpec extends ZIOBaseSpec {
       testM("`foldM` to fold over the `STM` effect, and handle failure and success") {
         import zio.CanFail.canFail
         val stm = for {
-          s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
-          f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
+          s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed(_))
+          f <- STM.fail("No!").foldM(STM.succeed(_), _ => STM.succeed("Yes!"))
         } yield (s, f)
         assertM(stm.commit, equalTo(("Yes!", "No!")))
       },

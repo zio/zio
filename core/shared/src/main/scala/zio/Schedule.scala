@@ -310,10 +310,10 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
   ): Schedule[R1, A, B] = {
     def proxy(clock0: Clock.Service[Any], env: R1): Clock.Service[Any] = new Clock.Service[Any] {
-      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
-      def currentDateTime             = clock0.currentDateTime
-      val nanoTime                    = clock0.nanoTime
-      def sleep(duration: Duration)   = f(duration).flatMap(clock0.sleep).provide(env)
+      def currentTime(unit: => TimeUnit) = clock0.currentTime(unit)
+      def currentDateTime                = clock0.currentDateTime
+      val nanoTime                       = clock0.nanoTime
+      def sleep(duration: => Duration)   = f(duration).flatMap(clock0.sleep(_)).provide(env)
     }
     new Schedule[R1, A, B] {
       type State = (self.State, R)
@@ -480,10 +480,10 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
   ): Schedule[R1 with Clock, A, B] = {
     def proxy(clock0: Clock.Service[Any], env: R1, current: B): Clock.Service[Any] = new Clock.Service[Any] {
-      def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
-      def currentDateTime             = clock0.currentDateTime
-      val nanoTime                    = clock0.nanoTime
-      def sleep(duration: Duration)   = f(current, duration).provide(env).flatMap(clock0.sleep)
+      def currentTime(unit: => TimeUnit) = clock0.currentTime(unit)
+      def currentDateTime                = clock0.currentDateTime
+      val nanoTime                       = clock0.nanoTime
+      def sleep(duration: => Duration)   = f(current, duration).provide(env).flatMap(clock0.sleep(_))
     }
     new Schedule[R1 with Clock, A, B] {
       type State = self.State

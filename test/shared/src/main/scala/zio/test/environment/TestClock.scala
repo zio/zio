@@ -146,7 +146,7 @@ object TestClock extends Serializable {
     /**
      * Returns the current clock time in the specified time unit.
      */
-    final def currentTime(unit: TimeUnit): UIO[Long] =
+    final def currentTime(unit: => TimeUnit): UIO[Long] =
       clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
     /**
@@ -274,7 +274,7 @@ object TestClock extends Serializable {
      * or greater than the specified duration. Once the clock time is adjusted
      * to on or after the duration, the fiber will automatically be resumed.
      */
-    final def sleep(duration: Duration): UIO[Unit] =
+    final def sleep(duration: => Duration): UIO[Unit] =
       for {
         latch <- Promise.make[Nothing, Unit]
         start <- fiberState.modify { data =>
@@ -366,7 +366,7 @@ object TestClock extends Serializable {
       for {
         ref      <- Ref.make(data)
         fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine)
-        live     <- live.fold(Live.makeService[Clock with Console](LiveEnvironment))(ZIO.succeed)
+        live     <- live.fold(Live.makeService[Clock with Console](LiveEnvironment))(ZIO.succeed(_))
         refM     <- RefM.make(WarningData.start)
       } yield Test(ref, fiberRef, live, refM)
     }(_.warningDone)

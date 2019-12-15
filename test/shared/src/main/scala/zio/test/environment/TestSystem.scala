@@ -56,13 +56,13 @@ object TestSystem extends Serializable {
     /**
      * Returns the specified environment variable if it exists.
      */
-    override def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
+    override def env(variable: => String): ZIO[Any, SecurityException, Option[String]] =
       systemState.get.map(_.envs.get(variable))
 
     /**
      * Returns the specified system property if it exists.
      */
-    override def property(prop: String): ZIO[Any, Throwable, Option[String]] =
+    override def property(prop: => String): ZIO[Any, Throwable, Option[String]] =
       systemState.get.map(_.properties.get(prop))
 
     /**

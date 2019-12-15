@@ -205,7 +205,7 @@ package object test extends CompileVariants {
    * possibilities in a given domain.
    */
   final def checkAll[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
-    checkAllM(rv)(test andThen ZIO.succeed)
+    checkAllM(rv)(test andThen (ZIO.succeed(_)))
 
   /**
    * A version of `checkAll` that accepts two random variables.
@@ -341,7 +341,7 @@ package object test extends CompileVariants {
 
     final class CheckN(private val n: Int) extends AnyVal {
       def apply[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
-        checkNM(n)(rv)(test andThen ZIO.succeed)
+        checkNM(n)(rv)(test andThen (ZIO.succeed(_)))
       def apply[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
       def apply[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(

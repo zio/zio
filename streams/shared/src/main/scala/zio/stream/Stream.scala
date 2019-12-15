@@ -90,13 +90,13 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.die]]
    */
-  final def die(ex: Throwable): Stream[Nothing, Nothing] =
+  final def die(ex: => Throwable): Stream[Nothing, Nothing] =
     ZStream.die(ex)
 
   /**
    * See [[ZStream.dieMessage]]
    */
-  final def dieMessage(msg: String): Stream[Nothing, Nothing] =
+  final def dieMessage(msg: => String): Stream[Nothing, Nothing] =
     ZStream.dieMessage(msg)
 
   /**
@@ -289,7 +289,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.succeed]]
    */
-  final def succeed[A](a: A): Stream[Nothing, A] =
+  final def succeed[A](a: => A): Stream[Nothing, A] =
     ZStream.succeed(a)
 
   /**

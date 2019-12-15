@@ -40,10 +40,10 @@ object MockClock {
   implicit val mockable: Mockable[MockClock] = (mock: Mock) =>
     new MockClock {
       val clock = new Service[Any] {
-        def currentTime(unit: TimeUnit): UIO[Long] = mock(MockClock.currentTime, unit)
-        def currentDateTime: UIO[OffsetDateTime]   = mock(MockClock.currentDateTime)
-        val nanoTime: UIO[Long]                    = mock(MockClock.nanoTime)
-        def sleep(duration: Duration): UIO[Unit]   = mock(MockClock.sleep, duration)
+        def currentTime(unit: => TimeUnit): UIO[Long] = mock(MockClock.currentTime, unit)
+        def currentDateTime: UIO[OffsetDateTime]      = mock(MockClock.currentDateTime)
+        val nanoTime: UIO[Long]                       = mock(MockClock.nanoTime)
+        def sleep(duration: => Duration): UIO[Unit]   = mock(MockClock.sleep, duration)
       }
     }
 }

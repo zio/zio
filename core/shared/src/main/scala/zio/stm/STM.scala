@@ -719,18 +719,18 @@ object STM {
   /**
    * Kills the fiber running the effect.
    */
-  final def die(t: Throwable): STM[Nothing, Nothing] = succeed(throw t)
+  final def die(t: => Throwable): STM[Nothing, Nothing] = succeed(throw t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
    * the specified message.
    */
-  final def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
+  final def dieMessage(m: => String): STM[Nothing, Nothing] = die(new RuntimeException(m))
 
   /**
    * Returns a value that models failure in the transaction.
    */
-  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _) => TRez.Fail(e))
+  final def fail[E](e: => E): STM[E, Nothing] = new STM((_, _) => TRez.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
@@ -780,7 +780,7 @@ object STM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _) => TRez.Succeed(a))
+  final def succeed[A](a: => A): STM[Nothing, A] = new STM((_, _) => TRez.Succeed(a))
 
   /**
    * Suspends creation of the specified transaction lazily.

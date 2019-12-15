@@ -79,13 +79,13 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.die]]
    */
-  final def die(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
+  final def die(e: => Throwable): Sink[Nothing, Nothing, Any, Nothing] =
     ZSink.die(e)
 
   /**
    * see [[ZSink.dieMessage]]
    */
-  final def dieMessage(m: String): Sink[Nothing, Nothing, Any, Nothing] =
+  final def dieMessage(m: => String): Sink[Nothing, Nothing, Any, Nothing] =
     ZSink.dieMessage(m)
 
   /**
@@ -109,7 +109,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.fail]]
    */
-  final def fail[E](e: E): Sink[E, Nothing, Any, Nothing] =
+  final def fail[E](e: => E): Sink[E, Nothing, Any, Nothing] =
     ZSink.fail(e)
 
   /**
@@ -260,7 +260,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.succeed]]
    */
-  final def succeed[A, B](b: B): Sink[Nothing, A, A, B] =
+  final def succeed[A, B](b: => B): Sink[Nothing, A, A, B] =
     ZSink.succeed(b)
 
   /**

@@ -24,16 +24,16 @@ trait Random extends Serializable {
 object Random extends Serializable {
   trait Service[R] extends Serializable {
     val nextBoolean: ZIO[R, Nothing, Boolean]
-    def nextBytes(length: Int): ZIO[R, Nothing, Chunk[Byte]]
+    def nextBytes(length: => Int): ZIO[R, Nothing, Chunk[Byte]]
     val nextDouble: ZIO[R, Nothing, Double]
     val nextFloat: ZIO[R, Nothing, Float]
     val nextGaussian: ZIO[R, Nothing, Double]
-    def nextInt(n: Int): ZIO[R, Nothing, Int]
+    def nextInt(n: => Int): ZIO[R, Nothing, Int]
     val nextInt: ZIO[R, Nothing, Int]
     val nextLong: ZIO[R, Nothing, Long]
-    def nextLong(n: Long): ZIO[R, Nothing, Long]
+    def nextLong(n: => Long): ZIO[R, Nothing, Long]
     val nextPrintableChar: ZIO[R, Nothing, Char]
-    def nextString(length: Int): ZIO[R, Nothing, String]
+    def nextString(length: => Int): ZIO[R, Nothing, String]
     def shuffle[A](list: List[A]): ZIO[R, Nothing, List[A]]
   }
   trait Live extends Random {
@@ -41,7 +41,7 @@ object Random extends Serializable {
       import scala.util.{ Random => SRandom }
 
       val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
-      def nextBytes(length: Int): UIO[Chunk[Byte]] =
+      def nextBytes(length: => Int): UIO[Chunk[Byte]] =
         ZIO.effectTotal {
           val array = Array.ofDim[Byte](length)
 
@@ -52,13 +52,13 @@ object Random extends Serializable {
       val nextDouble: UIO[Double]                 = ZIO.effectTotal(SRandom.nextDouble())
       val nextFloat: UIO[Float]                   = ZIO.effectTotal(SRandom.nextFloat())
       val nextGaussian: UIO[Double]               = ZIO.effectTotal(SRandom.nextGaussian())
-      def nextInt(n: Int): UIO[Int]               = ZIO.effectTotal(SRandom.nextInt(n))
+      def nextInt(n: => Int): UIO[Int]            = ZIO.effectTotal(SRandom.nextInt(n))
       val nextInt: UIO[Int]                       = ZIO.effectTotal(SRandom.nextInt())
       val nextLong: UIO[Long]                     = ZIO.effectTotal(SRandom.nextLong())
-      def nextLong(n: Long): UIO[Long]            = Random.nextLongWith(nextLong, n)
+      def nextLong(n: => Long): UIO[Long]         = Random.nextLongWith(nextLong, n)
       val nextPrintableChar: UIO[Char]            = ZIO.effectTotal(SRandom.nextPrintableChar())
-      def nextString(length: Int): UIO[String]    = ZIO.effectTotal(SRandom.nextString(length))
-      def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
+      def nextString(length: => Int): UIO[String] = ZIO.effectTotal(SRandom.nextString(length))
+      def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt(_), list)
     }
   }
   object Live extends Live

@@ -23,9 +23,9 @@ trait System extends Serializable {
 }
 object System extends Serializable {
   trait Service[R] extends Serializable {
-    def env(variable: String): ZIO[R, SecurityException, Option[String]]
+    def env(variable: => String): ZIO[R, SecurityException, Option[String]]
 
-    def property(prop: String): ZIO[R, Throwable, Option[String]]
+    def property(prop: => String): ZIO[R, Throwable, Option[String]]
 
     val lineSeparator: ZIO[R, Nothing, String]
   }
@@ -33,10 +33,10 @@ object System extends Serializable {
     val system: Service[Any] = new Service[Any] {
       import java.lang.{ System => JSystem }
 
-      def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
+      def env(variable: => String): ZIO[Any, SecurityException, Option[String]] =
         ZIO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
-      def property(prop: String): ZIO[Any, Throwable, Option[String]] =
+      def property(prop: => String): ZIO[Any, Throwable, Option[String]] =
         ZIO.effect(Option(JSystem.getProperty(prop)))
 
       val lineSeparator: UIO[String] = ZIO.effectTotal(JSystem.lineSeparator)

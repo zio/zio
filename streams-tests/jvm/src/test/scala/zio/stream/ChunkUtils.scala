@@ -17,11 +17,11 @@ trait ChunkUtils {
   def chunkGen[R <: Random, A: ClassTag](a: Gen[R, A], max: Int): Gen[R with Sized, Chunk[A]] =
     max match {
       case 0 => Gen.const(Chunk.empty)
-      case 1 => Gen.oneOf(Gen.const(Chunk.empty), a.map(Chunk.succeed))
+      case 1 => Gen.oneOf(Gen.const(Chunk.empty), a.map(Chunk.succeed(_)))
       case _ =>
         Gen.oneOf(
           Gen.const(Chunk.empty),
-          a.map(Chunk.succeed),
+          a.map(Chunk.succeed(_)),
           chunkWithIndex(a).map(_._1),
           Gen.suspend(for {
             arr  <- chunkGen(a, max)

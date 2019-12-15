@@ -21,11 +21,11 @@ package object system extends System.Service[System] {
   def systemService: ZIO[System, Nothing, System.Service[Any]] = ZIO.access(_.system)
 
   /** Retrieve the value of an environment variable **/
-  def env(variable: String): ZIO[System, SecurityException, Option[String]] =
+  def env(variable: => String): ZIO[System, SecurityException, Option[String]] =
     ZIO.accessM(_.system env variable)
 
   /** Retrieve the value of a system property **/
-  def property(prop: String): ZIO[System, Throwable, Option[String]] =
+  def property(prop: => String): ZIO[System, Throwable, Option[String]] =
     ZIO.accessM(_.system property prop)
 
   /** System-specific line separator **/

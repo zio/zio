@@ -548,7 +548,7 @@ object TestAspect extends TimeoutVariants {
                 (_, fiber) => fiber.interrupt *> ZIO.fail(TestFailure.Runtime(Cause.die(timeoutFailure))),
                 (_, _) => ZIO.fail(TestFailure.Runtime(Cause.die(interruptionTimeoutFailure)))
               )
-            case Right(result) => result.fold(ZIO.fail, ZIO.succeed)
+            case Right(result) => result.fold(ZIO.fail(_), ZIO.succeed(_))
           })
       }
     }

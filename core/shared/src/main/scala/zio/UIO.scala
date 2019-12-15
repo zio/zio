@@ -142,7 +142,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  final def die(t: =>Throwable): UIO[Nothing] = ZIO.die(t)
+  final def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
@@ -152,7 +152,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.done]]
    */
-  final def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)
+  final def done[A](r: Exit[Nothing, A]): UIO[A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -444,7 +444,7 @@ object UIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[B](b: =>B): UIO[Either[Nothing, B]] = ZIO.right(b)
+  def right[B](b: => B): UIO[Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]

@@ -267,18 +267,18 @@ object Exit extends Serializable {
   final def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAllPar[E, A](exits)
 
-  final def die(t: Throwable): Exit[Nothing, Nothing] = halt(_root_.zio.Cause.die(t))
+  final def die(t: => Throwable): Exit[Nothing, Nothing] = halt(_root_.zio.Cause.die(t))
 
-  final def fail[E](error: E): Exit[E, Nothing] = halt(_root_.zio.Cause.fail(error))
+  final def fail[E](error: => E): Exit[E, Nothing] = halt(_root_.zio.Cause.fail(error))
 
   final def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
     exit.flatMap(identity)
 
   final def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
-    e.fold(fail, succeed)
+    e.fold(fail(_), succeed(_))
 
   final def fromOption[A](o: Option[A]): Exit[Unit, A] =
-    o.fold[Exit[Unit, A]](fail(()))(succeed)
+    o.fold[Exit[Unit, A]](fail(()))(succeed(_))
 
   final def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
     t match {
@@ -288,7 +288,7 @@ object Exit extends Serializable {
 
   final def halt[E](cause: _root_.zio.Cause[E]): Exit[E, Nothing] = Failure(cause)
 
-  final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
+  final def succeed[A](a: => A): Exit[Nothing, A] = Success(a)
 
   final def unit: Exit[Nothing, Unit] = succeed(())
 }

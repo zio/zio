@@ -48,18 +48,18 @@ object MockRandom {
   implicit val mockable: Mockable[MockRandom] = (mock: Mock) =>
     new MockRandom {
       val random = new Service[Any] {
-        val nextBoolean: UIO[Boolean]                = mock(MockRandom.nextBoolean)
-        def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(MockRandom.nextBytes, length)
-        val nextDouble: UIO[Double]                  = mock(MockRandom.nextDouble)
-        val nextFloat: UIO[Float]                    = mock(MockRandom.nextFloat)
-        val nextGaussian: UIO[Double]                = mock(MockRandom.nextGaussian)
-        def nextInt(n: Int): UIO[Int]                = mock(MockRandom.nextInt._0, n)
-        val nextInt: UIO[Int]                        = mock(MockRandom.nextInt._1)
-        val nextLong: UIO[Long]                      = mock(MockRandom.nextLong._0)
-        def nextLong(n: Long): UIO[Long]             = mock(MockRandom.nextLong._1, n)
-        val nextPrintableChar: UIO[Char]             = mock(MockRandom.nextPrintableChar)
-        def nextString(length: Int)                  = mock(MockRandom.nextString, length)
-        def shuffle[A](list: List[A]): UIO[List[A]]  = mock(MockRandom.shuffle, list).asInstanceOf[UIO[List[A]]]
+        val nextBoolean: UIO[Boolean]                   = mock(MockRandom.nextBoolean)
+        def nextBytes(length: => Int): UIO[Chunk[Byte]] = mock(MockRandom.nextBytes, length)
+        val nextDouble: UIO[Double]                     = mock(MockRandom.nextDouble)
+        val nextFloat: UIO[Float]                       = mock(MockRandom.nextFloat)
+        val nextGaussian: UIO[Double]                   = mock(MockRandom.nextGaussian)
+        def nextInt(n: => Int): UIO[Int]                = mock(MockRandom.nextInt._0, n)
+        val nextInt: UIO[Int]                           = mock(MockRandom.nextInt._1)
+        val nextLong: UIO[Long]                         = mock(MockRandom.nextLong._0)
+        def nextLong(n: => Long): UIO[Long]             = mock(MockRandom.nextLong._1, n)
+        val nextPrintableChar: UIO[Char]                = mock(MockRandom.nextPrintableChar)
+        def nextString(length: => Int)                  = mock(MockRandom.nextString, length)
+        def shuffle[A](list: List[A]): UIO[List[A]]     = mock(MockRandom.shuffle, list).asInstanceOf[UIO[List[A]]]
       }
     }
 }

@@ -35,9 +35,9 @@ object MockSystem {
   implicit val mockable: Mockable[MockSystem] = (mock: Mock) =>
     new MockSystem {
       val system = new Service[Any] {
-        def env(variable: String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
-        def property(prop: String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)
-        val lineSeparator: UIO[String]                                   = mock(MockSystem.lineSeparator)
+        def env(variable: => String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
+        def property(prop: => String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)
+        val lineSeparator: UIO[String]                                      = mock(MockSystem.lineSeparator)
       }
     }
 }

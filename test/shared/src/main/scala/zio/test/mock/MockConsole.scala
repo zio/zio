@@ -37,9 +37,9 @@ object MockConsole {
   implicit val mockable: Mockable[MockConsole] = (mock: Mock) =>
     new MockConsole {
       val console = new Service[Any] {
-        def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
-        def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
-        val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
+        def putStr(line: => String): UIO[Unit]   = mock(MockConsole.putStr, line)
+        def putStrLn(line: => String): UIO[Unit] = mock(MockConsole.putStrLn, line)
+        val getStrLn: IO[IOException, String]    = mock(MockConsole.getStrLn)
       }
     }
 }

@@ -359,7 +359,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  final def halt[E](cause: => Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
+  final def halt[E](cause: Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -397,7 +397,7 @@ object IO {
   /**
    *  @see See [[zio.ZIO.left]]
    */
-  final def left[E, A](a: A): IO[E, Either[A, Nothing]] = ZIO.left(a)
+  final def left[E, A](a: => A): IO[E, Either[A, Nothing]] = ZIO.left(a)
 
   /**
    * @see See [[zio.ZIO.lock]]

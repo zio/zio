@@ -173,7 +173,7 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E, B]` mapped fiber
    */
   final def map[B](f: A => B): Fiber[E, B] =
-    mapM(f andThen UIO.succeed)
+    mapM(f andThen (UIO.succeed(_)))
 
   /**
    * Passes the success of this fiber to the specified callback, and continues
@@ -619,7 +619,7 @@ object Fiber {
 
       final def id: UIO[Option[Fiber.Id]] = UIO.none
 
-      final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail(_), Exit.succeed(_))
 
       final def inheritRefs: UIO[Unit] = IO.unit
 

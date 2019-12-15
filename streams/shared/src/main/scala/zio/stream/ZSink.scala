@@ -671,8 +671,8 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
       }
 
       def extract(state: State) = {
-        val leftExtract  = state._1.fold(self.extract, UIO.succeed)
-        val rightExtract = state._2.fold(that.extract, UIO.succeed)
+        val leftExtract  = state._1.fold(self.extract, UIO.succeed(_))
+        val rightExtract = state._2.fold(that.extract, UIO.succeed(_))
         leftExtract.zipPar(rightExtract).map {
           case ((b, ll), (c, rl)) => (f(b, c), List(ll, rl).minBy(_.length))
         }
@@ -1706,7 +1706,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * `\r\n` and `\n`.
    */
   final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
-    splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
+    splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single(_))
 
   /**
    * Splits strings on a delimiter.

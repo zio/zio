@@ -169,7 +169,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.done]]
    */
-  final def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)
+  final def done[A](r: Exit[Nothing, A]): UIO[A] = ZIO.done(r)
 
   /**
    * @see [[zio.ZIO.effectAsync]]
@@ -372,7 +372,7 @@ object URIO {
   /**
    *  @see [[zio.ZIO.left]]
    */
-  final def left[R, A](a: A): URIO[R, Either[A, Nothing]] = ZIO.left(a)
+  final def left[R, A](a: => A): URIO[R, Either[A, Nothing]] = ZIO.left(a)
 
   /**
    *  @see [[zio.ZIO.mapN]]

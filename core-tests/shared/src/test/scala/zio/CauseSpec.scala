@@ -99,7 +99,7 @@ object CauseSpec extends ZIOBaseSpec {
     suite("Monad Laws:")(
       testM("Left identity") {
         check(causes) { c =>
-          assert(c.flatMap(Cause.fail), equalTo(c))
+          assert(c.flatMap(Cause.fail(_)), equalTo(c))
         }
       },
       testM("Right identity") {

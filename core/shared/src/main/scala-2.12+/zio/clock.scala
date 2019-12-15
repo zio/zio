@@ -28,7 +28,7 @@ package object clock extends Clock.Service[Clock] {
   /**
    * Returns the current time, relative to the Unix epoch.
    */
-  final def currentTime(unit: TimeUnit): ZIO[Clock, Nothing, Long] =
+  final def currentTime(unit: => TimeUnit): ZIO[Clock, Nothing, Long] =
     ZIO.accessM(_.clock currentTime unit)
 
   /**
@@ -46,7 +46,7 @@ package object clock extends Clock.Service[Clock] {
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
+  final def sleep(duration: => Duration): ZIO[Clock, Nothing, Unit] =
     ZIO.accessM(_.clock sleep duration)
 
 }

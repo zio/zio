@@ -101,7 +101,7 @@ case class TestEnvironment(
       new TestClock.Service[Any] {
         def adjust(duration: Duration): UIO[Unit]            = UIO.unit
         val currentDateTime: UIO[OffsetDateTime]             = live.provide(zio.clock.currentDateTime)
-        def currentTime(unit: TimeUnit): UIO[Long]           = live.provide(zio.clock.currentTime(unit))
+        def currentTime(unit: => TimeUnit): UIO[Long]        = live.provide(zio.clock.currentTime(unit))
         val fiberTime: UIO[Duration]                         = UIO.succeed(Duration.Zero)
         val nanoTime: UIO[Long]                              = live.provide(zio.clock.nanoTime)
         val save: UIO[UIO[Unit]]                             = UIO.succeed(UIO.unit)
@@ -109,7 +109,7 @@ case class TestEnvironment(
         def setTime(duration: Duration): UIO[Unit]           = UIO.unit
         def setTimeZone(zone: ZoneId): UIO[Unit]             = UIO.unit
         val scheduler: UIO[IScheduler]                       = SchedulerLive.scheduler.scheduler
-        def sleep(duration: Duration): UIO[Unit]             = live.provide(zio.clock.sleep(duration))
+        def sleep(duration: => Duration): UIO[Unit]          = live.provide(zio.clock.sleep(duration))
         val sleeps: UIO[List[Duration]]                      = UIO.succeed(List.empty)
         val timeZone: UIO[ZoneId]                            = UIO.succeed(ZoneId.of("UTC"))
       }
@@ -128,8 +128,8 @@ case class TestEnvironment(
         def feedLines(lines: String*): UIO[Unit] = UIO.unit
         val getStrLn: IO[IOException, String]    = live.provide(zio.console.getStrLn)
         val output: UIO[Vector[String]]          = UIO.succeed(Vector.empty)
-        def putStr(line: String): UIO[Unit]      = live.provide(zio.console.putStr(line))
-        def putStrLn(line: String): UIO[Unit]    = live.provide(zio.console.putStrLn(line))
+        def putStr(line: => String): UIO[Unit]   = live.provide(zio.console.putStr(line))
+        def putStrLn(line: => String): UIO[Unit] = live.provide(zio.console.putStrLn(line))
         val save: UIO[UIO[Unit]]                 = UIO.succeed(UIO.unit)
       }
     }
@@ -159,16 +159,16 @@ case class TestEnvironment(
         def feedLongs(longs: Long*): UIO[Unit]          = UIO.unit
         def feedStrings(strings: String*): UIO[Unit]    = UIO.unit
         val nextBoolean: UIO[Boolean]                   = live.provide(zio.random.nextBoolean)
-        def nextBytes(length: Int): UIO[Chunk[Byte]]    = live.provide(zio.random.nextBytes(length))
+        def nextBytes(length: => Int): UIO[Chunk[Byte]] = live.provide(zio.random.nextBytes(length))
         val nextDouble: UIO[Double]                     = live.provide(zio.random.nextDouble)
         val nextFloat: UIO[Float]                       = live.provide(zio.random.nextFloat)
         val nextGaussian: UIO[Double]                   = live.provide(zio.random.nextGaussian)
-        def nextInt(n: Int): UIO[Int]                   = live.provide(zio.random.nextInt(n))
+        def nextInt(n: => Int): UIO[Int]                = live.provide(zio.random.nextInt(n))
         val nextInt: UIO[Int]                           = live.provide(zio.random.nextInt)
         val nextLong: UIO[Long]                         = live.provide(zio.random.nextLong)
-        def nextLong(n: Long): UIO[Long]                = live.provide(zio.random.nextLong(n))
+        def nextLong(n: => Long): UIO[Long]             = live.provide(zio.random.nextLong(n))
         val nextPrintableChar: UIO[Char]                = live.provide(zio.random.nextPrintableChar)
-        def nextString(length: Int): UIO[String]        = live.provide(zio.random.nextString(length))
+        def nextString(length: => Int): UIO[String]     = live.provide(zio.random.nextString(length))
         val save: UIO[UIO[Unit]]                        = UIO.succeed(UIO.unit)
         def setSeed(seed: Long): UIO[Unit]              = UIO.unit
         def shuffle[A](list: List[A]): UIO[List[A]]     = UIO.succeed(list)
@@ -183,15 +183,15 @@ case class TestEnvironment(
   final def withLiveSystem: TestEnvironment =
     mapTestSystem { _ =>
       new TestSystem.Service[Any] {
-        def clearEnv(variable: String): UIO[Unit]                        = UIO.unit
-        def clearProperty(prop: String): UIO[Unit]                       = UIO.unit
-        def env(variable: String): IO[SecurityException, Option[String]] = live.provide(zio.system.env(variable))
-        val lineSeparator: UIO[String]                                   = live.provide(zio.system.lineSeparator)
-        def property(prop: String): Task[Option[String]]                 = live.provide(zio.system.property(prop))
-        def putEnv(name: String, value: String): UIO[Unit]               = UIO.unit
-        def putProperty(name: String, value: String): UIO[Unit]          = UIO.unit
-        val save: UIO[UIO[Unit]]                                         = UIO.succeed(UIO.unit)
-        def setLineSeparator(lineSep: String): UIO[Unit]                 = UIO.unit
+        def clearEnv(variable: String): UIO[Unit]                           = UIO.unit
+        def clearProperty(prop: String): UIO[Unit]                          = UIO.unit
+        def env(variable: => String): IO[SecurityException, Option[String]] = live.provide(zio.system.env(variable))
+        val lineSeparator: UIO[String]                                      = live.provide(zio.system.lineSeparator)
+        def property(prop: => String): Task[Option[String]]                 = live.provide(zio.system.property(prop))
+        def putEnv(name: String, value: String): UIO[Unit]                  = UIO.unit
+        def putProperty(name: String, value: String): UIO[Unit]             = UIO.unit
+        val save: UIO[UIO[Unit]]                                            = UIO.succeed(UIO.unit)
+        def setLineSeparator(lineSep: String): UIO[Unit]                    = UIO.unit
       }
     }
 

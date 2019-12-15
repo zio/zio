@@ -35,7 +35,7 @@ object StreamSpec extends ZIOBaseSpec {
     suite("Stream.accessM")(
       testM("accessM") {
         for {
-          result <- ZStream.accessM[String](ZIO.succeed).provide("test").runHead.get
+          result <- ZStream.accessM[String](ZIO.succeed(_)).provide("test").runHead.get
         } yield assert(result, equalTo("test"))
       },
       testM("accessM fails") {
@@ -47,7 +47,7 @@ object StreamSpec extends ZIOBaseSpec {
     suite("Stream.accessStream")(
       testM("accessStream") {
         for {
-          result <- ZStream.accessStream[String](ZStream.succeed).provide("test").runHead.get
+          result <- ZStream.accessStream[String](ZStream.succeed(_)).provide("test").runHead.get
         } yield assert(result, equalTo("test"))
       },
       testM("accessStream fails") {
@@ -978,7 +978,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("foreachWhile short circuits") {
         for {
           flag    <- Ref.make(true)
-          _       <- (Stream(true, true, false) ++ Stream.fromEffect(flag.set(false)).drain).foreachWhile(ZIO.succeed)
+          _       <- (Stream(true, true, false) ++ Stream.fromEffect(flag.set(false)).drain).foreachWhile(ZIO.succeed(_))
           skipped <- flag.get
         } yield assert(skipped, isTrue)
       }
@@ -1320,8 +1320,8 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOf(Gen.anyInt)) { (n: Int, m: List[Int]) =>
         for {
-          mapM    <- Stream.fromIterable(m).mapM(UIO.succeed).runCollect
-          mapMPar <- Stream.fromIterable(m).mapMPar(n)(UIO.succeed).runCollect
+          mapM    <- Stream.fromIterable(m).mapM(UIO.succeed(_)).runCollect
+          mapMPar <- Stream.fromIterable(m).mapMPar(n)(UIO.succeed(_)).runCollect
         } yield assert(n, isGreaterThan(0)) implies assert(mapM, equalTo(mapMPar))
       })
     ),

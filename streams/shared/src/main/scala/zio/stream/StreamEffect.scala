@@ -315,7 +315,7 @@ private[stream] object StreamEffect extends Serializable {
 
   def end[A]: A = throw End
 
-  def fail[E, A](e: E): A = throw Failure(e)
+  def fail[E, A](e: => E): A = throw Failure(e)
 
   final val empty: StreamEffect[Any, Nothing, Nothing] =
     StreamEffect {
@@ -327,7 +327,7 @@ private[stream] object StreamEffect extends Serializable {
   final def apply[R, E, A](pull: ZManaged[R, Nothing, () => A]): StreamEffect[R, E, A] =
     new StreamEffect(pull)
 
-  final def fail[E](e: E): StreamEffect[Any, E, Nothing] =
+  final def fail[E](e: => E): StreamEffect[Any, E, Nothing] =
     StreamEffect {
       Managed.effectTotal {
         var done = false
@@ -460,7 +460,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def succeed[A](a: A): StreamEffect[Any, Nothing, A] =
+  final def succeed[A](a: => A): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var done = false

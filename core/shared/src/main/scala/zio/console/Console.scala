@@ -28,9 +28,9 @@ trait Console extends Serializable {
 }
 object Console extends Serializable {
   trait Service[R] {
-    def putStr(line: String): ZIO[R, Nothing, Unit]
+    def putStr(line: => String): ZIO[R, Nothing, Unit]
 
-    def putStrLn(line: String): ZIO[R, Nothing, Unit]
+    def putStrLn(line: => String): ZIO[R, Nothing, Unit]
 
     val getStrLn: ZIO[R, IOException, String]
 
@@ -41,7 +41,7 @@ object Console extends Serializable {
       /**
        * Prints text to the console.
        */
-      final def putStr(line: String): UIO[Unit] =
+      final def putStr(line: => String): UIO[Unit] =
         putStr(SConsole.out)(line)
 
       final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
@@ -52,7 +52,7 @@ object Console extends Serializable {
       /**
        * Prints a line of text to the console, including a newline character.
        */
-      final def putStrLn(line: String): UIO[Unit] =
+      final def putStrLn(line: => String): UIO[Unit] =
         putStrLn(SConsole.out)(line)
 
       final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =

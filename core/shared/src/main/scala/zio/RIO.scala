@@ -175,7 +175,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.done]]
    */
-  final def done[A](r: => Exit[Throwable, A]): Task[A] = ZIO.done(r)
+  final def done[A](r: Exit[Throwable, A]): Task[A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
@@ -248,7 +248,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.fail]]
    */
-  final def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
+  final def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]

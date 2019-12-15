@@ -40,7 +40,7 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       assertM(result, equalTo(42))
     },
     testM("expect calls from multiple modules") {
-      val app        = random.nextInt.map(_.toString) >>= console.putStrLn
+      val app        = random.nextInt.map(_.toString) >>= (console.putStrLn(_))
       val randomEnv  = MockRandom.nextInt._1 returns value(42)
       val consoleEnv = MockConsole.putStrLn(equalTo("42")) returns unit
 
