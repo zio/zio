@@ -494,15 +494,14 @@ object ZSTMSpec extends ZIOBaseSpec {
     val ref: TRef[Int]
   }
   object STMEnv {
-    def make(i: Int) =
+    def make(i: Int): UIO[STMEnv] =
       TRef
-        .make(i)
+        .makeCommit(i)
         .map { ref0 =>
           new STMEnv {
             val ref = ref0
           }
         }
-        .commit
   }
 
   def unpureSuspend(ms: Long) = STM.succeed {
