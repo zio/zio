@@ -854,6 +854,22 @@ object ZSTM {
     collectAll(as.map(f))
 
   /**
+   * Applies the function `f` to each element of the `Iterable[A]` and
+   * returns a transactional effect that produces `Unit`.
+   *
+   * Equivalent to `foreach(as)(f).unit`, but without the cost of building
+   * the list of results.
+   */
+  def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
+    STM.succeed(as.iterator).flatMap { it =>
+      def loop: STM[E, Unit] =
+        if (it.hasNext) f(it.next) *> loop
+        else STM.unit
+      loop
+    }
+
+
+  /**
    * Creates an STM effect from an `Either` value.
    */
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =

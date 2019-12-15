@@ -373,116 +373,102 @@ import scala.util.Try
 object STM {
 
   /**
-   * Atomically performs a batch of operations in a single transaction.
+   * See [[zio.stm.ZSTM.atomically]]
    */
   def atomically[E, A](stm: STM[E, A]): IO[E, A] =
     ZSTM.atomically(stm)
 
   /**
-   * Checks the condition, and if it's true, returns unit, otherwise, retries.
+   * See [[zio.stm.ZSTM.check]]
    */
   def check(p: Boolean): STM[Nothing, Unit] = ZSTM.check(p)
 
   /**
-   * Collects all the transactional effects in a list, returning a single
-   * transactional effect that produces a list of values.
+   * See [[zio.stm.ZSTM.collectAll]]
    */
   def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
     ZSTM.collectAll(i)
 
   /**
-   * Kills the fiber running the effect.
+   * See [[zio.stm.ZSTM.die]]
    */
   def die(t: Throwable): STM[Nothing, Nothing] =
     ZSTM.die(t)
 
   /**
-   * Kills the fiber running the effect with a `RuntimeException` that contains
-   * the specified message.
+   * See [[zio.stm.ZSTM.dieMessage]]
    */
   def dieMessage(m: String): STM[Nothing, Nothing] =
     ZSTM.dieMessage(m)
 
   /**
-   * Returns a value modelled on provided exit status.
+   * See [[zio.stm.ZSTM.done]]
    */
   def done[E, A](exit: ZSTM.internal.TExit[E, A]): STM[E, A] =
     ZSTM.done(exit)
 
   /**
-   * Returns a value that models failure in the transaction.
+   * See [[zio.stm.ZSTM.fail]]
    */
   def fail[E](e: E): STM[E, Nothing] =
     ZSTM.fail(e)
 
   /**
-   * Returns the fiber id of the fiber committing the transaction.
+   * See [[zio.stm.ZSTM.fiberId]]
    */
   val fiberId: STM[Nothing, Fiber.Id] =
     ZSTM.fiberId
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns a transactional effect that produces a new `List[B]`.
+   * See [[zio.stm.ZSTM.foreach]]
    */
   def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
     ZSTM.foreach(as)(f)
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns a transactional effect that produces `Unit`.
-   *
-   * Equivalent to `foreach(as)(f).unit`, but without the cost of building
-   * the list of results.
+   * See [[zio.stm.ZSTM.foreach_]]
    */
   def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    STM.succeed(as.iterator).flatMap { it =>
-      def loop: STM[E, Unit] =
-        if (it.hasNext) f(it.next) *> loop
-        else STM.unit
-
-      loop
-    }
+    ZSTM.foreach_(as)(f)
 
   /**
-   * Creates an STM effect from an `Either` value.
+   * See [[zio.stm.ZSTM.fromEither]]
    */
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     ZSTM.fromEither(e)
 
   /**
-   * Creates an STM effect from a `Try` value.
+   * See [[zio.stm.ZSTM.fromTry]]
    */
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     ZSTM.fromTry(a)
 
   /**
-   * Creates an `STM` value from a partial (but pure) function.
+   * See [[zio.stm.ZSTM.partial]]
    */
   def partial[A](a: => A): STM[Throwable, A] =
     ZSTM.partial(a)
 
   /**
-   * Abort and retry the whole transaction when any of the underlying
-   * transactional variables have changed.
+   * See [[zio.stm.ZSTM.retry]]
    */
   val retry: STM[Nothing, Nothing] =
     ZSTM.retry
 
   /**
-   * Returns an `STM` effect that succeeds with the specified value.
+   * See [[zio.stm.ZSTM.succeed]]
    */
   def succeed[A](a: A): STM[Nothing, A] =
     ZSTM.succeed(a)
 
   /**
-   * Suspends creation of the specified transaction lazily.
+   * See [[zio.stm.ZSTM.suspend]]
    */
   def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
     ZSTM.suspend(stm)
 
   /**
-   * Returns an `STM` effect that succeeds with `Unit`.
+   * See [[zio.stm.ZSTM.unit]]
    */
   val unit: STM[Nothing, Unit] =
     ZSTM.unit
