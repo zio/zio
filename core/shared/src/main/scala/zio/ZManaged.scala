@@ -945,7 +945,7 @@ object ZManaged {
       ZManaged.environment.flatMap(f)
   }
 
-  trait Preallocate {
+  trait Scope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
@@ -1439,13 +1439,13 @@ object ZManaged {
   /**
    * Creates a scope in which resources can be safely preallocated.
    */
-  final def scope[R]: ZManaged[R, Nothing, Preallocate] =
+  final def scope[R]: ZManaged[R, Nothing, Scope] =
     ZManaged {
       Ref.make(Map.empty[Long, Exit[Any, Any] => ZIO[R, Nothing, Any]]).flatMap { finalizers =>
-        Ref.make(-1L).map(_.update(_ + 1L)).map { nextIndex =>
+        Ref.make(Long.MinValue).map(_.update(_ + 1L)).map { nextIndex =>
           Reservation(
             acquire = ZIO.succeed {
-              new Preallocate {
+              new Scope {
                 override def apply[R, E, A](managed: ZManaged[R, E, A]) =
                   ZIO.uninterruptibleMask { restore =>
                     for {
@@ -1456,7 +1456,9 @@ object ZManaged {
                       release  = res.release.andThen(_.provide(env))
                       _        <- finalizers.update(_ + (index -> release))
                     } yield ZManaged
-                      .make(ZIO.succeed(resource))(_ => release(Exit.Success(resource)).ensuring(finalizers.update(_ - index)))
+                      .make(ZIO.succeed(resource))(
+                        _ => release(Exit.Success(resource)).ensuring(finalizers.update(_ - index))
+                      )
                   }
               }
             },
