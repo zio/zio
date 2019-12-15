@@ -365,7 +365,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  final def halt[E](cause: => Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
+  final def halt[E](cause: Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]

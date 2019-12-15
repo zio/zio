@@ -207,7 +207,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   final def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Cause[E], ZManaged[R1, E1, A1]]
   ): ZManaged[R1, E1, A1] =
-    foldCauseM(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.halt(_)), ZManaged.succeed(_))
+    foldCauseM(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.halt), ZManaged.succeed(_))
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
@@ -1032,7 +1032,7 @@ object ZManaged {
   /**
    * Returns an effect from a [[zio.Exit]] value.
    */
-  final def done[E, A](r: => Exit[E, A]): ZManaged[Any, E, A] =
+  final def done[E, A](r: Exit[E, A]): ZManaged[Any, E, A] =
     ZManaged.fromEffect(ZIO.done(r))
 
   /**
@@ -1231,7 +1231,7 @@ object ZManaged {
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  final def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
+  final def halt[E](cause: Cause[E]): ZManaged[Any, E, Nothing] =
     ZManaged.fromEffect(ZIO.halt(cause))
 
   /**
@@ -1249,7 +1249,7 @@ object ZManaged {
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
-  final def interruptAs(fiberId: => Fiber.Id): ZManaged[Any, Nothing, Nothing] =
+  final def interruptAs(fiberId: Fiber.Id): ZManaged[Any, Nothing, Nothing] =
     halt(Cause.interrupt(fiberId))
 
   /**

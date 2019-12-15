@@ -1875,7 +1875,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect from a [[zio.Exit]] value.
    */
-  final def done[E, A](r: => Exit[E, A]): IO[E, A] = r match {
+  final def done[E, A](r: Exit[E, A]): IO[E, A] = r match {
     case Exit.Success(b)     => succeed(b)
     case Exit.Failure(cause) => halt(cause)
   }
@@ -2304,7 +2304,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  final def halt[E](cause: => Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
+  final def halt[E](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
 
   /**
    * Returns an effect that models failure with the specified `Cause`.

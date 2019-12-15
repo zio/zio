@@ -175,7 +175,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.done]]
    */
-  final def done[A](r: => Exit[Throwable, A]): Task[A] = ZIO.done(r)
+  final def done[A](r: Exit[Throwable, A]): Task[A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
