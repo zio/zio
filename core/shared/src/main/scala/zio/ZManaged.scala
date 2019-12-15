@@ -585,6 +585,23 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     }
 
   /**
+   * Preallocates the managed resource inside an outer managed, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
+   */
+  final def preallocateManaged: ZManaged[R, E, Managed[Nothing, A]] =
+    ZManaged.finalizerRef[R](_ => ZIO.unit).mapM { finalizer =>
+      ZIO.uninterruptibleMask { restore =>
+        for {
+          env      <- ZIO.environment[R]
+          res      <- reserve
+          _        <- finalizer.set(res.release)
+          resource <- restore(res.acquire)
+        } yield ZManaged.make(ZIO.succeed(resource))(
+          _ => res.release(Exit.Success(resource)).provide(env) *> finalizer.set(_ => ZIO.unit)
+        )
+      }
+    }
+
+  /**
    * Provides the `ZManaged` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
@@ -1422,7 +1439,7 @@ object ZManaged {
   /**
    * Creates a scope in which resources can be safely preallocated.
    */
-  final def preallocateManaged[R, E, A]: ZManaged[R, Nothing, Preallocate] =
+  final def scope[R]: ZManaged[R, Nothing, Preallocate] =
     ZManaged {
       Ref.make(Map.empty[Int, Exit[Any, Any] => ZIO[R, Nothing, Any]]).flatMap { finalizers =>
         Ref.make(-1).map(_.update(_ + 1)).map { nextIndex =>
