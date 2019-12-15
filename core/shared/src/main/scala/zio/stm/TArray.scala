@@ -16,10 +16,10 @@
 
 package zio.stm
 
-/** Wraps array of [[TRef]] and adds methods for convenience.
- *
+/**
+ * Wraps array of [[TRef]] and adds methods for convenience.
  */
-class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal {
+final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal {
 
   /**
    * Extracts value from ref in array.
