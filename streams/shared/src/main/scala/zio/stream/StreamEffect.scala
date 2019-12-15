@@ -234,66 +234,61 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
   override def aggregate[R1 <: R, E1 >: E, A1 >: A, B](
     sink: ZSink[R1, E1, A1, A1, B]
   ): ZStream[R1, E1, B] = {
-    sealed abstract class State[+S, +A]
-    object State {
-      final case class Pull[S](s: S, dirty: Boolean)                      extends State[S, Nothing]
-      final case class Extract[S, A](s: S, leftovers: Chunk[A])           extends State[S, A]
-      final case class Drain[S, A](s: S, leftovers: Chunk[A], index: Int) extends State[S, A]
-      final case class DirtyDone[S](s: S)                                 extends State[S, Nothing]
-      case object Done                                                    extends State[Nothing, Nothing]
-    }
+    import StreamEffect.internal.AggregateState
 
     sink match {
       case sink: SinkPure[E1, A1, A1, B] =>
         StreamEffect {
           self.processEffect.flatMap { thunk =>
             Managed.effectTotal {
-              var state: State[sink.State, A1] = State.Pull(sink.initialPure, false)
+              var state: AggregateState[sink.State, A1] = AggregateState.Pull(sink.initialPure, false)
 
               def go(): B = state match {
-                case State.Pull(s, dirty) =>
+                case AggregateState.Pull(s, dirty) =>
                   try {
                     val a  = thunk()
                     val ns = sink.stepPure(s, a)
-                    state = if (sink.cont(ns)) State.Pull(ns, true) else State.Extract(ns, Chunk.empty)
+                    state =
+                      if (sink.cont(ns)) AggregateState.Pull(ns, true) else AggregateState.Extract(ns, Chunk.empty)
                     go()
                   } catch {
                     case StreamEffect.End =>
-                      state = if (dirty) State.DirtyDone(s) else State.Done
+                      state = if (dirty) AggregateState.DirtyDone(s) else AggregateState.Done
                       go()
                   }
 
-                case State.Extract(s, chunk) =>
+                case AggregateState.Extract(s, chunk) =>
                   sink
                     .extractPure(s)
                     .fold(StreamEffect.fail[E1, B], {
                       case (b, leftovers) =>
-                        state = State.Drain(sink.initialPure, chunk ++ leftovers, 0)
+                        state = AggregateState.Drain(sink.initialPure, chunk ++ leftovers, 0)
                         b
                     })
 
-                case State.Drain(s, leftovers, index) =>
+                case AggregateState.Drain(s, leftovers, index) =>
                   if (index < leftovers.length) {
                     val ns = sink.stepPure(s, leftovers(index))
                     state =
-                      if (sink.cont(ns)) State.Drain(ns, leftovers, index + 1)
-                      else State.Extract(ns, leftovers.drop(index + 1))
+                      if (sink.cont(ns)) AggregateState.Drain(ns, leftovers, index + 1)
+                      else AggregateState.Extract(ns, leftovers.drop(index + 1))
                     go()
                   } else {
-                    state = if (sink.cont(s)) State.Pull(s, index != 0) else State.Extract(s, Chunk.empty)
+                    state =
+                      if (sink.cont(s)) AggregateState.Pull(s, index != 0) else AggregateState.Extract(s, Chunk.empty)
                     go()
                   }
 
-                case State.DirtyDone(s) =>
+                case AggregateState.DirtyDone(s) =>
                   sink
                     .extractPure(s)
                     .fold(StreamEffect.fail[E1, B], {
                       case (b, _) =>
-                        state = State.Done
+                        state = AggregateState.Done
                         b
                     })
 
-                case State.Done =>
+                case AggregateState.Done =>
                   StreamEffect.end
               }
 
@@ -332,6 +327,17 @@ private[stream] object StreamEffect extends Serializable {
 
   case object End extends Throwable("stream end", null, true, false) {
     override def fillInStackTrace() = this
+  }
+
+  private[StreamEffect] object internal {
+    sealed abstract class AggregateState[+S, +A]
+    object AggregateState {
+      final case class Pull[S](s: S, dirty: Boolean)                      extends AggregateState[S, Nothing]
+      final case class Extract[S, A](s: S, leftovers: Chunk[A])           extends AggregateState[S, A]
+      final case class Drain[S, A](s: S, leftovers: Chunk[A], index: Int) extends AggregateState[S, A]
+      final case class DirtyDone[S](s: S)                                 extends AggregateState[S, Nothing]
+      case object Done                                                    extends AggregateState[Nothing, Nothing]
+    }
   }
 
   def end[A]: A = throw End
