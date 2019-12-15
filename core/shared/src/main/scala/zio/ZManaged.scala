@@ -1456,7 +1456,7 @@ object ZManaged {
                       release  = res.release.andThen(_.provide(env))
                       _        <- finalizers.update(_ + (index -> release))
                     } yield ZManaged
-                      .make(ZIO.succeed(resource))(_ => release(Exit.Success(resource)) *> finalizers.update(_ - index))
+                      .make(ZIO.succeed(resource))(_ => release(Exit.Success(resource)).ensuring(finalizers.update(_ - index)))
                   }
               }
             },
