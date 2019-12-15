@@ -35,7 +35,8 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
     find(pf.isDefinedAt).map(_.map(pf))
 
   /**
-   *  Finds the result of applying an STM partial function to the first value in its domain.
+   * Finds the result of applying an transactional partial function to the
+   * first value in its domain.
    */
   final def collectFirstM[E, B](pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     find(pf.isDefinedAt).flatMap {
@@ -55,7 +56,7 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
     fold(0)((n, a) => if (p(a)) n + 1 else n)
 
   /**
-   * Count the values in the array matching an STM predicate.
+   * Count the values in the array matching a transactional predicate.
    */
   final def countM[E](p: A => STM[E, Boolean]): STM[E, Int] =
     foldM(0)((n, a) => p(a).map(result => if (result) n + 1 else n))
@@ -66,7 +67,7 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
   final def exists(p: A => Boolean): STM[Nothing, Boolean] = find(p).map(_.isDefined)
 
   /**
-   * Determine if the array contains a value satisfying an STM predicate.
+   * Determine if the array contains a value satisfying a transactional predicate.
    */
   final def existsM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
     countM(p).map(_ > 0)
@@ -89,13 +90,13 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
     new TArray(array.reverse).find(p)
 
   /**
-   * Find the last element in the array matching an STM predicate.
+   * Find the last element in the array matching a transactional predicate.
    */
   final def findLastM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
     new TArray(array.reverse).findM(p)
 
   /**
-   * Find the first element in the array matching an STM predicate.
+   * Find the first element in the array matching a transactional predicate.
    */
   final def findM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
     if (array.isEmpty) STM.succeed(None)
@@ -114,14 +115,14 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
     if (array.isEmpty) STM.succeed(None) else array.head.get.map(Some(_))
 
   /**
-   * Atomically folds [[TArray]] with pure function.
+   * Atomically folds using a pure function.
    */
   final def fold[Z](acc: Z)(op: (Z, A) => Z): STM[Nothing, Z] =
     if (array.isEmpty) STM.succeed(acc)
     else array.head.get.flatMap(a => new TArray(array.tail).fold(op(acc, a))(op))
 
   /**
-   * Atomically folds [[TArray]] with STM function.
+   * Atomically folds using a transactional function.
    */
   final def foldM[E, Z](acc: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
     if (array.isEmpty) STM.succeed(acc)
@@ -131,30 +132,33 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
       }
 
   /**
-   * Atomically evaluate the conjunction of a predicate across the members of the array.
+   * Atomically evaluate the conjunction of a predicate across the members
+   * of the array.
    */
   final def forall(p: A => Boolean): STM[Nothing, Boolean] = exists(a => !p(a)).map(!_)
 
   /**
-   * Atomically evaluate the conjunction of an STM predicate across the members of the array.
+   * Atomically evaluate the conjunction of a transactional predicate across
+   * the members of the array.
    */
   final def forallM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
     countM(p).map(_ == array.length)
 
   /**
-   * Atomically performs side-effect for each item in array.
+   * Atomically performs transactional effect for each item in array.
    */
   final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
     foldM(())((_, a) => f(a))
 
   /**
-   * Get the first index of a specific value in the array or -1 if it does not occur.
+   * Get the first index of a specific value in the array or -1 if it does
+   * not occur.
    */
   final def indexOf(a: A): STM[Nothing, Int] = indexOf(a, 0)
 
   /**
-   * Get the first index of a specific value in the array, starting at a specific index,
-   * or -1 if it does not occur.
+   * Get the first index of a specific value in the array, starting at a specific
+   * index, or -1 if it does not occur.
    */
   final def indexOf(a: A, from: Int): STM[Nothing, Int] = indexWhere(_ == a, from)
 
@@ -177,12 +181,14 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
   }
 
   /**
-   * Get the index of the first entry in the array matching an STM predicate.
+   * Get the index of the first entry in the array matching a transactional
+   * predicate.
    */
   final def indexWhereM[E](p: A => STM[E, Boolean]): STM[E, Int] = indexWhereM(p, 0)
 
   /**
-   * Get the index of the first entry in the array, starting at a specific index, matching an STM predicate.
+   * Starting at specified index, get the index of the next entry that matches
+   * a transactional predicate.
    */
   final def indexWhereM[E](p: A => STM[E, Boolean], from: Int): STM[E, Int] = {
     val len = array.length
@@ -214,7 +220,8 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
   /**
    * The last entry in the array, if it exists.
    */
-  final def lastOption: STM[Nothing, Option[A]] = if (array.isEmpty) STM.succeed(None) else array.last.get.map(Some(_))
+  final def lastOption: STM[Nothing, Option[A]] =
+    if (array.isEmpty) STM.succeed(None) else array.last.get.map(Some(_))
 
   /**
    * Atomically compute the greatest element in the array, if it exists.
@@ -239,7 +246,7 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
         .map(Some(_))
 
   /**
-   * Atomically reduce the array, if non-empty, by an STM binary operator.
+   * Atomically reduce the non-empty array using a transactional binary operator.
    */
   final def reduceOptionM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
     foldM[E, Option[A]](None) { (optAcc, a) =>
@@ -250,7 +257,7 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
     }
 
   /**
-   * Atomically updates all elements using pure function.
+   * Atomically updates all elements using a pure function.
    */
   final def transform(f: A => A): STM[Nothing, Unit] =
     array.indices.foldLeft(STM.succeed(())) {
@@ -258,7 +265,7 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
     }
 
   /**
-   * Atomically updates all elements using transactional effect.
+   * Atomically updates all elements using a transactional effect.
    */
   final def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
     array.indices.foldLeft[STM[E, Unit]](STM.succeed(())) {
