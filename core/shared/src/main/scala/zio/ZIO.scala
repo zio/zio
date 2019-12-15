@@ -2041,6 +2041,8 @@ private[zio] trait ZIOFunctions extends Serializable {
 
   /**
    * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
+   *
+   * FoldLeft folds an Iterable from Left to Right.
    */
   final def foldLeft[R, E, S, A](
     in: Iterable[A]
@@ -2051,6 +2053,8 @@ private[zio] trait ZIOFunctions extends Serializable {
 
   /**
    * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
+   *
+   * FoldRight folds an Iterable from Right to Left.
    */
   final def foldRight[R, E, S, A](
     in: Iterable[A]
@@ -2451,14 +2455,13 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Collects all successes and failures in a tupled fashion.
    */
   final def partitionM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, Nothing, (List[E], List[B])] =
-    ZIO
-      .foldRight(in)(List.empty[E] -> List.empty[B])(
-        (x, acc) =>
-          f(x).fold(
-            e => (e :: acc._1, acc._2),
-            a => (acc._1, a :: acc._2)
-          )
-      )
+    ZIO.foldRight(in)(List.empty[E] -> List.empty[B]) {
+      case (a, (es, bs)) =>
+        f(a).fold(
+          e => (e :: es, bs),
+          b => (es, b :: bs)
+        )
+    }
 
   /**
    * Given an environment `R`, returns a function that can supply the
