@@ -1441,7 +1441,7 @@ object ZManaged {
    */
   final def scope[R]: ZManaged[R, Nothing, Preallocate] =
     ZManaged {
-      Ref.make(Map.empty[Int, Exit[Any, Any] => ZIO[R, Nothing, Any]]).flatMap { finalizers =>
+      Ref.make(Map.empty[Long, Exit[Any, Any] => ZIO[R, Nothing, Any]]).flatMap { finalizers =>
         Ref.make(-1L).map(_.update(_ + 1L)).map { nextIndex =>
           Reservation(
             acquire = ZIO.succeed {
