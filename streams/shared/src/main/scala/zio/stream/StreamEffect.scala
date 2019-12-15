@@ -233,58 +233,78 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
 
   override def aggregate[R1 <: R, E1 >: E, A1 >: A, B](
     sink: ZSink[R1, E1, A1, A1, B]
-  ): ZStream[R1, E1, B] =
+  ): ZStream[R1, E1, B] = {
+    sealed abstract class State[+S, +A]
+    object State {
+      final case class Pull[S](s: S, dirty: Boolean)                      extends State[S, Nothing]
+      final case class Extract[S, A](s: S, leftovers: Chunk[A])           extends State[S, A]
+      final case class Drain[S, A](s: S, leftovers: Chunk[A], index: Int) extends State[S, A]
+      final case class DirtyDone[S](s: S)                                 extends State[S, Nothing]
+      case object Done                                                    extends State[Nothing, Nothing]
+    }
+
     sink match {
       case sink: SinkPure[E1, A1, A1, B] =>
         StreamEffect {
           self.processEffect.flatMap { thunk =>
             Managed.effectTotal {
-              var done                 = false
-              var leftovers: Chunk[A1] = Chunk.empty
+              var state: State[sink.State, A1] = State.Pull(sink.initialPure, false)
 
-              () => {
-                def go(state: sink.State, dirty: Boolean): B =
-                  if (!dirty) {
-                    if (done) StreamEffect.end
-                    else if (leftovers.nonEmpty) {
-                      val (newState, newLeftovers) = sink.stepChunkPure(state, leftovers)
-                      leftovers = newLeftovers
-                      go(newState, true)
-                    } else {
-                      val a = thunk()
-                      go(sink.stepPure(state, a), true)
-                    }
-                  } else {
-                    if (done || !sink.cont(state)) {
-                      sink.extractPure(state) match {
-                        case Left(e) => StreamEffect.fail(e)
-                        case Right((b, newLeftovers)) =>
-                          leftovers = leftovers ++ newLeftovers
-                          b
-                      }
-                    } else {
-                      try go(sink.stepPure(state, thunk()), true)
-                      catch {
-                        case StreamEffect.End =>
-                          done = true
-                          sink.extractPure(state) match {
-                            case Left(e) => StreamEffect.fail(e)
-                            case Right((b, newLeftovers)) =>
-                              leftovers = leftovers ++ newLeftovers
-                              b
-                          }
-                      }
-                    }
+              def go(): B = state match {
+                case State.Pull(s, dirty) =>
+                  try {
+                    val a  = thunk()
+                    val ns = sink.stepPure(s, a)
+                    state = if (sink.cont(ns)) State.Pull(ns, true) else State.Extract(ns, Chunk.empty)
+                    go()
+                  } catch {
+                    case StreamEffect.End =>
+                      state = if (dirty) State.DirtyDone(s) else State.Done
+                      go()
                   }
 
-                go(sink.initialPure, false)
+                case State.Extract(s, chunk) =>
+                  sink
+                    .extractPure(s)
+                    .fold(StreamEffect.fail[E1, B], {
+                      case (b, leftovers) =>
+                        state = State.Drain(sink.initialPure, chunk ++ leftovers, 0)
+                        b
+                    })
+
+                case State.Drain(s, leftovers, index) =>
+                  if (index < leftovers.length) {
+                    val ns = sink.stepPure(s, leftovers(index))
+                    state =
+                      if (sink.cont(ns)) State.Drain(ns, leftovers, index + 1)
+                      else State.Extract(ns, leftovers.drop(index + 1))
+                    go()
+                  } else {
+                    state = if (sink.cont(s)) State.Pull(s, index != 0) else State.Extract(s, Chunk.empty)
+                    go()
+                  }
+
+                case State.DirtyDone(s) =>
+                  sink
+                    .extractPure(s)
+                    .fold(StreamEffect.fail[E1, B], {
+                      case (b, _) =>
+                        state = State.Done
+                        b
+                    })
+
+                case State.Done =>
+                  StreamEffect.end
               }
+
+              () => go()
             }
           }
         }
 
       case sink: ZSink[R1, E1, A1, A1, B] => super.aggregate(sink)
     }
+  }
 
   override final def toInputStream(
     implicit ev0: E <:< Throwable,
