@@ -257,6 +257,12 @@ object Stream extends Serializable {
     ZStream.fromQueueWithShutdown(queue)
 
   /**
+   * See [[ZStream.repeatPull]]
+   */
+  final def repeatPull[E, A](pull: Pull[Any, E, A]): Stream[E, A] =
+    ZStream.repeatPull(pull)
+
+  /**
    * See [[ZStream.halt]]
    */
   final def halt[E](cause: Cause[E]): Stream[E, Nothing] = fromEffect(ZIO.halt(cause))

@@ -1026,6 +1026,20 @@ object StreamSpec extends ZIOBaseSpec {
         items <- fiber.join
       } yield assert(items, equalTo(c.toSeq.toList))
     }),
+    suite("Stream.fromPull")(
+      testM("emit one element with success") {
+        val pull: ZIO[Any, Option[Int], Int] = ZIO.succeed(5)
+        assertM(Stream.fromPull(pull).runCollect, equalTo(List(5)))
+      },
+      testM("emit one element with failure") {
+        val pull: ZIO[Any, Option[Int], Int] = ZIO.fail(Some(5))
+        assertM(Stream.fromPull(pull).runCollect.either, isLeft(equalTo(5)))
+      },
+      testM("do not emit any element") {
+        val pull: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
+        assertM(Stream.fromPull(pull).runCollect, equalTo(List()))
+      }
+    ),
     suite("Stream.groupBy")(
       testM("values") {
         val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
@@ -1273,6 +1287,30 @@ object StreamSpec extends ZIOBaseSpec {
           .take(2)
           .run(Sink.collectAll[Int]),
         equalTo(List(1, 1))
+      )
+    ),
+    suite("Stream.repeatPull")(
+      testM("emit elements")(
+        assertM(
+          Stream
+            .repeatPull(IO.succeed(1))
+            .take(2)
+            .run(Sink.collectAll[Int]),
+          equalTo(List(1, 1))
+        )
+      ),
+      testM("emit elements until pull fails with None")(
+        for {
+          ref <- Ref.make(0)
+          pull = for {
+            newCount <- ref.update(_ + 1)
+            res      <- if (newCount >= 5) ZIO.fail(None) else ZIO.succeed(newCount)
+          } yield res
+          res <- Stream
+                  .repeatPull(pull)
+                  .take(10)
+                  .run(Sink.collectAll[Int])
+        } yield assert(res, equalTo(List(1, 2, 3, 4)))
       )
     ),
     testM("Stream.repeatEffectWith")(

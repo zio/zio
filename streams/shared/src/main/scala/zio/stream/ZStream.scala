@@ -245,12 +245,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                      )
                      .fork
         bs <- ZStream
-               .fromPull(consume(stateVar, permits))
+               .repeatPull(consume(stateVar, permits))
                .mapConcatChunk(identity)
                .process
                .ensuringFirst(producer.interrupt.fork)
       } yield bs
-    }.flatMap(ZStream.fromPull)
+    }.flatMap(ZStream.repeatPull)
   }
 
   /**
@@ -553,7 +553,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         bs <- consumerStream(stateVar, permits).process
                .ensuringFirst(producer.interruptAs(fiberId).fork)
       } yield bs
-    }.flatMap(ZStream.fromPull)
+    }.flatMap(ZStream.repeatPull)
   }
 
   /**
@@ -639,7 +639,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           sink.initial.flatMap(s => go(s, false))
         }
       } yield pull
-    }.flatMap(ZStream.fromPull(_))
+    }.flatMap(ZStream.repeatPull)
 
   /**
    * Maps the success values of this stream to the specified constant value.
@@ -761,7 +761,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         val pull: Pull[Any, E, A1] =
           queue.take.raceWith(signal.await)(takeFirst, signalFirst)
 
-        ZStream.fromPull(pull)
+        ZStream.repeatPull(pull)
     }
 
   /**
@@ -1981,7 +1981,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                        } yield result
                      }
       (b, leftover) = bAndLeftover
-    } yield b -> (ZStream.fromChunk(leftover) ++ ZStream.fromPull(as))
+    } yield b -> (ZStream.fromChunk(leftover) ++ ZStream.repeatPull(as))
 
   /**
    * Provides the stream with its required environment, which eliminates
@@ -2007,7 +2007,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         r  <- m
         as <- self.process.provide(r)
       } yield as.provide(r)
-    }.flatMap(ZStream.fromPull)
+    }.flatMap(ZStream.repeatPull)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -2038,7 +2038,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         r  <- env
         as <- self.process.provide(r)
       } yield as.provide(r)
-    }.flatMap(ZStream.fromPull(_))
+    }.flatMap(ZStream.repeatPull)
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
@@ -2969,7 +2969,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
             Pull.emit
           )
       }
-    }.flatMap(fromPull)
+    }.flatMap(repeatPull)
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
@@ -3091,12 +3091,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     managed(fa.toManaged_)
 
   /**
-   * Creates a stream from a [[Pull]].
-   */
-  final def fromPull[R, E, A](pull: Pull[R, E, A]): ZStream[R, E, A] =
-    ZStream(ZManaged.succeed(pull))
-
-  /**
    * Creates a stream from an iterable collection of values
    */
   final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
@@ -3147,6 +3141,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    */
   final def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
     fromQueue(queue).ensuringFirst(queue.shutdown)
+
+  /**
+   * Creates a stream from a [[Pull]] producing a value of type `A` or an empty Stream
+   */
+  final def fromPull[R, E, A](pull: Pull[R, E, A]): ZStream[R, E, A] =
+    ZStream.unwrap {
+      pull.fold(_.fold[ZStream[Any, E, Nothing]](ZStream.empty)(ZStream.fail(_)), ZStream.succeed(_))
+    }
 
   /**
    * The stream that always halts with `cause`.
@@ -3233,6 +3235,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    */
   final def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
     fromEffect(fa).forever
+
+  /**
+   * Creates a stream from a [[Pull]] producing a value of type `A` until pull fails with None.
+   */
+  final def repeatPull[R, E, A](pull: Pull[R, E, A]): ZStream[R, E, A] =
+    ZStream(ZManaged.succeed(pull))
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
