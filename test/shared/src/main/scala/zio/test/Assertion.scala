@@ -263,7 +263,7 @@ object Assertion {
 
   /**
    * Makes a new assertion that requires an iterable contain the specified
-   * element. See [[Assertion.exists()]] if you want to require an iterable to contain an element
+   * element. See [[Assertion.exists]] if you want to require an iterable to contain an element
    * satisfying an assertion.
    */
   final def contains[A](element: A): Assertion[Iterable[A]] =
@@ -328,7 +328,7 @@ object Assertion {
 
   /**
    * Makes a new assertion that requires an iterable contain an element
-   * satisfying the given assertion. See [[Assertion.contains()]] if you only need an iterable
+   * satisfying the given assertion. See [[Assertion.contains]] if you only need an iterable
    * to contain a given element.
    */
   final def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
