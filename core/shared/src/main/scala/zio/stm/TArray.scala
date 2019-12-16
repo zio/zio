@@ -16,7 +16,6 @@
 
 package zio.stm
 
-
 import scala.collection.immutable.Iterable
 
 /**
