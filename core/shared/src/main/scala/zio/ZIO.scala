@@ -2450,7 +2450,9 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * Collects all successes and failures in a tupled fashion.
    */
-  final def partitionM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, Nothing, (List[E], List[B])] =
+  final def partitionM[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
     ZIO.foldRight(in)(List.empty[E] -> List.empty[B]) {
       case (a, (es, bs)) =>
         f(a).fold(
@@ -2680,7 +2682,9 @@ private[zio] trait ZIOFunctions extends Serializable {
    * This combinator is lossy meaning that if there are errors all successes will be lost.
    * To retain all information please use ZIO#partitionM
    */
-  final def validateM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, List[E], List[B]] =
+  final def validateM[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], List[B]] =
     partitionM(in)(f).flatMap {
       case (es, bs) => if (es.isEmpty) ZIO.succeed(bs) else ZIO.fail(es)
     }
@@ -2688,7 +2692,9 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Feeds elements of type A to f until it succeeds. Returns first success or the accumulation of all errors.
    */
-  final def validateFirstM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, List[E], B] =
+  final def validateFirstM[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], B] =
     ZIO
       .foldLeft(in)(List.empty[E]) {
         case (es, a) =>

@@ -33,6 +33,9 @@ Code | Rewrite
 `uio.retryOrElseEither(s, f)` | `uio`*
 `uio.tapBoth(f, g)` | `uio.tap(g)`
 `uio.tapError(f)` | `uio`
+`ZIO.partitionM(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.validateM(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.validateFirstM(in)(f)` | `ZIO.foreach(in)(f)`*
 
 **ZManaged**
 

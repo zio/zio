@@ -779,7 +779,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("collect only successes") {
         val in = List.range(0, 10)
         for {
-          res <- ZIO.partitionM(in)(a => UIO.succeed(a))
+          res <- ZIO.partitionM(in)(a => ZIO.effect(a))
         } yield assert(res._1, isEmpty) && assert(res._2, equalTo(in))
       },
       testM("collect only failures") {
@@ -2165,28 +2165,28 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)
         val res = ZIO.validateM[Any, Int, Int, Int](in)(a => ZIO.fail(a)).flip
-        assertM(res, hasSize(equalTo(in.length)))
+        assertM(res, equalTo(in))
       },
       testM("accumulate errors and ignore successes") {
         val in  = List.range(0, 10)
-        val res = ZIO.validateM(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
-        assertM(res.flip, hasSize(equalTo(in.length / 2)))
+        val res = ZIO.validateM(in)(a => if (a % 2 == 0) ZIO.effect(a) else ZIO.fail(a))
+        assertM(res.flip, equalTo(List(1, 3, 5, 7, 9)))
       },
       testM("accumulate successes") {
         val in  = List.range(0, 10)
-        val res = IO.validateM(in)(a => ZIO.succeed(a))
-        assertM(res, hasSize(equalTo(in.length)))
+        val res = IO.validateM(in)(a => ZIO.effect(a))
+        assertM(res, equalTo(in))
       }
     ),
     suite("validateFirstM")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)
         val res = ZIO.validateFirstM[Any, Int, Int, Int](in)(a => ZIO.fail(a)).flip
-        assertM(res, hasSize(equalTo(in.length)))
+        assertM(res, equalTo(in))
       },
       testM("short circuits on first success validation") {
         val in = List.range(1, 10)
-        val f  = (a: Int) => if (a == 5) ZIO.succeed(a) else ZIO.fail(a)
+        val f  = (a: Int) => if (a == 5) ZIO.effect(a) else ZIO.fail(a)
 
         for {
           counter    <- Ref.make(0)
