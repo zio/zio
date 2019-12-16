@@ -33,6 +33,9 @@ Code | Rewrite
 `uio.retryOrElseEither(s, f)` | `uio`*
 `uio.tapBoth(f, g)` | `uio.tap(g)`
 `uio.tapError(f)` | `uio`
+`ZIO.partitionM(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.validateM(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.validateFirstM(in)(f)` | `ZIO.foreach(in)(f)`*
 
 **ZManaged**
 
@@ -74,4 +77,8 @@ Code | Rewrite
 `ustream.either` | `ustream`
 `ustream.orElse(zstream)` | `ustream`
 
-* `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`.
+(*) Notes:
+
+- `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`. 
+
+- `partitionM`, `validateM` and `validateFirstM` have error accumulating semantics on either error channel or success channel. After rewrite the error type can be simplified to `E` rather than `List[E]` or the success type `List[B]` instead of `(List[E], List[B])`.
