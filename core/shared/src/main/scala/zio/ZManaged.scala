@@ -1465,8 +1465,8 @@ object ZManaged {
             },
             release = exitU =>
               for {
-                fs    <- finalizers.get.map(_.values)
-                exits <- ZIO.foreachPar(fs)(_(exitU).run)
+                fs    <- finalizers.get
+                exits <- ZIO.foreachPar(fs.values.toList)(_(exitU).run)
                 _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
               } yield ()
           )
