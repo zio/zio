@@ -24,6 +24,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.stream.ZStream.Pull
+import zio.internal.UniqueKey
 
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of
@@ -704,7 +705,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   final def broadcastedQueuesDynamic[E1 >: E, A1 >: A](
     maximumLag: Int
   ): ZManaged[R, Nothing, UIO[Queue[Take[E1, A1]]]] = {
-    val decider = ZIO.succeed((_: Int) => true)
+    val decider = ZIO.succeed((_: UniqueKey) => true)
     distributedWithDynamic[E1, A1](maximumLag, _ => decider, _ => ZIO.unit).map(_.map(_._2))
   }
 
@@ -986,16 +987,25 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
   /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
-   * queues should receive which elements.
+   * queues should receive which elements. The decide function will receive the indices of the queues
+   * in the resulting list.
    */
   final def distributedWith[E1 >: E, A1 >: A](
     n: Int,
     maximumLag: Int,
     decide: A => UIO[Int => Boolean]
   ): ZManaged[R, Nothing, List[Queue[Take[E1, A1]]]] =
-    Promise.make[Nothing, A => UIO[Int => Boolean]].toManaged_.flatMap { prom =>
+    Promise.make[Nothing, A => UIO[UniqueKey => Boolean]].toManaged_.flatMap { prom =>
       distributedWithDynamic[E1, A1](maximumLag, (a: A) => prom.await.flatMap(_(a)), _ => ZIO.unit).flatMap { next =>
-        (ZIO.collectAll(List.fill(n)(next.map(_._2))) <* prom.succeed(decide)).toManaged_
+        ZIO.collectAll {
+          Range(0, n).map(id => next.map { case (key, queue) => ((key -> id), queue) })
+        }.flatMap { entries =>
+          val (mappings, queues) = entries.foldRight((Map.empty[UniqueKey, Int], List.empty[Queue[Take[E1, A1]]])) {
+            case ((mapping, queue), (mappings, queues)) =>
+              (mappings + mapping, queue :: queues)
+          }
+          prom.succeed((a: A) => decide(a).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
+        }.toManaged_
       }
     }
 
@@ -1009,12 +1019,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def distributedWithDynamic[E1 >: E, A1 >: A](
     maximumLag: Int,
-    decide: A => UIO[Int => Boolean],
+    decide: A => UIO[UniqueKey => Boolean],
     done: Take[E, Nothing] => UIO[Any] = (_: Any) => UIO.unit
-  ): ZManaged[R, Nothing, UIO[(Int, Queue[Take[E1, A1]])]] =
+  ): ZManaged[R, Nothing, UIO[(UniqueKey, Queue[Take[E1, A1]])]] =
     for {
       queuesRef <- Ref
-                    .make[Map[Int, Queue[Take[E1, A1]]]](Map())
+                    .make[Map[UniqueKey, Queue[Take[E1, A1]]]](Map())
                     .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
       add <- {
         val offer = (a: A) =>
@@ -1022,7 +1032,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             shouldProcess <- decide(a)
             queues        <- queuesRef.get
             _ <- ZIO
-                  .foldLeft(queues)(List[Int]()) {
+                  .foldLeft(queues)(List[UniqueKey]()) {
                     case (acc, (id, queue)) =>
                       if (shouldProcess(id)) {
                         queue
@@ -1042,12 +1052,11 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
         for {
           queuesLock <- Semaphore.make(1).toManaged_
-          nextIndex  <- Ref.make(-1).map(_.update(_ + 1)).toManaged_
           newQueue <- Ref
-                       .make[UIO[(Int, Queue[Take[E1, A1]])]] {
+                       .make[UIO[(UniqueKey, Queue[Take[E1, A1]])]] {
                          for {
-                           id    <- nextIndex
                            queue <- Queue.bounded[Take[E1, A1]](maximumLag)
+                           id    = UniqueKey()
                            _     <- queuesRef.update(_ + (id -> queue))
                          } yield (id, queue)
                        }
@@ -1059,9 +1068,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 // all newly created queues should end immediately
                 _ <- newQueue.set {
                       for {
-                        id    <- nextIndex
                         queue <- Queue.bounded[Take[E1, A1]](1)
                         _     <- queue.offer(endTake)
+                        id    = UniqueKey()
                         _     <- queuesRef.update(_ + (id -> queue))
                       } yield (id, queue)
                     }
@@ -1527,12 +1536,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   ): GroupBy[R1, E1, K, V] = {
     val qstream = ZStream.unwrapManaged {
       for {
-        decider <- Promise.make[Nothing, (K, V) => UIO[Int => Boolean]].toManaged_
+        decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]].toManaged_
         out <- Queue
                 .bounded[Take[E1, (K, GroupBy.DequeueOnly[Take[E1, V]])]](buffer)
                 .toManaged(_.shutdown)
         emit <- Ref.make[Boolean](true).toManaged_
-        ref  <- Ref.make[Map[K, Int]](Map()).toManaged_
+        ref  <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
         add <- self
                 .mapM(f)
                 .distributedWithDynamic(
