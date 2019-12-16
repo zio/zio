@@ -280,6 +280,12 @@ object IO {
     ZIO.foldLeft(in)(zero)(f)
 
   /**
+   * @see See [[zio.ZIO.foldRight]]
+   */
+  final def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => IO[E, S]): IO[E, S] =
+    ZIO.foldRight(in)(zero)(f)
+
+  /**
    * @see See [[zio.ZIO.foreach]]
    */
   final def foreach[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
@@ -508,6 +514,14 @@ object IO {
   final val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
+   * @see See [[zio.ZIO.partitionM]]
+   */
+  final def partitionM[E, A, B](
+    in: Iterable[A]
+  )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
+    ZIO.partitionM(in)(f)
+
+  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   final def raceAll[E, A](io: IO[E, A], ios: Iterable[IO[E, A]]): IO[E, A] = ZIO.raceAll(io, ios)
@@ -656,6 +670,18 @@ object IO {
    * @see See [[zio.ZIO.untraced]]
    */
   final def untraced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.untraced(zio)
+
+  /**
+   * @see See [[zio.ZIO.validateM]]
+   */
+  final def validateM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], List[B]] =
+    ZIO.validateM(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.validateFirstM]]
+   */
+  final def validateFirstM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+    ZIO.validateFirstM(in)(f)
 
   /**
    * @see See [[zio.ZIO.when]]

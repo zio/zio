@@ -280,6 +280,12 @@ object Task {
     ZIO.foldLeft(in)(zero)(f)
 
   /**
+   * @see See [[zio.ZIO.foldRight]]
+   */
+  final def foldRight[S, A](in: Iterable[A])(zero: S)(f: (A, S) => Task[S]): Task[S] =
+    ZIO.foldRight(in)(zero)(f)
+
+  /**
    * @see See [[zio.ZIO.foreach]]
    */
   final def foreach[A, B](in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
@@ -501,6 +507,14 @@ object Task {
    * @see See [[zio.ZIO.none]]
    */
   final val none: Task[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.partitionM]]
+   */
+  final def partitionM[A, B](
+    in: Iterable[A]
+  )(f: A => Task[B])(implicit ev: CanFail[Throwable]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionM(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]
