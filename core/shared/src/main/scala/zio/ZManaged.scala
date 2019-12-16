@@ -1441,35 +1441,33 @@ object ZManaged {
    */
   final def scope[R]: ZManaged[R, Nothing, Scope] =
     ZManaged {
-      Ref.make(Map.empty[Long, Exit[Any, Any] => ZIO[R, Nothing, Any]]).flatMap { finalizers =>
-        Ref.make(Long.MinValue).map(_.update(_ + 1L)).map { nextIndex =>
-          Reservation(
-            acquire = ZIO.succeed {
-              new Scope {
-                override def apply[R, E, A](managed: ZManaged[R, E, A]) =
-                  ZIO.uninterruptibleMask { restore =>
-                    for {
-                      env      <- ZIO.environment[R]
-                      res      <- managed.reserve
-                      resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
-                      index    <- nextIndex
-                      release  = res.release.andThen(_.provide(env))
-                      _        <- finalizers.update(_ + (index -> release))
-                    } yield ZManaged
-                      .make(ZIO.succeed(resource))(
-                        _ => release(Exit.Success(resource)).ensuring(finalizers.update(_ - index))
-                      )
-                  }
-              }
-            },
-            release = exitU =>
-              for {
-                fs    <- finalizers.get.map(_.values)
-                exits <- ZIO.foreachPar(fs)(_(exitU).run)
-                _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
-              } yield ()
-          )
-        }
+      // we abuse the fact that Function1 will use reference equality
+      Ref.make(Set.empty[Exit[Any, Any] => ZIO[R, Nothing, Any]]).map { finalizers =>
+        Reservation(
+          acquire = ZIO.succeed {
+            new Scope {
+              override def apply[R, E, A](managed: ZManaged[R, E, A]) =
+                ZIO.uninterruptibleMask { restore =>
+                  for {
+                    env      <- ZIO.environment[R]
+                    res      <- managed.reserve
+                    resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
+                    release  = res.release.andThen(_.provide(env))
+                    _        <- finalizers.update(_ + release)
+                  } yield ZManaged
+                    .make(ZIO.succeed(resource))(
+                      _ => release(Exit.Success(resource)).ensuring(finalizers.update(_ - release))
+                    )
+                }
+            }
+          },
+          release = exitU =>
+            for {
+              fs    <- finalizers.get
+              exits <- ZIO.foreachPar(fs)(_(exitU).run)
+              _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+            } yield ()
+        )
       }
     }
 
