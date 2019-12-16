@@ -1026,6 +1026,20 @@ object StreamSpec extends ZIOBaseSpec {
         items <- fiber.join
       } yield assert(items, equalTo(c.toSeq.toList))
     }),
+    suite("Stream.fromEffectOption")(
+      testM("emit one element with success") {
+        val fa: ZIO[Any, Option[Int], Int] = ZIO.succeed(5)
+        assertM(Stream.fromEffectOption(fa).runCollect, equalTo(List(5)))
+      },
+      testM("emit one element with failure") {
+        val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(Some(5))
+        assertM(Stream.fromEffectOption(fa).runCollect.either, isLeft(equalTo(5)))
+      },
+      testM("do not emit any element") {
+        val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
+        assertM(Stream.fromEffectOption(fa).runCollect, equalTo(List()))
+      }
+    ),
     suite("Stream.groupBy")(
       testM("values") {
         val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
@@ -1273,6 +1287,30 @@ object StreamSpec extends ZIOBaseSpec {
           .take(2)
           .run(Sink.collectAll[Int]),
         equalTo(List(1, 1))
+      )
+    ),
+    suite("Stream.repeatEffectOption")(
+      testM("emit elements")(
+        assertM(
+          Stream
+            .repeatEffectOption(IO.succeed(1))
+            .take(2)
+            .run(Sink.collectAll[Int]),
+          equalTo(List(1, 1))
+        )
+      ),
+      testM("emit elements until pull fails with None")(
+        for {
+          ref <- Ref.make(0)
+          fa = for {
+            newCount <- ref.update(_ + 1)
+            res      <- if (newCount >= 5) ZIO.fail(None) else ZIO.succeed(newCount)
+          } yield res
+          res <- Stream
+                  .repeatEffectOption(fa)
+                  .take(10)
+                  .run(Sink.collectAll[Int])
+        } yield assert(res, equalTo(List(1, 2, 3, 4)))
       )
     ),
     testM("Stream.repeatEffectWith")(
