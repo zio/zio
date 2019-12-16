@@ -453,12 +453,6 @@ object URIO {
   final val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
-   * @see [[zio.ZIO.partitionM]]
-   */
-  final def partitionM[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): URIO[R, (List[E], List[B])] =
-    ZIO.partitionM(in)(f)
-
-  /**
    * @see [[zio.ZIO.provide]]
    */
   final def provide[R, A](r: R): URIO[R, A] => UIO[A] =

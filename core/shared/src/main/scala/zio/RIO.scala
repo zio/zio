@@ -505,6 +505,12 @@ object RIO {
   final val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
+   * @see See [[zio.ZIO.partitionM]]
+   */
+  final def partitionM[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+    ZIO.partitionM(in)(f)
+
+  /**
    * @see See [[zio.ZIO.provide]]
    */
   final def provide[R, A](r: R): RIO[R, A] => Task[A] =

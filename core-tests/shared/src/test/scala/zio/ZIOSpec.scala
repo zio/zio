@@ -318,6 +318,12 @@ object ZIOSpec extends ZIOBaseSpec {
           val res = IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))
           assertM(res.run, fails(equalTo("fail")))
         }
+      },
+      testM("run sequentially from left to right") {
+        checkM(Gen.listOf1(Gen.anyInt)) { l =>
+          val res = IO.foldLeft(l)(List.empty[Int])((acc, el) => IO.succeed(el :: acc))
+          assertM(res, equalTo(l.reverse))
+        }
       }
     ),
     suite("foldRight")(
@@ -331,6 +337,12 @@ object ZIOSpec extends ZIOBaseSpec {
         checkM(Gen.listOf1(Gen.anyInt)) { l =>
           val res = IO.foldRight(l)(0)((_, _) => IO.fail("fail"))
           assertM(res.run, fails(equalTo("fail")))
+        }
+      },
+      testM("run sequentially from right to left") {
+        checkM(Gen.listOf1(Gen.anyInt)) { l =>
+          val res = IO.foldRight(l)(List.empty[Int])((el, acc) => IO.succeed(el :: acc))
+          assertM(res, equalTo(l))
         }
       }
     ),
@@ -768,19 +780,19 @@ object ZIOSpec extends ZIOBaseSpec {
         val in = List.range(0, 10)
         for {
           res <- ZIO.partitionM(in)(a => UIO.succeed(a))
-        } yield assert(res._1, isEmpty) && assert(res._2, equalTo(List.range(0, 10)))
+        } yield assert(res._1, isEmpty) && assert(res._2, equalTo(in))
       },
       testM("collect only failures") {
         val in = List.fill(10)(0)
         for {
           res <- ZIO.partitionM(in)(a => ZIO.fail(a))
-        } yield assert(res._1, hasSize(equalTo(in.length))) && assert(res._2, isEmpty)
+        } yield assert(res._1, equalTo(in)) && assert(res._2, isEmpty)
       },
       testM("collect failures and successes") {
         val in = List.range(0, 10)
         for {
           res <- ZIO.partitionM(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
-        } yield assert(res._1, hasSize(equalTo(in.length / 2))) && assert(res._2, hasSize(equalTo(in.length / 2)))
+        } yield assert(res._1, equalTo(List(0, 2, 4, 6, 8))) && assert(res._2, equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
     suite("raceAll")(
@@ -2162,7 +2174,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("accumulate successes") {
         val in  = List.range(0, 10)
-        val res = ZIO.validateM[Any, Int, Int, Int](in)(a => ZIO.succeed(a))
+        val res = IO.validateM(in)(a => ZIO.succeed(a))
         assertM(res, hasSize(equalTo(in.length)))
       }
     ),

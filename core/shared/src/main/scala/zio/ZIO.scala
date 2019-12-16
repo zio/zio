@@ -2040,9 +2040,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     zio.flatMap(ZIO.identityFn)
 
   /**
-   * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
-   *
-   * FoldLeft folds an Iterable from Left to Right.
+   * Folds an Iterable[A] using an effectual function f, working sequentially from left to right.
    */
   final def foldLeft[R, E, S, A](
     in: Iterable[A]
@@ -2052,9 +2050,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
-   *
-   * FoldRight folds an Iterable from Right to Left.
+   * Folds an Iterable[A] using an effectual function f, working sequentially from right to left.
    */
   final def foldRight[R, E, S, A](
     in: Iterable[A]

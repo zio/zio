@@ -475,6 +475,12 @@ object Task {
   final val none: Task[Option[Nothing]] = ZIO.none
 
   /**
+   * @see See [[zio.ZIO.partitionM]]
+   */
+  final def partitionM[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionM(in)(f)
+
+  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   final def raceAll[A](task: Task[A], ios: Iterable[Task[A]]): Task[A] =
