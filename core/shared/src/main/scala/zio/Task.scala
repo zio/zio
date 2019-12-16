@@ -477,7 +477,9 @@ object Task {
   /**
    * @see See [[zio.ZIO.partitionM]]
    */
-  final def partitionM[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+  final def partitionM[A, B](
+    in: Iterable[A]
+  )(f: A => Task[B])(implicit ev: CanFail[Throwable]): Task[(List[Throwable], List[B])] =
     ZIO.partitionM(in)(f)
 
   /**

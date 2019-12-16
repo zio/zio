@@ -507,7 +507,9 @@ object RIO {
   /**
    * @see See [[zio.ZIO.partitionM]]
    */
-  final def partitionM[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+  final def partitionM[R, A, B](
+    in: Iterable[A]
+  )(f: A => RIO[R, B])(implicit ev: CanFail[Throwable]): RIO[Nothing, (List[Throwable], List[B])] =
     ZIO.partitionM(in)(f)
 
   /**

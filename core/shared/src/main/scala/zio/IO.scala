@@ -482,7 +482,9 @@ object IO {
   /**
    * @see See [[zio.ZIO.partitionM]]
    */
-  final def partitionM[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[Nothing, (List[E], List[B])] =
+  final def partitionM[E, A, B](
+    in: Iterable[A]
+  )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
     ZIO.partitionM(in)(f)
 
   /**
@@ -638,12 +640,14 @@ object IO {
   /**
    * @see See [[zio.ZIO.validateM]]
    */
-  final def validateM[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[List[E], List[B]] = ZIO.validateM(in)(f)
+  final def validateM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], List[B]] =
+    ZIO.validateM(in)(f)
 
   /**
    * @see See [[zio.ZIO.validateFirstM]]
    */
-  final def validateFirstM[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[List[E], B] = ZIO.validateFirstM(in)(f)
+  final def validateFirstM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+    ZIO.validateFirstM(in)(f)
 
   /**
    * @see See [[zio.ZIO.when]]

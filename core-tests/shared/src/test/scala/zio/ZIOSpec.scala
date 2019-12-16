@@ -12,6 +12,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
 import zio.Cause._
 import zio.LatchOps._
+import zio.CanFail.canFail
 
 object ZIOSpec extends ZIOBaseSpec {
 
@@ -2164,34 +2165,34 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("validateM")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)
-        val res = ZIO.validateM[Any, Int, Int, Int](in)(a => ZIO.fail(a)).flip
+        val res = IO.validateM(in)(a => ZIO.fail(a)).flip
         assertM(res, equalTo(in))
       },
       testM("accumulate errors and ignore successes") {
         val in  = List.range(0, 10)
-        val res = ZIO.validateM(in)(a => if (a % 2 == 0) ZIO.effect(a) else ZIO.fail(a))
+        val res = ZIO.validateM(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
         assertM(res.flip, equalTo(List(1, 3, 5, 7, 9)))
       },
       testM("accumulate successes") {
         val in  = List.range(0, 10)
-        val res = IO.validateM(in)(a => ZIO.effect(a))
+        val res = IO.validateM(in)(a => ZIO.succeed(a))
         assertM(res, equalTo(in))
       }
     ),
     suite("validateFirstM")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)
-        val res = ZIO.validateFirstM[Any, Int, Int, Int](in)(a => ZIO.fail(a)).flip
+        val res = IO.validateFirstM(in)(a => ZIO.fail(a)).flip
         assertM(res, equalTo(in))
       },
       testM("short circuits on first success validation") {
         val in = List.range(1, 10)
-        val f  = (a: Int) => if (a == 5) ZIO.effect(a) else ZIO.fail(a)
+        val f  = (a: Int) => if (a == 6) ZIO.succeed(a) else ZIO.fail(a)
 
         for {
           counter    <- Ref.make(0)
           res        <- ZIO.validateFirstM(in)(a => counter.update(_ + 1) *> f(a))
-          assertions <- assertM(ZIO.succeed(res), equalTo(5)) && assertM(counter.get, equalTo(5))
+          assertions <- assertM(ZIO.succeed(res), equalTo(6)) && assertM(counter.get, equalTo(6))
         } yield assertions
       }
     ),
