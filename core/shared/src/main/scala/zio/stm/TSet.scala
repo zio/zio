@@ -43,19 +43,19 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     other.toList.map(_.toSet).flatMap(vals => removeIf(vals.contains))
 
   /**
-   * Atomically folds using pure function.
+   * Atomically folds using a pure function.
    */
   final def fold[B](zero: B)(op: (B, A) => B): STM[Nothing, B] =
     tmap.fold(zero)((acc, kv) => op(acc, kv._1))
 
   /**
-   * Atomically folds using effectful function.
+   * Atomically folds using a transactional function.
    */
   final def foldM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
     tmap.foldM(zero)((acc, kv) => op(acc, kv._1))
 
   /**
-   * Atomically performs side-effect for each element in set.
+   * Atomically performs transactional-effect for each element in set.
    */
   final def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
     foldM(())((_, a) => f(a))
@@ -96,13 +96,13 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   final def toList: STM[Nothing, List[A]] = tmap.keys
 
   /**
-   * Atomically updates all elements using pure function.
+   * Atomically updates all elements using a pure function.
    */
   final def transform(f: A => A): STM[Nothing, Unit] =
     tmap.transform((k, v) => f(k) -> v)
 
   /**
-   * Atomically updates all elements using effectful function.
+   * Atomically updates all elements using a transactional function.
    */
   final def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
     tmap.transformM((k, v) => f(k).map(_ -> v))

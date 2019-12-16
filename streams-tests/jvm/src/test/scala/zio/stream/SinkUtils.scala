@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.{ Chunk, IO, UIO }
 import zio.test.{ assert, Gen, GenZIO, TestResult }
-import zio.test.Assertion.{ equalTo, isLeft, isRight, isTrue }
+import zio.test.Assertion.{ equalTo, isRight, isTrue }
 
 trait SinkUtils {
   def initErrorSink = new ZSink[Any, String, Int, Int, Int] {
@@ -59,22 +59,6 @@ trait SinkUtils {
     sink.initial >>= (sink.step(_, a)) >>= sink.extract
 
   object ZipParLaws {
-    def coherence[A, B, C](
-      s: Stream[String, A],
-      sink1: ZSink[Any, String, A, A, B],
-      sink2: ZSink[Any, String, A, A, C]
-    ) =
-      for {
-        zb  <- s.run(sink1).either
-        zc  <- s.run(sink2).either
-        zbc <- s.run(sink1.zipPar(sink2)).either
-      } yield {
-        zbc match {
-          case Left(e)       => assert(zb, isLeft(equalTo(e))) || assert(zc, isLeft(equalTo(e)))
-          case Right((b, c)) => assert(zb, isRight(equalTo(b))) && assert(zc, isRight(equalTo(c)))
-        }
-      }
-
     def swap[A, B, C](
       s: Stream[String, A],
       sink1: ZSink[Any, String, A, A, B],
@@ -113,8 +97,8 @@ trait SinkUtils {
       sink1: ZSink[Any, String, A, A, B],
       sink2: ZSink[Any, String, A, A, C]
     ) =
-      (coherence(s, sink1, sink2) <*> remainders(s, sink1, sink2) <*> swap(s, sink1, sink2)).map {
-        case ((x, y), z) => x && y && z
+      (remainders(s, sink1, sink2) <*> swap(s, sink1, sink2)).map {
+        case (x, y) => x && y
       }
   }
 }

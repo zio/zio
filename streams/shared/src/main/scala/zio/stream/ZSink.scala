@@ -614,7 +614,12 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     }
 
   /**
-   * Runs two sinks in unison and matches produced values pair-wise.
+   * Runs two sinks in sequence and combines their results into a tuple.
+   * The `this` sink will consume inputs until it produces a value. Afterwards,
+   * the `that` sink will start consuming inputs until it produces a value.
+   *
+   * Note that this means that the two sinks will not consume the same inputs,
+   * but rather run one after the other.
    */
   final def zip[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
@@ -622,7 +627,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     flatMap(b => that.map(c => (b, c)))
 
   /**
-   * Runs two sinks in unison and keeps only values on the left.
+   * Runs two sinks in sequence and keeps only values on the left.
+   *
+   * See [[zip]] for notes about the behavior of this combinator.
    */
   final def zipLeft[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
@@ -680,10 +687,8 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
       def cont(state: State) =
         state match {
-          case (Left(s1), Left(s2)) => self.cont(s1) || that.cont(s2)
-          case (Left(s), Right(_))  => self.cont(s)
-          case (Right(_), Left(s))  => that.cont(s)
-          case (Right(_), Right(_)) => false
+          case (Left(s1), Left(s2)) => self.cont(s1) && that.cont(s2)
+          case _                    => false
         }
     }
 
@@ -712,7 +717,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     zipWithPar(that)((b, _) => b)
 
   /**
-   * Runs two sinks in unison and keeps only values on the right.
+   * Runs two sinks in sequence and keeps only values on the right.
+   *
+   * See [[zip]] for notes about the behavior of this combinator.
    */
   final def zipRight[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
     that: ZSink[R1, E1, A00, A1, C]
@@ -720,7 +727,9 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     zipWith(that)((_, c) => c)
 
   /**
-   * Runs two sinks in unison and merges values pair-wise.
+   * Runs two sinks in sequence and merges their values with the provided function.
+   *
+   * See [[zip]] for notes about the behavior of this combinator.
    */
   final def zipWith[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C, D](
     that: ZSink[R1, E1, A00, A1, C]
@@ -728,7 +737,7 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
     zip(that).map(f.tupled)
 }
 
-object ZSink extends ZSinkPlatformSpecific with Serializable {
+object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
 
   implicit class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
 

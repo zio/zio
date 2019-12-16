@@ -875,7 +875,7 @@ object StreamSpec extends ZIOBaseSpec {
           _         <- fiber.interrupt
           cancelled <- substreamCancelled.get
         } yield assert(cancelled, isTrue)
-      },
+      } @@ flaky,
       testM("inner errors interrupt all fibers") {
         for {
           substreamCancelled <- Ref.make[Boolean](false)

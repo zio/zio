@@ -254,6 +254,15 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(test, equalTo(10))
       }
     ),
+    suite("fallback")(
+      testM("executes an effect and returns its value if it succeeds") {
+        import zio.CanFail.canFail
+        assertM(ZIO.succeed(1).fallback(2), equalTo(1))
+      },
+      testM("returns the specified value if the effect fails") {
+        assertM(ZIO.fail("fail").fallback(1), equalTo(1))
+      }
+    ),
     suite("filterOrElse")(
       testM("returns checked failure from held value") {
         val goodCase =

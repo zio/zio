@@ -51,13 +51,13 @@ class TMap[K, V] private (
   }
 
   /**
-   * Atomically folds using pure function.
+   * Atomically folds using a pure function.
    */
   final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
     tBuckets.get.flatMap(_.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op)))
 
   /**
-   * Atomically folds using effectful function.
+   * Atomically folds using a transactional function.
    */
   final def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
     def loopM(acc: STM[E, A], remaining: List[(K, V)]): STM[E, A] =
@@ -70,7 +70,7 @@ class TMap[K, V] private (
   }
 
   /**
-   * Atomically performs side-effect for each binding present in map.
+   * Atomically performs transactional-effect for each binding present in map.
    */
   final def foreach[E](f: (K, V) => STM[E, Unit]): STM[E, Unit] =
     foldM(())((_, kv) => f(kv._1, kv._2))
@@ -161,25 +161,25 @@ class TMap[K, V] private (
     fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
 
   /**
-   * Atomically updates all bindings using pure function.
+   * Atomically updates all bindings using a pure function.
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
     foldMap(f).flatMap(overwriteWith)
 
   /**
-   * Atomically updates all bindings using effectful function.
+   * Atomically updates all bindings using a transactional function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     foldMapM(f).flatMap(overwriteWith)
 
   /**
-   * Atomically updates all values using pure function.
+   * Atomically updates all values using a pure function.
    */
   final def transformValues(f: V => V): STM[Nothing, Unit] =
     tBuckets.get.flatMap(_.transform(_.map(kv => kv._1 -> f(kv._2))))
 
   /**
-   * Atomically updates all values using effectful function.
+   * Atomically updates all values using a transactional function.
    */
   final def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
     tBuckets.get.flatMap(_.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _)))))

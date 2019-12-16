@@ -17,6 +17,7 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream }
+import java.{ util => ju }
 
 import com.github.ghik.silencer.silent
 import zio._
@@ -1096,7 +1097,19 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * }}}
    */
   final def drain: ZStream[R, E, Nothing] =
-    ZStream[R, E, Nothing](self.process.map(_.forever))
+    ZStream(self.process.map(_.forever))
+
+  /**
+   * Drains the provided stream in the background for as long as this stream is running.
+   * If this stream ends before `other`, `other` will be interrupted. If `other` fails,
+   * this stream will fail with that error.
+   */
+  final def drainFork[R1 <: R, E1 >: E](other: ZStream[R1, E1, Any]): ZStream[R1, E1, A] =
+    ZStream.fromEffect(Promise.make[E1, Nothing]).flatMap { bgDied =>
+      ZStream
+        .managed(other.foreachManaged(_ => ZIO.unit).catchAllCause(bgDied.halt(_).toManaged_).fork) *>
+        self.interruptWhen(bgDied)
+    }
 
   /**
    * Drops the specified number of elements from this stream.
@@ -1585,6 +1598,27 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     aggregate(ZSink.collectAllN[A](chunkSize))
 
   /**
+   * Halts the evaluation of this stream when the provided promise resolves.
+   *
+   * If the promise completes with a failure, the stream will emit that failure.
+   */
+  final def haltWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, A] =
+    ZStream {
+      for {
+        as   <- self.process
+        done <- Ref.make(false).toManaged_
+        pull = done.get flatMap {
+          if (_) Pull.end
+          else
+            p.poll.flatMap {
+              case None    => as
+              case Some(v) => done.set(true) *> v.mapError(Some(_)) *> Pull.end
+            }
+        }
+      } yield pull
+    }
+
+  /**
    * Interleaves this stream and the specified stream deterministically by
    * alternating pulling values from this stream and the specified stream.
    * When one stream is exhausted all remaining values in the other stream
@@ -1646,6 +1680,32 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       } yield result
     }
   }
+
+  /**
+   * Interrupts the evaluation of this stream when the provided promise resolves. This
+   * combinator will also interrupt any in-progress element being pulled from upstream.
+   *
+   * If the promise completes with a failure, the stream will emit that failure.
+   */
+  final def interruptWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, A] =
+    ZStream {
+      for {
+        as   <- self.process
+        done <- Ref.make(false).toManaged_
+        pull = done.get flatMap {
+          if (_) Pull.end
+          else
+            as.raceAttempt(
+              p.await
+                .mapError(Some(_))
+                .foldCauseM(
+                  c => done.set(true) *> ZIO.halt(c),
+                  _ => done.set(true) *> Pull.end
+                )
+            )
+        }
+      } yield pull
+    }
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
@@ -2549,7 +2609,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     self zipRight that
 }
 
-object ZStream extends Serializable {
+object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
 
   /**
    * Describes an effectful pull from a stream. The optionality of the error channel denotes
@@ -3051,10 +3111,22 @@ object ZStream extends Serializable {
     fromEffect(iterator).flatMap(StreamEffect.fromIterator)
 
   /**
-   * Creates a stream from an iterator
+   * Creates a stream from a Java iterator
+   */
+  final def fromJavaIterator[R, E, A](iterator: ZIO[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
+    fromEffect(iterator).flatMap(StreamEffect.fromJavaIterator)
+
+  /**
+   * Creates a stream from a managed iterator
    */
   final def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
     managed(iterator).flatMap(StreamEffect.fromIterator)
+
+  /**
+   * Creates a stream from a managed iterator
+   */
+  final def fromJavaIteratorManaged[R, E, A](iterator: ZManaged[R, E, ju.Iterator[A]]): ZStream[R, E, A] =
+    managed(iterator).flatMap(StreamEffect.fromJavaIterator)
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
