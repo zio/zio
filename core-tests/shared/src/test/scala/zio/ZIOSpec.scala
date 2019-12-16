@@ -2050,6 +2050,40 @@ object ZIOSpec extends ZIOBaseSpec {
           value <- ref.get
         } yield assert(value, isTrue)
       },
+      testM("interruptibleFork returns immediately on interrupt") {
+        for {
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Int]
+          p3 <- Promise.make[Nothing, Unit]
+          s <- (p1.succeed(()) *> p2.await)
+                .ensuring(p3.await)
+                .interruptibleFork
+                .fork
+          _   <- p1.await
+          res <- s.interrupt
+          _   <- p3.succeed(())
+        } yield assert(res, isInterrupted)
+
+      },
+      testM("interruptibleFork forks execution and interrupts fork") {
+        val io =
+          for {
+            r  <- Ref.make(false)
+            p1 <- Promise.make[Nothing, Unit]
+            p2 <- Promise.make[Nothing, Int]
+            p3 <- Promise.make[Nothing, Unit]
+            s <- (p1.succeed(()) *> p2.await)
+                  .ensuring(r.set(true) *> clock.sleep(10.millis) *> p3.succeed(()))
+                  .interruptibleFork
+                  .fork
+            _    <- p1.await
+            _    <- s.interrupt
+            _    <- p3.await
+            test <- r.get
+          } yield test
+
+        assertM(io.provide(Clock.Live), isTrue)
+      },
       testM("cause reflects interruption") {
         val io =
           for {
