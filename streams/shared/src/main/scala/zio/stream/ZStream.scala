@@ -3164,10 +3164,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     }
 
   /**
-   * Constructs a stream from a range of integers (inclusive).
+   * Constructs a stream from a range of integers (lower bound included, upper bound not included)
    */
   final def range(min: Int, max: Int): Stream[Nothing, Int] =
-    iterate(min)(_ + 1).takeWhile(_ <= max)
+    iterate(min)(_ + 1).takeWhile(_ < max)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
