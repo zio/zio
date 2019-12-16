@@ -26,7 +26,11 @@ trait ExecutorService extends Executor { // public interface
   def invokeAll[T](tasks: util.Collection[_ <: Callable[T]]): List[util.concurrent.Future[T]]
 
   @throws[InterruptedException]
-  def invokeAll[T](tasks: util.Collection[_ <: Callable[T]], timeout: Long, unit: TimeUnit): List[util.concurrent.Future[T]]
+  def invokeAll[T](
+    tasks: util.Collection[_ <: Callable[T]],
+    timeout: Long,
+    unit: TimeUnit
+  ): List[util.concurrent.Future[T]]
 
   @throws[InterruptedException]
   @throws[ExecutionException]
