@@ -246,12 +246,12 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                      )
                      .fork
         bs <- ZStream
-               .fromPull(consume(stateVar, permits))
+               .repeatEffectOption(consume(stateVar, permits))
                .mapConcatChunk(identity)
                .process
                .ensuringFirst(producer.interrupt.fork)
       } yield bs
-    }.flatMap(ZStream.fromPull)
+    }.flatMap(ZStream.repeatEffectOption)
   }
 
   /**
@@ -554,7 +554,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         bs <- consumerStream(stateVar, permits).process
                .ensuringFirst(producer.interruptAs(fiberId).fork)
       } yield bs
-    }.flatMap(ZStream.fromPull)
+    }.flatMap(ZStream.repeatEffectOption)
   }
 
   /**
@@ -640,7 +640,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           sink.initial.flatMap(s => go(s, false))
         }
       } yield pull
-    }.flatMap(ZStream.fromPull(_))
+    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Maps the success values of this stream to the specified constant value.
@@ -762,7 +762,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         val pull: Pull[Any, E, A1] =
           queue.take.raceWith(signal.await)(takeFirst, signalFirst)
 
-        ZStream.fromPull(pull)
+        ZStream.repeatEffectOption(pull)
     }
 
   /**
@@ -1990,7 +1990,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                        } yield result
                      }
       (b, leftover) = bAndLeftover
-    } yield b -> (ZStream.fromChunk(leftover) ++ ZStream.fromPull(as))
+    } yield b -> (ZStream.fromChunk(leftover) ++ ZStream.repeatEffectOption(as))
 
   /**
    * Provides the stream with its required environment, which eliminates
@@ -2016,7 +2016,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         r  <- m
         as <- self.process.provide(r)
       } yield as.provide(r)
-    }.flatMap(ZStream.fromPull)
+    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -2047,7 +2047,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         r  <- env
         as <- self.process.provide(r)
       } yield as.provide(r)
-    }.flatMap(ZStream.fromPull(_))
+    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
@@ -2978,7 +2978,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
             Pull.emit
           )
       }
-    }.flatMap(fromPull)
+    }.flatMap(repeatEffectOption)
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
@@ -3100,10 +3100,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     managed(fa.toManaged_)
 
   /**
-   * Creates a stream from a [[Pull]].
+   * Creates a stream from an effect producing a value of type `A` or an empty Stream
    */
-  final def fromPull[R, E, A](pull: Pull[R, E, A]): ZStream[R, E, A] =
-    ZStream(ZManaged.succeed(pull))
+  final def fromEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] =
+    ZStream.unwrap {
+      fa.fold(_.fold[ZStream[Any, E, Nothing]](ZStream.empty)(ZStream.fail(_)), ZStream.succeed(_))
+    }
 
   /**
    * Creates a stream from an iterable collection of values
@@ -3242,6 +3244,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    */
   final def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
     fromEffect(fa).forever
+
+  /**
+   * Creates a stream from an effect producing values of type `A` until it fails with None.
+   */
+  final def repeatEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] =
+    ZStream(ZManaged.succeed(fa))
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
