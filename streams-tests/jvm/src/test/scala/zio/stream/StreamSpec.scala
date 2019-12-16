@@ -305,7 +305,7 @@ object StreamSpec extends ZIOBaseSpec {
               for {
                 out1     <- s1.runCollect
                 out2     <- s2.runCollect
-                expected = List(0, 1, 2, 3, 4, 5)
+                expected = Range(0, 5).toList
               } yield assert(out1, equalTo(expected)) && assert(out2, equalTo(expected))
             case _ =>
               UIO(assert((), Assertion.nothing))
@@ -340,7 +340,7 @@ object StreamSpec extends ZIOBaseSpec {
                 snapshot2 <- ref.get
               } yield assert(snapshot1, equalTo(List(2, 1, 0))) && assert(
                 snapshot2,
-                equalTo(List(5, 4, 3, 2, 1, 0))
+                equalTo(Range(0, 5).toList.reverse)
               )
             case _ =>
               UIO(assert((), Assertion.nothing))
@@ -352,7 +352,7 @@ object StreamSpec extends ZIOBaseSpec {
             for {
               _    <- s1.process.use_(ZIO.unit).ignore
               out2 <- s2.runCollect
-            } yield assert(out2, equalTo(List(0, 1, 2, 3, 4, 5)))
+            } yield assert(out2, equalTo(Range(0, 5).toList))
           case _ =>
             UIO(assert((), Assertion.nothing))
         }
@@ -533,7 +533,7 @@ object StreamSpec extends ZIOBaseSpec {
         ref <- Ref.make(List[Int]())
         _   <- Stream.range(0, 10).mapM(i => ref.update(i :: _)).drain.run(Sink.drain)
         l   <- ref.get
-      } yield assert(l.reverse, equalTo((0 to 10).toList))
+      } yield assert(l.reverse, equalTo(Range(0, 10).toList))
     ),
     suite("Stream.dropUntil")(testM("dropUntil") {
       checkM(pureStreamOfBytes, Gen.function(Gen.boolean)) { (s, p) =>
@@ -1413,7 +1413,7 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("values") {
         Stream
-          .range(0, 5)
+          .range(0, 6)
           .partitionEither { i =>
             if (i % 2 == 0) ZIO.succeed(Left(i))
             else ZIO.succeed(Right(i))
@@ -1440,7 +1440,7 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("backpressure") {
         Stream
-          .range(0, 5)
+          .range(0, 6)
           .partitionEither({ i =>
             if (i % 2 == 0) ZIO.succeed(Left(i))
             else ZIO.succeed(Right(i))
@@ -1478,7 +1478,7 @@ object StreamSpec extends ZIOBaseSpec {
       }, equalTo((12, Success(List('3', '4')))))
     },
     testM("Stream.range") {
-      assertM(Stream.range(0, 9).runCollect, equalTo((0 to 9).toList))
+      assertM(Stream.range(0, 10).runCollect, equalTo(Range(0, 10).toList))
     },
     suite("Stream.repeat")(
       testM("repeat")(
@@ -1824,7 +1824,7 @@ object StreamSpec extends ZIOBaseSpec {
             .use { q =>
               Stream.fromQueue(q).unTake.run(Sink.collectAll[Int])
             },
-          equalTo((0 to 10).toList)
+          equalTo(Range(0, 10).toList)
         )
       },
       testM("unTake with error") {
