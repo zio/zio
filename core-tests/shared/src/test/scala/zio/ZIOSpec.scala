@@ -1863,24 +1863,30 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("bracketFork acquire returns immediately on interrupt") {
         for {
-          promise <- Promise.make[Nothing, Unit]
-          fiber   <- promise.await.bracketFork(_ => IO.unit)(_ => IO.unit).fork
-          res     <- fiber.interrupt
-          _       <- promise.succeed(())
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Int]
+          p3 <- Promise.make[Nothing, Unit]
+          s <- (p1.succeed(()) *> p2.await)
+                .bracketFork(_ => p3.await)(_ => IO.unit)
+                .fork
+          _   <- p1.await
+          res <- s.interrupt
+          _   <- p3.succeed(())
         } yield assert(res, isInterrupted)
       },
       testM("bracketForkExit acquire returns immediately on interrupt") {
         for {
-          promise <- Promise.make[Nothing, Unit]
-          fiber <- IO
-                    .bracketForkExit(promise.await)(
-                      (_, _: Exit[Any, Any]) => IO.unit
-                    )(
-                      _ => IO.unit: IO[Nothing, Unit]
-                    )
-                    .fork
-          res <- fiber.interrupt
-          _   <- promise.succeed(())
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Unit]
+          p3 <- Promise.make[Nothing, Unit]
+          s <- IO
+                .bracketForkExit(p1.succeed(()) *> p2.await)((_, _: Exit[Any, Any]) => p3.await)(
+                  _ => IO.unit: IO[Nothing, Unit]
+                )
+                .fork
+          _   <- p1.await
+          res <- s.interrupt
+          _   <- p3.succeed(())
         } yield assert(res, isInterrupted)
       },
       testM("bracketFork use is interruptible") {
@@ -2063,7 +2069,6 @@ object ZIOSpec extends ZIOBaseSpec {
           res <- s.interrupt
           _   <- p3.succeed(())
         } yield assert(res, isInterrupted)
-
       },
       testM("interruptibleFork forks execution and interrupts fork") {
         val io =
