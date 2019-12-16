@@ -1026,18 +1026,18 @@ object StreamSpec extends ZIOBaseSpec {
         items <- fiber.join
       } yield assert(items, equalTo(c.toSeq.toList))
     }),
-    suite("Stream.fromPull")(
+    suite("Stream.fromEffectOption")(
       testM("emit one element with success") {
-        val pull: ZIO[Any, Option[Int], Int] = ZIO.succeed(5)
-        assertM(Stream.fromPull(pull).runCollect, equalTo(List(5)))
+        val fa: ZIO[Any, Option[Int], Int] = ZIO.succeed(5)
+        assertM(Stream.fromEffectOption(fa).runCollect, equalTo(List(5)))
       },
       testM("emit one element with failure") {
-        val pull: ZIO[Any, Option[Int], Int] = ZIO.fail(Some(5))
-        assertM(Stream.fromPull(pull).runCollect.either, isLeft(equalTo(5)))
+        val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(Some(5))
+        assertM(Stream.fromEffectOption(fa).runCollect.either, isLeft(equalTo(5)))
       },
       testM("do not emit any element") {
-        val pull: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
-        assertM(Stream.fromPull(pull).runCollect, equalTo(List()))
+        val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
+        assertM(Stream.fromEffectOption(fa).runCollect, equalTo(List()))
       }
     ),
     suite("Stream.groupBy")(
@@ -1289,11 +1289,11 @@ object StreamSpec extends ZIOBaseSpec {
         equalTo(List(1, 1))
       )
     ),
-    suite("Stream.repeatPull")(
+    suite("Stream.repeatEffectOption")(
       testM("emit elements")(
         assertM(
           Stream
-            .repeatPull(IO.succeed(1))
+            .repeatEffectOption(IO.succeed(1))
             .take(2)
             .run(Sink.collectAll[Int]),
           equalTo(List(1, 1))
@@ -1302,12 +1302,12 @@ object StreamSpec extends ZIOBaseSpec {
       testM("emit elements until pull fails with None")(
         for {
           ref <- Ref.make(0)
-          pull = for {
+          fa = for {
             newCount <- ref.update(_ + 1)
             res      <- if (newCount >= 5) ZIO.fail(None) else ZIO.succeed(newCount)
           } yield res
           res <- Stream
-                  .repeatPull(pull)
+                  .repeatEffectOption(fa)
                   .take(10)
                   .run(Sink.collectAll[Int])
         } yield assert(res, equalTo(List(1, 2, 3, 4)))

@@ -183,10 +183,10 @@ object Stream extends Serializable {
     ZStream.fromEffect(fa)
 
   /**
-   * See [[ZStream.fromPull]]
+   * See [[ZStream.fromEffectOption]]
    */
-  final def fromPull[E, A](pull: Pull[Any, E, A]): Stream[E, A] =
-    ZStream.fromPull(pull)
+  final def fromEffectOption[E, A](fa: IO[Option[E], A]): Stream[E, A] =
+    ZStream.fromEffectOption(fa)
 
   /**
    * See [[ZStream.paginate]]
@@ -213,6 +213,12 @@ object Stream extends Serializable {
     fa: IO[E, A],
     schedule: Schedule[Any, Unit, Any]
   ): ZStream[Clock, E, A] = ZStream.repeatEffectWith(fa, schedule)
+
+  /**
+   * See [[ZStream.repeatEffectOption]]
+   */
+  final def repeatEffectOption[E, A](fa: IO[Option[E], A]): Stream[E, A] =
+    ZStream.repeatEffectOption(fa)
 
   /**
    * See [[ZStream.fromIterable]]
@@ -255,12 +261,6 @@ object Stream extends Serializable {
    */
   final def fromQueueWithShutdown[E, A](queue: ZQueue[Nothing, Any, Any, E, Nothing, A]): Stream[E, A] =
     ZStream.fromQueueWithShutdown(queue)
-
-  /**
-   * See [[ZStream.repeatPull]]
-   */
-  final def repeatPull[E, A](pull: Pull[Any, E, A]): Stream[E, A] =
-    ZStream.repeatPull(pull)
 
   /**
    * See [[ZStream.halt]]
