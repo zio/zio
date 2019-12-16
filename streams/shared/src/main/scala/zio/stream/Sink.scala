@@ -55,14 +55,14 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.collectAllToMap]]
    */
-  final def collectAllToMap[K, A](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
-    ZSink.collectAllToMap(key)(f)
+  final def collectAllToMap[K, A](key: A => K): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
+    ZSink.collectAllToMap(key)
 
   /**
    * see [[ZSink.collectAllToMapN]]
    */
-  final def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, A, Map[K, A]] =
-    ZSink.collectAllToMapN(n)(key)(f)
+  final def collectAllToMapN[K, A](n: Long)(key: A => K): ZSink[Any, Nothing, A, A, Map[K, A]] =
+    ZSink.collectAllToMapN(n)(key)
 
   /**
    * see [[ZSink.collectAllWhile]]
