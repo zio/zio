@@ -1236,23 +1236,34 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink accumulating incoming values into a map.
    * Key of each element is determined by supplied function.
+   * Combines elements with same key with supplied function f.
+   *
    */
-  final def collectAllToMap[K, A](key: A => K): ZSink[Any, Nothing, Nothing, A, Map[K, A]] =
-    foldLeft[A, Map[K, A]](Map.empty[K, A])((map, element) => map + (key(element) -> element))
+  final def collectAllToMap[K, A](key: A => K)(f: (A, A) => A): Sink[Nothing, Nothing, A, Map[K, A]] =
+    foldLeft[A, Map[K, A]](Map.empty)((curMap, a) => {
+      val k = key(a)
+      curMap.get(k).fold(curMap.updated(k, a))(v => curMap.updated(k, f(v, a)))
+    })
 
   /**
    * Creates a sink accumulating incoming values into a map of maximum size `n`.
    * Key of each element is determined by supplied function.
+   *
+   * Combines elements with same key with supplied function f.
    */
-  final def collectAllToMapN[K, A](n: Long)(key: A => K): Sink[Nothing, A, A, Map[K, A]] = {
+  final def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): Sink[Nothing, A, A, Map[K, A]] = {
     type State = (Map[K, A], Boolean)
-    def f(state: State, a: A): (State, Chunk[A]) = {
-      val newMap = state._1 + (key(a) -> a)
-      if (newMap.size > n) ((state._1, false), Chunk.single(a))
-      else if (newMap.size == n) ((newMap, false), Chunk.empty)
-      else ((newMap, true), Chunk.empty)
+    def inner(state: State, a: A): (State, Chunk[A]) = {
+      val k      = key(a)
+      val curMap = state._1
+      curMap
+        .get(k)
+        .fold(
+          if (curMap.size >= n) ((curMap, false), Chunk.single(a))
+          else ((curMap.updated(k, a), true), Chunk.empty)
+        )(v => ((curMap.updated(k, f(v, a)), true), Chunk.empty))
     }
-    fold[A, A, State]((Map.empty, true))(_._2)(f).map(_._1)
+    fold[A, A, State]((Map.empty, true))(_._2)(inner).map(_._1)
   }
 
   /**
