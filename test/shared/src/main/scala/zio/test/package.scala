@@ -132,7 +132,12 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  @deprecated("use curried version", "1.0.0")
+  @deprecated(
+    "To benefit from much better type inference and type safety, we " +
+      "recommend that you use the curried version of assert, which takes " +
+      "two parameter lists instead of one: assert(value)(assertion)",
+    "1.0.0"
+  )
   final def assert[A](value: => A, assertion: Assertion[A], dummy: Boolean = true): TestResult = {
     val _ = dummy
     assert(value)(assertion)
@@ -153,7 +158,12 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  @deprecated("use curried version", "1.0.0")
+  @deprecated(
+    "To benefit from much better type inference and type safety, we " +
+      "recommend that you use the curried version of assertM, which takes " +
+      "two parameter lists instead of one: assertM(value)(assertion)",
+    "1.0.0"
+  )
   final def assertM[R, E, A](
     value: ZIO[R, E, A],
     assertion: Assertion[A],
