@@ -491,6 +491,14 @@ object Task {
     ZIO.partitionMPar(in)(f)
 
   /**
+   * @see See [[zio.ZIO.partitionMParN]]
+   */
+  final def partitionMParN[A, B](n: Int)(
+    in: Iterable[A]
+  )(f: A => Task[B])(implicit ev: CanFail[Throwable]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionMParN(n)(in)(f)
+
+  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   final def raceAll[A](task: Task[A], ios: Iterable[Task[A]]): Task[A] =

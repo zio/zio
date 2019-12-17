@@ -35,6 +35,7 @@ Code | Rewrite
 `uio.tapError(f)` | `uio`
 `ZIO.partitionM(in)(f)` | `ZIO.foreach(in)(f)`*
 `ZIO.partitionMPar(in)(f)` | `ZIO.foreachPar(in)(f)`*
+`ZIO.partitionMParN(n)(in)(f)` | `ZIO.foreachParN(n)(in)(f)`*
 `ZIO.validateM(in)(f)` | `ZIO.foreach(in)(f)`*
 `ZIO.validateFirstM(in)(f)` | `ZIO.foreach(in)(f)`*
 
@@ -82,4 +83,4 @@ Code | Rewrite
 
 - `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`. 
 
-- `partitionM`, `partitionMPar`, `validateM` and `validateFirstM` have error accumulating semantics on either error channel or success channel. After rewrite the error type can be simplified to `E` rather than `List[E]` or the success type `List[B]` instead of `(List[E], List[B])`.
+- `partitionM`, `partitionMPar`, `partitionMParN`, `validateM` and `validateFirstM` have error accumulating semantics on either error channel or success channel. After rewrite the error type can be simplified to `E` rather than `List[E]` or the success type `List[B]` instead of `(List[E], List[B])`.

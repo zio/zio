@@ -2453,7 +2453,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
-   * Feeds elements of type A to a function f that returns an effect.
+   * Feeds elements of type `A` to a function f that returns an effect.
    *
    * Collects all successes and failures in a tupled fashion.
    */
@@ -2469,26 +2469,35 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Feeds elements of type A to a function f that returns an effect.
-   * Collects all successes and failures, in parallel, in a tupled fashion.
+   * Feeds elements of type `A` to a function `f` that returns an effect.
+   * Collects all successes and failures in parallel and returns the result as a tuple.
    *
    */
   final def partitionMPar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
-    Queue
-      .bounded[(Promise[E, B], A)](in.size)
-      .bracket(_.shutdown) { q =>
-        for {
-          pairs <- ZIO.foreach(in)(a => Promise.make[E, B].map(p => (p, a)))
-          _     <- ZIO.foreach_(pairs)(pair => q.offer(pair)).fork
-          _ <- ZIO.collectAllPar(List.fill(in.size)(q.take.flatMap {
-                case (p, a) => f(a).foldM(e => p.fail(e), b => p.succeed(b))
-              }))
-          res <- ZIO.partitionM(pairs.map(_._1))(_.await)
-        } yield res
-      }
-      .refailWithTrace
+    ZIO
+      .foreachPar(in)(f(_).either)
+      .map(_.foldRight((List.empty[E], List.empty[B])) {
+        case (Left(e), (es, bs))  => (e :: es, bs)
+        case (Right(b), (es, bs)) => (es, b :: bs)
+      })
+
+  /**
+   * Feeds elements of type `A` to a function `f` that returns an effect.
+   * Collects all successes and failures in parallel and returns the result as a tuple.
+   *
+   * Unlike `partitionMPar`, this method will use at most up to `n` fibers.
+   */
+  final def partitionMParN[R, E, A, B](n: Int)(
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
+    ZIO
+      .foreachParN(n)(in)(f(_).either)
+      .map(_.foldRight((List.empty[E], List.empty[B])) {
+        case (Left(e), (es, bs))  => (e :: es, bs)
+        case (Right(b), (es, bs)) => (es, b :: bs)
+      })
 
   /**
    * Given an environment `R`, returns a function that can supply the

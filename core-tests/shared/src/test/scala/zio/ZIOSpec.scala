@@ -825,6 +825,26 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1, equalTo(List(0, 2, 4, 6, 8))) && assert(res._2, equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
+    suite("partitionMParN")(
+      testM("collects a lot of successes") {
+        val in = List.range(0, 1000)
+        for {
+          res <- ZIO.partitionMParN(3)(in)(a => ZIO.succeed(a))
+        } yield assert(res._1, isEmpty) && assert(res._2, equalTo(in))
+      },
+      testM("collects failures") {
+        val in = List.fill(10)(0)
+        for {
+          res <- ZIO.partitionMParN(3)(in)(a => ZIO.fail(a))
+        } yield assert(res._1, equalTo(in)) && assert(res._2, isEmpty)
+      },
+      testM("collects failures and successes") {
+        val in = List.range(0, 10)
+        for {
+          res <- ZIO.partitionMParN(3)(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
+        } yield assert(res._1, equalTo(List(0, 2, 4, 6, 8))) && assert(res._2, equalTo(List(1, 3, 5, 7, 9)))
+      }
+    ),
     suite("raceAll")(
       testM("returns first success") {
         assertM(ZIO.fail("Fail").raceAll(List(IO.succeed(24))), equalTo(24))
