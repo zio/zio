@@ -231,14 +231,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   final def byte(min: Byte, max: Byte): Gen[Random, Byte] =
-    integral(min, max)
+    int(min.toInt, max.toInt).map(_.toByte)
 
   /**
    * A generator of character values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   final def char(min: Char, max: Char): Gen[Random, Char] =
-    integral(min, max)
+    int(min.toInt, max.toInt).map(_.toChar)
 
   /**
    * A constant generator of the specified value.
@@ -350,17 +350,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   final def int(min: Int, max: Int): Gen[Random, Int] =
-    integral(min, max)
-
-  /**
-   * A generator of integral values inside the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
-   */
-  final def integral[A](min: A, max: A)(implicit I: Integral[A]): Gen[Random, A] =
-    fromEffectSample {
-      nextInt(I.toInt(max) - I.toInt(min) + 1)
-        .map(r => I.plus(min, I.fromInt(r)))
-        .map(Sample.shrinkIntegral(min))
+    Gen.fromEffectSample {
+      val difference = max - min + 1
+      val effect =
+        if (difference > 0) nextInt(difference).map(min + _)
+        else nextInt.doUntil(n => min <= n && n <= max)
+      effect.map(Sample.shrinkIntegral(min))
     }
 
   /**
@@ -451,7 +446,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   final def short(min: Short, max: Short): Gen[Random, Short] =
-    integral(min, max)
+    int(min.toInt, max.toInt).map(_.toShort)
 
   final def size: Gen[Sized, Int] =
     Gen.fromEffect(Sized.size)
