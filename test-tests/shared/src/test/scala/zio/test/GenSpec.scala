@@ -170,6 +170,10 @@ object GenSpec extends ZIOBaseSpec {
       testM("int generates values in range") {
         checkSample(smallInt)(forall(isGreaterThanEqualTo(-10) && isLessThanEqualTo(10)))
       },
+      testM("int is safe for ranges greater than Int.MaxValue") {
+        val gen = Gen.int(0, Int.MaxValue)
+        checkSample(gen)(forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(Int.MaxValue)))
+      },
       testM("large generates sizes in range") {
         val gen = Gen.large(Gen.listOfN(_)(Gen.int(-10, 10)))
         checkSample(gen)(forall(isLessThanEqualTo(100)), _.map(_.length))
