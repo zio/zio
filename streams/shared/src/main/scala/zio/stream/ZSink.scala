@@ -1062,6 +1062,25 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
 
   implicit class InvariantOps[R, E, A0, A, B](val sink: ZSink[R, E, A0, A, B]) extends AnyVal { self =>
 
+
+    /**
+     * Drops the first `n`` elements from the sink.
+     */
+    final def drop(n: Long): ZSink[R, E, A0, A, B] =
+      new ZSink[R, E, A0, A, B] {
+        type State = (sink.State, Long)
+
+        val initial = sink.initial.map((_, 0L)).asInstanceOf[ZIO[R, E, this.State]]
+
+        def step(state: State, a: A) =
+          if(state._2 <= 0) UIO.succeed(state)
+          else sink.step(state._1, a).map((_, n - 1))
+
+        def extract(state: State) = sink.extract(state._1)
+
+        def cont(state: State) = sink.cont(state._1)
+      }
+
     /**
      * Drops all elements entering the sink for as long as the specified predicate
      * evaluates to `true`.
