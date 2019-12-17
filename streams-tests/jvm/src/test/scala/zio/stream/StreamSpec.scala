@@ -293,7 +293,20 @@ object StreamSpec extends ZIOBaseSpec {
                 .run
           released <- ref.get
         } yield assert(released, isTrue)
-      }
+      },
+      testM("flatMap associativity doesn't affect bracket lifetime")(
+        for {
+          leftAssoc <- Stream
+                        .bracket(Ref.make(true))(_.set(false))
+                        .flatMap(Stream.succeed)
+                        .flatMap(r => Stream.fromEffect(r.get))
+                        .run(Sink.await[Boolean])
+          rightAssoc <- Stream
+                         .bracket(Ref.make(true))(_.set(false))
+                         .flatMap(Stream.succeed(_).flatMap(r => Stream.fromEffect(r.get)))
+                         .run(Sink.await[Boolean])
+        } yield assert(leftAssoc -> rightAssoc, equalTo(true -> true))
+      )
     ),
     suite("Stream.broadcast")(
       testM("Values") {
