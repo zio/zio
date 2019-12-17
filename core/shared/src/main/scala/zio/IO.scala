@@ -488,6 +488,14 @@ object IO {
     ZIO.partitionM(in)(f)
 
   /**
+   * @see See [[zio.ZIO.partitionMPar]]
+   */
+  final def partitionMPar[E, A, B](
+    in: Iterable[A]
+  )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
+    ZIO.partitionMPar(in)(f)
+
+  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   final def raceAll[E, A](io: IO[E, A], ios: Iterable[IO[E, A]]): IO[E, A] = ZIO.raceAll(io, ios)

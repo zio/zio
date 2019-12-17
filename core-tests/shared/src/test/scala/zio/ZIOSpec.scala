@@ -786,22 +786,42 @@ object ZIOSpec extends ZIOBaseSpec {
       } @@ nonFlaky
     ),
     suite("partitionM")(
-      testM("collect only successes") {
+      testM("collects only successes") {
         val in = List.range(0, 10)
         for {
-          res <- ZIO.partitionM(in)(a => ZIO.effect(a))
+          res <- ZIO.partitionM(in)(a => ZIO.succeed(a))
         } yield assert(res._1, isEmpty) && assert(res._2, equalTo(in))
       },
-      testM("collect only failures") {
+      testM("collects only failures") {
         val in = List.fill(10)(0)
         for {
           res <- ZIO.partitionM(in)(a => ZIO.fail(a))
         } yield assert(res._1, equalTo(in)) && assert(res._2, isEmpty)
       },
-      testM("collect failures and successes") {
+      testM("collects failures and successes") {
         val in = List.range(0, 10)
         for {
           res <- ZIO.partitionM(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
+        } yield assert(res._1, equalTo(List(0, 2, 4, 6, 8))) && assert(res._2, equalTo(List(1, 3, 5, 7, 9)))
+      }
+    ),
+    suite("partitionMPar")(
+      testM("collects a lot of successes") {
+        val in = List.range(0, 1000)
+        for {
+          res <- ZIO.partitionMPar(in)(a => ZIO.succeed(a))
+        } yield assert(res._1, isEmpty) && assert(res._2, equalTo(in))
+      },
+      testM("collects failures") {
+        val in = List.fill(10)(0)
+        for {
+          res <- ZIO.partitionMPar(in)(a => ZIO.fail(a))
+        } yield assert(res._1, equalTo(in)) && assert(res._2, isEmpty)
+      },
+      testM("collects failures and successes") {
+        val in = List.range(0, 10)
+        for {
+          res <- ZIO.partitionMPar(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
         } yield assert(res._1, equalTo(List(0, 2, 4, 6, 8))) && assert(res._2, equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
