@@ -244,6 +244,12 @@ object SinkSpec extends ZIOBaseSpec {
           assertM(sinkIteration(sink, "123").either, isLeft(equalTo("Ouch")))
         }
       ),
+      suite("drop")(
+        testM("happy path") {
+          val sink = ZSink.identity[Int].drop(2)
+          assertM(sinkIteration(sink, Stream.fromIterable(List(1,2,3))), equalTo(List(3)))
+        }
+      ),
       suite("dropWhile")(
         testM("happy path") {
           val sink = ZSink.identity[Int].dropWhile(_ < 5)
