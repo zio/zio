@@ -276,6 +276,12 @@ object RIO {
     ZIO.foldLeft(in)(zero)(f)
 
   /**
+   * @see See [[zio.ZIO.foldRight]]
+   */
+  final def foldRight[R, S, A](in: Iterable[A])(zero: S)(f: (A, S) => RIO[R, S]): RIO[R, S] =
+    ZIO.foldRight(in)(zero)(f)
+
+  /**
    * @see See [[zio.ZIO.foreach]]
    */
   final def foreach[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, List[B]] =
@@ -497,6 +503,14 @@ object RIO {
    * @see See [[zio.ZIO.none]]
    */
   final val none: UIO[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.partitionM]]
+   */
+  final def partitionM[R, A, B](
+    in: Iterable[A]
+  )(f: A => RIO[R, B])(implicit ev: CanFail[Throwable]): RIO[Nothing, (List[Throwable], List[B])] =
+    ZIO.partitionM(in)(f)
 
   /**
    * @see See [[zio.ZIO.provide]]

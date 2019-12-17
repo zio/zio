@@ -64,10 +64,10 @@ object StreamBufferSpec extends ZIOBaseSpec {
           latch4 <- Promise.make[Nothing, Unit]
           s1 = Stream(0) ++ Stream
             .fromEffect(latch1.await)
-            .flatMap(_ => Stream.range(1, 16).ensuring(latch2.succeed(())))
+            .flatMap(_ => Stream.range(1, 17).ensuring(latch2.succeed(())))
           s2 = Stream
             .fromEffect(latch3.await)
-            .flatMap(_ => Stream.range(17, 24).ensuring(latch4.succeed(())))
+            .flatMap(_ => Stream.range(17, 25).ensuring(latch4.succeed(())))
           s = (s1 ++ s2).bufferDropping(8)
           snapshots <- s.process.use { as =>
                         for {
@@ -106,10 +106,10 @@ object StreamBufferSpec extends ZIOBaseSpec {
           latch4 <- Promise.make[Nothing, Unit]
           s1 = Stream(0) ++ Stream
             .fromEffect(latch1.await)
-            .flatMap(_ => Stream.range(1, 16).ensuring(latch2.succeed(())))
+            .flatMap(_ => Stream.range(1, 17).ensuring(latch2.succeed(())))
           s2 = Stream
             .fromEffect(latch3.await)
-            .flatMap(_ => Stream.range(17, 24).ensuring(latch4.succeed(())))
+            .flatMap(_ => Stream.range(17, 25).ensuring(latch4.succeed(())))
           s = (s1 ++ s2).bufferSliding(8)
           snapshots <- s.process.use { as =>
                         for {
@@ -160,7 +160,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
                   l <- ref.get
                 } yield l
               }
-        } yield assert(l.reverse, equalTo((1 to 1000).toList))
+        } yield assert(l.reverse, equalTo(Range(1, 1000).toList))
       }
     )
   )

@@ -68,7 +68,7 @@ object TArraySpec extends ZIOBaseSpec {
           findFiber <- tArray.collectFirst {
                         case Some(i) if (i % largePrime) == 0 => i.toString
                       }.commit.fork
-          _      <- STM.foreach(0 until N)(i => tArray.array(i).set(Some(1))).commit
+          _      <- STM.foreach(0 until N)(i => tArray.update(i, _ => Some(1))).commit
           result <- findFiber.join
         } yield assert(result, isSome(equalTo(largePrime.toString)) || isNone)
       }
@@ -104,7 +104,7 @@ object TArraySpec extends ZIOBaseSpec {
           findFiber <- tArray.collectFirstM {
                         case Some(i) if (i % largePrime) == 0 => STM.succeed(i.toString)
                       }.commit.fork
-          _      <- STM.foreach(0 until N)(i => tArray.array(i).set(Some(1))).commit
+          _      <- STM.foreach(0 until N)(i => tArray.update(i, _ => Some(1))).commit
           result <- findFiber.join
         } yield assert(result, isSome(equalTo(largePrime.toString)) || isNone)
       },
@@ -262,7 +262,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeStair(N).commit
           findFiber <- tArray.find(_ % largePrime == 0).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ => 1)).commit
           result    <- findFiber.join
         } yield assert(result, isSome(equalTo(largePrime)) || isNone)
       }
@@ -290,7 +290,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeStair(N).commit
           findFiber <- tArray.findLast(_ % largePrime == 0).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ => 1)).commit
           result    <- findFiber.join
         } yield assert(result, isSome(equalTo(largePrime * 4)) || isNone)
       }
@@ -318,7 +318,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeStair(N).commit
           findFiber <- tArray.findLastM(i => STM.succeed(i % largePrime == 0)).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ => 1)).commit
           result    <- findFiber.join
         } yield assert(result, isSome(equalTo(largePrime * 4)) || isNone)
       },
@@ -358,7 +358,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeStair(N).commit
           findFiber <- tArray.findM(i => STM.succeed(i % largePrime == 0)).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ => 1)).commit
           result    <- findFiber.join
         } yield assert(result, isSome(equalTo(largePrime)) || isNone)
       },
@@ -394,7 +394,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeTArray(N)(0).commit
           sum1Fiber <- tArray.fold(0)(_ + _).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).update(_ + 1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ + 1)).commit
           sum1      <- sum1Fiber.join
         } yield assert(sum1, equalTo(0) || equalTo(N))
       }
@@ -404,7 +404,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeTArray(N)(0).commit
           sum1Fiber <- tArray.foldM(0)((z, a) => STM.succeed(z + a)).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).update(_ + 1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ + 1)).commit
           sum1      <- sum1Fiber.join
         } yield assert(sum1, equalTo(0) || equalTo(N))
       },
@@ -547,7 +547,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeStair(N).commit
           findFiber <- tArray.indexWhere(_ % largePrime == 0).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ => 1)).commit
           result    <- findFiber.join
         } yield assert(result, equalTo(largePrime - 1) || equalTo(-1))
       },
@@ -599,7 +599,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeStair(N).commit
           findFiber <- tArray.indexWhereM(i => STM.succeed(i % largePrime == 0)).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ => 1)).commit
           result    <- findFiber.join
         } yield assert(result, equalTo(largePrime - 1) || equalTo(-1))
       },
@@ -709,10 +709,10 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray         <- makeTArray(N)("a").commit
           transformFiber <- tArray.transform(_ + "+b").commit.fork
-          _              <- STM.foreach(0 until N)(idx => tArray.array(idx).update(_ + "+c")).commit
+          _              <- STM.foreach(0 until N)(idx => tArray.update(idx, _ + "+c")).commit
           _              <- transformFiber.join
-          first          <- tArray.array(0).get.commit
-          last           <- tArray.array(N - 1).get.commit
+          first          <- tArray(0).commit
+          last           <- tArray(N - 1).commit
         } yield assert((first, last), equalTo(("a+b+c", "a+b+c")) || equalTo(("a+c+b", "a+c+b")))
       }
     ),
@@ -721,18 +721,18 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray         <- makeTArray(N)("a").commit
           transformFiber <- tArray.transformM(a => STM.succeed(a + "+b")).commit.fork
-          _              <- STM.foreach(0 until N)(idx => tArray.array(idx).update(_ + "+c")).commit
+          _              <- STM.foreach(0 until N)(idx => tArray.update(idx, _ + "+c")).commit
           _              <- transformFiber.join
-          first          <- tArray.array(0).get.commit
-          last           <- tArray.array(N - 1).get.commit
+          first          <- tArray(0).commit
+          last           <- tArray(N - 1).commit
         } yield assert((first, last), equalTo(("a+b+c", "a+b+c")) || equalTo(("a+c+b", "a+c+b")))
       },
       testM("updates all or nothing") {
         for {
           tArray <- makeTArray(N)(0).commit
-          _      <- tArray.array(N / 2).update(_ => 1).commit
+          _      <- tArray.update(N / 2, _ => 1).commit
           result <- tArray.transformM(a => if (a == 0) STM.succeed(42) else STM.fail(boom)).commit.either
-          first  <- tArray.array(0).get.commit
+          first  <- tArray(0).commit
         } yield assert(result.left.map(r => (first, r)), isLeft(equalTo((0, boom))))
       }
     ),
@@ -821,7 +821,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeStair(N).commit
           findFiber <- tArray.reduceOption(_ + _).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ => 1)).commit
           result    <- findFiber.join
         } yield assert(result, isSome(equalTo((N * (N + 1)) / 2)) || isSome(equalTo(N)))
       }
@@ -849,7 +849,7 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray    <- makeStair(N).commit
           findFiber <- tArray.reduceOptionM(sumSucceed).commit.fork
-          _         <- STM.foreach(0 until N)(i => tArray.array(i).set(1)).commit
+          _         <- STM.foreach(0 until N)(i => tArray.update(i, _ => 1)).commit
           result    <- findFiber.join
         } yield assert(result, isSome(equalTo((N * (N + 1)) / 2)) || isSome(equalTo(N)))
       },

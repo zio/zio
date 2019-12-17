@@ -800,6 +800,21 @@ object SinkSpec extends ZIOBaseSpec {
           val sink1 = sinkWithLeftover(3, 1, -42)
           val sink2 = sinkWithLeftover(2, 4, -42)
           ZipParLaws.laws(zipParLawsStream, sink1, sink2)
+        },
+        testM("zipPar should continue only if both continue") {
+          val sink1          = ZSink.collectAllN[Int](3)
+          val sink2          = ZSink.collectAllN[Int](2)
+          val expectedResult = List(List(1, 2), List(3, 4), List(5, 6))
+
+          Stream(1, 2, 3, 4, 5, 6)
+            .aggregate(sink1 zipPar sink2)
+            .runCollect
+            .map { result =>
+              val (l, r) = result.unzip
+
+              assert(l, equalTo(expectedResult) ?? "Left sink result") &&
+              assert(r, equalTo(expectedResult) ?? "Right sink result")
+            }
         }
       ),
       suite("zipRight (*>)")(

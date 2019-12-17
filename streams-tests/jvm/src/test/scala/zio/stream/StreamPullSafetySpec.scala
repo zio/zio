@@ -478,7 +478,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
     ),
     testM("Stream.range is safe to pull again") {
       Stream
-        .range(1, 3)
+        .range(1, 4)
         .process
         .use(nPulls(_, 5))
         .map(assert(_)(equalTo(List(Right(1), Right(2), Right(3), Left(None), Left(None)))))
