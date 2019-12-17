@@ -974,12 +974,22 @@ object SinkSpec extends ZIOBaseSpec {
             equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15))
           )
         ),
-        testM("collectAllToMapN")(
-          assertM(
-            Stream
-              .range(0, 10)
-              .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 3)(_ + _)),
-            equalTo(Map[Int, Int](0 -> 18, 1 -> 12))
+        suite("collectAllToMapN")(
+          testM("stop collecting when map size exceeds limit")(
+            assertM(
+              Stream
+                .range(0, 10)
+                .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 3)(_ + _)),
+              equalTo(Map[Int, Int](0 -> 0, 1 -> 1))
+            )
+          ),
+          testM("keep collecting as long as map size does not exceed the limit")(
+            assertM(
+              Stream
+                .range(0, 10)
+                .run(Sink.collectAllToMapN[Int, Int](3)(value => value % 3)(_ + _)),
+              equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15))
+            )
           )
         ),
         testM("collectAllWhile")(

@@ -1252,18 +1252,18 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Combines elements with same key with supplied function f.
    */
   final def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): Sink[Nothing, A, A, Map[K, A]] = {
-
-    def inner(curMap: Map[K, A], a: A): (Map[K, A], Chunk[A]) = {
-      val k = key(a)
+    type State = (Map[K, A], Boolean)
+    def inner(state: State, a: A): (State, Chunk[A]) = {
+      val k      = key(a)
+      val curMap = state._1
       curMap
         .get(k)
         .fold(
-          if (curMap.size >= n) (curMap, Chunk.single(a))
-          else (curMap.updated(k, a), Chunk.empty)
-        )(v => (curMap.updated(k, f(v, a)), Chunk.empty))
-
+          if (curMap.size >= n) ((curMap, false), Chunk.single(a))
+          else ((curMap.updated(k, a), true), Chunk.empty)
+        )(v => ((curMap.updated(k, f(v, a)), true), Chunk.empty))
     }
-    fold[A, A, Map[K, A]](Map.empty)(_ => true)(inner)
+    fold[A, A, State]((Map.empty, true))(_._2)(inner).map(_._1)
   }
 
   /**
