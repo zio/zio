@@ -265,7 +265,8 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires an iterable contain the specified
-   * element.
+   * element. See [[Assertion.exists]] if you want to require an iterable to contain an element
+   * satisfying an assertion.
    */
   final def contains[A](element: A): Assertion[Iterable[A]] =
     Assertion.assertion("contains")(param(element))(_.exists(_ == element))
@@ -317,8 +318,9 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("equalsIgnoreCase")(param(other))(_.equalsIgnoreCase(other))
 
   /**
-   * Makes a new assertion that requires an iterable contain one element
-   * satisfying the given assertion.
+   * Makes a new assertion that requires an iterable contain an element
+   * satisfying the given assertion. See [[Assertion.contains]] if you only need an iterable
+   * to contain a given element.
    */
   final def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRecM("exists")(param(assertion))(assertion) { actual =>
