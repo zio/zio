@@ -572,6 +572,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
 
   /**
    * Preallocates the managed resource, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
+   * You should take care that you are not interrupted between running preallocate and actually acquiring the resource
+   * as you might leak otherwise.
    */
   final def preallocate: ZIO[R, E, Managed[Nothing, A]] =
     ZIO.uninterruptibleMask { restore =>
@@ -580,6 +582,23 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
         res      <- reserve
         resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
       } yield ZManaged.make(ZIO.succeed(resource))(_ => res.release(Exit.Success(resource)).provide(env))
+    }
+
+  /**
+   * Preallocates the managed resource inside an outer managed, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
+   */
+  final def preallocateManaged: ZManaged[R, E, Managed[Nothing, A]] =
+    ZManaged.finalizerRef[R](_ => ZIO.unit).mapM { finalizer =>
+      ZIO.uninterruptibleMask { restore =>
+        for {
+          env      <- ZIO.environment[R]
+          res      <- reserve
+          _        <- finalizer.set(res.release)
+          resource <- restore(res.acquire)
+        } yield ZManaged.make(ZIO.succeed(resource))(
+          _ => res.release(Exit.Success(resource)).provide(env) *> finalizer.set(_ => ZIO.unit)
+        )
+      }
     }
 
   /**
@@ -924,6 +943,10 @@ object ZManaged {
   final class AccessManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZManaged[R, E, A]): ZManaged[R, E, A] =
       ZManaged.environment.flatMap(f)
+  }
+
+  trait Scope {
+    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
   /**
@@ -1412,6 +1435,41 @@ object ZManaged {
    * Returns a `ZManaged` that never acquires a resource.
    */
   val never: ZManaged[Any, Nothing, Nothing] = ZManaged.fromEffect(ZIO.never)
+
+  /**
+   * Creates a scope in which resources can be safely preallocated.
+   */
+  final def scope[R]: ZManaged[R, Nothing, Scope] =
+    ZManaged {
+      // we abuse the fact that Function1 will use reference equality
+      Ref.make(Set.empty[Exit[Any, Any] => ZIO[R, Nothing, Any]]).map { finalizers =>
+        Reservation(
+          acquire = ZIO.succeed {
+            new Scope {
+              override def apply[R, E, A](managed: ZManaged[R, E, A]) =
+                ZIO.uninterruptibleMask { restore =>
+                  for {
+                    env      <- ZIO.environment[R]
+                    res      <- managed.reserve
+                    resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
+                    release  = res.release.andThen(_.provide(env))
+                    _        <- finalizers.update(_ + release)
+                  } yield ZManaged
+                    .make(ZIO.succeed(resource))(
+                      _ => release(Exit.Success(resource)).ensuring(finalizers.update(_ - release))
+                    )
+                }
+            }
+          },
+          release = exitU =>
+            for {
+              fs    <- finalizers.get
+              exits <- ZIO.foreachPar(fs)(_(exitU).run)
+              _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+            } yield ()
+        )
+      }
+    }
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.

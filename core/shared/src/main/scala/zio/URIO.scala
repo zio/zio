@@ -248,6 +248,12 @@ object URIO {
     ZIO.foldLeft(in)(zero)(f)
 
   /**
+   * @see [[zio.ZIO.foldRight]
+   */
+  final def foldRight[R, S, A](in: Iterable[A])(zero: S)(f: (A, S) => URIO[R, S]): URIO[R, S] =
+    ZIO.foldRight(in)(zero)(f)
+
+  /**
    * @see [[zio.ZIO.foreach]]
    */
   final def foreach[R, A, B](in: Iterable[A])(f: A => URIO[R, B]): URIO[R, List[B]] =
