@@ -203,17 +203,18 @@ object IO {
   /**
    * @see [[zio.ZIO.effectSuspendWith]]
    */
-  final def effectSuspendWith[A](p: Platform => IO[Throwable, A]): IO[Throwable, A] = ZIO.effectSuspendWith(p)
+  final def effectSuspendWith[A](p: (Platform, Fiber.Id) => IO[Throwable, A]): IO[Throwable, A] =
+    ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[E, A](io: => IO[E, A]): IO[E, A] = new ZIO.EffectSuspendTotalWith(_ => io)
+  final def effectSuspendTotal[E, A](io: => IO[E, A]): IO[E, A] = ZIO.effectSuspendTotal(io)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[E, A](p: Platform => IO[E, A]): IO[E, A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[E, A](p: (Platform, Fiber.Id) => IO[E, A]): IO[E, A] = ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -249,6 +250,12 @@ object IO {
    */
   final def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => IO[E, S]): IO[E, S] =
     ZIO.foldLeft(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.foldRight]]
+   */
+  final def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => IO[E, S]): IO[E, S] =
+    ZIO.foldRight(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.foreach]]
@@ -337,6 +344,12 @@ object IO {
    */
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     ZIO.fromFuture(make)
+
+  /**
+   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   */
+  final def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFutureInterrupt(make)
 
   /**
    * @see See [[zio.ZIO.fromOption]]
@@ -465,6 +478,14 @@ object IO {
    * @see See [[zio.ZIO.none]]
    */
   final val none: UIO[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.partitionM]]
+   */
+  final def partitionM[E, A, B](
+    in: Iterable[A]
+  )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
+    ZIO.partitionM(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -615,6 +636,18 @@ object IO {
    * @see See [[zio.ZIO.untraced]]
    */
   final def untraced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.untraced(zio)
+
+  /**
+   * @see See [[zio.ZIO.validateM]]
+   */
+  final def validateM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], List[B]] =
+    ZIO.validateM(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.validateFirstM]]
+   */
+  final def validateFirstM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+    ZIO.validateFirstM(in)(f)
 
   /**
    * @see See [[zio.ZIO.when]]

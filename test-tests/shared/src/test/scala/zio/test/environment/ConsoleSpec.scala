@@ -2,6 +2,7 @@ package zio.test.environment
 
 import zio.console._
 import zio.test.Assertion._
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment.TestConsole._
 
@@ -74,6 +75,12 @@ object ConsoleSpec extends ZIOBaseSpec {
         _      <- clearOutput
         output <- TestConsole.output
       } yield assert(output, isEmpty)
-    }
+    },
+    testM("output is empty at the start of repeating tests") {
+      for {
+        output <- TestConsole.output
+        _      <- putStrLn("Input")
+      } yield assert(output, isEmpty)
+    } @@ nonFlaky
   )
 }

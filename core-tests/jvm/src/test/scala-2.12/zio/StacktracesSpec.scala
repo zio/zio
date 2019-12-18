@@ -604,7 +604,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   object singleEffectTotalWithForCompFixture {
     def asyncDbCall(): Task[Unit] =
-      Task.effectSuspendTotalWith(_ => throw new Exception)
+      Task.effectSuspendTotal(throw new Exception)
 
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()

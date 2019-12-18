@@ -18,13 +18,24 @@ object STMSpec extends ZIOBaseSpec {
       },
       suite("`either` to convert")(
         testM("A successful computation into Right(a)") {
+          import zio.CanFail.canFail
           assertM(STM.succeed(42).either.commit, isRight(equalTo(42)))
         },
         testM("A failed computation into Left(e)") {
           assertM(STM.fail("oh no!").either.commit, isLeft(equalTo("oh no!")))
         }
       ),
+      suite("fallback")(
+        testM("Tries this effect first") {
+          import zio.CanFail.canFail
+          assertM(STM.succeed(1).fallback(2).commit, equalTo(1))
+        },
+        testM("If it fails, succeeds with the specified value") {
+          assertM(STM.fail("fail").fallback(1).commit, equalTo(1))
+        }
+      ),
       testM("`fold` to handle both failure and success") {
+        import zio.CanFail.canFail
         val stm = for {
           s <- STM.succeed("Yes!").fold(_ => -1, _ => 1)
           f <- STM.fail("No!").fold(_ => -1, _ => 1)
@@ -32,6 +43,7 @@ object STMSpec extends ZIOBaseSpec {
         assertM(stm.commit, equalTo((1, -1)))
       },
       testM("`foldM` to fold over the `STM` effect, and handle failure and success") {
+        import zio.CanFail.canFail
         val stm = for {
           s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
           f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
@@ -42,6 +54,7 @@ object STMSpec extends ZIOBaseSpec {
         assertM(STM.fail(-1).mapError(_ => "oh no!").commit.run, fails(equalTo("oh no!")))
       },
       testM("`orElse` to try another computation when the computation is failed") {
+        import zio.CanFail.canFail
         (for {
           s <- STM.succeed(1) orElse STM.succeed(2)
           f <- STM.fail("failed") orElse STM.succeed("try this")
@@ -49,6 +62,7 @@ object STMSpec extends ZIOBaseSpec {
       },
       suite("`option` to convert:")(
         testM("A successful computation into Some(a)") {
+          import zio.CanFail.canFail
           assertM(STM.succeed(42).option.commit, isSome(equalTo(42)))
         },
         testM("A failed computation into None") {
@@ -275,6 +289,12 @@ object STMSpec extends ZIOBaseSpec {
           STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.commit,
           equalTo("Positive")
         )
+      },
+      testM("Using `collectM` filter and map simultaneously the value produced by the transaction") {
+        assertM(
+          STM.succeed((1 to 20).toList).collectM { case l if l.forall(_ > 0) => STM.succeed("Positive") }.commit,
+          equalTo("Positive")
+        )
       }
     ),
     testM("Permute 2 variables") {
@@ -320,6 +340,7 @@ object STMSpec extends ZIOBaseSpec {
     testM(
       "Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed"
     ) {
+      import zio.CanFail.canFail
       for {
         rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).commit
         leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
@@ -354,6 +375,7 @@ object STMSpec extends ZIOBaseSpec {
     ),
     suite("orElse must")(
       testM("rollback left retry") {
+        import zio.CanFail.canFail
         for {
           tvar  <- TRef.makeCommit(0)
           left  = tvar.update(_ + 100) *> STM.retry
@@ -393,7 +415,55 @@ object STMSpec extends ZIOBaseSpec {
           sum      <- sumFiber.join
         } yield assert(sum, equalTo(0) || equalTo(2))
       } @@ nonFlaky(5000)
-    }
+    },
+    suite("STM stack safety")(
+      testM("long map chains") {
+        assertM(chain(10000)(_.map(_ + 1)), equalTo(10000))
+      },
+      testM("long collect chains") {
+        assertM(chain(10000)(_.collect { case a: Int => a + 1 }), equalTo(10000))
+      },
+      testM("long collectM chains") {
+        assertM(chain(10000)(_.collectM { case a: Int => STM.succeed(a + 1) }), equalTo(10000))
+      },
+      testM("long flatMap chains") {
+        assertM(chain(10000)(_.flatMap(a => STM.succeed(a + 1))), equalTo(10000))
+      },
+      testM("long fold chains") {
+        import zio.CanFail.canFail
+        assertM(chain(10000)(_.fold(_ => 0, _ + 1)), equalTo(10000))
+      },
+      testM("long foldM chains") {
+        import zio.CanFail.canFail
+        assertM(chain(10000)(_.foldM(_ => STM.succeed(0), a => STM.succeed(a + 1))), equalTo(10000))
+      },
+      testM("long mapError chains") {
+        def chain(depth: Int): ZIO[Any, Int, Nothing] = {
+          @annotation.tailrec
+          def loop(n: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
+            if (n <= 0) acc.commit else loop(n - 1, acc.mapError(_ + 1))
+
+          loop(depth, STM.fail(0))
+        }
+
+        assertM(chain(10000).run, fails(equalTo(10000)))
+      },
+      testM("long orElse chains") {
+        def chain(depth: Int): ZIO[Any, Int, Nothing] = {
+          @annotation.tailrec
+          def loop(n: Int, curr: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
+            if (n <= 0) acc.commit
+            else {
+              val inc = curr + 1
+              loop(n - 1, inc, acc.orElse(STM.fail(inc)))
+            }
+
+          loop(depth, 0, STM.fail(0))
+        }
+
+        assertM(chain(10000).run, fails(equalTo(10000)))
+      }
+    )
   )
 
   def unpureSuspend(ms: Long) = STM.succeed {
@@ -456,4 +526,12 @@ object STMSpec extends ZIOBaseSpec {
       _ <- tvar1.set(b)
       _ <- tvar2.set(a)
     } yield ()
+
+  def chain(depth: Int)(next: STM[Nothing, Int] => STM[Nothing, Int]): UIO[Int] = {
+    @annotation.tailrec
+    def loop(n: Int, acc: STM[Nothing, Int]): UIO[Int] =
+      if (n <= 0) acc.commit else loop(n - 1, next(acc))
+
+    loop(depth, STM.succeed(0))
+  }
 }

@@ -156,6 +156,27 @@ object ClockSpec extends ZIOBaseSpec {
         result   <- fiberTime
         expected <- clock.currentTime(TimeUnit.MILLISECONDS)
       } yield assert(result.toMillis, equalTo(expected))
+    } @@ nonFlaky,
+    testM("fiber time & clock time are always 0 at the start of a test that repeats with @@ nonFlaky")(
+      for {
+        fiberTime <- TestClock.fiberTime
+        clockTime <- currentTime(TimeUnit.NANOSECONDS)
+        _         <- adjust(3.nanos)
+        _         <- sleep(2.nanos)
+      } yield assert(fiberTime, equalTo(0.millis)) &&
+        assert(clockTime, equalTo(0.millis.toNanos))
+    ) @@ nonFlaky(3),
+    testM("sleeps on forks that don't rejoin does not increase fiber time") {
+      for {
+        latch1 <- Promise.make[Nothing, Unit]
+        latch2 <- Promise.make[Nothing, Unit]
+        _      <- (sleep(2.nanos) *> latch2.succeed(())).fork
+        _      <- (sleep(1.nanos) *> latch1.succeed(())).fork
+        _      <- adjust(2.nanos)
+        _      <- latch1.await
+        _      <- latch2.await
+        result <- fiberTime
+      } yield assert(result, equalTo(0.nanos))
     } @@ nonFlaky
   )
 }

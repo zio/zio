@@ -811,6 +811,21 @@ object SinkSpec extends ZIOBaseSpec {
           val sink1 = sinkWithLeftover(3, 1, -42)
           val sink2 = sinkWithLeftover(2, 4, -42)
           ZipParLaws.laws(zipParLawsStream, sink1, sink2)
+        },
+        testM("zipPar should continue only if both continue") {
+          val sink1          = ZSink.collectAllN[Int](3)
+          val sink2          = ZSink.collectAllN[Int](2)
+          val expectedResult = List(List(1, 2), List(3, 4), List(5, 6))
+
+          Stream(1, 2, 3, 4, 5, 6)
+            .aggregate(sink1 zipPar sink2)
+            .runCollect
+            .map { result =>
+              val (l, r) = result.unzip
+
+              assert(l, equalTo(expectedResult) ?? "Left sink result") &&
+              assert(r, equalTo(expectedResult) ?? "Right sink result")
+            }
         }
       ),
       suite("zipRight (*>)")(
@@ -930,41 +945,53 @@ object SinkSpec extends ZIOBaseSpec {
         }
       ),
       suite("collectAll")(
-        testM("collectAllN") {
+        testM("collectAllN")(
           assertM(
             Stream[Int](1, 2, 3)
               .run(Sink.collectAllN[Int](2)),
             equalTo(List(1, 2))
           )
-        },
-        testM("collectAllToSet") {
+        ),
+        testM("collectAllToSet")(
           assertM(
             Stream[Int](1, 2, 3, 3, 4)
               .run(Sink.collectAllToSet[Int]),
             equalTo(Set(1, 2, 3, 4))
           )
-        },
-        testM("collectAllToSetN") {
+        ),
+        testM("collectAllToSetN")(
           assertM(
             Stream[Int](1, 2, 1, 2, 3, 3, 4)
               .run(Sink.collectAllToSetN[Int](3)),
             equalTo(Set(1, 2, 3))
           )
-        },
-        testM("collectAllToMap") {
+        ),
+        testM("collectAllToMap")(
           assertM(
-            Stream[Int](1, 2, 3)
-              .run(Sink.collectAllToMap[Int, Int](value => value)),
-            equalTo(Map[Int, Int](1 -> 1, 2 -> 2, 3 -> 3))
+            Stream
+              .range(0, 10)
+              .run(Sink.collectAllToMap[Int, Int](value => value % 3)(_ + _)),
+            equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15))
           )
-        },
-        testM("collectAllToMapN") {
-          assertM(
-            Stream[Int](1, 2, 3, 4, 5, 6)
-              .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 2)),
-            equalTo(Map[Int, Int](1 -> 1, 0 -> 2))
+        ),
+        suite("collectAllToMapN")(
+          testM("stop collecting when map size exceeds limit")(
+            assertM(
+              Stream
+                .range(0, 10)
+                .run(Sink.collectAllToMapN[Int, Int](2)(value => value % 3)(_ + _)),
+              equalTo(Map[Int, Int](0 -> 0, 1 -> 1))
+            )
+          ),
+          testM("keep collecting as long as map size does not exceed the limit")(
+            assertM(
+              Stream
+                .range(0, 10)
+                .run(Sink.collectAllToMapN[Int, Int](3)(value => value % 3)(_ + _)),
+              equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15))
+            )
           )
-        },
+        ),
         testM("collectAllWhile")(
           checkM(Gen.small(pureStreamGen(Gen.anyString, _)), Gen.function(Gen.boolean)) { (s, f) =>
             for {
@@ -975,7 +1002,7 @@ object SinkSpec extends ZIOBaseSpec {
         )
       ),
       suite("foldWeighted/foldUntil")(
-        testM("foldWeighted") {
+        testM("foldWeighted")(
           assertM(
             Stream[Long](1, 5, 2, 3)
               .aggregate(
@@ -984,8 +1011,8 @@ object SinkSpec extends ZIOBaseSpec {
               .runCollect,
             equalTo(List(List(1L, 5L), List(2L, 3L)))
           )
-        },
-        testM("foldWeightedDecompose") {
+        ),
+        testM("foldWeightedDecompose")(
           assertM(
             Stream(1, 5, 1)
               .aggregate(
@@ -999,8 +1026,8 @@ object SinkSpec extends ZIOBaseSpec {
               .runCollect,
             equalTo(List(List(1), List(4), List(1, 1)))
           )
-        },
-        testM("foldWeightedM") {
+        ),
+        testM("foldWeightedM")(
           assertM(
             Stream[Long](1, 5, 2, 3)
               .aggregate(
@@ -1013,8 +1040,8 @@ object SinkSpec extends ZIOBaseSpec {
               .runCollect,
             equalTo(List(List(1L, 5L), List(2L, 3L)))
           )
-        },
-        testM("foldWeightedDecomposeM") {
+        ),
+        testM("foldWeightedDecomposeM")(
           assertM(
             Stream(1, 5, 1)
               .aggregate(
@@ -1031,39 +1058,39 @@ object SinkSpec extends ZIOBaseSpec {
               .runCollect,
             equalTo(List(List(1), List(4), List(1, 1)))
           )
-        },
-        testM("foldUntil") {
+        ),
+        testM("foldUntil")(
           assertM(
             Stream[Long](1, 1, 1, 1, 1, 1)
               .aggregate(Sink.foldUntil(0L, 3)(_ + (_: Long)))
               .runCollect,
             equalTo(List(3L, 3L))
           )
-        },
-        testM("foldUntilM") {
+        ),
+        testM("foldUntilM")(
           assertM(
             Stream[Long](1, 1, 1, 1, 1, 1)
               .aggregate(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
               .runCollect,
             equalTo(List(3L, 3L))
           )
-        },
-        testM("fromFunction") {
+        ),
+        testM("fromFunction")(
           assertM(
             Stream(1, 2, 3, 4, 5)
               .aggregate(Sink.fromFunction[Int, String](_.toString))
               .runCollect,
             equalTo(List("1", "2", "3", "4", "5"))
           )
-        },
-        testM("fromFunctionM") {
+        ),
+        testM("fromFunctionM")(
           assertM(
             Stream("1", "2", "3", "4", "5")
               .transduce(Sink.fromFunctionM[Throwable, String, Int](s => Task(s.toInt)))
               .runCollect,
             equalTo(List(1, 2, 3, 4, 5))
           )
-        }
+        )
       ),
       testM("fromOutputStream") {
         import java.io.ByteArrayOutputStream

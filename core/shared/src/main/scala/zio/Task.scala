@@ -198,22 +198,22 @@ object Task {
   /**
    * @see See [[zio.RIO.effectSuspend]]
    */
-  final def effectSuspend[A](task: => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(_ => task)
+  final def effectSuspend[A](task: => Task[A]): Task[A] = ZIO.effectSuspend(task)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[A](task: => Task[A]): Task[A] = new ZIO.EffectSuspendTotalWith(_ => task)
+  final def effectSuspendTotal[A](task: => Task[A]): Task[A] = ZIO.effectSuspendTotal(task)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] = ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.RIO.effectSuspendWith]]
    */
-  final def effectSuspendWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(p)
+  final def effectSuspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] = ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -250,6 +250,12 @@ object Task {
    */
   final def foldLeft[S, A](in: Iterable[A])(zero: S)(f: (S, A) => Task[S]): Task[S] =
     ZIO.foldLeft(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.foldRight]]
+   */
+  final def foldRight[S, A](in: Iterable[A])(zero: S)(f: (A, S) => Task[S]): Task[S] =
+    ZIO.foldRight(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.foreach]]
@@ -321,6 +327,12 @@ object Task {
    * @see [[zio.ZIO.fromFunction]]
    */
   final def fromFunction[A](f: Any => A): Task[A] = ZIO.fromFunction(f)
+
+  /**
+   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   */
+  final def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFutureInterrupt(make)
 
   /**
    * @see [[zio.ZIO.fromFunctionFuture]]
@@ -461,6 +473,14 @@ object Task {
    * @see See [[zio.ZIO.none]]
    */
   final val none: Task[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.partitionM]]
+   */
+  final def partitionM[A, B](
+    in: Iterable[A]
+  )(f: A => Task[B])(implicit ev: CanFail[Throwable]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionM(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]

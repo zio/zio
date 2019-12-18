@@ -66,7 +66,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val environments    = Stack[AnyRef](startEnv)
   private[this] val executors       = Stack[Executor](startExec)
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-  private[this] val _children       = Platform.newConcurrentSet[FiberContext[Any, Any]]()
+  private[zio] val _children        = Platform.newConcurrentSet[FiberContext[Any, Any]]()
   private[this] val daemonStatus    = StackBool(startDStatus)
 
   private[this] val tracingStatus =
@@ -543,7 +543,7 @@ private[zio] final class FiberContext[E, A](
                     val k = zio.f
                     if (traceExec && inTracingRegion) addTrace(k)
 
-                    curZio = try k(platform).asInstanceOf[ZIO[Any, E, Any]]
+                    curZio = try k(platform, fiberId).asInstanceOf[ZIO[Any, E, Any]]
                     catch {
                       case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
                     }
@@ -554,7 +554,7 @@ private[zio] final class FiberContext[E, A](
                     val k = zio.f
                     if (traceExec && inTracingRegion) addTrace(k)
 
-                    curZio = k(platform)
+                    curZio = k(platform, fiberId)
 
                   case ZIO.Tags.Trace =>
                     curZio = nextInstr(captureTrace(null))
@@ -647,7 +647,16 @@ private[zio] final class FiberContext[E, A](
 
     if (!isDaemon) {
       self._children.add(childContext.asInstanceOf[FiberContext[Any, Any]])
-      childContext.onDone(_ => { val _ = self._children.remove(childContext) })
+      childContext.onDone { _ =>
+        val _ = {
+          val iterator = childContext._children.iterator()
+          while (iterator.hasNext()) {
+            val child = iterator.next()
+            self._children.add(child)
+          }
+          self._children.remove(childContext)
+        }
+      }
     } else {
       Fiber.track(childContext)
     }
@@ -812,7 +821,8 @@ private[zio] final class FiberContext[E, A](
           while (iterator.hasNext()) {
             val child = iterator.next()
 
-            child.parentFiber = self.parentFiber
+            if (self.parentFiber ne null) child.parentFiber = self.parentFiber
+            else Fiber.track(child)
           }
           self.parentFiber = null
           null

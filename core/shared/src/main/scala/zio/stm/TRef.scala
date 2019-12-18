@@ -34,22 +34,22 @@ class TRef[A] private (
    * Retrieves the value of the `TRef`.
    */
   final val get: STM[Nothing, A] =
-    new STM(journal => {
+    new STM((journal, _, _) => {
       val entry = getOrMakeEntry(journal)
 
-      TRez.Succeed(entry.unsafeGet[A])
+      TExit.Succeed(entry.unsafeGet[A])
     })
 
   /**
    * Sets the value of the `TRef`.
    */
   final def set(newValue: A): STM[Nothing, Unit] =
-    new STM(journal => {
+    new STM((journal, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       entry.unsafeSet(newValue)
 
-      succeedUnit
+      TExit.Succeed(())
     })
 
   override final def toString =
@@ -59,14 +59,14 @@ class TRef[A] private (
    * Updates the value of the variable.
    */
   final def update(f: A => A): STM[Nothing, A] =
-    new STM(journal => {
+    new STM((journal, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       val newValue = f(entry.unsafeGet[A])
 
       entry.unsafeSet(newValue)
 
-      TRez.Succeed(newValue)
+      TExit.Succeed(newValue)
     })
 
   /**
@@ -80,14 +80,14 @@ class TRef[A] private (
    * value.
    */
   final def modify[B](f: A => (B, A)): STM[Nothing, B] =
-    new STM(journal => {
+    new STM((journal, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       val (retValue, newValue) = f(entry.unsafeGet[A])
 
       entry.unsafeSet(newValue)
 
-      TRez.Succeed(retValue)
+      TExit.Succeed(retValue)
     })
 
   /**
@@ -112,7 +112,7 @@ object TRef {
    * Makes a new `TRef` that is initialized to the specified value.
    */
   final def make[A](a: => A): STM[Nothing, TRef[A]] =
-    new STM(journal => {
+    new STM((journal, _, _) => {
       val value     = a
       val versioned = new Versioned(value)
 
@@ -122,7 +122,7 @@ object TRef {
 
       journal.put(tref, Entry(tref, true))
 
-      TRez.Succeed(tref)
+      TExit.Succeed(tref)
     })
 
   /**
