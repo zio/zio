@@ -16,42 +16,82 @@ package zio.test
  * limitations under the License.
  */
 
-import zio.UIO
-import zio.duration._
-import zio.test.ConsoleUtils._
+import zio.test.TestAnnotationRenderer._
+
+/**
+ * A `TestAnnotationRenderer` knows how to render test annotations.
+ */
+sealed trait TestAnnotationRenderer { self =>
+
+  def run(ancestors: List[TestAnnotationMap], child: TestAnnotationMap): List[String]
+
+  /**
+   * A symbolic alias for `combine`.
+   */
+  final def <>(that: TestAnnotationRenderer): TestAnnotationRenderer =
+    self.combine(that)
+
+  /**
+   * Combines this test annotation renderer with the specified test annotation
+   * renderer to produce a new test annotation renderer that renders both sets
+   * of test annotations.
+   */
+  final def combine(that: TestAnnotationRenderer): TestAnnotationRenderer =
+    (self, that) match {
+      case (CompositeRenderer(left), CompositeRenderer(right)) => CompositeRenderer(left ++ right)
+      case (CompositeRenderer(left), leaf)                     => CompositeRenderer(left ++ Vector(leaf))
+      case (leaf, CompositeRenderer(right))                    => CompositeRenderer(Vector(leaf) ++ right)
+      case (left, right)                                       => CompositeRenderer(Vector(left, right))
+    }
+}
 
 object TestAnnotationRenderer {
 
-  val Timed: TestAnnotationRenderer[Any, String, Any] = { executedSpec =>
-    val results = executedSpec.fold[UIO[Vector[(String, Duration)]]] {
-      case Spec.SuiteCase(_, executedSpecs, _) =>
-        executedSpecs.flatMap(UIO.collectAll(_).map(_.foldLeft(Vector.empty[(String, Duration)])(_ ++ _)))
-      case Spec.TestCase(label, test) =>
-        test.map {
-          case (_, annotationMap) =>
-            val d = annotationMap.get(TestAnnotation.Timing)
-            if (d > Duration.Zero)
-              Vector(label -> annotationMap.get(TestAnnotation.Timing))
-            else
-              Vector.empty
-        }
-    }
-    results.map { times =>
-      val count   = times.length
-      val sum     = times.map(_._2).fold(Duration.Zero)(_ + _)
-      val summary = s"Timed $count tests in ${sum.render}:\n"
-      val details = times
-        .sortBy(_._2)
-        .reverse
-        .map {
-          case (label, duration) =>
-            f"  ${green("+")} $label: ${duration.render} (${(duration.toNanos.toDouble / sum.toNanos) * 100}%2.2f%%)"
-        }
-        .mkString("\n")
-      if (count > 0) Some(summary ++ details) else None
-    }
+  /**
+   * A test annotation renderer that renders a single test annotation.
+   */
+  sealed trait LeafRenderer extends TestAnnotationRenderer
+
+  object LeafRenderer {
+    def apply[V](annotation: TestAnnotation[V])(render: ::[V] => Option[String]): TestAnnotationRenderer =
+      new LeafRenderer {
+        def run(ancestors: List[TestAnnotationMap], child: TestAnnotationMap): List[String] =
+          render(::(child.get(annotation), ancestors.map(_.get(annotation)))).toList
+      }
   }
 
-  val Default =
-    List(Timed)
+  /**
+   * A test annotation renderer that combines multiple other test annotation renderers.
+   */
+  final case class CompositeRenderer(renderers: Vector[TestAnnotationRenderer]) extends TestAnnotationRenderer {
+    def run(ancestors: List[TestAnnotationMap], child: TestAnnotationMap): List[String] =
+      renderers.toList.flatMap(_.run(ancestors, child))
+  }
+
+  /**
+   * The default test annotation renderer used by the `DefaultTestReporter`.
+   */
+  final lazy val default: TestAnnotationRenderer =
+    timed
+
+  /**
+   * A test annotation renderer that does not render any test annotations.
+   */
+  final val silent: TestAnnotationRenderer =
+    new TestAnnotationRenderer {
+      def run(ancestors: List[TestAnnotationMap], child: TestAnnotationMap): List[String] =
+        List.empty
+    }
+
+  /**
+   * A test annotation renderer that renders the time taken to execute each
+   * test or suite both in absolute duration and as a percentage of total
+   * execution time.
+   */
+  final val timed: TestAnnotationRenderer =
+    LeafRenderer(TestAnnotation.timing) {
+      case (child :: ancestors) =>
+        if (child.isZero) None
+        else Some(f"${child.render} (${(child.toNanos.toDouble / (child :: ancestors).last.toNanos) * 100}%2.2f%%)")
+    }
 }

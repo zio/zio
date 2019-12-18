@@ -42,12 +42,12 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   /**
    * Returns a new spec with the annotation map at each node.
    */
-  final def annotated: Spec[R with Annotated, (TestAnnotationMap, E), L, (TestAnnotationMap, T)] =
-    transform[R with Annotated, (TestAnnotationMap, E), L, (TestAnnotationMap, T)] {
+  final def annotated: Spec[R with Annotations, Annotated[E], L, Annotated[T]] =
+    transform[R with Annotations, Annotated[E], L, Annotated[T]] {
       case Spec.SuiteCase(label, specs, exec) =>
-        Spec.SuiteCase(label, specs.mapError(e => (TestAnnotationMap.empty, e)), exec)
+        Spec.SuiteCase(label, specs.mapError((_, TestAnnotationMap.empty)), exec)
       case Spec.TestCase(label, test) =>
-        Spec.TestCase(label, Annotated.withAnnotation(test))
+        Spec.TestCase(label, Annotations.withAnnotation(test))
     }
 
   /**

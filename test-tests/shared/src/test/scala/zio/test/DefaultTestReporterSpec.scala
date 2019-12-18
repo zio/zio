@@ -185,6 +185,6 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
   private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String, String, Unit, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](testEnvironment),
-      reporter = DefaultTestReporter(TestAnnotationRenderer.Default)
+      reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 }

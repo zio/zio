@@ -19,7 +19,7 @@ package zio.test
 import zio.{ Managed, ZIO }
 
 object TestExecutor {
-  def managed[R <: Annotated, E, L, S](
+  def managed[R <: Annotations, E, L, S](
     environment: Managed[Nothing, R]
   ): TestExecutor[R, E, L, S, S] =
     (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
@@ -28,10 +28,10 @@ object TestExecutor {
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(
-              { case (map, failure) => ZIO.succeed((Left(failure), map)) },
+              { case (failure, annotations) => ZIO.succeed((Left(failure), annotations)) },
               cause => ZIO.succeed((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
             ), {
-            case (map, success) => ZIO.succeed((Right(success), map))
+            case (success, annotations) => ZIO.succeed((Right(success), annotations))
           }
         )
     }

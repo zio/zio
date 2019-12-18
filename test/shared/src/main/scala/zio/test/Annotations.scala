@@ -19,71 +19,71 @@ package zio.test
 import zio.{ FiberRef, UIO, ZIO }
 
 /**
- * The `Annotated` trait provides access to an annotation map that tests
+ * The `Annotations` trait provides access to an annotation map that tests
  * can add arbitrary annotations to. Each annotation consists of a string
  * identifier, an initial value, and a function for combining two values.
- * Annotations form monoids and you can think of `Annotated` as a more
+ * Annotations form monoids and you can think of `Annotations` as a more
  * structured logging service or as a super polymorphic version of the writer
  * monad effect.
  */
-trait Annotated {
-  val annotated: Annotated.Service[Any]
+trait Annotations {
+  val annotations: Annotations.Service[Any]
 }
 
-object Annotated {
+object Annotations {
 
   trait Service[R] {
     def annotate[V](key: TestAnnotation[V], value: V): ZIO[R, Nothing, Unit]
     def get[V](key: TestAnnotation[V]): ZIO[R, Nothing, V]
-    def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, (TestAnnotationMap, E), (TestAnnotationMap, A)]
+    def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]]
   }
 
   /**
-   * Accesses an `Annotated` instance in the environment and appends the
+   * Accesses an `Annotations` instance in the environment and appends the
    * specified annotation to the annotation map.
    */
-  def annotate[V](key: TestAnnotation[V], value: V): ZIO[Annotated, Nothing, Unit] =
-    ZIO.accessM(_.annotated.annotate(key, value))
+  def annotate[V](key: TestAnnotation[V], value: V): ZIO[Annotations, Nothing, Unit] =
+    ZIO.accessM(_.annotations.annotate(key, value))
 
   /**
-   * Accesses an `Annotated` instance in the environment and retrieves the
+   * Accesses an `Annotations` instance in the environment and retrieves the
    * annotation of the specified type, or its default value if there is none.
    */
-  def get[V](key: TestAnnotation[V]): ZIO[Annotated, Nothing, V] =
-    ZIO.accessM(_.annotated.get(key))
+  def get[V](key: TestAnnotation[V]): ZIO[Annotations, Nothing, V] =
+    ZIO.accessM(_.annotations.get(key))
 
   /**
-   * Constructs a new `Annotated` instance.
+   * Constructs a new `Annotations` instance.
    */
-  def make: UIO[Annotated] =
+  def make: UIO[Annotations] =
     makeService.map { service =>
-      new Annotated {
-        val annotated = service
+      new Annotations {
+        val annotations = service
       }
     }
 
   /**
-   * Constructs a new `Annotated` service.
+   * Constructs a new `Annotations` service.
    */
-  def makeService: UIO[Annotated.Service[Any]] =
+  def makeService: UIO[Annotations.Service[Any]] =
     FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
-      new Annotated.Service[Any] {
+      new Annotations.Service[Any] {
         def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
           fiberRef.update(_.annotate(key, value)).unit
         def get[V](key: TestAnnotation[V]): UIO[V] =
           fiberRef.get.map(_.get(key))
-        def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, (TestAnnotationMap, E), (TestAnnotationMap, A)] =
+        def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
           fiberRef.locally(TestAnnotationMap.empty) {
-            zio.foldM(e => fiberRef.get.map((_, e)).flip, a => fiberRef.get.map((_, a)))
+            zio.foldM(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
           }
       }
     }
 
   /**
-   * Accesses an `Annotated` instance in the environment and executes the
+   * Accesses an `Annotations` instance in the environment and executes the
    * specified effect with an empty annotation map, returning the annotation
    * map along with the result of execution.
    */
-  def withAnnotation[R <: Annotated, E, A](zio: ZIO[R, E, A]): ZIO[R, (TestAnnotationMap, E), (TestAnnotationMap, A)] =
-    ZIO.accessM(_.annotated.withAnnotation(zio))
+  def withAnnotation[R <: Annotations, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
+    ZIO.accessM(_.annotations.withAnnotation(zio))
 }

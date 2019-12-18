@@ -88,14 +88,21 @@ package object test extends CompileVariants {
   type ZSpec[-R, +E, +L, +S] = Spec[R, TestFailure[E], L, TestSuccess[S]]
 
   /**
-   * An `ExecutedSpec` is a spec that has been run to produce test results.
+   * An `ExecutedResult[E, S] is either a `TestSuccess[S]` or a
+   * `TestFailure[E]`.
    */
-  type ExecutedSpec[+E, +L, +S] = Spec[Any, Nothing, L, (Either[TestFailure[E], TestSuccess[S]], TestAnnotationMap)]
+  type ExecutedResult[+E, +S] = Either[TestFailure[E], TestSuccess[S]]
 
   /**
-   * A `TestAnnotationRenderer` knows how to render a test annotation.
+   * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type TestAnnotationRenderer[-E, -L, -S] = (ExecutedSpec[E, L, S]) => UIO[Option[String]]
+  type ExecutedSpec[+E, +L, +S] = Spec[Any, Nothing, L, Annotated[ExecutedResult[E, S]]]
+
+  /**
+   * An `Annotated[A]` contains a value of type `A` along with zero or more
+   * test annotations.
+   */
+  type Annotated[+A] = (A, TestAnnotationMap)
 
   /**
    * Checks the assertion holds for the given value.

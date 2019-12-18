@@ -27,65 +27,79 @@ import zio.{ Cause, UIO, URIO }
 
 object DefaultTestReporter {
 
-  def render[E, S](executedSpec: ExecutedSpec[E, String, S]): UIO[Seq[RenderedResult]] = {
-    def loop(executedSpec: ExecutedSpec[E, String, S], depth: Int): UIO[Seq[RenderedResult]] =
+  def render[E, S](
+    executedSpec: ExecutedSpec[E, String, S],
+    testAnnotationRenderer: TestAnnotationRenderer
+  ): UIO[Seq[RenderedResult]] = {
+    def loop(
+      executedSpec: ExecutedSpec[E, String, S],
+      depth: Int,
+      ancestors: List[TestAnnotationMap]
+    ): UIO[Seq[RenderedResult]] =
       executedSpec.caseValue match {
-        case Spec.SuiteCase(label, executedSpecs, _) =>
+        case c @ Spec.SuiteCase(label, executedSpecs, _) =>
           for {
             specs <- executedSpecs
             failures <- UIO.foreach(specs)(_.exists {
                          case Spec.TestCase(_, test) => test.map(_._1.isLeft);
                          case _                      => UIO.succeed(false)
                        })
+            annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
+                            case Spec.SuiteCase(_, specs, _) =>
+                              specs.flatMap(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
+                            case Spec.TestCase(_, test) => test.map(_._2)
+                          }
             hasFailures = failures.exists(identity)
             status      = if (hasFailures) Failed else Passed
             renderedLabel = if (specs.isEmpty) Seq.empty
             else if (hasFailures) Seq(renderFailureLabel(label, depth))
             else Seq(renderSuccessLabel(label, depth))
-            rest <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
-          } yield rendered(Suite, label, status, depth, renderedLabel: _*) +: rest
+            renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
+            rest                <- UIO.foreach(specs)(loop(_, depth + tabSize, annotations :: ancestors)).map(_.flatten)
+          } yield rendered(Suite, label, status, depth, (renderedLabel ++ renderedAnnotations): _*) +: rest
         case Spec.TestCase(label, result) =>
           result.flatMap {
-            case (Right(TestSuccess.Succeeded(_)), _) =>
-              UIO.succeed(Seq(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))))
-            case (Right(TestSuccess.Ignored), _) =>
-              UIO.succeed(Seq(rendered(Test, label, Ignored, depth)))
-            case (Left(TestFailure.Assertion(result)), _) =>
-              result.run.flatMap(
-                result =>
-                  result
-                    .fold(
-                      details =>
-                        renderFailure(label, depth, details)
-                          .map(failures => rendered(Test, label, Failed, depth, failures: _*))
-                    )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
-                    .map(Seq(_))
-              )
-
-            case (Left(TestFailure.Runtime(cause)), _) =>
-              renderCause(cause, depth).map { string =>
-                Seq(
-                  rendered(
-                    Test,
-                    label,
-                    Failed,
-                    depth,
-                    (Seq(renderFailureLabel(label, depth)) ++ Seq(string)): _*
+            case (result, annotations) =>
+              val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
+              val renderedResult = result match {
+                case Right(TestSuccess.Succeeded(_)) =>
+                  UIO.succeed(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
+                case Right(TestSuccess.Ignored) =>
+                  UIO.succeed(rendered(Test, label, Ignored, depth))
+                case Left(TestFailure.Assertion(result)) =>
+                  result.run.flatMap(
+                    result =>
+                      result
+                        .fold(
+                          details =>
+                            renderFailure(label, depth, details)
+                              .map(failures => rendered(Test, label, Failed, depth, failures: _*))
+                        )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
                   )
-                )
+                case Left(TestFailure.Runtime(cause)) =>
+                  renderCause(cause, depth).map { string =>
+                    rendered(
+                      Test,
+                      label,
+                      Failed,
+                      depth,
+                      (Seq(renderFailureLabel(label, depth)) ++ Seq(string)): _*
+                    )
+
+                  }
               }
+              renderedResult.map(result => Seq(result.withAnnotations(renderedAnnotations.map(withOffset(depth)))))
           }
       }
-    loop(executedSpec, 0)
+    loop(executedSpec, 0, List.empty)
   }
 
-  def apply[E, S](testAnnotationRenderers: List[TestAnnotationRenderer[E, String, S]]): TestReporter[E, String, S] = {
+  def apply[E, S](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E, String, S] = {
     (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
       for {
-        rendered    <- render(executedSpec.mapLabel(_.toString)).map(_.flatMap(_.rendered))
-        stats       <- logStats(duration, executedSpec)
-        annotations <- URIO.foreach(testAnnotationRenderers)(_(executedSpec)).map(_.flatten)
-        _           <- TestLogger.logLine((rendered ++ Seq(stats) ++ annotations).mkString("\n"))
+        rendered <- render(executedSpec.mapLabel(_.toString), testAnnotationRenderer).map(_.flatMap(_.rendered))
+        stats    <- logStats(duration, executedSpec)
+        _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
       } yield ()
   }
 
@@ -281,4 +295,7 @@ case class RenderedResult(caseType: CaseType, label: String, status: Status, off
       case Failed  => self.copy(status = Passed)
       case Passed  => self.copy(status = Failed)
     }
+
+  def withAnnotations(renderedAnnotations: Seq[String]): RenderedResult =
+    self.copy(rendered = self.rendered ++ renderedAnnotations)
 }

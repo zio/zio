@@ -30,7 +30,7 @@ import zio.internal.{ Platform, PlatformLive }
 case class TestRunner[R, E, L, -T, S](
   executor: TestExecutor[R, E, L, T, S],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[E, L, S] = DefaultTestReporter(TestAnnotationRenderer.Default)
+  reporter: TestReporter[E, L, S] = DefaultTestReporter(TestAnnotationRenderer.default)
 ) { self =>
 
   final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
