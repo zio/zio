@@ -278,10 +278,8 @@ final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal
    * Updates element in the array with given function.
    */
   final def update(index: Int, fn: A => A): STM[Nothing, A] =
-    if (0 <= index && index < array.length)
-      array(index).update(fn)
-    else
-      STM.die(new ArrayIndexOutOfBoundsException(index))
+    if (0 <= index && index < array.length) array(index).update(fn)
+    else STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
    * Atomically updates element in the array with given transactional effect.

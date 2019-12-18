@@ -756,7 +756,7 @@ object STM {
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
-  final def check(p: => Boolean): STM[Nothing, Unit] = if (p) STM.unit else retry
+  final def check(p: Boolean): STM[Nothing, Unit] = if (p) STM.unit else retry
 
   /**
    * Collects all the transactional effects in a list, returning a single
@@ -771,18 +771,18 @@ object STM {
   /**
    * Kills the fiber running the effect.
    */
-  final def die(t: => Throwable): STM[Nothing, Nothing] = succeed(throw t)
+  final def die(t: Throwable): STM[Nothing, Nothing] = succeed(throw t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
    * the specified message.
    */
-  final def dieMessage(m: => String): STM[Nothing, Nothing] = die(new RuntimeException(m))
+  final def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
 
   /**
    * Returns a value modelled on provided exit status.
    */
-  final def done[E, A](exit: => TExit[E, A]): STM[E, A] =
+  final def done[E, A](exit: TExit[E, A]): STM[E, A] =
     exit match {
       case TExit.Retry      => STM.retry
       case TExit.Fail(e)    => STM.fail(e)
@@ -792,7 +792,7 @@ object STM {
   /**
    * Returns a value that models failure in the transaction.
    */
-  final def fail[E](e: => E): STM[E, Nothing] = new STM((_, _, _) => TExit.Fail(e))
+  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _, _) => TExit.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
@@ -842,7 +842,7 @@ object STM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  final def succeed[A](a: => A): STM[Nothing, A] = new STM((_, _, _) => TExit.Succeed(a))
+  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _, _) => TExit.Succeed(a))
 
   /**
    * Suspends creation of the specified transaction lazily.
