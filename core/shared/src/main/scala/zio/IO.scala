@@ -640,7 +640,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.validateM]]
    */
-  final def validateM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], List[B]] =
+  final def validateM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
     ZIO.validateM(in)(f)
 
   /**

@@ -2691,9 +2691,10 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def validateM[R, E, A, B](
     in: Iterable[A]
-  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], List[B]] =
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, ::[E], List[B]] =
     partitionM(in)(f).flatMap {
-      case (es, bs) => if (es.isEmpty) ZIO.succeed(bs) else ZIO.fail(es)
+      case (e :: es, _) => ZIO.fail(::(e, es))
+      case (_, bs)      => ZIO.succeed(bs)
     }
 
   /**
