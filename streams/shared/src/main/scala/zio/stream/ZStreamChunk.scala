@@ -704,6 +704,6 @@ object ZStreamChunk extends Serializable {
   /**
    * Creates a `ZStreamChunk` from a chunk
    */
-  final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
+  final def succeed[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
     new StreamEffectChunk(StreamEffect.succeed(as))
 }

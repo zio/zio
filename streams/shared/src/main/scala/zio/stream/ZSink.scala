@@ -1287,14 +1287,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink halting with the specified `Throwable`.
    */
-  final def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  final def die(e: => Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
-  final def dieMessage(m: String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  final def dieMessage(m: => String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(new RuntimeException(m)))
 
   /**
@@ -1318,7 +1318,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink failing with a value of type `E`.
    */
-  final def fail[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
+  final def fail[E](e: => E): ZSink[Any, E, Nothing, Any, Nothing] =
     new SinkPure[E, Nothing, Any, Nothing] {
       type State = Unit
       val initialPure                    = ()
@@ -1536,7 +1536,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink halting with a specified cause.
    */
-  final def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+  final def halt[E](e: => Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
     new Sink[E, Nothing, Any, Nothing] {
       type State = Unit
       val initial                    = UIO.succeed(())
@@ -1808,7 +1808,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a single-value sink from a value.
    */
-  final def succeed[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+  final def succeed[A, B](b: => B): ZSink[Any, Nothing, A, A, B] =
     new SinkPure[Nothing, A, A, B] {
       type State = Chunk[A]
       val initialPure                  = Chunk.empty

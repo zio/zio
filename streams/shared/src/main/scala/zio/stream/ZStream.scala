@@ -745,11 +745,11 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     }.flatMap {
       case (queue, signal) =>
         def takeFirst(exit: Exit[Nothing, A1], fiber: Fiber[Option[E], Nothing]): Pull[Any, Nothing, A1] =
-          fiber.interrupt *> exit.fold(Pull.halt, Pull.emit(_))
+          fiber.interrupt *> exit.fold(Pull.halt(_), Pull.emit(_))
 
         def finishStream(exit: Exit[Option[E], Nothing], fiber: Fiber[Nothing, A1]): Pull[Any, E, Nothing] =
           fiber.interrupt *> exit.fold(
-            c => Cause.sequenceCauseOption(c).fold[Pull[Any, E, Nothing]](Pull.end)(Pull.halt),
+            c => Cause.sequenceCauseOption(c).fold[Pull[Any, E, Nothing]](Pull.end)(Pull.halt(_)),
             identity
           )
 
@@ -757,7 +757,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           queue.size.flatMap { size =>
             if (size > 0) fiber.join
             else
-              fiber.poll.flatMap(_.fold[Pull[Any, E, A1]](finishStream(exit, fiber))(_.fold(Pull.halt, Pull.emit(_))))
+              fiber.poll.flatMap(
+                _.fold[Pull[Any, E, A1]](finishStream(exit, fiber))(_.fold(Pull.halt(_), Pull.emit(_)))
+              )
           }
 
         val pull: Pull[Any, E, A1] =
@@ -798,7 +800,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * fails with a typed error.
    */
   final def catchAll[R1 <: R, E2, A1 >: A](f: E => ZStream[R1, E2, A1])(implicit ev: CanFail[E]): ZStream[R1, E2, A1] =
-    self.catchAllCause(_.failureOrCause.fold(f, ZStream.halt))
+    self.catchAllCause(_.failureOrCause.fold(f, ZStream.halt(_)))
 
   /**
    * Switches over to the stream produced by the provided function in case this one
@@ -2629,14 +2631,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     val end: Pull[Any, Nothing, Nothing]                         = IO.fail(None)
     def emit[A](a: => A): Pull[Any, Nothing, A]                  = UIO.succeed(a)
     def fail[E](e: => E): Pull[Any, E, Nothing]                  = IO.fail(Some(e))
-    def halt[E](c: Cause[E]): Pull[Any, E, Nothing]              = IO.halt(c.map(Some(_)))
+    def halt[E](c: => Cause[E]): Pull[Any, E, Nothing]           = IO.halt(c.map(Some(_)))
     def die(t: => Throwable): Pull[Any, Nothing, Nothing]        = UIO.die(t)
     def dieMessage(m: => String): Pull[Any, Nothing, Nothing]    = UIO.dieMessage(m)
-    def done[E, A](e: Exit[E, A]): Pull[Any, E, A]               = IO.done(e.mapError(Some(_)))
-    def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A]     = p.await.mapError(Some(_))
+    def done[E, A](e: => Exit[E, A]): Pull[Any, E, A]            = IO.done(e.mapError(Some(_)))
+    def fromPromise[E, A](p: => Promise[E, A]): Pull[Any, E, A]  = p.await.mapError(Some(_))
     def fromEffect[R, E, A](effect: ZIO[R, E, A]): Pull[R, E, A] = effect.mapError(Some(_))
 
-    def fromTake[E, A](take: Take[E, A]): Pull[Any, E, A] =
+    def fromTake[E, A](take: => Take[E, A]): Pull[Any, E, A] =
       take match {
         case Take.Value(a) => emit(a)
         case Take.Fail(e)  => halt(e)
@@ -2931,7 +2933,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
                        output.take.flatten.foldCauseM(
                          Cause
                            .sequenceCauseOption(_)
-                           .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt),
+                           .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt(_)),
                          Pull.emit(_)
                        )
                    }
@@ -2975,7 +2977,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
           output.take.flatten.foldCauseM(
             Cause
               .sequenceCauseOption(_)
-              .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt),
+              .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt(_)),
             Pull.emit(_)
           )
       }
@@ -3023,7 +3025,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
                        output.take.flatten.foldCauseM(
                          Cause
                            .sequenceCauseOption(_)
-                           .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt),
+                           .fold[Pull[R, E, Nothing]](done.set(true) *> output.shutdown *> Pull.end)(Pull.halt(_)),
                          Pull.emit(_)
                        )
                    }).ensuring(canceler)
@@ -3041,7 +3043,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * The stream that always fails with `error`
    */
-  final def fail[E](error: E): Stream[E, Nothing] =
+  final def fail[E](error: => E): Stream[E, Nothing] =
     StreamEffect.fail[E](error)
 
   /**
@@ -3163,7 +3165,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * The stream that always halts with `cause`.
    */
-  final def halt[E](cause: Cause[E]): ZStream[Any, E, Nothing] = fromEffect(ZIO.halt(cause))
+  final def halt[E](cause: => Cause[E]): ZStream[Any, E, Nothing] = fromEffect(ZIO.halt(cause))
 
   /**
    * The infinite stream of iterative function application: a, f(a), f(f(a)), f(f(f(a))), ...
