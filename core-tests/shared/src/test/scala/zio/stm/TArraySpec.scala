@@ -18,6 +18,7 @@ package zio.stm
 import zio.test.Assertion._
 import zio.test._
 import zio.{ ZIO, ZIOBaseSpec }
+import zio.test.TestAspect._
 
 object TArraySpec extends ZIOBaseSpec {
 
@@ -35,7 +36,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeTArray(1)(42).commit
           result <- ZIO.effect(tArray(-1)).run
         } yield assert(result, fails(isArrayIndexOutOfBoundsException))
-      }
+      } @@ ignore
     ),
     suite("collectFirst")(
       testM("finds and transforms correctly") {
