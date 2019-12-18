@@ -2098,11 +2098,46 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    as.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil)) { (a, io) =>
-        fn(a).zipWithPar(io)((b, bs) => b :: bs)
-      }
-      .refailWithTrace
+  final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
+    val n         = as.size
+    val resultArr = new Array[Any](as.size)
+    val resultList: ZIO[R, E, List[B]] = for {
+      parentId <- ZIO.fiberId
+      latch    <- CountdownLatch.make(n)
+      failed   <- Promise.make[Nothing, Int]
+      cause    <- Ref.make[Cause[E]](Cause.empty)
+      fibers <- ZIO.foreach(as.zipWithIndex) {
+                 case (a, i) =>
+                   def handleExit(exit: Exit[E, B]): URIO[R, Any] = exit.foldM(
+                     c => cause.update(cs => cs && c) *> failed.succeed(i),
+                     b => ZIO.effectTotal(resultArr(i) = b)
+                   )
+
+                   ZIO
+                     .bracketExit(
+                       ZIO.succeed(a),
+                       (_: A, exit: Exit[E, B]) => handleExit(exit).ensuring(latch.countDown),
+                       fn
+                     )
+                     .fork
+               }
+      interrupter = failed.await
+        .flatMap(
+          i =>
+            ZIO.foreach(fibers.zipWithIndex) {
+              case (f, j) if i != j => f.interruptAs(parentId).unit
+              case _                => UIO.unit
+            }
+        )
+        .toManaged_
+        .fork
+      _             <- interrupter.use_(latch.await)
+      combinedCause <- cause.get
+      results <- if (combinedCause.isEmpty) UIO.succeed(resultArr.asInstanceOf[Array[B]].toList)
+                else ZIO.halt(combinedCause)
+    } yield results
+    resultList.refailWithTrace
+  }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
