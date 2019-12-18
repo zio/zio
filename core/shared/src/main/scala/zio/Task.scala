@@ -424,6 +424,12 @@ object Task {
     ZIO.interruptibleFork(task)
 
   /**
+   * @see See [[zio.ZIO.interruptibleForkMask]]
+   */
+  final def interruptibleForkMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
+    ZIO.interruptibleForkMask(k)
+
+  /**
    * @see See [[zio.ZIO.interruptibleMask]]
    */
   final def interruptibleMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =

@@ -2452,6 +2452,16 @@ private[zio] trait ZIOFunctions extends Serializable {
     zio.interruptibleFork
 
   /**
+   * Makes the effect immediately interruptible with the effect and its interruption occurring in a forked fiber.
+   * A restore function is passed that can be used to restore the inherited interruptibility from whatever region
+   * the effect is composed into.
+   */
+  final def interruptibleForkMask[R, E, A](
+    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+  ): ZIO[R, E, A] =
+    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).interruptibleFork)
+
+  /**
    * Makes the effect interruptible, but passes it a restore function that
    * can be used to restore the inherited interruptibility from whatever region
    * the effect is composed into.
