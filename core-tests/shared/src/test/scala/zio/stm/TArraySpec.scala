@@ -18,7 +18,7 @@ package zio.stm
 import zio.test.Assertion._
 import zio.test._
 import zio.{ ZIO, ZIOBaseSpec }
-import zio.test.TestAspect._
+import zio.test.TestAspect.ignore
 
 object TArraySpec extends ZIOBaseSpec {
 
