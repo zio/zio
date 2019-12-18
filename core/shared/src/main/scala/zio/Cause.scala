@@ -426,8 +426,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 
 object Cause extends Serializable {
   final val empty: Cause[Nothing]                               = Internal.Empty
-  final def die(defect: => Throwable): Cause[Nothing]           = Internal.Die(defect)
-  final def fail[E](error: => E): Cause[E]                      = Internal.Fail(error)
+  final def die(defect: Throwable): Cause[Nothing]              = Internal.Die(defect)
+  final def fail[E](error: E): Cause[E]                         = Internal.Fail(error)
   final def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Internal.Interrupt(fiberId)
   final def stack[E](cause: Cause[E]): Cause[E]                 = Internal.Meta(cause, Internal.Data(false))
   final def stackless[E](cause: Cause[E]): Cause[E]             = Internal.Meta(cause, Internal.Data(true))
