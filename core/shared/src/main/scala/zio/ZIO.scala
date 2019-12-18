@@ -647,8 +647,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def interruptibleFork: ZIO[R, E, A] =
     ZIO.uninterruptible {
       for {
-        fiber <- self.interruptible.fork.daemon
-        res   <- fiber.join.interruptible.onInterrupt(fiber.interrupt.fork.daemon)
+        parentFiberId <- ZIO.fiberId
+        fiber         <- self.interruptible.fork.daemon
+        res           <- fiber.join.interruptible.onInterrupt(fiber.interruptAs(parentFiberId).fork.daemon)
       } yield res
     }
 
