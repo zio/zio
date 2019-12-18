@@ -217,7 +217,7 @@ object DefaultTestReporter {
       )
     )
 
-  private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[A], offset: Int): String =
+  private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[I], offset: Int): String =
     withOffset(offset)(s"expected $method with arguments ${cyan(assertion.toString)}")
 
   private def withOffset(n: Int)(s: String): String =
