@@ -37,13 +37,14 @@ final class TestAnnotation[V] private (
 }
 object TestAnnotation {
 
-  /**
-   * An annotation for timing.
-   */
-  val Timing: TestAnnotation[Duration] = TestAnnotation("timing", Duration.Zero, _ + _)
-
   def apply[V](identifier: String, initial: V, combine: (V, V) => V)(
     implicit classTag: ClassTag[V]
   ): TestAnnotation[V] =
     new TestAnnotation(identifier, initial, combine, classTag)
+
+  /**
+   * An annotation for timing.
+   */
+  val timing: TestAnnotation[Duration] =
+    TestAnnotation("timing", Duration.Zero, _ + _)
 }

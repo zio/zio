@@ -40,6 +40,17 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     aspect(self.asInstanceOf[ZSpec[R1, E2, L, S]])
 
   /**
+   * Returns a new spec with the annotation map at each node.
+   */
+  final def annotated: Spec[R with Annotations, Annotated[E], L, Annotated[T]] =
+    transform[R with Annotations, Annotated[E], L, Annotated[T]] {
+      case Spec.SuiteCase(label, specs, exec) =>
+        Spec.SuiteCase(label, specs.mapError((_, TestAnnotationMap.empty)), exec)
+      case Spec.TestCase(label, test) =>
+        Spec.TestCase(label, Annotations.withAnnotation(test))
+    }
+
+  /**
    * Returns a new spec with remapped errors and tests.
    */
   final def bimap[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E]): Spec[R, E1, L, T1] =

@@ -7,8 +7,8 @@ import zio.test.TestUtils._
 object SpecSpec extends ZIOBaseSpec {
 
   def spec = suite("SpecSpec")(
-    suite("SpecSpec")(
-      testM("provideManagedShared gracefully handles fiber death") {
+    suite("provideManagedShared")(
+      testM("gracefully handles fiber death") {
         import zio.NeedsEnv.needsEnv
         val spec = suite("Suite1")(
           test("Test1") {
@@ -20,7 +20,7 @@ object SpecSpec extends ZIOBaseSpec {
         } yield assertCompletes
       }
     ),
-    suite(".only(pattern)")(
+    suite("only")(
       testM("ignores all tests except one matching the given label") {
         checkM(genSuite) { spec =>
           for {

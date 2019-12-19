@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,22 @@
 
 package zio.test
 
-object TestVersion {
+import scala.{ Console => SConsole }
 
-  /**
-   * Returns whether the current Scala version is Dotty.
-   */
-  val isDotty: Boolean = true
+private[test] object ConsoleUtils {
 
-  /**
-   * Returns whether the current Scala version is Scala 2.
-   */
-  val isScala2: Boolean = false
+  def green(s: String): String =
+    SConsole.GREEN + s + SConsole.RESET
+
+  def red(s: String): String =
+    SConsole.RED + s + SConsole.RESET
+
+  def blue(s: String): String =
+    SConsole.BLUE + s + SConsole.RESET
+
+  def cyan(s: String): String =
+    SConsole.CYAN + s + SConsole.RESET
+
+  def yellowThenCyan(s: String): String =
+    SConsole.YELLOW + s + SConsole.CYAN
 }
