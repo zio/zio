@@ -517,25 +517,19 @@ object Task {
   /**
    * @see See [[zio.ZIO.partitionM]]
    */
-  final def partitionM[A, B](
-    in: Iterable[A]
-  )(f: A => Task[B])(implicit ev: CanFail[Throwable]): Task[(List[Throwable], List[B])] =
+  final def partitionM[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
     ZIO.partitionM(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionMPar]]
    */
-  final def partitionMPar[A, B](
-    in: Iterable[A]
-  )(f: A => Task[B])(implicit ev: CanFail[Throwable]): Task[(List[Throwable], List[B])] =
+  final def partitionMPar[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
     ZIO.partitionMPar(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionMParN]]
    */
-  final def partitionMParN[A, B](n: Int)(
-    in: Iterable[A]
-  )(f: A => Task[B])(implicit ev: CanFail[Throwable]): Task[(List[Throwable], List[B])] =
+  final def partitionMParN[A, B](n: Int)(in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
     ZIO.partitionMParN(n)(in)(f)
 
   /**
