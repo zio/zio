@@ -43,6 +43,12 @@ object TestAnnotation {
     new TestAnnotation(identifier, initial, combine, classTag)
 
   /**
+   * An annotation which counts ignored tests.
+   */
+  val ignored: TestAnnotation[Int] =
+    TestAnnotation("ignored", 0, _ + _)
+
+  /**
    * An annotation for timing.
    */
   val timing: TestAnnotation[Duration] =

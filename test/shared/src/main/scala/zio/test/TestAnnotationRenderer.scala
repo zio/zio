@@ -72,7 +72,17 @@ object TestAnnotationRenderer {
    * The default test annotation renderer used by the `DefaultTestReporter`.
    */
   final lazy val default: TestAnnotationRenderer =
-    timed
+    CompositeRenderer(Vector(ignored, timed))
+
+  /**
+   * A test annotation renderer that renders the number of ignored tests.
+   */
+  final val ignored: TestAnnotationRenderer =
+    LeafRenderer(TestAnnotation.ignored) {
+      case (child :: _) =>
+        if (child == 0) None
+        else Some(s"ignored: $child")
+    }
 
   /**
    * A test annotation renderer that does not render any test annotations.

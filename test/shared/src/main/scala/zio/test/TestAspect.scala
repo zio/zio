@@ -105,9 +105,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that marks tests as ignored.
    */
-  val ignore: TestAspectPoly =
-    new TestAspectPoly {
-      def some[R, E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+  val ignore: TestAspectAtLeastR[Annotations] =
+    new TestAspectAtLeastR[Annotations] {
+      def some[R <: Annotations, E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
         spec.when(false)
     }
 
@@ -193,7 +193,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on Dotty.
    */
-  val dottyOnly: TestAspectPoly =
+  val dottyOnly: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isDotty) identity else ignore
 
   /**
@@ -212,25 +212,25 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs tests on all versions except Dotty.
    */
-  val exceptDotty: TestAspectPoly =
+  val exceptDotty: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isDotty) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except ScalaJS.
    */
-  val exceptJS: TestAspectPoly =
+  val exceptJS: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJS) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except the JVM.
    */
-  val exceptJVM: TestAspectPoly =
+  val exceptJVM: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJVM) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala2.
    */
-  val exceptScala2: TestAspectPoly =
+  val exceptScala2: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala2) ignore else identity
 
   /**
@@ -297,9 +297,12 @@ object TestAspect extends TimeoutVariants {
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
-  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live[System]] =
-    new TestAspectAtLeastR[Live[System]] {
-      def some[R <: Live[System], E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live[System] with Annotations] =
+    new TestAspectAtLeastR[Live[System] with Annotations] {
+      def some[R <: Live[System] with Annotations, E, S, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] =
         spec.whenM(Live.live(system.env(env)).orDie.flatMap(_.fold(ZIO.succeed(false))(assertion.test)))
     }
 
@@ -307,7 +310,7 @@ object TestAspect extends TimeoutVariants {
    * As aspect that only runs a test if the specified environment variable is
    * set.
    */
-  def ifEnvSet(env: String): TestAspectAtLeastR[Live[System]] =
+  def ifEnvSet(env: String): TestAspectAtLeastR[Live[System] with Annotations] =
     ifEnv(env, Assertion.anything)
 
   /**
@@ -317,16 +320,19 @@ object TestAspect extends TimeoutVariants {
   def ifProp(
     prop: String,
     assertion: Assertion[String]
-  ): TestAspectAtLeastR[Live[System]] =
-    new TestAspectAtLeastR[Live[System]] {
-      def some[R <: Live[System], E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+  ): TestAspectAtLeastR[Live[System] with Annotations] =
+    new TestAspectAtLeastR[Live[System] with Annotations] {
+      def some[R <: Live[System] with Annotations, E, S, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] =
         spec.whenM(Live.live(system.property(prop)).orDie.flatMap(_.fold(ZIO.succeed(false))(assertion.test)))
     }
 
   /**
    * As aspect that only runs a test if the specified Java property is set.
    */
-  def ifPropSet(prop: String): TestAspectAtLeastR[Live[System]] =
+  def ifPropSet(prop: String): TestAspectAtLeastR[Live[System] with Annotations] =
     ifProp(prop, Assertion.anything)
 
   /**
@@ -340,7 +346,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on ScalaJS.
    */
-  val jsOnly: TestAspectPoly =
+  val jsOnly: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJS) identity else ignore
 
   /**
@@ -354,7 +360,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on the JVM.
    */
-  val jvmOnly: TestAspectPoly =
+  val jvmOnly: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJVM) identity else ignore
 
   /**
@@ -466,7 +472,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on Scala 2.
    */
-  val scala2Only: TestAspectPoly =
+  val scala2Only: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala2) identity else ignore
 
   /**
