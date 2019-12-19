@@ -1,7 +1,8 @@
 package zio.test
 
-import zio.ZManaged
+import zio.{ Ref, ZIO, ZManaged }
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
+import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
 
 object SpecSpec extends ZIOBaseSpec {
@@ -18,6 +19,25 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           _ <- execute(spec)
         } yield assertCompletes
+      },
+      testM("does not acquire the environment if the suite is ignored") {
+        val spec = suite("Suite1")(
+          testM("Test1") {
+            assertM(ZIO.accessM[Ref[Boolean]](_.get), isTrue)
+          },
+          testM("another test") {
+            assertM(ZIO.accessM[Ref[Boolean]](_.get), isTrue)
+          }
+        )
+        for {
+          ref <- Ref.make(true)
+          _ <- execute {
+                spec.provideManagedShared {
+                  ZManaged.make(ref.set(false).as(ref))(_ => ZIO.unit)
+                } @@ ifEnvSet("foo")
+              }
+          result <- ref.get
+        } yield assert(result, isTrue)
       }
     ),
     suite("only")(

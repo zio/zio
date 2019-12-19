@@ -389,6 +389,36 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       .asInstanceOf[ZSpec[R, E1, String, S]]
       .filterLabels(_.contains(s))
       .getOrElse(Spec.test("only", ignored))
+
+  /**
+   * Runs the spec only if the specified predicate is satisfied.
+   */
+  final def when[S](b: Boolean)(implicit ev: T <:< TestSuccess[S]): Spec[R, E, L, TestSuccess[S]] =
+    whenM(ZIO.succeed(b))
+
+  /**
+   * Runs the spec only if the specified effectual predicate is satisfied.
+   */
+  final def whenM[R1 <: R, E1 >: E, S](
+    b: ZIO[R1, E1, Boolean]
+  )(implicit ev: T <:< TestSuccess[S]): Spec[R1, E1, L, TestSuccess[S]] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Spec.suite(
+          label,
+          b.flatMap(
+            b =>
+              if (b) specs.asInstanceOf[ZIO[R1, E1, Vector[Spec[R1, E1, L, TestSuccess[S]]]]]
+              else ZIO.succeed(Vector.empty)
+          ),
+          exec
+        )
+      case TestCase(label, test) =>
+        Spec.test(
+          label,
+          b.flatMap(b => if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess[S]]] else ZIO.succeed(TestSuccess.Ignored))
+        )
+    }
 }
 
 object Spec {
