@@ -2100,32 +2100,41 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
     val n         = as.size
-    val resultArr = new Array[Any](as.size)
+    val resultArr = new Array[Any](n)
     val resultList: ZIO[R, E, List[B]] = for {
       parentId <- ZIO.fiberId
       latch    <- CountdownLatch.make(n)
       failed   <- Promise.make[Nothing, Int]
       cause    <- Ref.make[Cause[E]](Cause.empty)
-      fibers <- ZIO.foreach(as.zipWithIndex) {
-                 case (a, i) =>
-                   def handleExit(exit: Exit[E, B]): URIO[R, Any] = exit.foldM(
-                     c => cause.update(cs => cs && c) *> failed.succeed(i),
-                     b => ZIO.effectTotal(resultArr(i) = b)
-                   )
+      fibers <- as
+                 .foldLeft[(Int, URIO[R, List[(Int, Fiber[E, B])]])]((0, URIO.succeed(Nil))) { (r, a) =>
+                   r match {
+                     case (i, acc) =>
+                       def handleExit(exit: Exit[E, B]): URIO[R, Any] = exit.foldM(
+                         c => cause.update(cs => cs && c) *> failed.succeed(i),
+                         b => ZIO.effectTotal(resultArr(i) = b)
+                       )
 
-                   ZIO
-                     .bracketExit(
-                       ZIO.succeed(a),
-                       (_: A, exit: Exit[E, B]) => handleExit(exit).ensuring(latch.countDown),
-                       fn
-                     )
-                     .fork
-               }
+                       val appended = for {
+                         fs <- acc
+                         f <- ZIO
+                               .bracketExit(
+                                 ZIO.succeed(a),
+                                 (_: A, exit: Exit[E, B]) => handleExit(exit).ensuring(latch.countDown),
+                                 fn
+                               )
+                               .fork
+                       } yield (i, f) :: fs
+
+                       (i + 1, appended)
+                   }
+                 }
+                 ._2
       interrupter = failed.await
         .flatMap(
           i =>
-            ZIO.foreach(fibers.zipWithIndex) {
-              case (f, j) if i != j => f.interruptAs(parentId).unit
+            ZIO.foreach(fibers) {
+              case (j, f) if i != j => f.interruptAs(parentId).unit
               case _                => UIO.unit
             }
         )
