@@ -2583,7 +2583,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
-   * Feeds elements of type A to a function f that returns an effect.
+   * Feeds elements of type `A` to a function f that returns an effect.
    *
    * Collects all successes and failures in a tupled fashion.
    */
@@ -2597,6 +2597,37 @@ private[zio] trait ZIOFunctions extends Serializable {
           b => (es, b :: bs)
         )
     }
+
+  /**
+   * Feeds elements of type `A` to a function `f` that returns an effect.
+   * Collects all successes and failures in parallel and returns the result as a tuple.
+   *
+   */
+  final def partitionMPar[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
+    ZIO
+      .foreachPar(in)(f(_).either)
+      .map(_.foldRight((List.empty[E], List.empty[B])) {
+        case (Left(e), (es, bs))  => (e :: es, bs)
+        case (Right(b), (es, bs)) => (es, b :: bs)
+      })
+
+  /**
+   * Feeds elements of type `A` to a function `f` that returns an effect.
+   * Collects all successes and failures in parallel and returns the result as a tuple.
+   *
+   * Unlike `partitionMPar`, this method will use at most up to `n` fibers.
+   */
+  final def partitionMParN[R, E, A, B](n: Int)(
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
+    ZIO
+      .foreachParN(n)(in)(f(_).either)
+      .map(_.foldRight((List.empty[E], List.empty[B])) {
+        case (Left(e), (es, bs))  => (e :: es, bs)
+        case (Right(b), (es, bs)) => (es, b :: bs)
+      })
 
   /**
    * Given an environment `R`, returns a function that can supply the

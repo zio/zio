@@ -513,6 +513,22 @@ object RIO {
     ZIO.partitionM(in)(f)
 
   /**
+   * @see See [[zio.ZIO.partitionMPar]]
+   */
+  final def partitionMPar[R, A, B](
+    in: Iterable[A]
+  )(f: A => RIO[R, B])(implicit ev: CanFail[Throwable]): RIO[Nothing, (List[Throwable], List[B])] =
+    ZIO.partitionMPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.partitionMParN]]
+   */
+  final def partitionMParN[R, A, B](n: Int)(
+    in: Iterable[A]
+  )(f: A => RIO[R, B])(implicit ev: CanFail[Throwable]): RIO[Nothing, (List[Throwable], List[B])] =
+    ZIO.partitionMParN(n)(in)(f)
+
+  /**
    * @see See [[zio.ZIO.provide]]
    */
   final def provide[R, A](r: R): RIO[R, A] => Task[A] =
