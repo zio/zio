@@ -16,76 +16,91 @@
 
 package zio.test
 
-import scala.{ Console => SConsole }
-
 import zio.duration.Duration
-import zio.test.mock.{ Method, MockException }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
+import zio.test.ConsoleUtils._
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
+import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
+import zio.test.mock.{ Method, MockException }
 import zio.{ Cause, UIO, URIO }
 
 object DefaultTestReporter {
 
-  def render[E, S](executedSpec: ExecutedSpec[E, String, S]): UIO[Seq[RenderedResult]] = {
-    def loop(executedSpec: ExecutedSpec[E, String, S], depth: Int): UIO[Seq[RenderedResult]] =
+  def render[E, S](
+    executedSpec: ExecutedSpec[E, String, S],
+    testAnnotationRenderer: TestAnnotationRenderer
+  ): UIO[Seq[RenderedResult]] = {
+    def loop(
+      executedSpec: ExecutedSpec[E, String, S],
+      depth: Int,
+      ancestors: List[TestAnnotationMap]
+    ): UIO[Seq[RenderedResult]] =
       executedSpec.caseValue match {
-        case Spec.SuiteCase(label, executedSpecs, _) =>
+        case c @ Spec.SuiteCase(label, executedSpecs, _) =>
           for {
             specs <- executedSpecs
             failures <- UIO.foreach(specs)(_.exists {
-                         case Spec.TestCase(_, test) => test.map(_.isLeft);
+                         case Spec.TestCase(_, test) => test.map(_._1.isLeft);
                          case _                      => UIO.succeed(false)
                        })
+            annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
+                            case Spec.SuiteCase(_, specs, _) =>
+                              specs.flatMap(UIO.collectAll(_).map(_.foldLeft(TestAnnotationMap.empty)(_ ++ _)))
+                            case Spec.TestCase(_, test) => test.map(_._2)
+                          }
             hasFailures = failures.exists(identity)
             status      = if (hasFailures) Failed else Passed
             renderedLabel = if (specs.isEmpty) Seq.empty
             else if (hasFailures) Seq(renderFailureLabel(label, depth))
             else Seq(renderSuccessLabel(label, depth))
-            rest <- UIO.foreach(specs)(loop(_, depth + tabSize)).map(_.flatten)
-          } yield rendered(Suite, label, status, depth, renderedLabel: _*) +: rest
+            renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
+            rest                <- UIO.foreach(specs)(loop(_, depth + tabSize, annotations :: ancestors)).map(_.flatten)
+          } yield rendered(Suite, label, status, depth, (renderedLabel ++ renderedAnnotations): _*) +: rest
         case Spec.TestCase(label, result) =>
           result.flatMap {
-            case Right(TestSuccess.Succeeded(_)) =>
-              UIO.succeed(Seq(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))))
-            case Right(TestSuccess.Ignored) =>
-              UIO.succeed(Seq(rendered(Test, label, Ignored, depth)))
-            case Left(TestFailure.Assertion(result)) =>
-              result.run.flatMap(
-                result =>
-                  result
-                    .fold(
-                      details =>
-                        renderFailure(label, depth, details)
-                          .map(failures => rendered(Test, label, Failed, depth, failures: _*))
-                    )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
-                    .map(Seq(_))
-              )
-
-            case Left(TestFailure.Runtime(cause)) =>
-              renderCause(cause, depth).map { string =>
-                Seq(
-                  rendered(
-                    Test,
-                    label,
-                    Failed,
-                    depth,
-                    (Seq(renderFailureLabel(label, depth)) ++ Seq(string)): _*
+            case (result, annotations) =>
+              val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
+              val renderedResult = result match {
+                case Right(TestSuccess.Succeeded(_)) =>
+                  UIO.succeed(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
+                case Right(TestSuccess.Ignored) =>
+                  UIO.succeed(rendered(Test, label, Ignored, depth))
+                case Left(TestFailure.Assertion(result)) =>
+                  result.run.flatMap(
+                    result =>
+                      result
+                        .fold(
+                          details =>
+                            renderFailure(label, depth, details)
+                              .map(failures => rendered(Test, label, Failed, depth, failures: _*))
+                        )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
                   )
-                )
+                case Left(TestFailure.Runtime(cause)) =>
+                  renderCause(cause, depth).map { string =>
+                    rendered(
+                      Test,
+                      label,
+                      Failed,
+                      depth,
+                      (Seq(renderFailureLabel(label, depth)) ++ Seq(string)): _*
+                    )
+
+                  }
               }
+              renderedResult.map(result => Seq(result.withAnnotations(renderedAnnotations.map(withOffset(depth)))))
           }
       }
-    loop(executedSpec, 0)
+    loop(executedSpec, 0, List.empty)
   }
 
-  def apply[E, S](): TestReporter[E, String, S] = { (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
-    for {
-      rendered <- render(executedSpec.mapLabel(_.toString)).map(_.flatMap(_.rendered))
-      stats    <- logStats(duration, executedSpec)
-      _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
-    } yield ()
+  def apply[E, S](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E, String, S] = {
+    (duration: Duration, executedSpec: ExecutedSpec[E, String, S]) =>
+      for {
+        rendered <- render(executedSpec.mapLabel(_.toString), testAnnotationRenderer).map(_.flatMap(_.rendered))
+        stats    <- logStats(duration, executedSpec)
+        _        <- TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
+      } yield ()
   }
 
   private def logStats[E, L, S](duration: Duration, executedSpec: ExecutedSpec[E, L, S]): URIO[TestLogger, String] = {
@@ -100,9 +115,9 @@ object DefaultTestReporter {
           }
         case Spec.TestCase(_, result) =>
           result.map {
-            case Left(_)                         => (0, 0, 1)
-            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
-            case Right(TestSuccess.Ignored)      => (0, 1, 0)
+            case (Left(_), _)                         => (0, 0, 1)
+            case (Right(TestSuccess.Succeeded(_)), _) => (1, 0, 0)
+            case (Right(TestSuccess.Ignored), _)      => (0, 1, 0)
           }
       }
     for {
@@ -223,21 +238,6 @@ object DefaultTestReporter {
   private def withOffset(n: Int)(s: String): String =
     " " * n + s
 
-  private def green(s: String): String =
-    SConsole.GREEN + s + SConsole.RESET
-
-  private def red(s: String): String =
-    SConsole.RED + s + SConsole.RESET
-
-  private def blue(s: String): String =
-    SConsole.BLUE + s + SConsole.RESET
-
-  private def cyan(s: String): String =
-    SConsole.CYAN + s + SConsole.RESET
-
-  private def yellowThenCyan(s: String): String =
-    SConsole.YELLOW + s + SConsole.CYAN
-
   private def highlight(string: String, substring: String): String =
     string.replace(substring, yellowThenCyan(substring))
 
@@ -295,4 +295,7 @@ case class RenderedResult(caseType: CaseType, label: String, status: Status, off
       case Failed  => self.copy(status = Passed)
       case Passed  => self.copy(status = Failed)
     }
+
+  def withAnnotations(renderedAnnotations: Seq[String]): RenderedResult =
+    self.copy(rendered = self.rendered ++ renderedAnnotations)
 }

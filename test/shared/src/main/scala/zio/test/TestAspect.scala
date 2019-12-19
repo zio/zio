@@ -522,6 +522,20 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * Annotates tests with their execution times.
+   */
+  val timed: TestAspect[Nothing, Live[Clock] with Annotations, Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live[Clock] with Annotations, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Live[Clock] with Annotations, E >: Nothing <: Any, S >: Nothing <: Any](
+        test: ZIO[R, TestFailure[E], TestSuccess[S]]
+      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        Live.withLive(test)(_.either.timed).flatMap {
+          case (duration, result) =>
+            ZIO.fromEither(result) <* Annotations.annotate(TestAnnotation.timing, duration)
+        }
+    }
+
+  /**
    * An aspect that times out tests using the specified duration.
    * @param duration maximum test duration
    * @param interruptDuration after test timeout will wait given duration for successful interruption
