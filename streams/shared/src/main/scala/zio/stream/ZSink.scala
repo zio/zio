@@ -1072,10 +1072,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
 
         val initial = sink.initial.map((_, 0L)).asInstanceOf[ZIO[R, E, this.State]]
 
-        def step(state: State, a: A) =
-          if(state._2 <= 0) UIO.succeed(state)
-          else sink.step(state._1, a).map((_, n - 1))
-
+        def step(state: State, a: A) = 
+        if(state._2 != n) UIO.succeed((state._1, state._2 + 1)) 
+        else sink.step(state._1, a).map((_, state._2))
+          
         def extract(state: State) = sink.extract(state._1)
 
         def cont(state: State) = sink.cont(state._1)
