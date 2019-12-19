@@ -507,17 +507,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.partitionM]]
    */
-  final def partitionM[R, A, B](
-    in: Iterable[A]
-  )(f: A => RIO[R, B])(implicit ev: CanFail[Throwable]): RIO[Nothing, (List[Throwable], List[B])] =
+  final def partitionM[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
     ZIO.partitionM(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionMPar]]
    */
-  final def partitionMPar[R, A, B](
-    in: Iterable[A]
-  )(f: A => RIO[R, B])(implicit ev: CanFail[Throwable]): RIO[Nothing, (List[Throwable], List[B])] =
+  final def partitionMPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
     ZIO.partitionMPar(in)(f)
 
   /**
@@ -525,7 +521,7 @@ object RIO {
    */
   final def partitionMParN[R, A, B](n: Int)(
     in: Iterable[A]
-  )(f: A => RIO[R, B])(implicit ev: CanFail[Throwable]): RIO[Nothing, (List[Throwable], List[B])] =
+  )(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
     ZIO.partitionMParN(n)(in)(f)
 
   /**
