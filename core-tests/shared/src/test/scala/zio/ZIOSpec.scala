@@ -77,6 +77,47 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(cause.defects, equalTo(List(releaseDied)))
       }
     ),
+    suite("bracketFork")(
+      testM("bracketFork happy path") {
+        for {
+          release  <- Ref.make(false)
+          result   <- ZIO.bracketFork(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.effectTotal(a + 1))
+          released <- release.get
+        } yield assert(result, equalTo(43)) && assert(released, isTrue)
+      },
+      testM("bracketFork_ happy path") {
+        for {
+          release  <- Ref.make(false)
+          result   <- IO.succeed(42).bracketFork_(release.set(true), ZIO.effectTotal(0))
+          released <- release.get
+        } yield assert(result, equalTo(0)) && assert(released, isTrue)
+      },
+      testM("bracketForkExit happy path") {
+        for {
+          release <- Ref.make(false)
+          result <- ZIO.bracketForkExit(
+                     IO.succeed(42),
+                     (_: Int, _: Exit[Any, Any]) => release.set(true),
+                     (_: Int) => IO.succeed(0L)
+                   )
+          released <- release.get
+        } yield assert(result, equalTo(0L)) && assert(released, isTrue)
+      },
+      testM("bracketForkExit error handling") {
+        val releaseDied: Throwable = new RuntimeException("release died")
+        for {
+          exit <- ZIO
+                   .bracketForkExit[Any, String, Int, Int](
+                     ZIO.succeed(42),
+                     (_, _) => ZIO.die(releaseDied),
+                     _ => ZIO.fail("use failed")
+                   )
+                   .run
+          cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+        } yield assert(cause.failures, equalTo(List("use failed"))) &&
+          assert(cause.defects, equalTo(List(releaseDied)))
+      }
+    ),
     suite("cached")(
       testM("returns new instances after duration") {
         def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.update(_ + 1)
@@ -1867,6 +1908,73 @@ object ZIOSpec extends ZIOBaseSpec {
           r <- done.await.timeoutTo(42)(_ => 0)(60.second)
         } yield assert(r, equalTo(0))
       },
+      testM("bracketFork acquire returns immediately on interrupt") {
+        for {
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Int]
+          p3 <- Promise.make[Nothing, Unit]
+          s <- (p1.succeed(()) *> p2.await)
+                .bracketFork(_ => p3.await)(_ => IO.unit)
+                .fork
+          _   <- p1.await
+          res <- s.interrupt
+          _   <- p3.succeed(())
+        } yield assert(res, isInterrupted)
+      },
+      testM("bracketForkExit acquire returns immediately on interrupt") {
+        for {
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Unit]
+          p3 <- Promise.make[Nothing, Unit]
+          s <- IO
+                .bracketForkExit(p1.succeed(()) *> p2.await)((_, _: Exit[Any, Any]) => p3.await)(
+                  _ => IO.unit: IO[Nothing, Unit]
+                )
+                .fork
+          _   <- p1.await
+          res <- s.interrupt
+          _   <- p3.succeed(())
+        } yield assert(res, isInterrupted)
+      },
+      testM("bracketFork use is interruptible") {
+        for {
+          fiber <- IO.unit.bracketFork(_ => IO.unit)(_ => IO.never).fork
+          res   <- fiber.interrupt
+        } yield assert(res, isInterrupted)
+      },
+      testM("bracketForkExit use is interruptible") {
+        for {
+          fiber <- IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => IO.unit)(_ => IO.never).fork
+          res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second).provide(Clock.Live)
+        } yield assert(res, equalTo(0))
+      },
+      testM("bracketFork release called on interrupt in separate fiber") {
+        val io =
+          for {
+            p1    <- Promise.make[Nothing, Unit]
+            p2    <- Promise.make[Nothing, Unit]
+            fiber <- IO.bracketFork(IO.unit)(_ => p2.succeed(()) *> IO.unit)(_ => p1.succeed(()) *> IO.never).fork
+            _     <- p1.await
+            _     <- fiber.interrupt
+            _     <- p2.await
+          } yield ()
+
+        assertM(io.timeoutTo(42)(_ => 0)(1.second), equalTo(0)).provide(Clock.Live)
+      },
+      testM("bracketForkExit release called on interrupt in separate fiber") {
+        for {
+          done <- Promise.make[Nothing, Unit]
+          fiber <- withLatch { release =>
+                    IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
+                        _ => release *> IO.never
+                      )
+                      .fork
+                  }
+
+          _ <- fiber.interrupt
+          r <- done.await.timeoutTo(42)(_ => 0)(1.second).provide(Clock.Live)
+        } yield assert(r, equalTo(0))
+      },
       testM("catchAll + ensuring + interrupt") {
         import zio.CanFail.canFail
         for {
@@ -1994,6 +2102,39 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- fiber.interrupt
           value <- ref.get
         } yield assert(value, isTrue)
+      },
+      testM("interruptibleFork returns immediately on interrupt") {
+        for {
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Int]
+          p3 <- Promise.make[Nothing, Unit]
+          s <- (p1.succeed(()) *> p2.await)
+                .ensuring(p3.await)
+                .interruptibleFork
+                .fork
+          _   <- p1.await
+          res <- s.interrupt
+          _   <- p3.succeed(())
+        } yield assert(res, isInterrupted)
+      },
+      testM("interruptibleFork forks execution and interrupts fork") {
+        val io =
+          for {
+            r  <- Ref.make(false)
+            p1 <- Promise.make[Nothing, Unit]
+            p2 <- Promise.make[Nothing, Int]
+            p3 <- Promise.make[Nothing, Unit]
+            s <- (p1.succeed(()) *> p2.await)
+                  .ensuring(r.set(true) *> clock.sleep(10.millis) *> p3.succeed(()))
+                  .interruptibleFork
+                  .fork
+            _    <- p1.await
+            _    <- s.interrupt
+            _    <- p3.await
+            test <- r.get
+          } yield test
+
+        assertM(io.provide(Clock.Live), isTrue)
       },
       testM("cause reflects interruption") {
         val io =
