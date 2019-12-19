@@ -246,8 +246,20 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("drop")(
         testM("happy path") {
-          val sink = ZSink.identity[Int].drop(2)
-          assertM(sinkIteration(sink, Stream.fromIterable(List(1,2,3))), equalTo(List(3)))
+          val sink = ZSink.identity[Int].drop(1)
+          assertM(sinkIteration(sink, 1).either, isLeft(equalTo(())))
+        },
+        testM("init error") {
+          val sink = initErrorSink.drop(1)
+          assertM(sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+        },
+        testM("step error") {
+          val sink = stepErrorSink.drop(1)
+          assertM(sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+        },
+        testM("extract error") {
+          val sink = extractErrorSink.drop(1)
+          assertM(sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
         }
       ),
       suite("dropWhile")(
