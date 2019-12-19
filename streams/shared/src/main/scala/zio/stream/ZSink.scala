@@ -1069,6 +1069,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       new ZSink[R, E, A0, A, B] {
         type State = (sink.State, Long)
 
+        // Cast is redundant but required for Scala 2.11
         val initial = sink.initial.map((_, 0L)).asInstanceOf[ZIO[R, E, this.State]]
 
         def step(state: State, a: A) =
