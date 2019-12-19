@@ -106,11 +106,9 @@ object TestAspect extends TimeoutVariants {
    * An aspect that marks tests as ignored.
    */
   val ignore: TestAspectPoly =
-    new PerTest.Poly {
-      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
-        test: ZIO[R, TestFailure[E], TestSuccess[S]]
-      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        ZIO.succeed(TestSuccess.Ignored)
+    new TestAspectPoly {
+      def some[R, E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+        spec.when(false)
     }
 
   /**
@@ -300,27 +298,9 @@ object TestAspect extends TimeoutVariants {
    * satisfies the specified assertion.
    */
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live[System]] =
-    new PerTest.AtLeastR[Live[System]] {
-      def perTest[R <: Live[System], E, S](
-        test: ZIO[R, TestFailure[E], TestSuccess[S]]
-      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        Live.live(system.env(env)).orDie.flatMap { value =>
-          val x = value match {
-            case None => ZIO.succeed(None)
-            case Some(v) =>
-              assertion.test(v).map { p =>
-                if (p) value else None
-              }
-          }
-          //value
-          //.filter(assertion.test)
-          x.flatMap { y =>
-            y.fold[ZIO[R, TestFailure[E], TestSuccess[S]]](ZIO.succeed(TestSuccess.Ignored))(
-              _ => test
-            )
-          }
-
-        }
+    new TestAspectAtLeastR[Live[System]] {
+      def some[R <: Live[System], E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+        spec.whenM(Live.live(system.env(env)).orDie.flatMap(_.fold(ZIO.succeed(false))(assertion.test)))
     }
 
   /**
@@ -338,26 +318,9 @@ object TestAspect extends TimeoutVariants {
     prop: String,
     assertion: Assertion[String]
   ): TestAspectAtLeastR[Live[System]] =
-    new PerTest.AtLeastR[Live[System]] {
-      def perTest[R <: Live[System], E, S](
-        test: ZIO[R, TestFailure[E], TestSuccess[S]]
-      ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        Live.live(system.property(prop)).orDie.flatMap { value =>
-          val x = value match {
-            case None => ZIO.succeed(None)
-            case Some(v) =>
-              assertion.test(v).map { p =>
-                if (p) value else None
-              }
-          }
-          //value
-          //.filter(assertion.test)
-          x.flatMap { y =>
-            y.fold[ZIO[R, TestFailure[E], TestSuccess[S]]](ZIO.succeed(TestSuccess.Ignored))(
-              _ => test
-            )
-          }
-        }
+    new TestAspectAtLeastR[Live[System]] {
+      def some[R <: Live[System], E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+        spec.whenM(Live.live(system.property(prop)).orDie.flatMap(_.fold(ZIO.succeed(false))(assertion.test)))
     }
 
   /**
