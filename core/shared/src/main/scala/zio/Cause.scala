@@ -454,7 +454,7 @@ object Cause extends Serializable {
           case (None, None)         => None
         }
 
-      case Both(left, right) =>
+      case Internal.Both(left, right) =>
         (sequenceCauseOption(left), sequenceCauseOption(right)) match {
           case (Some(cl), Some(cr)) => Some(Internal.Both(cl, cr))
           case (None, Some(cr))     => Some(cr)
@@ -568,7 +568,7 @@ object Cause extends Serializable {
 
   private object Internal {
 
-    final case object Empty extends Cause[Nothing] {
+    case object Empty extends Cause[Nothing] {
       override final def equals(that: Any): Boolean = that match {
         case _: Empty.type     => true
         case Then(left, right) => this == left && this == right
