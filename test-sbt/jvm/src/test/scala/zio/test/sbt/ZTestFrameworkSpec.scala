@@ -71,11 +71,11 @@ object ZTestFrameworkSpec {
           messages.mkString.split("\n").dropRight(1).mkString("\n"),
           List(
             s"${reset("info:")} ${red("- some suite")}",
-            s"${reset("info:")} ${"ignored: 1"}",         
+            s"${reset("info:")} ${"ignored: 1"}",
             s"${reset("info:")}   ${red("- failing test")}",
             s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
             s"${reset("info:")}   ${green("+")} passing test",
-            s"${reset("info:")}   ${"ignored: 1"}",     
+            s"${reset("info:")}   ${"ignored: 1"}"
           ).mkString("\n")
         )
       )
