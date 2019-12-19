@@ -7,7 +7,7 @@ import zio._
 
 import scala.concurrent.Future
 
-object GenUtils extends DefaultRuntime with ZIOIterableFunctions{
+object GenUtils extends DefaultRuntime {
 
   def checkEqual[A](left: Gen[Random, A], right: Gen[Random, A]): Future[Boolean] =
     unsafeRunToFuture(equal(left, right))
@@ -80,9 +80,9 @@ object GenUtils extends DefaultRuntime with ZIOIterableFunctions{
     provideSize(sample(gen).flatMap(effects => ZIO.collectAll(effects.map(_.run))))(size)
 
   def partitionExit[E, A](eas: List[Exit[E, A]]): (List[Failure[E]], List[A]) =
-    eas.partitionMap(_ match {
+    ZIO.partitionMap(eas) {
       case Success(a)     => Right(a)
       case e @ Failure(_) => Left(e)
-    })
+    }
 
 }

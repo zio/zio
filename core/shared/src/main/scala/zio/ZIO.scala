@@ -1692,20 +1692,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self &&& that
 }
 
-private[zio] trait ZIOIterableFunctions extends Serializable {
-  implicit class IterableOps[A, A1, A2](iterable: List[A]) {
-    def partitionMap[A1, A2](f: A => Either[A1, A2]): (List[A1], List[A2]) =
-      iterable.foldRight((List.empty[A1], List.empty[A2])) {
-        case (a, (es, bs)) =>
-          f(a).fold(
-            e => (e :: es, bs),
-            b => (es, b :: bs)
-          )
-      }
-  }
-}
-
-private[zio] trait ZIOFunctions extends ZIOIterableFunctions with Serializable {
+private[zio] trait ZIOFunctions extends Serializable {
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
@@ -2619,7 +2606,7 @@ private[zio] trait ZIOFunctions extends ZIOIterableFunctions with Serializable {
   final def partitionMPar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
-    ZIO.foreachPar(in)(f(_).either).map(_.partitionMap(either => either))
+    ZIO.foreachPar(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
@@ -2630,7 +2617,7 @@ private[zio] trait ZIOFunctions extends ZIOIterableFunctions with Serializable {
   final def partitionMParN[R, E, A, B](n: Int)(
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
-    ZIO.foreachParN(n)(in)(f(_).either).map(_.partitionMap(either => either))
+    ZIO.foreachParN(n)(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
    * Given an environment `R`, returns a function that can supply the
@@ -2922,8 +2909,18 @@ private[zio] trait ZIOFunctions extends ZIOIterableFunctions with Serializable {
 object ZIO extends ZIOFunctions {
   def apply[A](a: => A): Task[A] = effect(a)
 
-  private val _IdentityFn: Any => Any    = (a: Any) => a
+  private val _IdentityFn: Any => Any = (a: Any) => a
+
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
+
+  private[zio] def partitionMap[A, A1, A2](iterable: Iterable[A])(f: A => Either[A1, A2]): (List[A1], List[A2]) =
+    iterable.foldRight((List.empty[A1], List.empty[A2])) {
+      case (a, (es, bs)) =>
+        f(a).fold(
+          e => (e :: es, bs),
+          b => (es, b :: bs)
+        )
+    }
 
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
