@@ -479,7 +479,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.replicate]]
    */
-  def replicate[R, A](n: Int)(effect: URIO[R, A]): Iterable[URIO[R, A]] =
+  final def replicate[R, A](n: Int)(effect: URIO[R, A]): Iterable[URIO[R, A]] =
     ZIO.replicate(n)(effect)
 
   /**
@@ -491,7 +491,7 @@ object URIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[R, B](b: B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
+  final def right[R, B](b: B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see [[zio.ZIO.runtime]]
@@ -506,7 +506,7 @@ object URIO {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[R, A](a: A): URIO[R, Option[A]] = ZIO.some(a)
+  final def some[R, A](a: A): URIO[R, Option[A]] = ZIO.some(a)
 
   /**
    * @see [[zio.ZIO.succeed]]

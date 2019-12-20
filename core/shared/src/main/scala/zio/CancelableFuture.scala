@@ -27,20 +27,20 @@ abstract class CancelableFuture[+E, +A](val future: Future[A]) extends Future[A]
    */
   def cancel: Future[Exit[E, A]]
 
-  def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
+  final def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
     future.onComplete(f)(executor)
 
-  def isCompleted: Boolean =
+  final def isCompleted: Boolean =
     future.isCompleted
 
-  def value: Option[Try[A]] =
+  final def value: Option[Try[A]] =
     future.value
 
-  def ready(atMost: Duration)(implicit permit: CanAwait): this.type = {
+  final def ready(atMost: Duration)(implicit permit: CanAwait): this.type = {
     future.ready(atMost)(permit)
     this
   }
 
-  def result(atMost: Duration)(implicit permit: CanAwait): A =
+  final def result(atMost: Duration)(implicit permit: CanAwait): A =
     future.result(atMost)
 }

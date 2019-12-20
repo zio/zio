@@ -216,7 +216,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam A1 type of the other fiber
    * @return `Fiber[E1, A1]`
    */
-  def orElse[E1 >: E, A1 >: A](that: => Fiber[E1, A1]): Fiber[E1, A1] =
+  final def orElse[E1 >: E, A1 >: A](that: => Fiber[E1, A1]): Fiber[E1, A1] =
     new Fiber[E1, A1] {
       final def await: UIO[Exit[E1, A1]] =
         self.await.zipWith(that.await) {
@@ -258,7 +258,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the other fiber
    * @return `Fiber[E1, B]`
    */
-  def orElseEither[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, Either[A, B]] =
+  final def orElseEither[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, Either[A, B]] =
     (self map (Left(_))) orElse (that map (Right(_)))
 
   /**

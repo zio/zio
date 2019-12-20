@@ -553,7 +553,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.replicate]]
    */
-  def replicate[A](n: Int)(effect: Task[A]): Iterable[Task[A]] =
+  final def replicate[A](n: Int)(effect: Task[A]): Iterable[Task[A]] =
     ZIO.replicate(n)(effect)
 
   /**
@@ -571,7 +571,7 @@ object Task {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[B](b: B): Task[Either[Nothing, B]] = ZIO.right(b)
+  final def right[B](b: B): Task[Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -604,7 +604,7 @@ object Task {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[A](a: A): Task[Option[A]] = ZIO.some(a)
+  final def some[A](a: A): Task[Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.trace]]

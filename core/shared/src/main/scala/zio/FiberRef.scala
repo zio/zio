@@ -154,6 +154,6 @@ object FiberRef extends Serializable {
   /**
    * Creates a new `FiberRef` with given initial value.
    */
-  def make[A](initialValue: A, combine: (A, A) => A = (_: A, last: A) => last): UIO[FiberRef[A]] =
+  final def make[A](initialValue: A, combine: (A, A) => A = (_: A, last: A) => last): UIO[FiberRef[A]] =
     new ZIO.FiberRefNew(initialValue, combine)
 }

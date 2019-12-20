@@ -563,7 +563,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.replicate]]
    */
-  def replicate[E, A](n: Int)(effect: IO[E, A]): Iterable[IO[E, A]] =
+  final def replicate[E, A](n: Int)(effect: IO[E, A]): Iterable[IO[E, A]] =
     ZIO.replicate(n)(effect)
 
   /**
@@ -581,7 +581,7 @@ object IO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[E, B](b: B): IO[E, Either[Nothing, B]] = ZIO.right(b)
+  final def right[E, B](b: B): IO[E, Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -609,7 +609,7 @@ object IO {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[E, A](a: A): IO[E, Option[A]] = ZIO.some(a)
+  final def some[E, A](a: A): IO[E, Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]

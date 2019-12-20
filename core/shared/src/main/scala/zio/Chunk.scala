@@ -98,7 +98,7 @@ sealed trait Chunk[+A] { self =>
     drop(i)
   }
 
-  override def equals(that: Any): Boolean = that match {
+  override final def equals(that: Any): Boolean = that match {
     case that: Chunk[_] =>
       if (self.length != that.length) false
       else {
@@ -179,7 +179,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
    */
-  def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
+  final def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
     flatMap(ev(_))
 
   /**
@@ -244,7 +244,7 @@ sealed trait Chunk[+A] { self =>
   /**
    * Effectfully folds over the elements in this chunk from the left.
    */
-  final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
+  def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
     fold[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
       s.flatMap(f(_, a))
     }
@@ -483,17 +483,17 @@ sealed trait Chunk[+A] { self =>
     builder.result()
   }
 
-  def toSeq: Seq[A] = {
+  final def toSeq: Seq[A] = {
     val seqBuilder = Seq.newBuilder[A]
     fromBuilder(seqBuilder)
   }
 
-  def toList: List[A] = {
+  final def toList: List[A] = {
     val listBuilder = List.newBuilder[A]
     fromBuilder(listBuilder)
   }
 
-  def toVector: Vector[A] = {
+  final def toVector: Vector[A] = {
     val vectorBuilder = Vector.newBuilder[A]
     fromBuilder(vectorBuilder)
   }
@@ -611,7 +611,7 @@ sealed trait Chunk[+A] { self =>
     }
   }
 
-  def zipAllWith[B, C](
+  final def zipAllWith[B, C](
     that: Chunk[B]
   )(left: A => C, right: B => C)(both: (A, B) => C): Chunk[C] = {
 

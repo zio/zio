@@ -67,7 +67,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Returns the `E` associated with the first `Fail` in this `Cause` if one
    * exists.
    */
-  def failureOption: Option[E] =
+  final def failureOption: Option[E] =
     find { case Fail(e) => e }
 
   /**

@@ -438,7 +438,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.replicate]]
    */
-  def replicate[A](n: Int)(effect: UIO[A]): Iterable[UIO[A]] =
+  final def replicate[A](n: Int)(effect: UIO[A]): Iterable[UIO[A]] =
     ZIO.replicate(n)(effect)
 
   /**
@@ -450,7 +450,7 @@ object UIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[B](b: B): UIO[Either[Nothing, B]] = ZIO.right(b)
+  final def right[B](b: B): UIO[Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -478,7 +478,7 @@ object UIO {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[A](a: A): UIO[Option[A]] = ZIO.some(a)
+  final def some[A](a: A): UIO[Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]

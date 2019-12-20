@@ -18,8 +18,8 @@ package zio
 
 sealed abstract class SuperviseStatus extends Serializable with Product
 object SuperviseStatus {
-  def supervised: SuperviseStatus   = Supervised
-  def unsupervised: SuperviseStatus = Unsupervised
+  final def supervised: SuperviseStatus   = Supervised
+  final def unsupervised: SuperviseStatus = Unsupervised
 
   case object Supervised   extends SuperviseStatus
   case object Unsupervised extends SuperviseStatus

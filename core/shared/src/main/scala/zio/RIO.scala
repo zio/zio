@@ -551,7 +551,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.replicate]]
    */
-  def replicate[R, A](n: Int)(effect: RIO[R, A]): Iterable[RIO[R, A]] =
+  final def replicate[R, A](n: Int)(effect: RIO[R, A]): Iterable[RIO[R, A]] =
     ZIO.replicate(n)(effect)
 
   /**
@@ -569,7 +569,7 @@ object RIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[R, B](b: B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
+  final def right[R, B](b: B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -585,7 +585,7 @@ object RIO {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[R, A](a: A): RIO[R, Option[A]] = ZIO.some(a)
+  final def some[R, A](a: A): RIO[R, Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]
