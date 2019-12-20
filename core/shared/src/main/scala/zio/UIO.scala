@@ -192,12 +192,12 @@ object UIO {
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[A](uio: => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(_ => uio)
+  final def effectSuspendTotal[A](uio: => UIO[A]): UIO[A] = ZIO.effectSuspendTotal(uio)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[A](p: Platform => UIO[A]): UIO[A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => UIO[A]): UIO[A] = ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -220,6 +220,12 @@ object UIO {
    */
   final def foldLeft[S, A](in: Iterable[A])(zero: S)(f: (S, A) => UIO[S]): UIO[S] =
     ZIO.foldLeft(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.foldRight]]
+   */
+  final def foldRight[S, A](in: Iterable[A])(zero: S)(f: (A, S) => UIO[S]): UIO[S] =
+    ZIO.foldRight(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.forkAll]]

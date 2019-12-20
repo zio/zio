@@ -17,6 +17,7 @@
 package zio.stream
 
 import java.io.{ IOException, InputStream }
+import java.{ util => ju }
 
 import zio._
 import zio.clock.Clock
@@ -182,16 +183,22 @@ object Stream extends Serializable {
     ZStream.fromEffect(fa)
 
   /**
-   * See [[ZStream.fromPull]]
+   * See [[ZStream.fromEffectOption]]
    */
-  final def fromPull[E, A](pull: Pull[Any, E, A]): Stream[E, A] =
-    ZStream.fromPull(pull)
+  final def fromEffectOption[E, A](fa: IO[Option[E], A]): Stream[E, A] =
+    ZStream.fromEffectOption(fa)
 
   /**
    * See [[ZStream.paginate]]
    */
-  final def paginate[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
+  final def paginate[A, S](s: S)(f: S => (A, Option[S])): Stream[Nothing, A] =
     ZStream.paginate(s)(f)
+
+  /**
+   * See [[ZStream.paginateM]]
+   */
+  final def paginateM[E, A, S](s: S)(f: S => IO[E, (A, Option[S])]): Stream[E, A] =
+    ZStream.paginateM(s)(f)
 
   /**
    * See [[ZStream.repeatEffect]]
@@ -206,6 +213,12 @@ object Stream extends Serializable {
     fa: IO[E, A],
     schedule: Schedule[Any, Unit, Any]
   ): ZStream[Clock, E, A] = ZStream.repeatEffectWith(fa, schedule)
+
+  /**
+   * See [[ZStream.repeatEffectOption]]
+   */
+  final def repeatEffectOption[E, A](fa: IO[Option[E], A]): Stream[E, A] =
+    ZStream.repeatEffectOption(fa)
 
   /**
    * See [[ZStream.fromIterable]]
@@ -224,6 +237,18 @@ object Stream extends Serializable {
    */
   final def fromIteratorManaged[E, A](iterator: Managed[E, Iterator[A]]): Stream[E, A] =
     ZStream.fromIteratorManaged(iterator)
+
+  /**
+   * See [[ZStream.fromJavaIterator]]
+   */
+  final def fromJavaIterator[E, A](iterator: IO[E, ju.Iterator[A]]): Stream[E, A] =
+    ZStream.fromJavaIterator(iterator)
+
+  /**
+   * See [[ZStream.fromJavaIteratorManaged]]
+   */
+  final def fromJavaIteratorManaged[E, A](iterator: Managed[E, ju.Iterator[A]]): Stream[E, A] =
+    ZStream.fromJavaIteratorManaged(iterator)
 
   /**
    * See [[ZStream.fromQueue]]

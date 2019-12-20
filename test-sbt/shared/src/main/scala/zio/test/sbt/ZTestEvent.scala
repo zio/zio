@@ -27,7 +27,7 @@ object ZTestEvent {
         results.flatMap(UIO.collectAll(_).map(_.flatten))
       case zio.test.Spec.TestCase(label, result) =>
         result.map { result =>
-          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
+          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result._1), None, 0, fingerprint))
         }
     }
 

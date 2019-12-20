@@ -43,4 +43,11 @@ object BracketTypeInferenceSpec {
     val use: A => ZIO[R, E, B]              = ???
     ZIO.bracket(acquire, release, use)
   }
+
+  def infersRType4: ZIO[R2, E, B] = {
+    val acquire: ZIO[R2, E, A]              = ???
+    val release: A => ZIO[R1, Nothing, Any] = ???
+    val use: A => ZIO[R, E, B]              = ???
+    acquire.bracket(release)(use)
+  }
 }

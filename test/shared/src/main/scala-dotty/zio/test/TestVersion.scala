@@ -17,7 +17,7 @@
 package zio.test
 
 object TestVersion {
-  
+
   /**
    * Returns whether the current Scala version is Dotty.
    */

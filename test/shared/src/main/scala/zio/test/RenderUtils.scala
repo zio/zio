@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,24 @@
  * limitations under the License.
  */
 
-package zio
+package zio.test
 
-import scala.language.implicitConversions
+import scala.{ Console => SConsole }
 
-package object syntax {
-  import zio.syntax.ZIOSyntax._
+private[test] object ConsoleUtils {
 
-  implicit final def zioEagerCreationSyntax[A](a: A): EagerCreationSyntax[A]  = new EagerCreationSyntax[A](a)
-  implicit final def zioLazyCreationSyntax[A](a: => A): LazyCreationSyntax[A] = new LazyCreationSyntax[A](() => a)
+  def green(s: String): String =
+    SConsole.GREEN + s + SConsole.RESET
+
+  def red(s: String): String =
+    SConsole.RED + s + SConsole.RESET
+
+  def blue(s: String): String =
+    SConsole.BLUE + s + SConsole.RESET
+
+  def cyan(s: String): String =
+    SConsole.CYAN + s + SConsole.RESET
+
+  def yellowThenCyan(s: String): String =
+    SConsole.YELLOW + s + SConsole.CYAN
 }

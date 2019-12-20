@@ -234,10 +234,10 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
 
 object Exit extends Serializable {
 
-  final case class Success[A](value: A)                   extends Exit[Nothing, A]
-  final case class Failure[E](cause: _root_.zio.Cause[E]) extends Exit[E, Nothing]
+  final case class Success[+A](value: A)        extends Exit[Nothing, A]
+  final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
 
-  final def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] = halt(_root_.zio.Cause.interrupt(id))
+  final def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] = halt(Cause.interrupt(id))
 
   final def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
@@ -267,9 +267,9 @@ object Exit extends Serializable {
   final def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAllPar[E, A](exits)
 
-  final def die(t: Throwable): Exit[Nothing, Nothing] = halt(_root_.zio.Cause.die(t))
+  final def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
 
-  final def fail[E](error: E): Exit[E, Nothing] = halt(_root_.zio.Cause.fail(error))
+  final def fail[E](error: E): Exit[E, Nothing] = halt(Cause.fail(error))
 
   final def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
     exit.flatMap(identity)
@@ -286,7 +286,7 @@ object Exit extends Serializable {
       case scala.util.Failure(t) => fail(t)
     }
 
-  final def halt[E](cause: _root_.zio.Cause[E]): Exit[E, Nothing] = Failure(cause)
+  final def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
 
   final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 

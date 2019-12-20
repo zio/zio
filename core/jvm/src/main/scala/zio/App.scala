@@ -60,6 +60,7 @@ trait App extends DefaultRuntime {
                 }
               }))
           result <- fiber.join
+          _      <- fiber.interrupt
         } yield result
       )
     )

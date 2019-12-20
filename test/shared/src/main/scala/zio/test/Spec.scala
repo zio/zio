@@ -40,6 +40,17 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     aspect(self.asInstanceOf[ZSpec[R1, E2, L, S]])
 
   /**
+   * Returns a new spec with the annotation map at each node.
+   */
+  final def annotated: Spec[R with Annotations, Annotated[E], L, Annotated[T]] =
+    transform[R with Annotations, Annotated[E], L, Annotated[T]] {
+      case Spec.SuiteCase(label, specs, exec) =>
+        Spec.SuiteCase(label, specs.mapError((_, TestAnnotationMap.empty)), exec)
+      case Spec.TestCase(label, test) =>
+        Spec.TestCase(label, Annotations.withAnnotation(test))
+    }
+
+  /**
    * Returns a new spec with remapped errors and tests.
    */
   final def bimap[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E]): Spec[R, E1, L, T1] =
@@ -378,6 +389,40 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       .asInstanceOf[ZSpec[R, E1, String, S]]
       .filterLabels(_.contains(s))
       .getOrElse(Spec.test("only", ignored))
+
+  /**
+   * Runs the spec only if the specified predicate is satisfied.
+   */
+  final def when[S](b: Boolean)(implicit ev: T <:< TestSuccess[S]): Spec[R with Annotations, E, L, TestSuccess[S]] =
+    whenM(ZIO.succeed(b))
+
+  /**
+   * Runs the spec only if the specified effectual predicate is satisfied.
+   */
+  final def whenM[R1 <: R, E1 >: E, S](
+    b: ZIO[R1, E1, Boolean]
+  )(implicit ev: T <:< TestSuccess[S]): Spec[R1 with Annotations, E1, L, TestSuccess[S]] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Spec.suite(
+          label,
+          b.flatMap(
+            b =>
+              if (b) specs.asInstanceOf[ZIO[R1, E1, Vector[Spec[R1, E1, L, TestSuccess[S]]]]]
+              else ZIO.succeed(Vector.empty)
+          ),
+          exec
+        )
+      case TestCase(label, test) =>
+        Spec.test(
+          label,
+          b.flatMap(
+            b =>
+              if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess[S]]]
+              else Annotations.annotate(TestAnnotation.ignored, 1).as(TestSuccess.Ignored)
+          )
+        )
+    }
 }
 
 object Spec {

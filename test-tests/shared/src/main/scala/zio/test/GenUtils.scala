@@ -80,8 +80,9 @@ object GenUtils extends DefaultRuntime {
     provideSize(sample(gen).flatMap(effects => ZIO.collectAll(effects.map(_.run))))(size)
 
   def partitionExit[E, A](eas: List[Exit[E, A]]): (List[Failure[E]], List[A]) =
-    eas.foldRight((List.empty[Failure[E]], List.empty[A])) {
-      case (Failure(e), (es, as)) => (Failure(e) :: es, as)
-      case (Success(a), (es, as)) => (es, a :: as)
+    ZIO.partitionMap(eas) {
+      case Success(a)     => Right(a)
+      case e @ Failure(_) => Left(e)
     }
+
 }
