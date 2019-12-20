@@ -234,8 +234,8 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
 
 object Exit extends Serializable {
 
-  final case class Success[A](value: A)                   extends Exit[Nothing, A]
-  final case class Failure[E](cause: _root_.zio.Cause[E]) extends Exit[E, Nothing]
+  final case class Success[+A](value: A)                   extends Exit[Nothing, A]
+  final case class Failure[+E](cause: _root_.zio.Cause[E]) extends Exit[E, Nothing]
 
   final def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] = halt(_root_.zio.Cause.interrupt(id))
 

@@ -579,7 +579,7 @@ object Cause extends Serializable {
       }
     }
 
-    final case class Fail[E](value: E) extends Cause[E] {
+    final case class Fail[+E](value: E) extends Cause[E] {
       override final def equals(that: Any): Boolean = that match {
         case fail: Fail[_]     => value == fail.value
         case c @ Then(_, _)    => sym(empty)(this, c)
@@ -614,7 +614,7 @@ object Cause extends Serializable {
     }
 
     // Traced is excluded completely from equals & hashCode
-    final case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
+    final case class Traced[+E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
       override final def hashCode: Int = cause.hashCode()
       override final def equals(obj: Any): Boolean = obj match {
         case traced: Traced[_] => cause == traced.cause
@@ -624,7 +624,7 @@ object Cause extends Serializable {
     }
 
     // Meta is excluded completely from equals & hashCode
-    final case class Meta[E](cause: Cause[E], data: Data) extends Cause[E] {
+    final case class Meta[+E](cause: Cause[E], data: Data) extends Cause[E] {
       override final def hashCode: Int = cause.hashCode
       override final def equals(obj: Any): Boolean = obj match {
         case traced: Traced[_] => cause == traced.cause
@@ -633,7 +633,7 @@ object Cause extends Serializable {
       }
     }
 
-    final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+    final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
       override final def equals(that: Any): Boolean = that match {
         case traced: Traced[_] => self.equals(traced.cause)
         case meta: Meta[_]     => self.equals(meta.cause)
@@ -664,7 +664,7 @@ object Cause extends Serializable {
       }
     }
 
-    final case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+    final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
       override final def equals(that: Any): Boolean = that match {
         case traced: Traced[_] => self.equals(traced.cause)
         case meta: Meta[_]     => self.equals(meta.cause)

@@ -646,9 +646,9 @@ object STM {
 
     sealed trait TExit[+A, +B] extends Serializable with Product
     object TExit {
-      final case class Fail[A](value: A)    extends TExit[A, Nothing]
-      final case class Succeed[B](value: B) extends TExit[Nothing, B]
-      case object Retry                     extends TExit[Nothing, Nothing]
+      final case class Fail[+A](value: A)    extends TExit[A, Nothing]
+      final case class Succeed[+B](value: B) extends TExit[Nothing, B]
+      case object Retry                      extends TExit[Nothing, Nothing]
     }
 
     abstract class Entry { self =>

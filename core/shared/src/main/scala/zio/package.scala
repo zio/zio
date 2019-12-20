@@ -17,7 +17,7 @@
 package object zio extends ZEnvDefinition with EitherCompat {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
-  type Canceler[R] = URIO[R, Any]
+  type Canceler[-R] = URIO[R, Any]
 
   type RIO[-R, +A]  = ZIO[R, Throwable, A]
   type URIO[-R, +A] = ZIO[R, Nothing, A]
