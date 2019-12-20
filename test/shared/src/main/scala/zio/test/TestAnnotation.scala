@@ -30,10 +30,11 @@ final class TestAnnotation[V] private (
   private val classTag: ClassTag[V]
 ) {
   override final def equals(that: Any): Boolean = that match {
-    case that: TestAnnotation[_] => (identifier, classTag) == ((identifier, that.classTag))
+    case that: TestAnnotation[_] => (identifier, classTag) == ((that.identifier, that.classTag))
   }
 
-  override final lazy val hashCode = (identifier, classTag).hashCode
+  override final lazy val hashCode =
+    (identifier, classTag).hashCode
 }
 object TestAnnotation {
 
@@ -45,12 +46,18 @@ object TestAnnotation {
   /**
    * An annotation which counts ignored tests.
    */
-  val ignored: TestAnnotation[Int] =
+  final val ignored: TestAnnotation[Int] =
     TestAnnotation("ignored", 0, _ + _)
+
+  /**
+   * An annotation which counts retried tests.
+   */
+  final val retried: TestAnnotation[Int] =
+    TestAnnotation("retried", 0, _ + _)
 
   /**
    * An annotation for timing.
    */
-  val timing: TestAnnotation[Duration] =
+  final val timing: TestAnnotation[Duration] =
     TestAnnotation("timing", Duration.Zero, _ + _)
 }

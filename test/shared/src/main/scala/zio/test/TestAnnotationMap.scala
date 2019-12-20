@@ -16,10 +16,13 @@
 
 package zio.test
 
+import scala.collection.immutable.Map
+
 /**
  * An annotation map keeps track of annotations of different types.
  */
 class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRef]) { self =>
+
   final def ++(that: TestAnnotationMap): TestAnnotationMap =
     new TestAnnotationMap((self.map.toVector ++ that.map.toVector).foldLeft[Map[TestAnnotation[Any], AnyRef]](Map()) {
       case (acc, (key, value)) =>
@@ -30,7 +33,7 @@ class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRe
    * Appends the specified annotation to the annotation map.
    */
   final def annotate[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
-    update[V](key, key.combine(_, value))
+    update(key, key.combine(_, value))
 
   /**
    * Retrieves the annotation of the specified type, or its default value if there is none.
@@ -41,12 +44,15 @@ class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRe
   private final def overwrite[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
     new TestAnnotationMap(map + (key.asInstanceOf[TestAnnotation[Any]] -> value.asInstanceOf[AnyRef]))
 
-  private final def update[V](key: TestAnnotation[V], f: V => V): TestAnnotationMap = overwrite(key, f(get(key)))
+  private final def update[V](key: TestAnnotation[V], f: V => V): TestAnnotationMap =
+    overwrite(key, f(get(key)))
 }
+
 object TestAnnotationMap {
 
   /**
    * An empty annotation map.
    */
-  val empty = new TestAnnotationMap(Map())
+  val empty: TestAnnotationMap =
+    new TestAnnotationMap(Map())
 }

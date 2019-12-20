@@ -252,7 +252,8 @@ object TestAspect extends TimeoutVariants {
    * An aspect that makes a test that failed for any reason pass. Note that if the test
    * passes this aspect will make it fail.
    */
-  val failure: PerTest[Nothing, Any, Nothing, Any, Unit, Unit] = failure(Assertion.anything)
+  val failure: PerTest[Nothing, Any, Nothing, Any, Unit, Unit] =
+    failure(Assertion.anything)
 
   /**
    * An aspect that makes a test that failed for the specified failure pass.  Note that the
@@ -281,7 +282,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectAtLeastR[ZTestEnv] =
+  val flaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
     flaky(100)
 
   /**
@@ -290,7 +291,7 @@ object TestAspect extends TimeoutVariants {
    */
   def flaky(
     n: Int
-  ): TestAspectAtLeastR[ZTestEnv] =
+  ): TestAspectAtLeastR[ZTestEnv with Annotations] =
     retry(Schedule.recurs(n))
 
   /**
@@ -444,14 +445,14 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that retries failed tests according to a schedule.
    */
-  def retry[R0 <: ZTestEnv, E0, S0](
+  def retry[R0 <: ZTestEnv with Annotations, E0, S0](
     schedule: Schedule[R0, TestFailure[E0], S0]
   ): TestAspect[Nothing, R0, Nothing, E0, Nothing, Any] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, Any] {
       def perTest[R >: Nothing <: R0, E >: Nothing <: E0, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        test.retry(schedule)
+        test.retry(schedule.tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1)))
     }
     restoreTestEnvironment >>> retry
   }
