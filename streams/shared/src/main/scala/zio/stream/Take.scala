@@ -56,9 +56,9 @@ sealed trait Take[+E, +A] extends Product with Serializable { self =>
 }
 
 object Take {
-  final case class Fail[E](value: Cause[E]) extends Take[E, Nothing]
-  final case class Value[A](value: A)       extends Take[Nothing, A]
-  case object End                           extends Take[Nothing, Nothing]
+  final case class Fail[+E](value: Cause[E]) extends Take[E, Nothing]
+  final case class Value[+A](value: A)       extends Take[Nothing, A]
+  case object End                            extends Take[Nothing, Nothing]
 
   final def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
     pull.fold(_.fold[Take[E, A]](Take.End)(e => Take.Fail(Cause.fail(e))), Take.Value(_))
