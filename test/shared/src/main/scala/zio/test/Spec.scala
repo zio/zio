@@ -393,7 +393,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
   /**
    * Runs the spec only if the specified predicate is satisfied.
    */
-  final def when[S](b: Boolean)(implicit ev: T <:< TestSuccess[S]): Spec[R, E, L, TestSuccess[S]] =
+  final def when[S](b: Boolean)(implicit ev: T <:< TestSuccess[S]): Spec[R with Annotations, E, L, TestSuccess[S]] =
     whenM(ZIO.succeed(b))
 
   /**
@@ -401,7 +401,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
    */
   final def whenM[R1 <: R, E1 >: E, S](
     b: ZIO[R1, E1, Boolean]
-  )(implicit ev: T <:< TestSuccess[S]): Spec[R1, E1, L, TestSuccess[S]] =
+  )(implicit ev: T <:< TestSuccess[S]): Spec[R1 with Annotations, E1, L, TestSuccess[S]] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         Spec.suite(
@@ -416,7 +416,11 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       case TestCase(label, test) =>
         Spec.test(
           label,
-          b.flatMap(b => if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess[S]]] else ZIO.succeed(TestSuccess.Ignored))
+          b.flatMap(
+            b =>
+              if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess[S]]]
+              else Annotations.annotate(TestAnnotation.ignored, 1).as(TestSuccess.Ignored)
+          )
         )
     }
 }

@@ -56,7 +56,8 @@ object DefaultTestReporter {
             else Seq(renderSuccessLabel(label, depth))
             renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
             rest                <- UIO.foreach(specs)(loop(_, depth + tabSize, annotations :: ancestors)).map(_.flatten)
-          } yield rendered(Suite, label, status, depth, (renderedLabel ++ renderedAnnotations): _*) +: rest
+          } yield rendered(Suite, label, status, depth, (renderedLabel): _*)
+            .withAnnotations(renderedAnnotations) +: rest
         case Spec.TestCase(label, result) =>
           result.flatMap {
             case (result, annotations) =>
@@ -88,7 +89,7 @@ object DefaultTestReporter {
 
                   }
               }
-              renderedResult.map(result => Seq(result.withAnnotations(renderedAnnotations.map(withOffset(depth)))))
+              renderedResult.map(result => Seq(result.withAnnotations(renderedAnnotations)))
           }
       }
     loop(executedSpec, 0, List.empty)
@@ -296,6 +297,10 @@ case class RenderedResult(caseType: CaseType, label: String, status: Status, off
       case Passed  => self.copy(status = Failed)
     }
 
-  def withAnnotations(renderedAnnotations: Seq[String]): RenderedResult =
-    self.copy(rendered = self.rendered ++ renderedAnnotations)
+  def withAnnotations(annotations: Seq[String]): RenderedResult =
+    if (rendered.isEmpty || annotations.isEmpty) self
+    else {
+      val renderedAnnotations = annotations.mkString(" - ", ", ", "")
+      self.copy(rendered = Seq(rendered.head + renderedAnnotations) ++ rendered.tail)
+    }
 }

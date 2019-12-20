@@ -105,9 +105,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that marks tests as ignored.
    */
-  val ignore: TestAspectPoly =
-    new TestAspectPoly {
-      def some[R, E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+  val ignore: TestAspectAtLeastR[Annotations] =
+    new TestAspectAtLeastR[Annotations] {
+      def some[R <: Annotations, E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
         spec.when(false)
     }
 
@@ -193,7 +193,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on Dotty.
    */
-  val dottyOnly: TestAspectPoly =
+  val dottyOnly: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isDotty) identity else ignore
 
   /**
@@ -212,25 +212,25 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs tests on all versions except Dotty.
    */
-  val exceptDotty: TestAspectPoly =
+  val exceptDotty: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isDotty) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except ScalaJS.
    */
-  val exceptJS: TestAspectPoly =
+  val exceptJS: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJS) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except the JVM.
    */
-  val exceptJVM: TestAspectPoly =
+  val exceptJVM: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJVM) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala2.
    */
-  val exceptScala2: TestAspectPoly =
+  val exceptScala2: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala2) ignore else identity
 
   /**
@@ -252,7 +252,8 @@ object TestAspect extends TimeoutVariants {
    * An aspect that makes a test that failed for any reason pass. Note that if the test
    * passes this aspect will make it fail.
    */
-  val failure: PerTest[Nothing, Any, Nothing, Any, Unit, Unit] = failure(Assertion.anything)
+  val failure: PerTest[Nothing, Any, Nothing, Any, Unit, Unit] =
+    failure(Assertion.anything)
 
   /**
    * An aspect that makes a test that failed for the specified failure pass.  Note that the
@@ -281,7 +282,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectAtLeastR[ZTestEnv] =
+  val flaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
     flaky(100)
 
   /**
@@ -290,16 +291,19 @@ object TestAspect extends TimeoutVariants {
    */
   def flaky(
     n: Int
-  ): TestAspectAtLeastR[ZTestEnv] =
+  ): TestAspectAtLeastR[ZTestEnv with Annotations] =
     retry(Schedule.recurs(n))
 
   /**
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
-  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live[System]] =
-    new TestAspectAtLeastR[Live[System]] {
-      def some[R <: Live[System], E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live[System] with Annotations] =
+    new TestAspectAtLeastR[Live[System] with Annotations] {
+      def some[R <: Live[System] with Annotations, E, S, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] =
         spec.whenM(Live.live(system.env(env)).orDie.flatMap(_.fold(ZIO.succeed(false))(assertion.test)))
     }
 
@@ -307,7 +311,7 @@ object TestAspect extends TimeoutVariants {
    * As aspect that only runs a test if the specified environment variable is
    * set.
    */
-  def ifEnvSet(env: String): TestAspectAtLeastR[Live[System]] =
+  def ifEnvSet(env: String): TestAspectAtLeastR[Live[System] with Annotations] =
     ifEnv(env, Assertion.anything)
 
   /**
@@ -317,16 +321,19 @@ object TestAspect extends TimeoutVariants {
   def ifProp(
     prop: String,
     assertion: Assertion[String]
-  ): TestAspectAtLeastR[Live[System]] =
-    new TestAspectAtLeastR[Live[System]] {
-      def some[R <: Live[System], E, S, L](predicate: L => Boolean, spec: ZSpec[R, E, L, S]): ZSpec[R, E, L, S] =
+  ): TestAspectAtLeastR[Live[System] with Annotations] =
+    new TestAspectAtLeastR[Live[System] with Annotations] {
+      def some[R <: Live[System] with Annotations, E, S, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L, S]
+      ): ZSpec[R, E, L, S] =
         spec.whenM(Live.live(system.property(prop)).orDie.flatMap(_.fold(ZIO.succeed(false))(assertion.test)))
     }
 
   /**
    * As aspect that only runs a test if the specified Java property is set.
    */
-  def ifPropSet(prop: String): TestAspectAtLeastR[Live[System]] =
+  def ifPropSet(prop: String): TestAspectAtLeastR[Live[System] with Annotations] =
     ifProp(prop, Assertion.anything)
 
   /**
@@ -340,7 +347,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on ScalaJS.
    */
-  val jsOnly: TestAspectPoly =
+  val jsOnly: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJS) identity else ignore
 
   /**
@@ -354,14 +361,14 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on the JVM.
    */
-  val jvmOnly: TestAspectPoly =
+  val jvmOnly: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJVM) identity else ignore
 
   /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectAtLeastR[ZTestEnv] =
+  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
     nonFlaky(100)
 
   /**
@@ -370,15 +377,15 @@ object TestAspect extends TimeoutVariants {
    */
   def nonFlaky(
     n: Int
-  ): TestAspectAtLeastR[ZTestEnv] = {
-    val nonFlaky = new PerTest.Poly {
-      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+  ): TestAspectAtLeastR[ZTestEnv with Annotations] = {
+    val nonFlaky = new PerTest.AtLeastR[Annotations] {
+      def perTest[R >: Nothing <: Annotations, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
-        def repeat(n: Int): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        def repeat(n: Int)(test: ZIO[R, TestFailure[E], TestSuccess[S]]): ZIO[R, TestFailure[E], TestSuccess[S]] =
           if (n <= 1) test
-          else test.flatMap(_ => repeat(n - 1))
-        repeat(n)
+          else test.flatMap(_ => repeat(n - 1)(test))
+        repeat(n)(test <* Annotations.annotate(TestAnnotation.repeated, 1))
       }
     }
 
@@ -438,14 +445,14 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that retries failed tests according to a schedule.
    */
-  def retry[R0 <: ZTestEnv, E0, S0](
+  def retry[R0 <: ZTestEnv with Annotations, E0, S0](
     schedule: Schedule[R0, TestFailure[E0], S0]
   ): TestAspect[Nothing, R0, Nothing, E0, Nothing, Any] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0, Nothing, Any] {
       def perTest[R >: Nothing <: R0, E >: Nothing <: E0, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        test.retry(schedule)
+        test.retry(schedule.tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1)))
     }
     restoreTestEnvironment >>> retry
   }
@@ -466,7 +473,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on Scala 2.
    */
-  val scala2Only: TestAspectPoly =
+  val scala2Only: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala2) identity else ignore
 
   /**
