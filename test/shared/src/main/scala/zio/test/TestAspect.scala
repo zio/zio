@@ -368,7 +368,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectAtLeastR[ZTestEnv] =
+  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations] =
     nonFlaky(100)
 
   /**
@@ -377,15 +377,15 @@ object TestAspect extends TimeoutVariants {
    */
   def nonFlaky(
     n: Int
-  ): TestAspectAtLeastR[ZTestEnv] = {
-    val nonFlaky = new PerTest.Poly {
-      def perTest[R >: Nothing <: Any, E >: Nothing <: Any, S >: Nothing <: Any](
+  ): TestAspectAtLeastR[ZTestEnv with Annotations] = {
+    val nonFlaky = new PerTest.AtLeastR[Annotations] {
+      def perTest[R >: Nothing <: Annotations, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
-        def repeat(n: Int): ZIO[R, TestFailure[E], TestSuccess[S]] =
+        def repeat(n: Int)(test: ZIO[R, TestFailure[E], TestSuccess[S]]): ZIO[R, TestFailure[E], TestSuccess[S]] =
           if (n <= 1) test
-          else test.flatMap(_ => repeat(n - 1))
-        repeat(n)
+          else test.flatMap(_ => repeat(n - 1)(test))
+        repeat(n)(test <* Annotations.annotate(TestAnnotation.repeated, 1))
       }
     }
 

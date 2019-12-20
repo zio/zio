@@ -50,6 +50,12 @@ object TestAnnotation {
     TestAnnotation("ignored", 0, _ + _)
 
   /**
+   * An annotation which counts repeated tests.
+   */
+  final val repeated: TestAnnotation[Int] =
+    TestAnnotation("repeated", 0, _ + _)
+
+  /**
    * An annotation which counts retried tests.
    */
   final val retried: TestAnnotation[Int] =
