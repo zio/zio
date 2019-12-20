@@ -33,7 +33,7 @@ class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRe
    * Appends the specified annotation to the annotation map.
    */
   final def annotate[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
-    update(key, key.combine(_, value))
+    update[V](key, key.combine(_, value))
 
   /**
    * Retrieves the annotation of the specified type, or its default value if there is none.
