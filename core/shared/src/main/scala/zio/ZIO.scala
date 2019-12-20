@@ -2606,12 +2606,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def partitionMPar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
-    ZIO
-      .foreachPar(in)(f(_).either)
-      .map(_.foldRight((List.empty[E], List.empty[B])) {
-        case (Left(e), (es, bs))  => (e :: es, bs)
-        case (Right(b), (es, bs)) => (es, b :: bs)
-      })
+    ZIO.foreachPar(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
@@ -2622,12 +2617,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def partitionMParN[R, E, A, B](n: Int)(
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
-    ZIO
-      .foreachParN(n)(in)(f(_).either)
-      .map(_.foldRight((List.empty[E], List.empty[B])) {
-        case (Left(e), (es, bs))  => (e :: es, bs)
-        case (Right(b), (es, bs)) => (es, b :: bs)
-      })
+    ZIO.foreachParN(n)(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
    * Given an environment `R`, returns a function that can supply the
@@ -2919,8 +2909,18 @@ private[zio] trait ZIOFunctions extends Serializable {
 object ZIO extends ZIOFunctions {
   def apply[A](a: => A): Task[A] = effect(a)
 
-  private val _IdentityFn: Any => Any    = (a: Any) => a
+  private val _IdentityFn: Any => Any = (a: Any) => a
+
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
+
+  private[zio] def partitionMap[A, A1, A2](iterable: Iterable[A])(f: A => Either[A1, A2]): (List[A1], List[A2]) =
+    iterable.foldRight((List.empty[A1], List.empty[A2])) {
+      case (a, (es, bs)) =>
+        f(a).fold(
+          e => (e :: es, bs),
+          b => (es, b :: bs)
+        )
+    }
 
   implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
