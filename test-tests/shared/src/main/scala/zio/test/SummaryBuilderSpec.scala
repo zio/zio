@@ -122,6 +122,6 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
   def TestTestRunner(testEnvironment: TestEnvironment) =
     TestRunner[TestEnvironment, String, String, Unit, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](Managed.succeed(testEnvironment)),
-      reporter = DefaultTestReporter()
+      reporter = DefaultTestReporter(TestAnnotationRenderer.silent)
     )
 }

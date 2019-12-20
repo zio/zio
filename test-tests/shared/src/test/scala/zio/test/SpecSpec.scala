@@ -1,14 +1,15 @@
 package zio.test
 
-import zio.ZManaged
+import zio.{ Ref, ZIO, ZManaged }
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
+import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
 
 object SpecSpec extends ZIOBaseSpec {
 
   def spec = suite("SpecSpec")(
-    suite("SpecSpec")(
-      testM("provideManagedShared gracefully handles fiber death") {
+    suite("provideManagedShared")(
+      testM("gracefully handles fiber death") {
         import zio.NeedsEnv.needsEnv
         val spec = suite("Suite1")(
           test("Test1") {
@@ -18,9 +19,28 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           _ <- execute(spec)
         } yield assertCompletes
+      },
+      testM("does not acquire the environment if the suite is ignored") {
+        val spec = suite("Suite1")(
+          testM("Test1") {
+            assertM(ZIO.accessM[Ref[Boolean]](_.get), isTrue)
+          },
+          testM("another test") {
+            assertM(ZIO.accessM[Ref[Boolean]](_.get), isTrue)
+          }
+        )
+        for {
+          ref <- Ref.make(true)
+          _ <- execute {
+                spec.provideManagedShared {
+                  ZManaged.make(ref.set(false).as(ref))(_ => ZIO.unit)
+                } @@ ifEnvSet("foo")
+              }
+          result <- ref.get
+        } yield assert(result, isTrue)
       }
     ),
-    suite(".only(pattern)")(
+    suite("only")(
       testM("ignores all tests except one matching the given label") {
         checkM(genSuite) { spec =>
           for {

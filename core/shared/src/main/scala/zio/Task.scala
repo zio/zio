@@ -52,6 +52,34 @@ object Task {
     ZIO.bracketExit(acquire, release, use)
 
   /**
+   * @see See bracketFork [[zio.ZIO]]
+   */
+  final def bracketFork[A](acquire: Task[A]): ZIO.BracketForkAcquire[Any, Throwable, A] =
+    ZIO.bracketFork(acquire)
+
+  /**
+   * @see See bracketFork [[zio.ZIO]]
+   */
+  final def bracketFork[A, B](acquire: Task[A], release: A => UIO[Any], use: A => Task[B]): Task[B] =
+    ZIO.bracketFork(acquire, release, use)
+
+  /**
+   * @see See bracketForkExit [[zio.ZIO]]
+   */
+  final def bracketForkExit[A](acquire: Task[A]): ZIO.BracketForkExitAcquire[Any, Throwable, A] =
+    ZIO.bracketForkExit(acquire)
+
+  /**
+   * @see See bracketForkExit [[zio.ZIO]]
+   */
+  final def bracketForkExit[A, B](
+    acquire: Task[A],
+    release: (A, Exit[Throwable, B]) => UIO[Any],
+    use: A => Task[B]
+  ): Task[B] =
+    ZIO.bracketForkExit(acquire, release, use)
+
+  /**
    * @see See [[zio.ZIO.checkDaemon]]
    */
   final def checkDaemon[A](f: DaemonStatus => Task[A]): Task[A] =
@@ -198,22 +226,22 @@ object Task {
   /**
    * @see See [[zio.RIO.effectSuspend]]
    */
-  final def effectSuspend[A](task: => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(_ => task)
+  final def effectSuspend[A](task: => Task[A]): Task[A] = ZIO.effectSuspend(task)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
-  final def effectSuspendTotal[A](task: => Task[A]): Task[A] = new ZIO.EffectSuspendTotalWith(_ => task)
+  final def effectSuspendTotal[A](task: => Task[A]): Task[A] = ZIO.effectSuspendTotal(task)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
-  final def effectSuspendTotalWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendTotalWith(p)
+  final def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] = ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.RIO.effectSuspendWith]]
    */
-  final def effectSuspendWith[A](p: Platform => Task[A]): Task[A] = new ZIO.EffectSuspendPartialWith(p)
+  final def effectSuspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] = ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -250,6 +278,12 @@ object Task {
    */
   final def foldLeft[S, A](in: Iterable[A])(zero: S)(f: (S, A) => Task[S]): Task[S] =
     ZIO.foldLeft(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.foldRight]]
+   */
+  final def foldRight[S, A](in: Iterable[A])(zero: S)(f: (A, S) => Task[S]): Task[S] =
+    ZIO.foldRight(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.foreach]]
@@ -323,6 +357,12 @@ object Task {
   final def fromFunction[A](f: Any => A): Task[A] = ZIO.fromFunction(f)
 
   /**
+   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   */
+  final def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFutureInterrupt(make)
+
+  /**
    * @see [[zio.ZIO.fromFunctionFuture]]
    */
   final def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
@@ -376,6 +416,18 @@ object Task {
    */
   final def interruptible[A](task: Task[A]): Task[A] =
     ZIO.interruptible(task)
+
+  /**
+   * @see See [[zio.ZIO.interruptibleFork]]
+   */
+  final def interruptibleFork[A](task: Task[A]): Task[A] =
+    ZIO.interruptibleFork(task)
+
+  /**
+   * @see See [[zio.ZIO.interruptibleForkMask]]
+   */
+  final def interruptibleForkMask[A](k: ZIO.InterruptStatusRestore => Task[A]): Task[A] =
+    ZIO.interruptibleForkMask(k)
 
   /**
    * @see See [[zio.ZIO.interruptibleMask]]
@@ -461,6 +513,24 @@ object Task {
    * @see See [[zio.ZIO.none]]
    */
   final val none: Task[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.partitionM]]
+   */
+  final def partitionM[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionM(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.partitionMPar]]
+   */
+  final def partitionMPar[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionMPar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.partitionMParN]]
+   */
+  final def partitionMParN[A, B](n: Int)(in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionMParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]

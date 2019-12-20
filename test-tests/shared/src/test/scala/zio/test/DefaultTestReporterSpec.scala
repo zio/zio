@@ -68,6 +68,12 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         runLog(test7),
         equalTo(test7Expected.mkString + reportStats(0, 0, 1))
       )
+    },
+    testM("correctly reports negated failures") {
+      assertM(
+        runLog(test8),
+        equalTo(test8Expected.mkString + reportStats(0, 0, 1))
+      )
     }
   )
 
@@ -136,6 +142,17 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     )
   )
 
+  val test8 = zio.test.test("Not combinator") {
+    assert(100, not(equalTo(100)))
+  }
+  val test8Expected = Vector(
+    expectedFailure("Not combinator"),
+    withOffset(2)(s"${blue("100")} satisfied ${cyan("equalTo(100)")}\n"),
+    withOffset(2)(
+      s"${blue("100")} did not satisfy ${cyan("not(" + yellowThenCyan("equalTo(100)") + ")")}\n"
+    )
+  )
+
   val suite1 = suite("Suite1")(test1, test2)
   val suite1Expected = Vector(
     expectedSuccess("Suite1"),
@@ -185,6 +202,6 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
   private[this] def TestTestRunner(testEnvironment: Managed[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String, String, Unit, Unit](
       executor = TestExecutor.managed[TestEnvironment, String, String, Unit](testEnvironment),
-      reporter = DefaultTestReporter()
+      reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 }

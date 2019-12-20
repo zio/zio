@@ -9,7 +9,7 @@ import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object BuildHelper {
-  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.2" % "test")
+  val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.3" % "test")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -56,7 +56,7 @@ object BuildHelper {
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.20.0-RC1",
+    crossScalaVersions += "0.21.0-RC1",
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")

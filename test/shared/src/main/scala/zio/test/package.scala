@@ -18,6 +18,7 @@ package zio
 
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
+import zio.test.environment.{ TestClock, TestConsole, TestRandom, TestSystem }
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -43,8 +44,22 @@ import zio.stream.{ ZSink, ZStream }
  * }}}
  */
 package object test extends CompileVariants {
+
   type AssertResult = BoolAlgebraM[Any, Nothing, AssertionValue]
-  type TestResult   = BoolAlgebraM[Any, Nothing, FailureDetails]
+
+  /**
+   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
+   */
+  type TestAspectAtLeastR[R] =
+    TestAspect[Nothing, R, Nothing, Any, Nothing, Any]
+
+  /**
+   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
+   * having no requirements on error or environment.
+   */
+  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any, Nothing, Any]
+
+  type TestResult = BoolAlgebraM[Any, Nothing, FailureDetails]
 
   /**
    * A `TestReporter[E, L, S]` is capable of reporting test results annotated
@@ -68,10 +83,9 @@ package object test extends CompileVariants {
   type TestExecutor[+R, E, L, -T, +S] = (ZSpec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[E, L, S]]
 
   /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
-   * having no requirements on error or environment.
+   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable]] [[TestEnvironment]] objects
    */
-  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any, Nothing, Any]
+  type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
   /**
    * A `ZTest[R, E, S]` is an effectfully produced test that requires an `R`
@@ -88,9 +102,21 @@ package object test extends CompileVariants {
   type ZSpec[-R, +E, +L, +S] = Spec[R, TestFailure[E], L, TestSuccess[S]]
 
   /**
+   * An `ExecutedResult[E, S] is either a `TestSuccess[S]` or a
+   * `TestFailure[E]`.
+   */
+  type ExecutedResult[+E, +S] = Either[TestFailure[E], TestSuccess[S]]
+
+  /**
    * An `ExecutedSpec` is a spec that has been run to produce test results.
    */
-  type ExecutedSpec[+E, +L, +S] = Spec[Any, Nothing, L, Either[TestFailure[E], TestSuccess[S]]]
+  type ExecutedSpec[+E, +L, +S] = Spec[Any, Nothing, L, Annotated[ExecutedResult[E, S]]]
+
+  /**
+   * An `Annotated[A]` contains a value of type `A` along with zero or more
+   * test annotations.
+   */
+  type Annotated[+A] = (A, TestAnnotationMap)
 
   /**
    * Checks the assertion holds for the given value.
