@@ -30,7 +30,7 @@ private[scheduler] object internal {
 
     private[this] var _size = 0
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+    override final def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
       case Duration.Zero =>
         task.run()

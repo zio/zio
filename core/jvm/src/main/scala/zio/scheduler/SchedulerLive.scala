@@ -33,7 +33,7 @@ private[scheduler] object internal {
 
     private[this] val _size = new AtomicInteger()
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+    override final def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
       case Duration.Zero =>
         task.run()

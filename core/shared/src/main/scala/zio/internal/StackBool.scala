@@ -94,9 +94,9 @@ private[zio] final class StackBool private () {
   final override def hashCode = toList.hashCode
 }
 private[zio] object StackBool {
-  def apply(): StackBool = new StackBool
+  final def apply(): StackBool = new StackBool
 
-  def apply(bool: Boolean): StackBool = {
+  final def apply(bool: Boolean): StackBool = {
     val stack = StackBool()
 
     stack.push(bool)
@@ -104,7 +104,7 @@ private[zio] object StackBool {
     stack
   }
 
-  def fromIterable(it: Iterable[Boolean]): StackBool = {
+  final def fromIterable(it: Iterable[Boolean]): StackBool = {
     val stack = StackBool()
     it.foldRight(stack) { (b, stack) =>
       stack.push(b)

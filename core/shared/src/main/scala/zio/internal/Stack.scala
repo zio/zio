@@ -75,8 +75,8 @@ private[zio] final class Stack[A <: AnyRef]() {
 }
 
 private[zio] object Stack {
-  def apply[A <: AnyRef](): Stack[A] = new Stack[A]
-  def apply[A <: AnyRef](a: A): Stack[A] = {
+  final def apply[A <: AnyRef](): Stack[A] = new Stack[A]
+  final def apply[A <: AnyRef](a: A): Stack[A] = {
     val stack = new Stack[A]
 
     stack.push(a)

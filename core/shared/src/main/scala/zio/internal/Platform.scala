@@ -30,9 +30,9 @@ trait Platform { self =>
    */
   def executor: Executor
 
-  def withExecutor(e: Executor): Platform =
+  final def withExecutor(e: Executor): Platform =
     new Platform.Proxy(self) {
-      override def executor: Executor = e
+      override final def executor: Executor = e
     }
 
   /**
@@ -40,12 +40,12 @@ trait Platform { self =>
    */
   def tracing: Tracing
 
-  def withTracing(t: Tracing): Platform =
+  final def withTracing(t: Tracing): Platform =
     new Platform.Proxy(self) {
-      override def tracing: Tracing = t
+      override final def tracing: Tracing = t
     }
 
-  def withTracingConfig(config: TracingConfig): Platform =
+  final def withTracingConfig(config: TracingConfig): Platform =
     new Platform.Proxy(self) {
       override val tracing: Tracing = self.tracing.copy(tracingConfig = config)
     }
@@ -57,9 +57,9 @@ trait Platform { self =>
    */
   def fatal(t: Throwable): Boolean
 
-  def withFatal(f: Throwable => Boolean): Platform =
+  final def withFatal(f: Throwable => Boolean): Platform =
     new Platform.Proxy(self) {
-      override def fatal(t: Throwable): Boolean = f(t)
+      override final def fatal(t: Throwable): Boolean = f(t)
     }
 
   /**
@@ -67,9 +67,9 @@ trait Platform { self =>
    */
   def reportFatal(t: Throwable): Nothing
 
-  def withReportFatal(f: Throwable => Nothing): Platform =
+  final def withReportFatal(f: Throwable => Nothing): Platform =
     new Platform.Proxy(self) {
-      override def reportFatal(t: Throwable): Nothing = f(t)
+      override final def reportFatal(t: Throwable): Nothing = f(t)
     }
 
   /**
@@ -77,9 +77,9 @@ trait Platform { self =>
    */
   def reportFailure(cause: Cause[Any]): Unit
 
-  def withReportFailure(f: Cause[Any] => Unit): Platform =
+  final def withReportFailure(f: Cause[Any] => Unit): Platform =
     new Platform.Proxy(self) {
-      override def reportFailure(cause: Cause[Any]): Unit = f(cause)
+      override final def reportFailure(cause: Cause[Any]): Unit = f(cause)
     }
 }
 object Platform extends PlatformSpecific {

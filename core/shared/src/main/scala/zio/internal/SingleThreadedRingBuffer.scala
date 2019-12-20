@@ -72,5 +72,5 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
 }
 
 object SingleThreadedRingBuffer {
-  def apply[A <: AnyRef](capacity: Int): SingleThreadedRingBuffer[A] = new SingleThreadedRingBuffer[A](capacity)
+  final def apply[A <: AnyRef](capacity: Int): SingleThreadedRingBuffer[A] = new SingleThreadedRingBuffer[A](capacity)
 }
