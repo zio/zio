@@ -61,13 +61,13 @@ object Stream extends Serializable {
     ZStream.bracketExit(acquire)(release)
 
   /**
-   *  @see [[zio.ZStream.crossN]]
+   *  @see [[ZStream.crossN[R,E,A,B,C]*]]
    */
   final def crossN[E, A, B, C](stream1: Stream[E, A], stream2: Stream[E, B])(f: (A, B) => C): Stream[E, C] =
     ZStream.crossN(stream1, stream2)(f)
 
   /**
-   *  @see [[zio.ZStream.crossN]]
+   *  @see [[ZStream.crossN[R,E,A,B,C,D]*]]
    */
   final def crossN[E, A, B, C, D](stream1: Stream[E, A], stream2: Stream[E, B], stream3: Stream[E, C])(
     f: (A, B, C) => D
@@ -75,7 +75,7 @@ object Stream extends Serializable {
     ZStream.crossN(stream1, stream2, stream3)(f)
 
   /**
-   *  @see [[zio.ZStream.crossN]]
+   *  @see [[ZStream.crossN[R,E,A,B,C,D,F]*]]
    */
   final def crossN[E, A, B, C, D, F](
     stream1: Stream[E, A],
@@ -323,13 +323,13 @@ object Stream extends Serializable {
     ZStream.unwrapManaged(fa)
 
   /**
-   *  @see [[zio.ZStream.zipN]]
+   *  @see [[ZStream.zipN[R,E,A,B,C]*]]
    */
   final def zipN[E, A, B, C](stream1: Stream[E, A], stream2: Stream[E, B])(f: (A, B) => C): Stream[E, C] =
     ZStream.zipN(stream1, stream2)(f)
 
   /**
-   *  @see [[zio.ZStream.zipN]]
+   *  @see [[ZStream.zipN[R,E,A,B,C,D]*]]
    */
   final def zipN[E, A, B, C, D](stream1: Stream[E, A], stream2: Stream[E, B], stream3: Stream[E, C])(
     f: (A, B, C) => D
@@ -337,7 +337,7 @@ object Stream extends Serializable {
     ZStream.zipN(stream1, stream2, stream3)(f)
 
   /**
-   *  @see [[zio.ZStream.zipN]]
+   *  @see [[ZStream.zipN[R,E,A,B,C,D,F]*]]
    */
   final def zipN[E, A, B, C, D, F](
     stream1: Stream[E, A],

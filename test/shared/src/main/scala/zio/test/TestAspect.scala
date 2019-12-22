@@ -404,39 +404,46 @@ object TestAspect extends TimeoutVariants {
   def parallelN(n: Int): TestAspectPoly = executionStrategy(ExecutionStrategy.ParallelN(n))
 
   /**
-   * An aspect that restores a given [[Restorable]]'s state to its starting state after the test is run.
+   * An aspect that restores a given [[zio.test.environment.Restorable Restorable]]'s state to its starting state 
+   * after the test is run.
    * Note that this is only useful when repeating tests.
    */
   def restore[R0](service: R0 => Restorable): TestAspectAtLeastR[R0] =
     around(ZIO.accessM[R0](r => service(r).save))(restore => restore)
 
   /**
-   * An aspect that restores the [[TestClock]]'s state to its starting state after the test is run.
+   * An aspect that restores the [[zio.test.environment.TestClock TestClock]]'s state to its starting state after 
+   * the test is run.
    * Note that this is only useful when repeating tests.
    */
   def restoreTestClock: TestAspectAtLeastR[TestClock] = restore[TestClock](_.clock)
 
   /**
-   * An aspect that restores the [[TestConsole]]'s state to its starting state after the test is run.
+   * An aspect that restores the [[zio.test.environment.TestConsole TestConsole]]'s state to its starting state after 
+   * the test is run.
    * Note that this is only useful when repeating tests.
    */
   def restoreTestConsole: TestAspectAtLeastR[TestConsole] = restore[TestConsole](_.console)
 
   /**
-   * An aspect that restores the [[TestRandom]]'s state to its starting state after the test is run.
+   * An aspect that restores the [[zio.test.environment.TestRandom TestRandom]]'s state to its starting state after 
+   * the test is run.
    * Note that this is only useful when repeating tests.
    */
   def restoreTestRandom: TestAspectAtLeastR[TestRandom] = restore[TestRandom](_.random)
 
   /**
-   * An aspect that restores the [[TestSystem]]'s state to its starting state after the test is run.
+   * An aspect that restores the [[zio.test.environment.TestSystem TestSystem]]'s state to its starting state after 
+   * the test is run.
    * Note that this is only useful when repeating tests.
    */
   def restoreTestSystem: TestAspectAtLeastR[ZTestEnv] = restore[TestSystem](_.system)
 
   /**
    * An aspect that restores all state in the standard provided test environments
-   * ([[TestClock]], [[TestConsole]], [[TestRandom]] and [[TestSystem]]) to their starting state after the test is run.
+   * ([[zio.test.environment.TestClock TestClock]], [[zio.test.environment.TestConsole TestConsole]], 
+   * [[zio.test.environment.TestRandom TestRandom]] and [[zio.test.environment.TestSystem TestSystem]]) to their 
+   * starting state after the test is run.
    * Note that this is only useful when repeating tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =

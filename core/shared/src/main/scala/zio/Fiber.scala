@@ -407,7 +407,7 @@ object Fiber {
    * @param id            The fiber's unique identifier
    * @param interruptors  The set of fibers attempting to interrupt the fiber or its ancestors.
    * @param executor      The [[zio.internal.Executor]] executing this fiber
-   * @param children      The fiber's forked children. This will only be populated if the fiber is supervised (via [[ZIO#supervised]]).
+   * @param children      The fiber's forked children.
    */
   final case class Descriptor(
     id: Fiber.Id,

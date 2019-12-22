@@ -447,19 +447,19 @@ object Task {
     ZIO.lock(executor)(task)
 
   /**
-   *  @see [[zio.ZIO.mapN]]
+   *  @see mapN in [[zio.ZIO$ ZIO]]
    */
   final def mapN[A, B, C](task1: Task[A], task2: Task[B])(f: (A, B) => C): Task[C] =
     ZIO.mapN(task1, task2)(f)
 
   /**
-   *  @see [[zio.ZIO.mapN]]
+   *  @see mapN in [[zio.ZIO$ ZIO]]
    */
   final def mapN[A, B, C, D](task1: Task[A], task2: Task[B], task3: Task[C])(f: (A, B, C) => D): Task[D] =
     ZIO.mapN(task1, task2, task3)(f)
 
   /**
-   *  @see [[zio.ZIO.mapN]]
+   *  @see mapN in [[zio.ZIO$ ZIO]]
    */
   final def mapN[A, B, C, D, F](task1: Task[A], task2: Task[B], task3: Task[C], task4: Task[D])(
     f: (A, B, C, D) => F
@@ -467,19 +467,19 @@ object Task {
     ZIO.mapN(task1, task2, task3, task4)(f)
 
   /**
-   *  @see [[zio.ZIO.mapParN]]
+   *  @see mapParN in [[zio.ZIO$ ZIO]]
    */
   final def mapParN[A, B, C](task1: Task[A], task2: Task[B])(f: (A, B) => C): Task[C] =
     ZIO.mapParN(task1, task2)(f)
 
   /**
-   *  @see [[zio.ZIO.mapParN]]
+   *  @see mapParN in [[zio.ZIO$ ZIO]]
    */
   final def mapParN[A, B, C, D](task1: Task[A], task2: Task[B], task3: Task[C])(f: (A, B, C) => D): Task[D] =
     ZIO.mapParN(task1, task2, task3)(f)
 
   /**
-   *  @see [[zio.ZIO.mapParN]]
+   *  @see mapParN in [[zio.ZIO$ ZIO]]
    */
   final def mapParN[A, B, C, D, F](task1: Task[A], task2: Task[B], task3: Task[C], task4: Task[D])(
     f: (A, B, C, D) => F

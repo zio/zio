@@ -248,7 +248,7 @@ object URIO {
     ZIO.foldLeft(in)(zero)(f)
 
   /**
-   * @see [[zio.ZIO.foldRight]
+   * @see [[zio.ZIO.foldRight]]
    */
   final def foldRight[R, S, A](in: Iterable[A])(zero: S)(f: (A, S) => URIO[R, S]): URIO[R, S] =
     ZIO.foldRight(in)(zero)(f)
@@ -381,13 +381,13 @@ object URIO {
   final def left[R, A](a: A): URIO[R, Either[A, Nothing]] = ZIO.left(a)
 
   /**
-   *  @see [[zio.ZIO.mapN]]
+   *  @see mapN in [[zio.ZIO$ ZIO]]
    */
   final def mapN[R, A, B, C](urio1: URIO[R, A], urio2: URIO[R, B])(f: (A, B) => C): URIO[R, C] =
     ZIO.mapN(urio1, urio2)(f)
 
   /**
-   *  @see [[zio.ZIO.mapN]]
+   *  @see mapN in [[zio.ZIO$ ZIO]]
    */
   final def mapN[R, A, B, C, D](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C])(
     f: (A, B, C) => D
@@ -395,7 +395,7 @@ object URIO {
     ZIO.mapN(urio1, urio2, urio3)(f)
 
   /**
-   *  @see [[zio.ZIO.mapN]]
+   *  @see mapN in [[zio.ZIO$ ZIO]]
    */
   final def mapN[R, A, B, C, D, F](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C], urio4: URIO[R, D])(
     f: (A, B, C, D) => F
@@ -403,13 +403,13 @@ object URIO {
     ZIO.mapN(urio1, urio2, urio3, urio4)(f)
 
   /**
-   *  @see [[zio.ZIO.mapParN]]
+   *  @see mapParN in [[zio.ZIO$ ZIO]]
    */
   final def mapParN[R, A, B, C](urio1: URIO[R, A], urio2: URIO[R, B])(f: (A, B) => C): URIO[R, C] =
     ZIO.mapParN(urio1, urio2)(f)
 
   /**
-   *  @see [[zio.ZIO.mapParN]]
+   *  @see mapParN in [[zio.ZIO$ ZIO]]
    */
   final def mapParN[R, A, B, C, D](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C])(
     f: (A, B, C) => D
@@ -417,7 +417,7 @@ object URIO {
     ZIO.mapParN(urio1, urio2, urio3)(f)
 
   /**
-   *  @see [[zio.ZIO.mapParN]]
+   *  @see mapParN in [[zio.ZIO$ ZIO]]
    */
   final def mapParN[R, A, B, C, D, F](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C], urio4: URIO[R, D])(
     f: (A, B, C, D) => F
