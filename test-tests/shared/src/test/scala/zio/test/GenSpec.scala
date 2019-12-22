@@ -124,7 +124,7 @@ object GenSpec extends ZIOBaseSpec {
         checkSample(Gen.boolean)(contains(true) && contains(false))
       },
       testM("byte generates values in range") {
-        checkSample(Gen.byte(38, 38))(forall(equalTo(38)))
+        checkSample(Gen.byte(38, 38))(forall(equalTo(38.toByte)))
       },
       testM("char generates values in range") {
         checkSample(Gen.char(33, 123))(
@@ -412,8 +412,8 @@ object GenSpec extends ZIOBaseSpec {
       }
     ),
     testM("fromIterable constructs deterministic generators") {
-      val expected   = (1 to 6).flatMap(x => (1 to 6).map(y => x + y))
-      val exhaustive = Gen.fromIterable(1 to 6)
+      val expected   = List.range(1, 6).flatMap(x => List.range(1, 6).map(y => x + y))
+      val exhaustive = Gen.fromIterable(1 until 6)
       val actual     = exhaustive.crossWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
     } @@ scala2Only, //todo fix when #2232 is resolved
@@ -431,7 +431,7 @@ object GenSpec extends ZIOBaseSpec {
       }
     },
     testM("runCollect") {
-      val domain = -10 to 10
+      val domain = List.range(-10, 10)
       val gen    = Gen.fromIterable(domain)
       for {
         a <- gen.runCollect

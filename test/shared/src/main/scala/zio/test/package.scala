@@ -16,6 +16,8 @@
 
 package zio
 
+import scala.deprecated
+
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
 import zio.test.environment.{ TestClock, TestConsole, TestRandom, TestSystem }
@@ -37,7 +39,7 @@ import zio.test.environment.{ TestClock, TestConsole, TestRandom, TestSystem }
  *  object MyTest extends DefaultRunnableSpec {
  *    def spec = suite("clock")(
  *      testM("time is non-zero") {
- *        assertM(nanoTime, isGreaterThan(0))
+ *        assertM(nanoTime)(isGreaterThan(0))
  *      }
  *    )
  *  }
@@ -121,7 +123,7 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  final def assert[A](value: => A, assertion: Assertion[A]): TestResult =
+  final def assert[A](value: => A)(assertion: Assertion[A]): TestResult =
     assertion.run(value).flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.assertion == failureDetails.assertion.head.assertion)
@@ -140,16 +142,48 @@ package object test extends CompileVariants {
     }
 
   /**
+   * Checks the assertion holds for the given value.
+   */
+  @deprecated(
+    "To benefit from much better type inference and type safety, we " +
+      "recommend that you use the curried version of assert, which takes " +
+      "two parameter lists instead of one: assert(value)(assertion)",
+    "1.0.0"
+  )
+  final def assert[A](value: => A, assertion: Assertion[A], dummy: Boolean = true): TestResult = {
+    val _ = dummy
+    assert(value)(assertion)
+  }
+
+  /**
    * Asserts that the given test was completed.
    */
   final val assertCompletes: TestResult =
-    assert(true, Assertion.isTrue)
+    assert(true)(Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  final def assertM[R, E, A](value: ZIO[R, E, A], assertion: Assertion[A]): ZIO[R, E, TestResult] =
-    value.map(assert(_, assertion))
+  final def assertM[R, E, A](value: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, TestResult] =
+    value.map(assert(_)(assertion))
+
+  /**
+   * Checks the assertion holds for the given effectfully-computed value.
+   */
+  @deprecated(
+    "To benefit from much better type inference and type safety, we " +
+      "recommend that you use the curried version of assertM, which takes " +
+      "two parameter lists instead of one: assertM(value)(assertion)",
+    "1.0.0"
+  )
+  final def assertM[R, E, A](
+    value: ZIO[R, E, A],
+    assertion: Assertion[A],
+    dummy: Boolean = true
+  ): ZIO[R, E, TestResult] = {
+    val _ = dummy
+    assertM(value)(assertion)
+  }
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the

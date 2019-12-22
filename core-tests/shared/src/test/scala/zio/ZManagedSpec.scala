@@ -942,7 +942,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             second = ZManaged.reserve(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
             _      <- first.zipPar(second).use_(ZIO.unit)
           } yield ()).run
-            .map(assert(_, equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.interrupt(selfId))))))
+            .map(assert(_)(equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.interrupt(selfId))))))
         }
       },
       testM("Run finalizers if one reservation fails") {

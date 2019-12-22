@@ -270,7 +270,7 @@ object TestAspect extends TimeoutVariants {
             case testFailure =>
               p.run(testFailure).run.flatMap { p1 =>
                 if (p1.isSuccess) succeed
-                else ZIO.fail(TestFailure.Assertion(assert(testFailure, p)))
+                else ZIO.fail(TestFailure.Assertion(assert(testFailure)(p)))
               }
           },
           _ => ZIO.fail(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))

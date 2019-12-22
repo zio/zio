@@ -73,11 +73,17 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(Array(1, 2, 3), equalTo(Array(1, 2, 4)))
     } @@ failure,
     test("equalTo must not have type inference issues") {
-      assert(List(1, 2, 3).filter(_ => false), equalTo(List.empty))
+      assert(List(1, 2, 3).filter(_ => false))(equalTo(List.empty))
     },
-    test("equalTo must fail when comparing two unrelated types") {
-      assert(1, equalTo("abc"))
-    } @@ failure,
+    testM("equalTo must not compile when comparing two unrelated types") {
+      val result = typeCheck("assert(1)(equalTo(\"abc\"))")
+      assertM(result)(
+        isLeft(
+          containsString("found   : zio.test.Assertion[String]") &&
+            containsString("required: zio.test.Assertion[Int]")
+        )
+      )
+    } @@ scala2Only,
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assert(Seq(1, 42, 5), exists(equalTo(42)))
     },
@@ -85,7 +91,7 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(Seq(1, 42, 5), exists(equalTo(0)))
     } @@ failure,
     test("exists must fail when iterable is empty") {
-      assert(Seq(), exists(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+      assert(Seq[String]())(exists(hasField("length", _.length, isWithin(0, 3))))
     } @@ failure,
     test("fails must succeed when error value satisfy specified assertion") {
       assert(Exit.fail("Some Error"), fails(equalTo("Some Error")))
@@ -94,13 +100,13 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(Exit.fail("Other Error"), fails(equalTo("Some Error")))
     } @@ failure,
     test("forall must succeed when all elements of iterable satisfy specified assertion") {
-      assert(Seq("a", "bb", "ccc"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+      assert(Seq("a", "bb", "ccc"))(forall(hasField("length", _.length, isWithin(0, 3))))
     },
     test("forall must fail when one element of iterable do not satisfy specified assertion") {
-      assert(Seq("a", "bb", "dddd"), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+      assert(Seq("a", "bb", "dddd"))(forall(hasField("length", _.length, isWithin(0, 3))))
     } @@ failure,
     test("forall must succeed when an iterable is empty") {
-      assert(Seq(), forall(hasField[String, Int]("length", _.length, isWithin(0, 3))))
+      assert(Seq[String]())(forall(hasField("length", _.length, isWithin(0, 3))))
     },
     test("forall must work with iterables that are not lists") {
       assert(SortedSet(1, 2, 3), forall(isGreaterThan(0)))
@@ -246,9 +252,10 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isUnit must succeed when supplied value is ()") {
       assert((), isUnit)
     },
-    test("isUnit must fail when supplied value is not ()") {
-      assert(10, isUnit)
-    } @@ failure,
+    testM("isUnit must not compile when supplied value is not ()") {
+      val result = typeCheck("assert(10, isUnit)")
+      assertM(result)(isLeft(anything))
+    },
     test("isWithin must succeed when supplied value is within range (inclusive)") {
       assert(10, isWithin(0, 10))
     },
@@ -309,10 +316,10 @@ object AssertionSpec extends ZIOBaseSpec {
   val sampleUser      = SampleUser("User", 42)
   val sampleException = new Exception
 
-  val nameStartsWithA  = hasField[SampleUser, Boolean]("name", _.name.startsWith("A"), isTrue)
-  val nameStartsWithU  = hasField[SampleUser, Boolean]("name", _.name.startsWith("U"), isTrue)
-  val ageLessThan20    = hasField[SampleUser, Int]("age", _.age, isLessThan(20))
-  val ageGreaterThan20 = hasField[SampleUser, Int]("age", _.age, isGreaterThan(20))
+  val nameStartsWithA: Assertion[SampleUser]  = hasField("name", _.name.startsWith("A"), isTrue)
+  val nameStartsWithU: Assertion[SampleUser]  = hasField("name", _.name.startsWith("U"), isTrue)
+  val ageLessThan20: Assertion[SampleUser]    = hasField("age", _.age, isLessThan(20))
+  val ageGreaterThan20: Assertion[SampleUser] = hasField("age", _.age, isGreaterThan(20))
 
   val someException = new RuntimeException("Boom!")
 }

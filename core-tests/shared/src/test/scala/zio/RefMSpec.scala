@@ -37,7 +37,7 @@ object RefMSpec extends ZIOBaseSpec {
       for {
         refM  <- RefM.make[State](Active)
         value <- refM.updateSome { case Closed => IO.succeed(Active) }
-      } yield assert(value, equalTo(Active))
+      } yield assert(value)(equalTo(Active))
     },
     testM("updateSome twice") {
       for {
@@ -47,7 +47,7 @@ object RefMSpec extends ZIOBaseSpec {
                    case Active  => IO.succeed(Changed)
                    case Changed => IO.succeed(Closed)
                  }
-      } yield assert(value1, equalTo(Changed)) && assert(value2, equalTo(Closed))
+      } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
     },
     testM("updateSome with failure") {
       for {
@@ -79,23 +79,23 @@ object RefMSpec extends ZIOBaseSpec {
              }
         value2 <- refM.get
       } yield assert(r1, equalTo("changed")) &&
-        assert(value1, equalTo(Changed)) &&
+        assert(value1)(equalTo(Changed)) &&
         assert(r2, equalTo("closed")) &&
-        assert(value2, equalTo(Closed))
+        assert(value2)(equalTo(Closed))
     },
     testM("modifySome") {
       for {
         refM  <- RefM.make[State](Active)
         r     <- refM.modifySome("State doesn't change") { case Closed => IO.succeed("active" -> Active) }
         value <- refM.get
-      } yield assert(r, equalTo("State doesn't change")) && assert(value, equalTo(Active))
+      } yield assert(r)(equalTo("State doesn't change")) && assert(value)(equalTo(Active))
     },
     testM("modifySome with failure not triggered") {
       for {
         refM  <- RefM.make[State](Active)
         r     <- refM.modifySome("State doesn't change") { case Closed => IO.fail(failure) }.orDieWith(new Exception(_))
         value <- refM.get
-      } yield assert(r, equalTo("State doesn't change")) && assert(value, equalTo(Active))
+      } yield assert(r)(equalTo("State doesn't change")) && assert(value)(equalTo(Active))
     },
     testM("modifySome with failure") {
       for {
@@ -118,7 +118,7 @@ object RefMSpec extends ZIOBaseSpec {
         refM        <- promise.await
         _           <- fiber.interrupt
         value       <- refM.update(_ => ZIO.succeed(Closed)).timeout(1.second).provide(Clock.Live)
-      } yield assert(value, equalTo(Some(Closed)))
+      } yield assert(value)(equalTo(Some(Closed)))
     }
   )
 
