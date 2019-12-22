@@ -246,9 +246,21 @@ object UIO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[zio.ZIO.foreach]]
+   */
+  final def foreach[A, B](in: Chunk[A])(f: A => UIO[B]): UIO[Chunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
    * @see See [[zio.ZIO.foreach_]]
    */
   final def foreach_[A](as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
+    ZIO.foreach_(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.foreach_]]
+   */
+  final def foreach_[A](as: Chunk[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.foreach_(as)(f)
 
   /**
@@ -508,9 +520,21 @@ object UIO {
     ZIO.traverse(in)(f)
 
   /**
+   * @see See [[zio.ZIO.traverse]]
+   */
+  final def traverse[A, B](in: Chunk[A])(f: A => UIO[B]): UIO[Chunk[B]] =
+    ZIO.traverse(in)(f)
+
+  /**
    * @see See [[zio.ZIO.traverse_]]
    */
   final def traverse_[A](as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
+    ZIO.traverse_(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.traverse_]]
+   */
+  final def traverse_[A](as: Chunk[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.traverse_(as)(f)
 
   /**

@@ -2096,6 +2096,15 @@ private[zio] trait ZIOFunctions extends Serializable {
     in.fold[ZIO[R, E, Option[B]]](none)(f(_).map(Some(_)))
 
   /**
+   * Applies the function `f` to each element of the `Chunk[A]` and
+   * returns the results in a new `Chunk[B]`.
+   *
+   * For a parallel version of this method, see `foreachPar`.
+   */
+  final def foreach[R, E, A, B](in: Chunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+    in.mapM(f)
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects sequentially.
    *
@@ -2116,8 +2125,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * For a parallel version of this method, see `foreachPar`.
    */
-  final def foreach_[R, E, A, B](in: Chunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Unit] =
-    in.mapM_(f)
+  final def foreach_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    as.mapM_(f)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
@@ -2593,9 +2602,21 @@ private[zio] trait ZIOFunctions extends Serializable {
     foreach[R, E, A, B](in)(f)
 
   /**
+   * Alias for [[ZIO.foreach]]
+   */
+  final def traverse[R, E, A, B](in: Chunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+    foreach[R, E, A, B](in)(f)
+
+  /**
    * Alias for [[ZIO.foreach_]]
    */
   final def traverse_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    foreach_[R, E, A](as)(f)
+
+  /**
+   * Alias for [[ZIO.foreach_]]
+   */
+  final def traverse_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreach_[R, E, A](as)(f)
 
   /**

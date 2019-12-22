@@ -287,6 +287,12 @@ object RIO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[zio.ZIO.foreach]]
+   */
+  final def foreach[R, A, B](in: Chunk[A])(f: A => RIO[R, B]): RIO[R, Chunk[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
    * @see See [[zio.ZIO.foreachPar]]
    */
   final def foreachPar[R, A, B](as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
@@ -302,6 +308,12 @@ object RIO {
    * @see See [[zio.ZIO.foreach_]]
    */
   final def foreach_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
+    ZIO.foreach_(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.foreach_]]
+   */
+  final def foreach_[R, A](as: Chunk[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
@@ -612,6 +624,12 @@ object RIO {
     ZIO.traverse(in)(f)
 
   /**
+   * @see See [[zio.ZIO.traverse]]
+   */
+  final def traverse[R, A, B](in: Chunk[A])(f: A => RIO[R, B]): RIO[R, Chunk[B]] =
+    ZIO.traverse(in)(f)
+
+  /**
    * @see See [[zio.ZIO.traversePar]]
    */
   final def traversePar[R, A, B](as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
@@ -629,6 +647,12 @@ object RIO {
    * @see See [[zio.ZIO.traverse_]]
    */
   final def traverse_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
+    ZIO.traverse_(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.traverse_]]
+   */
+  final def traverse_[R, A](as: Chunk[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.traverse_(as)(f)
 
   /**
