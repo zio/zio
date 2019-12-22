@@ -253,10 +253,10 @@ object URIO {
     ZIO.foreach(in)(f)
 
   /**
-   * @see [[zio.ZIO.foreachOption]]
+   * @see [[zio.ZIO.foreach]]
    */
-  final def foreachOption[R, A, B](in: Option[A])(f: A => URIO[R, B]): URIO[R, Option[B]] =
-    ZIO.foreachOption(in)(f)
+  final def foreach[R, A, B](in: Option[A])(f: A => URIO[R, B]): URIO[R, Option[B]] =
+    ZIO.foreach(in)(f)
 
   /**
    * @see [[zio.ZIO.foreachPar]]
@@ -548,9 +548,9 @@ object URIO {
   final def traverse[R, A, B](in: Iterable[A])(f: A => URIO[R, B]): URIO[R, List[B]] = ZIO.traverse(in)(f)
 
   /**
-   * @see [[zio.ZIO.traverseOption]]
+   * @see [[zio.ZIO.traverse]]
    */
-  final def traverseOption[R, A, B](in: Option[A])(f: A => URIO[R, B]): URIO[R, Option[B]] = ZIO.traverseOption(in)(f)
+  final def traverse[R, A, B](in: Option[A])(f: A => URIO[R, B]): URIO[R, Option[B]] = ZIO.traverse(in)(f)
 
   /**
    * @see [[zio.ZIO.traversePar]]

@@ -257,10 +257,10 @@ object IO {
     ZIO.foreach(in)(f)
 
   /**
-   * @see See [[zio.ZIO.foreachOption]]
+   * @see See [[zio.ZIO.foreach]]
    */
-  final def foreachOption[E, A, B](in: Option[A])(f: A => IO[E, B]): IO[E, Option[B]] =
-    ZIO.foreachOption(in)(f)
+  final def foreach[E, A, B](in: Option[A])(f: A => IO[E, B]): IO[E, Option[B]] =
+    ZIO.foreach(in)(f)
 
   /**
    * @see See [[zio.ZIO.foreachPar]]
@@ -562,10 +562,10 @@ object IO {
     ZIO.traverse(in)(f)
 
   /**
-   * @see See [[zio.ZIO.traverseOption]]
+   * @see See [[zio.ZIO.traverse]]
    */
-  final def traverseOption[E, A, B](in: Option[A])(f: A => IO[E, B]): IO[E, Option[B]] =
-    ZIO.traverseOption(in)(f)
+  final def traverse[E, A, B](in: Option[A])(f: A => IO[E, B]): IO[E, Option[B]] =
+    ZIO.traverse(in)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar]]

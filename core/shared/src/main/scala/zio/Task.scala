@@ -258,10 +258,10 @@ object Task {
     ZIO.foreach(in)(f)
 
   /**
-   * @see See [[zio.ZIO.foreachOption]]
+   * @see See [[zio.ZIO.foreach]]
    */
   final def foreach[A, B](in: Option[A])(f: A => Task[B]): Task[Option[B]] =
-    ZIO.foreachOption(in)(f)
+    ZIO.foreach(in)(f)
 
   /**
    * @see See [[zio.ZIO.foreachPar]]
@@ -559,10 +559,10 @@ object Task {
     ZIO.traverse(in)(f)
 
   /**
-   * @see See [[zio.ZIO.traverseOption]]
+   * @see See [[zio.ZIO.traverse]]
    */
   final def traverseOption[A, B](in: Option[A])(f: A => Task[B]): Task[Option[B]] =
-    ZIO.traverseOption(in)(f)
+    ZIO.traverse(in)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar]]
