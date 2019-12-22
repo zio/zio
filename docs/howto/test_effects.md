@@ -262,7 +262,34 @@ like `clearInts`.
 
 ### Testing Clock
 
-Sometimes one need to be able to control the flow of time. In most cases you want your unit test to be as fast as possible. Waiting for real time to pass by is a real killer for this. ZIO exposes a `TestClock` in `TestEnvironment` that can control time so we can deterministically and efficiently test effects involving the passage of time.
+In most cases you want unit tests to be as fast as possible. Waiting for real time to pass by is a real killer for 
+this. ZIO exposes a `TestClock` in `TestEnvironment` that can control time so we can deterministically and efficiently 
+test effects involving the passage of time without actually having to wait for the full amount of time to pass.
+
+When using `TestClock`, it's very important to understand two key related concepts (clock time and fiber time) and how
+they interact with each other.
+
+#### Fiber Time
+Each fiber has a fiber time associated with it. Calls to `sleep` and methods derived from it will semantically block 
+until the clock time is set/adjusted to on or after the current fiber time. The fiber time is simply the cumulative 
+duration of successive `sleep` calls on the fiber.
+
+#### Clock Time
+Clock time is just like a clock on the wall, except that in our `TestClock`, the clock is broken. Instead of moving by
+itself, the clock time only changes when adjusted or set by the user, using the `adjust` and `setTime` methods. The
+clock time never changes by itself. When the clock is adjusted, any effects on sleeping fibers with a fiber time 
+on or before the new clock time will automatically be run.
+
+#### TestClock Vectors
+The interaction between clock time and fiber time can be thought of in terms of vector addition, with clock time on the
+x axis and fiber time on the y axis. A fiber will continue to execute as long as clock time remains greater than fiber
+time (i.e. is below the identity function). Fibers that end up with greater fiber time than clock time can't do anything
+except wait for another fiber to adjust the clock time to be greater than the fiber time, at which point exection will
+resume.
+
+![TestClock Vectors](test_time.svg)
+
+#### Examples
 
 **Example 1**
 
@@ -313,12 +340,17 @@ The above code creates a write once cell that will be set to "1" after 10 second
 At the end we wait on the promise until it is set. With call to `TestClock.adjust(10.seconds)` we simulate passing of 10 seconds of time.
 Because of it we don't need to wait for the real 10 seconds to pass and thus our unit test can run faster. This is a pattern that will very often be used when `sleep` and `TestClock` are being used for testing of effects that are based on time. The fiber that needs to sleep will be forked and `TestClock` will used to adjust the time so that all expected effects are run in the forked fiber.
 
-*WARNING*
+**WARNING**
 Notice that if we don't call `adjust` at all we'll get stuck. `TestClock` doesn't make any progress on its own.
 
-Also it is worth mentioning that adjusting the time on `TestClock` doesn't make us immune to the timing overheads introduced by the runtime and races this introduces. Effects are guaranteed to be waken up not earlier than the argument passed to `sleep` but from there the order of execution since scheduled on different threads is indeterministic and its up to the user code to use tools like `Promise` to guarantee proper sequencing. 
-Below code will be flaky because there is non-zero overhead when switching fibers thus reading of the value might happen before it is set and its change is 
-propagated.
+
+It is worth mentioning that adjusting the time on `TestClock` doesn't make us immune to the timing overheads 
+introduced by the runtime and races this introduces. Effects are guaranteed to be waken up not earlier than the argument 
+passed to `sleep` but from there the order of execution since scheduled on different threads is indeterministic and its 
+up to the user code to use tools like `Promise` to guarantee proper sequencing. 
+
+The code below will be flaky because there is non-zero overhead when switching fibers thus reading of the value might 
+happen before it is set and its change is propagated.
 
 ```scala mdoc
 testM("THIS TEST WILL FAIL - Sleep and adjust can introduce races") {
