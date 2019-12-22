@@ -247,7 +247,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref      <- Ref.make(0)
           o        <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioSucceed)
           expected = Left("OrElse")
-        } yield assert(o, equalTo(expected))
+        } yield assert(o)(equalTo(expected))
       },
       testM("if fallback failed - retryOrElseEither") {
         val failed = (for {
@@ -273,7 +273,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref      <- Ref.make(0)
           o        <- failOn0(ref).retryOrElseEither(Schedule.once, ioFail)
           expected = Right(2)
-        } yield assert(o, equalTo(expected))
+        } yield assert(o)(equalTo(expected))
       }
     ),
     suite("Retry a failed action 2 times and call `ensuring` should")(
@@ -309,7 +309,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           )
 
       val expected = Right(ScheduleSuccess("Ok"))
-      assertM(foo("Ok"), equalTo(expected))
+      assertM(foo("Ok"))(equalTo(expected))
     },
     testM("either should not wait if neither schedule wants to continue") {
       assertM(

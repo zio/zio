@@ -253,7 +253,7 @@ object AccountObserverSpec extends DefaultRunnableSpec {
           val console = mockConsole.console
         }
       })
-      assertM(result, isUnit)
+      assertM(result)(isUnit)
     }
   )
 }
@@ -295,7 +295,7 @@ val combinedApp =
   } yield ()
 
 val result = combinedApp.provideManaged(combinedEnv)
-assertM(result, isUnit)
+assertM(result)(isUnit)
 ```
 
 [doc-use-module-pattern]: use_module_pattern.md

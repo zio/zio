@@ -25,8 +25,8 @@ import scala.annotation.implicitNotFound
  */
 @implicitNotFound(
   "This operation assumes that your effect requires an environment. " +
-  "However, your effect has Any for the environment type, which means it " +
-  "has no requirement, so there is no need to provide the environment."
+    "However, your effect has Any for the environment type, which means it " +
+    "has no requirement, so there is no need to provide the environment."
 )
 sealed trait NeedsEnv[+R]
 

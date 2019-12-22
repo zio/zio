@@ -35,10 +35,10 @@ object MockException {
   final case class InvalidMethodException[M0, I0, A0, M1, I1, A1](
     method: Method[M0, I0, A0],
     expectedMethod: Method[M1, I1, A1],
-    assertion: Assertion[A1]
+    assertion: Assertion[I1]
   ) extends MockException
 
   final case class UnmetExpectationsException[M, I >: Nothing, A >: Nothing](
-    expectations: List[(Method[M, I, A], Assertion[A])]
+    expectations: List[(Method[M, I, A], Assertion[I])]
   ) extends MockException
 }

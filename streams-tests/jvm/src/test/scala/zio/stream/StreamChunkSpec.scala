@@ -38,7 +38,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
     },
     testM("StreamChunk.either") {
       val s = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
-      s.either.flattenChunks.runCollect.map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
+      s.either.flattenChunks.runCollect.map(assert(_)(equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
     },
     testM("StreamChunk.orElse") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
@@ -69,7 +69,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         } yield assert(res1, equalTo(res2))
       }),
       testM("filterM error") {
-        Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_, equalTo(Left("Ouch"))))
+        Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     testM("StreamChunk.filterNot") {
@@ -114,7 +114,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           .mapConcatChunkM(_ => IO.fail("Ouch"))
           .run(Sink.drain)
           .either
-          .map(assert(_, equalTo(Left("Ouch"))))
+          .map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     suite("StreamChunk.mapConcatM")(
@@ -133,7 +133,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           .mapConcatM(_ => IO.fail("Ouch"))
           .run(Sink.drain)
           .either
-          .map(assert(_, equalTo(Left("Ouch"))))
+          .map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     testM("StreamChunk.mapError") {
@@ -171,7 +171,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.dropUntil(p))
           res2 <- slurp(s).map(seq => StreamUtils.dropUntil(seq.toList)(p))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.dropWhile") {
@@ -187,7 +187,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.takeUntil(p))
           res2 <- slurp(s).map(seq => StreamUtils.takeUntil(seq.toList)(p))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.takeWhile") {
@@ -311,9 +311,9 @@ object StreamChunkSpec extends ZIOBaseSpec {
           tap           <- slurp(s.tap(a => acc.update(a :: _).unit)).run
           list          <- acc.get.run
         } yield {
-          assert(withoutEffect, equalTo(tap)) && (assert(withoutEffect.succeeded, isFalse) || assert[
-            Exit[Nothing, Seq[String]]
-          ](withoutEffect, equalTo(list.map(_.reverse))))
+          assert(withoutEffect, equalTo(tap)) && (assert(withoutEffect.succeeded, isFalse) || assert(withoutEffect)(
+            equalTo(list.map(_.reverse))
+          ))
         }
       }
     },
@@ -324,7 +324,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       },
       testM("introduce error") {
         val s = StreamChunk.fromChunks(Chunk(1), Chunk.empty, Chunk(2, 3, 4), Chunk(5, 6))
-        s.via(_ => StreamChunk(Stream.fail("Ouch"))).runCollect.either.map(assert(_, equalTo(Left("Ouch"))))
+        s.via(_ => StreamChunk(Stream.fail("Ouch"))).runCollect.either.map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     testM("StreamChunk.fold") {
@@ -424,17 +424,13 @@ object StreamChunkSpec extends ZIOBaseSpec {
     },
     testM("StreamChunk.ChunkN") {
       val s1 = StreamChunk(Stream(Chunk(1, 2, 3, 4, 5), Chunk(6, 7), Chunk(8, 9, 10, 11)))
-      assertM(
-        s1.chunkN(2).chunks.map(_.toSeq).runCollect,
+      assertM(s1.chunkN(2).chunks.map(_.toSeq).runCollect)(
         equalTo(List(List(1, 2), List(3, 4), List(5, 6), List(7, 8), List(9, 10), List(11)))
       )
     },
     testM("StreamChunk.ChunkN Non-Empty") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2), Chunk(3)))
-      assertM(
-        s1.chunkN(1).chunks.map(_.toSeq).runCollect,
-        equalTo(List(List(1), List(2), List(3)))
-      )
+      assertM(s1.chunkN(1).chunks.map(_.toSeq).runCollect)(equalTo(List(List(1), List(2), List(3))))
     }
   )
 }

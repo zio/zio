@@ -301,8 +301,8 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo(
           UnmetExpectationsException(
             List(
-              Module.command -> equalTo(2),
-              Module.command -> equalTo(3)
+              Module.command -> (equalTo(2)),
+              Module.command -> (equalTo(3))
             )
           )
         )

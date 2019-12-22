@@ -152,7 +152,7 @@ object StreamSpec extends ZIOBaseSpec {
                        Schedule.spaced(30.minutes)
                      )
                      .runCollect
-        } yield assert(result, equalTo(List(Right(List(1, 1, 1, 1)), Right(List(2)))))
+        } yield assert(result)(equalTo(List(Right(List(1, 1, 1, 1)), Right(List(2)))))
       },
       testM("error propagation") {
         val e = new RuntimeException("Boom")
@@ -331,7 +331,7 @@ object StreamSpec extends ZIOBaseSpec {
               out1     <- s1.runCollect.either
               out2     <- s2.runCollect.either
               expected = Left("Boom")
-            } yield assert(out1, equalTo(expected)) && assert(out2, equalTo(expected))
+            } yield assert(out1)(equalTo(expected)) && assert(out2)(equalTo(expected))
           case _ =>
             UIO(assert((), Assertion.nothing))
         }
@@ -399,7 +399,7 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     suite("Stream.chunkN")(
       testM("empty stream") {
-        assertM(Stream.empty.chunkN(1).runCollect, equalTo(Nil))
+        assertM(Stream.empty.chunkN(1).runCollect)(equalTo(Nil))
       },
       testM("non-positive chunk size") {
         assertM(Stream(1, 2, 3).chunkN(0).chunks.runCollect, equalTo(List(Chunk(1), Chunk(2), Chunk(3))))
@@ -578,7 +578,7 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     testM("Stream.either") {
       val s = Stream(1, 2, 3) ++ Stream.fail("Boom")
-      s.either.runCollect.map(assert(_, equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
+      s.either.runCollect.map(assert(_)(equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
     },
     testM("Stream.ensuring") {
       for {
@@ -1050,7 +1050,7 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("do not emit any element") {
         val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
-        assertM(Stream.fromEffectOption(fa).runCollect, equalTo(List()))
+        assertM(Stream.fromEffectOption(fa).runCollect)(equalTo(List()))
       }
     ),
     suite("Stream.groupBy")(
@@ -1123,16 +1123,10 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     suite("Stream.runHead")(
       testM("nonempty stream")(
-        assertM(
-          Stream(1, 2, 3, 4).runHead,
-          equalTo(Some(1))
-        )
+        assertM(Stream(1, 2, 3, 4).runHead)(equalTo(Some(1)))
       ),
       testM("empty stream")(
-        assertM(
-          Stream.empty.runHead,
-          equalTo(None)
-        )
+        assertM(Stream.empty.runHead)(equalTo(None))
       )
     ),
     suite("Stream interleaving")(
@@ -1183,16 +1177,10 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     suite("Stream.runLast")(
       testM("nonempty stream")(
-        assertM(
-          Stream(1, 2, 3, 4).runLast,
-          equalTo(Some(4))
-        )
+        assertM(Stream(1, 2, 3, 4).runLast)(equalTo(Some(4)))
       ),
       testM("empty stream")(
-        assertM(
-          Stream.empty.runLast,
-          equalTo(None)
-        )
+        assertM(Stream.empty.runLast)(equalTo(None))
       )
     ),
     testM("Stream.map")(checkM(pureStreamOfBytes, Gen.function(Gen.anyInt)) { (s, f) =>
@@ -1247,7 +1235,7 @@ object StreamSpec extends ZIOBaseSpec {
           .mapConcatChunkM(_ => IO.fail("Ouch"))
           .runCollect
           .either
-          .map(assert(_, equalTo(Left("Ouch"))))
+          .map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     suite("Stream.mapConcatM")(
@@ -1264,7 +1252,7 @@ object StreamSpec extends ZIOBaseSpec {
           .mapConcatM(_ => IO.fail("Ouch"))
           .runCollect
           .either
-          .map(assert(_, equalTo(Left("Ouch"))))
+          .map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     testM("Stream.mapError") {
@@ -1397,7 +1385,7 @@ object StreamSpec extends ZIOBaseSpec {
 
         for {
           merge <- s1.mergeEither(s2).runCollect
-        } yield assert[List[Either[Int, Int]]](merge, hasSameElements(List(Left(1), Left(2), Right(1), Right(2))))
+        } yield assert(merge)(hasSameElements(List(Left(1), Left(2), Right(1), Right(2))))
       },
       testM("mergeWith") {
         val s1 = Stream(1, 2)
@@ -1526,19 +1514,18 @@ object StreamSpec extends ZIOBaseSpec {
         .collectAllWhile[Char](_ == ',')
       assertM(s.peel(parser).use[Any, Int, (Int, Exit[Nothing, List[Char]])] {
         case (n, rest) => rest.runCollect.run.map(n -> _)
-      }, equalTo((12, Success(List('3', '4')))))
+      })(equalTo((12, Success(List('3', '4')))))
     },
     testM("Stream.range") {
-      assertM(Stream.range(0, 10).runCollect, equalTo(Range(0, 10).toList))
+      assertM(Stream.range(0, 10).runCollect)(equalTo(Range(0, 10).toList))
     },
     suite("Stream.repeat")(
       testM("repeat")(
         assertM(
           Stream(1)
             .repeat(Schedule.recurs(4))
-            .run(Sink.collectAll[Int]),
-          equalTo(List(1, 1, 1, 1, 1))
-        )
+            .run(Sink.collectAll[Int])
+        )(equalTo(List(1, 1, 1, 1, 1)))
       ),
       testM("short circuits")(
         (for {
@@ -1557,7 +1544,8 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(
           Stream(1)
             .repeatEither(Schedule.recurs(4))
-            .run(Sink.collectAll[Either[Int, Int]]),
+            .run(Sink.collectAll[Either[Int, Int]])
+        )(
           equalTo(
             List(
               Right(1),
@@ -1598,9 +1586,8 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(
           Stream("A", "B", "C")
             .scheduleElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
-            .run(Sink.collectAll[Either[Int, String]]),
-          equalTo(List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123)))
-        )
+            .run(Sink.collectAll[Either[Int, String]])
+        )(equalTo(List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123))))
       ),
       testM("scheduleWith")(
         assertM(
@@ -1614,9 +1601,8 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(
           Stream("A", "B", "C")
             .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
-            .run(Sink.collectAll[Either[String, String]]),
-          equalTo(List(Right("A"), Right("B"), Right("C"), Left("!")))
-        )
+            .run(Sink.collectAll[Either[String, String]])
+        )(equalTo(List(Right("A"), Right("B"), Right("C"), Left("!"))))
       ),
       testM("repeated && assertspaced")(
         assertM(
@@ -1666,7 +1652,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("take(0) short circuits")(
         for {
           units <- Stream.never.take(0).run(Sink.collectAll[Unit])
-        } yield assert(units, equalTo(Nil))
+        } yield assert(units)(equalTo(Nil))
       ),
       testM("take(1) short circuits")(
         for {
@@ -1744,9 +1730,8 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(
           Stream(1, 2, 3, 4)
             .throttleEnforce(0, Duration.Infinity)(_ => 1)
-            .runCollect,
-          equalTo(Nil)
-        )
+            .runCollect
+        )(equalTo(Nil))
       }
     ),
     suite("Stream.throttleShape")(testM("free elements") {
@@ -1759,21 +1744,15 @@ object StreamSpec extends ZIOBaseSpec {
     }),
     testM("Stream.toQueue")(checkM(smallChunks(Gen.anyInt)) { c: Chunk[Int] =>
       val s = Stream.fromChunk(c)
-      assertM(
-        s.toQueue(1000).use { queue: Queue[Take[Nothing, Int]] =>
-          waitForSize(queue, c.length + 1) *> queue.takeAll
-        },
-        equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
-      )
+      assertM(s.toQueue(1000).use { queue: Queue[Take[Nothing, Int]] =>
+        waitForSize(queue, c.length + 1) *> queue.takeAll
+      })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End))
     }),
     testM("Stream.toQueueUnbounded")(checkM(smallChunks(Gen.anyInt)) { c: Chunk[Int] =>
       val s = Stream.fromChunk(c)
-      assertM(
-        s.toQueueUnbounded.use { queue: Queue[Take[Nothing, Int]] =>
-          waitForSize(queue, c.length + 1) *> queue.takeAll
-        },
-        equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
-      )
+      assertM(s.toQueueUnbounded.use { queue: Queue[Take[Nothing, Int]] =>
+        waitForSize(queue, c.length + 1) *> queue.takeAll
+      })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End))
     }),
     suite("Stream.aggregate")(
       testM("aggregate") {
@@ -1886,9 +1865,8 @@ object StreamSpec extends ZIOBaseSpec {
             .use { q =>
               Stream.fromQueue(q).unTake.run(Sink.collectAll[Int])
             }
-            .run,
-          fails(equalTo(e))
-        )
+            .run
+        )(fails(equalTo(e)))
       }
     ),
     suite("Stream.via")(
@@ -1898,7 +1876,7 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("introduce error") {
         val s = Stream(1, 2, 3)
-        s.via(_ => Stream.fail("Ouch")).runCollect.either.map(assert(_, equalTo(Left("Ouch"))))
+        s.via(_ => Stream.fail("Ouch")).runCollect.either.map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     suite("Stream zipping")(

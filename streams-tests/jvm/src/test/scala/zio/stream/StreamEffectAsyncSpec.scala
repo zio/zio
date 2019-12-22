@@ -31,7 +31,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
                        None
                      }
                      .runCollect
-        } yield assert(result, equalTo(Nil))
+        } yield assert(result)(equalTo(Nil))
       },
       testM("effectAsyncMaybe Some")(checkM(Gen.listOf(Gen.anyInt)) { list =>
         val s = Stream.effectAsyncMaybe[Throwable, Int] { _ =>
@@ -101,7 +101,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
                        UIO.succeed(())
                      }
                      .runCollect
-        } yield assert(result, equalTo(Nil))
+        } yield assert(result)(equalTo(Nil))
       },
       testM("effectAsyncM back pressure") {
         for {
@@ -162,7 +162,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
                        Left(UIO.succeed(()))
                      }
                      .runCollect
-        } yield assert(result, equalTo(Nil))
+        } yield assert(result)(equalTo(Nil))
       },
       testM("effectAsyncInterrupt back pressure") {
         for {

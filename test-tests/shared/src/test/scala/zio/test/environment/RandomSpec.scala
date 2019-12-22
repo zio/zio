@@ -121,12 +121,12 @@ object RandomSpec extends ZIOBaseSpec {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
-        actual     <- UIO.foreach(0 to 100)(testRandom.nextBytes(_))
-        expected <- ZIO.effectTotal((0 to 100).map(new Array[Byte](_)).map { arr =>
+        actual     <- UIO.foreach(0 until 100)(testRandom.nextBytes(_))
+        expected <- ZIO.effectTotal(List.range(0, 100).map(new Array[Byte](_)).map { arr =>
                      sRandom.nextBytes(arr)
                      Chunk.fromArray(arr)
                    })
-      } yield assert(actual, equalTo(expected))
+      } yield assert(actual)(equalTo(expected))
     }
 
   def forAllEqualGaussian: ZIO[Random, Nothing, TestResult] =

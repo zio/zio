@@ -62,7 +62,7 @@ object ChunkSpec extends ZIOBaseSpec {
         chunk.mapM(s => UIO.succeed(f(s))).map(assert(_, equalTo(chunk.map(f))))
       }),
       testM("mapM error") {
-        Chunk(1, 2, 3).mapM(_ => IO.fail("Ouch")).either.map(assert(_, equalTo(Left("Ouch"))))
+        Chunk(1, 2, 3).mapM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     testM("flatMap") {
@@ -82,7 +82,7 @@ object ChunkSpec extends ZIOBaseSpec {
         chunk.filterM(s => UIO.succeed(p(s))).map(assert(_, equalTo(chunk.filter(p))))
       }),
       testM("filterM error") {
-        Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_, equalTo(Left("Ouch"))))
+        Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     testM("drop chunk") {
@@ -150,7 +150,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("collectM")(
       testM("collectM empty Chunk") {
-        assertM(Chunk.empty.collectM { case _ => UIO.succeed(1) }, equalTo(Chunk.empty))
+        assertM(Chunk.empty.collectM { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
       testM("collectM chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[String]](Gen.successes(stringGen))
@@ -178,7 +178,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("collectWhileM")(
       testM("collectWhileM empty Chunk") {
-        assertM(Chunk.empty.collectWhileM { case _ => UIO.succeed(1) }, equalTo(Chunk.empty))
+        assertM(Chunk.empty.collectWhileM { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
       testM("collectWhileM chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[String]](Gen.successes(stringGen))
@@ -258,7 +258,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk.empty ++ Chunk.fromArray(Array(1, 2, 3)), equalTo(Chunk(1, 2, 3)))
     },
     test("filterConstFalseResultsInEmptyChunk") {
-      assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false), equalTo(Chunk.empty))
+      assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false))(equalTo(Chunk.empty))
     },
     test("def testzipAllWith") {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _), equalTo(Chunk(4, 4, 4))) &&

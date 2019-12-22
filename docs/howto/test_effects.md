@@ -24,7 +24,7 @@ import Assertion.isGreaterThan
 
 val clockSuite = suite("clock") (
   testM("time is non-zero") {
-    assertM(nanoTime, isGreaterThan(0L))
+    assertM(nanoTime)(isGreaterThan(0L))
   }
 )
 ```
@@ -36,8 +36,8 @@ As you can see the whole suit was assigned to `clockSuite` val. As it was said s
 import zio.test._
 import Assertion._
 
-val paymentProviderABCSuite  = suite("ABC payment provider tests") {test("Your test")(assert("Your value", Assertion.isNonEmptyString))}
-val paymentProviderXYZSuite  = suite("XYZ payment provider tests") {test("Your other test")(assert("Your other value", Assertion.isNonEmptyString))}
+val paymentProviderABCSuite  = suite("ABC payment provider tests") {test("Your test")(assert("Your value")(Assertion.isNonEmptyString))}
+val paymentProviderXYZSuite  = suite("XYZ payment provider tests") {test("Your other test")(assert("Your other value")(Assertion.isNonEmptyString))}
 val allPaymentProvidersTests = suite("All payment providers tests")(paymentProviderABCSuite, paymentProviderXYZSuite)
 ```
 
@@ -68,7 +68,7 @@ What's more, assertions also compose with each other allowing for doing rich dif
 import zio.test.Assertion.{isRight, isSome,equalTo, hasField}
 
 test("Check assertions") {
-  assert(Right(Some(2)), isRight(isSome(equalTo(2))))
+  assert(Right(Some(2)))(isRight(isSome(equalTo(2))))
 }
 ```
 
@@ -86,7 +86,8 @@ final case class User(name:String, age:Int, address: Address)
 
 test("Rich checking") {
   assert(
-    User("Jonny", 26, Address("Denmark", "Copenhagen")),
+    User("Jonny", 26, Address("Denmark", "Copenhagen"))
+  )(
     hasField("age", (u:User) => u.age, isGreaterThanEqualTo(18)) &&
     hasField("country", (u:User) => u.address.country, not(equalTo("USA")))
   )
@@ -113,7 +114,7 @@ testM("Semaphore should expose available number of permits") {
   for {
     s         <- Semaphore.make(1L)
     permits   <- s.available
-  } yield assert(permits, equalTo(1L))
+  } yield assert(permits)(equalTo(1L))
 }
 ```
 
@@ -128,16 +129,16 @@ import zio.clock.nanoTime
 import Assertion._
 
 val suite1 = suite("suite1") (
-  testM("s1.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))},
-  testM("s1.t2") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
+  testM("s1.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  testM("s1.t2") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 val suite2 = suite("suite2") (
-  testM("s2.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))},
-  testM("s2.t2") {assertM(nanoTime, isGreaterThanEqualTo(0L))},
-  testM("s2.t3") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
+  testM("s2.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  testM("s2.t2") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  testM("s2.t3") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 val suite3 = suite("suite3") (
-  testM("s3.t1") {assertM(nanoTime, isGreaterThanEqualTo(0L))}
+  testM("s3.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 
 object AllSuites extends DefaultRunnableSpec {
@@ -226,7 +227,7 @@ testM("Use setSeed to generate stable values") {
     r2 <- random.nextLong
     r3 <- random.nextLong
   } yield
-    assert(List(r1,r2,r3), equalTo(List[Long](
+    assert(List(r1,r2,r3))(equalTo(List[Long](
       -4947896108136290151L,
       -5264020926839611059L,
       -9135922664019402287L
@@ -251,9 +252,8 @@ testM("One can provide its own list of ints") {
     r8 <- random.nextInt
     r9 <- random.nextInt
   } yield assert(
-    List(1, 9, 2, 8, 3, 7, 4, 6, 5),
-    equalTo(List(r1, r2, r3, r4, r5, r6, r7, r8, r9))
-  )
+    List(1, 9, 2, 8, 3, 7, 4, 6, 5)
+  )(equalTo(List(r1, r2, r3, r4, r5, r6, r7, r8, r9)))
 }
 ```
 
@@ -283,7 +283,7 @@ testM("One can move time very fast") {
     startTime <- currentTime(TimeUnit.SECONDS)
     _         <- TestClock.adjust(Duration.fromScala(1 minute))
     endTime   <- currentTime(TimeUnit.SECONDS)
-  } yield assert(endTime - startTime, isGreaterThanEqualTo(60L))
+  } yield assert(endTime - startTime)(isGreaterThanEqualTo(60L))
 }
 ```
 
@@ -305,7 +305,7 @@ testM("One can control time as he see fit") {
     _       <- (ZIO.sleep(Duration.fromScala(10 seconds)) *> promise.succeed(1)).fork
     _       <- TestClock.adjust(Duration.fromScala(10 seconds))
     readRef <- promise.await
-  } yield assert(1, equalTo(readRef))
+  } yield assert(1)(equalTo(readRef))
 }
 ```
 
@@ -327,7 +327,7 @@ testM("THIS TEST WILL FAIL - Sleep and adjust can introduce races") {
     _       <- (ZIO.sleep(Duration(10, TimeUnit.SECONDS)) *> ref.update(_ + 1)).fork
     _       <- TestClock.adjust(Duration(10, TimeUnit.SECONDS))
     value   <- ref.get
-  } yield assert(1, equalTo(value))
+  } yield assert(1)(equalTo(value))
 }
 ```
 
@@ -362,10 +362,10 @@ testM("zipWithLatest") {
     _ <- TestClock.setTime(Duration.fromScala(140 millis))
     d <- q.take
   } yield
-    assert(a, equalTo(0 -> 0)) &&
-      assert(b, equalTo(0       -> 1)) &&
-      assert(c, equalTo(1       -> 1)) &&
-      assert(d, equalTo(1       -> 2))
+    assert(a)(equalTo(0 -> 0)) &&
+      assert(b)(equalTo(0       -> 1)) &&
+      assert(c)(equalTo(1       -> 1)) &&
+      assert(d)(equalTo(1       -> 2))
 }
 ```
 
@@ -390,10 +390,10 @@ val consoleSuite = suite("ConsoleTest")(
       q1             = questionVector(0)
       q2             = questionVector(1)
     } yield {
-      assert(name, equalTo("Jimmy")) &&
-      assert(age, equalTo(37)) &&
-      assert(q1, equalTo("What is your name?\n")) &&
-      assert(q2, equalTo("What is your age?\n"))
+      assert(name)(equalTo("Jimmy")) &&
+      assert(age)(equalTo(37)) &&
+      assert(q1)(equalTo("What is your name?\n")) &&
+      assert(q2)(equalTo("What is your age?\n"))
     }
   }
 )
@@ -418,7 +418,7 @@ import zio.test.environment._
 for {
   _      <- TestSystem.putProperty("java.vm.name", "VM")
   result <- system.property("java.vm.name")
-} yield assert(result, equalTo(Some("VM")))
+} yield assert(result)(equalTo(Some("VM")))
 ```
 
 It is worth noticing that no actual environment variables or properties will be set during testing so there will be
@@ -439,22 +439,22 @@ import zio.test._
 object MySpec extends DefaultRunnableSpec {
   def spec = suite("A Suite")(
     test("A passing test") {
-      assert(true, isTrue)
+      assert(true)(isTrue)
     },
     test("A passing test run for JVM only") {
-      assert(true, isTrue)
+      assert(true)(isTrue)
     } @@ jvmOnly, //@@ jvmOnly only runs tests on the JVM
     test("A passing test run for JS only") {
-      assert(true, isTrue)
+      assert(true)(isTrue)
     } @@ jsOnly, //@@ jsOnly only runs tests on Scala.js
     test("A passing test with a timeout") {
-      assert(true, isTrue)
+      assert(true)(isTrue)
     } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
     test("A failing test... that passes") {
-      assert(true, isFalse)
+      assert(true)(isFalse)
     } @@ failure, //@@ failure turns a failing test into a passing test
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
-      assert(false, isTrue)
+      assert(false)(isTrue)
     } @@ jvmOnly           // only run on the JVM
       @@ eventually        //@@ eventually retries a test indefinitely until it succeeds
       @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
