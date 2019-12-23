@@ -70,11 +70,11 @@ class TMapBenchmarks {
   }
 
   private def removal[A](list: Int => List[A]): Unit = {
+    val items = list(size)
+
     val tx =
       for {
-        map   <- TMap.empty[A, A]
-        items = list(size)
-        _     <- STM.foreach(items)(i => map.put(i, i))
+        map   <- TMap.fromIterable(items.map(i => (i, i)))
         _     <- STM.foreach(items)(map.delete)
       } yield ()
 
@@ -82,11 +82,11 @@ class TMapBenchmarks {
   }
 
   private def lookup[A](list: Int => List[A]): List[A] = {
+    val items = list(size)
+
     val tx =
       for {
-        map   <- TMap.empty[A, A]
-        items = list(size)
-        _     <- STM.foreach(items)(i => map.put(i, i))
+        map   <- TMap.fromIterable(items.map(i => (i, i)))
         res   <- STM.foreach(items)(map.get)
       } yield res.flatten
 
