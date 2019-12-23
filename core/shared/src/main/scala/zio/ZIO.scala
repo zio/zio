@@ -714,14 +714,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     for {
       r <- ZIO.environment[R]
       x <- RefM.make[Option[Promise[E, A]]](None)
-    } yield x.modify[Any, Nothing, IO[E, A]] {
-      case x @ Some(p) => ZIO.succeed(p.await -> x)
-      case None =>
-        for {
-          p <- Promise.make[E, A]
-          _ <- self provide r to p
-        } yield (p.await -> Some(p))
-    }.flatten
+    } yield x
+      .modify[Any, Nothing, IO[E, A]] {
+        case x @ Some(p) => ZIO.succeed(p.await -> x)
+        case None =>
+          for {
+            p <- Promise.make[E, A]
+            _ <- self provide r to p
+          } yield (p.await -> Some(p))
+      }
+      .flatten
 
   /**
    * Returns a new effect where the error channel has been merged into the
