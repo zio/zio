@@ -241,6 +241,46 @@ object SinkSpec extends ZIOBaseSpec {
           assertM(sinkIteration(sink, "123").either, isLeft(equalTo("Ouch")))
         }
       ),
+      suite("drop")(
+        testM("happy path - drops zero elements") {
+          val sink = ZSink.collectAll[Int].drop(0)
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            result <- sink.extract(step3)
+          } yield assert(result, equalTo((List(1, 2, 3), Chunk.empty)))
+        },
+        testM("happy path - drops more than one element") {
+          val sink = ZSink.collectAll[Int].drop(3)
+          for {
+            init   <- sink.initial
+            step1  <- sink.step(init, 1)
+            step2  <- sink.step(step1, 2)
+            step3  <- sink.step(step2, 3)
+            step4  <- sink.step(step3, 4)
+            step5  <- sink.step(step4, 5)
+            result <- sink.extract(step5)
+          } yield assert(result, equalTo((List(4, 5), Chunk.empty)))
+        },
+        testM("happy path") {
+          val sink = ZSink.identity[Int].drop(1)
+          assertM(sinkIteration(sink, 1).either, isLeft(equalTo(())))
+        },
+        testM("init error") {
+          val sink = initErrorSink.drop(1)
+          assertM(sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+        },
+        testM("step error") {
+          val sink = stepErrorSink.drop(1)
+          assertM(sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+        },
+        testM("extract error") {
+          val sink = extractErrorSink.drop(1)
+          assertM(sinkIteration(sink, 1).either, isLeft(equalTo("Ouch")))
+        }
+      ),
       suite("dropWhile")(
         testM("happy path") {
           val sink = ZSink.identity[Int].dropWhile(_ < 5)
