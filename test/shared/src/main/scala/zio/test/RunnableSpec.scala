@@ -56,6 +56,11 @@ trait RunnableSpec[R, E, L, T, S] extends AbstractRunnableSpec {
   }
 
   private def doExit(exitCode: Int): Unit =
-    try sys.exit(exitCode)
+    try if (!isAmmonite) sys.exit(exitCode)
     catch { case _: SecurityException => }
+
+  private def isAmmonite: Boolean =
+    sys.env.exists {
+      case (k, v) => k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
+    }
 }
