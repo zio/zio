@@ -712,18 +712,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def memoize: URIO[R, IO[E, A]] =
     for {
-      r <- ZIO.environment[R]
-      x <- RefM.make[Option[Promise[E, A]]](None)
-    } yield x
-      .modify[Any, Nothing, IO[E, A]] {
-        case x @ Some(p) => ZIO.succeed(p.await -> x)
-        case None =>
-          for {
-            p <- Promise.make[E, A]
-            _ <- self provide r to p
-          } yield (p.await -> Some(p))
-      }
-      .flatten
+      r  <- ZIO.environment[R]
+      x  <- Ref.make[Option[Promise[E, A]]](None)
+      id <- ZIO.fiberId
+    } yield (for {
+      p <- Promise.makeAs[E, A](id)
+      io <- x.modify {
+             case x @ Some(p) => (p.await -> x)
+             case None =>
+               (self provide r to p) *> p.await -> Some(p)
+           }
+    } yield io).flatten
 
   /**
    * Returns a new effect where the error channel has been merged into the
