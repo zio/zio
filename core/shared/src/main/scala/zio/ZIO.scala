@@ -1692,7 +1692,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self &&& that
 }
 
-private[zio] trait ZIOFunctions extends Serializable {
+object ZIO {
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
@@ -1850,21 +1850,21 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Checks the daemon status, and produces the effect returned by the
    * specified callback.
    */
-  final def checkDaemon[R, E, A](f: DaemonStatus => ZIO[R, E, A]): ZIO[R, E, A] =
+  final def checkDaemon[R, E, A](f: DaemonS => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.CheckDaemon(f)
 
   /**
    * Checks the interrupt status, and produces the effect returned by the
    * specified callback.
    */
-  final def checkInterruptible[R, E, A](f: InterruptStatus => ZIO[R, E, A]): ZIO[R, E, A] =
+  final def checkInterruptible[R, E, A](f: InterruptS => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.CheckInterrupt(f)
 
   /**
    * Checks the ZIO Tracing status, and produces the effect returned by the
    * specified callback.
    */
-  final def checkTraced[R, E, A](f: TracingStatus => ZIO[R, E, A]): ZIO[R, E, A] =
+  final def checkTraced[R, E, A](f: TracingS => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.CheckTracing(f)
 
   /**
@@ -2904,9 +2904,6 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def _2[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
 
-}
-
-object ZIO extends ZIOFunctions {
   def apply[A](a: => A): Task[A] = effect(a)
 
   private val _IdentityFn: Any => Any = (a: Any) => a

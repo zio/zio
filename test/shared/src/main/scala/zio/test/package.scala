@@ -85,7 +85,8 @@ package object test extends CompileVariants {
   type TestExecutor[+R, E, L, -T, +S] = (ZSpec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[E, L, S]]
 
   /**
-   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable]] [[TestEnvironment]] objects
+   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable Restorable]]
+   * [[zio.test.environment.TestEnvironment TestEnvironment]] objects
    */
   type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
