@@ -452,19 +452,19 @@ object IO {
     ZIO.lock(executor)(io)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
   final def mapN[E, A, B, C](io1: IO[E, A], io2: IO[E, B])(f: (A, B) => C): IO[E, C] =
     ZIO.mapN(io1, io2)(f)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
   final def mapN[E, A, B, C, D](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C])(f: (A, B, C) => D): IO[E, D] =
     ZIO.mapN(io1, io2, io3)(f)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
   final def mapN[E, A, B, C, D, F](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C], io4: IO[E, D])(
     f: (A, B, C, D) => F
@@ -472,19 +472,19 @@ object IO {
     ZIO.mapN(io1, io2, io3, io4)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
   final def mapParN[E, A, B, C](io1: IO[E, A], io2: IO[E, B])(f: (A, B) => C): IO[E, C] =
     ZIO.mapParN(io1, io2)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
   final def mapParN[E, A, B, C, D](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C])(f: (A, B, C) => D): IO[E, D] =
     ZIO.mapParN(io1, io2, io3)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
   final def mapParN[E, A, B, C, D, F](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C], io4: IO[E, D])(
     f: (A, B, C, D) => F

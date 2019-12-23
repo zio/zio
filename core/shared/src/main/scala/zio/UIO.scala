@@ -352,37 +352,37 @@ object UIO {
     ZIO.lock(executor)(uio)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
   final def mapN[A, B, C](uio1: UIO[A], uio2: UIO[B])(f: (A, B) => C): UIO[C] =
     ZIO.mapN(uio1, uio2)(f)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
   final def mapN[A, B, C, D](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C])(f: (A, B, C) => D): UIO[D] =
     ZIO.mapN(uio1, uio2, uio3)(f)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
   final def mapN[A, B, C, D, F](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C], uio4: UIO[D])(f: (A, B, C, D) => F): UIO[F] =
     ZIO.mapN(uio1, uio2, uio3, uio4)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
   final def mapParN[A, B, C](uio1: UIO[A], uio2: UIO[B])(f: (A, B) => C): UIO[C] =
     ZIO.mapParN(uio1, uio2)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
   final def mapParN[A, B, C, D](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C])(f: (A, B, C) => D): UIO[D] =
     ZIO.mapParN(uio1, uio2, uio3)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
   final def mapParN[A, B, C, D, F](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C], uio4: UIO[D])(
     f: (A, B, C, D) => F

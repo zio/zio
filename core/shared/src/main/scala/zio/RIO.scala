@@ -435,13 +435,13 @@ object RIO {
   final def left[R, A](a: A): RIO[R, Either[A, Nothing]] = ZIO.left(a)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
   final def mapN[R, A, B, C](rio1: RIO[R, A], rio2: RIO[R, B])(f: (A, B) => C): RIO[R, C] =
     ZIO.mapN(rio1, rio2)(f)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
   final def mapN[R, A, B, C, D](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C])(
     f: (A, B, C) => D
@@ -449,7 +449,7 @@ object RIO {
     ZIO.mapN(rio1, rio2, rio3)(f)
 
   /**
-   *  @see mapN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
   final def mapN[R, A, B, C, D, F](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C], rio4: RIO[R, D])(
     f: (A, B, C, D) => F
@@ -457,19 +457,19 @@ object RIO {
     ZIO.mapN(rio1, rio2, rio3, rio4)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
   final def mapParN[R, A, B, C](rio1: RIO[R, A], rio2: RIO[R, B])(f: (A, B) => C): RIO[R, C] =
     ZIO.mapParN(rio1, rio2)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
   final def mapParN[R, A, B, C, D](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C])(f: (A, B, C) => D): RIO[R, D] =
     ZIO.mapParN(rio1, rio2, rio3)(f)
 
   /**
-   *  @see mapParN in [[zio.ZIO$ ZIO]]
+   *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
   final def mapParN[R, A, B, C, D, F](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C], rio4: RIO[R, D])(
     f: (A, B, C, D) => F
