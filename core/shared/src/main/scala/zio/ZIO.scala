@@ -710,13 +710,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect that, if evaluated, will return the lazily computed result
    * of this effect.
    */
-  final def memoize: URIO[R, IO[E, A]] =
-    for {
-      r <- ZIO.environment[R]
-      p <- Promise.make[E, A]
-      l <- Promise.make[Nothing, Unit]
-      _ <- (l.await *> ((self provide r) to p)).fork
-    } yield l.succeed(()) *> p.await
+  final def memoize: URIO[R, IO[E, A]] = {
+    import internal.OneShot
+    (ZIO.environment[R] <*> UIO.effectTotal(OneShot.make[A])).map { case (r, x) =>
+      IO.effectTotal {
+        if (x.isSet)
+          UIO.effectTotal(x.get)
+        else
+          self.tap(a => UIO.effectTotal(x.set(a))).provide(r)
+      }.flatten
+    }
+  }
 
   /**
    * Returns a new effect where the error channel has been merged into the
