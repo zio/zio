@@ -2808,7 +2808,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * with a specified function. Subsequent streams would be run multiple times,
    * for every combination of elements in the prior streams.
    *
-   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   * See also [[ZStream#zipN[R,E,A,B,C]*]] for the more common point-wise variant.
    */
   final def crossN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
     f: (A, B) => C
@@ -2820,7 +2820,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * with a specified function. Subsequent stream would be run multiple times,
    * for every combination of elements in the prior streams.
    *
-   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   * See also [[ZStream#zipN[R,E,A,B,C,D]*]] for the more common point-wise variant.
    */
   final def crossN[R, E, A, B, C, D](
     zStream1: ZStream[R, E, A],
@@ -2840,7 +2840,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * with a specified function. Subsequent stream would be run multiple times,
    * for every combination of elements in the prior streams.
    *
-   * See also [[ZStream#zipN]] for the more common point-wise variant.
+   * See also [[ZStream#zipN[R,E,A,B,C,D,F]*]] for the more common point-wise variant.
    */
   final def crossN[R, E, A, B, C, D, F](
     zStream1: ZStream[R, E, A],
