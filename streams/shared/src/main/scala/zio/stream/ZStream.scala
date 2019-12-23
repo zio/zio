@@ -1539,8 +1539,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         out <- Queue
                 .bounded[Take[E1, (K, GroupBy.DequeueOnly[Take[E1, V]])]](buffer)
                 .toManaged(_.shutdown)
-        emit <- Ref.make[Boolean](true).toManaged_
-        ref  <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
+        ref <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
         add <- self
                 .mapM(f)
                 .distributedWithDynamic(
@@ -1553,14 +1552,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 ref.get.map(_.get(k)).flatMap {
                   case Some(idx) => ZIO.succeed(_ == idx)
                   case None =>
-                    emit.get.flatMap {
-                      case true =>
-                        add.flatMap {
-                          case (idx, q) =>
-                            (ref.update(_ + (k -> idx)) *>
-                              out.offer(Take.Value(k -> q.map(_.map(_._2))))).as(_ == idx)
-                        }
-                      case false => ZIO.succeed(_ => false)
+                    add.flatMap {
+                      case (idx, q) =>
+                        (ref.update(_ + (k -> idx)) *>
+                          out.offer(Take.Value(k -> q.map(_.map(_._2))))).as(_ == idx)
                     }
                 }
             }.toManaged_
@@ -1574,10 +1569,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * This returns a data structure that can be used
    * to further filter down which groups shall be processed.
    *
-   * After apply on the GroupBy object, the remaining groups will be processed
+   * After calling apply on the GroupBy object, the remaining groups will be processed
    * in parallel and the resulting streams merged in a nondeterministic fashion.
    *
-   * Up to `buffer` elements may be buffered in a group stream until the producer
+   * Up to `buffer` elements may be buffered in any group stream before the producer
    * is backpressured. Take care to consume from all streams in order
    * to prevent deadlocks.
    *
