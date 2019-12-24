@@ -162,13 +162,17 @@ class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
-    foldMap(f).flatMap(overwriteWith)
+    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
+      .map(_.reverse)
+      .flatMap(overwriteWith)
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    foldMapM(f).flatMap(overwriteWith)
+    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
+      .map(_.reverse)
+      .flatMap(overwriteWith)
 
   /**
    * Atomically updates all values using a pure function.
@@ -187,12 +191,6 @@ class TMap[K, V] private (
    */
   final def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
-
-  private def foldMap(f: (K, V) => (K, V)): STM[Nothing, List[(K, V)]] =
-    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc).map(_.reverse)
-
-  private def foldMapM[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
-    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc)).map(_.reverse)
 
   private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
     for {
