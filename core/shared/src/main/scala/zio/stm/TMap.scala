@@ -188,10 +188,10 @@ class TMap[K, V] private (
   final def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
 
-  private def indexOf(k: K): STM[Nothing, Int] =
+  private final def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => TMap.indexOf(k, c))
 
-  private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
+  private final def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
     for {
       buckets  <- tBuckets.get
       capacity <- tCapacity.get
