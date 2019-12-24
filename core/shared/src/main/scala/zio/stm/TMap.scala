@@ -206,11 +206,6 @@ class TMap[K, V] private (
 object TMap {
 
   /**
-   * Makes a new `TMap` that is initialized with specified values.
-   */
-  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
-
-  /**
    * Makes an empty `TMap`.
    */
   final def empty[K, V]: STM[Nothing, TMap[K, V]] = fromIterable(Nil)
@@ -223,6 +218,11 @@ object TMap {
     val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size << 1)
     allocate(capacity, data.toList)
   }
+
+  /**
+   * Makes a new `TMap` that is initialized with specified values.
+   */
+  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
   private final def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
@@ -247,12 +247,12 @@ object TMap {
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
-  private final def indexOf[K](k: K, capacity: Int): Int = hash(k) & (capacity - 1)
-
   private final def hash[K](k: K): Int = {
     val h = k.hashCode()
     h ^ (h >>> 16)
   }
+
+  private final def indexOf[K](k: K, capacity: Int): Int = hash(k) & (capacity - 1)
 
   private final def nextPowerOfTwo(size: Int): Int = {
     val n = -1 >>> Integer.numberOfLeadingZeros(size - 1)
