@@ -233,8 +233,11 @@ object TMap {
 
     var size = 0
 
-    distinct.foreach { kv =>
+    val it = distinct.iterator
+    while (it.hasNext) {
+      val kv  = it.next
       val idx = indexOf(kv._1, capacity)
+
       buckets(idx) = kv :: buckets(idx)
       size = size + 1
     }
