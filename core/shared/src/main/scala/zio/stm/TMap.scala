@@ -136,7 +136,7 @@ class TMap[K, V] private (
       size        <- tSize.get
       capacity    <- tCapacity.get
       needsResize = capacity * TMap.LoadFactor < size
-      _           <- if (needsResize) resize(capacity * 2) else STM.unit
+      _           <- if (needsResize) resize(capacity << 1) else STM.unit
     } yield ()
   }
 
