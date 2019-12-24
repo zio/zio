@@ -58,13 +58,13 @@ class TMap[K, V] private (
    * Atomically folds using a transactional function.
    */
   final def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
-    def loopM(acc: STM[E, A], remaining: List[(K, V)]): STM[E, A] =
+    def loopM(res: A, remaining: List[(K, V)]): STM[E, A] =
       remaining match {
-        case Nil          => acc
-        case head :: tail => loopM(acc.flatMap(op(_, head)), tail)
+        case Nil          => STM.succeed(res)
+        case head :: tail => op(res, head).flatMap(loopM(_, tail))
       }
 
-    tBuckets.get.flatMap(_.foldM(zero)((acc, bucket) => loopM(STM.succeed(acc), bucket)))
+    tBuckets.get.flatMap(_.foldM(zero)(loopM))
   }
 
   /**
