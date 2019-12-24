@@ -192,20 +192,19 @@ class TMap[K, V] private (
   final def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
 
-  private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
-    for {
-      newMap      <- TMap.fromIterable(data)
-      newBuckets  <- newMap.tBuckets.get
-      _           <- tBuckets.set(newBuckets)
-      newCapacity <- newMap.tCapacity.get
-      _           <- tCapacity.set(newCapacity)
-      newSize     <- newMap.tSize.get
-      _           <- tSize.set(newSize)
-    } yield ()
-
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => TMap.indexOf(k, c))
 
+  private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
+    for {
+      buckets  <- tBuckets.get
+      capacity <- tCapacity.get
+      _        <- buckets.transform(_ => Nil)
+      distinct = data.toMap.toList
+      updates  = distinct.map(kv => buckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
+      _        <- STM.collectAll(updates)
+      _        <- tSize.set(distinct.size)
+    } yield ()
 }
 
 object TMap {
@@ -229,10 +228,10 @@ object TMap {
   }
 
   private final def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val buckets     = Array.fill[List[(K, V)]](capacity)(Nil)
-    val uniqueItems = data.toMap.toList
+    val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
+    val distinct = data.toMap.toList
 
-    uniqueItems.foreach { kv =>
+    distinct.foreach { kv =>
       val idx = indexOf(kv._1, capacity)
       buckets(idx) = kv :: buckets(idx)
     }
@@ -241,7 +240,7 @@ object TMap {
       tChains   <- TArray.fromIterable(buckets)
       tBuckets  <- TRef.make(tChains)
       tCapacity <- TRef.make(capacity)
-      tSize     <- TRef.make(uniqueItems.size)
+      tSize     <- TRef.make(distinct.size)
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
