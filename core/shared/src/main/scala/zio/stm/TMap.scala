@@ -219,7 +219,8 @@ object TMap {
    * Makes a new `TMap` initialized with provided iterable.
    */
   final def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val capacity = if (data.isEmpty) InitialCapacity else nextPowerOfTwo(data.size)
+    val size     = data.size
+    val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size << 1)
     allocate(capacity, data.toList)
   }
 
