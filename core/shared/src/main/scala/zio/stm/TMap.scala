@@ -231,16 +231,19 @@ object TMap {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
     val distinct = data.toMap.toList
 
+    var size = 0
+
     distinct.foreach { kv =>
       val idx = indexOf(kv._1, capacity)
       buckets(idx) = kv :: buckets(idx)
+      size = size + 1
     }
 
     for {
       tChains   <- TArray.fromIterable(buckets)
       tBuckets  <- TRef.make(tChains)
       tCapacity <- TRef.make(capacity)
-      tSize     <- TRef.make(distinct.size)
+      tSize     <- TRef.make(size)
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
