@@ -68,9 +68,9 @@ class TMapBenchmarks {
 
     val tx =
       for {
-        map   <- TMap.fromIterable(items.map(i => (i, i)))
-        _     <- STM.foreach(items)(i => map.put(i, f(i)))
-        vals  <- map.values
+        map  <- TMap.fromIterable(items.map(i => (i, i)))
+        _    <- STM.foreach(items)(i => map.put(i, f(i)))
+        vals <- map.values
       } yield vals
 
     IOBenchmarks.unsafeRun(tx.commit)
@@ -81,9 +81,9 @@ class TMapBenchmarks {
 
     val tx =
       for {
-        map   <- TMap.fromIterable(items.map(i => (i, i)))
-        _     <- map.transform((k, v) => (k, f(v)))
-        vals  <- map.values
+        map  <- TMap.fromIterable(items.map(i => (i, i)))
+        _    <- map.transform((k, v) => (k, f(v)))
+        vals <- map.values
       } yield vals
 
     IOBenchmarks.unsafeRun(tx.commit)
@@ -94,9 +94,9 @@ class TMapBenchmarks {
 
     val tx =
       for {
-        map   <- TMap.fromIterable(items.map(i => (i, i)))
-        _     <- map.transformM((k, v) => f(v).map(k -> _))
-        vals  <- map.values
+        map  <- TMap.fromIterable(items.map(i => (i, i)))
+        _    <- map.transformM((k, v) => f(v).map(k -> _))
+        vals <- map.values
       } yield vals
 
     IOBenchmarks.unsafeRun(tx.commit)
@@ -107,8 +107,8 @@ class TMapBenchmarks {
 
     val tx =
       for {
-        map   <- TMap.fromIterable(items.map(i => (i, i)))
-        _     <- STM.foreach(items)(map.delete)
+        map <- TMap.fromIterable(items.map(i => (i, i)))
+        _   <- STM.foreach(items)(map.delete)
       } yield ()
 
     IOBenchmarks.unsafeRun(tx.commit)
@@ -119,8 +119,8 @@ class TMapBenchmarks {
 
     val tx =
       for {
-        map   <- TMap.fromIterable(items.map(i => (i, i)))
-        res   <- STM.foreach(items)(map.get)
+        map <- TMap.fromIterable(items.map(i => (i, i)))
+        res <- STM.foreach(items)(map.get)
       } yield res.flatten
 
     IOBenchmarks.unsafeRun(tx.commit)
