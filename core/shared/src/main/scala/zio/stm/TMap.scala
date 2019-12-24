@@ -162,15 +162,13 @@ class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
-    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
-      .flatMap(data => overwriteWith(data.reverse))
+    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc).flatMap(overwriteWith)
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
-      .flatMap(data => overwriteWith(data.reverse))
+    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc)).flatMap(overwriteWith)
 
   /**
    * Atomically updates all values using a pure function.
@@ -221,7 +219,7 @@ object TMap {
    * Makes a new `TMap` initialized with provided iterable.
    */
   final def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val capacity = if (data.isEmpty) InitialCapacity else 2 * data.size
+    val capacity = if (data.isEmpty) InitialCapacity else nextPowerOfTwo(data.size)
     allocate(capacity, data.toList)
   }
 
@@ -248,8 +246,17 @@ object TMap {
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
-  private final def indexOf[K](k: K, capacity: Int): Int =
-    Math.abs(k.hashCode() % capacity)
+  private final def indexOf[K](k: K, capacity: Int): Int = hash(k) & (capacity - 1)
+
+  private final def hash[K](k: K): Int = {
+    val h = k.hashCode()
+    h ^ (h >>> 16)
+  }
+
+  private final def nextPowerOfTwo(size: Int): Int = {
+    val n = -1 >>> Integer.numberOfLeadingZeros(size - 1)
+    if (n < 0) 1 else n + 1
+  }
 
   private final val InitialCapacity = 16
   private final val LoadFactor      = 0.75
