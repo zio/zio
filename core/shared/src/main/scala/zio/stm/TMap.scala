@@ -163,16 +163,14 @@ class TMap[K, V] private (
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
     fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc)
-      .map(_.reverse)
-      .flatMap(overwriteWith)
+      .flatMap(data => overwriteWith(data.reverse))
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc))
-      .map(_.reverse)
-      .flatMap(overwriteWith)
+      .flatMap(data => overwriteWith(data.reverse))
 
   /**
    * Atomically updates all values using a pure function.
