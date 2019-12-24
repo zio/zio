@@ -221,7 +221,7 @@ object TMap {
    * Makes a new `TMap` initialized with provided iterable.
    */
   final def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val capacity = if (data.isEmpty) DefaultCapacity else 2 * data.size
+    val capacity = if (data.isEmpty) InitialCapacity else 2 * data.size
     allocate(capacity, data.toList)
   }
 
@@ -248,8 +248,9 @@ object TMap {
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
-  private final def indexOf[K](k: K, capacity: Int): Int = Math.abs(k.hashCode() % capacity)
+  private final def indexOf[K](k: K, capacity: Int): Int =
+    Math.abs(k.hashCode() % capacity)
 
-  private final val DefaultCapacity = 100
+  private final val InitialCapacity = 16
   private final val LoadFactor      = 0.75
 }
