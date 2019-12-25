@@ -142,7 +142,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   /**
    * Transforms all elements of the stream for as long as the specified partial function is defined.
    */
-   def collectWhile[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
+  def collectWhile[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
     ZStreamChunk {
       ZStream {
         for {
@@ -164,7 +164,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   /**
    * Drops the specified number of elements from this stream.
    */
-   def drop(n: Int): ZStreamChunk[R, E, A] =
+  def drop(n: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream {
         for {
@@ -201,7 +201,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-   def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream {
         for {
@@ -254,7 +254,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
-   def filter(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  def filter(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(self.chunks.map(_.filter(pred)))
 
   /**
@@ -282,13 +282,13 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   /**
    * Returns a stream made of the concatenation of all the chunks in this stream
    */
-   def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
+  def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
 
   /**
    * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
    * See [[ZStream.fold]]
    */
-   def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
+  def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
     chunks
       .foldWhileManagedM[R, E, Chunk[A1], S](s)(_ => true) { (s: S, as: Chunk[A1]) =>
         as.foldM[Any, Nothing, S](s)((s, a) => ZIO.succeed(f(s, a)))
@@ -396,7 +396,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
    */
-   def map[B](f: A => B): ZStreamChunk[R, E, B] =
+  def map[B](f: A => B): ZStreamChunk[R, E, B] =
     ZStreamChunk(chunks.map(_.map(f)))
 
   /**
@@ -416,7 +416,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Maps each element to an iterable and flattens the iterables into the output of
    * this stream.
    */
-   def mapConcat[B](f: A => Iterable[B]): ZStreamChunk[R, E, B] =
+  def mapConcat[B](f: A => Iterable[B]): ZStreamChunk[R, E, B] =
     mapConcatChunk(f andThen Chunk.fromIterable)
 
   /**
@@ -553,7 +553,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   /**
    * Takes the specified number of elements from this stream.
    */
-   def take(n: Int): ZStreamChunk[R, E, A] =
+  def take(n: Int): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream {
         for {
@@ -576,7 +576,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Takes all elements of the stream until the specified predicate evaluates
    * to `true`.
    */
-   def takeUntil(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  def takeUntil(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream {
         for {
@@ -600,7 +600,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-   def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk {
       ZStream {
         for {
@@ -628,7 +628,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     })
 
   @silent("never used")
-   def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
+  def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
     for {
       runtime <- ZIO.runtime[R].toManaged_
       pull    <- process
