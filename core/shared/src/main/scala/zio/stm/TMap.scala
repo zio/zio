@@ -196,9 +196,8 @@ class TMap[K, V] private (
       buckets  <- tBuckets.get
       capacity <- tCapacity.get
       _        <- buckets.transform(_ => Nil)
-      distinct = data.toMap.toList
-      updates  = distinct.map(kv => buckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
-      _        <- STM.collectAll(updates)
+      distinct = data.toMap
+      _        <- STM.foreach(distinct)(kv => buckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
       _        <- tSize.set(distinct.size)
     } yield ()
 }
@@ -226,7 +225,7 @@ object TMap {
 
   private final def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
-    val distinct = data.toMap.toList
+    val distinct = data.toMap
 
     var size = 0
 
