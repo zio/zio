@@ -180,11 +180,11 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
       case sink: ZSink[R1, E1, Any, A1, B] => super.run(sink)
     }
 
-  override def take(n: Int): StreamEffect[R, E, A] =
+  override def take(n: Long): StreamEffect[R, E, A] =
     StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal {
-          var counter = 0
+          var counter = 0L
 
           () => {
             if (counter >= n) StreamEffect.end

@@ -2279,11 +2279,11 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Takes the specified number of elements from this stream.
    */
-  def take(n: Int): ZStream[R, E, A] =
+  def take(n: Long): ZStream[R, E, A] =
     ZStream {
       for {
         as      <- self.process
-        counter <- Ref.make(0).toManaged_
+        counter <- Ref.make(0L).toManaged_
         pull = counter.modify { c =>
           if (c >= n) (Pull.end, c)
           else (as, c + 1)
