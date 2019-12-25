@@ -2500,8 +2500,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Zips this stream together with the index of elements of the stream.
    */
-  final def zipWithIndex: ZStream[R, E, (A, Int)] =
-    mapAccum(0)((index, a) => (index + 1, (a, index)))
+  final def zipWithIndex: ZStream[R, E, (A, Long)] =
+    mapAccum(0L)((index, a) => (index + 1, (a, index)))
 
   /**
    * Zips the two streams so that when a value is emitted by either of the two streams,
