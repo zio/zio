@@ -43,8 +43,8 @@ class TMapBenchmarks {
   }
 
   @Benchmark
-  def update(): Unit = {
-    val tx = STM.foreach(keys)(i => map.put(i, i * 2)).unit
+  def update(): List[Unit] = {
+    val tx = STM.foreach(keys)(i => map.put(i, i * 2))
     unsafeRun(tx.commit)
   }
 
@@ -61,8 +61,8 @@ class TMapBenchmarks {
   }
 
   @Benchmark
-  def removal(): Unit = {
-    val tx = STM.foreach(keys)(map.delete).unit
+  def removal(): List[Unit] = {
+    val tx = STM.foreach(keys)(map.delete)
     unsafeRun(tx.commit)
   }
 
