@@ -14,13 +14,15 @@ class TMapBenchmarks {
   @Param(Array("10", "100", "1000", "10000", "100000"))
   private var size: Int = _
 
-  private var map: TMap[Int, Int] = _
-  private var keys: List[Int]     = _
+  private var keys: List[Int]          = _
+  private var map: TMap[Int, Int]      = _
+  private var ref: TRef[Map[Int, Int]] = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
     keys = (1 to size).toList
     map = unsafeRun(TMap.fromIterable(keys.zipWithIndex).commit)
+    ref = unsafeRun(TRef.makeCommit(Map.empty[Int, Int]))
   }
 
   @Benchmark
@@ -62,5 +64,17 @@ class TMapBenchmarks {
   def removal(): Unit = {
     val tx = STM.foreach(keys)(map.delete).unit
     unsafeRun(tx.commit)
+  }
+
+  @Benchmark
+  def contentionMap(): Unit = {
+    val txs = keys.map(i => map.put(i, i * 2).commit)
+    unsafeRun(UIO.forkAll_(txs))
+  }
+
+  @Benchmark
+  def contentionRef(): Unit = {
+    val txs = keys.map(i => ref.update(_.updated(i, i * 2)).commit)
+    unsafeRun(UIO.forkAll_(txs))
   }
 }
