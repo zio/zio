@@ -8,7 +8,33 @@ import StreamUtils.nPulls
 
 object StreamPullSafetySpec extends ZIOBaseSpec {
 
-  def spec = suite("StreamPullSafetySpec")(
+  def spec = suite("StreamPullSafetySpec")(combinators, constructors)
+
+  def combinators = suite("Combinators")(
+    testM("Stream.mapAccumM is safe to pull again") {
+      assertM(
+        Stream(1, 2, 3, 4, 5)
+          .mapAccumM(0)((sum, n) => if (n % 2 == 0) IO.fail("Ouch") else UIO.succeed((sum + n, sum + n)))
+          .process
+          .use(nPulls(_, 8))
+      )(
+        equalTo(
+          List(
+            Right(1),
+            Left(Some("Ouch")),
+            Right(4),
+            Left(Some("Ouch")),
+            Right(9),
+            Left(None),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    }
+  )
+
+  def constructors = suite("Constructors")(
     suite("Stream.bracket")(
       testM("is safe to pull again after success") {
         for {
