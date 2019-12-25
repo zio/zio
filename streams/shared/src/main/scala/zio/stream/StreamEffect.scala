@@ -189,8 +189,9 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
           () => {
             if (counter >= n) StreamEffect.end
             else {
+              val a = thunk()
               counter += 1
-              thunk()
+              a
             }
           }
         }

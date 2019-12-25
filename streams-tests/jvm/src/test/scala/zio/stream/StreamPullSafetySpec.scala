@@ -51,6 +51,59 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           )
         )
       )
+    },
+    suite("Stream.take") {
+      testM("ZStream#take is safe to pull again") {
+        assertM(
+          Stream(1, 2, 3, 4, 5)
+            .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+            .take(3)
+            .process
+            .use(nPulls(_, 7))
+        )(
+          equalTo(
+            List(
+              Right(1), // took 1 up to here
+              Left(Some("Ouch 2")),
+              Right(3), // took 2 up to here
+              Left(Some("Ouch 4")),
+              Right(5), // took 3 up to here
+              Left(None),
+              Left(None)
+            )
+          )
+        )
+      }
+    },
+    testM("StreamEffect#take is safe to pull again") {
+      val stream = StreamEffect {
+        Managed.effectTotal {
+          var counter = 0
+
+          () => {
+            counter += 1
+            if (counter >= 6) StreamEffect.end[Int]
+            else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+            else counter
+          }
+        }
+      }
+
+      assertM(
+        stream.take(3).process.use(nPulls(_, 7))
+      )(
+        equalTo(
+          List(
+            Right(1), // took 1 up to here
+            Left(Some("Ouch 2")),
+            Right(3), // took 2 up to here
+            Left(Some("Ouch 4")),
+            Right(5), // took 3 up to here
+            Left(None),
+            Left(None)
+          )
+        )
+      )
     }
   )
 

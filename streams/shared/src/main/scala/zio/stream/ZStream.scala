@@ -2284,10 +2284,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       for {
         as      <- self.process
         counter <- Ref.make(0L).toManaged_
-        pull = counter.modify { c =>
-          if (c >= n) (Pull.end, c)
-          else (as, c + 1)
-        }.flatten
+        pull = counter.get.flatMap { c =>
+          if (c >= n) Pull.end
+          else as <* counter.set(c + 1)
+        }
       } yield pull
     }
 
