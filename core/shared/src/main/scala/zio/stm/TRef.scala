@@ -111,7 +111,7 @@ object TRef {
   /**
    * Makes a new `TRef` that is initialized to the specified value.
    */
-  final def make[A](a: => A): STM[Nothing, TRef[A]] =
+  def make[A](a: => A): STM[Nothing, TRef[A]] =
     new STM((journal, _, _) => {
       val value     = a
       val versioned = new Versioned(value)
@@ -129,6 +129,6 @@ object TRef {
    * A convenience method that makes a `TRef` and immediately commits the
    * transaction to extract the value out.
    */
-  final def makeCommit[A](a: => A): UIO[TRef[A]] =
+  def makeCommit[A](a: => A): UIO[TRef[A]] =
     STM.atomically(TRef.make(a))
 }

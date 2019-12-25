@@ -30,31 +30,31 @@ object ZEnv {
    *   clock.sleep(1.second).provideSome(ZEnv.mapClock(oldClock => ???))
    * }}}
    */
-  final def mapClock(f: Clock.Service[Any] => Clock.Service[Any]): ZEnv => ZEnv =
+  def  mapClock(f: Clock.Service[Any] => Clock.Service[Any]): ZEnv => ZEnv =
     mapAll(mapClock = f)
 
   /**
    * Map the [[console.Console.Service]] component of a ZEnv, keeping all other services the same.
    */
-  final def mapConsole(f: Console.Service[Any] => Console.Service[Any]): ZEnv => ZEnv =
+  def  mapConsole(f: Console.Service[Any] => Console.Service[Any]): ZEnv => ZEnv =
     mapAll(mapConsole = f)
 
   /**
    * Map the [[system.System.Service]] component of a ZEnv, keeping all other services the same.
    */
-  final def mapSystem(f: System.Service[Any] => System.Service[Any]): ZEnv => ZEnv =
+  def  mapSystem(f: System.Service[Any] => System.Service[Any]): ZEnv => ZEnv =
     mapAll(mapSystem = f)
 
   /**
    * Map the [[random.Random.Service]] component of a ZEnv, keeping all other services the same.
    */
-  final def mapRandom(f: Random.Service[Any] => Random.Service[Any]): ZEnv => ZEnv =
+  def  mapRandom(f: Random.Service[Any] => Random.Service[Any]): ZEnv => ZEnv =
     mapAll(mapRandom = f)
 
   /**
    * Map all components of a ZEnv individually.
    */
-  final def mapAll(
+  def  mapAll(
     mapClock: Clock.Service[Any] => Clock.Service[Any] = identity,
     mapConsole: Console.Service[Any] => Console.Service[Any] = identity,
     mapSystem: System.Service[Any] => System.Service[Any] = identity,

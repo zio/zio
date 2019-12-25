@@ -56,7 +56,7 @@ trait Executor { self =>
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
-  lazy val asEC: ExecutionContext =
+  lazy final val asEC: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
         if (!submit(r)) throw new RejectedExecutionException("Rejected: " + r.toString)
@@ -68,7 +68,7 @@ trait Executor { self =>
   /**
    * Views this `Executor` as a Scala `ExecutionContextExecutorService`.
    */
-  lazy val asECES: ExecutionContextExecutorService =
+  lazy final val asECES: ExecutionContextExecutorService =
     new AbstractExecutorService with ExecutionContextExecutorService {
       override val prepare: ExecutionContext                               = asEC
       override val isShutdown: Boolean                                     = false
@@ -87,7 +87,7 @@ object Executor extends DefaultExecutors with Serializable {
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
    */
-  final def fromExecutionContext(yieldOpCount0: Int)(
+  def fromExecutionContext(yieldOpCount0: Int)(
     ec: ExecutionContext
   ): Executor =
     new Executor {

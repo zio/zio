@@ -38,11 +38,11 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
       def cont(state: State)           = self.cont(state)
     }
 
-  def extract(state: State) = IO.fromEither(extractPure(state))
+  final def extract(state: State) = IO.fromEither(extractPure(state))
 
   def extractPure(state: State): Either[E, (B, Chunk[A0])]
 
-  def initial = IO.succeed(initialPure)
+  final def initial = IO.succeed(initialPure)
 
   def initialPure: State
 

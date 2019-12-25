@@ -225,6 +225,6 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
 }
 
 private[stream] object StreamEffectChunk extends Serializable {
-  final def apply[R, E, A](chunks: StreamEffect[R, E, Chunk[A]]): StreamEffectChunk[R, E, A] =
+  def apply[R, E, A](chunks: StreamEffect[R, E, Chunk[A]]): StreamEffectChunk[R, E, A] =
     new StreamEffectChunk(chunks)
 }

@@ -167,7 +167,7 @@ object TReentrantLock {
     /**
      * Computes the total number of read locks acquired.
      */
-    final def readLocks: Int = readers.values.sum
+    def readLocks: Int = readers.values.sum
 
     /**
      * Determines if there is no other holder of read locks aside from the
@@ -175,18 +175,18 @@ object TReentrantLock {
      * aside from the specified fiber id, then it is safe to upgrade the
      * read lock into a write lock.
      */
-    final def noOtherHolder(fiberId: Fiber.Id): Boolean =
+    def noOtherHolder(fiberId: Fiber.Id): Boolean =
       readers.isEmpty || (readers.size == 1 && readers.contains(fiberId))
 
     /**
      * Computes the number of read locks held by the specified fiber id.
      */
-    final def readLocks(fiberId: Fiber.Id): Int = readers.get(fiberId).getOrElse(0)
+    def readLocks(fiberId: Fiber.Id): Int = readers.get(fiberId).getOrElse(0)
 
     /**
      * Adjusts the number of read locks held by the specified fiber id.
      */
-    final def adjust(fiberId: Fiber.Id, adjust: Int): ReadLock = {
+    def adjust(fiberId: Fiber.Id, adjust: Int): ReadLock = {
       val total = readLocks(fiberId)
 
       val newTotal = total + adjust
@@ -217,7 +217,7 @@ object TReentrantLock {
   /**
    * Makes a new reentrant read/write lock.
    */
-  final def make: STM[Nothing, TReentrantLock] =
+  def make: STM[Nothing, TReentrantLock] =
     TRef.make[Either[ReadLock, WriteLock]](Left(ReadLock.empty)).map(tref => new TReentrantLock(tref))
 
   private def die(message: String): Nothing =

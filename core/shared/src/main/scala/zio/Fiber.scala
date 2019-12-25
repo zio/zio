@@ -53,7 +53,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+  def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
     (self zipWith that)((a, b) => (a, b))
 
   /**
@@ -64,7 +64,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E1, B]` combined fiber
    */
-  final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+  def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
     (self zipWith that)((_, b) => b)
 
   /**
@@ -75,7 +75,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E1, A]` combined fiber
    */
-  final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+  def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
     (self zipWith that)((a, _) => a)
 
   /**
@@ -85,7 +85,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E, B]` fiber mapped to constant
    */
-  final def as[B](b: => B): Fiber[E, B] =
+  def as[B](b: => B): Fiber[E, B] =
     self map (_ => b)
 
   /**
@@ -104,7 +104,7 @@ trait Fiber[+E, +A] { self =>
   /**
    * Generates a fiber dump, if the fiber is not synthetic.
    */
-  final def dump: UIO[Option[Fiber.Dump]] =
+  def dump: UIO[Option[Fiber.Dump]] =
     for {
       name   <- self.getRef(Fiber.fiberName)
       id     <- self.id
@@ -142,7 +142,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `UIO[Exit, E, A]]`
    */
-  final def interrupt: UIO[Exit[E, A]] =
+  def interrupt: UIO[Exit[E, A]] =
     ZIO.fiberId.flatMap(fiberId => self.interruptAs(fiberId))
 
   /**
@@ -163,7 +163,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `IO[E, A]`
    */
-  final def join: IO[E, A] = await.flatMap(IO.done) <* inheritRefs
+  def join: IO[E, A] = await.flatMap(IO.done) <* inheritRefs
 
   /**
    * Maps over the value the Fiber computes.
@@ -172,7 +172,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B result type of f
    * @return `Fiber[E, B]` mapped fiber
    */
-  final def map[B](f: A => B): Fiber[E, B] =
+  def map[B](f: A => B): Fiber[E, B] =
     mapM(f andThen UIO.succeed)
 
   /**
@@ -183,27 +183,27 @@ trait Fiber[+E, +A] { self =>
    * @tparam B The success value.
    * @return `Fiber[E, B]` The continued fiber.
    */
-  final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B]): UIO[Fiber[E1, B]] =
+  def mapFiber[E1 >: E, B](f: A => Fiber[E1, B]): UIO[Fiber[E1, B]] =
     self.await.map(_.fold(Fiber.halt(_), f))
 
   /**
    * Effectually maps over the value the fiber computes.
    */
-  final def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber[E1, B] =
+  def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber[E1, B] =
     new Fiber[E1, B] {
-      final def await: UIO[Exit[E1, B]] =
+      def await: UIO[Exit[E1, B]] =
         self.await.flatMap(_.foreach(f))
-      final def children: UIO[Iterable[Fiber[Any, Any]]] = self.children
-      final def getRef[A](ref: FiberRef[A]): UIO[A]      = self.getRef(ref)
-      final def id: UIO[Option[Fiber.Id]]                = self.id
-      final def inheritRefs: UIO[Unit] =
+      def children: UIO[Iterable[Fiber[Any, Any]]] = self.children
+      def getRef[A](ref: FiberRef[A]): UIO[A]      = self.getRef(ref)
+      def id: UIO[Option[Fiber.Id]]                = self.id
+      def inheritRefs: UIO[Unit] =
         self.inheritRefs
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E1, B]] =
+      def interruptAs(id: Fiber.Id): UIO[Exit[E1, B]] =
         self.interruptAs(id).flatMap(_.foreach(f))
-      final def poll: UIO[Option[Exit[E1, B]]] =
+      def poll: UIO[Option[Exit[E1, B]]] =
         self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
-      final def status: UIO[Fiber.Status] = self.status
-      def trace: UIO[Option[ZTrace]]      = self.trace
+      def status: UIO[Fiber.Status]  = self.status
+      def trace: UIO[Option[ZTrace]] = self.trace
     }
 
   /**
@@ -216,36 +216,36 @@ trait Fiber[+E, +A] { self =>
    * @tparam A1 type of the other fiber
    * @return `Fiber[E1, A1]`
    */
-  final def orElse[E1 >: E, A1 >: A](that: => Fiber[E1, A1]): Fiber[E1, A1] =
+  def orElse[E1 >: E, A1 >: A](that: => Fiber[E1, A1]): Fiber[E1, A1] =
     new Fiber[E1, A1] {
-      final def await: UIO[Exit[E1, A1]] =
+      def await: UIO[Exit[E1, A1]] =
         self.await.zipWith(that.await) {
           case (Exit.Failure(_), e2) => e2
           case (e1, _)               => e1
         }
 
-      final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
+      def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
-      final def getRef[A](ref: FiberRef[A]): UIO[A] =
+      def getRef[A](ref: FiberRef[A]): UIO[A] =
         for {
           first  <- self.getRef(ref)
           second <- self.getRef(ref)
         } yield if (first == ref.initial) second else first
 
-      final def id: UIO[Option[Fiber.Id]] = UIO.none
+      def id: UIO[Option[Fiber.Id]] = UIO.none
 
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E1, A1]] =
+      def interruptAs(id: Fiber.Id): UIO[Exit[E1, A1]] =
         self.interruptAs(id) *> that.interruptAs(id)
 
-      final def inheritRefs: UIO[Unit] =
+      def inheritRefs: UIO[Unit] =
         that.inheritRefs *> self.inheritRefs
 
-      final def poll: UIO[Option[Exit[E1, A1]]] =
+      def poll: UIO[Option[Exit[E1, A1]]] =
         self.poll.zipWith(that.poll)(_ orElse _)
 
-      final def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
+      def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
 
-      final def trace: UIO[Option[ZTrace]] = UIO.none
+      def trace: UIO[Option[ZTrace]] = UIO.none
     }
 
   /**
@@ -258,7 +258,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the other fiber
    * @return `Fiber[E1, B]`
    */
-  final def orElseEither[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, Either[A, B]] =
+  def orElseEither[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, Either[A, B]] =
     (self map (Left(_))) orElse (that map (Right(_)))
 
   /**
@@ -279,7 +279,7 @@ trait Fiber[+E, +A] { self =>
    * @param ev implicit witness that E is a subtype of Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFuture(implicit ev: E <:< Throwable): UIO[CancelableFuture[E, A]] =
+  def toFuture(implicit ev: E <:< Throwable): UIO[CancelableFuture[E, A]] =
     self toFutureWith ev
 
   /**
@@ -289,7 +289,7 @@ trait Fiber[+E, +A] { self =>
    * @param f function to the error into a Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFutureWith(f: E => Throwable): UIO[CancelableFuture[E, A]] =
+  def toFutureWith(f: E => Throwable): UIO[CancelableFuture[E, A]] =
     UIO.effectTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
@@ -310,7 +310,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `ZManaged[Any, Nothing, Fiber[E, A]]`
    */
-  final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
+  def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
     ZManaged.make(UIO.succeed(self))(_.interrupt)
 
   /**
@@ -323,7 +323,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `Fiber[E, Unit]` fiber mapped to `()`
    */
-  final def unit: Fiber[E, Unit] = as(())
+  def unit: Fiber[E, Unit] = as(())
 
   /**
    * Named alias for `<*>`.
@@ -333,7 +333,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+  def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
     self <*> that
 
   /**
@@ -344,7 +344,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E1, A]` combined fiber
    */
-  final def zipLeft[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+  def zipLeft[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
     self <* that
 
   /**
@@ -355,7 +355,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E1, B]` combined fiber
    */
-  final def zipRight[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+  def zipRight[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
     self *> that
 
   /**
@@ -370,32 +370,32 @@ trait Fiber[+E, +A] { self =>
    * @tparam C type of the resulting fiber
    * @return `Fiber[E1, C]` combined fiber
    */
-  final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
+  def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
-      final def await: UIO[Exit[E1, C]] =
+      def await: UIO[Exit[E1, C]] =
         self.await.flatMap(IO.done).zipWithPar(that.await.flatMap(IO.done))(f).run
 
-      final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
+      def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
-      final def getRef[A](ref: FiberRef[A]): UIO[A] =
+      def getRef[A](ref: FiberRef[A]): UIO[A] =
         (self.getRef(ref) zipWith that.getRef(ref))(ref.combine(_, _))
 
-      final def id: UIO[Option[Fiber.Id]] = UIO.none
+      def id: UIO[Option[Fiber.Id]] = UIO.none
 
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E1, C]] =
+      def interruptAs(id: Fiber.Id): UIO[Exit[E1, C]] =
         (self interruptAs id).zipWith(that interruptAs id)(_.zipWith(_)(f, _ && _))
 
-      final def inheritRefs: UIO[Unit] = that.inheritRefs *> self.inheritRefs
+      def inheritRefs: UIO[Unit] = that.inheritRefs *> self.inheritRefs
 
-      final def poll: UIO[Option[Exit[E1, C]]] =
+      def poll: UIO[Option[Exit[E1, C]]] =
         self.poll.zipWith(that.poll) {
           case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ && _))
           case _                    => None
         }
 
-      final def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
+      def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
 
-      final def trace: UIO[Option[ZTrace]] = UIO.none
+      def trace: UIO[Option[ZTrace]] = UIO.none
     }
 }
 
@@ -432,7 +432,7 @@ object Fiber {
      *     at ...
      * }}}
      */
-    final def prettyPrintM: UIO[String] = UIO {
+    def prettyPrintM: UIO[String] = UIO {
       val time = System.currentTimeMillis()
 
       val millis  = (time - fiberId.startTimeMillis)
@@ -490,7 +490,7 @@ object Fiber {
     /**
      * Combines the two statuses into one in an associative way.
      */
-    final def <>(that: Status): Status = (self, that) match {
+    def <>(that: Status): Status = (self, that) match {
       case (Done, Done)                                           => Done
       case (Suspended(i1, e1, l1, a1), Suspended(i2, e2, l2, a2)) => Suspended(i1 && i2, e1 max e2, l1 ++ l2, a1 ++ a2)
       case (Suspended(_, _, _, _), _)                             => self
@@ -515,14 +515,14 @@ object Fiber {
    * @param fs `Iterable` of fibers to be awaited
    * @return `UIO[Unit]`
    */
-  final def awaitAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+  def awaitAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
     fs.foldLeft[Fiber[Any, Any]](Fiber.unit)(_ *> _).await.unit
 
   /**
    * Collects all fibers into a single fiber producing an in-order list of the
    * results.
    */
-  final def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber[E, List[A]] =
+  def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber[E, List[A]] =
     fibers.foldRight[Fiber[E, List[A]]](Fiber.succeed(Nil)) {
       case (fiber, acc) => fiber.zipWith(acc)(_ :: _)
     }
@@ -535,17 +535,17 @@ object Fiber {
    * @tparam A type of the fiber
    * @return `Fiber[E, A]`
    */
-  final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
+  def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
-      final def await: UIO[Exit[E, A]]                     = IO.succeed(exit)
-      final def children: UIO[Iterable[Fiber[Any, Any]]]   = UIO(Nil)
-      final def getRef[A](ref: FiberRef[A]): UIO[A]        = UIO(ref.initial)
-      final def id: UIO[Option[Fiber.Id]]                  = UIO.none
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E, A]] = IO.succeed(exit)
-      final def inheritRefs: UIO[Unit]                     = IO.unit
-      final def poll: UIO[Option[Exit[E, A]]]              = IO.succeed(Some(exit))
-      final def status: UIO[Fiber.Status]                  = UIO(Fiber.Status.Done)
-      final def trace: UIO[Option[ZTrace]]                 = UIO.none
+      def await: UIO[Exit[E, A]]                     = IO.succeed(exit)
+      def children: UIO[Iterable[Fiber[Any, Any]]]   = UIO(Nil)
+      def getRef[A](ref: FiberRef[A]): UIO[A]        = UIO(ref.initial)
+      def id: UIO[Option[Fiber.Id]]                  = UIO.none
+      def interruptAs(id: Fiber.Id): UIO[Exit[E, A]] = IO.succeed(exit)
+      def inheritRefs: UIO[Unit]                     = IO.unit
+      def poll: UIO[Option[Exit[E, A]]]              = IO.succeed(Some(exit))
+      def status: UIO[Fiber.Status]                  = UIO(Fiber.Status.Done)
+      def trace: UIO[Option[ZTrace]]                 = UIO.none
     }
 
   /**
@@ -582,7 +582,7 @@ object Fiber {
    * @tparam E error type
    * @return `Fiber[E, Nothing]` failed fiber
    */
-  final def fail[E](e: E): Fiber[E, Nothing] = done(Exit.fail(e))
+  def fail[E](e: E): Fiber[E, Nothing] = done(Exit.fail(e))
 
   /**
    * A `FiberRef` that stores the name of the fiber, which defaults to `None`.
@@ -597,7 +597,7 @@ object Fiber {
    * @tparam A type of the fiber
    * @return `UIO[Fiber[E, A]]`
    */
-  final def fromEffect[E, A](io: IO[E, A]): UIO[Fiber[E, A]] =
+  def fromEffect[E, A](io: IO[E, A]): UIO[Fiber[E, A]] =
     io.run.map(done(_))
 
   /**
@@ -607,35 +607,35 @@ object Fiber {
    * @tparam A type of the `Fiber`
    * @return `Fiber[Throwable, A]`
    */
-  final def fromFuture[A](thunk: => Future[A]): Fiber[Throwable, A] =
+  def fromFuture[A](thunk: => Future[A]): Fiber[Throwable, A] =
     new Fiber[Throwable, A] {
       lazy val ftr: Future[A] = thunk
 
-      final def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
+      def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
-      final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
+      def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
 
-      final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
+      def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 
-      final def id: UIO[Option[Fiber.Id]] = UIO.none
+      def id: UIO[Option[Fiber.Id]] = UIO.none
 
-      final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
-      final def inheritRefs: UIO[Unit] = IO.unit
+      def inheritRefs: UIO[Unit] = IO.unit
 
-      final def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
+      def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
 
-      final def status: UIO[Fiber.Status] = UIO {
+      def status: UIO[Fiber.Status] = UIO {
         if (thunk.isCompleted) Status.Done else Status.Running
       }
 
-      final def trace: UIO[Option[ZTrace]] = UIO.none
+      def trace: UIO[Option[ZTrace]] = UIO.none
     }
 
   /**
    * Creates a `Fiber` that is halted with the specified cause.
    */
-  final def halt[E](cause: Cause[E]): Fiber[E, Nothing] = done(Exit.halt(cause))
+  def halt[E](cause: Cause[E]): Fiber[E, Nothing] = done(Exit.halt(cause))
 
   /**
    * Interrupts all fibers, awaiting their interruption.
@@ -643,7 +643,7 @@ object Fiber {
    * @param fs `Iterable` of fibers to be interrupted
    * @return `UIO[Unit]`
    */
-  final def interruptAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+  def interruptAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
     ZIO.fiberId.flatMap(interruptAllAs(_)(fs))
 
   /**
@@ -653,7 +653,7 @@ object Fiber {
    * @param fs `Iterable` of fibers to be interrupted
    * @return `UIO[Unit]`
    */
-  final def interruptAllAs(fiberId: Fiber.Id)(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+  def interruptAllAs(fiberId: Fiber.Id)(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(fiberId))
 
   /**
@@ -661,7 +661,7 @@ object Fiber {
    *
    * @return `Fiber[Nothing, Nothing]` interrupted fiber
    */
-  final def interruptAs(id: Fiber.Id): Fiber[Nothing, Nothing] = done(Exit.interrupt(id))
+  def interruptAs(id: Fiber.Id): Fiber[Nothing, Nothing] = done(Exit.interrupt(id))
 
   /**
    * Joins all fibers, awaiting their _successful_ completion.
@@ -671,7 +671,7 @@ object Fiber {
    * @param fs `Iterable` of fibers to be joined
    * @return `UIO[Unit]`
    */
-  final def joinAll[E](fs: Iterable[Fiber[E, Any]]): IO[E, Unit] =
+  def joinAll[E](fs: Iterable[Fiber[E, Any]]): IO[E, Unit] =
     fs.foldLeft[Fiber[E, Any]](Fiber.unit)(_ *> _).join.unit.refailWithTrace
 
   /**
@@ -679,15 +679,15 @@ object Fiber {
    */
   final val never: Fiber[Nothing, Nothing] =
     new Fiber[Nothing, Nothing] {
-      final def await: UIO[Exit[Nothing, Nothing]]                     = IO.never
-      final def children: UIO[Iterable[Fiber[Any, Any]]]               = UIO(Nil)
-      final def getRef[A](ref: FiberRef[A]): UIO[A]                    = UIO(ref.initial)
-      final def id: UIO[Option[Fiber.Id]]                              = UIO.none
-      final def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
-      final def inheritRefs: UIO[Unit]                                 = IO.unit
-      final def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeed(None)
-      final def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0, Nil, Nil))
-      final def trace: UIO[Option[ZTrace]]                             = UIO.none
+      def await: UIO[Exit[Nothing, Nothing]]                     = IO.never
+      def children: UIO[Iterable[Fiber[Any, Any]]]               = UIO(Nil)
+      def getRef[A](ref: FiberRef[A]): UIO[A]                    = UIO(ref.initial)
+      def id: UIO[Option[Fiber.Id]]                              = UIO.none
+      def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
+      def inheritRefs: UIO[Unit]                                 = IO.unit
+      def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeed(None)
+      def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0, Nil, Nil))
+      def trace: UIO[Option[ZTrace]]                             = UIO.none
     }
 
   /**
@@ -705,7 +705,7 @@ object Fiber {
    * @tparam A type of the fiber
    * @return `Fiber[E, A]` succeeded fiber
    */
-  final def succeed[A](a: A): Fiber[Nothing, A] = done(Exit.succeed(a))
+  def succeed[A](a: A): Fiber[Nothing, A] = done(Exit.succeed(a))
 
   /**
    * A fiber that has already succeeded with unit.
@@ -716,7 +716,7 @@ object Fiber {
    * Retrieves the fiber currently executing on this thread, if any. This will
    * always be `None` unless called from within an executing effect.
    */
-  final def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
+  def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
   private[zio] def newFiberId(): Fiber.Id = Fiber.Id(System.currentTimeMillis(), _fiberCounter.getAndIncrement())

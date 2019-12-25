@@ -23,12 +23,12 @@ import zio.internal.tracing.TracingConfig
 import scala.scalanative.loop.EventLoop
 
 object PlatformLive {
-  lazy val Default = Global
-  lazy val Global  = fromExecutionContext(EventLoop)
+  lazy final val Default = Global
+  lazy final val Global  = fromExecutionContext(EventLoop)
 
-  final def makeDefault(): Platform = fromExecutionContext(EventLoop)
+  def makeDefault(): Platform = fromExecutionContext(EventLoop)
 
-  final def fromExecutor(executor0: Executor): Platform =
+  def fromExecutor(executor0: Executor): Platform =
     new Platform {
       val executor = executor0
 
@@ -46,6 +46,6 @@ object PlatformLive {
       val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
     }
 
-  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
+  def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 }

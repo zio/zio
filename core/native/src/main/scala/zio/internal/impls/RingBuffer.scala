@@ -23,7 +23,7 @@ object RingBuffer {
   /**
    * @note minimum supported capacity is 2
    */
-  final def apply[A](capacity: Int): MutableConcurrentQueue[A] = {
+   def apply[A](capacity: Int): MutableConcurrentQueue[A] = {
     assert(capacity >= 2)
 
     new RingBuffer(Math.max(capacity, 2))

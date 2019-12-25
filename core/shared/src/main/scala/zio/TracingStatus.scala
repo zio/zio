@@ -10,8 +10,8 @@ sealed abstract class TracingStatus extends Serializable with Product {
   private[zio] final def toBoolean: Boolean = isTraced
 }
 object TracingStatus {
-  final def traced: TracingStatus   = Traced
-  final def untraced: TracingStatus = Untraced
+  def traced: TracingStatus   = Traced
+  def untraced: TracingStatus = Untraced
 
   case object Traced   extends TracingStatus
   case object Untraced extends TracingStatus

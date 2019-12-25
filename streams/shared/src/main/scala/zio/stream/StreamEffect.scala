@@ -305,7 +305,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
 
 private[stream] object StreamEffect extends Serializable {
 
-  case class Failure[E](e: E) extends Throwable(e.toString, null, true, false) {
+  final case class Failure[E](e: E) extends Throwable(e.toString, null, true, false) {
     override def fillInStackTrace() = this
   }
 
@@ -324,10 +324,10 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def apply[R, E, A](pull: ZManaged[R, Nothing, () => A]): StreamEffect[R, E, A] =
+  def apply[R, E, A](pull: ZManaged[R, Nothing, () => A]): StreamEffect[R, E, A] =
     new StreamEffect(pull)
 
-  final def fail[E](e: E): StreamEffect[Any, E, Nothing] =
+  def fail[E](e: E): StreamEffect[Any, E, Nothing] =
     StreamEffect {
       Managed.effectTotal {
         var done = false
@@ -340,7 +340,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
+  def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var index = 0
@@ -357,7 +357,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromIterable[A](as: Iterable[A]): StreamEffect[Any, Nothing, A] =
+  def fromIterable[A](as: Iterable[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         val thunk = as.iterator
@@ -366,14 +366,14 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def fromIterator[A](iterator: Iterator[A]): StreamEffect[Any, Nothing, A] =
+  def fromIterator[A](iterator: Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal { () =>
         if (iterator.hasNext) iterator.next() else end
       }
     }
 
-  final def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
+  def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
     val _ = iterator // Scala 2.13 wrongly warns that iterator is unused
     fromIterator(
       new Iterator[A] {
@@ -383,7 +383,7 @@ private[stream] object StreamEffect extends Serializable {
     )
   }
 
-  final def fromInputStream(
+  def fromInputStream(
     is: InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
   ): StreamEffectChunk[Any, IOException, Byte] =
@@ -411,7 +411,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def iterate[A](a: A)(f: A => A): StreamEffect[Any, Nothing, A] =
+  def iterate[A](a: A)(f: A => A): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var state = a
@@ -424,7 +424,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def paginate[A, S](s0: S)(f: S => (A, Option[S])): StreamEffect[Any, Nothing, A] =
+  def paginate[A, S](s0: S)(f: S => (A, Option[S])): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var state = Option(s0)
@@ -438,7 +438,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
+  def unfold[S, A](s: S)(f0: S => Option[(A, S)]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var done  = false
@@ -460,7 +460,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  final def succeed[A](a: A): StreamEffect[Any, Nothing, A] =
+  def succeed[A](a: A): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var done = false

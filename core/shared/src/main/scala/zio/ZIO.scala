@@ -2949,7 +2949,7 @@ object ZIO extends ZIOFunctions {
     /**
      * Keeps some of the errors, and terminates the fiber with the rest.
      */
-    final def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZIO[R, E1, A] =
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZIO[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
   }
 
@@ -2964,7 +2964,7 @@ object ZIO extends ZIOFunctions {
      *   positive <- io2 if positive > 0
      *  } yield ()
      */
-    final def withFilter(predicate: A => Boolean)(implicit ev: NoSuchElementException <:< E): ZIO[R, E, A] =
+    def withFilter(predicate: A => Boolean)(implicit ev: NoSuchElementException <:< E): ZIO[R, E, A] =
       self.flatMap { a =>
         if (predicate(a)) ZIO.succeed(a)
         else ZIO.fail(new NoSuchElementException("The value doesn't satisfy the predicate"))
@@ -3026,7 +3026,7 @@ object ZIO extends ZIOFunctions {
     def apply[R1 <: R](release: URIO[R1, Any]): BracketForkRelease_[R1, E] =
       new BracketForkRelease_(acquire, release)
   }
-  final class BracketForkRelease_[-R, +E](acquire: ZIO[R, E, Any], release: URIO[R, Any]) {
+  final class BracketForkRelease_[-R, +E](private val acquire: ZIO[R, E, Any], release: URIO[R, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.bracketFork(acquire, (_: Any) => release, (_: Any) => use)
   }
@@ -3034,7 +3034,7 @@ object ZIO extends ZIOFunctions {
     def apply[R1](release: A => URIO[R1, Any]): BracketForkRelease[R with R1, E, A] =
       new BracketForkRelease[R with R1, E, A](acquire, release)
   }
-  final class BracketForkRelease[-R, +E, +A](acquire: ZIO[R, E, A], release: A => URIO[R, Any]) {
+  final class BracketForkRelease[-R, +E, +A](private val acquire: ZIO[R, E, A], release: A => URIO[R, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.bracketFork(acquire, release, use)
   }
@@ -3063,14 +3063,14 @@ object ZIO extends ZIOFunctions {
   }
 
   @inline
-  private final def succeedLeft[E, A]: E => UIO[Either[E, A]] =
+  private def succeedLeft[E, A]: E => UIO[Either[E, A]] =
     _succeedLeft.asInstanceOf[E => UIO[Either[E, A]]]
 
   private val _succeedLeft: Any => IO[Any, Either[Any, Any]] =
     e2 => succeed[Either[Any, Any]](Left(e2))
 
   @inline
-  private final def succeedRight[E, A]: A => UIO[Either[E, A]] =
+  private def succeedRight[E, A]: A => UIO[Either[E, A]] =
     _succeedRight.asInstanceOf[A => UIO[Either[E, A]]]
 
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
@@ -3210,7 +3210,7 @@ object ZIO extends ZIOFunctions {
 
     override def underlying = success
 
-    final def apply(v: A): ZIO[R, E2, B] = success(v)
+    def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
   private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A]) extends URIO[R, Fiber[E, A]] {
@@ -3236,10 +3236,10 @@ object ZIO extends ZIOFunctions {
   private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] { self =>
     override def tag = Tags.Fail
 
-    override final def map[B](f: A => B): IO[E, B] =
+    override def map[B](f: A => B): IO[E, B] =
       self.asInstanceOf[IO[E, B]]
 
-    override final def flatMap[R1 <: Any, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    override def flatMap[R1 <: Any, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       self.asInstanceOf[ZIO[R1, E1, B]]
   }
 

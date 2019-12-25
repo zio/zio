@@ -27,8 +27,8 @@ sealed abstract class DaemonStatus extends Serializable with Product {
   private[zio] final def toBoolean: Boolean = isDaemon
 }
 object DaemonStatus {
-  final def daemon: DaemonStatus    = Daemon
-  final def nonDaemon: DaemonStatus = NonDaemon
+  def daemon: DaemonStatus    = Daemon
+  def nonDaemon: DaemonStatus = NonDaemon
 
   /**
    * Indicates forked children of the fiber will be marked as daemons.

@@ -24,7 +24,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
 private[scheduler] object internal {
-  private[scheduler] val GlobalScheduler = new IScheduler {
+  private[scheduler] final val GlobalScheduler = new IScheduler {
     import IScheduler.CancelToken
 
     private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
@@ -66,7 +66,7 @@ private[scheduler] object internal {
 }
 
 trait SchedulerLive extends Scheduler {
-  val scheduler: Scheduler.Service[Any] = new Scheduler.Service[Any] {
+  final val scheduler: Scheduler.Service[Any] = new Scheduler.Service[Any] {
     val scheduler = ZIO.succeed(internal.GlobalScheduler)
   }
 }

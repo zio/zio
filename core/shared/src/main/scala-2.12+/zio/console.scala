@@ -25,13 +25,13 @@ package object console extends Console.Service[Console] {
   /**
    * Prints text to the console.
    */
-  final def putStr(line: String): ZIO[Console, Nothing, Unit] =
+  def putStr(line: String): ZIO[Console, Nothing, Unit] =
     ZIO.accessM(_.console putStr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  final def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
+  def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
     ZIO.accessM(_.console putStrLn line)
 
   /**

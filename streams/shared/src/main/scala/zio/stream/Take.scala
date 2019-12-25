@@ -60,10 +60,10 @@ object Take {
   final case class Value[A](value: A)       extends Take[Nothing, A]
   case object End                           extends Take[Nothing, Nothing]
 
-  final def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
+  def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
     pull.fold(_.fold[Take[E, A]](Take.End)(e => Take.Fail(Cause.fail(e))), Take.Value(_))
 
-  final def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
+  def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
     io.flatMap {
       case Take.End      => IO.succeed(None)
       case Take.Value(a) => IO.succeed(Some(a))

@@ -22,7 +22,7 @@ class RingBufferPow2[A](val requestedCapacity: Int) extends RingBuffer[A](RingBu
 }
 
 object RingBufferPow2 {
-  final def apply[A](requestedCapacity: Int): RingBufferPow2[A] = {
+  def apply[A](requestedCapacity: Int): RingBufferPow2[A] = {
     assert(requestedCapacity > 0)
 
     new RingBufferPow2(requestedCapacity)

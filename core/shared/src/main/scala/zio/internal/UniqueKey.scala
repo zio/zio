@@ -7,5 +7,5 @@ package zio.internal
 final class UniqueKey
 
 object UniqueKey {
-  final def apply(): UniqueKey = new UniqueKey()
+  def apply(): UniqueKey = new UniqueKey()
 }

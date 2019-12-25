@@ -118,16 +118,16 @@ object TSet {
   /**
    * Makes a new `TSet` that is initialized with specified values.
    */
-  final def make[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
+  def make[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
 
   /**
    * Makes an empty `TSet`.
    */
-  final def empty[A]: STM[Nothing, TSet[A]] = fromIterable(Nil)
+  def empty[A]: STM[Nothing, TSet[A]] = fromIterable(Nil)
 
   /**
    * Makes a new `TSet` initialized with provided iterable.
    */
-  final def fromIterable[A](data: Iterable[A]): STM[Nothing, TSet[A]] =
+  def fromIterable[A](data: Iterable[A]): STM[Nothing, TSet[A]] =
     TMap.fromIterable(data.map((_, ()))).map(new TSet(_))
 }

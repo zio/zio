@@ -30,6 +30,6 @@ package object system {
     ZIO.accessM(_.system property prop)
 
   /** System-specific line separator **/
-  val lineSeparator: ZIO[System, Nothing, String] =
+  final val lineSeparator: ZIO[System, Nothing, String] =
     ZIO.accessM(_.system.lineSeparator)
 }

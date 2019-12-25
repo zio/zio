@@ -20,9 +20,9 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Try
 
 private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[Any, A] =>
-  def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): Future[S] =
+  final def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): Future[S] =
     future.transform(f)(executor)
 
-  def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): Future[S] =
+  final def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): Future[S] =
     future.transformWith(f)(executor)
 }

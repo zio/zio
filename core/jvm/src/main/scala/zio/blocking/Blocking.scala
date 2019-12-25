@@ -23,7 +23,7 @@ import zio.internal.{ Executor, NamedThreadFactory }
 import zio.{ IO, UIO, ZIO }
 
 private[blocking] object internal {
-  private[blocking] val blockingExecutor0 =
+  private[blocking] final val blockingExecutor0 =
     Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
       val corePoolSize  = 0
       val maxPoolSize   = Int.MaxValue
@@ -65,7 +65,7 @@ object Blocking extends Serializable {
     /**
      * Locks the specified effect to the blocking thread pool.
      */
-    def blocking[R1 <: R, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
+    final def blocking[R1 <: R, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
       blockingExecutor.flatMap(exec => zio.lock(exec))
 
     /**
@@ -74,7 +74,7 @@ object Blocking extends Serializable {
      * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
-    def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
+    final def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
       // Reference user's lambda for the tracer
       ZIOFn.recordTrace(() => effect) {
         ZIO.effectSuspendTotal {
@@ -146,12 +146,12 @@ object Blocking extends Serializable {
      * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via the cancel effect.
      */
-    def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[R, Throwable, A] =
+    final def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[R, Throwable, A] =
       blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
   }
 
   trait Live extends Blocking {
-    val blocking: Service[Any] = new Service[Any] {
+    final val blocking: Service[Any] = new Service[Any] {
       val blockingExecutor: UIO[Executor] = ZIO.succeed(internal.blockingExecutor0)
     }
   }
