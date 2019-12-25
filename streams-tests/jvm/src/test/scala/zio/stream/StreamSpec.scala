@@ -1889,7 +1889,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("zipWithIndex")(checkM(pureStreamOfBytes) { s =>
         for {
           res1 <- (s.zipWithIndex.runCollect)
-          res2 <- (s.runCollect.map(_.zipWithIndex))
+          res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
         } yield assert(res1, equalTo(res2))
       }),
       testM("zipWith ignore RHS") {
