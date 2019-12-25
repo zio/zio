@@ -672,8 +672,8 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   /**
    * Zips this stream together with the index of elements of the stream across chunks.
    */
-  final def zipWithIndex: ZStreamChunk[R, E, (A, Int)] =
-    self.mapAccum(0)((index, a) => (index + 1, (a, index)))
+  final def zipWithIndex: ZStreamChunk[R, E, (A, Long)] =
+    self.mapAccum(0L)((index, a) => (index + 1, (a, index)))
 }
 
 object ZStreamChunk extends Serializable {

@@ -244,7 +244,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       checkM(chunksOfStrings) { s =>
         for {
           res1 <- slurp(s.zipWithIndex)
-          res2 <- slurp(s).map(_.zipWithIndex)
+          res2 <- slurp(s).map(_.zipWithIndex.map(t => (t._1, t._2.toLong)))
         } yield assert(res1, equalTo(res2))
       }
     },
