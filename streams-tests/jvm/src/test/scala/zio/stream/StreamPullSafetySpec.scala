@@ -11,6 +11,26 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
   def spec = suite("StreamPullSafetySpec")(combinators, constructors)
 
   def combinators = suite("Combinators")(
+    testM("Stream.drop is safe to pull again") {
+      assertM(
+        Stream(1, 2, 3, 4, 5, 6, 7)
+          .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+          .drop(3)
+          .process
+          .use(nPulls(_, 6))
+      )(
+        equalTo(
+          List(
+            Left(Some("Ouch 2")), // dropped 1 up to here
+            Left(Some("Ouch 4")), // dropped 2 up to here
+            Left(Some("Ouch 6")), // dropped 3 up to here
+            Right(7),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
     testM("Stream.mapAccumM is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)
