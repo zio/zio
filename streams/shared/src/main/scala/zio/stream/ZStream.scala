@@ -1130,7 +1130,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Drops the specified number of elements from this stream.
    */
-  final def drop(n: Int): ZStream[R, E, A] =
+  final def drop(n: Long): ZStream[R, E, A] =
     self.zipWithIndex.filter(_._2 > n - 1).map(_._1)
 
   /**
