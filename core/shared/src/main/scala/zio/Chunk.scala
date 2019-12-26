@@ -116,6 +116,34 @@ sealed trait Chunk[+A] { self =>
     case _ => false
   }
 
+
+  /*
+  * Tests whether a predicate holds for at least one element of this chunk.
+  */
+  def exists(f: A => Boolean): Boolean = {
+    val len  = self.length
+    var i = 0
+    while (i < len) {
+      if(f(self(i))) true
+      i += 1
+    }
+    false
+}
+
+  /*
+  * Tests whether a predicate holds for all elements of this chunk.
+  */
+  def forall(f: A => Boolean): Boolean = {
+    val len  = self.length
+    var i = 0
+    var exists = true
+    while (exists && i < len) {
+     exists = f(self(i))
+     i += 1
+    }
+    exists
+}
+
   /**
    * Returns a filtered subset of this chunk.
    */
