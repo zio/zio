@@ -2141,6 +2141,39 @@ private[zio] trait ZIOFunctions extends Serializable {
       .refailWithTrace
 
   /**
+   * Applies the function `f` to each element of the `Chunk[A]` in parallel,
+   * and returns the results in a new `Chunk[B]`.
+   *
+   * For a sequential version of this method, see `foreach`.
+   */
+  final def foreachPar[R, E, A, B](as: Chunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
+    val len                        = as.length
+    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
+    var i                          = 0
+
+    while (i < len) {
+      val j = i
+      array = array.zipWithPar(fn(as(j))) { (array, b) =>
+        val array2 = if (array == null) {
+          implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+          Array.ofDim[B](len)
+        } else array
+
+        array2(j) = b
+        array2
+      }
+
+      i += 1
+    }
+
+    array.map(
+      array =>
+        if (array == null) Chunk.empty
+        else Chunk.fromArray(array)
+    )
+  }
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects in parallel, discarding the results.
    *
