@@ -22,6 +22,10 @@ class TMapBenchmarks {
   private var mapUpdates: List[UIO[Int]] = _
   private var refUpdates: List[UIO[Int]] = _
 
+  // used to ammortize the relative cost of unsafeRun
+  // compared to benchmarked operations
+  private val invocations = (0 to 500).toList
+
   @Setup(Level.Trial)
   def setup(): Unit = {
     idx = size / 2
@@ -48,14 +52,14 @@ class TMapBenchmarks {
   }
 
   @Benchmark
-  def lookup(): Option[Int] = {
-    val tx = map.get(idx)
+  def lookup(): Unit = {
+    val tx = STM.foreach_(invocations)(_ => map.get(idx))
     unsafeRun(tx.commit)
   }
 
   @Benchmark
   def update(): Unit = {
-    val tx = map.put(idx, idx)
+    val tx = STM.foreach_(invocations)(_ => map.put(idx, idx))
     unsafeRun(tx.commit)
   }
 
@@ -73,7 +77,7 @@ class TMapBenchmarks {
 
   @Benchmark
   def removal(): Unit = {
-    val tx = map.delete(idx)
+    val tx = STM.foreach_(invocations)(_ => map.delete(idx))
     unsafeRun(tx.commit)
   }
 }
