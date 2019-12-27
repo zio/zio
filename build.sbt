@@ -86,7 +86,8 @@ lazy val root = project
     stacktracerJS,
     stacktracerJVM,
     testRunnerJS,
-    testRunnerJVM
+    testRunnerJVM,
+    testJunitRunnerJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -237,6 +238,19 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(core)
   .dependsOn(test)
 
+lazy val testJunitRunnerJVM = crossProject(JVMPlatform)
+  .in(file("test-junit"))
+  .settings(stdSettings("zio-test-junit"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.1",
+      "junit"              % "junit"                    % "4.12"
+    ),
+    mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
+  )
+  .dependsOn(test)
+  .jvm
+
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
 lazy val testRunnerJS = testRunner.js
   .settings(
@@ -256,8 +270,10 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .jsSettings(libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test)
   .dependsOn(testRunner)
 
-lazy val examplesJS  = examples.js
-lazy val examplesJVM = examples.jvm.settings(dottySettings)
+lazy val examplesJS = examples.js
+lazy val examplesJVM = examples.jvm
+  .settings(dottySettings)
+  .dependsOn(testJunitRunnerJVM)
 
 lazy val isScala211 = Def.setting {
   scalaVersion.value.startsWith("2.11")
