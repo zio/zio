@@ -337,6 +337,14 @@ object STMSpec extends ZIOBaseSpec {
         v         <- tvar.get.commit
       } yield assert(v, equalTo(expectedV))
     },
+    testM("Using `foreach_` performs actions in order") {
+      val as = List(1, 2, 3, 4, 5)
+      for {
+        ref <- TRef.makeCommit(List.empty[Int])
+        _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
+        bs  <- ref.get.commit
+      } yield assert(bs, equalTo(as))
+    },
     testM(
       "Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed"
     ) {
