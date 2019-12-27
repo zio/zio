@@ -1,16 +1,16 @@
 package zio.test.junit
 
-import org.junit.runner.manipulation.{Filter, Filterable}
-import org.junit.runner.notification.{Failure, RunNotifier}
-import org.junit.runner.{Description, RunWith, Runner}
+import org.junit.runner.manipulation.{ Filter, Filterable }
+import org.junit.runner.notification.{ Failure, RunNotifier }
+import org.junit.runner.{ Description, RunWith, Runner }
 import zio.ZIO.effectTotal
 import zio.clock.Clock
 import zio.test.FailureRenderer.FailureMessage.Message
-import zio.test.Spec.{SuiteCase, TestCase}
-import zio.test.TestFailure.{Assertion, Runtime}
-import zio.test.TestSuccess.{Ignored, Succeeded}
-import zio.test.{ExecutedSpec, _}
-import zio.{DefaultRuntime, URIO, ZIO}
+import zio.test.Spec.{ SuiteCase, TestCase }
+import zio.test.TestFailure.{ Assertion, Runtime }
+import zio.test.TestSuccess.{ Ignored, Succeeded }
+import zio.test.{ ExecutedSpec, _ }
+import zio.{ DefaultRuntime, URIO, ZIO }
 
 import scala.util.Try
 
