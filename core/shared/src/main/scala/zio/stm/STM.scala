@@ -806,6 +806,13 @@ object STM {
   final def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
     collectAll(as.map(f))
 
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and
+   * returns a transactional effect that produces `Unit`.
+   *
+   * Equivalent to `foreach(as)(f).unit`, but without the cost of building
+   * the list of results.
+   */
   final def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
     STM.succeed(as.iterator).flatMap { it =>
       def loop: STM[E, Unit] =
