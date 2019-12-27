@@ -806,6 +806,15 @@ object STM {
   final def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
     collectAll(as.map(f))
 
+  final def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
+    STM.succeed(as.iterator).flatMap { it =>
+      def loop: STM[E, Unit] =
+        if (it.hasNext) f(it.next) *> loop
+        else STM.unit
+
+      loop
+    }
+
   /**
    * Creates an STM effect from an `Either` value.
    */
