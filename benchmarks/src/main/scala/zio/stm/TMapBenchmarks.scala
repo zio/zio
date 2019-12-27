@@ -37,13 +37,13 @@ class TMapBenchmarks {
 
   @Benchmark
   def contentionMap(): Unit = {
-    val forked = blocking.blocking(UIO.forkAll_(mapUpdates))
+    val forked = UIO.forkAll_(mapUpdates)
     unsafeRun(forked)
   }
 
   @Benchmark
   def contentionRef(): Unit = {
-    val forked = blocking.blocking(UIO.forkAll_(refUpdates))
+    val forked = UIO.forkAll_(refUpdates)
     unsafeRun(forked)
   }
 
