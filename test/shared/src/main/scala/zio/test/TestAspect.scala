@@ -119,7 +119,9 @@ object TestAspect extends TimeoutVariants {
       def perTest[R >: Nothing <: R0, E >: E0 <: Any, S](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        test <* effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause)))
+        test.run
+          .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).run)(_ <* _)
+          .flatMap(ZIO.done)
     }
 
   /**
