@@ -16,7 +16,8 @@ import zio.test.Assertion.{
   isNonEmptyString,
   isRight,
   isTrue,
-  isUnit
+  isUnit,
+  startsWith
 }
 import zio.test.TestAspect.flaky
 
@@ -27,6 +28,32 @@ import StreamUtils._
 object StreamSpec extends ZIOBaseSpec {
 
   def spec = suite("StreamSpec")(
+    suite("Stream.absolve")(
+      testM("happy path")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { xs =>
+        val stream = ZStream.fromIterable(xs.map(Right(_)))
+        assertM(stream.absolve.runCollect, equalTo(xs))
+      }),
+      testM("failure")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { xs =>
+        val stream = ZStream.fromIterable(xs.map(Right(_))) ++ ZStream.succeed(Left("Ouch"))
+        assertM(stream.absolve.runCollect.run, fails(equalTo("Ouch")))
+      }),
+      testM("round-trip #1")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt)), Gen.anyString) { (xs, s) =>
+        val xss    = ZStream.fromIterable(xs.map(Right(_)))
+        val stream = xss ++ ZStream(Left(s)) ++ xss
+        for {
+          res1 <- stream.runCollect
+          res2 <- stream.absolve.either.runCollect
+        } yield assert(res1, startsWith(res2))
+      }),
+      testM("round-trip #2")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt)), Gen.anyString) { (xs, s) =>
+        val xss    = ZStream.fromIterable(xs)
+        val stream = xss ++ ZStream.fail(s)
+        for {
+          res1 <- stream.runCollect.run
+          res2 <- stream.either.absolve.runCollect.run
+        } yield assert(res1, fails(equalTo(s))) && assert(res2, fails(equalTo(s)))
+      })
+    ),
     testM("Stream.access") {
       for {
         result <- ZStream.access[String](identity).provide("test").runHead.get
