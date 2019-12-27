@@ -71,6 +71,15 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     concat(other)
 
   /**
+   * Returns a stream that submerges the error case of an `Either` into the `ZStream`. Note that
+   * this combinator and [[either]] cancel each other, i.e. `xs.either.absolve == xs` and vice versa.
+   */
+  final def absolve[R1 <: R, E1, B](
+    implicit ev: ZStream[R, E, A] <:< ZStream[R1, E1, Either[E1, B]]
+  ): ZStream[R1, E1, B] =
+    ZStream.absolve(ev(self))
+
+  /**
    * Applies an aggregator to the stream, which converts one or more elements
    * of type `A` into elements of type `C`.
    */
@@ -2757,6 +2766,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    */
   final val unit: Stream[Nothing, Unit] =
     ZStream(()).forever
+
+  /**
+   * Submerges the error case of an `Either` into the `ZStream`.
+   */
+  final def absolve[R, E, A](xs: ZStream[R, E, Either[E, A]]): ZStream[R, E, A] =
+    xs.flatMap(_.fold(fail, succeed))
 
   /**
    * Creates a pure stream from a variable list of values
