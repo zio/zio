@@ -25,6 +25,32 @@ object TestAspectSpec extends ZIOBaseSpec {
         assert(after, equalTo(-1))
       }
     },
+    testM("after evaluates in case if test IO fails") {
+      for {
+        ref <- Ref.make(0)
+        spec = testM("test") {
+          ZIO.fail("error")
+        } @@ after(ref.set(-1))
+        result <- isSuccess(spec)
+        after  <- ref.get
+      } yield {
+        assert(result)(isFalse) &&
+        assert(after)(equalTo(-1))
+      }
+    },
+    testM("after evaluates in case if test IO dies") {
+      for {
+        ref <- Ref.make(0)
+        spec = testM("test") {
+          ZIO.dieMessage("death")
+        } @@ after(ref.set(-1))
+        result <- isSuccess(spec)
+        after  <- ref.get
+      } yield {
+        assert(result)(isFalse) &&
+        assert(after)(equalTo(-1))
+      }
+    },
     testM("dotty applies test aspect only on Dotty") {
       for {
         ref    <- Ref.make(false)

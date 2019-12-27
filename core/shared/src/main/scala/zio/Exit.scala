@@ -26,17 +26,17 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ && _)
 
   /**
    * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ ++ _)
 
   /**
    * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ && _)
 
   /**
    * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
@@ -46,7 +46,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ ++ _)
 
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
