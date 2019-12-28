@@ -239,7 +239,7 @@ class TMap[K, V] private (
   final def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
 
-  private final def indexOf(k: K): STM[Nothing, Int] =
+  private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => TMap.indexOf(k, c))
 }
 
@@ -264,7 +264,7 @@ object TMap {
    */
   final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
-  private final def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+  private def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
     val distinct = data.toMap
 
@@ -287,14 +287,14 @@ object TMap {
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
-  private final def hash[K](k: K): Int = {
+  private def hash[K](k: K): Int = {
     val h = k.hashCode()
     h ^ (h >>> 16)
   }
 
-  private final def indexOf[K](k: K, capacity: Int): Int = hash(k) & (capacity - 1)
+  private def indexOf[K](k: K, capacity: Int): Int = hash(k) & (capacity - 1)
 
-  private final def nextPowerOfTwo(size: Int): Int = {
+  private def nextPowerOfTwo(size: Int): Int = {
     val n = -1 >>> Integer.numberOfLeadingZeros(size - 1)
     if (n < 0) 1 else n + 1
   }
