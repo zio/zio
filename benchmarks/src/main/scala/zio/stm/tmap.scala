@@ -8,23 +8,18 @@ import zio._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class TMapBenchmarks {
+class TMapOpsBenchmarks {
   import IOBenchmarks.unsafeRun
 
   @Param(Array("0", "10", "100", "1000", "10000", "100000"))
   private var size: Int = _
 
-  private var idx: Int                 = _
-  private var map: TMap[Int, Int]      = _
-  private var ref: TRef[Map[Int, Int]] = _
+  private var idx: Int            = _
+  private var map: TMap[Int, Int] = _
 
   // used to ammortize the relative cost of unsafeRun
   // compared to benchmarked operations
   private val calls = (0 to 500).toList
-
-  // used to benchmark performace under heavy contention
-  private var mapUpdates: List[UIO[Int]] = _
-  private var refUpdates: List[UIO[Int]] = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
@@ -32,22 +27,7 @@ class TMapBenchmarks {
 
     idx = size / 2
     map = unsafeRun(TMap.fromIterable(data).commit)
-    ref = unsafeRun(TRef.makeCommit(data.toMap))
-
-    val schedule = Schedule.recurs(1000)
-    val updates  = (1 to 100).toList
-
-    mapUpdates = updates.map(i => map.put(i, i).commit.repeat(schedule))
-    refUpdates = updates.map(i => ref.update(_.updated(i, i)).commit.repeat(schedule))
   }
-
-  @Benchmark
-  def contentionMap(): Unit =
-    unsafeRun(UIO.forkAll_(mapUpdates))
-
-  @Benchmark
-  def contentionRef(): Unit =
-    unsafeRun(UIO.forkAll_(refUpdates))
 
   @Benchmark
   def lookup(): Unit =
@@ -68,4 +48,37 @@ class TMapBenchmarks {
   @Benchmark
   def removal(): Unit =
     unsafeRun(ZIO.foreach_(calls)(_ => map.delete(idx).commit))
+}
+
+@State(Scope.Thread)
+@BenchmarkMode(Array(Mode.Throughput))
+@OutputTimeUnit(TimeUnit.SECONDS)
+class TMapContentionBenchmarks {
+  import IOBenchmarks.unsafeRun
+
+  @Param(Array("0", "10", "100", "1000", "10000", "100000"))
+  private var size: Int = _
+
+  private var mapUpdates: List[UIO[Int]] = _
+  private var refUpdates: List[UIO[Int]] = _
+
+  @Setup(Level.Trial)
+  def setup(): Unit = {
+    val data     = (1 to size).toList.zipWithIndex
+    val map      = unsafeRun(TMap.fromIterable(data).commit)
+    val ref      = TRef.unsafeMake(data.toMap)
+    val schedule = Schedule.recurs(1000)
+    val updates  = (1 to 100).toList
+
+    mapUpdates = updates.map(i => map.put(i, i).commit.repeat(schedule))
+    refUpdates = updates.map(i => ref.update(_.updated(i, i)).commit.repeat(schedule))
+  }
+
+  @Benchmark
+  def contentionMap(): Unit =
+    unsafeRun(UIO.forkAll_(mapUpdates))
+
+  @Benchmark
+  def contentionRef(): Unit =
+    unsafeRun(UIO.forkAll_(refUpdates))
 }
