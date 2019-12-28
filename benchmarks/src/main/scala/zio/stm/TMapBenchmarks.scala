@@ -15,28 +15,30 @@ class TMapBenchmarks {
   private var size: Int = _
 
   private var idx: Int                 = _
-  private var keys: List[Int]          = _
   private var map: TMap[Int, Int]      = _
   private var ref: TRef[Map[Int, Int]] = _
-
-  private var mapUpdates: List[UIO[Int]] = _
-  private var refUpdates: List[UIO[Int]] = _
 
   // used to ammortize the relative cost of unsafeRun
   // compared to benchmarked operations
   private val invocations = (0 to 500).toList
 
+  // used to benchmark performace under heavy contention
+  private var mapUpdates: List[UIO[Int]] = _
+  private var refUpdates: List[UIO[Int]] = _
+
   @Setup(Level.Trial)
   def setup(): Unit = {
+    val data = (1 to size).toList.zipWithIndex
+
     idx = size / 2
-    keys = (1 to size).toList
-    map = unsafeRun(TMap.fromIterable(keys.zipWithIndex).commit)
-    ref = unsafeRun(TRef.makeCommit(Map.empty[Int, Int]))
+    map = unsafeRun(TMap.fromIterable(data).commit)
+    ref = unsafeRun(TRef.makeCommit(data.toMap))
 
     val schedule = Schedule.recurs(1000)
+    val updates  = (1 to 100).toList
 
-    mapUpdates = keys.map(i => map.put(i, i).commit.repeat(schedule))
-    refUpdates = keys.map(i => ref.update(_.updated(i, i)).commit.repeat(schedule))
+    mapUpdates = updates.map(i => map.put(i, i).commit.repeat(schedule))
+    refUpdates = updates.map(i => ref.update(_.updated(i, i)).commit.repeat(schedule))
   }
 
   @Benchmark
