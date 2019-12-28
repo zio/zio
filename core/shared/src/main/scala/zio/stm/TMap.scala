@@ -162,13 +162,64 @@ class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
-    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc).flatMap(overwriteWith)
+    tBuckets.get.flatMap { tArr =>
+      val g = f.tupled
+
+      var idx      = 0
+      val original = tArr.array
+      val capacity = original.length
+      val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
+
+      while (idx < capacity) {
+        newArr(idx) = TRef.unsafeMake(Nil)
+        idx = idx + 1
+      }
+
+      val newBuckets = new TArray(newArr)
+
+      val overwrite =
+        STM
+          .foreach(original)(_.get.map(_.view.map(g)))
+          .flatMap { xs =>
+            STM.foreach_(xs.view.flatten.toMap) { kv =>
+              newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _)
+            }
+          }
+
+      overwrite *> tBuckets.set(newBuckets)
+    }
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc)).flatMap(overwriteWith)
+    tBuckets.get.flatMap { tArr =>
+      val g = f.tupled
+
+      var idx      = 0
+      val original = tArr.array
+      val capacity = original.length
+      val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
+
+      while (idx < capacity) {
+        newArr(idx) = TRef.unsafeMake(Nil)
+        idx = idx + 1
+      }
+
+      val newBuckets = new TArray(newArr)
+
+      val overwrite =
+        STM
+          .foreach(original)(_.get.map(_.view.map(g)))
+          .flatMap { xs =>
+            STM.collectAll(xs.view.flatten.toIterable).flatMap { items =>
+              val distinct = items.toMap
+              STM.foreach_(distinct)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
+            }
+          }
+
+      overwrite *> tBuckets.set(newBuckets)
+    }
 
   /**
    * Atomically updates all values using a pure function.
@@ -190,17 +241,6 @@ class TMap[K, V] private (
 
   private final def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => TMap.indexOf(k, c))
-
-  private final def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
-    for {
-      newMap      <- TMap.fromIterable(data)
-      newBuckets  <- newMap.tBuckets.get
-      _           <- tBuckets.set(newBuckets)
-      newCapacity <- newMap.tCapacity.get
-      _           <- tCapacity.set(newCapacity)
-      newSize     <- newMap.tSize.get
-      _           <- tSize.set(newSize)
-    } yield ()
 }
 
 object TMap {
