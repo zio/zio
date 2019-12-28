@@ -42,16 +42,12 @@ class TMapBenchmarks {
   }
 
   @Benchmark
-  def contentionMap(): Unit = {
-    val forked = UIO.forkAll_(mapUpdates)
-    unsafeRun(forked)
-  }
+  def contentionMap(): Unit =
+    unsafeRun(UIO.forkAll_(mapUpdates))
 
   @Benchmark
-  def contentionRef(): Unit = {
-    val forked = UIO.forkAll_(refUpdates)
-    unsafeRun(forked)
-  }
+  def contentionRef(): Unit =
+    unsafeRun(UIO.forkAll_(refUpdates))
 
   @Benchmark
   def lookup(): Unit =
@@ -62,16 +58,12 @@ class TMapBenchmarks {
     unsafeRun(ZIO.foreach_(calls)(_ => map.put(idx, idx).commit))
 
   @Benchmark
-  def transform(): Unit = {
-    val tx = map.transform((k, v) => (k, v))
-    unsafeRun(tx.commit)
-  }
+  def transform(): Unit =
+    unsafeRun(map.transform((k, v) => (k, v)).commit)
 
   @Benchmark
-  def transformM(): Unit = {
-    val tx = map.transformM((k, v) => STM.succeed(v).map(k -> _))
-    unsafeRun(tx.commit)
-  }
+  def transformM(): Unit =
+    unsafeRun(map.transformM((k, v) => STM.succeed(v).map(k -> _)).commit)
 
   @Benchmark
   def removal(): Unit =
