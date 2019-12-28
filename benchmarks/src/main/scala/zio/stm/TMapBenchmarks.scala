@@ -20,7 +20,7 @@ class TMapBenchmarks {
 
   // used to ammortize the relative cost of unsafeRun
   // compared to benchmarked operations
-  private val invocations = (0 to 500).toList
+  private val calls = (0 to 500).toList
 
   // used to benchmark performace under heavy contention
   private var mapUpdates: List[UIO[Int]] = _
@@ -54,16 +54,12 @@ class TMapBenchmarks {
   }
 
   @Benchmark
-  def lookup(): Unit = {
-    val tx = STM.foreach_(invocations)(_ => map.get(idx))
-    unsafeRun(tx.commit)
-  }
+  def lookup(): Unit =
+    unsafeRun(ZIO.foreach_(calls)(_ => map.get(idx).commit))
 
   @Benchmark
-  def update(): Unit = {
-    val tx = STM.foreach_(invocations)(_ => map.put(idx, idx))
-    unsafeRun(tx.commit)
-  }
+  def update(): Unit =
+    unsafeRun(ZIO.foreach_(calls)(_ => map.put(idx, idx).commit))
 
   @Benchmark
   def transform(): Unit = {
@@ -78,8 +74,6 @@ class TMapBenchmarks {
   }
 
   @Benchmark
-  def removal(): Unit = {
-    val tx = STM.foreach_(invocations)(_ => map.delete(idx))
-    unsafeRun(tx.commit)
-  }
+  def removal(): Unit =
+    unsafeRun(ZIO.foreach_(calls)(_ => map.delete(idx).commit))
 }
