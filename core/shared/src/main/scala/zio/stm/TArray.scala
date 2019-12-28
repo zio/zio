@@ -19,7 +19,7 @@ package zio.stm
 /**
  * Wraps array of [[TRef]] and adds methods for convenience.
  */
-final class TArray[A] private (private val array: Array[TRef[A]]) extends AnyVal {
+final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) extends AnyVal {
 
   /**
    * Extracts value from ref in array.
