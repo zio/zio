@@ -255,7 +255,7 @@ object TMap {
    */
   final def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val size     = data.size
-    val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size << 1)
+    val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
     allocate(capacity, data.toList)
   }
 
