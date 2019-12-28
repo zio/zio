@@ -15,7 +15,6 @@ import zio.{ DefaultRuntime, URIO, ZIO }
 import scala.util.Try
 
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with DefaultRuntime {
-
   private val className = klass.getName.stripSuffix("$")
 
   private lazy val spec: AbstractRunnableSpec = {
@@ -58,9 +57,10 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
           effectTotal(description.addChild(testDescription(label.toString, path)))
       }
     unsafeRun(
-      traverse(filteredSpec, description)
-      // we expect to be able to extract structure without the environment
-        .provide(null.asInstanceOf[spec.Environment])
+      spec.runner.executor.environment.use[Any, spec.Failure, Unit] { env =>
+        traverse(filteredSpec, description)
+          .provide(env)
+      }
     )
     description
   }
