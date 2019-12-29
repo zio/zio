@@ -12,7 +12,7 @@ class TMapContentionBenchmarks {
   import IOBenchmarks.unsafeRun
 
   @Param(Array("0", "10", "100", "1000", "10000", "100000"))
-  private var size: Int = _
+  var size: Int = _
 
   private var mapUpdates: List[UIO[Int]] = _
   private var refUpdates: List[UIO[Int]] = _

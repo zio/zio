@@ -12,7 +12,7 @@ class TMapOpsBenchmarks {
   import IOBenchmarks.unsafeRun
 
   @Param(Array("0", "10", "100", "1000", "10000", "100000"))
-  private var size: Int = _
+  var size: Int = _
 
   private var idx: Int            = _
   private var map: TMap[Int, Int] = _
