@@ -58,7 +58,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
       .Runtime(env, spec.runner.platform)
       .unsafeRun {
         val instrumented = instrumentSpec(filteredSpec, notifier)
-        spec.runner.run(instrumented)
+        spec.runner.run(instrumented).unit
       }
   }
 
