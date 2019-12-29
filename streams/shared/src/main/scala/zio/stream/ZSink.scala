@@ -1197,9 +1197,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   private[ZSink] object internal {
     sealed trait Side[+E, +S, +A]
     object Side {
-      final case class Error[E](e: E) extends Side[E, Nothing, Nothing]
-      final case class State[S](s: S) extends Side[Nothing, S, Nothing]
-      final case class Value[A](a: A) extends Side[Nothing, Nothing, A]
+      final case class Error[+E](e: E) extends Side[E, Nothing, Nothing]
+      final case class State[+S](s: S) extends Side[Nothing, S, Nothing]
+      final case class Value[+A](a: A) extends Side[Nothing, Nothing, A]
     }
 
     def assertNonNegative(n: Long): UIO[Unit] =
