@@ -58,13 +58,13 @@ class TMap[K, V] private (
    * Atomically folds using a transactional function.
    */
   final def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
-    def loopM(acc: STM[E, A], remaining: List[(K, V)]): STM[E, A] =
+    def loopM(res: A, remaining: List[(K, V)]): STM[E, A] =
       remaining match {
-        case Nil          => acc
-        case head :: tail => loopM(acc.flatMap(op(_, head)), tail)
+        case Nil          => STM.succeed(res)
+        case head :: tail => op(res, head).flatMap(loopM(_, tail))
       }
 
-    tBuckets.get.flatMap(_.foldM(zero)((acc, bucket) => loopM(STM.succeed(acc), bucket)))
+    tBuckets.get.flatMap(_.foldM(zero)(loopM))
   }
 
   /**
@@ -136,7 +136,7 @@ class TMap[K, V] private (
       size        <- tSize.get
       capacity    <- tCapacity.get
       needsResize = capacity * TMap.LoadFactor < size
-      _           <- if (needsResize) resize(capacity * 2) else STM.unit
+      _           <- if (needsResize) resize(capacity << 1) else STM.unit
     } yield ()
   }
 
@@ -162,13 +162,64 @@ class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
-    foldMap(f).flatMap(overwriteWith)
+    tBuckets.get.flatMap { tArr =>
+      val g = f.tupled
+
+      var idx      = 0
+      val original = tArr.array
+      val capacity = original.length
+      val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
+
+      while (idx < capacity) {
+        newArr(idx) = TRef.unsafeMake(Nil)
+        idx = idx + 1
+      }
+
+      val newBuckets = new TArray(newArr)
+
+      val overwrite =
+        STM
+          .foreach(original)(_.get.map(_.view.map(g)))
+          .flatMap { xs =>
+            STM.foreach_(xs.view.flatten.toMap) { kv =>
+              newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _)
+            }
+          }
+
+      overwrite *> tBuckets.set(newBuckets)
+    }
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
   final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    foldMapM(f).flatMap(overwriteWith)
+    tBuckets.get.flatMap { tArr =>
+      val g = f.tupled
+
+      var idx      = 0
+      val original = tArr.array
+      val capacity = original.length
+      val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
+
+      while (idx < capacity) {
+        newArr(idx) = TRef.unsafeMake(Nil)
+        idx = idx + 1
+      }
+
+      val newBuckets = new TArray(newArr)
+
+      val overwrite =
+        STM
+          .foreach(original)(_.get.map(_.view.map(g)))
+          .flatMap { xs =>
+            STM.collectAll(xs.view.flatten.toIterable).flatMap { items =>
+              val distinct = items.toMap
+              STM.foreach_(distinct)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
+            }
+          }
+
+      overwrite *> tBuckets.set(newBuckets)
+    }
 
   /**
    * Atomically updates all values using a pure function.
@@ -188,34 +239,11 @@ class TMap[K, V] private (
   final def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
 
-  private def foldMap(f: (K, V) => (K, V)): STM[Nothing, List[(K, V)]] =
-    fold(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2) :: acc).map(_.reverse)
-
-  private def foldMapM[E](f: (K, V) => STM[E, (K, V)]): STM[E, List[(K, V)]] =
-    foldM(List.empty[(K, V)])((acc, kv) => f(kv._1, kv._2).map(_ :: acc)).map(_.reverse)
-
-  private def overwriteWith(data: List[(K, V)]): STM[Nothing, Unit] =
-    for {
-      newMap      <- TMap.fromIterable(data)
-      newBuckets  <- newMap.tBuckets.get
-      _           <- tBuckets.set(newBuckets)
-      newCapacity <- newMap.tCapacity.get
-      _           <- tCapacity.set(newCapacity)
-      newSize     <- newMap.tSize.get
-      _           <- tSize.set(newSize)
-    } yield ()
-
   private def indexOf(k: K): STM[Nothing, Int] =
     tCapacity.get.map(c => TMap.indexOf(k, c))
-
 }
 
 object TMap {
-
-  /**
-   * Makes a new `TMap` that is initialized with specified values.
-   */
-  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
   /**
    * Makes an empty `TMap`.
@@ -226,29 +254,51 @@ object TMap {
    * Makes a new `TMap` initialized with provided iterable.
    */
   final def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val capacity = if (data.isEmpty) DefaultCapacity else 2 * data.size
+    val size     = data.size
+    val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
     allocate(capacity, data.toList)
   }
 
-  private final def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
-    val buckets     = Array.fill[List[(K, V)]](capacity)(Nil)
-    val uniqueItems = data.toMap.toList
+  /**
+   * Makes a new `TMap` that is initialized with specified values.
+   */
+  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
-    uniqueItems.foreach { kv =>
+  private def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+    val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
+    val distinct = data.toMap
+
+    var size = 0
+
+    val it = distinct.iterator
+    while (it.hasNext) {
+      val kv  = it.next
       val idx = indexOf(kv._1, capacity)
+
       buckets(idx) = kv :: buckets(idx)
+      size = size + 1
     }
 
     for {
       tChains   <- TArray.fromIterable(buckets)
       tBuckets  <- TRef.make(tChains)
       tCapacity <- TRef.make(capacity)
-      tSize     <- TRef.make(uniqueItems.size)
+      tSize     <- TRef.make(size)
     } yield new TMap(tBuckets, tCapacity, tSize)
   }
 
-  private final def indexOf[K](k: K, capacity: Int): Int = Math.abs(k.hashCode() % capacity)
+  private def hash[K](k: K): Int = {
+    val h = k.hashCode()
+    h ^ (h >>> 16)
+  }
 
-  private final val DefaultCapacity = 100
+  private def indexOf[K](k: K, capacity: Int): Int = hash(k) & (capacity - 1)
+
+  private def nextPowerOfTwo(size: Int): Int = {
+    val n = -1 >>> Integer.numberOfLeadingZeros(size - 1)
+    if (n < 0) 1 else n + 1
+  }
+
+  private final val InitialCapacity = 16
   private final val LoadFactor      = 0.75
 }
