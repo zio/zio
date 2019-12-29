@@ -116,11 +116,6 @@ class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
 object TSet {
 
   /**
-   * Makes a new `TSet` that is initialized with specified values.
-   */
-  final def make[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
-
-  /**
    * Makes an empty `TSet`.
    */
   final def empty[A]: STM[Nothing, TSet[A]] = fromIterable(Nil)
@@ -130,4 +125,9 @@ object TSet {
    */
   final def fromIterable[A](data: Iterable[A]): STM[Nothing, TSet[A]] =
     TMap.fromIterable(data.map((_, ()))).map(new TSet(_))
+
+  /**
+   * Makes a new `TSet` that is initialized with specified values.
+   */
+  final def make[A](data: A*): STM[Nothing, TSet[A]] = fromIterable(data)
 }

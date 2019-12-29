@@ -131,4 +131,13 @@ object TRef {
    */
   final def makeCommit[A](a: => A): UIO[TRef[A]] =
     STM.atomically(TRef.make(a))
+
+  private[stm] def unsafeMake[A](a: A): TRef[A] = {
+    val value     = a
+    val versioned = new Versioned(value)
+
+    val todo = new AtomicReference[Map[TxnId, Todo]](Map())
+
+    new TRef(versioned, todo)
+  }
 }
