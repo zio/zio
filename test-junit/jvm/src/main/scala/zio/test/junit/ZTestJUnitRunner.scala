@@ -11,6 +11,7 @@ import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
 import zio.test.TestFailure.{ Assertion, Runtime }
 import zio.test.TestSuccess.{ Ignored, Succeeded }
 import zio.test._
+import com.github.ghik.silencer.silent
 
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with DefaultRuntime {
   private val className = klass.getName.stripSuffix("$")
@@ -73,7 +74,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
     path: Vector[String],
     label: R,
     result: TestResult
-  ) =
+  ): ZIO[Any, Nothing, Unit] =
     FailureRenderer
       .renderTestFailure("", result)
       .flatMap { rendered =>
@@ -105,6 +106,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
       specCase match {
         case TestCase(label, test) => TestCase(label, instrumentTest(label, test))
         case SuiteCase(label, specs, es) =>
+          @silent("inferred to be `Any`")
           val instrumented =
             specs.flatMap(ZIO.foreach(_)(s => ZIO.succeed(Spec(loop(s.caseValue, path :+ label.toString)))))
           SuiteCase(label, instrumented.map(_.toVector), es)
