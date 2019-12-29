@@ -241,13 +241,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
 lazy val testJunitRunnerJVM = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.portable-scala" %%% "portable-scala-reflect" % "0.1.1",
-      "junit"              % "junit"                    % "4.12"
-    ),
-    mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
-  )
+  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.12"))
   .dependsOn(test)
   .jvm
 
