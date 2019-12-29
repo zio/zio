@@ -69,10 +69,10 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
       _        <- notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull)
     } yield ()
 
-  private def reportAssertionFailure[S, R, L](
+  private def reportAssertionFailure[L](
     notifier: RunNotifier,
     path: Vector[String],
-    label: R,
+    label: L,
     result: TestResult
   ): ZIO[Any, Nothing, Unit] =
     FailureRenderer
