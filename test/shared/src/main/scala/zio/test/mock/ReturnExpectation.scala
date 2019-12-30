@@ -28,6 +28,6 @@ sealed trait ReturnExpectation[-I, +E, +A] {
 
 object ReturnExpectation {
 
-  private[mock] final case class Succeed[I, A](io: I => UIO[A])      extends ReturnExpectation[I, Nothing, A]
-  private[mock] final case class Fail[I, E](io: I => IO[E, Nothing]) extends ReturnExpectation[I, E, Nothing]
+  private[mock] final case class Succeed[-I, +A](io: I => UIO[A])      extends ReturnExpectation[I, Nothing, A]
+  private[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends ReturnExpectation[I, E, Nothing]
 }
