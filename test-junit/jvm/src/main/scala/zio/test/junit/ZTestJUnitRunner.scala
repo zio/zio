@@ -58,19 +58,19 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
     zio
       .Runtime(env, spec.runner.platform)
       .unsafeRun {
-        val instrumented = instrumentSpec(filteredSpec, notifier)
+        val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
         spec.runner.run(instrumented).unit
       }
   }
 
-  private def reportRuntimeFailure[S, R, L](notifier: RunNotifier, path: Vector[String], label: R, cause: Cause[L]) =
+  private def reportRuntimeFailure[S, R, L](notifier: JUnitNotifier, path: Vector[String], label: R, cause: Cause[L]) =
     for {
       rendered <- FailureRenderer.renderCause(cause, 0).map(renderToString)
       _        <- notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull)
     } yield ()
 
   private def reportAssertionFailure[L](
-    notifier: RunNotifier,
+    notifier: JUnitNotifier,
     path: Vector[String],
     label: L,
     result: TestResult
@@ -88,7 +88,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
 
   private def instrumentSpec[R, E, L, S](
     zspec: ZSpec[R, E, L, S],
-    notifier: RunNotifier,
+    notifier: JUnitNotifier,
     path: Vector[String] = Vector.empty
   ): ZSpec[R, E, L, S] = {
     type ZSpecCase = SpecCase[R, TestFailure[E], L, TestSuccess[S], Spec[R, TestFailure[E], L, TestSuccess[S]]]
@@ -127,7 +127,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
       _.fragments.map(_.text).fold("")(_ + _)
     }.mkString("\n")
 
-  private implicit class NotifierOps(val notifier: RunNotifier) {
+  private class JUnitNotifier(notifier: RunNotifier) {
     def fireTestFailure[L](
       label: L,
       path: Vector[String],
