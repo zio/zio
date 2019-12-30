@@ -216,7 +216,7 @@ object Expectation {
    * Models a call on module `M` capability that takes input arguments `I` and returns an effect
    * that may fail with an error `E` or produce a single `A`.
    */
-  private[mock] final case class Call[-M, -I, +E, +A](
+  private[mock] final case class Call[-M, I, +E, +A](
     method: Method[M, I, A],
     assertion: Assertion[I],
     returns: I => IO[E, A]

@@ -24,7 +24,7 @@ import zio.test.Assertion
  * A `Model[M, I, A]` represents a capability of module `M` that takes an
  * input `I` and returns an effect that may produce a single `A`.
  */
-trait Method[-M, -I, +A] { self =>
+trait Method[-M, I, +A] { self =>
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.
@@ -32,7 +32,7 @@ trait Method[-M, -I, +A] { self =>
    * Available only for methods that do take arguments.
    */
   @silent("parameter value ev in method apply is never used")
-  def apply[I1 <: I, A1 >: A](assertion: Assertion[I1])(implicit ev: I1 =!= Unit): ArgumentExpectation[M, I1, A1] =
+  def apply[A1 >: A](assertion: Assertion[I])(implicit ev: I =!= Unit): ArgumentExpectation[M, I, A1] =
     ArgumentExpectation(self, assertion)
 
   /**
@@ -41,10 +41,10 @@ trait Method[-M, -I, +A] { self =>
    * Available only for methods that don't take arguments.
    */
   @silent("parameter value ev in method returns is never used")
-  def returns[I1 <: I, A1 >: A, E](
-    returns: ReturnExpectation[I1, E, A1]
-  )(implicit ev: I1 <:< Unit): Expectation[M, E, A1] =
-    Expectation.Call[M, I1, E, A1](self, Assertion.isUnit.asInstanceOf[Assertion[I1]], returns.io)
+  def returns[A1 >: A, E](
+    returns: ReturnExpectation[I, E, A1]
+  )(implicit ev: I <:< Unit): Expectation[M, E, A1] =
+    Expectation.Call[M, I, E, A1](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
 
   /**
    * Render method fully qualified name.
