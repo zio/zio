@@ -466,21 +466,21 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isFalse")()(!_)
 
   /**
-   * Makes a new assertion that requires the numeric value be greater than
-   * the specified reference value.
+   * Makes a new assertion that requires the value be greater than the
+   * specified reference value.
    */
-  final def isGreaterThan[A: Numeric](reference: A): Assertion[A] =
+  final def isGreaterThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion.assertion("isGreaterThan")(param(reference)) { actual =>
-      implicitly[Numeric[A]].compare(actual, reference) > 0
+      ord.gt(actual, reference)
     }
 
   /**
-   * Makes a new assertion that requires the numeric value be greater than
-   * or equal to the specified reference value.
+   * Makes a new assertion that requires the value be greater than or equal to
+   * the specified reference value.
    */
-  final def isGreaterThanEqualTo[A: Numeric](reference: A): Assertion[A] =
+  final def isGreaterThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion.assertion("isGreaterThanEqualTo")(param(reference)) { actual =>
-      implicitly[Numeric[A]].compare(actual, reference) >= 0
+      ord.gteq(actual, reference)
     }
 
   /**
@@ -503,21 +503,21 @@ object Assertion extends AssertionVariants {
     }
 
   /**
-   * Makes a new assertion that requires the numeric value be less than
-   * the specified reference value.
+   * Makes a new assertion that requires the value be less than the specified
+   * reference value.
    */
-  final def isLessThan[A: Numeric](reference: A): Assertion[A] =
+  final def isLessThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion.assertion("isLessThan")(param(reference)) { actual =>
-      implicitly[Numeric[A]].compare(actual, reference) < 0
+      ord.lt(actual, reference)
     }
 
   /**
-   * Makes a new assertion that requires the numeric value be less than
-   * or equal to the specified reference value.
+   * Makes a new assertion that requires the value be less than or equal to the
+   * specified reference value.
    */
-  final def isLessThanEqualTo[A: Numeric](reference: A): Assertion[A] =
+  final def isLessThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion.assertion("isLessThanEqualTo")(param(reference)) { actual =>
-      implicitly[Numeric[A]].compare(actual, reference) <= 0
+      ord.lteq(actual, reference)
     }
 
   /**
@@ -588,14 +588,12 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isUnit")()(_ => true)
 
   /**
-   * Returns a new assertion that requires a numeric value to fall within a
+   * Returns a new assertion that requires a value to fall within a
    * specified min and max (inclusive).
    */
-  final def isWithin[A: Numeric](min: A, max: A): Assertion[A] =
+  final def isWithin[A](min: A, max: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion.assertion("isWithin")(param(min), param(max)) { actual =>
-      if (implicitly[Numeric[A]].compare(actual, min) < 0) false
-      else if (implicitly[Numeric[A]].compare(actual, max) > 0) false
-      else true
+      ord.gteq(actual, min) && ord.lteq(actual, max)
     }
 
   /**
