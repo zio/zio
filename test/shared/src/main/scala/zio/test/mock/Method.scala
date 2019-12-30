@@ -32,7 +32,7 @@ trait Method[-M, I, +A] { self =>
    * Available only for methods that do take arguments.
    */
   @silent("parameter value ev in method apply is never used")
-  def apply[A1 >: A](assertion: Assertion[I])(implicit ev: I =!= Unit): ArgumentExpectation[M, I, A1] =
+  def apply(assertion: Assertion[I])(implicit ev: I =!= Unit): ArgumentExpectation[M, I, A] =
     ArgumentExpectation(self, assertion)
 
   /**
