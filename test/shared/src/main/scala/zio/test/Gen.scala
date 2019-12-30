@@ -17,6 +17,7 @@
 package zio.test
 
 import scala.collection.immutable.SortedMap
+import scala.math.Numeric.DoubleIsFractional
 
 import zio.{ UIO, ZIO }
 import zio.random._
@@ -518,9 +519,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     listOfN(n)(g).map(_.toVector)
 
   final def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
-    implicit val ord = new Ordering[Double] {
-      def compare(x: Double, y: Double): Int = java.lang.Double.compare(x, y)
-    }
     val sum = gs.map(_._2).sum
     val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) {
       case ((map, acc), (gen, d)) => (map.updated((acc + d) / sum, gen), acc + d)

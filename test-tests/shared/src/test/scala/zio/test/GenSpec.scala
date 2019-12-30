@@ -1,5 +1,7 @@
 package zio.test
 
+import scala.math.Numeric.DoubleIsFractional
+
 import zio.{ Managed, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
