@@ -125,16 +125,15 @@ object StackTracesSpec extends DefaultRunnableSpec {
         trace <- fiberAncestry
       } yield trace
 
-      fiber causeMust {
-        cause =>
-          assert(cause.traces)(isNonEmpty) &&
-          assert(cause.traces.head.parentTrace.isEmpty)(isFalse) &&
-          assert(cause.traces.head.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-          assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-          assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
-          assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(
-            isTrue
-          )
+      fiber causeMust { cause =>
+        assert(cause.traces)(isNonEmpty) &&
+        assert(cause.traces.head.parentTrace.isEmpty)(isFalse) &&
+        assert(cause.traces.head.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
+        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
+        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
+        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(
+          isTrue
+        )
       }
     },
     testM("fiber ancestry example with uploads") {
