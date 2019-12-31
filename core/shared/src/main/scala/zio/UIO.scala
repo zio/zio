@@ -202,7 +202,7 @@ object UIO {
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  final val fiberId: UIO[Fiber.Id] = ZIO.fiberId
+  val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
    * @see [[zio.ZIO.firstSuccessOf]]
@@ -321,7 +321,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.interrupt]]
    */
-  final val interrupt: UIO[Nothing] = ZIO.interrupt
+  val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
    * @see See [[zio.ZIO.interruptAs]]
@@ -404,7 +404,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.none]]
    */
-  final val none: UIO[Option[Nothing]] = ZIO.none
+  val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
    * @see See [[zio.ZIO.nonDaemonMask]]
@@ -415,7 +415,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.never]]
    */
-  final val never: UIO[Nothing] = ZIO.never
+  val never: UIO[Nothing] = ZIO.never
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -538,7 +538,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.unit]]
    */
-  final val unit: UIO[Unit] = ZIO.unit
+  val unit: UIO[Unit] = ZIO.unit
 
   /**
    * @see See [[zio.ZIO.interruptibleMask]]
@@ -589,6 +589,6 @@ object UIO {
   /**
    * @see See [[zio.ZIO.yieldNow]]
    */
-  final val yieldNow: UIO[Unit] = ZIO.yieldNow
+  val yieldNow: UIO[Unit] = ZIO.yieldNow
 
 }

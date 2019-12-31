@@ -27,7 +27,7 @@ sealed trait NeedsEnv[+R]
 
 object NeedsEnv extends NeedsEnv[Nothing] {
 
-  implicit final def needsEnv[R]: NeedsEnv[R] = NeedsEnv
+  implicit def needsEnv[R]: NeedsEnv[R] = NeedsEnv
 
   // Provide multiple ambiguous values so an implicit NeedsEnv[Any] cannot be found.
   @implicitAmbiguous(
@@ -35,6 +35,6 @@ object NeedsEnv extends NeedsEnv[Nothing] {
       "However, your effect has Any for the environment type, which means it " +
       "has no requirement, so there is no need to provide the environment."
   )
-  implicit final val needsEnvAmbiguous1: NeedsEnv[Any] = NeedsEnv
-  implicit final val needsEnvAmbiguous2: NeedsEnv[Any] = NeedsEnv
+  implicit val needsEnvAmbiguous1: NeedsEnv[Any] = NeedsEnv
+  implicit val needsEnvAmbiguous2: NeedsEnv[Any] = NeedsEnv
 }

@@ -23,13 +23,13 @@ import zio.duration.Duration
 
 // This cannot extend Clock.Service[Clock] because of Scala 2.11 support
 package object clock {
-  final val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
+  val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
     ZIO.access(_.clock)
 
   /**
    * Returns the current time, relative to the Unix epoch.
    */
-  final def currentTime(unit: TimeUnit): ZIO[Clock, Nothing, Long] =
+  def currentTime(unit: TimeUnit): ZIO[Clock, Nothing, Long] =
     ZIO.accessM(_.clock currentTime unit)
 
   /**
@@ -41,12 +41,12 @@ package object clock {
   /**
    * Returns the system nano time, which is not relative to any date.
    */
-  final val nanoTime: ZIO[Clock, Nothing, Long] =
+  val nanoTime: ZIO[Clock, Nothing, Long] =
     ZIO.accessM(_.clock.nanoTime)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
+  def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
     ZIO.accessM(_.clock sleep duration)
 }

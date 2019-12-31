@@ -26,8 +26,8 @@ sealed abstract class InterruptStatus(val isInterruptible: Boolean) extends Seri
   private[zio] final def toBoolean: Boolean = isInterruptible
 }
 object InterruptStatus {
-  final def interruptible: InterruptStatus   = Interruptible
-  final def uninterruptible: InterruptStatus = Uninterruptible
+  def interruptible: InterruptStatus   = Interruptible
+  def uninterruptible: InterruptStatus = Uninterruptible
 
   /**
    * Indicates the fiber can be interrupted right now.

@@ -26,7 +26,7 @@ sealed trait CanFail[-E]
 
 object CanFail extends CanFail[Any] {
 
-  implicit final def canFail[E]: CanFail[E] = CanFail
+  implicit def canFail[E]: CanFail[E] = CanFail
 
   // Provide multiple ambiguous values so an implicit CanFail[Nothing] cannot be found.
   @implicitAmbiguous(
@@ -36,6 +36,6 @@ object CanFail extends CanFail[Any] {
       "method you can use instead of this operation, please see the " +
       "reference chart at: https://zio.dev/docs/canfail"
   )
-  implicit final val canFailAmbiguous1: CanFail[Nothing] = CanFail
-  implicit final val canFailAmbiguous2: CanFail[Nothing] = CanFail
+  implicit val canFailAmbiguous1: CanFail[Nothing] = CanFail
+  implicit val canFailAmbiguous2: CanFail[Nothing] = CanFail
 }
