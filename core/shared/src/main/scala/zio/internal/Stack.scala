@@ -27,12 +27,12 @@ private[zio] final class Stack[A <: AnyRef]() {
   /**
    * Determines if the stack is empty.
    */
-  final def isEmpty: Boolean = size == 0
+  def isEmpty: Boolean = size == 0
 
   /**
    * Pushes an item onto the stack.
    */
-  final def push(a: A): Unit =
+  def push(a: A): Unit =
     if (size == 13) {
       array = Array(array, a, null, null, null, null, null, null, null, null, null, null, null)
       size = 2
@@ -45,7 +45,7 @@ private[zio] final class Stack[A <: AnyRef]() {
   /**
    * Pops an item off the stack, or returns `null` if the stack is empty.
    */
-  final def pop(): A = {
+  def pop(): A = {
     val idx = size - 1
     var a   = array(idx)
     if (idx == 0 && nesting > 0) {
@@ -64,14 +64,14 @@ private[zio] final class Stack[A <: AnyRef]() {
   /**
    * Peeks the item on the head of the stack, or returns `null` if empty.
    */
-  final def peek(): A = {
+  def peek(): A = {
     val idx = size - 1
     var a   = array(idx)
     if (idx == 0 && nesting > 0) a = (a.asInstanceOf[Array[AnyRef]])(12)
     a.asInstanceOf[A]
   }
 
-  final def peekOrElse(a: A): A = if (size <= 0) a else peek()
+  def peekOrElse(a: A): A = if (size <= 0) a else peek()
 }
 
 private[zio] object Stack {

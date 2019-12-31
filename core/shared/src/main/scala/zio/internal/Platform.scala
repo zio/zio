@@ -83,7 +83,7 @@ trait Platform { self =>
     }
 }
 object Platform extends PlatformSpecific {
-  class Proxy(self: Platform) extends Platform {
+  abstract class Proxy(self: Platform) extends Platform {
     def executor: Executor                     = self.executor
     def tracing: Tracing                       = self.tracing
     def fatal(t: Throwable): Boolean           = self.fatal(t)

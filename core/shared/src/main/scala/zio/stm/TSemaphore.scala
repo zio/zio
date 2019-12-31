@@ -16,10 +16,10 @@
 
 package zio.stm
 
-class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
-  final def acquire: STM[Nothing, Unit] = acquireN(1L)
+final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
+  def acquire: STM[Nothing, Unit] = acquireN(1L)
 
-  final def acquireN(n: Long): STM[Nothing, Unit] =
+  def acquireN(n: Long): STM[Nothing, Unit] =
     for {
       _     <- assertNonNegative(n)
       value <- permits.get
@@ -27,14 +27,14 @@ class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
       _     <- permits.set(value - n)
     } yield ()
 
-  final def available: STM[Nothing, Long] = permits.get
+  def available: STM[Nothing, Long] = permits.get
 
-  final def release: STM[Nothing, Unit] = releaseN(1L)
+  def release: STM[Nothing, Unit] = releaseN(1L)
 
-  final def releaseN(n: Long): STM[Nothing, Unit] =
+  def releaseN(n: Long): STM[Nothing, Unit] =
     assertNonNegative(n) *> permits.update(_ + n).unit
 
-  final def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
+  def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
     acquire *> stm <* release
 
   private def assertNonNegative(n: Long): STM[Nothing, Unit] =
@@ -44,6 +44,6 @@ class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
 }
 
 object TSemaphore {
-  final def make(n: Long): STM[Nothing, TSemaphore] =
+  def make(n: Long): STM[Nothing, TSemaphore] =
     TRef.make(n).map(v => new TSemaphore(v))
 }
