@@ -25,5 +25,5 @@ package zio
  * to better integrate with Scala exception handling.
  */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, true, false) {
-  override final def getMessage: String = cause.prettyPrint
+  override def getMessage: String = cause.prettyPrint
 }

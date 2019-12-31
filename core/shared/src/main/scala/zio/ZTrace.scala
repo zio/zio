@@ -26,7 +26,7 @@ final case class ZTrace(
   stackTrace: List[ZTraceElement],
   parentTrace: Option[ZTrace]
 ) {
-  final def prettyPrint: String = {
+  def prettyPrint: String = {
     val execTrace  = this.executionTrace.nonEmpty
     val stackTrace = this.stackTrace.nonEmpty
 
@@ -57,7 +57,7 @@ final case class ZTrace(
    * NOTE: `parentTrace` fields are still populated for members of this list,
    * despite that the next trace in the list is equivalent to `parentTrace`
    * */
-  final def parents: List[ZTrace] = {
+  def parents: List[ZTrace] = {
     val builder = List.newBuilder[ZTrace]
     var parent  = parentTrace.orNull
     while (parent ne null) {
@@ -67,7 +67,7 @@ final case class ZTrace(
     builder.result()
   }
 
-  final def ancestryLength: Int = {
+  def ancestryLength: Int = {
     @tailrec
     def go(i: Int, trace: ZTrace): Int =
       trace.parentTrace match {
@@ -80,7 +80,7 @@ final case class ZTrace(
 }
 
 object ZTrace {
-  final def truncatedParentTrace(trace: ZTrace, maxAncestors: Int): Option[ZTrace] =
+  def truncatedParentTrace(trace: ZTrace, maxAncestors: Int): Option[ZTrace] =
     if (trace.ancestryLength > maxAncestors)
       trace.parents.iterator
         .take(maxAncestors)
