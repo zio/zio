@@ -108,7 +108,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           }
           buffer.position(5)
           buffer.limit(8)
-          assert(Chunk.fromCharBuffer(buffer), equalTo(Chunk.fromArray(array)))
+          assert(Chunk.fromCharBuffer(buffer))(equalTo(Chunk.fromArray(array)))
         }
       }
     ),
@@ -164,7 +164,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           }
           buffer.position(5)
           buffer.limit(8)
-          assert(Chunk.fromDoubleBuffer(buffer), equalTo(Chunk.fromArray(array)))
+          assert(Chunk.fromDoubleBuffer(buffer))(equalTo(Chunk.fromArray(array)))
         }
       }
     ),
@@ -220,7 +220,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           }
           buffer.position(5)
           buffer.limit(8)
-          assert(Chunk.fromFloatBuffer(buffer), equalTo(Chunk.fromArray(array)))
+          assert(Chunk.fromFloatBuffer(buffer))(equalTo(Chunk.fromArray(array)))
         }
       }
     ),
@@ -229,7 +229,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
         UIO.effectTotal {
           val array  = Array(1, 2, 3)
           val buffer = IntBuffer.wrap(array)
-          assert(Chunk.fromIntBuffer(buffer), equalTo(Chunk(1, 2, 3)))
+          assert(Chunk.fromIntBuffer(buffer))(equalTo(Chunk(1, 2, 3)))
         }
       },
       testM("int array buffer partial copying") {
@@ -242,7 +242,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           }
           buffer.position(5)
           buffer.limit(8)
-          assert(Chunk.fromIntBuffer(buffer), equalTo(Chunk(5, 6, 7)))
+          assert(Chunk.fromIntBuffer(buffer))(equalTo(Chunk(5, 6, 7)))
         }
       },
       testM("int array buffer slice copying") {
@@ -256,7 +256,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           buffer.position(3)
           buffer.limit(7)
           val newBuffer = buffer.slice()
-          assert(Chunk.fromIntBuffer(newBuffer), equalTo(Chunk(3, 4, 5, 6)))
+          assert(Chunk.fromIntBuffer(newBuffer))(equalTo(Chunk(3, 4, 5, 6)))
         }
       },
       testM("direct int buffer copying") {
@@ -276,7 +276,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           }
           buffer.position(5)
           buffer.limit(8)
-          assert(Chunk.fromIntBuffer(buffer), equalTo(Chunk.fromArray(array)))
+          assert(Chunk.fromIntBuffer(buffer))(equalTo(Chunk.fromArray(array)))
         }
       }
     ),
@@ -332,7 +332,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           }
           buffer.position(5)
           buffer.limit(8)
-          assert(Chunk.fromLongBuffer(buffer), equalTo(Chunk.fromArray(array)))
+          assert(Chunk.fromLongBuffer(buffer))(equalTo(Chunk.fromArray(array)))
         }
       }
     ),
@@ -388,7 +388,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           }
           buffer.position(5)
           buffer.limit(8)
-          assert(Chunk.fromShortBuffer(buffer), equalTo(Chunk.fromArray(array)))
+          assert(Chunk.fromShortBuffer(buffer))(equalTo(Chunk.fromArray(array)))
         }
       }
     )

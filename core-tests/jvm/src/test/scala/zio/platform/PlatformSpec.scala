@@ -11,11 +11,11 @@ object PlatformSpec extends ZIOBaseSpec {
     suite("PlatformLive fatal:")(
       test("Platform.fatal should identify a nonFatal exception") {
         val nonFatal = new Exception
-        assert(PlatformLive.Default.fatal(nonFatal), isFalse)
+        assert(PlatformLive.Default.fatal(nonFatal))(isFalse)
       },
       test("Platform.fatal should identify a fatal exception") {
         val fatal = new OutOfMemoryError
-        assert(PlatformLive.Default.fatal(fatal), isTrue)
+        assert(PlatformLive.Default.fatal(fatal))(isTrue)
       }
     )
   )
