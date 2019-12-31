@@ -59,7 +59,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
    *
    * Guarantees that fiber data is properly restored via `bracket`.
    */
-  final def locally[R, E, B](value: A)(use: ZIO[R, E, B]): ZIO[R, E, B] =
+  def locally[R, E, B](value: A)(use: ZIO[R, E, B]): ZIO[R, E, B] =
     for {
       oldValue <- get
       b        <- set(value).bracket_(set(oldValue))(use)
@@ -70,7 +70,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
    * a return value for the modification. This is a more powerful version of
    * `update`.
    */
-  final def modify[B](f: A => (B, A)): UIO[B] = new ZIO.FiberRefModify(this, f)
+  def modify[B](f: A => (B, A)): UIO[B] = new ZIO.FiberRefModify(this, f)
 
   /**
    * Atomically modifies the `FiberRef` with the specified partial function, which computes
@@ -78,19 +78,19 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
    */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = modify { v =>
+  def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = modify { v =>
     pf.applyOrElse[A, (B, A)](v, _ => (default, v))
   }
 
   /**
    * Sets the value associated with the current fiber.
    */
-  final def set(value: A): UIO[Unit] = modify(_ => ((), value))
+  def set(value: A): UIO[Unit] = modify(_ => ((), value))
 
   /**
    * Atomically modifies the `FiberRef` with the specified function.
    */
-  final def update(f: A => A): UIO[A] = modify { v =>
+  def update(f: A => A): UIO[A] = modify { v =>
     val result = f(v)
     (result, result)
   }
@@ -99,7 +99,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
    * Atomically modifies the `FiberRef` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
    */
-  final def updateSome(pf: PartialFunction[A, A]): UIO[A] = modify { v =>
+  def updateSome(pf: PartialFunction[A, A]): UIO[A] = modify { v =>
     val result = pf.applyOrElse[A, A](v, identity)
     (result, result)
   }
@@ -111,7 +111,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
    * like MDC contexts and the like. The returned `ThreadLocal` will be backed by this `FiberRef` on all threads that are
    * currently managed by ZIO, and behave like an ordinary `ThreadLocal` on all other threads.
    */
-  final def unsafeAsThreadLocal: UIO[ThreadLocal[A]] =
+  def unsafeAsThreadLocal: UIO[ThreadLocal[A]] =
     ZIO.effectTotal {
       new ThreadLocal[A] {
         override def get(): A = {

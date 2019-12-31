@@ -37,7 +37,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * The number of permits currently available.
    */
-  final def available: UIO[Long] = state.get.map {
+  def available: UIO[Long] = state.get.map {
     case Left(_)  => 0
     case Right(n) => n
   }
@@ -45,19 +45,19 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * Acquires a permit, executes the action and releases the permit right after.
    */
-  final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
+  def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
     withPermits(1)(task)
 
   /**
    * Acquires a permit in a [[zio.ZManaged]] and releases the permit in the finalizer.
    */
-  final def withPermitManaged[R, E]: ZManaged[R, E, Unit] =
+  def withPermitManaged[R, E]: ZManaged[R, E, Unit] =
     withPermitsManaged(1)
 
   /**
    * Acquires `n` permits, executes the action and releases the permits right after.
    */
-  final def withPermits[R, E, A](n: Long)(task: ZIO[R, E, A]): ZIO[R, E, A] =
+  def withPermits[R, E, A](n: Long)(task: ZIO[R, E, A]): ZIO[R, E, A] =
     prepare(n).bracket(
       e => e.release
     )(r => r.awaitAcquire *> task)
@@ -65,7 +65,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * Acquires `n` permits in a [[zio.ZManaged]] and releases the permits in the finalizer.
    */
-  final def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
+  def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
     ZManaged(prepare(n).map(a => Reservation(a.awaitAcquire, _ => a.release)))
 
   /**
@@ -126,7 +126,7 @@ object Semaphore extends Serializable {
   /**
    * Creates a new `Sempahore` with the specified number of permits.
    */
-  final def make(permits: Long): UIO[Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
+  def make(permits: Long): UIO[Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
 }
 
 private object internals {
