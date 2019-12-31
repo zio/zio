@@ -15,9 +15,8 @@ object StreamBufferSpec extends ZIOBaseSpec {
           Stream
             .fromIterable(list)
             .buffer(2)
-            .run(Sink.collectAll[Int]),
-          equalTo(list)
-        )
+            .run(Sink.collectAll[Int])
+        )(equalTo(list))
       }),
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
@@ -25,9 +24,8 @@ object StreamBufferSpec extends ZIOBaseSpec {
           (Stream.range(0, 10) ++ Stream.fail(e))
             .buffer(2)
             .run(Sink.collectAll[Int])
-            .run,
-          fails(equalTo(e))
-        )
+            .run
+        )(fails(equalTo(e)))
       },
       testM("fast producer progress independently") {
         for {
@@ -41,7 +39,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
                   l <- ref.get
                 } yield l
               }
-        } yield assert(l.reverse, equalTo((1 to 4).toList))
+        } yield assert(l.reverse)(equalTo((1 to 4).toList))
       }
     ),
     suite("Stream.bufferDropping")(
@@ -51,9 +49,8 @@ object StreamBufferSpec extends ZIOBaseSpec {
           (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
             .bufferDropping(2)
             .runCollect
-            .run,
-          fails(equalTo(e))
-        )
+            .run
+        )(fails(equalTo(e)))
       },
       testM("fast producer progress independently") {
         for {
@@ -82,8 +79,8 @@ object StreamBufferSpec extends ZIOBaseSpec {
                           snapshot2 <- ref.get
                         } yield (zero, snapshot1, snapshot2)
                       }
-        } yield assert(snapshots._1, equalTo(0)) && assert(snapshots._2, equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
-          assert(snapshots._3, equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1)))
+        } yield assert(snapshots._1)(equalTo(0)) && assert(snapshots._2)(equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
+          assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1)))
       } @@ flaky
     ),
     suite("Stream.bufferSliding")(
@@ -93,9 +90,8 @@ object StreamBufferSpec extends ZIOBaseSpec {
           (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
             .bufferSliding(2)
             .runCollect
-            .run,
-          fails(equalTo(e))
-        )
+            .run
+        )(fails(equalTo(e)))
       },
       testM("fast producer progress independently") {
         for {
@@ -124,11 +120,8 @@ object StreamBufferSpec extends ZIOBaseSpec {
                           snapshot2 <- ref.get
                         } yield (zero, snapshot1, snapshot2)
                       }
-        } yield assert(snapshots._1, equalTo(0)) && assert(
-          snapshots._2,
-          equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))
-        ) &&
-          assert(snapshots._3, equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9)))
+        } yield assert(snapshots._1)(equalTo(0)) && assert(snapshots._2)(equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))) &&
+          assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9)))
       }
     ) @@ flaky,
     suite("Stream.bufferUnbounded")(
@@ -137,13 +130,12 @@ object StreamBufferSpec extends ZIOBaseSpec {
           Stream
             .fromIterable(list)
             .bufferUnbounded
-            .runCollect,
-          equalTo(list)
-        )
+            .runCollect
+        )(equalTo(list))
       }),
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
-        assertM((Stream.range(0, 10) ++ Stream.fail(e)).bufferUnbounded.runCollect.run, fails(equalTo(e)))
+        assertM((Stream.range(0, 10) ++ Stream.fail(e)).bufferUnbounded.runCollect.run)(fails(equalTo(e)))
       },
       testM("fast producer progress independently") {
         for {
@@ -160,7 +152,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
                   l <- ref.get
                 } yield l
               }
-        } yield assert(l.reverse, equalTo(Range(1, 1000).toList))
+        } yield assert(l.reverse)(equalTo(Range(1, 1000).toList))
       }
     )
   )

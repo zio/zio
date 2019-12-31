@@ -29,7 +29,7 @@ object ExpectationSpecUtils {
     check: Assertion[A]
   ) = testM(name) {
     val result = mock.use[Any, E, A](app.provide _)
-    assertM(result, check)
+    assertM(result)(check)
   }
 
   private[mock] def testSpecTimeboxed[E, A](name: String)(duration: Duration)(
@@ -43,7 +43,7 @@ object ExpectationSpecUtils {
         .timeout(duration)
         .provide(Clock.Live)
 
-    assertM(result, check)
+    assertM(result)(check)
   }
 
   private[mock] def testSpecDied[E, A](name: String)(
@@ -58,7 +58,7 @@ object ExpectationSpecUtils {
         .absorb
         .flip
 
-    assertM(result, check)
+    assertM(result)(check)
   }
 
   val intTuple22 = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)

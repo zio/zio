@@ -14,7 +14,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         _    <- p.await
         _    <- UIO(f.cancel)
         test <- p2.await
-      } yield assert(test, equalTo(42))
+      } yield assert(test)(equalTo(42))
     },
     testM("cancel returns the exit reason") {
       for {
@@ -27,14 +27,14 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         _  <- p2.await
         e1 <- ZIO.fromFuture(_ => f1.cancel)
         e2 <- ZIO.fromFuture(_ => f2.cancel)
-      } yield assert(e1.succeeded, isTrue) && assert(e2.succeeded, isFalse)
+      } yield assert(e1.succeeded)(isTrue) && assert(e2.succeeded)(isFalse)
     },
     testM("is a scala.concurrent.Future") {
       for {
         f <- ZIO(42).toFuture
         v <- ZIO.fromFuture(_ => f)
       } yield {
-        assert(v, equalTo(42))
+        assert(v)(equalTo(42))
       }
     }
   )

@@ -15,17 +15,17 @@ object StreamChunkSpec extends ZIOBaseSpec {
     testM("StreamChunk.catchAllCauseErrors") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
       val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
-      s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
+      s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
     },
     testM("StreamChunk.catchAllCauseDefects") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.dieMessage("Boom"))
       val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
-      s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
+      s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
     },
     testM("StreamChunk.catchAllCauseHappyPath") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3)))
       val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
-      s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3))))
+      s1.catchAllCause(_ => s2).flattenChunks.runCollect.map(assert(_)(equalTo(List(1, 2, 3))))
     },
     testM("StreamChunk.catchAllCauseFinalizers") {
       for {
@@ -34,7 +34,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         s2     = StreamChunk((Stream(Chunk(4, 5), Chunk(6)) ++ Stream.fail("Boom")).ensuring(fins.update("s2" :: _)))
         _      <- s1.catchAllCause(_ => s2).flattenChunks.runCollect.run
         result <- fins.get
-      } yield assert(result, equalTo(List("s2", "s1")))
+      } yield assert(result)(equalTo(List("s2", "s1")))
     },
     testM("StreamChunk.either") {
       val s = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
@@ -43,14 +43,14 @@ object StreamChunkSpec extends ZIOBaseSpec {
     testM("StreamChunk.orElse") {
       val s1 = StreamChunk(Stream(Chunk(1), Chunk(2, 3))) ++ StreamChunk(Stream.fail("Boom"))
       val s2 = StreamChunk(Stream(Chunk(4, 5), Chunk(6)))
-      s1.orElse(s2).flattenChunks.runCollect.map(assert(_, equalTo(List(1, 2, 3, 4, 5, 6))))
+      s1.orElse(s2).flattenChunks.runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
     },
     testM("StreamChunk.map") {
       checkM(chunksOfStrings, toBoolFn[Random with Sized, String]) { (s, f) =>
         for {
           res1 <- slurp(s.map(f))
           res2 <- slurp(s).map(_.map(f))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.filter") {
@@ -58,7 +58,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.filter(p))
           res2 <- slurp(s).map(_.filter(p))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     suite("StreamChunk.filterM")(
@@ -66,7 +66,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.filterM(s => UIO.succeed(p(s))))
           res2 <- slurp(s).map(_.filter(p))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }),
       testM("filterM error") {
         Chunk(1, 2, 3).filterM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
@@ -77,7 +77,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.filterNot(p))
           res2 <- slurp(s).map(_.filterNot(p))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.mapConcat") {
@@ -86,7 +86,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.mapConcat(f))
           res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.mapConcatChunk") {
@@ -95,7 +95,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.mapConcatChunk(f))
           res2 <- slurp(s).map(_.flatMap(v => f(v).toSeq))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     suite("StreamChunk.mapConcatChunkM")(
@@ -105,7 +105,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           for {
             res1 <- slurp(s.mapConcatChunkM(s => UIO.succeed(f(s))))
             res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
-          } yield assert(res1, equalTo(res2))
+          } yield assert(res1)(equalTo(res2))
         }
       },
       testM("mapConcatM error") {
@@ -124,7 +124,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           for {
             res1 <- slurp(s.mapConcatM(s => UIO.succeed(f(s))))
             res2 <- slurp(s).map(_.flatMap(s => f(s).toSeq))
-          } yield assert(res1, equalTo(res2))
+          } yield assert(res1)(equalTo(res2))
         }
       },
       testM("mapConcatM error") {
@@ -141,21 +141,21 @@ object StreamChunkSpec extends ZIOBaseSpec {
         .mapError(_.toInt)
         .run(Sink.drain)
         .either
-        .map(assert(_, isLeft(equalTo(123))))
+        .map(assert(_)(isLeft(equalTo(123))))
     },
     testM("StreamChunk.mapErrorCause") {
       StreamChunk(Stream.halt(Cause.fail("123")))
         .mapErrorCause(_.map(_.toInt))
         .run(Sink.drain)
         .either
-        .map(assert(_, isLeft(equalTo(123))))
+        .map(assert(_)(isLeft(equalTo(123))))
     },
     testM("StreamChunk.drop") {
       checkM(chunksOfStrings, intGen) { (s, n) =>
         for {
           res1 <- slurp(s.drop(n))
           res2 <- slurp(s).map(_.drop(n))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.take") {
@@ -163,7 +163,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.take(n))
           res2 <- slurp(s).map(_.take(n))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.dropUntil") {
@@ -179,7 +179,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.dropWhile(p))
           res2 <- slurp(s).map(_.dropWhile(p))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.takeUntil") {
@@ -195,7 +195,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.takeWhile(p))
           res2 <- slurp(s).map(_.takeWhile(p))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.mapAccum") {
@@ -203,7 +203,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.mapAccum(0)((acc, el) => (acc + el, acc + el)))
           res2 <- slurp(s).map(_.scanLeft(0)((acc, el) => acc + el).drop(1))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     suite("StreamChunk.mapAccumM")(
@@ -212,7 +212,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           for {
             res1 <- slurp(s.mapAccumM(0)((acc, el) => UIO.succeed((acc + el, acc + el))))
             res2 <- slurp(s).map(_.scanLeft(0)((acc, el) => acc + el).drop(1))
-          } yield assert(res1, equalTo(res2))
+          } yield assert(res1)(equalTo(res2))
         }
       },
       testM("mapAccumM error") {
@@ -221,7 +221,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           .mapAccumM(0)((_, _) => IO.fail("Ouch"))
           .run(Sink.drain)
           .either
-          .map(assert(_, isLeft(equalTo("Ouch"))))
+          .map(assert(_)(isLeft(equalTo("Ouch"))))
       }
     ),
     testM("StreamChunk.mapM") {
@@ -229,7 +229,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.mapM(a => IO.succeed(f(a))))
           res2 <- slurp(s).map(_.map(f))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.++") {
@@ -237,7 +237,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s1).zipWith(slurp(s2))(_ ++ _)
           res2 <- slurp(s1 ++ s2)
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.zipWithIndex") {
@@ -245,7 +245,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.zipWithIndex)
           res2 <- slurp(s).map(_.zipWithIndex.map(t => (t._1, t._2.toLong)))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.foreach0") {
@@ -259,7 +259,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
                      IO.succeed(false)
                  }.flatMap(_ => acc.update(_.reverse))
           res2 <- slurp(s.takeWhile(cont)).map(_.toList)
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.foreach") {
@@ -268,7 +268,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           acc  <- Ref.make[List[Int]](Nil)
           res1 <- s.foreach(a => acc.update(a :: _).unit).flatMap(_ => acc.update(_.reverse))
           res2 <- slurp(s).map(_.toList)
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.monadLaw1") {
@@ -277,7 +277,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(ZStreamChunk.succeed(Chunk(x)).flatMap(f))
           res2 <- slurp(f(x))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.monadLaw2") {
@@ -285,7 +285,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(m.flatMap(i => ZStreamChunk.succeed(Chunk(i))))
           res2 <- slurp(m)
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.monadLaw3") {
@@ -300,7 +300,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(leftStream)
           res2 <- slurp(rightStream)
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.tap") {
@@ -311,7 +311,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           tap           <- slurp(s.tap(a => acc.update(a :: _).unit)).run
           list          <- acc.get.run
         } yield {
-          assert(withoutEffect, equalTo(tap)) && (assert(withoutEffect.succeeded, isFalse) || assert(withoutEffect)(
+          assert(withoutEffect)(equalTo(tap)) && (assert(withoutEffect.succeeded)(isFalse) || assert(withoutEffect)(
             equalTo(list.map(_.reverse))
           ))
         }
@@ -320,7 +320,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
     suite("StreamChunk.via")(
       testM("happy path") {
         val s = StreamChunk.fromChunks(Chunk(1), Chunk.empty, Chunk(2, 3, 4), Chunk(5, 6))
-        s.via(_.map(_.toString)).runCollect.map(assert(_, equalTo(List("1", "2", "3", "4", "5", "6"))))
+        s.via(_.map(_.toString)).runCollect.map(assert(_)(equalTo(List("1", "2", "3", "4", "5", "6"))))
       },
       testM("introduce error") {
         val s = StreamChunk.fromChunks(Chunk(1), Chunk.empty, Chunk(2, 3, 4), Chunk(5, 6))
@@ -332,7 +332,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- s.fold(zero)(f)
           res2 <- slurp(s).map(_.foldLeft(zero)(f))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.foldWhileM") {
@@ -345,7 +345,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- s.foldWhileM[Any, Nothing, String, Int](zero)(cont)((acc, a) => IO.succeed(f(acc, a)))
           res2 <- slurp(s).map(l => foldLazyList(l.toList, zero)(cont)(f))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.flattenChunks") {
@@ -353,7 +353,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- s.flattenChunks.fold[String, List[String]](Nil)((acc, a) => a :: acc).map(_.reverse)
           res2 <- slurp(s)
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.collect") {
@@ -364,7 +364,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.collect(p))
           res2 <- slurp(s).map(_.collect(p))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.collectWhile") {
@@ -375,7 +375,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
         for {
           res1 <- slurp(s.collectWhile(pf))
           res2 <- slurp(s).map(_.takeWhile(pf.isDefinedAt).map(pf.apply))
-        } yield assert(res1, equalTo(res2))
+        } yield assert(res1)(equalTo(res2))
       }
     },
     testM("StreamChunk.toInputStream") {
@@ -392,7 +392,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
             .toList
         )
       }
-      assertM(inputStreamResult.run, succeeds(equalTo(orig1 ++ orig2)))
+      assertM(inputStreamResult.run)(succeeds(equalTo(orig1 ++ orig2)))
     },
     testM("StreamChunk.ensuring") {
       for {
@@ -406,7 +406,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
               _ <- StreamChunk(Stream.fromEffect(log.update("Use" :: _)).flatMap(_ => Stream.empty))
             } yield ()).ensuring(log.update("Ensuring" :: _)).run(Sink.drain)
         execution <- log.get
-      } yield assert(execution, equalTo(List("Ensuring", "Release", "Use", "Acquire")))
+      } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
     },
     testM("StreamChunk.ensuringFirst") {
       for {
@@ -420,7 +420,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
               _ <- StreamChunk(Stream.fromEffect(log.update("Use" :: _)).flatMap(_ => Stream.empty))
             } yield ()).ensuringFirst(log.update("Ensuring" :: _)).run(Sink.drain)
         execution <- log.get
-      } yield assert(execution, equalTo(List("Release", "Ensuring", "Use", "Acquire")))
+      } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
     },
     testM("StreamChunk.ChunkN") {
       val s1 = StreamChunk(Stream(Chunk(1, 2, 3, 4, 5), Chunk(6, 7), Chunk(8, 9, 10, 11)))

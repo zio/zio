@@ -12,12 +12,12 @@ object OneShotSpec extends ZIOBaseSpec {
         val oneShot = OneShot.make[Int]
         oneShot.set(1)
 
-        assert(oneShot.get(), equalTo(1))
+        assert(oneShot.get())(equalTo(1))
       },
       test("set must not accept a null value") {
         val oneShot = OneShot.make[Object]
 
-        assert(oneShot.set(null), throwsA[Error])
+        assert(oneShot.set(null))(throwsA[Error])
       },
       test("isSet must report if a value is set") {
         val oneShot = OneShot.make[Int]
@@ -28,18 +28,18 @@ object OneShotSpec extends ZIOBaseSpec {
 
         val resultAfterSet = oneShot.isSet
 
-        assert(resultBeforeSet, isFalse) && assert(resultAfterSet, isTrue)
+        assert(resultBeforeSet)(isFalse) && assert(resultAfterSet)(isTrue)
       },
       test("get must fail if no value is set") {
         val oneShot = OneShot.make[Object]
 
-        assert(oneShot.get(), throwsA[Error])
+        assert(oneShot.get())(throwsA[Error])
       },
       test("cannot set value twice") {
         val oneShot = OneShot.make[Int]
         oneShot.set(1)
 
-        assert(oneShot.set(2), throwsA[Error])
+        assert(oneShot.set(2))(throwsA[Error])
       }
     )
   )
