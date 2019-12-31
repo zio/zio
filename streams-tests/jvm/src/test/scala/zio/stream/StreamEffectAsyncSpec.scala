@@ -19,11 +19,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           }(global)
         }
 
-<<<<<<< HEAD
-        assertM(s.take(list.size).runCollect)(equalTo(list))
-=======
-        assertM(s.take(list.size.toLong).runCollect, equalTo(list))
->>>>>>> Make ZStream#take take a Long attribute
+        assertM(s.take(list.size.toLong).runCollect)(equalTo(list))
       })
     ),
     suite("Stream.effectAsyncMaybe")(
@@ -52,11 +48,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           None
         }
 
-<<<<<<< HEAD
-        assertM(s.take(list.size).runCollect)(equalTo(list))
-=======
-        assertM(s.take(list.size.toLong).runCollect, equalTo(list))
->>>>>>> Make ZStream#take take a Long attribute
+        assertM(s.take(list.size.toLong).runCollect)(equalTo(list))
       }),
       testM("effectAsyncMaybe back pressure") {
         for {
@@ -158,11 +150,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           Right(Stream.fromIterable(list))
         }
 
-<<<<<<< HEAD
-        assertM(s.take(list.size).runCollect)(equalTo(list))
-=======
-        assertM(s.take(list.size.toLong).runCollect, equalTo(list))
->>>>>>> Make ZStream#take take a Long attribute
+        assertM(s.take(list.size.toLong).runCollect)(equalTo(list))
       }),
       testM("effectAsyncInterrupt signal end stream ") {
         for {
