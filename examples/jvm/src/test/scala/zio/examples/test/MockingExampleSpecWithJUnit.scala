@@ -1,13 +1,13 @@
 package zio.examples.test
 
 import zio.test.Assertion._
-import zio.test.junit.DefaultSpecWithJUnit
+import zio.test.junit.JUnitRunnableSpec
 import zio.test.mock.Expectation.{unit, value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.{assertM, suite, testM}
 import zio.{clock, console, random}
 
-class MockingExampleSpecWithJUnit extends DefaultSpecWithJUnit {
+class MockingExampleSpecWithJUnit extends JUnitRunnableSpec {
 
   def spec = suite("suite with mocks")(
     testM("expect call returning output") {

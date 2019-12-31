@@ -158,4 +158,4 @@ private[junit] class TestFailed(message: String, cause: Throwable = null)
     extends Throwable(message, cause, false, false)
 
 @RunWith(classOf[ZTestJUnitRunner])
-abstract class DefaultSpecWithJUnit extends DefaultRunnableSpec
+abstract class JUnitRunnableSpec extends DefaultRunnableSpec
