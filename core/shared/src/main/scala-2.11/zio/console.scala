@@ -20,25 +20,25 @@ import java.io.IOException
 
 // This cannot extend Console.Service[Console] because of Scala 2.11 support
 package object console {
-  final val consoleService: ZIO[Console, Nothing, Console.Service[Any]] =
+  val consoleService: ZIO[Console, Nothing, Console.Service[Any]] =
     ZIO.access(_.console)
 
   /**
    * Prints text to the console.
    */
-  final def putStr(line: String): ZIO[Console, Nothing, Unit] =
+  def putStr(line: String): ZIO[Console, Nothing, Unit] =
     ZIO.accessM(_.console putStr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  final def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
+  def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
     ZIO.accessM(_.console putStrLn line)
 
   /**
    * Retrieves a line of input from the console.
    */
-  final val getStrLn: ZIO[Console, IOException, String] =
+  val getStrLn: ZIO[Console, IOException, String] =
     ZIO.accessM(_.console.getStrLn)
 
 }

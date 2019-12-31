@@ -153,7 +153,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.interrupt]]
    */
-  final val interrupt: Managed[Nothing, Nothing] = ZManaged.interrupt
+  val interrupt: Managed[Nothing, Nothing] = ZManaged.interrupt
 
   /**
    * See [[zio.ZManaged.make]]
@@ -363,7 +363,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.unit]]
    */
-  final val unit: Managed[Nothing, Unit] = ZManaged.unit
+  val unit: Managed[Nothing, Unit] = ZManaged.unit
 
   /**
    * See [[zio.ZManaged.unsandbox]]

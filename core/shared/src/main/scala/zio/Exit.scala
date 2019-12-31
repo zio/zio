@@ -237,9 +237,9 @@ object Exit extends Serializable {
   final case class Success[+A](value: A)        extends Exit[Nothing, A]
   final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
 
-  final def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] = halt(Cause.interrupt(id))
+  def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] = halt(Cause.interrupt(id))
 
-  final def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+  def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
       exits
         .drop(1)
@@ -250,10 +250,10 @@ object Exit extends Serializable {
   /**
    *  Alias for [[Exit.collectAll]]
    */
-  final def sequence[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+  def sequence[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAll[E, A](exits)
 
-  final def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+  def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
       exits
         .drop(1)
@@ -264,31 +264,31 @@ object Exit extends Serializable {
   /**
    *  Alias for [[Exit.collectAllPar]]
    */
-  final def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+  def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAllPar[E, A](exits)
 
-  final def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
+  def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
 
-  final def fail[E](error: E): Exit[E, Nothing] = halt(Cause.fail(error))
+  def fail[E](error: E): Exit[E, Nothing] = halt(Cause.fail(error))
 
-  final def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
+  def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
     exit.flatMap(identity)
 
-  final def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
+  def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
     e.fold(fail, succeed)
 
-  final def fromOption[A](o: Option[A]): Exit[Unit, A] =
+  def fromOption[A](o: Option[A]): Exit[Unit, A] =
     o.fold[Exit[Unit, A]](fail(()))(succeed)
 
-  final def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
+  def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
     t match {
       case scala.util.Success(a) => succeed(a)
       case scala.util.Failure(t) => fail(t)
     }
 
-  final def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
+  def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
 
-  final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
+  def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
-  final def unit: Exit[Nothing, Unit] = succeed(())
+  def unit: Exit[Nothing, Unit] = succeed(())
 }

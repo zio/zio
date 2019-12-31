@@ -253,7 +253,7 @@ object RIO {
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  final val fiberId: UIO[Fiber.Id] = ZIO.fiberId
+  val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
@@ -404,7 +404,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.interrupt]]
    */
-  final val interrupt: UIO[Nothing] = ZIO.interrupt
+  val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
    * @see See [[zio.ZIO.interruptAs]]
@@ -491,7 +491,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.never]]
    */
-  final val never: UIO[Nothing] = ZIO.never
+  val never: UIO[Nothing] = ZIO.never
 
   /**
    * @see See [[zio.ZIO.nonDaemonMask]]
@@ -502,7 +502,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.none]]
    */
-  final val none: UIO[Option[Nothing]] = ZIO.none
+  val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
    * @see See [[zio.ZIO.partitionM]]
@@ -669,7 +669,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.unit]]
    */
-  final val unit: UIO[Unit] = ZIO.unit
+  val unit: UIO[Unit] = ZIO.unit
 
   /**
    * @see See [[zio.ZIO.uninterruptible]]
@@ -720,7 +720,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.yieldNow]]
    */
-  final val yieldNow: UIO[Unit] = ZIO.yieldNow
+  val yieldNow: UIO[Unit] = ZIO.yieldNow
 
   /**
    * @see See [[zio.ZIO._1]]
