@@ -31,7 +31,7 @@ object SchedulerSpec extends ZIOBaseSpec {
         _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds + 1.nanosecond))
         _         <- adjust(10.seconds)
         executed  <- promise.poll.map(_.nonEmpty)
-      } yield assert(executed, isFalse)
+      } yield assert(executed)(isFalse)
     ),
     testM("scheduled tasks can be canceled")(
       for {
@@ -42,8 +42,8 @@ object SchedulerSpec extends ZIOBaseSpec {
         _         <- adjust(10.seconds)
         executed  <- promise.poll.map(_.nonEmpty)
       } yield {
-        assert(executed, isFalse) &&
-        assert(canceled, isTrue)
+        assert(executed)(isFalse) &&
+        assert(canceled)(isTrue)
       }
     ),
     testM("tasks that are cancelled after completion are not reported as interrupted")(
@@ -54,7 +54,7 @@ object SchedulerSpec extends ZIOBaseSpec {
         _         <- adjust(10.seconds + 1.nanos)
         _         <- promise.await
         canceled  <- ZIO.effectTotal(cancel())
-      } yield assert(canceled, isFalse)
+      } yield assert(canceled)(isFalse)
     ),
     testM("scheduled tasks get executed before shutdown")(
       for {
@@ -64,7 +64,7 @@ object SchedulerSpec extends ZIOBaseSpec {
         _         <- ZIO.effectTotal(scheduler.shutdown())
         _         <- promise.await
         time      <- clock.currentTime(NANOSECONDS)
-      } yield assert(fromNanos(time), equalTo(10.seconds))
+      } yield assert(fromNanos(time))(equalTo(10.seconds))
     )
   )
 

@@ -11,11 +11,11 @@ object StackBoolSpec extends ZIOBaseSpec {
 
   def spec = suite("StackBoolSpec")(
     testM("Size tracking") {
-      checkAll(gen)(list => assert(StackBool.fromIterable(list).size.toInt, equalTo(list.length)))
+      checkAll(gen)(list => assert(StackBool.fromIterable(list).size.toInt)(equalTo(list.length)))
     },
     testM("From/to list identity") {
       checkAll(gen) { list =>
-        assert(StackBool.fromIterable(list).toList, equalTo(list))
+        assert(StackBool.fromIterable(list).toList)(equalTo(list))
       }
     },
     testM("Push/pop example") {
@@ -24,9 +24,9 @@ object StackBoolSpec extends ZIOBaseSpec {
 
         list.foreach(stack.push)
 
-        list.reverse.foldLeft(assert(true, equalTo(true))) {
+        list.reverse.foldLeft(assert(true)(equalTo(true))) {
           case (result, flag) =>
-            result && assert(stack.popOrElse(!flag), equalTo(flag))
+            result && assert(stack.popOrElse(!flag))(equalTo(flag))
         }
       }
     },
@@ -36,19 +36,19 @@ object StackBoolSpec extends ZIOBaseSpec {
 
         list.foreach(stack.push)
 
-        list.reverse.foldLeft(assert(true, equalTo(true))) {
+        list.reverse.foldLeft(assert(true)(equalTo(true))) {
           case (result, flag) =>
             val peeked = stack.peekOrElse(!flag)
             val popped = stack.popOrElse(!flag)
 
-            result && assert(peeked, equalTo(popped))
+            result && assert(peeked)(equalTo(popped))
         }
       }
     },
     test("GetOrElse index out of bounds") {
       val stack  = StackBool()
       val result = stack.getOrElse(100, true)
-      assert(result, equalTo(true))
+      assert(result)(equalTo(true))
     }
   )
 

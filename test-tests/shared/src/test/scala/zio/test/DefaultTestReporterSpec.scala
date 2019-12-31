@@ -10,80 +10,47 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
 
   def spec = suite("DefaultTestReporterSpec")(
     testM("correctly reports a successful test") {
-      assertM(
-        runLog(test1),
-        equalTo(test1Expected.mkString + reportStats(1, 0, 0))
-      )
+      assertM(runLog(test1))(equalTo(test1Expected.mkString + reportStats(1, 0, 0)))
     },
     testM("correctly reports a failed test") {
-      assertM(
-        runLog(test3),
-        equalTo(test3Expected.mkString + reportStats(0, 0, 1))
-      )
+      assertM(runLog(test3))(equalTo(test3Expected.mkString + reportStats(0, 0, 1)))
     },
     testM("correctly reports an error in a test") {
-      assertM(
-        runLog(test4),
-        equalTo(test4Expected.mkString + reportStats(0, 0, 1))
-      )
+      assertM(runLog(test4))(equalTo(test4Expected.mkString + reportStats(0, 0, 1)))
     },
     testM("correctly reports successful test suite") {
-      assertM(
-        runLog(suite1),
-        equalTo(suite1Expected.mkString + reportStats(2, 0, 0))
-      )
+      assertM(runLog(suite1))(equalTo(suite1Expected.mkString + reportStats(2, 0, 0)))
     },
     testM("correctly reports failed test suite") {
-      assertM(
-        runLog(suite2),
-        equalTo(suite2Expected.mkString + reportStats(2, 0, 1))
-      )
+      assertM(runLog(suite2))(equalTo(suite2Expected.mkString + reportStats(2, 0, 1)))
     },
     testM("correctly reports multiple test suites") {
-      assertM(
-        runLog(suite3),
-        equalTo(suite3Expected.mkString + reportStats(2, 0, 1))
-      )
+      assertM(runLog(suite3))(equalTo(suite3Expected.mkString + reportStats(2, 0, 1)))
     },
     testM("correctly reports empty test suite") {
-      assertM(
-        runLog(suite4),
-        equalTo(suite4Expected.mkString + reportStats(2, 0, 1))
-      )
+      assertM(runLog(suite4))(equalTo(suite4Expected.mkString + reportStats(2, 0, 1)))
     },
     testM("correctly reports failure of simple assertion") {
-      assertM(
-        runLog(test5),
-        equalTo(test5Expected.mkString + reportStats(0, 0, 1))
-      )
+      assertM(runLog(test5))(equalTo(test5Expected.mkString + reportStats(0, 0, 1)))
     },
     testM("correctly reports multiple nested failures") {
-      assertM(
-        runLog(test6),
-        equalTo(test6Expected.mkString + reportStats(0, 0, 1))
-      )
+      assertM(runLog(test6))(equalTo(test6Expected.mkString + reportStats(0, 0, 1)))
     },
     testM("correctly reports labeled failures") {
-      assertM(
-        runLog(test7),
-        equalTo(test7Expected.mkString + reportStats(0, 0, 1))
-      )
+      assertM(runLog(test7))(equalTo(test7Expected.mkString + reportStats(0, 0, 1)))
     },
     testM("correctly reports negated failures") {
-      assertM(
-        runLog(test8),
-        equalTo(test8Expected.mkString + reportStats(0, 0, 1))
-      )
+      assertM(runLog(test8))(equalTo(test8Expected.mkString + reportStats(0, 0, 1)))
     }
   )
 
-  val test1         = zio.test.test("Addition works fine")(assert(1 + 1, equalTo(2)))
+  val test1         = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(2)))
   val test1Expected = expectedSuccess("Addition works fine")
 
-  val test2         = zio.test.test("Subtraction works fine")(assert(1 - 1, equalTo(0)))
+  val test2         = zio.test.test("Subtraction works fine")(assert(1 - 1)(equalTo(0)))
   val test2Expected = expectedSuccess("Subtraction works fine")
 
-  val test3 = zio.test.test("Value falls within range")(assert(52, equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
+  val test3 = zio.test.test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
@@ -105,13 +72,13 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
       withOffset(2)("No ZIO Trace available.\n")
   )
 
-  val test5 = zio.test.test("Addition works fine")(assert(1 + 1, equalTo(3)))
+  val test5 = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(3)))
   val test5Expected = Vector(
     expectedFailure("Addition works fine"),
     withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n")
   )
 
-  val test6 = zio.test.test("Multiple nested failures")(assert(Right(Some(3)), isRight(isSome(isGreaterThan(4)))))
+  val test6 = zio.test.test("Multiple nested failures")(assert(Right(Some(3)))(isRight(isSome(isGreaterThan(4)))))
   val test6Expected = Vector(
     expectedFailure("Multiple nested failures"),
     withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n"),
@@ -129,10 +96,10 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
       b <- ZIO.effectTotal(Some(1))
       c <- ZIO.effectTotal(Some(0))
       d <- ZIO.effectTotal(Some(1))
-    } yield assert(a, isSome(equalTo(1)).label("first")) &&
-      assert(b, isSome(equalTo(1)).label("second")) &&
-      assert(c, isSome(equalTo(1)).label("third")) &&
-      assert(d, isSome(equalTo(1)).label("fourth"))
+    } yield assert(a)(isSome(equalTo(1)).label("first")) &&
+      assert(b)(isSome(equalTo(1)).label("second")) &&
+      assert(c)(isSome(equalTo(1)).label("third")) &&
+      assert(d)(isSome(equalTo(1)).label("fourth"))
   }
   val test7Expected = Vector(
     expectedFailure("labeled failures"),
@@ -143,7 +110,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
   )
 
   val test8 = zio.test.test("Not combinator") {
-    assert(100, not(equalTo(100)))
+    assert(100)(not(equalTo(100)))
   }
   val test8Expected = Vector(
     expectedFailure("Not combinator"),

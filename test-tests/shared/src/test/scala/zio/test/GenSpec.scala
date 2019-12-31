@@ -18,19 +18,16 @@ object GenSpec extends ZIOBaseSpec {
 
         def test(n: Int): TestResult = {
           val p = n % 2 == 0
-          if (p) assert((), Assertion.anything) else assert(n, Assertion.nothing)
+          if (p) assert(())(Assertion.anything) else assert(n)(Assertion.nothing)
         }
 
-        assertM(
-          CheckN(100)(gen)(test).flatMap(result => {
-            result.run.map(_.failures.fold(false) {
-              case BoolAlgebra.Value(failureDetails) =>
-                failureDetails.assertion.head.value.toString == "1"
-              case _ => false
-            })
-          }),
-          isTrue
-        )
+        assertM(CheckN(100)(gen)(test).flatMap(result => {
+          result.run.map(_.failures.fold(false) {
+            case BoolAlgebra.Value(failureDetails) =>
+              failureDetails.assertion.head.value.toString == "1"
+            case _ => false
+          })
+        }))(isTrue)
       },
       testM("with bogus reverse property") {
         val gen = for {
@@ -41,29 +38,26 @@ object GenSpec extends ZIOBaseSpec {
         def test(a: (List[Int], List[Int])): TestResult = a match {
           case (as, bs) =>
             val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
-            if (p) assert((), Assertion.anything) else assert((as, bs), Assertion.nothing)
+            if (p) assert(())(Assertion.anything) else assert((as, bs))(Assertion.nothing)
         }
-        assertM(
-          CheckN(100)(gen)(test).flatMap {
-            result =>
-              result.run.map(_.failures.fold(false) {
-                case BoolAlgebra.Value(failureDetails) =>
-                  failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
-                    failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
-                    failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
-                    failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
-                case _ => false
-              })
-          },
-          isTrue
-        )
+        assertM(CheckN(100)(gen)(test).flatMap {
+          result =>
+            result.run.map(_.failures.fold(false) {
+              case BoolAlgebra.Value(failureDetails) =>
+                failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
+                  failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
+                  failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
+                  failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
+              case _ => false
+            })
+        })(isTrue)
       },
       testM("with randomly generated functions") {
         val ints                                      = Gen.listOf(Gen.int(-10, 10))
         val intBooleanFn: Gen[Random, Int => Boolean] = Gen.function(Gen.boolean)
 
         Check(ints, intBooleanFn) { (as, f) =>
-          assert(as.takeWhile(f).forall(f), isTrue)
+          assert(as.takeWhile(f).forall(f))(isTrue)
         }
       },
       testM("with multiple parameter function generator") {
@@ -75,36 +69,33 @@ object GenSpec extends ZIOBaseSpec {
 
         Check(ints, ints, genFn) { (a, b, f) =>
           val g = swap(swap(f))
-          assert(f(a, b), equalTo(g(a, b)))
+          assert(f(a, b))(equalTo(g(a, b)))
         }
       },
       testM("with shrinking nonempty list") {
         val gen = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
 
-        def test(a: List[Int]): TestResult = assert(a, Assertion.nothing)
+        def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
-        assertM(
-          CheckN(100)(gen)(test).flatMap(result => {
-            result.run.map(_.failures.fold(false) {
-              case BoolAlgebra.Value(failureDetails) =>
-                failureDetails.assertion.head.value.toString == "List(0)"
-              case _ => false
-            })
-          }),
-          isTrue
-        )
+        assertM(CheckN(100)(gen)(test).flatMap(result => {
+          result.run.map(_.failures.fold(false) {
+            case BoolAlgebra.Value(failureDetails) =>
+              failureDetails.assertion.head.value.toString == "List(0)"
+            case _ => false
+          })
+        }))(isTrue)
       }
     ),
     suite("monad laws")(
       testM("monad left identity") {
-        assertM(equal(smallInt.flatMap(a => Gen.const(a)), smallInt), isTrue)
+        assertM(equal(smallInt.flatMap(a => Gen.const(a)), smallInt))(isTrue)
       },
       testM("monad right identity") {
         val n = 10
 
         def f(n: Int): Gen[Random, Int] = Gen.int(-n, n)
 
-        assertM(equal(Gen.const(n).flatMap(f), f(n)), isTrue)
+        assertM(equal(Gen.const(n).flatMap(f), f(n)))(isTrue)
       },
       testM("monad associativity") {
         val fa = Gen.int(0, 2)
@@ -115,7 +106,7 @@ object GenSpec extends ZIOBaseSpec {
         def g(p: (Int, Int)): Gen[Random, (Int, Int, Int)] =
           Gen.const(p).zipWith(Gen.int(0, 5)) { case ((x, y), z) => (x, y, z) }
 
-        assertM(equal(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g))), isTrue)
+        assertM(equal(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g))))(isTrue)
       }
     ),
     suite("sample")(
@@ -385,7 +376,7 @@ object GenSpec extends ZIOBaseSpec {
           for {
             left  <- sample(a.zip(b).map(_._1))
             right <- sample(a)
-          } yield assert(left, startsWith(right))
+          } yield assert(left)(startsWith(right))
         }
       } @@ scala2Only,
       testM("right preservation") {
@@ -393,7 +384,7 @@ object GenSpec extends ZIOBaseSpec {
           for {
             left  <- sample(a.zip(b).map(_._2))
             right <- sample(b)
-          } yield assert(left, startsWith(right))
+          } yield assert(left)(startsWith(right))
         }
       } @@ scala2Only,
       testM("shrinking") {
@@ -401,7 +392,7 @@ object GenSpec extends ZIOBaseSpec {
           for {
             left  <- shrink(a.zip(b))
             right <- shrink(a.cross(b))
-          } yield assert(left, equalTo(right))
+          } yield assert(left)(equalTo(right))
         }
       },
       testM("shrink search") {
@@ -409,7 +400,7 @@ object GenSpec extends ZIOBaseSpec {
         checkM(Gen.const(shrinkable.zip(shrinkable)), smallInt, smallInt) { (gen, m, n) =>
           for {
             result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
-          } yield assert(result.reverse.headOption, isSome(equalTo((m, 0)) || equalTo((0, n))))
+          } yield assert(result.reverse.headOption)(isSome(equalTo((m, 0)) || equalTo((0, n))))
         }
       }
     ),
@@ -425,11 +416,11 @@ object GenSpec extends ZIOBaseSpec {
         x <- Sized.withSize(200)(getSize)
         y <- getSize
       } yield x == 2 * y
-      assertM(provideSize(result)(100), isTrue)
+      assertM(provideSize(result)(100))(isTrue)
     },
     testM("suspend lazily constructs a generator") {
       check(genIntList) { as =>
-        assert(as.reverse.reverse, equalTo(as))
+        assert(as.reverse.reverse)(equalTo(as))
       }
     },
     testM("runCollect") {
@@ -438,38 +429,38 @@ object GenSpec extends ZIOBaseSpec {
       for {
         a <- gen.runCollect
         b <- gen.runCollect
-      } yield assert(a, equalTo(domain)) &&
-        assert(b, equalTo(domain))
+      } yield assert(a)(equalTo(domain)) &&
+        assert(b)(equalTo(domain))
     } @@ scala2Only,
     testM("runCollectN") {
       val gen = Gen.int(-10, 10)
       for {
         a <- gen.runCollectN(100)
         b <- gen.runCollectN(100)
-      } yield assert(a, not(equalTo(b))) &&
-        assert(a, hasSize(equalTo(100))) &&
-        assert(b, hasSize(equalTo(100)))
+      } yield assert(a)(not(equalTo(b))) &&
+        assert(a)(hasSize(equalTo(100))) &&
+        assert(b)(hasSize(equalTo(100)))
     },
     testM("runHead") {
-      assertM(Gen.int(-10, 10).runHead, isSome(isWithin(-10, 10)))
+      assertM(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     }
   )
 
   def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): ZIO[R, Nothing, TestResult] = {
     val shrinks = if (TestPlatform.isJS) 1 else 100
-    ZIO.collectAll(List.fill(shrinks)(shrinksTo(gen))).map(assert(_, forall(equalTo(a))))
+    ZIO.collectAll(List.fill(shrinks)(shrinksTo(gen))).map(assert(_)(forall(equalTo(a))))
   }
 
   def checkFinite[A, B](
     gen: Gen[Random, A]
   )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): ZIO[Random, Nothing, TestResult] =
-    assertM(gen.sample.map(_.value).runCollect.map(f), assertion)
+    assertM(gen.sample.map(_.value).runCollect.map(f))(assertion)
 
   def checkSample[A, B](
     gen: Gen[Random with Sized, A],
     size: Int = 100
   )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): ZIO[Random, Nothing, TestResult] =
-    assertM(provideSize(sample100(gen).map(f))(size), assertion)
+    assertM(provideSize(sample100(gen).map(f))(size))(assertion)
 
   def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): ZIO[Random, Nothing, TestResult] =
     provideSize(alwaysShrinksTo(gen)(a: A))(100)

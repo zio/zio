@@ -15,7 +15,7 @@ object NeedsEnvSpec extends ZIOBaseSpec {
             sayHello.provide(Console.Live)
             """
       }
-      assertM(result, isRight(isUnit))
+      assertM(result)(isRight(isUnit))
     },
     testM("useless combinators don't compile") {
       val result = typeCheck {
@@ -26,7 +26,7 @@ object NeedsEnvSpec extends ZIOBaseSpec {
             uio.provide(Console.Live)
             """
       }
-      assertM(result, isLeft(anything))
+      assertM(result)(isLeft(anything))
     }
   )
 }

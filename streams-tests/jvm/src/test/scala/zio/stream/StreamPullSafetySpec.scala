@@ -48,7 +48,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           ref   <- Ref.make(false)
           pulls <- Stream.bracket(IO.fail("Ouch"))(_ => ref.set(true)).process.use(nPulls(_, 3))
           fin   <- ref.get
-        } yield assert(fin, isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+        } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
       },
       testM("is safe to pull again after inner failure") {
         for {
@@ -86,7 +86,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+        } yield assert(fin)(isTrue) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
       }
     ),
     suite("Stream.flatten")(
@@ -224,7 +224,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(pulls)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3))))
+        } yield assert(fin)(isTrue) && assert(pulls)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3))))
       },
       testM("is safe to pull again after error sync case") {
         Stream
@@ -349,7 +349,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 4))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(pulls)(equalTo(List(Right(1), Right(2), Left(None), Left(None))))
+        } yield assert(fin)(isTrue) && assert(pulls)(equalTo(List(Right(1), Right(2), Left(None), Left(None))))
       },
       testM("is safe to pull again after failed acquisition") {
         for {
@@ -359,7 +359,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
-        } yield assert(fin, isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+        } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
       },
       testM("is safe to pull again after inner failure") {
         for {
@@ -372,7 +372,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 8))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(pulls)(
+        } yield assert(fin)(isTrue) && assert(pulls)(
           equalTo(
             List(
               Right("2"),

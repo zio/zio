@@ -24,15 +24,15 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
     zio.test.test(label)(assertion)
 
   val test1 = makeTest("Addition works fine") {
-    assert(1 + 1, equalTo(2))
+    assert(1 + 1)(equalTo(2))
   }
 
   val test2 = makeTest("Subtraction works fine") {
-    assert(1 - 1, equalTo(0))
+    assert(1 - 1)(equalTo(0))
   }
 
   val test3 = makeTest("Value falls within range") {
-    assert(52, equalTo(42) || (isGreaterThan(5) && isLessThan(10)))
+    assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10)))
   }
 
   val test3Expected = Vector(
@@ -58,7 +58,7 @@ object SummaryBuilderSpec extends AsyncBaseSpec {
   )
 
   val test5 = makeTest("Addition works fine") {
-    assert(1 + 1, equalTo(3))
+    assert(1 + 1)(equalTo(3))
   }
 
   val test5Expected = Vector(

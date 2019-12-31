@@ -16,10 +16,10 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield {
         show(trace)
 
-        assert(trace.executionTrace.size, equalTo(2)) &&
-        assert(trace.executionTrace.count(_.prettyPrint.contains("basicTest")), equalTo(1)) &&
-        assert(trace.stackTrace.size, equalTo(3)) &&
-        assert(trace.stackTrace.count(_.prettyPrint.contains("basicTest")), equalTo(1))
+        assert(trace.executionTrace.size)(equalTo(2)) &&
+        assert(trace.executionTrace.count(_.prettyPrint.contains("basicTest")))(equalTo(1)) &&
+        assert(trace.stackTrace.size)(equalTo(3)) &&
+        assert(trace.stackTrace.count(_.prettyPrint.contains("basicTest")))(equalTo(1))
       }
     },
     testM("foreachTrace") {
@@ -28,11 +28,11 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield {
         show(trace)
 
-        assert(trace.stackTrace.size, equalTo(3)) &&
-        assert(trace.stackTrace.exists(_.prettyPrint.contains("foreachTest")), isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("foreachTest")), isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("effectTotal")), isTrue)
+        assert(trace.stackTrace.size)(equalTo(3)) &&
+        assert(trace.stackTrace.exists(_.prettyPrint.contains("foreachTest")))(isTrue) &&
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("foreachTest")))(isTrue) &&
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("effectTotal")))(isTrue)
       }
     },
     testM("foreach fail") {
@@ -41,14 +41,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield {
         val (trace1, trace2) = trace
 
-        assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
-        assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
-        assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
-        assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
-        assert(trace2.stackTrace.size, equalTo(3)) &&
-        assert(trace2.stackTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue) &&
-        assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreach_")), isTrue) &&
-        assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")), isTrue)
+        assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
+        assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue) &&
+        assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
+        assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue) &&
+        assert(trace2.stackTrace.size)(equalTo(3)) &&
+        assert(trace2.stackTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue) &&
+        assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
+        assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue)
 
       }
     },
@@ -58,13 +58,13 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield trace
 
       io causeMust { cause =>
-        assert(cause.traces.head.stackTrace.size, equalTo(4)) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(4)) &&
         assert(cause.traces.head.stackTrace.exists {
           (_: ZTraceElement) match {
             case s: SourceLocation => s.method contains "foreachParFail"
             case _                 => false
           }
-        }, isTrue)
+        })(isTrue)
       }
     },
     testM("foreachParN fail") {
@@ -74,13 +74,13 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield trace
 
       io causeMust { cause =>
-        assert(cause.traces.head.stackTrace.size, equalTo(4)) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(4)) &&
         assert(cause.traces.head.stackTrace.exists {
           (_: ZTraceElement) match {
             case s: SourceLocation => s.method contains "foreachParNFail"
             case _                 => false
           }
-        }, isTrue)
+        })(isTrue)
       }
     },
     testM("left-associative fold") {
@@ -94,9 +94,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield {
         show(trace)
 
-        assert(trace.stackTrace.size, equalTo(2)) &&
-        assert(
-          trace.executionTrace.count(x => x.prettyPrint.contains("leftAssociativeFold")),
+        assert(trace.stackTrace.size)(equalTo(2)) &&
+        assert(trace.executionTrace.count(x => x.prettyPrint.contains("leftAssociativeFold")))(
           equalTo((expectedExecutionTrace))
         )
       }
@@ -109,16 +108,16 @@ object StackTracesSpec extends DefaultRunnableSpec {
         show(trace1)
         show(trace2)
 
-        assert(trace1.executionTrace.size, equalTo(1)) &&
-        assert(trace1.stackTrace.size, equalTo(6)) &&
-        assert(trace1.stackTrace.exists(_.prettyPrint.contains("method2")), isTrue) &&
-        assert(trace1.stackTrace.exists(_.prettyPrint.contains("method1")), isTrue) &&
-        assert(trace1.stackTrace.exists(_.prettyPrint.contains("io")), isTrue) &&
-        assert(trace2.stackTrace.size, equalTo(3)) &&
-        assert(trace2.stackTrace.exists(_.prettyPrint.contains("tuple")), isTrue) &&
-        assert(trace2.executionTrace.exists(_.prettyPrint.contains("method2")), isTrue) &&
-        assert(trace2.executionTrace.exists(_.prettyPrint.contains("method1")), isTrue) &&
-        assert(trace2.executionTrace.exists(_.prettyPrint.contains("io")), isTrue)
+        assert(trace1.executionTrace.size)(equalTo(1)) &&
+        assert(trace1.stackTrace.size)(equalTo(6)) &&
+        assert(trace1.stackTrace.exists(_.prettyPrint.contains("method2")))(isTrue) &&
+        assert(trace1.stackTrace.exists(_.prettyPrint.contains("method1")))(isTrue) &&
+        assert(trace1.stackTrace.exists(_.prettyPrint.contains("io")))(isTrue) &&
+        assert(trace2.stackTrace.size)(equalTo(3)) &&
+        assert(trace2.stackTrace.exists(_.prettyPrint.contains("tuple")))(isTrue) &&
+        assert(trace2.executionTrace.exists(_.prettyPrint.contains("method2")))(isTrue) &&
+        assert(trace2.executionTrace.exists(_.prettyPrint.contains("method1")))(isTrue) &&
+        assert(trace2.executionTrace.exists(_.prettyPrint.contains("io")))(isTrue)
       }
     },
     testM("fiber ancestry") {
@@ -126,29 +125,27 @@ object StackTracesSpec extends DefaultRunnableSpec {
         trace <- fiberAncestry
       } yield trace
 
-      fiber causeMust {
-        cause =>
-          assert(cause.traces, isNonEmpty) &&
-          assert(cause.traces.head.parentTrace.isEmpty, isFalse) &&
-          assert(cause.traces.head.parentTrace.get.parentTrace.isEmpty, isFalse) &&
-          assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty, isFalse) &&
-          assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty, isFalse) &&
-          assert(
-            cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty,
-            isTrue
-          )
+      fiber causeMust { cause =>
+        assert(cause.traces)(isNonEmpty) &&
+        assert(cause.traces.head.parentTrace.isEmpty)(isFalse) &&
+        assert(cause.traces.head.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
+        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
+        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse) &&
+        assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(
+          isTrue
+        )
       }
     },
     testM("fiber ancestry example with uploads") {
       fiberAncestryUploadExample
         .uploadUsers(List(new fiberAncestryUploadExample.User)) causeMust {
         cause =>
-          assert(cause.traces.head.stackTrace.size, equalTo(3)) &&
-          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("uploadUsers"), isTrue) &&
-          assert(cause.traces(1).stackTrace, isEmpty) &&
-          assert(cause.traces(1).executionTrace.size, equalTo(1)) &&
-          assert(cause.traces(1).executionTrace.head.prettyPrint.contains("uploadTo"), isTrue) &&
-          assert(cause.traces(1).parentTrace.isEmpty, isFalse) &&
+          assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
+          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("uploadUsers"))(isTrue) &&
+          assert(cause.traces(1).stackTrace)(isEmpty) &&
+          assert(cause.traces(1).executionTrace.size)(equalTo(1)) &&
+          assert(cause.traces(1).executionTrace.head.prettyPrint.contains("uploadTo"))(isTrue) &&
+          assert(cause.traces(1).parentTrace.isEmpty)(isFalse) &&
           assert(
             cause
               .traces(1)
@@ -157,17 +154,16 @@ object StackTracesSpec extends DefaultRunnableSpec {
               .parentTrace
               .get
               .stackTrace
-              .exists(_.prettyPrint.contains("uploadUsers")),
-            isTrue
-          )
+              .exists(_.prettyPrint.contains("uploadUsers"))
+          )(isTrue)
       }
     },
     testM("fiber ancestry has a limited size") {
       fiberAncestryIsLimitedFixture.recursiveFork(10000) causeMust { cause =>
-        assert(cause.traces.size, equalTo(1)) &&
-        assert(cause.traces.head.parents.size, equalTo(10)) &&
-        assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("recursiveFork")), isTrue) &&
-        assert(cause.traces.head.parents.head.stackTrace.exists(_.prettyPrint.contains("recursiveFork")), isTrue)
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.parents.size)(equalTo(10)) &&
+        assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("recursiveFork")))(isTrue) &&
+        assert(cause.traces.head.parents.head.stackTrace.exists(_.prettyPrint.contains("recursiveFork")))(isTrue)
       }
     },
     testM("blocking trace") {
@@ -178,8 +174,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
       io causeMust { cause =>
         val trace = cause.traces.head
 
-        assert(trace.stackTrace.exists(_.prettyPrint.contains("blockingTrace")), isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("blockingTrace")), isTrue)
+        assert(trace.stackTrace.exists(_.prettyPrint.contains("blockingTrace")))(isTrue) &&
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("blockingTrace")))(isTrue)
       }
     },
     testM("tracing regions") {
@@ -188,16 +184,13 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield trace
 
       io causeMust { cause =>
-        assert(cause.traces.size, equalTo(1)) &&
-        assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("traceThis")), isTrue) &&
-        assert(
-          cause.traces.head.executionTrace.exists {
-            case SourceLocation(_, _, m, _) => m == "tracingRegions"
-            case NoLocation(_)              => true
-          },
-          isFalse
-        ) &&
-        assert(cause.traces.head.stackTrace.size, equalTo(3))
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("traceThis")))(isTrue) &&
+        assert(cause.traces.head.executionTrace.exists {
+          case SourceLocation(_, _, m, _) => m == "tracingRegions"
+          case NoLocation(_)              => true
+        })(isFalse) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(3))
       }
     },
     testM("tracing region is inherited on fork") {
@@ -206,10 +199,10 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield trace
 
       io causeMust { cause =>
-        assert(cause.traces.size, equalTo(1)) &&
-        assert(cause.traces.head.executionTrace.isEmpty, isTrue) &&
-        assert(cause.traces.head.stackTrace.isEmpty, isTrue) &&
-        assert(cause.traces.head.parentTrace.isEmpty, isTrue)
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.executionTrace.isEmpty)(isTrue) &&
+        assert(cause.traces.head.stackTrace.isEmpty)(isTrue) &&
+        assert(cause.traces.head.parentTrace.isEmpty)(isTrue)
       }
     },
     testM("execution trace example with conditional") {
@@ -220,9 +213,9 @@ object StackTracesSpec extends DefaultRunnableSpec {
       io causeMust { cause =>
         val trace = cause.traces.head
 
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("doSideWork")), isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("doMainWork")), isTrue) &&
-        assert(trace.stackTrace.head.prettyPrint.contains("doWork"), isTrue)
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("doSideWork")))(isTrue) &&
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("doMainWork")))(isTrue) &&
+        assert(trace.stackTrace.head.prettyPrint.contains("doWork"))(isTrue)
       }
     },
     testM("mapError fully preserves previous stack trace") {
@@ -235,13 +228,13 @@ object StackTracesSpec extends DefaultRunnableSpec {
           // mapError does not change the trace in any way from its state during `fail()`
           // as a consequence, `executionTrace` is not updated with finalizer info, etc...
           // but overall it's a good thing since you're not losing traces at the border between your domain errors & Throwable
-          assert(cause.traces.size, equalTo(1)) &&
-          assert(cause.traces.head.executionTrace.size, equalTo(2)) &&
-          assert(cause.traces.head.executionTrace.head.prettyPrint.contains("fail"), isTrue) &&
-          assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
-          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("succ"), isTrue) &&
-          assert(cause.traces.head.stackTrace(1).prettyPrint.contains("mapError"), isTrue) &&
-          assert(cause.traces.head.stackTrace(2).prettyPrint.contains("mapErrorPreservesTrace"), isTrue)
+          assert(cause.traces.size)(equalTo(1)) &&
+          assert(cause.traces.head.executionTrace.size)(equalTo(2)) &&
+          assert(cause.traces.head.executionTrace.head.prettyPrint.contains("fail"))(isTrue) &&
+          assert(cause.traces.head.stackTrace.size)(equalTo(6)) &&
+          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("succ"))(isTrue) &&
+          assert(cause.traces.head.stackTrace(1).prettyPrint.contains("mapError"))(isTrue) &&
+          assert(cause.traces.head.stackTrace(2).prettyPrint.contains("mapErrorPreservesTrace"))(isTrue)
       }
     },
     testM("catchSome with optimized effect path") {
@@ -250,13 +243,13 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield trace
 
       io causeMust { cause =>
-        assert(cause.traces.size, equalTo(1)) &&
-        assert(cause.traces.head.executionTrace.size, equalTo(2)) &&
-        assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("fail")), isTrue) &&
-        assert(cause.traces.head.stackTrace.size, equalTo(6)) &&
-        assert(cause.traces.head.stackTrace.head.prettyPrint.contains("badMethod"), isTrue) &&
-        assert(cause.traces.head.stackTrace(1).prettyPrint.contains("apply"), isTrue) && // PartialFunction.apply
-        assert(cause.traces.head.stackTrace(2).prettyPrint.contains("catchSomeWithOptimizedEffect"), isTrue)
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.executionTrace.size)(equalTo(2)) &&
+        assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("fail")))(isTrue) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(6)) &&
+        assert(cause.traces.head.stackTrace.head.prettyPrint.contains("badMethod"))(isTrue) &&
+        assert(cause.traces.head.stackTrace(1).prettyPrint.contains("apply"))(isTrue) && // PartialFunction.apply
+        assert(cause.traces.head.stackTrace(2).prettyPrint.contains("catchSomeWithOptimizedEffect"))(isTrue)
       }
     },
     testM("catchAll with optimized effect path") {
@@ -267,12 +260,12 @@ object StackTracesSpec extends DefaultRunnableSpec {
       io causeMust {
         cause =>
           // after we refail and lose the trace, the only continuation we have left is the map from yield
-          assert(cause.traces.size, equalTo(1)) &&
-          assert(cause.traces.head.executionTrace.size, equalTo(3)) &&
-          assert(cause.traces.head.executionTrace.head.prettyPrint.contains("refailAndLoseTrace"), isTrue) &&
-          assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("fail")), isTrue) &&
-          assert(cause.traces.head.stackTrace.size, equalTo(4)) &&
-          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("catchAllWithOptimizedEffect"), isTrue)
+          assert(cause.traces.size)(equalTo(1)) &&
+          assert(cause.traces.head.executionTrace.size)(equalTo(3)) &&
+          assert(cause.traces.head.executionTrace.head.prettyPrint.contains("refailAndLoseTrace"))(isTrue) &&
+          assert(cause.traces.head.executionTrace.exists(_.prettyPrint.contains("fail")))(isTrue) &&
+          assert(cause.traces.head.stackTrace.size)(equalTo(4)) &&
+          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("catchAllWithOptimizedEffect"))(isTrue)
       }
     },
     testM("foldM with optimized effect path") {
@@ -281,33 +274,33 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield {
         show(trace)
 
-        assert(trace.stackTrace.size, equalTo(3)) &&
-        assert(trace.stackTrace.exists(_.prettyPrint.contains("foldMWithOptimizedEffect")), isTrue) &&
-        assert(trace.executionTrace.size, equalTo(3)) &&
-        assert(trace.executionTrace.head.prettyPrint.contains("mkTrace"), isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("fail")), isTrue)
+        assert(trace.stackTrace.size)(equalTo(3)) &&
+        assert(trace.stackTrace.exists(_.prettyPrint.contains("foldMWithOptimizedEffect")))(isTrue) &&
+        assert(trace.executionTrace.size)(equalTo(3)) &&
+        assert(trace.executionTrace.head.prettyPrint.contains("mkTrace"))(isTrue) &&
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("fail")))(isTrue)
 
       }
     },
     testM("single effect for-comprehension") {
       singleTaskForCompFixture.selectHumans causeMust { cause =>
-        assert(cause.traces.size, equalTo(1)) &&
-        assert(cause.traces.head.stackTrace.size, equalTo(3)) &&
-        assert(cause.traces.head.stackTrace.head.prettyPrint.contains("selectHumans"), isTrue)
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
+        assert(cause.traces.head.stackTrace.head.prettyPrint.contains("selectHumans"))(isTrue)
       }
     },
     testM("single effectTotal for-comprehension") {
       singleUIOForCompFixture.selectHumans causeMust { cause =>
-        assert(cause.traces.size, equalTo(1)) &&
-        assert(cause.traces.head.stackTrace.size, equalTo(3)) &&
-        assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")), isTrue)
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
+        assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")))(isTrue)
       }
     },
     testM("single suspendWith for-comprehension") {
       singleEffectTotalWithForCompFixture.selectHumans causeMust { cause =>
-        assert(cause.traces.size, equalTo(1)) &&
-        assert(cause.traces.head.stackTrace.size, equalTo(3)) &&
-        assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")), isTrue)
+        assert(cause.traces.size)(equalTo(1)) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
+        assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")))(isTrue)
       }
     }
   )
@@ -618,7 +611,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
           show(cause)
           check(cause)
         },
-        _ => assert(false, isTrue)
+        _ => assert(false)(isTrue)
       )
   }
 }

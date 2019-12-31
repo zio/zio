@@ -19,7 +19,7 @@ object StreamHaltWhenSpec extends ZIOBaseSpec {
         _      <- halt.succeed(())
         _      <- latch.succeed(())
         result <- interrupted.get
-      } yield assert(result, isFalse)
+      } yield assert(result)(isFalse)
     },
     testM("propagates errors") {
       for {
@@ -29,7 +29,7 @@ object StreamHaltWhenSpec extends ZIOBaseSpec {
                    .haltWhen(halt)
                    .runDrain
                    .either
-      } yield assert(result, isLeft(equalTo("Fail")))
+      } yield assert(result)(isLeft(equalTo("Fail")))
     }
   )
 }
