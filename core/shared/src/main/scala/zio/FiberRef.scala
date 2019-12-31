@@ -52,7 +52,7 @@ final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] 
    * Reads the value associated with the current fiber. Returns initial value if
    * no value was `set` or inherited from parent.
    */
-  final val get: UIO[A] = modify(v => (v, v))
+  val get: UIO[A] = modify(v => (v, v))
 
   /**
    * Returns an `IO` that runs with `value` bound to the current fiber.

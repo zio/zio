@@ -18,9 +18,8 @@ package zio
 
 // This cannot extend Random.Service[Random] because of Scala 2.11 support
 package object random {
-  final val randomService: ZIO[Random, Nothing, Random.Service[Any]] =
-    ZIO.access(_.random)
 
+   val randomService: ZIO[Random, Nothing, Random.Service[Any]] = ZIO.access(_.random)
   val nextBoolean: ZIO[Random, Nothing, Boolean]                = ZIO.accessM(_.random.nextBoolean)
   def nextBytes(length: Int): ZIO[Random, Nothing, Chunk[Byte]] = ZIO.accessM(_.random.nextBytes(length))
   val nextDouble: ZIO[Random, Nothing, Double]                  = ZIO.accessM(_.random.nextDouble)

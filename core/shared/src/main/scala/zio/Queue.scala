@@ -21,21 +21,21 @@ object Queue {
   /**
    * @see See [[zio.ZQueue.bounded]]
    */
-  final def bounded[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.bounded(requestedCapacity)
+  def bounded[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.bounded(requestedCapacity)
 
   /**
    * @see See [[zio.ZQueue.dropping]]
    */
-  final def dropping[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.dropping(requestedCapacity)
+  def dropping[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.dropping(requestedCapacity)
 
   /**
    * @see See [[zio.ZQueue.sliding]]
    */
-  final def sliding[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.sliding(requestedCapacity)
+  def sliding[A](requestedCapacity: Int): UIO[Queue[A]] = ZQueue.sliding(requestedCapacity)
 
   /**
    * @see See [[zio.ZQueue.unbounded]]
    */
-  final def unbounded[A]: UIO[Queue[A]] = ZQueue.unbounded
+  def unbounded[A]: UIO[Queue[A]] = ZQueue.unbounded
 
 }

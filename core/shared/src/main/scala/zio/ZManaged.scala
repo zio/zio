@@ -787,8 +787,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Return unit while running the effect
    */
-  lazy final val unit: ZManaged[R, E, Unit] =
-    as(())
+  lazy val unit: ZManaged[R, E, Unit] = as(())
 
   /**
    * The inverse operation `ZManaged.sandboxed`
@@ -813,7 +812,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Use the resource until interruption.
    * Useful for resources that you want to acquire and use as long as the application is running, like a HTTP server.
    */
-  final val useForever: ZIO[R, E, Nothing] = use(_ => ZIO.never)
+  val useForever: ZIO[R, E, Nothing] = use(_ => ZIO.never)
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -1057,7 +1056,7 @@ object ZManaged {
   /**
    * Returns an effect that succeeds with the `Fiber.Id` of the caller.
    */
-  final val fiberId: ZManaged[Any, Nothing, Fiber.Id] = ZManaged.fromEffect(ZIO.fiberId)
+  val fiberId: ZManaged[Any, Nothing, Fiber.Id] = ZManaged.fromEffect(ZIO.fiberId)
 
   /**
    * Creates an effect that only executes the provided finalizer as its
@@ -1243,7 +1242,7 @@ object ZManaged {
    * Returns an effect that is interrupted as if by the fiber calling this
    * method.
    */
-  final val interrupt: ZManaged[Any, Nothing, Nothing] =
+  val interrupt: ZManaged[Any, Nothing, Nothing] =
     ZManaged.fromEffect(ZIO.descriptor).flatMap(d => halt(Cause.interrupt(d.id)))
 
   /**
@@ -1705,8 +1704,7 @@ object ZManaged {
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
-  final val unit: ZManaged[Any, Nothing, Unit] =
-    ZManaged.succeed(())
+  val unit: ZManaged[Any, Nothing, Unit] = ZManaged.succeed(())
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.

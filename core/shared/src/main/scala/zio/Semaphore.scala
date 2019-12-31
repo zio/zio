@@ -71,7 +71,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
    */
-  final private def prepare(n: Long): UIO[Acquisition] = {
+  private def prepare(n: Long): UIO[Acquisition] = {
     def restore(p: Promise[Nothing, Unit], n: Long): UIO[Unit] =
       IO.flatten(state.modify {
         case Left(q) =>
@@ -98,7 +98,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * they will be woken up (in FIFO order) if this action releases enough
    * of them.
    */
-  final private def releaseN0(toRelease: Long): UIO[Unit] = {
+  private def releaseN0(toRelease: Long): UIO[Unit] = {
 
     @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
       case Right(m) => acc -> Right(n + m)
@@ -142,5 +142,5 @@ private object internals {
       IO.die(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else IO.unit
 
-  class NegativeArgument(message: String) extends IllegalArgumentException(message)
+  final class NegativeArgument(message: String) extends IllegalArgumentException(message)
 }

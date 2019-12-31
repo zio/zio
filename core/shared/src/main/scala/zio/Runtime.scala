@@ -157,7 +157,7 @@ object Runtime {
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
    */
-  final def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
+  def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
     val environment = r
     val platform    = platform0
   }
