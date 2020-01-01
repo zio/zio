@@ -1621,7 +1621,7 @@ object StreamSpec extends ZIOBaseSpec {
     suite("Stream.take")(
       testM("take")(checkM(streamOfBytes, Gen.anyInt) { (s: Stream[String, Byte], n: Int) =>
         for {
-          takeStreamResult <- s.take(n).runCollect.run
+          takeStreamResult <- s.take(n.toLong).runCollect.run
           takeListResult   <- s.runCollect.map(_.take(n)).run
         } yield assert(takeListResult.succeeded)(isTrue) implies assert(takeStreamResult)(equalTo(takeListResult))
       }),
