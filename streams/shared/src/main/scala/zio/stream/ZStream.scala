@@ -81,10 +81,10 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
   /**
    * Applies an aggregator to the stream, which converts one or more elements
-   * of type `A` into elements of type `C`.
+   * of type `A` into elements of type `B`.
    */
-  def aggregate[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
-    aggregateManaged[R1, E1, A1, C](ZManaged.succeed(sink))
+  def aggregate[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, A1, A1, B]): ZStream[R1, E1, B] =
+    aggregateManaged(ZManaged.succeed(sink))
 
   /**
    * Aggregates elements of this stream using the provided sink for as long
@@ -586,70 +586,93 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   }
 
   /**
-   * Applies an aggregator to the stream, converting elements of type `A` into elements of type `C`, with a
-   * managed resource of type `D` available.
+   * Applies a managed aggregator to the stream, converting elements of type `A`
+   * into elements of type `B`.
    */
   final def aggregateManaged[R1 <: R, E1 >: E, A1 >: A, B](
     managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, B]]
   ): ZStream[R1, E1, B] =
-    ZStream.managed {
-      for {
-        as           <- self.process
-        sink         <- managedSink.map(_.mapError(Some(_)))
-        doneRef      <- Ref.make(false).toManaged_
-        leftoversRef <- Ref.make[Chunk[A1]](Chunk.empty).toManaged_
-        pull = {
-          def go(s: sink.State, dirty: Boolean): Pull[R1, E1, B] =
-            if (!dirty) {
-              leftoversRef.get.flatMap { leftovers =>
-                doneRef.get.flatMap { done =>
-                  if (done)
-                    Pull.end
-                  else if (leftovers.nonEmpty)
-                    sink.stepChunk(s, leftovers).flatMap {
-                      case (s, leftovers) => leftoversRef.set(leftovers) *> go(s, true)
-                    } else
-                    as flatMap { a =>
-                      sink
-                        .step(s, a)
-                        .flatMap(s => go(s, true))
-                    }
-                }
-              }
-            } else {
-              doneRef.get.flatMap { done =>
-                if (done || !sink.cont(s))
-                  sink.extract(s).flatMap {
-                    case (b, leftovers) =>
-                      leftoversRef
-                        .update(_ ++ leftovers)
-                        .when(leftovers.nonEmpty)
-                        .as(b)
-                  } else
-                  as.foldM(
-                    {
-                      case e @ Some(_) => ZIO.fail(e)
-                      case None =>
-                        doneRef.set(true) *>
-                          sink.extract(s).flatMap {
-                            case (b, leftovers) =>
-                              leftoversRef
-                                .update(_ ++ leftovers)
-                                .when(leftovers.nonEmpty)
-                                .as(b)
-                          }
-                    },
+    ZStream
+      .managed(managedSink)
+      .flatMap { sink =>
+        import ZStream.internal.AggregateState
+
+        ZStream.managed {
+          for {
+            as <- self.process
+            stateRef <- sink.initial
+                         .flatMap(s => Ref.make[AggregateState[sink.State, A1]](AggregateState.Pull(s, false)))
+                         .toManaged_
+            pull = {
+              def go: Pull[R1, E1, B] = stateRef.get.flatMap {
+                case AggregateState.Pull(s, dirty) =>
+                  as.foldCauseM(
+                    Cause
+                      .sequenceCauseOption(_)
+                      .fold(stateRef.set(if (dirty) AggregateState.DirtyDone(s) else AggregateState.Done) *> go)(
+                        Pull.halt
+                      ),
                     sink
                       .step(s, _)
-                      .flatMap(s => go(s, true))
+                      .foldCauseM(
+                        Pull.halt,
+                        s => {
+                          val next =
+                            if (sink.cont(s)) AggregateState.Pull(s, true) else AggregateState.Extract(s, Chunk.empty)
+                          stateRef.set(next) *> go
+                        }
+                      )
                   )
-              }
-            }
 
-          sink.initial.flatMap(s => go(s, false))
+                case AggregateState.Extract(s, chunk) =>
+                  def modifyState(leftovers: Chunk[A1]): ZIO[R1, Option[E1], Unit] =
+                    sink.initial
+                      .flatMap(s => stateRef.set(AggregateState.Drain(s, chunk ++ leftovers, 0)))
+                      .mapError(Some(_))
+
+                  sink
+                    .extract(s)
+                    .foldCauseM(c => modifyState(Chunk.empty) *> Pull.halt(c), {
+                      case (b, leftovers) => modifyState(leftovers) *> Pull.emit(b)
+                    })
+
+                case AggregateState.Drain(s, leftovers, index) =>
+                  if (index < leftovers.length) {
+                    sink
+                      .step(s, leftovers(index))
+                      .foldCauseM(
+                        Pull.halt,
+                        s => {
+                          val next =
+                            if (sink.cont(s)) AggregateState.Drain(s, leftovers, index + 1)
+                            else AggregateState.Extract(s, leftovers.drop(index + 1))
+                          stateRef.set(next) *> go
+                        }
+                      )
+                  } else {
+                    val next =
+                      if (sink.cont(s)) AggregateState.Pull(s, index != 0) else AggregateState.Extract(s, Chunk.empty)
+                    stateRef.set(next) *> go
+                  }
+
+                case AggregateState.DirtyDone(s) =>
+                  sink
+                    .extract(s)
+                    .foldCauseM(Pull.halt, {
+                      case (b, _) =>
+                        stateRef.set(AggregateState.Done) *> Pull.emit(b)
+                    })
+
+                case AggregateState.Done =>
+                  Pull.end
+              }
+
+              go
+            }
+          } yield pull
         }
-      } yield pull
-    }.flatMap(ZStream.repeatEffectOption)
+      }
+      .flatMap(ZStream.repeatEffectOption)
 
   /**
    * Maps the success values of this stream to the specified constant value.
@@ -2645,6 +2668,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
         case Take.Fail(e)  => halt(e)
         case Take.End      => end
       }
+  }
+
+  private[stream] object internal {
+    sealed abstract class AggregateState[+S, +A]
+    object AggregateState {
+      final case class Pull[S](s: S, dirty: Boolean)                      extends AggregateState[S, Nothing]
+      final case class Extract[S, A](s: S, leftovers: Chunk[A])           extends AggregateState[S, A]
+      final case class Drain[S, A](s: S, leftovers: Chunk[A], index: Int) extends AggregateState[S, A]
+      final case class DirtyDone[S](s: S)                                 extends AggregateState[S, Nothing]
+      case object Done                                                    extends AggregateState[Nothing, Nothing]
+    }
   }
 
   private[stream] sealed abstract class Structure[-R, +E, +A] {
