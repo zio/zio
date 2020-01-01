@@ -386,7 +386,7 @@ object ZSTM {
       ZSTM.environment.map(f)
   }
 
-  final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
       ZSTM.environment.flatMap(f)
   }
@@ -773,8 +773,8 @@ object ZSTM {
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  def accessSTM[R]: AccessSTMPartiallyApplied[R] =
-    new AccessSTMPartiallyApplied
+  def accessM[R]: AccessMPartiallyApplied[R] =
+    new AccessMPartiallyApplied
 
   /**
    * Atomically performs a batch of operations in a single transaction.
@@ -867,7 +867,6 @@ object ZSTM {
         else STM.unit
       loop
     }
-
 
   /**
    * Creates an STM effect from an `Either` value.

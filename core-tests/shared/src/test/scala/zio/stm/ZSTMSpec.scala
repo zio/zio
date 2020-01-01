@@ -477,13 +477,13 @@ object ZSTMSpec extends ZIOBaseSpec {
     suite("STM environment")(
       testM("access environment and provide it outside transaction") {
         STMEnv.make(0).flatMap { env =>
-          ZSTM.accessSTM[STMEnv](_.ref.update(_ + 1)).commit.provide(env) *>
+          ZSTM.accessM[STMEnv](_.ref.update(_ + 1)).commit.provide(env) *>
             assertM(env.ref.get.commit, equalTo(1))
         }
       },
       testM("access environment and provide it inside transaction") {
         STMEnv.make(0).flatMap { env =>
-          ZSTM.accessSTM[STMEnv](_.ref.update(_ + 1)).provide(env).commit *>
+          ZSTM.accessM[STMEnv](_.ref.update(_ + 1)).provide(env).commit *>
             assertM(env.ref.get.commit, equalTo(1))
         }
       }
