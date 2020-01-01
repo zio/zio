@@ -670,7 +670,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             }
           } yield pull
         }
-      }.flatMap(ZStream.repeatEffectOption)
+      }
+      .flatMap(ZStream.repeatEffectOption)
 
   /**
    * Maps the success values of this stream to the specified constant value.
