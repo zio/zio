@@ -1466,17 +1466,15 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("daemon fiber race interruption") {
         def plus1(ref: Ref[Int], latch: Promise[Nothing, Unit]) =
           latch.succeed(()) *> ZIO.never *> ref.update(_ + 1)
-        def interruptHandler(ref: Ref[Int]) =
-          ref.update(_ + 1)
-
+        
         val io = for {
           ref             <- Ref.make(0)
           interruptionRef <- Ref.make(0)
           latch1Start     <- Promise.make[Nothing, Unit]
           latch2Start     <- Promise.make[Nothing, Unit]
           fiber <- plus1(ref, latch1Start)
-                    .onInterrupt(interruptHandler(interruptionRef))
-                    .race(plus1(ref, latch2Start).onInterrupt(interruptHandler(interruptionRef)))
+                    .onInterrupt(interruptionRef.update(_ + 1))
+                    .race(plus1(ref, latch2Start).onInterrupt(interruptionRef.update(_ + 1)))
                     .fork
           _           <- latch1Start.await
           _           <- latch2Start.await
@@ -1486,7 +1484,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(interrupted, equalTo(2)) && assert(res, equalTo(0))
 
         io.daemon
-      },
+      } @@ flaky,
       testM("daemon mask") {
         def forkAwait =
           for {

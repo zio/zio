@@ -21,5 +21,7 @@ import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 trait PlatformSpecific {
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
 
+  final def newWeakSet[A](): JSet[A] = new HashSet[A]()
+
   final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
 }

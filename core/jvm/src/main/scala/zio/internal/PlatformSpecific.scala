@@ -23,5 +23,8 @@ trait PlatformSpecific {
   final def newWeakHashMap[A, B](): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
 
+  final def newWeakSet[A](): JSet[A] =
+    Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
+
   final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
 }

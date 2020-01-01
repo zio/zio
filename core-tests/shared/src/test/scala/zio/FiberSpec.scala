@@ -104,8 +104,7 @@ object FiberSpec extends ZIOBaseSpec {
         latch1 <- Promise.make[Nothing, Unit]
         latch2 <- Promise.make[Nothing, Unit]
         c      = ZIO.never.interruptible.onInterrupt(latch2.succeed(()))
-        b      = c.fork
-        a      = (latch1.succeed(()) *> b.fork).uninterruptible *> ZIO.never
+        a      = (latch1.succeed(()) *> c.fork.fork).uninterruptible *> ZIO.never
         fiber  <- a.fork
         _      <- latch1.await
         _      <- fiber.interrupt
