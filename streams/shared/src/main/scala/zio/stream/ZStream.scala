@@ -595,40 +595,40 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     ZStream
       .managed(managedSink)
       .flatMap { sink =>
-        sealed abstract class State
-        object State {
-          final case class Pull(s: sink.State, dirty: Boolean)                    extends State
-          final case class Extract(s: sink.State, leftovers: Chunk[A1])           extends State
-          final case class Drain(s: sink.State, leftovers: Chunk[A1], index: Int) extends State
-          final case class DirtyDone(s: sink.State)                               extends State
-          case object Done                                                        extends State
-        }
+        import ZStream.internal.AggregateState
 
         ZStream.managed {
           for {
-            as       <- self.process
-            stateRef <- sink.initial.flatMap(s => Ref.make[State](State.Pull(s, false))).toManaged_
+            as <- self.process
+            stateRef <- sink.initial
+                         .flatMap(s => Ref.make[AggregateState[sink.State, A1]](AggregateState.Pull(s, false)))
+                         .toManaged_
             pull = {
               def go: Pull[R1, E1, B] = stateRef.get.flatMap {
-                case State.Pull(s, dirty) =>
+                case AggregateState.Pull(s, dirty) =>
                   as.foldCauseM(
                     Cause
                       .sequenceCauseOption(_)
-                      .fold(stateRef.set(if (dirty) State.DirtyDone(s) else State.Done) *> go)(Pull.halt),
+                      .fold(stateRef.set(if (dirty) AggregateState.DirtyDone(s) else AggregateState.Done) *> go)(
+                        Pull.halt
+                      ),
                     sink
                       .step(s, _)
                       .foldCauseM(
                         Pull.halt,
                         s => {
-                          val next = if (sink.cont(s)) State.Pull(s, true) else State.Extract(s, Chunk.empty)
+                          val next =
+                            if (sink.cont(s)) AggregateState.Pull(s, true) else AggregateState.Extract(s, Chunk.empty)
                           stateRef.set(next) *> go
                         }
                       )
                   )
 
-                case State.Extract(s, chunk) =>
+                case AggregateState.Extract(s, chunk) =>
                   def modifyState(leftovers: Chunk[A1]): ZIO[R1, Option[E1], Unit] =
-                    sink.initial.flatMap(s => stateRef.set(State.Drain(s, chunk ++ leftovers, 0))).mapError(Some(_))
+                    sink.initial
+                      .flatMap(s => stateRef.set(AggregateState.Drain(s, chunk ++ leftovers, 0)))
+                      .mapError(Some(_))
 
                   sink
                     .extract(s)
@@ -636,7 +636,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                       case (b, leftovers) => modifyState(leftovers) *> Pull.emit(b)
                     })
 
-                case State.Drain(s, leftovers, index) =>
+                case AggregateState.Drain(s, leftovers, index) =>
                   if (index < leftovers.length) {
                     sink
                       .step(s, leftovers(index))
@@ -644,25 +644,26 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                         Pull.halt,
                         s => {
                           val next =
-                            if (sink.cont(s)) State.Drain(s, leftovers, index + 1)
-                            else State.Extract(s, leftovers.drop(index + 1))
+                            if (sink.cont(s)) AggregateState.Drain(s, leftovers, index + 1)
+                            else AggregateState.Extract(s, leftovers.drop(index + 1))
                           stateRef.set(next) *> go
                         }
                       )
                   } else {
-                    val next = if (sink.cont(s)) State.Pull(s, index != 0) else State.Extract(s, Chunk.empty)
+                    val next =
+                      if (sink.cont(s)) AggregateState.Pull(s, index != 0) else AggregateState.Extract(s, Chunk.empty)
                     stateRef.set(next) *> go
                   }
 
-                case State.DirtyDone(s) =>
+                case AggregateState.DirtyDone(s) =>
                   sink
                     .extract(s)
                     .foldCauseM(Pull.halt, {
                       case (b, _) =>
-                        stateRef.set(State.Done) *> Pull.emit(b)
+                        stateRef.set(AggregateState.Done) *> Pull.emit(b)
                     })
 
-                case State.Done =>
+                case AggregateState.Done =>
                   Pull.end
               }
 
@@ -2667,6 +2668,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
         case Take.Fail(e)  => halt(e)
         case Take.End      => end
       }
+  }
+
+  private[stream] object internal {
+    sealed abstract class AggregateState[+S, +A]
+    object AggregateState {
+      final case class Pull[S](s: S, dirty: Boolean)                      extends AggregateState[S, Nothing]
+      final case class Extract[S, A](s: S, leftovers: Chunk[A])           extends AggregateState[S, A]
+      final case class Drain[S, A](s: S, leftovers: Chunk[A], index: Int) extends AggregateState[S, A]
+      final case class DirtyDone[S](s: S)                                 extends AggregateState[S, Nothing]
+      case object Done                                                    extends AggregateState[Nothing, Nothing]
+    }
   }
 
   private[stream] sealed abstract class Structure[-R, +E, +A] {

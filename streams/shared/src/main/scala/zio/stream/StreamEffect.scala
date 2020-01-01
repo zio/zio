@@ -234,7 +234,7 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
   override def aggregate[R1 <: R, E1 >: E, A1 >: A, B](
     sink: ZSink[R1, E1, A1, A1, B]
   ): ZStream[R1, E1, B] = {
-    import StreamEffect.internal.AggregateState
+    import ZStream.internal.AggregateState
 
     sink match {
       case sink: SinkPure[E1, A1, A1, B] =>
@@ -327,17 +327,6 @@ private[stream] object StreamEffect extends Serializable {
 
   case object End extends Throwable("stream end", null, true, false) {
     override def fillInStackTrace() = this
-  }
-
-  private[StreamEffect] object internal {
-    sealed abstract class AggregateState[+S, +A]
-    object AggregateState {
-      final case class Pull[S](s: S, dirty: Boolean)                      extends AggregateState[S, Nothing]
-      final case class Extract[S, A](s: S, leftovers: Chunk[A])           extends AggregateState[S, A]
-      final case class Drain[S, A](s: S, leftovers: Chunk[A], index: Int) extends AggregateState[S, A]
-      final case class DirtyDone[S](s: S)                                 extends AggregateState[S, Nothing]
-      case object Done                                                    extends AggregateState[Nothing, Nothing]
-    }
   }
 
   def end[A]: A = throw End
