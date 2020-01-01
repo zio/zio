@@ -76,7 +76,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       }
     },
     testM("StreamEffect#take is safe to pull again") {
-      val stream = StreamEffect {
+      val stream = StreamEffect[Any, String, Int] {
         Managed.effectTotal {
           var counter = 0
 
