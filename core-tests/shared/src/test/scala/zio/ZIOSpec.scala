@@ -2371,13 +2371,32 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(in))
       }
     ),
+    suite("validateMPar")(
+      testM("returns all errors if never valid") {
+        val in  = List.fill(1000)(0)
+        val res = IO.validateMPar(in)(a => ZIO.fail(a)).flip
+        assertM(res)(equalTo(in))
+      },
+      testM("accumulate errors and ignore successes") {
+        import zio.CanFail.canFail
+        val in  = List.range(0, 10)
+        val res = ZIO.validateMPar(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
+        assertM(res.flip)(equalTo(List(1, 3, 5, 7, 9)))
+      },
+      testM("accumulate successes") {
+        import zio.CanFail.canFail
+        val in  = List.range(0, 10)
+        val res = IO.validateMPar(in)(a => ZIO.succeed(a))
+        assertM(res)(equalTo(in))
+      }
+    ),
     suite("validateFirstM")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)
         val res = IO.validateFirstM(in)(a => ZIO.fail(a)).flip
         assertM(res)(equalTo(in))
       },
-      testM("short circuits on first success validation") {
+      testM("runs sequentially and short circuits on first success validation") {
         import zio.CanFail.canFail
         val in = List.range(1, 10)
         val f  = (a: Int) => if (a == 6) ZIO.succeed(a) else ZIO.fail(a)
@@ -2387,6 +2406,20 @@ object ZIOSpec extends ZIOBaseSpec {
           res        <- ZIO.validateFirstM(in)(a => counter.update(_ + 1) *> f(a))
           assertions <- assertM(ZIO.succeed(res))(equalTo(6)) && assertM(counter.get)(equalTo(6))
         } yield assertions
+      }
+    ),
+    suite("validateFirstMPar")(
+      testM("returns all errors if never valid") {
+        val in  = List.fill(1000)(0)
+        val res = IO.validateFirstMPar(in)(a => ZIO.fail(a)).flip
+        assertM(res)(equalTo(in))
+      },
+      testM("returns success if valid") {
+        import zio.CanFail.canFail
+        val in  = List.range(1, 10)
+        val f   = (a: Int) => if (a == 6) ZIO.succeed(a) else ZIO.fail(a)
+        val res = ZIO.validateFirstMPar(in)(f(_))
+        assertM(res)(equalTo(6))
       }
     ),
     suite("when")(
