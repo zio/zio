@@ -403,7 +403,7 @@ package object test extends CompileVariants {
 
     final class CheckNM(private val n: Int) extends AnyVal {
       def apply[R, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
-        checkStream(rv.sample.forever.take(n))(test)
+        checkStream(rv.sample.forever.take(n.toLong))(test)
       def apply[R, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
@@ -433,7 +433,7 @@ package object test extends CompileVariants {
     }.mapM(_.traverse(_.fold(e => ZIO.succeed(Left(e)), a => a.run.map(Right(_)))))
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
-      .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks))
+      .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks.toLong))
       .run(ZSink.collectAll[Either[E, BoolAlgebra[FailureDetails]]]) // Collect all the shrunken values
       .flatMap { shrinks =>
         // Get the "last" failure, the smallest according to the shrinker:

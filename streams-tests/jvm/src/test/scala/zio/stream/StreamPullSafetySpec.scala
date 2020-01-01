@@ -11,6 +11,26 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
   def spec = suite("StreamPullSafetySpec")(combinators, constructors)
 
   def combinators = suite("Combinators")(
+    testM("Stream.drop is safe to pull again") {
+      assertM(
+        Stream(1, 2, 3, 4, 5, 6, 7)
+          .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+          .drop(3)
+          .process
+          .use(nPulls(_, 6))
+      )(
+        equalTo(
+          List(
+            Left(Some("Ouch 2")), // dropped 1 up to here
+            Left(Some("Ouch 4")), // dropped 2 up to here
+            Left(Some("Ouch 6")), // dropped 3 up to here
+            Right(7),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
     testM("Stream.mapAccumM is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)
@@ -26,6 +46,59 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
             Left(Some("Ouch")),
             Right(9),
             Left(None),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
+    suite("Stream.take") {
+      testM("ZStream#take is safe to pull again") {
+        assertM(
+          Stream(1, 2, 3, 4, 5)
+            .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+            .take(3)
+            .process
+            .use(nPulls(_, 7))
+        )(
+          equalTo(
+            List(
+              Right(1), // took 1 up to here
+              Left(Some("Ouch 2")),
+              Right(3), // took 2 up to here
+              Left(Some("Ouch 4")),
+              Right(5), // took 3 up to here
+              Left(None),
+              Left(None)
+            )
+          )
+        )
+      }
+    },
+    testM("StreamEffect#take is safe to pull again") {
+      val stream = StreamEffect[Any, String, Int] {
+        Managed.effectTotal {
+          var counter = 0
+
+          () => {
+            counter += 1
+            if (counter >= 6) StreamEffect.end[Int]
+            else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+            else counter
+          }
+        }
+      }
+
+      assertM(
+        stream.take(3).process.use(nPulls(_, 7))
+      )(
+        equalTo(
+          List(
+            Right(1), // took 1 up to here
+            Left(Some("Ouch 2")),
+            Right(3), // took 2 up to here
+            Left(Some("Ouch 4")),
+            Right(5), // took 3 up to here
             Left(None),
             Left(None)
           )

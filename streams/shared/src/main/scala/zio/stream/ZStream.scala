@@ -1130,7 +1130,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Drops the specified number of elements from this stream.
    */
-  final def drop(n: Int): ZStream[R, E, A] =
+  final def drop(n: Long): ZStream[R, E, A] =
     self.zipWithIndex.filter(_._2 > n - 1).map(_._1)
 
   /**
@@ -2279,15 +2279,15 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
   /**
    * Takes the specified number of elements from this stream.
    */
-  def take(n: Int): ZStream[R, E, A] =
+  def take(n: Long): ZStream[R, E, A] =
     ZStream {
       for {
         as      <- self.process
-        counter <- Ref.make(0).toManaged_
-        pull = counter.modify { c =>
-          if (c >= n) (Pull.end, c)
-          else (as, c + 1)
-        }.flatten
+        counter <- Ref.make(0L).toManaged_
+        pull = counter.get.flatMap { c =>
+          if (c >= n) Pull.end
+          else as <* counter.set(c + 1)
+        }
       } yield pull
     }
 
