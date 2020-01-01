@@ -64,14 +64,14 @@ object ZMXProtocolSpec extends ZIOBaseSpec {
         },
         test("zmx server received a command with no args") {
           val expected = ZMXServerRequest("foobar", None)
-          assert(ZMXProtocol.serverReceived("*1\r\n$6\r\nfoobar\r\n"), equalTo(Some(expected)))
+          assert(ZMXProtocol.serverReceived("*1\r\n$6\r\nfoobar\r\n"))(equalTo(Some(expected)))
         },
         test("zmx server received nothing") {
-          assert(ZMXProtocol.serverReceived("*0\r\n"), equalTo(None))
+          assert(ZMXProtocol.serverReceived("*0\r\n"))(equalTo(None))
         },
         test("zmx server received a command with one argument") {
           val expected = ZMXServerRequest("foobar", Some(List("argy")))
-          assert(ZMXProtocol.serverReceived("*1\r\n$6\r\nfoobar\r\n$4\r\nargy\r\n"), equalTo(Some(expected)))
+          assert(ZMXProtocol.serverReceived("*1\r\n$6\r\nfoobar\r\n$4\r\nargy\r\n"))(equalTo(Some(expected)))
         }
       )
     )
