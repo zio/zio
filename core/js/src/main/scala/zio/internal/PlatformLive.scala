@@ -26,9 +26,9 @@ object PlatformLive {
   lazy val Default = Global
   lazy val Global  = fromExecutionContext(ExecutionContext.global)
 
-  final def makeDefault(): Platform = fromExecutionContext(global)
+  def makeDefault(): Platform = fromExecutionContext(global)
 
-  final def fromExecutor(executor0: Executor): Platform =
+  def fromExecutor(executor0: Executor): Platform =
     new Platform {
       val executor = executor0
 
@@ -46,6 +46,6 @@ object PlatformLive {
       val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
     }
 
-  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
+  def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 }

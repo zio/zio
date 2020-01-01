@@ -87,7 +87,7 @@ object Executor extends DefaultExecutors with Serializable {
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
    */
-  final def fromExecutionContext(yieldOpCount0: Int)(
+  def fromExecutionContext(yieldOpCount0: Int)(
     ec: ExecutionContext
   ): Executor =
     new Executor {

@@ -56,7 +56,7 @@ final case class TracingConfig(
 )
 
 object TracingConfig {
-  final def enabled   = TracingConfig(true, true, true, 100, 100, 10, 10, 10)
-  final def stackOnly = TracingConfig(false, false, true, 100, 100, 10, 10, 10)
-  final def disabled  = TracingConfig(false, false, false, 0, 0, 0, 0, 10)
+  def enabled   = TracingConfig(true, true, true, 100, 100, 10, 10, 10)
+  def stackOnly = TracingConfig(false, false, true, 100, 100, 10, 10, 10)
+  def disabled  = TracingConfig(false, false, false, 0, 0, 0, 0, 10)
 }

@@ -68,7 +68,7 @@ object Duration {
 
   object Finite {
 
-    final def apply(nanos: Long): Duration =
+    def apply(nanos: Long): Duration =
       if (nanos >= 0) new Finite(nanos)
       else Zero
 
@@ -76,7 +76,7 @@ object Duration {
 
   final case class Finite private (nanos: Long) extends Duration {
 
-    final def +(other: Duration): Duration = other match {
+    def +(other: Duration): Duration = other match {
       case Finite(otherNanos) =>
         val sum = nanos + otherNanos
         // Check for overflow
@@ -84,24 +84,24 @@ object Duration {
       case Infinity => Infinity
     }
 
-    final def *(factor: Double): Duration =
+    def *(factor: Double): Duration =
       if (factor <= 0 || nanos <= 0) Zero
       else if (factor < 1) Finite((nanos * factor).round)
       else if (factor < Long.MaxValue / nanos) Finite((nanos * factor).round)
       else Infinity
 
-    final def compare(other: Duration) = other match {
+    def compare(other: Duration) = other match {
       case Finite(otherNanos) => nanos compare otherNanos
       case Infinity           => -1
     }
 
-    final def copy(nanos: Long = this.nanos): Duration = Finite(nanos)
+    def copy(nanos: Long = this.nanos): Duration = Finite(nanos)
 
-    final def isZero: Boolean = nanos == 0
+    def isZero: Boolean = nanos == 0
 
-    final def toMillis: Long = TimeUnit.NANOSECONDS.toMillis(nanos)
+    def toMillis: Long = TimeUnit.NANOSECONDS.toMillis(nanos)
 
-    final def toNanos: Long = nanos
+    def toNanos: Long = nanos
 
     override def asScala: ScalaDuration = ScalaFiniteDuration(nanos, TimeUnit.NANOSECONDS)
 
@@ -132,12 +132,12 @@ object Duration {
 
   case object Infinity extends Duration {
 
-    final def +(other: Duration): Duration = Infinity
+    def +(other: Duration): Duration = Infinity
 
-    final def *(factor: Double): Duration =
+    def *(factor: Double): Duration =
       if (factor < 0) Duration.Zero else Infinity
 
-    final def compare(other: Duration) = if (other == this) 0 else 1
+    def compare(other: Duration) = if (other == this) 0 else 1
 
     val toMillis: Long = TimeUnit.NANOSECONDS.toMillis(Long.MaxValue)
 
@@ -152,20 +152,20 @@ object Duration {
     override def render: String = "Infinity"
   }
 
-  final def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
+  def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
 
-  final def fromNanos(nanos: Long): Duration = Finite(nanos)
+  def fromNanos(nanos: Long): Duration = Finite(nanos)
 
-  final def fromScala(duration: ScalaDuration): Duration = duration match {
+  def fromScala(duration: ScalaDuration): Duration = duration match {
     case d: ScalaFiniteDuration => fromNanos(d.toNanos)
     case _                      => Infinity
   }
 
-  final def fromJava(duration: JavaDuration): Duration =
+  def fromJava(duration: JavaDuration): Duration =
     if (duration.isNegative) Zero
     else if (duration.compareTo(JavaDuration.ofNanos(Long.MaxValue)) >= 0) Infinity
     else fromNanos(duration.toNanos)
 
-  final val Zero: Duration = Finite(0)
+  val Zero: Duration = Finite(0)
 
 }
