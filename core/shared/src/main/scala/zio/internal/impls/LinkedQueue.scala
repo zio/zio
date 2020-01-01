@@ -20,8 +20,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import zio.internal.MutableConcurrentQueue
 import java.util.concurrent.atomic.AtomicLong
 
-private[zio] class LinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
-  override final val capacity: Int = Int.MaxValue
+private[zio] final class LinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
+  override final val capacity = Int.MaxValue
 
   private[this] val jucConcurrentQueue = new ConcurrentLinkedQueue[A]()
 
@@ -33,19 +33,19 @@ private[zio] class LinkedQueue[A] extends MutableConcurrentQueue[A] with Seriali
   private[this] val enqueuedCounter = new AtomicLong(0)
   private[this] val dequeuedCounter = new AtomicLong(0)
 
-  override final def size(): Int = jucConcurrentQueue.size()
+  override def size(): Int = jucConcurrentQueue.size()
 
-  override final def enqueuedCount(): Long = enqueuedCounter.get()
+  override def enqueuedCount(): Long = enqueuedCounter.get()
 
-  override final def dequeuedCount(): Long = dequeuedCounter.get()
+  override def dequeuedCount(): Long = dequeuedCounter.get()
 
-  override final def offer(a: A): Boolean = {
+  override def offer(a: A): Boolean = {
     val success = jucConcurrentQueue.offer(a)
     if (success) enqueuedCounter.incrementAndGet()
     success
   }
 
-  override final def poll(default: A): A = {
+  override def poll(default: A): A = {
     val polled = jucConcurrentQueue.poll()
     if (polled != null) {
       dequeuedCounter.incrementAndGet()
@@ -53,7 +53,7 @@ private[zio] class LinkedQueue[A] extends MutableConcurrentQueue[A] with Seriali
     } else default
   }
 
-  override final def isEmpty(): Boolean = jucConcurrentQueue.isEmpty
+  override def isEmpty(): Boolean = jucConcurrentQueue.isEmpty
 
-  override final def isFull(): Boolean = false
+  override def isFull(): Boolean = false
 }

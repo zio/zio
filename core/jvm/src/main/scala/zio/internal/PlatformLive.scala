@@ -38,10 +38,10 @@ object PlatformLive {
    * */
   lazy val Benchmark = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
 
-  final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
+  def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
     fromExecutor(Executor.makeDefault(yieldOpCount))
 
-  final def fromExecutor(executor0: Executor) =
+  def fromExecutor(executor0: Executor) =
     new Platform {
       val executor = executor0
 
@@ -64,7 +64,7 @@ object PlatformLive {
 
     }
 
-  final def fromExecutionContext(ec: ExecutionContext): Platform =
+  def fromExecutionContext(ec: ExecutionContext): Platform =
     fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
 
   final val defaultYieldOpCount = 2048

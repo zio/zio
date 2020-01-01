@@ -41,22 +41,22 @@ private[zio] abstract class ZIOFn2[-A, -B, +C] extends ZIOFn with Function2[A, B
 }
 
 private[zio] object ZIOFn {
-  final def apply[A, B](traceAs: AnyRef)(real: A => B): ZIOFn1[A, B] = new ZIOFn1[A, B] {
+  def apply[A, B](traceAs: AnyRef)(real: A => B): ZIOFn1[A, B] = new ZIOFn1[A, B] {
     final val underlying: AnyRef = traceAs
-    final def apply(a: A): B     = real(a)
+    def apply(a: A): B           = real(a)
   }
 
   /**
    * Adds the specified lambda to the execution trace before `zio` is evaluated
    */
   @noinline
-  final def recordTrace[R, E, A](lambda: AnyRef)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def recordTrace[R, E, A](lambda: AnyRef)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.unit.flatMap(ZIOFn(lambda)(_ => zio))
 
   /**
    * Adds the specified lambda to the stack trace during the evaluation of `zio`
    * */
   @noinline
-  final def recordStackTrace[R, E, A](lambda: AnyRef)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def recordStackTrace[R, E, A](lambda: AnyRef)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.map(ZIOFn(lambda)(ZIO.identityFn))
 }

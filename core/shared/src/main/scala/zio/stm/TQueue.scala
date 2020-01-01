@@ -20,8 +20,8 @@ import com.github.ghik.silencer.silent
 
 import scala.collection.immutable.{ Queue => ScalaQueue }
 
-class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
-  final def offer(a: A): STM[Nothing, Unit] =
+final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
+  def offer(a: A): STM[Nothing, Unit] =
     for {
       q <- ref.get
       _ <- STM.check(q.length < capacity)
@@ -30,14 +30,14 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 
   // TODO: Scala doesn't allow Iterable???
   @silent("enqueueAll")
-  final def offerAll(as: List[A]): STM[Nothing, Unit] =
+  def offerAll(as: List[A]): STM[Nothing, Unit] =
     ref.update(_.enqueue(as)).unit
 
-  final def poll: STM[Nothing, Option[A]] = takeUpTo(1).map(_.headOption)
+  def poll: STM[Nothing, Option[A]] = takeUpTo(1).map(_.headOption)
 
-  final def size: STM[Nothing, Int] = ref.get.map(_.length)
+  def size: STM[Nothing, Int] = ref.get.map(_.length)
 
-  final def take: STM[Nothing, A] =
+  def take: STM[Nothing, A] =
     ref.get.flatMap { q =>
       q.dequeueOption match {
         case Some((a, as)) =>
@@ -46,10 +46,10 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       }
     }
 
-  final def takeAll: STM[Nothing, List[A]] =
+  def takeAll: STM[Nothing, List[A]] =
     ref.modify(q => (q.toList, ScalaQueue.empty[A]))
 
-  final def takeUpTo(max: Int): STM[Nothing, List[A]] =
+  def takeUpTo(max: Int): STM[Nothing, List[A]] =
     ref.get
       .map(_.splitAt(max))
       .flatMap(split => ref.set(split._2) *> STM.succeed(split._1))
@@ -57,6 +57,6 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 }
 
 object TQueue {
-  final def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
+  def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
     TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 }

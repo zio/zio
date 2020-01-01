@@ -33,7 +33,7 @@ import scala.util.{ Failure, Success, Try }
  */
 final class AsmTracer extends Tracer {
 
-  final def traceLocation(lambda: AnyRef): SourceLocation = {
+  def traceLocation(lambda: AnyRef): SourceLocation = {
     val clazz       = lambda.getClass
     val classLoader = clazz.getClassLoader
 

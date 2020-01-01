@@ -43,7 +43,7 @@ object Scheduler {
   /**
    * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.
    */
-  final def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler =
+  def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler =
     new Scheduler {
       val ConstFalse = () => false
 

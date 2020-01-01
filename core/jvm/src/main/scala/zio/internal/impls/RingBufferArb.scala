@@ -16,8 +16,8 @@
 
 package zio.internal.impls
 
-class RingBufferArb[A] private (capacity: Int) extends RingBuffer[A](capacity) {
-  protected final def posToIdx(pos: Long, capacity: Int): Int = (pos % capacity.toLong).toInt
+final class RingBufferArb[A] private (capacity: Int) extends RingBuffer[A](capacity) {
+  protected def posToIdx(pos: Long, capacity: Int): Int = (pos % capacity.toLong).toInt
 }
 
 object RingBufferArb {
