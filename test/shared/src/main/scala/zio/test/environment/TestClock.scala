@@ -112,7 +112,7 @@ object TestClock extends Serializable {
     def timeZone: UIO[ZoneId]
   }
 
-  case class Test(
+  final case class Test(
     clockState: Ref[TestClock.Data],
     fiberState: FiberRef[TestClock.FiberData],
     live: Live.Service[Clock with Console],
@@ -124,7 +124,7 @@ object TestClock extends Serializable {
      * that were scheduled to occur on or before the new time will immediately
      * be run.
      */
-    final def adjust(duration: Duration): UIO[Unit] =
+    def adjust(duration: Duration): UIO[Unit] =
       warningDone *> clockState.modify { data =>
         val nanoTime          = data.nanoTime + duration.toNanos
         val currentTimeMillis = data.currentTimeMillis + duration.toMillis
@@ -140,13 +140,13 @@ object TestClock extends Serializable {
     /**
      * Returns the current clock time as an `OffsetDateTime`.
      */
-    final def currentDateTime: UIO[OffsetDateTime] =
+    def currentDateTime: UIO[OffsetDateTime] =
       clockState.get.map(data => toDateTime(data.currentTimeMillis, data.timeZone))
 
     /**
      * Returns the current clock time in the specified time unit.
      */
-    final def currentTime(unit: TimeUnit): UIO[Long] =
+    def currentTime(unit: TimeUnit): UIO[Long] =
       clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
     /**
@@ -165,13 +165,13 @@ object TestClock extends Serializable {
      * } yield result.toNanos == 2000000L
      * }}}
      */
-    final val fiberTime: UIO[Duration] =
+    val fiberTime: UIO[Duration] =
       fiberState.get.map(_.nanoTime.nanos)
 
     /**
      * Returns the current clock time in nanoseconds.
      */
-    final val nanoTime: UIO[Long] =
+    val nanoTime: UIO[Long] =
       clockState.get.map(_.nanoTime)
 
     /**
@@ -242,7 +242,7 @@ object TestClock extends Serializable {
      * effects that were scheduled to occur on or before the new time will
      * immediately be run.
      */
-    final def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
+    def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
       setTime(fromDateTime(dateTime))
 
     /**
@@ -250,7 +250,7 @@ object TestClock extends Serializable {
      * since the epoch. Any effects that were scheduled to occur on or before
      * the new time will immediately be run.
      */
-    final def setTime(duration: Duration): UIO[Unit] =
+    def setTime(duration: Duration): UIO[Unit] =
       warningDone *> clockState.modify { data =>
         val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
         val updated = data.copy(
@@ -266,7 +266,7 @@ object TestClock extends Serializable {
      * of nanoseconds since the epoch will not be adjusted and no scheduled
      * effects will be run as a result of this method.
      */
-    final def setTimeZone(zone: ZoneId): UIO[Unit] =
+    def setTimeZone(zone: ZoneId): UIO[Unit] =
       clockState.update(_.copy(timeZone = zone)).unit
 
     /**
@@ -274,7 +274,7 @@ object TestClock extends Serializable {
      * or greater than the specified duration. Once the clock time is adjusted
      * to on or after the duration, the fiber will automatically be resumed.
      */
-    final def sleep(duration: Duration): UIO[Unit] =
+    def sleep(duration: Duration): UIO[Unit] =
       for {
         latch <- Promise.make[Nothing, Unit]
         start <- fiberState.modify { data =>
@@ -425,14 +425,14 @@ object TestClock extends Serializable {
   /**
    * The state of the `TestClock`.
    */
-  case class Data(
+  final case class Data(
     nanoTime: Long,
     currentTimeMillis: Long,
     sleeps: List[(Duration, Promise[Nothing, Unit])],
     timeZone: ZoneId
   )
 
-  case class FiberData(nanoTime: Long)
+  final case class FiberData(nanoTime: Long)
 
   object FiberData {
     def combine(first: FiberData, last: FiberData): FiberData =

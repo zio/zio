@@ -69,7 +69,7 @@ object TestConsole extends Serializable {
     def clearOutput: UIO[Unit]
   }
 
-  case class Test(consoleState: Ref[TestConsole.Data]) extends TestConsole.Service[Any] {
+  final case class Test(consoleState: Ref[TestConsole.Data]) extends TestConsole.Service[Any] {
 
     /**
      * Clears the contents of the input buffer.
@@ -206,5 +206,5 @@ object TestConsole extends Serializable {
   /**
    * The state of the `TestConsole`.
    */
-  case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
+  final case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
 }

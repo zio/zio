@@ -55,7 +55,7 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
       def cont(state: State)           = self.cont(state)
     }
 
-  override def mapRemainder[A1](f: A0 => A1): SinkPure[E, A1, A, B] =
+  override final def mapRemainder[A1](f: A0 => A1): SinkPure[E, A1, A, B] =
     new SinkPure[E, A1, A, B] {
       type State = self.State
       val initialPure                  = self.initialPure
@@ -64,7 +64,7 @@ private[stream] trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] 
       def cont(state: State)           = self.cont(state)
     }
 
-  override def step(s: State, a: A) = IO.succeed(stepPure(s, a))
+  override final def step(s: State, a: A) = IO.succeed(stepPure(s, a))
 
   final def stepChunkPure[A00 >: A0, A1 <: A](state: State, as: Chunk[A1])(
     implicit ev: A1 =:= A00

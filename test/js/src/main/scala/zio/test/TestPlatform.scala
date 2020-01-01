@@ -25,10 +25,10 @@ object TestPlatform {
   /**
    * Returns whether the current platform is ScalaJS.
    */
-  val isJS = true
+  final val isJS = true
 
   /**
    * Returns whether the currently platform is the JVM.
    */
-  val isJVM = false
+  final val isJVM = false
 }

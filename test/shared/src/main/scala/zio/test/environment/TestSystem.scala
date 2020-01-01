@@ -51,7 +51,7 @@ object TestSystem extends Serializable {
     def clearProperty(prop: String): UIO[Unit]
   }
 
-  case class Test(systemState: Ref[TestSystem.Data]) extends TestSystem.Service[Any] {
+  final case class Test(systemState: Ref[TestSystem.Data]) extends TestSystem.Service[Any] {
 
     /**
      * Returns the specified environment variable if it exists.
@@ -184,7 +184,7 @@ object TestSystem extends Serializable {
   /**
    * The state of the `TestSystem`.
    */
-  case class Data(
+  final case class Data(
     properties: Map[String, String] = Map.empty,
     envs: Map[String, String] = Map.empty,
     lineSeparator: String = "\n"

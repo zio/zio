@@ -7,17 +7,17 @@ import zio.test.environment.TestEnvironment
 
 object TestUtils {
 
-  final def execute[E, L, S](spec: ZSpec[TestEnvironment, E, L, S]): UIO[ExecutedSpec[E, L, S]] =
+  def  execute[E, L, S](spec: ZSpec[TestEnvironment, E, L, S]): UIO[ExecutedSpec[E, L, S]] =
     TestExecutor.managed(environment.testEnvironmentManaged)(spec, ExecutionStrategy.Sequential)
 
-  final def forAllTests[E, L, S](
+  def  forAllTests[E, L, S](
     execSpec: UIO[ExecutedSpec[E, L, S]]
   )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
     execSpec.flatMap { results =>
       results.forall { case Spec.TestCase(_, test) => test.map(r => f(r._1)); case _ => ZIO.succeed(true) }
     }
 
-  final def isIgnored[E, L, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+  def  isIgnored[E, L, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
     forAllTests(execSpec) {
       case Right(TestSuccess.Ignored) => true
@@ -25,7 +25,7 @@ object TestUtils {
     }
   }
 
-  final def isSuccess[E, L, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
+  def  isSuccess[E, L, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {
     val execSpec = execute(spec)
     forAllTests(execSpec) {
       case Right(TestSuccess.Succeeded(_)) => true
@@ -33,13 +33,13 @@ object TestUtils {
     }
   }
 
-  final def label(test: => Future[Boolean], label: String): Async[(Boolean, String)] =
+  def  label(test: => Future[Boolean], label: String): Async[(Boolean, String)] =
     Async
       .fromFuture(test)
       .map(passed => if (passed) (passed, succeed(label)) else (passed, fail(label)))
       .handle { case _ => (false, fail(label)) }
 
-  final def report(suites: Iterable[Async[List[(Boolean, String)]]])(implicit ec: ExecutionContext): Unit = {
+  def  report(suites: Iterable[Async[List[(Boolean, String)]]])(implicit ec: ExecutionContext): Unit = {
     val async = Async
       .sequence(suites)
       .map(_.flatten)
@@ -52,7 +52,7 @@ object TestUtils {
     ExitUtils.await(async.run(ec))
   }
 
-  final def scope(tests: List[Async[(Boolean, String)]], label: String): Async[List[(Boolean, String)]] =
+  def  scope(tests: List[Async[(Boolean, String)]], label: String): Async[List[(Boolean, String)]] =
     Async.sequence(tests).map { tests =>
       val offset = tests.map { case (passed, label) => (passed, "  " + label) }
       val passed = tests.forall(_._1)
