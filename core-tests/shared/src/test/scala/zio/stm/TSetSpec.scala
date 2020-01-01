@@ -26,16 +26,16 @@ object TSetSpec extends ZIOBaseSpec {
     suite("factories")(
       testM("apply") {
         val tx = TSet.make(1, 2, 2, 3).flatMap[Any, Nothing, List[Int]](_.toList)
-        assertM(tx.commit, hasSameElements(List(1, 2, 3)))
+        assertM(tx.commit)(hasSameElements(List(1, 2, 3)))
 
       },
       testM("empty") {
         val tx = TSet.empty[Int].flatMap[Any, Nothing, List[Int]](_.toList)
-        assertM(tx.commit, isEmpty)
+        assertM(tx.commit)(isEmpty)
       },
       testM("fromIterable") {
         val tx = TSet.fromIterable(List(1, 2, 2, 3)).flatMap[Any, Nothing, List[Int]](_.toList)
-        assertM(tx.commit, hasSameElements(List(1, 2, 3)))
+        assertM(tx.commit)(hasSameElements(List(1, 2, 3)))
       }
     ),
     suite("lookups")(

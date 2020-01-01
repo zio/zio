@@ -294,9 +294,8 @@ object ZSTMSpec extends ZIOBaseSpec {
           STM
             .succeed((1 to 20).toList)
             .collectM[Any, Nothing, String] { case l if l.forall(_ > 0) => STM.succeed("Positive") }
-            .commit,
-          equalTo("Positive")
-        )
+            .commit
+        )(equalTo("Positive"))
       }
     ),
     testM("Permute 2 variables") {
@@ -478,13 +477,13 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("access environment and provide it outside transaction") {
         STMEnv.make(0).flatMap { env =>
           ZSTM.accessM[STMEnv](_.ref.update(_ + 1)).commit.provide(env) *>
-            assertM(env.ref.get.commit, equalTo(1))
+            assertM(env.ref.get.commit)(equalTo(1))
         }
       },
       testM("access environment and provide it inside transaction") {
         STMEnv.make(0).flatMap { env =>
           ZSTM.accessM[STMEnv](_.ref.update(_ + 1)).provide(env).commit *>
-            assertM(env.ref.get.commit, equalTo(1))
+            assertM(env.ref.get.commit)(equalTo(1))
         }
       }
     )
