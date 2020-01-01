@@ -11,6 +11,63 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
   def spec = suite("StreamPullSafetySpec")(combinators, constructors)
 
   def combinators = suite("Combinators")(
+    suite("Stream.aggregate")(
+      testM("is safe to pull again after success") {
+        Stream(1, 2, 3, 4, 5, 6)
+          .aggregate(ZSink.collectAllN[Int](2).map(_.sum))
+          .process
+          .use(nPulls(_, 5))
+          .map(assert(_)(equalTo(List(Right(3), Right(7), Right(11), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after upstream failure") {
+        (Stream(1, 2) ++ Stream.fail("Ouch") ++ Stream(3, 4))
+          .aggregate(ZSink.collectAllN[Int](2).map(_.sum))
+          .process
+          .use(nPulls(_, 5))
+          .map(assert(_)(equalTo(List(Right(3), Left(Some("Ouch")), Right(7), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after sink step failure") {
+        Stream(1, 2, 3, 4)
+          .aggregate(ZSink.identity[Int].contramapM { n: Int =>
+            if (n % 2 == 0) IO.fail("Ouch") else UIO.succeed(n)
+          })
+          .process
+          .use(nPulls(_, 6))
+          .map(
+            assert(_)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3), Left(Some("Ouch")), Left(None), Left(None))))
+          )
+      },
+      testM("is safe to pull again after sink extraction failure") {
+        assertM(
+          Stream(1, 2, 3, 4)
+            .aggregate(ZSink.fromFunctionM { n: Int =>
+              if (n % 2 == 0) IO.fail("Ouch") else UIO.succeed(n)
+            })
+            .process
+            .use(nPulls(_, 6))
+        )(
+          equalTo(
+            List(Right(1), Left(Some(Some("Ouch"))), Right(3), Left(Some(Some("Ouch"))), Left(None), Left(None))
+          )
+        )
+      }
+    ),
+    suite("Stream.aggregateManaged")(
+      testM("is safe to pull again after success") {
+        Stream(1, 2, 3, 4, 5, 6)
+          .aggregateManaged(Managed.succeed(ZSink.collectAllN[Int](2).map(_.sum)))
+          .process
+          .use(nPulls(_, 5))
+          .map(assert(_)(equalTo(List(Right(3), Right(7), Right(11), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again from a failed Managed") {
+        Stream(1, 2, 3, 4, 5, 6)
+          .aggregateManaged(Managed.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      }
+    ),
     testM("Stream.drop is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5, 6, 7)

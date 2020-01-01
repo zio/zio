@@ -233,58 +233,73 @@ private[stream] class StreamEffect[-R, +E, +A](val processEffect: ZManaged[R, No
 
   override def aggregate[R1 <: R, E1 >: E, A1 >: A, B](
     sink: ZSink[R1, E1, A1, A1, B]
-  ): ZStream[R1, E1, B] =
+  ): ZStream[R1, E1, B] = {
+    import ZStream.internal.AggregateState
+
     sink match {
       case sink: SinkPure[E1, A1, A1, B] =>
         StreamEffect {
           self.processEffect.flatMap { thunk =>
             Managed.effectTotal {
-              var done                 = false
-              var leftovers: Chunk[A1] = Chunk.empty
+              var state: AggregateState[sink.State, A1] = AggregateState.Pull(sink.initialPure, false)
 
-              () => {
-                def go(state: sink.State, dirty: Boolean): B =
-                  if (!dirty) {
-                    if (done) StreamEffect.end
-                    else if (leftovers.nonEmpty) {
-                      val (newState, newLeftovers) = sink.stepChunkPure(state, leftovers)
-                      leftovers = newLeftovers
-                      go(newState, true)
-                    } else {
-                      val a = thunk()
-                      go(sink.stepPure(state, a), true)
-                    }
+              @annotation.tailrec
+              def go(): B = state match {
+                case AggregateState.Pull(s, dirty) =>
+                  try {
+                    val a  = thunk()
+                    val ns = sink.stepPure(s, a)
+                    state =
+                      if (sink.cont(ns)) AggregateState.Pull(ns, true) else AggregateState.Extract(ns, Chunk.empty)
+                  } catch {
+                    case StreamEffect.End =>
+                      state = if (dirty) AggregateState.DirtyDone(s) else AggregateState.Done
+                  }
+                  go()
+
+                case AggregateState.Extract(s, chunk) =>
+                  sink
+                    .extractPure(s)
+                    .fold(StreamEffect.fail[E1, B], {
+                      case (b, leftovers) =>
+                        state = AggregateState.Drain(sink.initialPure, chunk ++ leftovers, 0)
+                        b
+                    })
+
+                case AggregateState.Drain(s, leftovers, index) =>
+                  if (index < leftovers.length) {
+                    val ns = sink.stepPure(s, leftovers(index))
+                    state =
+                      if (sink.cont(ns)) AggregateState.Drain(ns, leftovers, index + 1)
+                      else AggregateState.Extract(ns, leftovers.drop(index + 1))
+                    go()
                   } else {
-                    if (done || !sink.cont(state)) {
-                      sink.extractPure(state) match {
-                        case Left(e) => StreamEffect.fail(e)
-                        case Right((b, newLeftovers)) =>
-                          leftovers = leftovers ++ newLeftovers
-                          b
-                      }
-                    } else {
-                      try go(sink.stepPure(state, thunk()), true)
-                      catch {
-                        case StreamEffect.End =>
-                          done = true
-                          sink.extractPure(state) match {
-                            case Left(e) => StreamEffect.fail(e)
-                            case Right((b, newLeftovers)) =>
-                              leftovers = leftovers ++ newLeftovers
-                              b
-                          }
-                      }
-                    }
+                    state =
+                      if (sink.cont(s)) AggregateState.Pull(s, index != 0) else AggregateState.Extract(s, Chunk.empty)
+                    go()
                   }
 
-                go(sink.initialPure, false)
+                case AggregateState.DirtyDone(s) =>
+                  sink
+                    .extractPure(s)
+                    .fold(StreamEffect.fail[E1, B], {
+                      case (b, _) =>
+                        state = AggregateState.Done
+                        b
+                    })
+
+                case AggregateState.Done =>
+                  StreamEffect.end
               }
+
+              () => go()
             }
           }
         }
 
       case sink: ZSink[R1, E1, A1, A1, B] => super.aggregate(sink)
     }
+  }
 
   override final def toInputStream(
     implicit ev0: E <:< Throwable,
