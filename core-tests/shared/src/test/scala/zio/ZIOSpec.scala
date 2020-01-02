@@ -2000,7 +2000,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield ()
 
         assertM(io.timeoutTo(42)(_ => 0)(1.second))(equalTo(0)).provide(Clock.Live)
-      },
+      } @@ flaky,
       testM("bracketForkExit release called on interrupt in separate fiber") {
         for {
           done <- Promise.make[Nothing, Unit]
