@@ -50,7 +50,7 @@ case class TestEnvironment(
   /**
    * Maps all test implementations in the test environment individually.
    */
-  def mapAll(
+  final def mapAll(
     mapTestClock: TestClock.Service[Any] => TestClock.Service[Any] = identity,
     mapTestConsole: TestConsole.Service[Any] => TestConsole.Service[Any] = identity,
     mapTestRandom: TestRandom.Service[Any] => TestRandom.Service[Any] = identity,
@@ -71,28 +71,28 @@ case class TestEnvironment(
    * Maps the [[TestClock]] implementation in the test environment, leaving
    * all other test implementations the same.
    */
-  def mapTestClock(f: TestClock.Service[Any] => TestClock.Service[Any]): TestEnvironment =
+  final def mapTestClock(f: TestClock.Service[Any] => TestClock.Service[Any]): TestEnvironment =
     mapAll(mapTestClock = f)
 
   /**
    * Maps the [[TestConsole]] implementation in the test environment, leaving
    * all other test implementations the same.
    */
-  def mapTestConsole(f: TestConsole.Service[Any] => TestConsole.Service[Any]): TestEnvironment =
+  final def mapTestConsole(f: TestConsole.Service[Any] => TestConsole.Service[Any]): TestEnvironment =
     mapAll(mapTestConsole = f)
 
   /**
    * Maps the [[TestRandom]] implementation in the test environment, leaving
    * all other test implementations the same.
    */
-  def mapTestRandom(f: TestRandom.Service[Any] => TestRandom.Service[Any]): TestEnvironment =
+  final def mapTestRandom(f: TestRandom.Service[Any] => TestRandom.Service[Any]): TestEnvironment =
     mapAll(mapTestRandom = f)
 
   /**
    * Maps the [[TestSystem]] implementation in the test environment, leaving
    * all other test implementations the same.
    */
-  def mapTestSystem(f: TestSystem.Service[Any] => TestSystem.Service[Any]): TestEnvironment =
+  final def mapTestSystem(f: TestSystem.Service[Any] => TestSystem.Service[Any]): TestEnvironment =
     mapAll(mapTestSystem = f)
 
   /**
@@ -100,7 +100,7 @@ case class TestEnvironment(
    * uses the live environment, leaving all other test implementations the
    * same.
    */
-  def withLiveClock: TestEnvironment =
+  final def withLiveClock: TestEnvironment =
     mapTestClock { _ =>
       new TestClock.Service[Any] {
         def adjust(duration: Duration): UIO[Unit]            = UIO.unit
@@ -124,7 +124,7 @@ case class TestEnvironment(
    * that uses the live environment, leaving all other test implementations the
    * same.
    */
-  def withLiveConsole: TestEnvironment =
+  final def withLiveConsole: TestEnvironment =
     mapTestConsole { _ =>
       new TestConsole.Service[Any] {
         val clearInput: UIO[Unit]                = UIO.unit
@@ -143,7 +143,7 @@ case class TestEnvironment(
    * uses the live environment, leaving all other test implementations the
    * same.
    */
-  def withLiveRandom: TestEnvironment =
+  final def withLiveRandom: TestEnvironment =
     mapTestRandom { _ =>
       new TestRandom.Service[Any] {
         val clearBooleans: UIO[Unit]                    = UIO.unit
@@ -184,7 +184,7 @@ case class TestEnvironment(
    * uses the live environment, leaving all other test implementations the
    * same.
    */
-  def withLiveSystem: TestEnvironment =
+  final def withLiveSystem: TestEnvironment =
     mapTestSystem { _ =>
       new TestSystem.Service[Any] {
         def clearEnv(variable: String): UIO[Unit]                        = UIO.unit
