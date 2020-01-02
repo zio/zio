@@ -100,7 +100,7 @@ trait TestEnvironment
         def setDateTime(dateTime: OffsetDateTime): UIO[Unit] = UIO.unit
         def setTime(duration: Duration): UIO[Unit]           = UIO.unit
         def setTimeZone(zone: ZoneId): UIO[Unit]             = UIO.unit
-        val scheduler: UIO[IScheduler]                        = SchedulerLive.scheduler.scheduler
+        val scheduler: UIO[IScheduler]                       = SchedulerLive.scheduler.scheduler
         def sleep(duration: Duration): UIO[Unit]             = live.provide(zio.clock.sleep(duration))
         val sleeps: UIO[List[Duration]]                      = UIO.succeed(List.empty)
         val timeZone: UIO[ZoneId]                            = UIO.succeed(ZoneId.of("UTC"))
