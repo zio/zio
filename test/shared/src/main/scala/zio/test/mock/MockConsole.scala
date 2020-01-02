@@ -23,7 +23,7 @@ import zio.console.Console
 
 trait MockConsole extends Console {
 
-  val console: MockConsole.Service[Any]
+  def console: MockConsole.Service[Any]
 }
 
 object MockConsole {

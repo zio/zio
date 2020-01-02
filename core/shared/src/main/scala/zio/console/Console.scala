@@ -24,7 +24,7 @@ import scala.io.StdIn
 import scala.{ Console => SConsole }
 
 trait Console extends Serializable {
-  val console: Console.Service[Any]
+  def console: Console.Service[Any]
 }
 object Console extends Serializable {
   trait Service[R] {

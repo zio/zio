@@ -19,7 +19,7 @@ package zio.system
 import zio.{ UIO, ZIO }
 
 trait System extends Serializable {
-  val system: System.Service[Any]
+  def system: System.Service[Any]
 }
 object System extends Serializable {
   trait Service[R] extends Serializable {
