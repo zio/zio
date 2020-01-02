@@ -27,7 +27,7 @@ import zio.{ FiberRef, UIO, ZIO }
  * monad effect.
  */
 trait Annotations {
-  val annotations: Annotations.Service[Any]
+  def annotations: Annotations.Service[Any]
 }
 
 object Annotations {

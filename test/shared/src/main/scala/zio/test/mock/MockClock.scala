@@ -25,7 +25,7 @@ import zio.duration.Duration
 
 trait MockClock extends Clock {
 
-  val clock: MockClock.Service[Any]
+  def clock: MockClock.Service[Any]
 }
 
 object MockClock {

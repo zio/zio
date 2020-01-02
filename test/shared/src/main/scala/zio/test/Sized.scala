@@ -19,7 +19,7 @@ package zio.test
 import zio.{ FiberRef, UIO, ZIO }
 
 trait Sized {
-  val sized: Sized.Service[Any]
+  def sized: Sized.Service[Any]
 }
 
 object Sized {

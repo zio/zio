@@ -19,7 +19,7 @@ package zio.random
 import zio.{ Chunk, Ref, UIO, ZIO }
 
 trait Random extends Serializable {
-  val random: Random.Service[Any]
+  def random: Random.Service[Any]
 }
 object Random extends Serializable {
   trait Service[R] extends Serializable {
