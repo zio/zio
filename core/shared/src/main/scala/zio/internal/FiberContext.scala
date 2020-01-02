@@ -16,15 +16,15 @@
 
 package zio.internal
 
-import FiberContext.FiberRefLocals
-import com.github.ghik.silencer.silent
-import stacktracer.ZTraceElement
-import tracing.ZIOFn
-
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
+
+import FiberContext.FiberRefLocals
+import com.github.ghik.silencer.silent
+import stacktracer.ZTraceElement
+import tracing.ZIOFn
 
 import zio._
 

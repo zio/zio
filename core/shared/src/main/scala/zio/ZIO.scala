@@ -2038,9 +2038,9 @@ object ZIO {
     register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] = {
-    import internal.OneShot
-
     import java.util.concurrent.atomic.AtomicBoolean
+
+    import internal.OneShot
 
     effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
       case (started, cancel) =>

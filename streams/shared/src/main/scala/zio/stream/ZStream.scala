@@ -16,10 +16,10 @@
 
 package zio.stream
 
-import com.github.ghik.silencer.silent
-
 import java.io.{ IOException, InputStream }
 import java.{ util => ju }
+
+import com.github.ghik.silencer.silent
 
 import zio._
 import zio.clock.Clock

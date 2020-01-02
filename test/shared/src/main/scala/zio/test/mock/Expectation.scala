@@ -16,9 +16,9 @@
 
 package zio.test.mock
 
-import com.github.ghik.silencer.silent
-
 import scala.language.implicitConversions
+
+import com.github.ghik.silencer.silent
 
 import zio.test.Assertion
 import zio.test.mock.Expectation.{ AnyCall, Call, Empty, FlatMap, Next, State }

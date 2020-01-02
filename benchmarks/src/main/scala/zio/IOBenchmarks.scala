@@ -1,11 +1,11 @@
 package zio
 
+import scala.concurrent.ExecutionContext
+
 import cats._
 import cats.effect.{ ContextShift, IO => CIO }
 import cats.effect.{ Fiber => CFiber }
 import monix.eval.{ Task => MTask }
-
-import scala.concurrent.ExecutionContext
 
 import zio.internal._
 

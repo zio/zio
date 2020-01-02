@@ -1,12 +1,11 @@
 package zio
 
-import IOBenchmarks._
-
-import org.openjdk.jmh.annotations._
-
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.Await
+
+import IOBenchmarks._
+import org.openjdk.jmh.annotations._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

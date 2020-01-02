@@ -16,9 +16,9 @@
 
 package zio.internal.stacktracer.impl
 
-import AkkaLineNumbersTracer.lambdaNamePattern
-
 import scala.util.matching.Regex
+
+import AkkaLineNumbersTracer.lambdaNamePattern
 
 import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
 import zio.internal.stacktracer.{ Tracer, ZTraceElement }

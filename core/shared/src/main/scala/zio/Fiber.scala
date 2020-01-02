@@ -16,10 +16,10 @@
 
 package zio
 
-import com.github.ghik.silencer.silent
-
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
+
+import com.github.ghik.silencer.silent
 
 import zio.internal.Executor
 import zio.internal.stacktracer.ZTraceElement

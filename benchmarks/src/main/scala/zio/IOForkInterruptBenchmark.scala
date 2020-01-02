@@ -1,10 +1,9 @@
 package zio
 
-import cats.effect.concurrent.Deferred
-
-import org.openjdk.jmh.annotations._
-
 import java.util.concurrent.TimeUnit
+
+import cats.effect.concurrent.Deferred
+import org.openjdk.jmh.annotations._
 
 import zio.IOBenchmarks._
 

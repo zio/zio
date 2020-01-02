@@ -1,10 +1,10 @@
 package zio
 
-import org.openjdk.jmh.annotations._
-
 import java.util.concurrent.TimeUnit
 
 import scala.collection.immutable.Range
+
+import org.openjdk.jmh.annotations._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
