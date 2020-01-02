@@ -916,7 +916,7 @@ object ZSTM {
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  val retry: ZSTM[Any, Nothing, Nothing] = new STM((_, _, _, _) => TExit.Retry)
+  val retry: ZSTM[Any, Nothing, Nothing] = new ZSTM((_, _, _, _) => TExit.Retry)
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.
