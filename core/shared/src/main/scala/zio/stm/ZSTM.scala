@@ -245,23 +245,23 @@ final class ZSTM[-R, +E, +A] private[stm] (
       (journal, fiberId, stackSize, r) => {
         val reset = prepareResetJournal(journal)
 
-        val continueM: TExit[E, A] => ZSTM[R1, E1, A1] = {
-          case TExit.Fail(_)    => { reset(); that }
+        val continueM: TExit[E, A] => STM[E1, A1] = {
+          case TExit.Fail(_)    => { reset(); that.provide(r) }
           case TExit.Succeed(a) => ZSTM.succeed(a)
-          case TExit.Retry      => { reset(); that }
+          case TExit.Retry      => { reset(); that.provide(r) }
         }
 
         val framesCount = stackSize.incrementAndGet()
 
         if (framesCount > ZSTM.MaxFrames) {
-          throw new ZSTM.Resumable(self, Stack(continueM))
+          throw new ZSTM.Resumable(self.provide(r), Stack(continueM))
         } else {
           val continued =
             try {
               continueM(self.exec(journal, fiberId, stackSize, r))
             } catch {
-              case res: ZSTM.Resumable[r, r1, e, e1, a, b] =>
-                res.ks.push(continueM.asInstanceOf[TExit[e, a] => ZSTM[r1, e1, b]])
+              case res: ZSTM.Resumable[e, e1, a, b] =>
+                res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
                 throw res
             }
 
@@ -291,7 +291,24 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * leaving the remainder `R0`.
    */
   def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] =
-    new ZSTM((journal, fiberId, aLong, r0) => self.exec(journal, fiberId, aLong, f(r0)))
+    new ZSTM(
+      (journal, fiberId, stackSize, r0) => {
+
+        val framesCount = stackSize.incrementAndGet()
+
+        if (framesCount > ZSTM.MaxFrames) {
+          throw new ZSTM.Resumable(
+            new ZSTM(
+              (journal, fiberId, stackSize, _) => self.exec(journal, fiberId, stackSize, f(r0))
+            ),
+            Stack[TExit[E, A] => STM[E, A]]()
+          )
+        } else {
+          // no need to catch resumable here
+          self.exec(journal, fiberId, stackSize, f(r0))
+        }
+      }
+    )
 
   /**
    * Maps the success value of this effect to unit.
@@ -334,14 +351,14 @@ final class ZSTM[-R, +E, +A] private[stm] (
         val framesCount = stackSize.incrementAndGet()
 
         if (framesCount > ZSTM.MaxFrames) {
-          throw new ZSTM.Resumable(self, Stack(continueM))
+          throw new ZSTM.Resumable(self.provide(r), Stack(continueM.andThen(_.provide(r))))
         } else {
           val continued =
             try {
               continueM(self.exec(journal, fiberId, stackSize, r))
             } catch {
-              case res: ZSTM.Resumable[r, r1, e, e1, a, b] =>
-                res.ks.push(continueM.asInstanceOf[TExit[e, a] => ZSTM[r1, e1, b]])
+              case res: ZSTM.Resumable[e, e1, a, b] =>
+                res.ks.push(continueM.asInstanceOf[TExit[e, a] => STM[e1, b]])
                 throw res
             }
 
@@ -351,12 +368,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
     )
 
   private def run(journal: ZSTM.internal.Journal, fiberId: Fiber.Id, r: R): TExit[E, A] = {
-    type Cont = ZSTM.internal.TExit[E, A] => ZSTM[R, E, A]
+    type Cont = ZSTM.internal.TExit[Any, Any] => STM[Any, Any]
 
     val stackSize = new AtomicLong()
     val stack     = new Stack[Cont]()
-    var current   = self
-    var result    = null.asInstanceOf[TExit[E, A]]
+    var current   = self.asInstanceOf[ZSTM[R, Any, Any]]
+    var result    = null: TExit[Any, Any]
 
     while (result eq null) {
       try {
@@ -369,13 +386,13 @@ final class ZSTM[-R, +E, +A] private[stm] (
           current = next(v)
         }
       } catch {
-        case cont: ZSTM.Resumable[R, R, E, E, A, A] =>
+        case cont: ZSTM.Resumable[_, _, _, _] =>
           current = cont.stm
-          while (!cont.ks.isEmpty) stack.push(cont.ks.pop())
+          while (!cont.ks.isEmpty) stack.push(cont.ks.pop().asInstanceOf[Cont])
           stackSize.set(0)
       }
     }
-    result
+    result.asInstanceOf[TExit[E, A]]
   }
 }
 
@@ -391,9 +408,9 @@ object ZSTM {
       ZSTM.environment.flatMap(f)
   }
 
-  private final class Resumable[R, R1, E, E1, A, B](
-    val stm: ZSTM[R, E, A],
-    val ks: Stack[internal.TExit[E, A] => ZSTM[R1, E1, B]]
+  private final class Resumable[E, E1, A, B](
+    val stm: STM[E, A],
+    val ks: Stack[internal.TExit[E, A] => STM[E1, B]]
   ) extends Throwable(null, null, false, false)
 
   private val MaxFrames = 200

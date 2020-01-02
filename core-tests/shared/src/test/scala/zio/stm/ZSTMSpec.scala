@@ -471,6 +471,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         }
 
         assertM(chain(10000).run)(fails(equalTo(10000)))
+      },
+      testM("long provide chains") {
+        assertM(chain(10000)(_.provide(0)))(equalTo(0))
       }
     ),
     suite("STM environment")(
