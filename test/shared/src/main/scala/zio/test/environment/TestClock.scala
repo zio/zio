@@ -97,7 +97,7 @@ import zio.scheduler.Scheduler
  */
 trait TestClock extends Clock with Scheduler {
   val clock: TestClock.Service[Any]
-  val scheduler: TestClock.Service[Any]
+  val scheduler: Scheduler.Service[Any]
 }
 
 object TestClock extends Serializable {
