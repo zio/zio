@@ -1,8 +1,9 @@
 package zio.stacktracer
 
+import org.openjdk.jmh.annotations._
+
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
 import zio.internal.stacktracer.impl.{ AkkaLineNumbers, AkkaLineNumbersTracer }
 import zio.stacktracer.TracersBenchmark.{ akkaTracer, asmTracer }
 import zio.stacktracer.impls.AsmTracer

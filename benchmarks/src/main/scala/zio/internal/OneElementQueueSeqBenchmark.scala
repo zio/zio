@@ -1,7 +1,8 @@
 package zio.internal
 
-import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 
 import zio.internal.impls._
 

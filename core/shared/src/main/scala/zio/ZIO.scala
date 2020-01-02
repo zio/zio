@@ -24,8 +24,8 @@ import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
-import zio.{ InterruptStatus => InterruptS }
 import zio.{ DaemonStatus => DaemonS }
+import zio.{ InterruptStatus => InterruptS }
 import zio.{ TracingStatus => TracingS }
 
 /**
@@ -2038,8 +2038,9 @@ object ZIO {
     register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] = {
-    import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
+
+    import java.util.concurrent.atomic.AtomicBoolean
 
     effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
       case (started, cancel) =>

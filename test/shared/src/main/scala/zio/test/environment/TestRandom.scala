@@ -20,8 +20,8 @@ package zio.test.environment
 import scala.collection.immutable.Queue
 import scala.math.{ log, sqrt }
 
-import zio.{ Chunk, Ref, UIO, ZIO }
 import zio.random.Random
+import zio.{ Chunk, Ref, UIO, ZIO }
 
 /**
  * `TestRandom` allows for deterministically testing effects involving

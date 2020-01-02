@@ -16,8 +16,8 @@
 
 package zio.test.mock
 
-import zio.{ IO, UIO }
 import zio.system.System
+import zio.{ IO, UIO }
 
 trait MockSystem extends System {
 

@@ -1,13 +1,15 @@
 package zio.stm
 
-import zio._
-
-import java.util.concurrent.TimeUnit
-import scala.concurrent.ExecutionContext
 import cats.effect.{ ContextShift, IO => CIO }
+
 import org.openjdk.jmh.annotations._
 
-import IOBenchmarks._
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.ExecutionContext
+
+import zio.IOBenchmarks._
+import zio._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -37,8 +39,8 @@ class SemaphoreBenchmark {
 
   @Benchmark
   def semaphoreCatsContention() = {
-    import cats.effect.concurrent.Semaphore
     import cats.effect.Concurrent
+    import cats.effect.concurrent.Semaphore
     implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
     (for {

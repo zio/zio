@@ -16,9 +16,9 @@
 
 package zio.stm
 
-import zio.{ Fiber, Managed }
-
 import TReentrantLock._
+
+import zio.{ Fiber, Managed }
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all

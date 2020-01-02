@@ -17,10 +17,11 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{ Summary, TestArgs }
-import zio.{ Exit, Runtime }
 
 import scala.collection.mutable
+
+import zio.test.{ Summary, TestArgs }
+import zio.{ Exit, Runtime }
 
 sealed abstract class ZTestRunner(
   val args: Array[String],

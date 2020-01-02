@@ -16,8 +16,8 @@
 
 package zio.test.mock
 
-import zio.{ Chunk, UIO }
 import zio.random.Random
+import zio.{ Chunk, UIO }
 
 trait MockRandom extends Random {
 

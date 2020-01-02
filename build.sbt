@@ -330,3 +330,5 @@ lazy val docs = project.module
     coreTestsJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
+
+scalafixDependencies in ThisBuild += "com.nequissimus" %% "sort-imports" % "0.3.1"

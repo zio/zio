@@ -1,16 +1,18 @@
 package zio
 
+import IOBenchmarks.monixScheduler
+import IOBenchmarks.unsafeRun
+import cats.effect.implicits._
+import cats.effect.{ ContextShift, IO => CIO }
+import cats.implicits._
+import monix.eval.{ Task => MTask }
+
+import org.openjdk.jmh.annotations._
+
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
-import IOBenchmarks.monixScheduler
-import monix.eval.{ Task => MTask }
-import cats.effect.{ ContextShift, IO => CIO }
-import org.openjdk.jmh.annotations._
-import cats.effect.implicits._
-import cats.implicits._
-import IOBenchmarks.unsafeRun
+import scala.concurrent.{ Await, ExecutionContext, Future }
 
 @Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
 @Warmup(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)

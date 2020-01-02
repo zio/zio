@@ -16,17 +16,17 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
-
-import com.github.ghik.silencer.silent
-
-import zio._
 import FiberContext.FiberRefLocals
+import com.github.ghik.silencer.silent
 import stacktracer.ZTraceElement
 import tracing.ZIOFn
 
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
+
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
+
+import zio._
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.

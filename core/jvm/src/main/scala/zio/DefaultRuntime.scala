@@ -16,12 +16,12 @@
 
 package zio
 
+import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
-import zio.system.System
-import zio.random.Random
-import zio.blocking.Blocking
 import zio.internal.{ Platform, PlatformLive }
+import zio.random.Random
+import zio.system.System
 
 trait DefaultRuntime extends Runtime[ZEnv] {
   override val platform: Platform = PlatformLive.Default

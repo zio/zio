@@ -1,13 +1,13 @@
 package zio.test
 
+import scala.concurrent.Future
+
 import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 import zio.test.ReportingTestUtils._
 import zio.test.TestUtils.label
 import zio.test.environment._
 import zio.{ Cause, IO, Managed }
-
-import scala.concurrent.Future
 
 object SummaryBuilderSpec extends AsyncBaseSpec {
   val run: List[Async[(Boolean, String)]] = List(

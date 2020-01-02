@@ -1,17 +1,19 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import cats.effect.{ ContextShift, IO => CIO }
 import cats.implicits._
 import monix.eval.{ Task => MTask }
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.ChannelType.SPSC
+
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
-import zio.stm._
+
+import java.util.concurrent.TimeUnit
 
 import scala.concurrent.ExecutionContext
+
+import zio.IOBenchmarks._
+import zio.stm._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

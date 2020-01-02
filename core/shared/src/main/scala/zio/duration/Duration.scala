@@ -18,6 +18,7 @@ package zio.duration
 
 import java.time.{ Duration => JavaDuration }
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 import scala.math.Ordered
 

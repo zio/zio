@@ -19,9 +19,9 @@ package zio.test
 import scala.collection.immutable.SortedMap
 import scala.math.Numeric.DoubleIsFractional
 
-import zio.{ UIO, ZIO }
 import zio.random._
 import zio.stream.{ Stream, ZStream }
+import zio.{ UIO, ZIO }
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires

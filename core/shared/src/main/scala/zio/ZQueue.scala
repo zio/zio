@@ -17,8 +17,9 @@
 package zio
 
 import scala.annotation.tailrec
-import zio.internal.MutableConcurrentQueue
+
 import zio.ZQueue.internal._
+import zio.internal.MutableConcurrentQueue
 
 /**
  * A `ZQueue[RA, EA, RB, EB, A, B]` is a lightweight, asynchronous queue into which values of

@@ -16,10 +16,11 @@
 
 package zio
 
+import java.util.concurrent.TimeUnit
+
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.random.Random
-import java.util.concurrent.TimeUnit
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.

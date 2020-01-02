@@ -1,8 +1,9 @@
 package zio
 
+import org.openjdk.jmh.annotations._
+
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 
 @State(Scope.Thread)

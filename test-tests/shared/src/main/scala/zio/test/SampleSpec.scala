@@ -2,9 +2,9 @@ package zio.test
 
 import scala.concurrent.Future
 
-import zio.{ UIO, ZIO }
 import zio.stream.ZStream
 import zio.test.TestUtils.label
+import zio.{ UIO, ZIO }
 
 object SampleSpec extends AsyncBaseSpec {
 

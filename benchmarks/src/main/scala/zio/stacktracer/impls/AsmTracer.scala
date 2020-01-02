@@ -16,14 +16,15 @@
 
 package zio.stacktracer.impls
 
+import org.objectweb.asm._
+
 import java.lang.invoke.SerializedLambda
 
-import org.objectweb.asm._
+import scala.util.{ Failure, Success, Try }
+
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.ZTraceElement.SourceLocation
 import zio.stacktracer.impls.AsmTracer.MethodSearchVisitor
-
-import scala.util.{ Failure, Success, Try }
 
 /**
  * Java 8+ only

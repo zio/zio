@@ -1,12 +1,11 @@
 package zio.stm
 
-import zio._
+import org.openjdk.jmh.annotations._
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
-
-import IOBenchmarks._
+import zio.IOBenchmarks._
+import zio._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

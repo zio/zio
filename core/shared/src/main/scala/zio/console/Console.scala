@@ -18,10 +18,10 @@ package zio.console
 
 import java.io.{ EOFException, IOException, PrintStream, Reader }
 
-import zio.{ IO, UIO, ZIO }
-
 import scala.io.StdIn
 import scala.{ Console => SConsole }
+
+import zio.{ IO, UIO, ZIO }
 
 trait Console extends Serializable {
   def console: Console.Service[Any]
