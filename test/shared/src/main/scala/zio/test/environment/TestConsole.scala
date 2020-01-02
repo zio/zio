@@ -57,7 +57,7 @@ import zio._
  * }}}
  */
 trait TestConsole extends Console {
-  val console: TestConsole.Service[Any]
+  def console: TestConsole.Service[Any]
 }
 
 object TestConsole extends Serializable {

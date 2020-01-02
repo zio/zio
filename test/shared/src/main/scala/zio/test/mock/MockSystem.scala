@@ -21,7 +21,7 @@ import zio.system.System
 
 trait MockSystem extends System {
 
-  val system: MockSystem.Service[Any]
+  def system: MockSystem.Service[Any]
 }
 
 object MockSystem {

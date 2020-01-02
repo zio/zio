@@ -24,7 +24,7 @@ import zio.{ IO, UIO, ZIO }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
 trait Clock extends Serializable {
-  val clock: Clock.Service[Any]
+  def clock: Clock.Service[Any]
 }
 
 object Clock extends Serializable {

@@ -101,7 +101,7 @@ trait Email
 
 ```scala mdoc:silent
 trait Postman {
-  val postman: Postman.Service[Any]
+  def postman: Postman.Service[Any]
 }
 
 object Postman {
@@ -141,7 +141,7 @@ trait EmailAddress
 trait TemplateId
 
 trait EmailRenderer {
-  val emailRenderer: EmailRenderer.Service[Any]
+  def emailRenderer: EmailRenderer.Service[Any]
 }
 
 object EmailRenderer {
@@ -153,7 +153,7 @@ object EmailRenderer {
 
 ```scala mdoc:silent
 trait Newsletter {
-  val newsletter: Newsletter.Service[Any]
+  def newsletter: Newsletter.Service[Any]
 }
 
 object Newsletter {

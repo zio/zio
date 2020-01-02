@@ -66,7 +66,7 @@ import zio.random.Random
  * number generation.
  */
 trait TestRandom extends Random {
-  val random: TestRandom.Service[Any]
+  def random: TestRandom.Service[Any]
 }
 
 object TestRandom extends Serializable {

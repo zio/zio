@@ -96,8 +96,8 @@ import zio.scheduler.Scheduler
  * exactly one more value is placed in the queue.
  */
 trait TestClock extends Clock with Scheduler {
-  val clock: TestClock.Service[Any]
-  val scheduler: TestClock.Service[Any]
+  def clock: TestClock.Service[Any]
+  def scheduler: TestClock.Service[Any]
 }
 
 object TestClock extends Serializable {

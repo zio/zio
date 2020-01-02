@@ -21,7 +21,7 @@ import zio.random.Random
 
 trait MockRandom extends Random {
 
-  val random: MockRandom.Service[Any]
+  def random: MockRandom.Service[Any]
 }
 
 object MockRandom {

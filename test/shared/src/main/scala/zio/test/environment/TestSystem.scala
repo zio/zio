@@ -38,7 +38,7 @@ import zio.system.System
 
  */
 trait TestSystem extends System {
-  val system: TestSystem.Service[Any]
+  def system: TestSystem.Service[Any]
 }
 
 object TestSystem extends Serializable {

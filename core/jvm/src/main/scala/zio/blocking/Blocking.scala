@@ -52,7 +52,7 @@ private[blocking] object internal {
  * and continuously create new threads as necessary.
  */
 trait Blocking extends Serializable {
-  val blocking: Blocking.Service[Any]
+  def blocking: Blocking.Service[Any]
 }
 object Blocking extends Serializable {
   trait Service[R] extends Serializable {
