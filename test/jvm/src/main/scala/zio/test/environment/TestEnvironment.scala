@@ -28,7 +28,7 @@ import zio.scheduler.{ Scheduler, SchedulerLive }
 import zio.test.Annotations
 import zio.test.Sized
 
-final case class TestEnvironment(
+case class TestEnvironment(
   annotations: Annotations.Service[Any],
   blocking: Blocking.Service[Any],
   clock: TestClock.Service[Any],

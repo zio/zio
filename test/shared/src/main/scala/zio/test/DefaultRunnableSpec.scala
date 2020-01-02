@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.duration._
-import zio.test.environment.{ testEnvironmentManaged, TestEnvironment }
+import zio.test.environment.TestEnvironment
 
 /**
  * A default runnable spec that provides testable versions of all of the
@@ -29,5 +29,5 @@ trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any, String, Any
     List(TestAspect.timeoutWarning(60.seconds))
 
   override def runner: TestRunner[TestEnvironment, Any, String, Any, Any] =
-    TestRunner(TestExecutor.managed(testEnvironmentManaged))
+    defaultTestRunner
 }
