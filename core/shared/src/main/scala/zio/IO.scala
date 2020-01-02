@@ -700,10 +700,22 @@ object IO {
     ZIO.validateM(in)(f)
 
   /**
+   * @see See [[zio.ZIO.validateMPar]]
+   */
+  def validateMPar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
+    ZIO.validateMPar(in)(f)
+
+  /**
    * @see See [[zio.ZIO.validateFirstM]]
    */
   def validateFirstM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
     ZIO.validateFirstM(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.validateFirstMPar]]
+   */
+  def validateFirstMPar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+    ZIO.validateFirstMPar(in)(f)
 
   /**
    * @see See [[zio.ZIO.when]]
