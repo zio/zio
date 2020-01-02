@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 package zio
 
-import zio.internal.{ Scheduler => IScheduler }
+import zio.clock.Clock
+import zio.console.Console
+import zio.system.System
+import zio.random.Random
+import zio.blocking.Blocking
 
-// This cannot extend Scheduler.Service[Scheduler] because of Scala 2.11 support
-package object scheduler {
-  val schedulerService: ZIO[Scheduler, Nothing, Scheduler.Service[Any]] =
-    ZIO.access(_.scheduler)
+trait PlatformSpecific {
+  type ZEnv = Clock with Console with System with Random with Blocking
 
-  def scheduler: ZIO[Scheduler, Nothing, IScheduler] =
-    ZIO.accessM(_.scheduler.scheduler)
+  type Tagged[A] = scala.reflect.runtime.universe.TypeTag[A]
 }

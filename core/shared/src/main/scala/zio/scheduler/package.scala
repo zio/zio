@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package zio
 
-import zio.clock.Clock
-import zio.console.Console
-import zio.system.System
-import zio.random.Random
-import zio.blocking.Blocking
+import zio.internal.{ Scheduler => IScheduler }
 
-trait ZEnvDefinition {
-  type ZEnv = Clock with Console with System with Random with Blocking
+package object scheduler {
+  type Scheduler = Has[IScheduler]
+
+  def scheduler: ZIO[Scheduler, Nothing, IScheduler] =
+    ZIO.access(_.get)
 }

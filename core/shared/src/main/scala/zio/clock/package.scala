@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,32 +21,31 @@ import zio.duration.Duration
 import java.util.concurrent.TimeUnit
 import java.time.OffsetDateTime
 
-package object clock extends Clock.Service[Clock] {
-  val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
-    ZIO.access(_.clock)
+package object clock {
+  type Clock = Has[Clock.Service]
 
   /**
    * Returns the current time, relative to the Unix epoch.
    */
   def currentTime(unit: TimeUnit): ZIO[Clock, Nothing, Long] =
-    ZIO.accessM(_.clock currentTime unit)
+    ZIO.accessM(_.get currentTime unit)
 
   /**
    * Get the current time, represented in the current timezone.
    */
   def currentDateTime: ZIO[Clock, Nothing, OffsetDateTime] =
-    ZIO.accessM(_.clock.currentDateTime)
+    ZIO.accessM(_.get.currentDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
    */
   val nanoTime: ZIO[Clock, Nothing, Long] =
-    ZIO.accessM(_.clock.nanoTime)
+    ZIO.accessM(_.get.nanoTime)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
   def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
-    ZIO.accessM(_.clock sleep duration)
+    ZIO.accessM(_.get sleep duration)
 
 }

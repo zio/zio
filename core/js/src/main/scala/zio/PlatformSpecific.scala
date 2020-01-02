@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-package zio.scheduler
+package zio
 
-import zio.ZIO
-import zio.internal.{ Scheduler => IScheduler }
+import zio.clock.Clock
+import zio.console.Console
+import zio.system.System
+import zio.random.Random
 
-trait Scheduler extends Serializable {
-  val scheduler: Scheduler.Service[Any]
-}
+trait PlatformSpecific {
+  type ZEnv = Clock with Console with System with Random
 
-object Scheduler extends Serializable {
-  trait Service[R] extends Serializable {
-    def scheduler: ZIO[R, Nothing, IScheduler]
-  }
+  type Tagged[A] = scala.reflect.ClassTag[A]
 }

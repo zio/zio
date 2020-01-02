@@ -66,10 +66,3 @@ private[scheduler] object internal {
     override def shutdown(): Unit = ()
   }
 }
-
-trait SchedulerLive extends Scheduler {
-  val scheduler: Scheduler.Service[Any] = new Scheduler.Service[Any] {
-    val scheduler = ZIO.succeed(internal.GlobalScheduler)
-  }
-}
-object SchedulerLive extends SchedulerLive

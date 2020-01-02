@@ -19,39 +19,32 @@ package zio.clock
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
-import zio.scheduler.SchedulerLive
-import zio.{ IO, UIO, ZIO }
+import zio.internal.Scheduler
+import zio.{ Has, IO, UIO, ZDep, ZIO }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
-trait Clock extends Serializable {
-  val clock: Clock.Service[Any]
-}
-
 object Clock extends Serializable {
-  trait Service[R] extends Serializable {
-    def currentTime(unit: TimeUnit): ZIO[R, Nothing, Long]
-    def currentDateTime: ZIO[R, Nothing, OffsetDateTime]
-    val nanoTime: ZIO[R, Nothing, Long]
-    def sleep(duration: Duration): ZIO[R, Nothing, Unit]
+  trait Service extends Serializable {
+    def currentTime(unit: TimeUnit): UIO[Long]
+    def currentDateTime: UIO[OffsetDateTime]
+    val nanoTime: UIO[Long]
+    def sleep(duration: Duration): UIO[Unit]
   }
 
-  trait Live extends SchedulerLive with Clock {
-    val clock: Service[Any] = new Service[Any] {
+  val live: ZDep[Has[Scheduler], Nothing, Clock] = ZDep.dep { (scheduler: Scheduler) =>
+    Has(new Service {
       def currentTime(unit: TimeUnit): UIO[Long] =
         IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
       val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
 
-      def sleep(duration: Duration): UIO[Unit] =
-        scheduler.scheduler.flatMap(
-          scheduler =>
-            ZIO.effectAsyncInterrupt[Any, Nothing, Unit] { k =>
-              val canceler = scheduler
-                .schedule(() => k(ZIO.unit), duration)
+      def sleep(duration: Duration): UIO[Unit] = 
+        ZIO.effectAsyncInterrupt[Any, Nothing, Unit] { k =>
+          val canceler = scheduler
+            .schedule(() => k(ZIO.unit), duration)
 
-              Left(ZIO.effectTotal(canceler()))
-            }
-        )
+          Left(ZIO.effectTotal(canceler()))
+        }
 
       def currentDateTime: ZIO[Any, Nothing, OffsetDateTime] =
         for {
@@ -59,7 +52,6 @@ object Clock extends Serializable {
           zone   <- ZIO.effectTotal(ZoneId.systemDefault)
         } yield OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), zone)
 
-    }
+    })
   }
-  object Live extends Live
 }

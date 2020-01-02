@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,26 +18,24 @@ package zio
 
 import java.io.IOException
 
-package object console extends Console.Service[Console] {
-  val consoleService: ZIO[Console, Nothing, Console.Service[Any]] =
-    ZIO.access(_.console)
+package object console {
+  type Console = Has[Console.Service]
 
   /**
    * Prints text to the console.
    */
   def putStr(line: String): ZIO[Console, Nothing, Unit] =
-    ZIO.accessM(_.console putStr line)
+    ZIO.accessM(_.get putStr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
   def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
-    ZIO.accessM(_.console putStrLn line)
+    ZIO.accessM(_.get putStrLn line)
 
   /**
    * Retrieves a line of input from the console.
    */
   val getStrLn: ZIO[Console, IOException, String] =
-    ZIO.accessM(_.console.getStrLn)
-
+    ZIO.accessM(_.get.getStrLn)
 }

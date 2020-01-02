@@ -18,25 +18,21 @@ package zio.console
 
 import java.io.{ EOFException, IOException, PrintStream, Reader }
 
-import zio.{ IO, UIO, ZIO }
+import zio.{ Has, IO, UIO, ZDep, ZIO }
 
 import scala.io.StdIn
 import scala.{ Console => SConsole }
 
-trait Console extends Serializable {
-  val console: Console.Service[Any]
-}
 object Console extends Serializable {
-  trait Service[R] {
-    def putStr(line: String): ZIO[R, Nothing, Unit]
+  trait Service {
+    def putStr(line: String): UIO[Unit]
 
-    def putStrLn(line: String): ZIO[R, Nothing, Unit]
+    def putStrLn(line: String): UIO[Unit]
 
-    val getStrLn: ZIO[R, IOException, String]
-
+    val getStrLn: IO[IOException, String]
   }
-  trait Live extends Console {
-    val console: Service[Any] = new Service[Any] {
+  val live: ZDep[Has.Any, Nothing, Console] = ZDep.succeed {
+    new Service {
 
       /**
        * Prints text to the console.
@@ -82,5 +78,4 @@ object Console extends Serializable {
 
     }
   }
-  object Live extends Live
 }

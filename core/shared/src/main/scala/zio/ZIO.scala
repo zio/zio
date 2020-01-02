@@ -2950,6 +2950,16 @@ object ZIO {
       self.refineOrDie { case e: E1 => e }
   }
 
+  /**
+   * TODO: Document and pull out to top-level.
+   */
+  def provideOne[R1](r1: R1): ProvideOne[R1] = new ProvideOne[R1](r1)
+  
+  class ProvideOne[R1](r1: R1) {
+    def apply[R2 <: Has[_], E, A](zio: ZIO[Has[R1] with R2, E, A])(implicit R1: Tagged[R1]): ZIO[R2, E, A] = 
+      zio.provideSome[R2](r2 => r2.add(r1))
+  }
+
   implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
 
     /**
