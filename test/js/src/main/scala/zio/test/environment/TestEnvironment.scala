@@ -22,8 +22,8 @@ import java.util.concurrent.TimeUnit
 
 import zio._
 import zio.duration._
-import zio.internal.Scheduler
-import zio.scheduler.SchedulerLive
+import zio.internal.{ Scheduler => IScheduler }
+import zio.scheduler.{ Scheduler, SchedulerLive }
 import zio.test.Annotations
 import zio.test.Sized
 
@@ -100,7 +100,7 @@ trait TestEnvironment
         def setDateTime(dateTime: OffsetDateTime): UIO[Unit] = UIO.unit
         def setTime(duration: Duration): UIO[Unit]           = UIO.unit
         def setTimeZone(zone: ZoneId): UIO[Unit]             = UIO.unit
-        val scheduler: UIO[Scheduler]                        = SchedulerLive.scheduler.scheduler
+        val scheduler: UIO[IScheduler]                        = SchedulerLive.scheduler.scheduler
         def sleep(duration: Duration): UIO[Unit]             = live.provide(zio.clock.sleep(duration))
         val sleeps: UIO[List[Duration]]                      = UIO.succeed(List.empty)
         val timeZone: UIO[ZoneId]                            = UIO.succeed(ZoneId.of("UTC"))
@@ -186,6 +186,8 @@ trait TestEnvironment
         def setLineSeparator(lineSep: String): UIO[Unit]                 = UIO.unit
       }
     }
+
+  override final lazy val scheduler: Scheduler.Service[Any] = clock
 }
 
 object TestEnvironment extends Serializable {
@@ -205,7 +207,6 @@ object TestEnvironment extends Serializable {
       override val console     = consoleService
       override val live        = liveService
       override val random      = randomService
-      override val scheduler   = clock
       override val sized       = sizedService
       override val system      = systemService
     }
