@@ -147,52 +147,52 @@ object Expectation {
   /**
    * Returns a return expectation to fail with `E`.
    */
-  final def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
+  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
 
   /**
    * Maps the input arguments `I` to a return expectation to fail with `E`.
    */
-  final def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
+  def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
 
   /**
    * Effectfully maps the input arguments `I` to a return expectation to fail with `E`.
    */
-  final def failureM[I, E](f: I => IO[E, Nothing]): Fail[I, E] = Fail(f)
+  def failureM[I, E](f: I => IO[E, Nothing]): Fail[I, E] = Fail(f)
 
   /**
    * Returns a return expectation to compute forever.
    */
-  final def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
+  def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
 
   /**
    * Returns an expectation for no calls on module `M`.
    */
-  final def nothing[M]: Expectation[M, Nothing, Nothing] = Empty
+  def nothing[M]: Expectation[M, Nothing, Nothing] = Empty
 
   /**
    * Returns a return expectation to succeed with `Unit`.
    */
-  final def unit: Succeed[Any, Unit] = value(())
+  def unit: Succeed[Any, Unit] = value(())
 
   /**
    * Returns a return expectation to succeed with `A`.
    */
-  final def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
+  def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
 
   /**
    * Maps the input arguments `I` to a return expectation to succeed with `A`.
    */
-  final def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
+  def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
 
   /**
    * Effectfully maps the input arguments `I` to a return expectation to succeed with `A`.
    */
-  final def valueM[I, A](f: I => IO[Nothing, A]): Succeed[I, A] = Succeed(f)
+  def valueM[I, A](f: I => IO[Nothing, A]): Succeed[I, A] = Succeed(f)
 
   /**
    * Implicitly converts Expectation to ZManaged mock environment.
    */
-  implicit final def toManagedEnv[M, E, A](
+  implicit def toManagedEnv[M, E, A](
     expectation: Expectation[M, E, A]
   )(implicit mockable: Mockable[M]): Managed[Nothing, M] =
     expectation.managedEnv(mockable)

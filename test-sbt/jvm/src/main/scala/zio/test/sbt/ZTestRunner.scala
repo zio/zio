@@ -54,5 +54,5 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
 }
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
+final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
     extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)
