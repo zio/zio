@@ -16,9 +16,9 @@
 
 package zio.stm
 
-import com.github.ghik.silencer.silent
-
 import scala.collection.immutable.{ Queue => ScalaQueue }
+
+import com.github.ghik.silencer.silent
 
 final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   def offer(a: A): STM[Nothing, Unit] =
