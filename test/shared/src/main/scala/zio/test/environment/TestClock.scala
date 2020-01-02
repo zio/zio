@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96,8 +96,8 @@ import zio.scheduler.Scheduler
  * exactly one more value is placed in the queue.
  */
 trait TestClock extends Clock with Scheduler {
-  val clock: TestClock.Service[Any]
-  val scheduler: Scheduler.Service[Any]
+  def clock: TestClock.Service[Any]
+  def scheduler: Scheduler.Service[Any]
 }
 
 object TestClock extends Serializable {

@@ -1,6 +1,6 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
- * Copyright 2014-2019 EPFL
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2014-2020 EPFL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ import zio.random.Random
  * number generation.
  */
 trait TestRandom extends Random {
-  val random: TestRandom.Service[Any]
+  def random: TestRandom.Service[Any]
 }
 
 object TestRandom extends Serializable {

@@ -59,7 +59,7 @@ Come chat with us on [![Badge-Discord]][Link-Discord].
 
 ### Legal
 
-Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reserved.
+Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reserved.
 
 
 [Link-Codecov]: https://codecov.io/gh/zio/zio?branch=master "Codecov"

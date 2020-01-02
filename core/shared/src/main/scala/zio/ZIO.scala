@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2855,6 +2855,21 @@ object ZIO {
     }
 
   /**
+   * Feeds elements of type A to f and accumulates, in parallel,
+   * all errors in error channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes will be lost.
+   * To retain all information please use ZIO#partitionMPar
+   */
+  def validateMPar[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, ::[E], List[B]] =
+    partitionMPar(in)(f).flatMap {
+      case (e :: es, _) => ZIO.fail(::(e, es))
+      case (_, bs)      => ZIO.succeed(bs)
+    }
+
+  /**
    * Feeds elements of type A to f until it succeeds. Returns first success or the accumulation of all errors.
    */
   def validateFirstM[R, E, A, B](
@@ -2866,6 +2881,16 @@ object ZIO {
           f(a).foldM(e => ZIO.succeed(e :: es), b => ZIO.fail(b))
       }
       .flip
+
+  /**
+   * Feeds elements of type A to f, in parallel, until it succeeds. Returns first success or the accumulation of all errors.
+   *
+   * In case of success all other running fibers are terminated.
+   */
+  def validateFirstMPar[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], B] =
+    ZIO.foreachPar(in)(f(_).flip).flip
 
   /**
    * The moral equivalent of `if (p) exp`

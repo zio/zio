@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import scala.io.StdIn
 import scala.{ Console => SConsole }
 
 trait Console extends Serializable {
-  val console: Console.Service[Any]
+  def console: Console.Service[Any]
 }
 object Console extends Serializable {
   trait Service[R] {
