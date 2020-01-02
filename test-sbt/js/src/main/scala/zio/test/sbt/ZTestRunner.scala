@@ -78,7 +78,7 @@ final class ZSlaveTestRunner(
   val sendSummary: SendSummary
 ) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
 
-class ZTestTask(
+final class ZTestTask(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,
   runnerType: String,

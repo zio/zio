@@ -44,22 +44,22 @@ object Async {
   /**
    * Wraps a asynchronous effect in an asynchronous computation.
    */
-  final def apply[A](a: => A): Async[A] =
+  def apply[A](a: => A): Async[A] =
     ec => Future(a)(ec)
 
   /** Raises an exception in an asynchronous computation. */
-  final def fail(e: Throwable): Async[Nothing] =
+  def fail(e: Throwable): Async[Nothing] =
     _ => Future.failed(e)
 
   /** Wraps a `Future` in an asynchronous computation. */
-  final def fromFuture[A](future: => Future[A]): Async[A] =
+  def fromFuture[A](future: => Future[A]): Async[A] =
     _ => future
 
   /**
    * Collects the results of a collection of asynchronous computation into a
    * single asynchronous computation.
    */
-  final def sequence[A](fas: Iterable[Async[A]]): Async[List[A]] =
+  def sequence[A](fas: Iterable[Async[A]]): Async[List[A]] =
     fas.foldRight(succeed(List.empty[A])) { (fa, fas) =>
       for {
         a  <- fa
@@ -70,6 +70,6 @@ object Async {
   /**
    * Promotes a constant value to an asynchronous computation.
    * */
-  final def succeed[A](a: A): Async[A] =
+  def succeed[A](a: A): Async[A] =
     _ => Future.successful(a)
 }

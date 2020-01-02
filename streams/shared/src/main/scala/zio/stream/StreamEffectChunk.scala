@@ -18,7 +18,7 @@ package zio.stream
 
 import zio._
 
-private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamEffect[R, E, Chunk[A]])
+private[stream] final class StreamEffectChunk[-R, +E, +A](override val chunks: StreamEffect[R, E, Chunk[A]])
     extends ZStreamChunk[R, E, A](chunks) { self =>
 
   override def collectWhile[B](p: PartialFunction[A, B]): ZStreamChunk[R, E, B] =
@@ -114,7 +114,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
   override def mapConcatChunk[B](f: A => Chunk[B]): StreamEffectChunk[R, E, B] =
     StreamEffectChunk(chunks.map(_.flatMap(f)))
 
-  private final def processChunk: ZManaged[R, Nothing, () => A] =
+  private def processChunk: ZManaged[R, Nothing, () => A] =
     chunks.processEffect.flatMap { thunk =>
       Managed.effectTotal {
         var counter         = 0
@@ -132,7 +132,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
       }
     }
 
-  override final def flattenChunks: StreamEffect[R, E, A] =
+  override def flattenChunks: StreamEffect[R, E, A] =
     StreamEffect(processChunk)
 
   override def take(n: Int): StreamEffectChunk[R, E, A] =
@@ -204,7 +204,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
       }
     }
 
-  override final def toInputStream(
+  override def toInputStream(
     implicit ev0: E <:< Throwable,
     ev1: A <:< Byte
   ): ZManaged[R, E, java.io.InputStream] =
@@ -224,7 +224,7 @@ private[stream] class StreamEffectChunk[-R, +E, +A](override val chunks: StreamE
     } yield javaStream
 }
 
-private[stream] object StreamEffectChunk extends Serializable {
-  final def apply[R, E, A](chunks: StreamEffect[R, E, Chunk[A]]): StreamEffectChunk[R, E, A] =
+private[stream] object StreamEffectChunk {
+  def apply[R, E, A](chunks: StreamEffect[R, E, Chunk[A]]): StreamEffectChunk[R, E, A] =
     new StreamEffectChunk(chunks)
 }

@@ -1,6 +1,6 @@
 package zio.test
 
-case class TestArgs(testSearchTerms: List[String])
+final case class TestArgs(testSearchTerms: List[String])
 
 object TestArgs {
   def empty: TestArgs = TestArgs(List.empty[String])

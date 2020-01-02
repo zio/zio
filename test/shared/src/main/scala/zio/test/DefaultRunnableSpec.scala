@@ -29,5 +29,5 @@ trait DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any, String, Any
     List(TestAspect.timeoutWarning(60.seconds))
 
   override def runner: TestRunner[TestEnvironment, Any, String, Any, Any] =
-    DefaultTestRunner
+    defaultTestRunner
 }
