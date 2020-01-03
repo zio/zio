@@ -93,8 +93,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(libraryDependencies += 
-    "org.scala-lang" % "scala-reflect" % scalaVersion.value
+  .settings(
+    libraryDependencies +=
+      "org.scala-lang" % "scala-reflect" % scalaVersion.value
   )
 
 lazy val coreJS = core.js

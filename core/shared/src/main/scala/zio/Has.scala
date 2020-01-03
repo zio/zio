@@ -17,64 +17,65 @@
 package zio
 
 /**
- * The trait `Has[A]` is used to express an effect's dependency on an `A` 
- * module. For example, `RIO[Has[ConsoleService], Unit]` is an effect that 
+ * The trait `Has[A]` is used to express an effect's dependency on an `A`
+ * module. For example, `RIO[Has[ConsoleService], Unit]` is an effect that
  * requires a `ConsoleService` implementation.
- * 
- * All modules in an environment must be monomorphic. Parameterized modules 
+ *
+ * All modules in an environment must be monomorphic. Parameterized modules
  * are not supported.
  */
 final class Has[+A] private (private val map: Map[Tagged[_], scala.Any])
 object Has {
   implicit class HasSyntax[Self <: Has[_]](val self: Self) extends AnyVal {
+
     /**
-     * Adds a module to the environment. The module must be monomorphic rather 
+     * Adds a module to the environment. The module must be monomorphic rather
      * than parameterized. Parameterized modules are not supported.
-     * 
+     *
      * Good: `Logging`, bad: `Logging[String]`.
      */
-    final def + [B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = 
+    final def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] =
       (new Has(self.map + (tag -> b))).asInstanceOf[Self with Has[B]]
 
-    final def add[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = 
+    final def add[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] =
       this + (b)
 
     /**
-     * Combines this environment with the specified environment. In the event 
+     * Combines this environment with the specified environment. In the event
      * of module collisions, the right side wins.
      */
-    final def ++ [B <: Has[_]](that: B): Self with B = 
+    final def ++[B <: Has[_]](that: B): Self with B =
       (new Has(self.map ++ that.map)).asInstanceOf[Self with B]
 
     /**
      * Retrieves a module from the environment.
      */
-    final def get[B](implicit ev: Self <:< Has[B], tag: Tagged[B]): B = 
+    final def get[B](implicit ev: Self <:< Has[B], tag: Tagged[B]): B =
       self.map(tag).asInstanceOf[B]
 
     /**
      * Updates a module in the environment.
      */
-    final def update[B: Tagged](f: B => B)(implicit ev: Self <:< Has[B]): Self = 
+    final def update[B: Tagged](f: B => B)(implicit ev: Self <:< Has[B]): Self =
       self + f(get[B])
   }
 
   type Any = Has[scala.Any]
 
   /**
-   * Constructs a new `Env` holding the single module. The module must be 
+   * Constructs a new `Env` holding the single module. The module must be
    * monomorphic. Parameterized modules are not supported.
    */
   def apply[A: Tagged](a: A): Has[A] = any + a
 
   /**
-   * Constructs a new `Env` holding the specified modules. The module must be 
+   * Constructs a new `Env` holding the specified modules. The module must be
    * monomorphic. Parameterized modules are not supported.
    */
   def apply[A: Tagged, B: Tagged](a: A, b: B): Has[A] with Has[B] = any + a + b
 
   /**
-   * Constructs a new `Env` holding the specified modules. The module must be 
+   * Constructs a new `Env` holding the specified modules. The module must be
    * monomorphic. Parameterized modules are not supported.
    */
   def apply[A: Tagged, B: Tagged, C: Tagged](a: A, b: B, c: C): Has[A] with Has[B] with Has[C] = any + a + b + c
@@ -86,7 +87,7 @@ object Has {
 
   /**
    * Modifies an environment in a scoped way.
-   * 
+   *
    * {{
    * Env.scoped[Logging](decorateLogger(_)) { effect }
    * }}
@@ -94,7 +95,7 @@ object Has {
   def scoped[A: Tagged](f: A => A): Scoped[A] = new Scoped(f)
 
   class Scoped[M: Tagged](f: M => M) {
-    def apply[R <: Has[M], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] = 
+    def apply[R <: Has[M], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       ZIO.environment[R].flatMap(env => zio.provide(env.update(f)))
   }
 }

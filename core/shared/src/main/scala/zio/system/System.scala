@@ -16,31 +16,28 @@
 
 package zio.system
 
-import zio.{ UIO, ZIO }
+import java.lang.{ System => JSystem }
+import zio.{ Has, IO, UIO, ZDep }
 
-trait System extends Serializable {
-  val system: System.Service[Any]
-}
 object System extends Serializable {
-  trait Service[R] extends Serializable {
-    def env(variable: String): ZIO[R, SecurityException, Option[String]]
+  trait Service extends Serializable {
+    def env(variable: String): IO[SecurityException, Option[String]]
 
-    def property(prop: String): ZIO[R, Throwable, Option[String]]
+    def property(prop: String): IO[Throwable, Option[String]]
 
-    val lineSeparator: ZIO[R, Nothing, String]
+    val lineSeparator: UIO[String]
   }
-  trait Live extends System {
-    val system: Service[Any] = new Service[Any] {
-      import java.lang.{ System => JSystem }
 
-      def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
-        ZIO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
+  val live: ZDep[Has.Any, Nothing, System] = ZDep.succeed(
+    new Service {
 
-      def property(prop: String): ZIO[Any, Throwable, Option[String]] =
-        ZIO.effect(Option(JSystem.getProperty(prop)))
+      def env(variable: String): IO[SecurityException, Option[String]] =
+        IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
-      val lineSeparator: UIO[String] = ZIO.effectTotal(JSystem.lineSeparator)
+      def property(prop: String): IO[Throwable, Option[String]] =
+        IO.effect(Option(JSystem.getProperty(prop)))
+
+      val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
     }
-  }
-  object Live extends Live
+  )
 }

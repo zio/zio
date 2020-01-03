@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,19 @@
 
 package zio
 
-package object system extends System.Service[System] {
+package object system {
 
-  def systemService: ZIO[System, Nothing, System.Service[Any]] = ZIO.access(_.system)
+  type System = Has[System.Service]
 
   /** Retrieve the value of an environment variable **/
   def env(variable: String): ZIO[System, SecurityException, Option[String]] =
-    ZIO.accessM(_.system env variable)
+    ZIO.accessM(_.get env variable)
 
   /** Retrieve the value of a system property **/
   def property(prop: String): ZIO[System, Throwable, Option[String]] =
-    ZIO.accessM(_.system property prop)
+    ZIO.accessM(_.get property prop)
 
   /** System-specific line separator **/
   val lineSeparator: ZIO[System, Nothing, String] =
-    ZIO.accessM(_.system.lineSeparator)
+    ZIO.accessM(_.get.lineSeparator)
 }

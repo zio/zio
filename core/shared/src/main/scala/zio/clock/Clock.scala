@@ -38,7 +38,7 @@ object Clock extends Serializable {
 
       val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
 
-      def sleep(duration: Duration): UIO[Unit] = 
+      def sleep(duration: Duration): UIO[Unit] =
         ZIO.effectAsyncInterrupt[Any, Nothing, Unit] { k =>
           val canceler = scheduler
             .schedule(() => k(ZIO.unit), duration)

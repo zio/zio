@@ -16,28 +16,27 @@
 
 package zio.random
 
-import zio.{ Chunk, Ref, UIO, ZIO }
+import zio.{ Chunk, Has, Ref, UIO, ZDep, ZIO }
 
-trait Random extends Serializable {
-  val random: Random.Service[Any]
-}
 object Random extends Serializable {
-  trait Service[R] extends Serializable {
-    val nextBoolean: ZIO[R, Nothing, Boolean]
-    def nextBytes(length: Int): ZIO[R, Nothing, Chunk[Byte]]
-    val nextDouble: ZIO[R, Nothing, Double]
-    val nextFloat: ZIO[R, Nothing, Float]
-    val nextGaussian: ZIO[R, Nothing, Double]
-    def nextInt(n: Int): ZIO[R, Nothing, Int]
-    val nextInt: ZIO[R, Nothing, Int]
-    val nextLong: ZIO[R, Nothing, Long]
-    def nextLong(n: Long): ZIO[R, Nothing, Long]
-    val nextPrintableChar: ZIO[R, Nothing, Char]
-    def nextString(length: Int): ZIO[R, Nothing, String]
-    def shuffle[A](list: List[A]): ZIO[R, Nothing, List[A]]
+  trait Service extends Serializable {
+
+    val nextBoolean: UIO[Boolean]
+    def nextBytes(length: Int): UIO[Chunk[Byte]]
+    val nextDouble: UIO[Double]
+    val nextFloat: UIO[Float]
+    val nextGaussian: UIO[Double]
+    def nextInt(n: Int): UIO[Int]
+    val nextInt: UIO[Int]
+    val nextLong: UIO[Long]
+    def nextLong(n: Long): UIO[Long]
+    val nextPrintableChar: UIO[Char]
+    def nextString(length: Int): UIO[String]
+    def shuffle[A](list: List[A]): UIO[List[A]]
   }
-  trait Live extends Random {
-    val random: Service[Any] = new Service[Any] {
+
+  val live: ZDep[Has.Any, Nothing, Random] = ZDep.succeed {
+    new Service {
       import scala.util.{ Random => SRandom }
 
       val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
@@ -58,10 +57,9 @@ object Random extends Serializable {
       def nextLong(n: Long): UIO[Long]            = Random.nextLongWith(nextLong, n)
       val nextPrintableChar: UIO[Char]            = ZIO.effectTotal(SRandom.nextPrintableChar())
       def nextString(length: Int): UIO[String]    = ZIO.effectTotal(SRandom.nextString(length))
-      def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
+      def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt(_), list)
     }
   }
-  object Live extends Live
 
   protected[zio] def shuffleWith[A](nextInt: Int => UIO[Int], list: List[A]): UIO[List[A]] =
     for {
