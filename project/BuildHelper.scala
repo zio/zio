@@ -1,12 +1,11 @@
 import sbt._
 import Keys._
-
 import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport.CrossType
-
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
+import scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
 
 object BuildHelper {
   val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.3" % "test")
@@ -176,6 +175,7 @@ object BuildHelper {
           compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full)
         )
     },
+    addCompilerPlugin(scalafixSemanticdb),
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
