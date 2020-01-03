@@ -1,7 +1,7 @@
 package zio
 
-import zio.test.{ assert, suite }
 import zio.test.Assertion.equalTo
+import zio.test.{ assert, suite }
 
 object ChunkSpec extends ZIOBaseSpec {
 

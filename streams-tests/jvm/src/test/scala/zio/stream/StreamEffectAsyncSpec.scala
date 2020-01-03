@@ -1,12 +1,14 @@
 package zio.stream
 
 import scala.concurrent.ExecutionContext.global
-import zio._
-import zio.ZQueueSpecUtil.waitForValue
-import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
-import zio.test._
-import zio.test.Assertion._
+
 import StreamUtils.inParallel
+
+import zio.ZQueueSpecUtil.waitForValue
+import zio._
+import zio.test.Assertion._
+import zio.test._
+import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
 
 object StreamEffectAsyncSpec extends ZIOBaseSpec {
 

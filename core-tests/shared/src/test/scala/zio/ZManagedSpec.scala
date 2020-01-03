@@ -1,11 +1,11 @@
 package zio
 
 import zio.Cause.Interrupt
-import zio.duration._
 import zio.Exit.Failure
+import zio.duration._
 import zio.test.Assertion._
-import zio.test.environment._
 import zio.test._
+import zio.test.environment._
 
 object ZManagedSpec extends ZIOBaseSpec {
 

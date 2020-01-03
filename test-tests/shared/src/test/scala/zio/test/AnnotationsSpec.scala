@@ -1,7 +1,7 @@
 package zio.test
 
-import zio.test.Assertion._
 import zio.ZIO
+import zio.test.Assertion._
 
 object AnnotationsSpec extends ZIOBaseSpec {
 

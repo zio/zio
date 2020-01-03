@@ -16,11 +16,11 @@
 
 package zio.stm
 
-import zio.{ Exit, Promise, Ref, Schedule, ZIO }
 import zio.duration._
-import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.timeout
+import zio.test._
+import zio.{ Exit, Promise, Ref, Schedule, ZIO }
 
 object TReentrantLockSpec extends DefaultRunnableSpec {
   def pollSchedule[E, A] =

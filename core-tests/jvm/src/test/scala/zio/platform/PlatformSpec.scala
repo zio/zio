@@ -1,9 +1,9 @@
 package zio.platform
 
-import zio.internal.PlatformLive
-import zio.test._
-import zio.test.Assertion._
 import zio.ZIOBaseSpec
+import zio.internal.PlatformLive
+import zio.test.Assertion._
+import zio.test._
 
 object PlatformSpec extends ZIOBaseSpec {
 
