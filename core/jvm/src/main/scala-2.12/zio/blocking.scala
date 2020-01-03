@@ -16,9 +16,20 @@
 
 package zio
 
-import zio.internal.Executor
+import java.io.IOException 
 
-package object blocking extends Blocking.Service[Blocking] {
-  def blockingExecutor: ZIO[Blocking, Nothing, Executor] =
-    ZIO.accessM(_.blocking.blockingExecutor)
+package object blocking {
+  type Blocking = Has[Blocking.Service]
+
+  def blocking[R <: Blocking, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] = 
+    ZIO.accessM[R](_.get.blocking(zio))
+
+  def effectBlocking[A](effect: => A): ZIO[Blocking, Throwable, A] =
+    ZIO.accessM[Blocking](_.get.effectBlocking(effect))
+
+  def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
+    effectBlocking(effect).refineToOrDie[IOException]
+    
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
+  ZIO.accessM[Blocking](_.get.effectBlockingCancelable(effect)(cancel))
 }

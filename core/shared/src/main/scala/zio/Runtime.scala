@@ -152,7 +152,7 @@ trait Runtime[+R] {
   final def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
 }
 
-object Runtime {
+object Runtime extends DefaultRuntime {
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].

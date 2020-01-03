@@ -29,7 +29,7 @@ final case class ZDep[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, 
       }
     )
 
-  def run(rin: RIn): IO[E, ROut] = value.use(rout => ZIO.succeed(rout)).provide(rin)
+  def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
 }
 object ZDep {
   def succeed[A: Tagged](a: A): ZDep[Has.Any, Nothing, Has[A]] = ZDep(ZManaged.succeed(Has(a)))

@@ -21,9 +21,17 @@ import zio.console.Console
 import zio.system.System
 import zio.random.Random
 import zio.blocking.Blocking
+import zio.scheduler.Scheduler
 import zio.internal.{ Platform, PlatformLive }
 
-trait DefaultRuntime extends Runtime[ZEnv] {
-  override val platform: Platform = PlatformLive.Default
-  override val environment: ZEnv  = new Clock.Live with Console.Live with System.Live with Random.Live with Blocking.Live
+trait DefaultRuntime {
+  val defaultPlatform: Platform = PlatformLive.Default
+
+  val defaultEnvironment: Managed[Nothing, ZEnv] = 
+    ((Scheduler.live >>> Clock.live) *** Console.live *** System.live *** Random.live *** Blocking.live).build
+
+  val defaultRuntime: Managed[Nothing, Runtime[ZEnv]] = 
+    defaultEnvironment.map { env =>
+      Runtime(env, defaultPlatform)
+    }
 }

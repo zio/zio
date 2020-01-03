@@ -26,6 +26,21 @@ package zio
  */
 final class Has[+A] private (private val map: Map[Tagged[_], scala.Any])
 object Has {
+  trait IsHas[-R] {
+    def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
+    def concat[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1
+    def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
+  }
+  object IsHas {
+    implicit def ImplicitIs[R <: Has[_]]: IsHas[R] = 
+      new IsHas[R] {
+        def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M] = r.add(m)
+        def concat[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1 = r.++[R1](r1)
+        def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
+      }
+  }
+  type Contains[A, B] = A <:< B
+
   implicit class HasSyntax[Self <: Has[_]](val self: Self) extends AnyVal {
 
     /**

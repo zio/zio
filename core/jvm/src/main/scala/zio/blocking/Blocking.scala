@@ -20,7 +20,7 @@ import java.util.concurrent._
 
 import zio.internal.tracing.ZIOFn
 import zio.internal.{ Executor, NamedThreadFactory }
-import zio.{ IO, UIO, ZIO }
+import zio._
 
 private[blocking] object internal {
   private[blocking] val blockingExecutor0 =
@@ -51,22 +51,19 @@ private[blocking] object internal {
  * The contract is that the thread pool will accept unlimited tasks (up to the available memory)
  * and continuously create new threads as necessary.
  */
-trait Blocking extends Serializable {
-  val blocking: Blocking.Service[Any]
-}
 object Blocking extends Serializable {
-  trait Service[R] extends Serializable {
+  trait Service extends Serializable {
 
     /**
      * Retrieves the executor for all blocking tasks.
      */
-    def blockingExecutor: ZIO[R, Nothing, Executor]
+    def blockingExecutor: Executor
 
     /**
      * Locks the specified effect to the blocking thread pool.
      */
-    def blocking[R1 <: R, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
-      blockingExecutor.flatMap(exec => zio.lock(exec))
+    def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      zio.lock(blockingExecutor)
 
     /**
      * Imports a synchronous effect that does blocking IO into a pure value.
@@ -74,7 +71,7 @@ object Blocking extends Serializable {
      * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
-    def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
+    def effectBlocking[A](effect: => A): Task[A] =
       // Reference user's lambda for the tracer
       ZIOFn.recordTrace(() => effect) {
         ZIO.effectSuspendTotal {
@@ -146,14 +143,13 @@ object Blocking extends Serializable {
      * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via the cancel effect.
      */
-    def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[R, Throwable, A] =
+    def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
       blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
   }
 
-  trait Live extends Blocking {
-    val blocking: Service[Any] = new Service[Any] {
-      val blockingExecutor: UIO[Executor] = ZIO.succeed(internal.blockingExecutor0)
+  val live: ZDep[Has.Any, Nothing, Blocking] = ZDep.succeed {
+    new Service {
+      override val blockingExecutor: Executor = internal.blockingExecutor0
     }
   }
-  object Live extends Live
 }
