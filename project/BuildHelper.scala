@@ -265,6 +265,9 @@ object BuildHelper {
         |${header(s"/____|___\\___/   ${version.value}")}
         |
         |Useful sbt tasks:
+        |${item("build")} - Prepares sources, compiles and runs tests.
+        |${item("prepare")} - Prepares sources by applying both scalafix and scalafmt
+        |${item("fix")} - Fixes sources files using scalafix
         |${item("fmt")} - Formats source files using scalafmt
         |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
         |${item("testJVM")} - Runs all JVM tests
