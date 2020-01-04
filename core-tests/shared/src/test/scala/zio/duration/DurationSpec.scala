@@ -22,9 +22,9 @@ object DurationSpec extends ZIOBaseSpec {
       test("Multiplying with a negative factor returns Zero") {
         assert(Duration.fromNanos(1) * -1.0)(equalTo(Duration.Zero: Duration))
       },
-      test("Its stdlib representation is correct") {
-        val duration: ScalaDuration = Duration.fromNanos(1234L).asScala
-        val expected: ScalaDuration = ScalaFiniteDuration(1234L, TimeUnit.NANOSECONDS)
+      test("Its stdlib representation is correct and matches type") {
+        val duration: ScalaFiniteDuration = Duration.fromNanos(1234L).asScala
+        val expected: ScalaFiniteDuration = ScalaFiniteDuration(1234L, TimeUnit.NANOSECONDS)
         assert(duration)(equalTo(expected))
       },
       test("Its JDK representation is correct") {
