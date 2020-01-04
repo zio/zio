@@ -20,7 +20,7 @@ final case class ZDep[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, 
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZDep[ROut, E1, ROut2]): ZDep[RIn, E1, ROut2] =
     ZDep(self.value.flatMap(v => that.value.provide(v)))
 
-  def ***[E1 >: E, RIn2 <: Has[_], ROut2 <: Has[_]](
+  def ++[E1 >: E, RIn2 <: Has[_], ROut2 <: Has[_]](
     that: ZDep[RIn2, E1, ROut2]
   ): ZDep[RIn with RIn2, E1, ROut with ROut2] =
     ZDep(
