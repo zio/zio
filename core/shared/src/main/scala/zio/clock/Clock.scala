@@ -31,7 +31,7 @@ object Clock extends Serializable {
     def sleep(duration: Duration): UIO[Unit]
   }
 
-  val live: ZDep[Has[Scheduler], Nothing, Clock] = ZDep.dep { (scheduler: Scheduler) =>
+  val live: ZDep[Has[Scheduler], Nothing, Clock] = ZDep.fromFunction { (scheduler: Scheduler) =>
     Has(new Service {
       def currentTime(unit: TimeUnit): UIO[Long] =
         IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))

@@ -16,21 +16,14 @@
 
 package zio
 
-import zio.clock.Clock
-import zio.console.Console
-import zio.system.System
-import zio.random.Random
-import zio.scheduler.Scheduler
-import zio.internal.{ Platform, PlatformLive }
+import zio.internal.Platform
 
-trait DefaultRuntime {
-  val defaultPlatform: Platform = PlatformLive.Default
+trait DefaultRuntime extends Runtime[Unit] {
+  val environment: Unit = ()
 
-  val defaultEnvironment: Managed[Nothing, ZEnv] = 
-    ((Scheduler.live >>> Clock.live) *** Console.live *** System.live *** Random.live).build
-
-  val defaultRuntime: Managed[Nothing, Runtime[ZEnv]] = 
-    defaultEnvironment.map { env =>
-      Runtime(env, defaultPlatform)
-    }
+  /**
+   * The platform of the runtime, which provides the essential capabilities
+   * necessary to bootstrap execution of tasks.
+   */
+  val platform: Platform = Platform.default 
 }

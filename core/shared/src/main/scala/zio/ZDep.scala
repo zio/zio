@@ -32,23 +32,10 @@ final case class ZDep[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, 
   def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
 }
 object ZDep {
-  def succeed[A: Tagged](a: A): ZDep[Has.Any, Nothing, Has[A]] = ZDep(ZManaged.succeed(Has(a)))
-
-  def dep[A: Tagged, E, B <: Has[_]: Tagged](f: A => B): ZDep[Has[A], E, B] =
+  def fromFunction[A: Tagged, E, B <: Has[_]: Tagged](f: A => B): ZDep[Has[A], E, B] =
     ZDep[Has[A], E, B](ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get))))
 
-  trait Clock; trait Console; trait Scheduler; trait DBConfig; trait Database
+  def succeed[A: Tagged](a: A): ZDep[Has.Any, Nothing, Has[A]] = ZDep(ZManaged.succeed(Has(a)))
 
-  val liveScheduler: ZDep[Has.Any, Nothing, Has[Scheduler]]                 = ???
-  val liveDbConfig: ZDep[Has.Any, Nothing, Has[DBConfig]]                   = ???
-  val liveClock: ZDep[Has[Scheduler], Nothing, Has[Clock]]                  = ZDep.dep((v: Scheduler) => { val _ = v; ??? })
-  val liveConsole: ZDep[Has.Any, Nothing, Has[Console]]                     = ???
-  val liveDatabase: ZDep[Has[DBConfig], java.io.IOException, Has[Database]] = ???
-
-  val dependencies =
-    (liveDbConfig >>> liveDatabase) ***
-      (liveScheduler >>> liveClock) ***
-      liveConsole
-
-  // myProgram.provideDep(dependencies)
+  def succeedManaged[E, A: Tagged](m: Managed[E, A]): ZDep[Has.Any, E, Has[A]] = ZDep(m.map(Has(_)))
 }

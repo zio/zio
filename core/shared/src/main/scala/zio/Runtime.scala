@@ -152,7 +152,8 @@ trait Runtime[+R] {
   final def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
 }
 
-object Runtime extends DefaultRuntime {
+object Runtime {
+  lazy val default = Runtime((), Platform.default)
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].

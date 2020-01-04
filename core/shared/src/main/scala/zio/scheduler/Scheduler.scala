@@ -19,7 +19,7 @@ package zio.scheduler
 import zio.{ Has, ZDep }
 import zio.internal.{ Scheduler => IScheduler }
 
-object Scheduler {
-  val live: ZDep[Has.Any, Nothing, Has[IScheduler]] = ZDep.succeed(internal.GlobalScheduler)
+object Scheduler extends PlatformSpecific {
+  val live: ZDep[Has.Any, Nothing, Has[IScheduler]] = ZDep.succeed(globalScheduler)
 }
 

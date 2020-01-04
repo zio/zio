@@ -21,9 +21,14 @@ import zio.console.Console
 import zio.system.System
 import zio.random.Random
 import zio.blocking.Blocking
+import zio.scheduler.Scheduler
+import zio.blocking.Blocking
 
 trait PlatformSpecific {
   type ZEnv = Clock with Console with System with Random with Blocking
+
+  val ZEnv: Managed[Nothing, ZEnv] = 
+    ((Scheduler.live >>> Clock.live) *** Console.live *** System.live *** Random.live *** Blocking.live).build
 
   type Tagged[A] = scala.reflect.runtime.universe.TypeTag[A]
 }

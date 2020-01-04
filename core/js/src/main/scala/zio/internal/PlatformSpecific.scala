@@ -18,8 +18,39 @@ package zio.internal
 
 import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 
+import zio.Cause
+import zio.internal.tracing.TracingConfig 
+import zio.internal.stacktracer.Tracer
+import scala.concurrent.ExecutionContext
+
 trait PlatformSpecific {
+  lazy val default = makeDefault()
+  lazy val global  = fromExecutionContext(ExecutionContext.global)
+
+  final def fromExecutor(executor0: Executor): Platform =
+    new Platform {
+      val executor = executor0
+
+      def fatal(t: Throwable): Boolean = false
+
+      def reportFatal(t: Throwable): Nothing = {
+        t.printStackTrace()
+        throw t
+      }
+
+      def reportFailure(cause: Cause[Any]): Unit =
+        if (cause.died)
+          println(cause.prettyPrint)
+
+      val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
+    }
+
+  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
+    fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
+  
+  final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
+  
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
 
-  final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
+  private final def makeDefault(): Platform = fromExecutionContext(ExecutionContext.global)
 }

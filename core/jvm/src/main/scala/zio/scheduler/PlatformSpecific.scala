@@ -16,19 +16,21 @@
 
 package zio.scheduler
 
-import zio.ZIO
 import zio.duration.Duration
-import zio.internal.{ Scheduler => IScheduler }
+import zio.internal.{ NamedThreadFactory, Scheduler => IScheduler }
 
-import scala.scalajs.js
+import java.util.concurrent._
+import java.util.concurrent.atomic.AtomicInteger
 
-private[scheduler] object internal {
-  private[scheduler] val GlobalScheduler = new IScheduler {
+private[scheduler] trait PlatformSpecific {
+  private[scheduler] val globalScheduler = new IScheduler {
     import IScheduler.CancelToken
+
+    private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
 
     private[this] val ConstFalse = () => false
 
-    private[this] var _size = 0
+    private[this] val _size = new AtomicInteger()
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
@@ -37,32 +39,27 @@ private[scheduler] object internal {
 
         ConstFalse
       case duration: Duration.Finite =>
-        _size += 1
-        var completed = false
+        _size.incrementAndGet
 
-        val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
-          completed = true
+        val future = service.schedule(new Runnable {
+          def run: Unit =
+            try task.run()
+            finally {
+              val _ = _size.decrementAndGet
+            }
+        }, duration.toNanos, TimeUnit.NANOSECONDS)
 
-          try task.run()
-          finally {
-            _size -= 1
-          }
-        }
         () => {
-          js.timers.clearTimeout(handle)
-          if (!completed) _size -= 1
-          !completed
+          val canceled = future.cancel(true)
+
+          if (canceled) _size.decrementAndGet
+
+          canceled
         }
     }
 
-    /**
-     * The number of tasks scheduled.
-     */
-    override def size: Int = _size
+    override def size: Int = _size.get
 
-    /**
-     * Initiates shutdown of the scheduler.
-     */
-    override def shutdown(): Unit = ()
+    override def shutdown(): Unit = service.shutdown()
   }
 }
