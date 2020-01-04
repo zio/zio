@@ -16,11 +16,12 @@
 
 package zio.internal.stacktracer.impl
 
-import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
-import zio.internal.stacktracer.{ Tracer, ZTraceElement }
+import scala.util.matching.Regex
+
 import AkkaLineNumbersTracer.lambdaNamePattern
 
-import scala.util.matching.Regex
+import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
+import zio.internal.stacktracer.{ Tracer, ZTraceElement }
 
 /**
  * A [[Tracer]] implementation powered by Akka's `LineNumbers` bytecode parser (shipped with ZIO, no dependency on Akka)

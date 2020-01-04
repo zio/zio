@@ -16,8 +16,8 @@
 
 package zio.stream
 
-import zio.{ Cause, IO, ZIO }
 import zio.stream.ZStream.Pull
+import zio.{ Cause, IO, ZIO }
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of

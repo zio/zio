@@ -16,8 +16,8 @@
 
 package zio.internal
 
-import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
 import java.util.concurrent.ConcurrentHashMap
+import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
 
 trait PlatformSpecific {
   final def newWeakHashMap[A, B](): JMap[A, B] =

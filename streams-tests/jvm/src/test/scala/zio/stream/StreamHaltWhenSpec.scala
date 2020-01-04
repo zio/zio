@@ -1,8 +1,8 @@
 package zio.stream
 
 import zio._
-import zio.test._
 import zio.test.Assertion.{ equalTo, isFalse, isLeft }
+import zio.test._
 
 object StreamHaltWhenSpec extends ZIOBaseSpec {
   def spec = suite("ZStream.haltWhen")(

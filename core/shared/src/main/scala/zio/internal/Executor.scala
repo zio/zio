@@ -17,9 +17,10 @@
 package zio.internal
 
 import java.util.concurrent._
+import java.{ util => ju }
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContextExecutorService
-import java.{ util => ju }
 
 /**
  * An executor is responsible for executing actions. Each action is guaranteed

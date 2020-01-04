@@ -17,7 +17,6 @@
 package zio.internal.impls
 
 import java.io.Serializable
-
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import zio.internal.MutableConcurrentQueue

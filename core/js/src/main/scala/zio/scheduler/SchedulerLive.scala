@@ -16,11 +16,11 @@
 
 package zio.scheduler
 
+import scala.scalajs.js
+
 import zio.ZIO
 import zio.duration.Duration
 import zio.internal.{ Scheduler => IScheduler }
-
-import scala.scalajs.js
 
 private[scheduler] object internal {
   private[scheduler] val GlobalScheduler = new IScheduler {

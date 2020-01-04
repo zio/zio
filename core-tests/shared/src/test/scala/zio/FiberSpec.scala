@@ -1,9 +1,9 @@
 package zio
 
-import zio.test._
+import zio.LatchOps._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.LatchOps._
+import zio.test._
 
 object FiberSpec extends ZIOBaseSpec {
 

@@ -19,9 +19,9 @@ package zio.stream
 import java.io.{ IOException, InputStream }
 import java.{ util => ju }
 
+import zio.Cause
 import zio._
 import zio.clock.Clock
-import zio.Cause
 
 object Stream extends Serializable {
   import ZStream.Pull

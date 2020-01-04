@@ -16,12 +16,13 @@
 
 package zio.test.sbt
 
+import scala.collection.mutable.ArrayBuffer
+
 import sbt.testing._
+
 import zio.FunctionIO
 import zio.test.sbt.TestingSupport._
 import zio.test.{ Assertion, DefaultRunnableSpec, Summary, TestArgs, TestAspect }
-
-import scala.collection.mutable.ArrayBuffer
 
 object ZTestFrameworkSpec {
 

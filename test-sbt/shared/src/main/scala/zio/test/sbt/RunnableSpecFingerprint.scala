@@ -1,6 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing.SubclassFingerprint
+
 import zio.test.AbstractRunnableSpec
 
 object RunnableSpecFingerprint extends SubclassFingerprint {

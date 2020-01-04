@@ -16,9 +16,9 @@
 
 package zio
 
-import zio.internal.stacktracer.ZTraceElement
-
 import scala.annotation.tailrec
+
+import zio.internal.stacktracer.ZTraceElement
 
 final case class ZTrace(
   fiberId: Fiber.Id,

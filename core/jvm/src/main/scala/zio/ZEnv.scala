@@ -15,11 +15,11 @@
  */
 package zio
 
+import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
-import zio.system.System
 import zio.random.Random
-import zio.blocking.Blocking
+import zio.system.System
 
 object ZEnv {
 

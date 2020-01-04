@@ -18,8 +18,8 @@ package zio.test.mock
 
 import java.io.IOException
 
-import zio.{ IO, UIO }
 import zio.console.Console
+import zio.{ IO, UIO }
 
 trait MockConsole extends Console {
 

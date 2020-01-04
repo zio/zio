@@ -16,9 +16,9 @@
 
 package zio.test
 
-import zio._
-
 import Spec._
+
+import zio._
 
 /**
  * A `Spec[R, E, L, T]` is the backbone of _ZIO Test_. Every spec is either a

@@ -1,10 +1,10 @@
 package zio
 
+import scala.concurrent.ExecutionContext
+
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.{ Executor, Platform }
-
-import scala.concurrent.ExecutionContext
 
 object RIO {
 

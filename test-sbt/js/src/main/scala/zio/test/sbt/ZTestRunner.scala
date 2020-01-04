@@ -16,11 +16,12 @@
 
 package zio.test.sbt
 
+import scala.collection.mutable
+
 import sbt.testing._
+
 import zio.test.{ Summary, TestArgs }
 import zio.{ Exit, Runtime }
-
-import scala.collection.mutable
 
 sealed abstract class ZTestRunner(
   val args: Array[String],

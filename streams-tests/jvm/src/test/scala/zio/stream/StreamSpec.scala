@@ -1,10 +1,14 @@
 package zio.stream
 
-import zio._
+import scala.{ Stream => _ }
+
+import StreamUtils._
+
+import zio.Exit.Success
 import zio.ZQueueSpecUtil.waitForSize
+import zio._
 import zio.clock.Clock
 import zio.duration._
-import zio.test._
 import zio.test.Assertion.{
   dies,
   equalTo,
@@ -20,10 +24,7 @@ import zio.test.Assertion.{
   startsWith
 }
 import zio.test.TestAspect.flaky
-
-import scala.{ Stream => _ }
-import Exit.Success
-import StreamUtils._
+import zio.test._
 
 object StreamSpec extends ZIOBaseSpec {
 

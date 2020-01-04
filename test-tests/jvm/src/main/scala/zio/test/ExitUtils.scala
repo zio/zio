@@ -1,7 +1,7 @@
 package zio.test
 
-import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration._
+import scala.concurrent.{ Await, ExecutionContext, Future }
 
 private[test] object ExitUtils {
 

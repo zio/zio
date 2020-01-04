@@ -29,8 +29,13 @@ inThisBuild(
 
 ThisBuild / publishTo := sonatypePublishToBundle.value
 
+addCommandAlias("fix", "all compile:scalafix test:scalafix")
+addCommandAlias(
+  "fixCheck",
+  "; compile:scalafix --check ; test:scalafix --check"
+)
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
-addCommandAlias("check", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
+addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
@@ -330,3 +335,5 @@ lazy val docs = project.module
     coreTestsJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
+
+scalafixDependencies in ThisBuild += "com.nequissimus" %% "sort-imports" % "0.3.1"
