@@ -23,6 +23,7 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 
 If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
 
+- [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [cakeless](https://github.com/itkpi/cakeless): Better reader monad for deeply-nested cakes
 - [caliban](https://github.com/ghostdogpr/caliban): Functional GraphQL backend in Scala
 - [distage](https://github.com/7mind/izumi): Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
