@@ -16,11 +16,11 @@
 
 package zio.stream
 
+import scala.collection.mutable
+
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-
-import scala.collection.mutable
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -1060,7 +1060,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       widen untilOutput f
   }
 
-  implicit final class InvariantOps[R, E, A0, A, B](val sink: ZSink[R, E, A0, A, B]) extends AnyVal { self =>
+  implicit final class InvariantOps[R, E, A0, A, B](private val sink: ZSink[R, E, A0, A, B]) extends AnyVal { self =>
 
     /**
      * Drops the first `n`` elements from the sink.

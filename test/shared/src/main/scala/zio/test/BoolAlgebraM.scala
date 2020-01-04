@@ -1,7 +1,7 @@
 package zio.test
 
-import zio.test.BoolAlgebraM._
 import zio.ZIO
+import zio.test.BoolAlgebraM._
 
 final case class BoolAlgebraM[-R, +E, +A](run: ZIO[R, E, BoolAlgebra[A]]) { self =>
 

@@ -16,8 +16,8 @@
 
 package zio
 
-import scala.concurrent.{ CanAwait, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
+import scala.concurrent.{ CanAwait, ExecutionContext, Future }
 import scala.util.Try
 
 abstract class CancelableFuture[+E, +A](val future: Future[A]) extends Future[A] with FutureTransformCompat[A] {

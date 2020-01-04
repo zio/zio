@@ -16,9 +16,9 @@
 
 package zio.test
 
-import zio.duration._
-
 import scala.reflect.ClassTag
+
+import zio.duration._
 
 /**
  * A type of annotation.

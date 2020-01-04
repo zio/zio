@@ -1,8 +1,8 @@
 package zio
 
-import zio.internal.{ Executor, Platform }
-
 import scala.concurrent.ExecutionContext
+
+import zio.internal.{ Executor, Platform }
 
 object IO {
 

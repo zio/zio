@@ -6,8 +6,8 @@ import zio.SerializableSpecHelpers._
 import zio.internal.stacktracer.ZTraceElement
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.{ test => testSync, _ }
 import zio.test.TestAspect.scala2Only
+import zio.test.{ test => testSync, _ }
 
 object SerializableSpec extends ZIOBaseSpec {
 

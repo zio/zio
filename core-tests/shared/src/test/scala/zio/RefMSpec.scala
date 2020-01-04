@@ -1,9 +1,9 @@
 package zio
 
-import zio.test._
-import zio.test.Assertion._
 import zio.clock.Clock
 import zio.duration.durationInt
+import zio.test.Assertion._
+import zio.test._
 
 object RefMSpec extends ZIOBaseSpec {
 

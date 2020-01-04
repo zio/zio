@@ -2,13 +2,13 @@ package zio.test
 
 import scala.math.Numeric.DoubleIsFractional
 
-import zio.{ Managed, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.test.{ check => Check, checkN => CheckN }
-import zio.test.environment.TestRandom
 import zio.test.TestAspect.scala2Only
+import zio.test.environment.TestRandom
+import zio.test.{ check => Check, checkN => CheckN }
+import zio.{ Managed, UIO, ZIO }
 
 object GenSpec extends ZIOBaseSpec {
   def spec = suite("GenSpec")(

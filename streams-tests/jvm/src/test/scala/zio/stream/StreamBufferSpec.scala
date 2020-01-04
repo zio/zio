@@ -1,10 +1,11 @@
 package zio.stream
 
 import scala.{ Stream => _ }
+
 import zio._
-import zio.test._
 import zio.test.Assertion.{ equalTo, fails }
 import zio.test.TestAspect.flaky
+import zio.test._
 
 object StreamBufferSpec extends ZIOBaseSpec {
 

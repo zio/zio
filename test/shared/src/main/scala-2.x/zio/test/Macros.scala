@@ -16,10 +16,10 @@
 
 package zio.test
 
-import zio.UIO
-
-import scala.reflect.macros.blackbox.Context
 import scala.reflect.macros.TypecheckException
+import scala.reflect.macros.blackbox.Context
+
+import zio.UIO
 
 private[test] object Macros {
 

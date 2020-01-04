@@ -23,8 +23,8 @@ import zio._
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
-import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
+import zio.internal.{ Scheduler => IScheduler }
 import zio.scheduler.Scheduler
 
 /**

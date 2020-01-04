@@ -17,6 +17,7 @@
 package zio.stream
 
 import com.github.ghik.silencer.silent
+
 import zio._
 
 /**

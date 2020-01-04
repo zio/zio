@@ -16,8 +16,8 @@
 
 package zio.test
 
-import zio.{ Runtime, ZIO }
 import zio.internal.Executor
+import zio.{ Runtime, ZIO }
 
 /**
  * A `Fun[A, B]` is a referentially transparent version of a potentially

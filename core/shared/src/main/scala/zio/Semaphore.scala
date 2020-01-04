@@ -20,10 +20,10 @@
 
 package zio
 
-import internals._
-
 import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
+
+import internals._
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores

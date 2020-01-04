@@ -16,12 +16,12 @@
 
 package zio.clock
 
+import java.time.{ Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
 import zio.scheduler.SchedulerLive
 import zio.{ IO, UIO, ZIO }
-import java.time.{ Instant, OffsetDateTime, ZoneId }
 
 trait Clock extends Serializable {
   def clock: Clock.Service[Any]

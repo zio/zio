@@ -16,8 +16,8 @@
 
 package zio.test
 
-import zio.{ UIO, URIO, ZIO }
 import zio.console.Console
+import zio.{ UIO, URIO, ZIO }
 
 trait TestLogger {
   def testLogger: TestLogger.Service

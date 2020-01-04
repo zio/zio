@@ -17,8 +17,8 @@ package zio
 
 import zio.clock.Clock
 import zio.console.Console
-import zio.system.System
 import zio.random.Random
+import zio.system.System
 
 trait ZEnvDefinition {
   type ZEnv = Clock with Console with System with Random
