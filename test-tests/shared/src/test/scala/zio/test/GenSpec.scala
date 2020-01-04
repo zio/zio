@@ -443,6 +443,42 @@ object GenSpec extends ZIOBaseSpec {
     },
     testM("runHead") {
       assertM(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
+    },
+    testM("crossAll") {
+      val gen = Gen.crossAll(
+        List(
+          Gen.fromIterable(List(1, 2)),
+          Gen.fromIterable(List(3)),
+          Gen.fromIterable(List(4, 5))
+        )
+      )
+      assertM(gen.runCollect)(
+        equalTo(
+          List(
+            List(1, 3, 4),
+            List(1, 3, 5),
+            List(2, 3, 4),
+            List(2, 3, 5)
+          )
+        )
+      )
+    },
+    testM("zipAll") {
+      val gen = Gen.zipAll(
+        List(
+          Gen.fromIterable(List(1, 2)),
+          Gen.fromIterable(List(3)),
+          Gen.fromIterable(List(4, 5))
+        )
+      )
+      assertM(gen.runCollect)(
+        equalTo(
+          List(
+            List(1, 3, 4),
+            List(2, 3, 5)
+          )
+        )
+      )
     }
   )
 
