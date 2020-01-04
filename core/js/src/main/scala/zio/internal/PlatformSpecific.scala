@@ -23,7 +23,7 @@ import zio.internal.tracing.TracingConfig
 import zio.internal.stacktracer.Tracer
 import scala.concurrent.ExecutionContext
 
-trait PlatformSpecific {
+private[internal] trait PlatformSpecific {
   lazy val default = makeDefault()
   lazy val global  = fromExecutionContext(ExecutionContext.global)
 

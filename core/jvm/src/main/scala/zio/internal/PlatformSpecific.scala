@@ -26,7 +26,7 @@ import zio.internal.tracing.TracingConfig
 
 import scala.concurrent.ExecutionContext
 
-trait PlatformSpecific {
+private[internal] trait PlatformSpecific {
   /**
    * A Runtime with settings suitable for benchmarks, specifically with Tracing 
    * and auto-yielding disabled.

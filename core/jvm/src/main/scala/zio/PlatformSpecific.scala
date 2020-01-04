@@ -24,7 +24,7 @@ import zio.blocking.Blocking
 import zio.scheduler.Scheduler
 import zio.blocking.Blocking
 
-trait PlatformSpecific {
+private[zio] trait PlatformSpecific {
   type ZEnv = Clock with Console with System with Random with Blocking
 
   val ZEnv: Managed[Nothing, ZEnv] = 
