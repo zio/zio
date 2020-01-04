@@ -29,7 +29,7 @@ inThisBuild(
 
 ThisBuild / publishTo := sonatypePublishToBundle.value
 
-addCommandAlias("build", "clean; fix; fmt; testJVM")
+addCommandAlias("prepare", "fix; fmt")
 addCommandAlias("fix", "all compile:scalafix test:scalafix")
 addCommandAlias(
   "fixCheck",
