@@ -19,6 +19,8 @@ package zio.stream
 import java.io.{ IOException, InputStream }
 import java.{ util => ju }
 
+import scala.annotation.tailrec
+
 import com.github.ghik.silencer.silent
 
 import zio._
@@ -2473,6 +2475,72 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         }
       }
     } yield javaStream
+
+  /**
+   * Converts this stream into a `scala.collection.Iterator` wrapped in a [[ZManaged]].
+   * The returned iterator will only be valid within the scope of the ZManaged.
+   */
+  def toIterator: ZManaged[R, Nothing, Iterator[Either[E, A]]] =
+    for {
+      pull    <- this.process
+      runtime <- ZIO.runtime[R].toManaged_
+    } yield {
+      new Iterator[Either[E, A]] {
+        /*
+         * Internal state of a Iterator pulling from a ZStream
+         *
+         * It starts as Running
+         *
+         * when Running  , on pull (hasNext), pull the ZStream and switch to Closed or Value
+         * when Value    , on consume (next), return the Value and switch to Running
+         * when Closed   , on pull (hasNext), stays Closed
+         */
+        sealed trait State
+        case object Running                   extends State
+        sealed trait ValueOrClosed            extends State
+        case object Closed                    extends ValueOrClosed
+        case class Value(value: Either[E, A]) extends ValueOrClosed
+
+        var state: State = Running
+
+        private def pool(): Unit =
+          state = runtime.unsafeRun(
+            pull
+              .fold({
+                case None    => Closed
+                case Some(e) => Value(Left(e))
+              }, x => Value(Right(x)))
+          )
+
+        private def setRunning(): Unit =
+          state = Running
+
+        @tailrec
+        override def hasNext: Boolean =
+          state match {
+            case Closed   => false
+            case Value(_) => true
+            case Running =>
+              pool()
+              hasNext
+          }
+
+        @tailrec
+        override def next(): Either[E, A] =
+          state match {
+            case Closed => throw new NoSuchElementException("next on empty iterator")
+
+            case Value(a) =>
+              setRunning()
+              a
+
+            //Should not happen, next() has to be called after a successful hasNext() (Iterator spec)
+            case Running =>
+              pool()
+              next()
+          }
+      }
+    }
 
   /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
