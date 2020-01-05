@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ Has, Ref, UIO, ZDep, ZIO }
+import zio.{ Has, Ref, UIO, ZLayer, ZIO }
 import zio.system.System
 
 /**
@@ -115,8 +115,8 @@ object TestSystem extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Console`, such as with [[ZIO!.provide]].
    */
-  def make(data: Data): ZDep[Has.Any, Nothing, TestSystem] =
-    ZDep.fromEffect(Ref.make(data).map(Test(_)))
+  def make(data: Data): ZLayer[Has.Any, Nothing, TestSystem] =
+    ZLayer.fromEffect(Ref.make(data).map(Test(_)))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified

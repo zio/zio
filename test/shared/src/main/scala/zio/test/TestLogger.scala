@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Has, UIO, URIO, ZDep, ZIO }
+import zio.{ Has, UIO, URIO, ZLayer, ZIO }
 import zio.console.Console
 
 object TestLogger {
@@ -24,8 +24,8 @@ object TestLogger {
     def logLine(line: String): UIO[Unit]
   }
 
-  def fromConsole: ZDep[Console, Nothing, TestLogger] = 
-    ZDep.fromFunction { (console: Console.Service) =>
+  def fromConsole: ZLayer[Console, Nothing, TestLogger] = 
+    ZLayer.fromFunction { (console: Console.Service) =>
       Has(new Service {
         def logLine(line: String): UIO[Unit] = console.putStrLn(line)
       })

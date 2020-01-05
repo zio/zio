@@ -18,9 +18,7 @@ package zio.test
 
 import zio.{ Cause, Schedule, ZIO, ZManaged }
 import zio.duration._
-import zio.clock.Clock
 import zio.system
-import zio.system.System
 import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
 
 /**

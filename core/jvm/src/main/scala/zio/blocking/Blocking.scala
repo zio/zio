@@ -147,7 +147,7 @@ object Blocking extends Serializable {
       blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
   }
 
-  val live: ZDep[Has.Any, Nothing, Blocking] = ZDep.succeed {
+  val live: ZLayer[Has.Any, Nothing, Blocking] = ZLayer.succeed {
     new Service {
       override val blockingExecutor: Executor = internal.blockingExecutor0
     }

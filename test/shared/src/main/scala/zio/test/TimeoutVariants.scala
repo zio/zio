@@ -16,9 +16,7 @@
 
 package zio.test
 
-import zio.clock.Clock
 import zio.console
-import zio.console.Console
 import zio.duration._
 import zio.test.environment.Live
 import zio.ZIO

@@ -144,8 +144,8 @@ object TestConsole extends Serializable {
    * interface. This can be useful for mixing in with implementations of other
    * interfaces.
    */
-  def makeTest(data: Data): ZDep[Has.Any, Nothing, TestConsole] =
-    ZDep.fromEffect(Ref.make(data).map(Test(_)))
+  def makeTest(data: Data): ZLayer[Has.Any, Nothing, TestConsole] =
+    ZLayer.fromEffect(Ref.make(data).map(Test(_)))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the

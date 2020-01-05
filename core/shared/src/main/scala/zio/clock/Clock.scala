@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
 import zio.internal.Scheduler
-import zio.{ Has, IO, UIO, ZDep, ZIO }
+import zio.{ Has, IO, UIO, ZLayer, ZIO }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
 object Clock extends Serializable {
@@ -31,7 +31,7 @@ object Clock extends Serializable {
     def sleep(duration: Duration): UIO[Unit]
   }
 
-  val live: ZDep[Has[Scheduler], Nothing, Clock] = ZDep.fromFunction { (scheduler: Scheduler) =>
+  val live: ZLayer[Has[Scheduler], Nothing, Clock] = ZLayer.fromFunction { (scheduler: Scheduler) =>
     Has(new Service {
       def currentTime(unit: TimeUnit): UIO[Long] =
         IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))

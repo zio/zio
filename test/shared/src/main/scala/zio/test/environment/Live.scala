@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ Has, IO, NeedsEnv, UIO, ZDep, ZEnv, ZIO }
+import zio._
 
 /**
  * The `Live` trait provides access to the "live" environment from within the
@@ -57,8 +57,8 @@ object Live {
    * could be useful if you are mixing in interfaces to create your own
    * environment type.
    */
-  def makeService(r: ZEnv): ZDep[Has.Any, Nothing, Live] =
-    ZDep.succeed {
+  def makeService(r: ZEnv): ZLayer[Has.Any, Nothing, Live] =
+    ZLayer.succeed {
       new Live.Service {
         def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
           zio.provide(r)

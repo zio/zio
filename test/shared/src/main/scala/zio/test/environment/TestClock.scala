@@ -20,12 +20,9 @@ import java.time.{ Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import zio._
-import zio.clock.Clock
-import zio.console.Console
 import zio.duration._
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
-import zio.scheduler.Scheduler
 
 /**
  * `TestClock` makes it easy to deterministically and efficiently test effects
@@ -343,8 +340,8 @@ object TestClock extends Serializable {
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def make(data: Data, live: Option[Live.Service] = None): ZDep[Live, Nothing, TestClock] =
-    ZDep.fromFunctionManaged { (live: Live.Service) =>
+  def make(data: Data): ZLayer[Live, Nothing, TestClock] =
+    ZLayer.fromFunctionManaged { (live: Live.Service) =>
       for {
         ref      <- Ref.make(data).toManaged_
         fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_

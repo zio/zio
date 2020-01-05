@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ FiberRef, Has, UIO, ZDep, ZIO }
+import zio.{ FiberRef, Has, UIO, ZLayer, ZIO }
 
 object Sized {
   trait Service {
@@ -24,8 +24,8 @@ object Sized {
     def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
   }
 
-  def makeService(size: Int): ZDep[Has.Any, Nothing, Sized] =
-    ZDep.fromEffect(FiberRef.make(size).map { fiberRef =>
+  def makeService(size: Int): ZLayer[Has.Any, Nothing, Sized] =
+    ZLayer.fromEffect(FiberRef.make(size).map { fiberRef =>
       new Sized.Service {
         val size: UIO[Int] =
           fiberRef.get

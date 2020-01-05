@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ FiberRef, Has, UIO, ZDep, ZIO }
+import zio.{ FiberRef, Has, UIO, ZLayer, ZIO }
 
 /**
  * The `Annotations` trait provides access to an annotation map that tests
@@ -51,8 +51,8 @@ object Annotations {
   /**
    * Constructs a new `Annotations` service.
    */
-  def makeService: ZDep[Has.Any, Nothing, Annotations] =
-    ZDep.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
+  def makeService: ZLayer[Has.Any, Nothing, Annotations] =
+    ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       new Annotations.Service {
         def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
           fiberRef.update(_.annotate(key, value)).unit

@@ -17,7 +17,7 @@
 package zio.system
 
 import java.lang.{ System => JSystem }
-import zio.{ Has, IO, UIO, ZDep }
+import zio.{ Has, IO, UIO, ZLayer }
 
 object System extends Serializable {
   trait Service extends Serializable {
@@ -28,7 +28,7 @@ object System extends Serializable {
     val lineSeparator: UIO[String]
   }
 
-  val live: ZDep[Has.Any, Nothing, System] = ZDep.succeed(
+  val live: ZLayer[Has.Any, Nothing, System] = ZLayer.succeed(
     new Service {
 
       def env(variable: String): IO[SecurityException, Option[String]] =

@@ -16,14 +16,25 @@
 
 package zio
 
-final case class ZDep[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]) { self =>
-  def >>>[E1 >: E, ROut2 <: Has[_]](that: ZDep[ROut, E1, ROut2]): ZDep[RIn, E1, ROut2] =
-    ZDep(self.value.flatMap(v => that.value.provide(v)))
+/**
+ * A `ZLayer[A, E, B]` describes a layer of an application: every layer in an 
+ * application requires some services (the input) and produces some services 
+ * (the output).
+ * 
+ * Layers can be thought of as recipes for producing bundles of services, given 
+ * their dependencies (other services).
+ * 
+ * Construction of layers can be effectful and utilize resources that must be 
+ * acquired and safetly released when the services are done being utilized.
+ */
+final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]) { self =>
+  def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+    ZLayer(self.value.flatMap(v => that.value.provide(v)))
 
   def ++[E1 >: E, RIn2 <: Has[_], ROut2 <: Has[_]](
-    that: ZDep[RIn2, E1, ROut2]
-  ): ZDep[RIn with RIn2, E1, ROut with ROut2] =
-    ZDep(
+    that: ZLayer[RIn2, E1, ROut2]
+  ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
+    ZLayer(
       ZManaged.accessManaged[RIn with RIn2] { env =>
         (self.value.provide(env) zipWith that.value.provide(env))((l, r) => l.++[ROut2](r))
       }
@@ -31,19 +42,19 @@ final case class ZDep[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, 
 
   def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
 }
-object ZDep {
-  def fromEffect[E, A: Tagged](zio: IO[E, A]): ZDep[Has.Any, E, Has[A]] = ZDep(ZManaged.fromEffect(zio.map(Has(_))))
+object ZLayer {
+  def fromEffect[E, A: Tagged](zio: IO[E, A]): ZLayer[Has.Any, E, Has[A]] = ZLayer(ZManaged.fromEffect(zio.map(Has(_))))
 
-  def fromFunction[A: Tagged, E, B <: Has[_]: Tagged](f: A => B): ZDep[Has[A], E, B] =
-    ZDep(ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get))))
+  def fromFunction[A: Tagged, E, B <: Has[_]: Tagged](f: A => B): ZLayer[Has[A], E, B] =
+    ZLayer(ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get))))
 
-  def fromFunctionM[A: Tagged, R <: Has[_], E, B <: Has[_]: Tagged](f: A => ZIO[R, E, B]): ZDep[R with Has[A], E, B] =
-    ZDep(ZManaged.fromEffect(ZIO.accessM[R with Has[A]](m => f(m.get))))
+  def fromFunctionM[A: Tagged, R <: Has[_], E, B <: Has[_]: Tagged](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
+    ZLayer(ZManaged.fromEffect(ZIO.accessM[R with Has[A]](m => f(m.get))))
 
-  def fromFunctionManaged[A: Tagged, E, B <: Has[_]: Tagged](f: A => Managed[E, B]): ZDep[Has[A], E, B] =
-    ZDep(ZManaged.accessManaged[Has[A]](m => f(m.get)))
+  def fromFunctionManaged[A: Tagged, E, B <: Has[_]: Tagged](f: A => Managed[E, B]): ZLayer[Has[A], E, B] =
+    ZLayer(ZManaged.accessManaged[Has[A]](m => f(m.get)))
 
-  def fromManaged[E, A: Tagged](m: Managed[E, A]): ZDep[Has.Any, E, Has[A]] = ZDep(m.map(Has(_)))
+  def fromManaged[E, A: Tagged](m: Managed[E, A]): ZLayer[Has.Any, E, Has[A]] = ZLayer(m.map(Has(_)))
 
-  def succeed[A: Tagged](a: A): ZDep[Has.Any, Nothing, Has[A]] = ZDep(ZManaged.succeed(Has(a)))
+  def succeed[A: Tagged](a: A): ZLayer[Has.Any, Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
 }
