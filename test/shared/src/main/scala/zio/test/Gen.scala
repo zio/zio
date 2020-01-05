@@ -162,6 +162,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.string(alphaNumericChar)
 
   /**
+   * A generator of alphanumeric strings whose size falls within the specified
+   * bounds.
+   */
+  def alphaNumericStringBounded(min: Int, max: Int): Gen[Random with Sized, String] =
+    Gen.stringBounded(min, max)(alphaNumericChar)
+
+  /**
    * A generator of bytes. Shrinks toward '0'.
    */
   val anyByte: Gen[Random, Byte] =
@@ -226,6 +233,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val boolean: Gen[Random, Boolean] =
     elements(false, true)
+
+  /**
+   * A generator whose size falls within the specified bounds.
+   */
+  def bounded[R <: Random, A](min: Int, max: Int)(f: Int => Gen[R, A]): Gen[R, A] =
+    int(min, max).flatMap(f)
 
   /**
    * A generator of byte values inside the specified range: [start, end].
@@ -379,6 +392,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
     small(listOfN(_)(g), 1)
 
+  /**
+   * A generator of lists whose size falls within the specified bounds.
+   */
+  def listOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, List[A]] =
+    bounded(min, max)(listOfN(_)(g))
+
   def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.crossWith(gen)(_ :: _))
 
@@ -487,6 +506,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def string1[R <: Random with Sized](char: Gen[R, Char]): Gen[R, String] =
     listOf1(char).map(_.mkString)
 
+  /**
+   * A generator of strings whose size falls within the specified bounds.
+   */
+  def stringBounded[R <: Random](min: Int, max: Int)(g: Gen[R, Char]): Gen[R, String] =
+    bounded(min, max)(stringN(_)(g))
+
   def stringN[R <: Random](n: Int)(char: Gen[R, Char]): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
 
@@ -521,6 +546,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   def vectorOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf1(g).map(_.toVector)
+
+  /**
+   * A generator of vectors whose size falls within the specified bounds.
+   */
+  def vectorOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
+    bounded(min, max)(vectorOfN(_)(g))
 
   def vectorOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)
