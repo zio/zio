@@ -16,10 +16,15 @@
 
 package zio.test.environment
 
+import zio.Managed
 import zio.blocking.Blocking
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
-import zio.system.System
+import zio.test.Annotations
+import zio.test.Sized
 
-private object LiveEnvironment extends Blocking.Live with Clock.Live with Console.Live with Random.Live with System.Live
+trait PlatformSpecific {
+  type TestEnvironment = 
+    Annotations with Blocking with TestClock with TestConsole with Live with TestRandom with Sized with System
+
+  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = 
+    ???
+}

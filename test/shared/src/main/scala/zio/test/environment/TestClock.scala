@@ -95,14 +95,9 @@ import zio.scheduler.Scheduler
  * is placed in the queue, and when we adjust the clock by another 60 minutes
  * exactly one more value is placed in the queue.
  */
-trait TestClock extends Clock with Scheduler {
-  val clock: TestClock.Service[Any]
-  val scheduler: TestClock.Service[Any]
-}
-
 object TestClock extends Serializable {
 
-  trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] with Restorable {
+  trait Service extends Restorable {
     def adjust(duration: Duration): UIO[Unit]
     def fiberTime: UIO[Duration]
     def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
@@ -115,9 +110,9 @@ object TestClock extends Serializable {
   case class Test(
     clockState: Ref[TestClock.Data],
     fiberState: FiberRef[TestClock.FiberData],
-    live: Live.Service[Clock with Console],
+    live: Live.Service,
     warningState: RefM[TestClock.WarningData]
-  ) extends TestClock.Service[Any] {
+  ) extends TestClock.Service {
 
     /**
      * Increments the current clock time by the specified duration. Any effects
@@ -335,47 +330,34 @@ object TestClock extends Serializable {
    * the new time.
    */
   def adjust(duration: Duration): ZIO[TestClock, Nothing, Unit] =
-    ZIO.accessM(_.clock.adjust(duration))
+    ZIO.accessM(_.get.adjust(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * fiber time for this fiber.
    */
   val fiberTime: ZIO[TestClock, Nothing, Duration] =
-    ZIO.accessM(_.clock.fiberTime)
-
-  /**
-   * Constructs a new `TestClock` with the specified initial state. This can
-   * be useful for providing the required environment to an effect that
-   * requires a `Clock`, such as with [[ZIO!.provide]].
-   */
-  def make(data: Data, live: Option[Live.Service[Clock with Console]] = None): UManaged[TestClock] =
-    makeTest(data, live).map { test =>
-      new TestClock {
-        val clock     = test
-        val scheduler = test
-      }
-    }
+    ZIO.accessM(_.get.fiberTime)
 
   /**
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def makeTest(data: Data, live: Option[Live.Service[Clock with Console]] = None): UManaged[Test] =
-    Managed.make {
+  def make(data: Data, live: Option[Live.Service] = None): ZDep[Live, Nothing, TestClock] =
+    ZDep.fromFunctionManaged { (live: Live.Service) =>
       for {
-        ref      <- Ref.make(data)
-        fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine)
-        live     <- live.fold(Live.makeService[Clock with Console](LiveEnvironment))(ZIO.succeed)
-        refM     <- RefM.make(WarningData.start)
-      } yield Test(ref, fiberRef, live, refM)
-    }(_.warningDone)
+        ref      <- Ref.make(data).toManaged_
+        fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
+        refM     <- RefM.make(WarningData.start).toManaged_
+        test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
+      } yield Has(test)
+    }
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock state in an effect which, when run,
    * will restore the `TestClock` to the saved state
    */
-  val save: ZIO[TestClock, Nothing, UIO[Unit]] = ZIO.accessM[TestClock](_.clock.save)
+  val save: ZIO[TestClock, Nothing, UIO[Unit]] = ZIO.accessM[TestClock](_.get.save)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
@@ -383,7 +365,7 @@ object TestClock extends Serializable {
    * before the new time.
    */
   def setDateTime(dateTime: OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
-    ZIO.accessM(_.clock.setDateTime(dateTime))
+    ZIO.accessM(_.get.setDateTime(dateTime))
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
@@ -391,7 +373,7 @@ object TestClock extends Serializable {
    * actions scheduled for on or before the new time.
    */
   def setTime(duration: Duration): ZIO[TestClock, Nothing, Unit] =
-    ZIO.accessM(_.clock.setTime(duration))
+    ZIO.accessM(_.get.setTime(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time zone
@@ -400,21 +382,21 @@ object TestClock extends Serializable {
    * result of this effect.
    */
   def setTimeZone(zone: ZoneId): ZIO[TestClock, Nothing, Unit] =
-    ZIO.accessM(_.clock.setTimeZone(zone))
+    ZIO.accessM(_.get.setTimeZone(zone))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list of
    * times that effects are scheduled to run.
    */
   val sleeps: ZIO[TestClock, Nothing, List[Duration]] =
-    ZIO.accessM(_.clock.sleeps)
+    ZIO.accessM(_.get.sleeps)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
   val timeZone: ZIO[TestClock, Nothing, ZoneId] =
-    ZIO.accessM(_.clock.timeZone)
+    ZIO.accessM(_.get.timeZone)
 
   /**
    * The default initial state of the `TestClock` with the clock time set to

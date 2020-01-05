@@ -20,7 +20,7 @@ package zio.test.environment
 import scala.collection.immutable.Queue
 import scala.math.{ log, sqrt }
 
-import zio.{ Chunk, Ref, UIO, ZIO }
+import zio.{ Chunk, Has, Ref, UIO, ZDep, ZIO }
 import zio.random.Random
 
 /**
@@ -65,13 +65,9 @@ import zio.random.Random
  * so you can fill the buffer with new values or go back to pseudo-random
  * number generation.
  */
-trait TestRandom extends Random {
-  val random: TestRandom.Service[Any]
-}
-
 object TestRandom extends Serializable {
 
-  trait Service[R] extends Random.Service[R] with Restorable {
+  trait Service extends Random.Service with Restorable {
     def clearBooleans: UIO[Unit]
     def clearBytes: UIO[Unit]
     def clearChars: UIO[Unit]
@@ -94,7 +90,7 @@ object TestRandom extends Serializable {
   /**
    * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
    */
-  case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends TestRandom.Service[Any] {
+  case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends TestRandom.Service {
 
     /**
      * Clears the buffer of booleans.
@@ -492,124 +488,120 @@ object TestRandom extends Serializable {
    * of booleans.
    */
   val clearBooleans: ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearBooleans)
+    ZIO.accessM(_.get.clearBooleans)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of bytes.
    */
   val clearBytes: ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearBytes)
+    ZIO.accessM(_.get.clearBytes)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of characters.
    */
   val clearChars: ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearChars)
+    ZIO.accessM(_.get.clearChars)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of doubles.
    */
   val clearDoubles: ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearDoubles)
+    ZIO.accessM(_.get.clearDoubles)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of floats.
    */
   val clearFloats: ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearFloats)
+    ZIO.accessM(_.get.clearFloats)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of integers.
    */
   val clearInts: ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearInts)
+    ZIO.accessM(_.get.clearInts)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of longs.
    */
   val clearLongs: ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearLongs)
+    ZIO.accessM(_.get.clearLongs)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of strings.
    */
   val clearStrings: ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.clearStrings)
+    ZIO.accessM(_.get.clearStrings)
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of booleans.
    */
   def feedBooleans(booleans: Boolean*): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedBooleans(booleans: _*))
+    ZIO.accessM(_.get.feedBooleans(booleans: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of chunks of bytes.
    */
   def feedBytes(bytes: Chunk[Byte]*): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedBytes(bytes: _*))
+    ZIO.accessM(_.get.feedBytes(bytes: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of characters.
    */
   def feedChars(chars: Char*): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedChars(chars: _*))
+    ZIO.accessM(_.get.feedChars(chars: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of doubles.
    */
   def feedDoubles(doubles: Double*): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedDoubles(doubles: _*))
+    ZIO.accessM(_.get.feedDoubles(doubles: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of floats.
    */
   def feedFloats(floats: Float*): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedFloats(floats: _*))
+    ZIO.accessM(_.get.feedFloats(floats: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of integers.
    */
   def feedInts(ints: Int*): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedInts(ints: _*))
+    ZIO.accessM(_.get.feedInts(ints: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of longs.
    */
   def feedLongs(longs: Long*): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedLongs(longs: _*))
+    ZIO.accessM(_.get.feedLongs(longs: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of strings.
    */
   def feedStrings(strings: String*): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.feedStrings(strings: _*))
+    ZIO.accessM(_.get.feedStrings(strings: _*))
 
   /**
    * Constructs a new `TestRandom` with the specified initial state. This can
    * be useful for providing the required environment to an effect that
    * requires a `Random`, such as with [[ZIO!.provide]].
    */
-  def make(data: Data): UIO[TestRandom] =
-    makeTest(data).map { test =>
-      new TestRandom {
-        val random = test
-      }
-    }
+  def make(data: Data): ZDep[Has.Any, Nothing, TestRandom] =
+    ZDep.fromEffect(makeTest(data))
 
   /**
    * Constructs a new `Test` object that implements the `TestRandom` interface.
@@ -625,14 +617,14 @@ object TestRandom extends Serializable {
    * Accesses a `TestRandom` instance in the environment and saves the random state in an effect which, when run,
    * will restore the `TestRandom` to the saved state
    */
-  val save: ZIO[TestRandom, Nothing, UIO[Unit]] = ZIO.accessM[TestRandom](_.random.save)
+  val save: ZIO[TestRandom, Nothing, UIO[Unit]] = ZIO.accessM[TestRandom](_.get.save)
 
   /**
    * Accesses a `TestRandom` instance in the environment and sets the seed to
    * the specified value.
    */
   def setSeed(seed: Long): ZIO[TestRandom, Nothing, Unit] =
-    ZIO.accessM(_.random.setSeed(seed))
+    ZIO.accessM(_.get.setSeed(seed))
 
   /**
    * An arbitrary initial seed for the `TestRandom`.

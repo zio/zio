@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ IO, NeedsEnv, ZIO }
+import zio.{ Has, IO, NeedsEnv, ZEnv, ZIO }
 
 import zio.Managed
 
@@ -71,13 +71,20 @@ import zio.Managed
  * to provide the implementation for test services that you mix in.
  */
 package object environment {
+  type Live        = Has[Live.Service]
+  type TestClock   = Has[TestClock.Service]
+  type TestConsole = Has[TestConsole.Service]
+  type TestRandom  = Has[TestRandom.Service]
+  type TestSystem  = Has[TestSystem.Service]
+
+  val liveEnvironment: Managed[Nothing, zio.ZEnv] = zio.defaultEnvironment
 
   /**
    * Provides an effect with the "real" environment as opposed to the test
    * environment. This is useful for performing effects such as timing out
    * tests, accessing the real time, or printing to the real console.
    */
-  def live[R, E, A](zio: ZIO[R, E, A])(implicit ev: NeedsEnv[R]): ZIO[Live[R], E, A] =
+  def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Live, E, A] =
     Live.live(zio)
 
   /**
@@ -91,14 +98,14 @@ package object environment {
    *  withLive(test)(_.timeout(duration))
    * }}}
    */
-  def withLive[R, R1, E, E1, A, B](
+  def withLive[R, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[R1, E1, B])(implicit ev: NeedsEnv[R1]): ZIO[R with Live[R1], E1, B] =
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R with Live, E1, B] =
     Live.withLive(zio)(f)
 
   /**
    * A managed version of the `TestEnvironment` containing testable versions of
    * all the standard ZIO environmental effects.
    */
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = TestEnvironment.Value
+  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = ???
 }

@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ IO, NeedsEnv, UIO, ZIO }
+import zio.{ Has, IO, NeedsEnv, UIO, ZDep, ZEnv, ZIO }
 
 /**
  * The `Live` trait provides access to the "live" environment from within the
@@ -38,35 +38,17 @@ import zio.{ IO, NeedsEnv, UIO, ZIO }
  * with the test environment, for example to time out a test. Both of these
  * methods are re-exported in the `environment` package for easy availability.
  */
-trait Live[+R] {
-  def live: Live.Service[R]
-}
-
 object Live {
 
-  trait Service[+R] {
-    def provide[E, A](zio: ZIO[R, E, A]): IO[E, A]
+  trait Service {
+    def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A]
   }
 
   /**
    * Provides an effect with the "live" environment.
    */
-  def live[R, E, A](zio: ZIO[R, E, A])(implicit ev: NeedsEnv[R]): ZIO[Live[R], E, A] =
-    ZIO.accessM[Live[R]](_.live.provide(zio))
-
-  /**
-   * Constructs a new `Live` instance with an environment `R`. This should
-   * typically not be necessary as `TestEnvironment` provides access to live
-   * versions of all the standard ZIO environmental effects but could be useful
-   * if you are creating your own test interfaces and want to be able to access
-   * the live version of these interfaces at the same time.
-   */
-  def make[R](r: R): UIO[Live[R]] =
-    makeService(r).map { service =>
-      new Live[R] {
-        val live = service
-      }
-    }
+  def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Live, E, A] =
+    ZIO.accessM[Live](_.get.provide(zio))
 
   /**
    * Constructs a new `Live` service that implements the `Live` interface.
@@ -75,10 +57,10 @@ object Live {
    * could be useful if you are mixing in interfaces to create your own
    * environment type.
    */
-  def makeService[R](r: R): UIO[Live.Service[R]] =
-    UIO.succeed {
-      new Live.Service[R] {
-        def provide[E, A](zio: ZIO[R, E, A]): IO[E, A] =
+  def makeService(r: ZEnv): ZDep[Has.Any, Nothing, Live] =
+    ZDep.succeed {
+      new Live.Service {
+        def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
           zio.provide(r)
       }
     }
@@ -88,8 +70,8 @@ object Live {
    * while ensuring that the effect itself is provided with the test
    * environment.
    */
-  def withLive[R, R1, E, E1, A, B](
+  def withLive[R, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[R1, E1, B])(implicit ev: NeedsEnv[R1]): ZIO[R with Live[R1], E1, B] =
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R with Live, E1, B] =
     ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))
 }

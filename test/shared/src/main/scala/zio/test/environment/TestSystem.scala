@@ -16,7 +16,7 @@
 
 package zio.test.environment
 
-import zio.{ Ref, UIO, ZIO }
+import zio.{ Has, Ref, UIO, ZDep, ZIO }
 import zio.system.System
 
 /**
@@ -37,13 +37,9 @@ import zio.system.System
  * }}}
 
  */
-trait TestSystem extends System {
-  val system: TestSystem.Service[Any]
-}
-
 object TestSystem extends Serializable {
 
-  trait Service[R] extends System.Service[R] with Restorable {
+  trait Service extends System.Service with Restorable {
     def putEnv(name: String, value: String): UIO[Unit]
     def putProperty(name: String, value: String): UIO[Unit]
     def setLineSeparator(lineSep: String): UIO[Unit]
@@ -51,7 +47,7 @@ object TestSystem extends Serializable {
     def clearProperty(prop: String): UIO[Unit]
   }
 
-  case class Test(systemState: Ref[TestSystem.Data]) extends TestSystem.Service[Any] {
+  case class Test(systemState: Ref[TestSystem.Data]) extends TestSystem.Service {
 
     /**
      * Returns the specified environment variable if it exists.
@@ -119,60 +115,49 @@ object TestSystem extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Console`, such as with [[ZIO!.provide]].
    */
-  def make(data: Data): UIO[TestSystem] =
-    makeTest(data).map { test =>
-      new TestSystem {
-        val system = test
-      }
-    }
-
-  /**
-   * Constructs a new `Test` object that implements the `TestSystem` interface.
-   * This can be useful for mixing in with implementations of other interfaces.
-   */
-  def makeTest(data: Data): UIO[Test] =
-    Ref.make(data).map(Test(_))
+  def make(data: Data): ZDep[Has.Any, Nothing, TestSystem] =
+    ZDep.fromEffect(Ref.make(data).map(Test(_)))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of environment variables.
    */
   def putEnv(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
-    ZIO.accessM(_.system.putEnv(name, value))
+    ZIO.accessM(_.get.putEnv(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of system properties.
    */
   def putProperty(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
-    ZIO.accessM(_.system.putProperty(name, value))
+    ZIO.accessM(_.get.putProperty(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
    * will restore the `TestSystem` to the saved state
    */
-  val save: ZIO[TestSystem, Nothing, UIO[Unit]] = ZIO.accessM[TestSystem](_.system.save)
+  val save: ZIO[TestSystem, Nothing, UIO[Unit]] = ZIO.accessM[TestSystem](_.get.save)
 
   /**
    * Accesses a `TestSystem` instance in the environment and sets the line
    * separator to the specified value.
    */
   def setLineSeparator(lineSep: String): ZIO[TestSystem, Nothing, Unit] =
-    ZIO.accessM(_.system.setLineSeparator(lineSep))
+    ZIO.accessM(_.get.setLineSeparator(lineSep))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of environment variables.
    */
   def clearEnv(variable: String): ZIO[TestSystem, Nothing, Unit] =
-    ZIO.accessM(_.system.clearEnv(variable))
+    ZIO.accessM(_.get.clearEnv(variable))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of system properties.
    */
   def clearProperty(prop: String): ZIO[TestSystem, Nothing, Unit] =
-    ZIO.accessM(_.system.clearProperty(prop))
+    ZIO.accessM(_.get.clearProperty(prop))
 
   /**
    * The default initial state of the `TestSystem` with no environment variable

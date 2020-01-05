@@ -56,20 +56,16 @@ import zio._
  * } yield result == Vector("Hello, John!\n", "Hello, Jane!\n", "Hello, Sally!\n")
  * }}}
  */
-trait TestConsole extends Console {
-  val console: TestConsole.Service[Any]
-}
-
 object TestConsole extends Serializable {
 
-  trait Service[R] extends Console.Service[R] with Restorable {
+  trait Service extends Console.Service with Restorable {
     def feedLines(lines: String*): UIO[Unit]
     def output: UIO[Vector[String]]
     def clearInput: UIO[Unit]
     def clearOutput: UIO[Unit]
   }
 
-  case class Test(consoleState: Ref[TestConsole.Data]) extends TestConsole.Service[Any] {
+  case class Test(consoleState: Ref[TestConsole.Data]) extends TestConsole.Service {
 
     /**
      * Clears the contents of the input buffer.
@@ -144,52 +140,40 @@ object TestConsole extends Serializable {
   }
 
   /**
-   * Constructs a new `TestConsole` with the specified initial state. This can
-   * be useful for providing the required environment to an effect that
-   * requires a `Console`, such as with [[ZIO!.provide]].
-   */
-  def make(data: Data): UIO[TestConsole] =
-    makeTest(data).map { test =>
-      new TestConsole {
-        val console = test
-      }
-    }
-
-  /**
    * Constructs a new `Test` object that implements the `TestConsole`
    * interface. This can be useful for mixing in with implementations of other
    * interfaces.
    */
-  def makeTest(data: Data): UIO[Test] =
-    Ref.make(data).map(Test(_))
+  def makeTest(data: Data): ZDep[Has.Any, Nothing, TestConsole] =
+    ZDep.fromEffect(Ref.make(data).map(Test(_)))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the
    * specified sequence of strings to the input buffer.
    */
   def feedLines(lines: String*): ZIO[TestConsole, Nothing, Unit] =
-    ZIO.accessM(_.console.feedLines(lines: _*))
+    ZIO.accessM(_.get.feedLines(lines: _*))
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
   val output: ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.accessM(_.console.output)
+    ZIO.accessM(_.get.output)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the input
    * buffer.
    */
   val clearInput: ZIO[TestConsole, Nothing, Unit] =
-    ZIO.accessM(_.console.clearInput)
+    ZIO.accessM(_.get.clearInput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the output
    * buffer.
    */
   val clearOutput: ZIO[TestConsole, Nothing, Unit] =
-    ZIO.accessM(_.console.clearOutput)
+    ZIO.accessM(_.get.clearOutput)
 
   /**
    * The default initial state of the `TestConsole` with input and output
@@ -201,7 +185,7 @@ object TestConsole extends Serializable {
    * Accesses a `TestConsole` instance in the environment and saves the console state in an effect which, when run,
    * will restore the `TestConsole` to the saved state
    */
-  val save: ZIO[TestConsole, Nothing, UIO[Unit]] = ZIO.accessM[TestConsole](_.console.save)
+  val save: ZIO[TestConsole, Nothing, UIO[Unit]] = ZIO.accessM[TestConsole](_.get.save)
 
   /**
    * The state of the `TestConsole`.

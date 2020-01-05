@@ -32,10 +32,18 @@ final case class ZDep[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, 
   def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
 }
 object ZDep {
+  def fromEffect[E, A: Tagged](zio: IO[E, A]): ZDep[Has.Any, E, Has[A]] = ZDep(ZManaged.fromEffect(zio.map(Has(_))))
+
   def fromFunction[A: Tagged, E, B <: Has[_]: Tagged](f: A => B): ZDep[Has[A], E, B] =
-    ZDep[Has[A], E, B](ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get))))
+    ZDep(ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get))))
+
+  def fromFunctionM[A: Tagged, R <: Has[_], E, B <: Has[_]: Tagged](f: A => ZIO[R, E, B]): ZDep[R with Has[A], E, B] =
+    ZDep(ZManaged.fromEffect(ZIO.accessM[R with Has[A]](m => f(m.get))))
+
+  def fromFunctionManaged[A: Tagged, E, B <: Has[_]: Tagged](f: A => Managed[E, B]): ZDep[Has[A], E, B] =
+    ZDep(ZManaged.accessManaged[Has[A]](m => f(m.get)))
+
+  def fromManaged[E, A: Tagged](m: Managed[E, A]): ZDep[Has.Any, E, Has[A]] = ZDep(m.map(Has(_)))
 
   def succeed[A: Tagged](a: A): ZDep[Has.Any, Nothing, Has[A]] = ZDep(ZManaged.succeed(Has(a)))
-
-  def succeedManaged[E, A: Tagged](m: Managed[E, A]): ZDep[Has.Any, E, Has[A]] = ZDep(m.map(Has(_)))
 }
