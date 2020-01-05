@@ -23,7 +23,6 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 
 If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
 
-- [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [cakeless](https://github.com/itkpi/cakeless): Better reader monad for deeply-nested cakes
 - [caliban](https://github.com/ghostdogpr/caliban): Functional GraphQL backend in Scala
 - [distage](https://github.com/7mind/izumi): Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
@@ -34,6 +33,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
+- [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 - [zio-interop-log4j2](https://github.com/mlangc/zio-interop-log4j2): Fiber aware MDC logging for Log4j 2
