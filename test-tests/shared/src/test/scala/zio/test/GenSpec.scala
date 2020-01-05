@@ -243,6 +243,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("unit generates the constant unit value") {
         checkSample(Gen.unit)(forall(equalTo(())))
       },
+      testM("UUID generates random UUIDs") {
+        checkSample(Gen.anyUUID)(forall(equalTo(2)), _.map(_.variant))
+      },
       testM("vectorOf generates sizes in range") {
         checkSample(Gen.vectorOf(smallInt))(
           forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
@@ -326,13 +329,16 @@ object GenSpec extends ZIOBaseSpec {
         val max = 7907688119669724678L
         checkShrink(Gen.long(min, max))(min)
       },
+      testM("noShrink discards the shrinker for this generator") {
+        assertM(shrinks(Gen.anyInt.noShrink))(hasSize(equalTo(1)))
+      },
       testM("optionOf shrinks to None") {
         checkShrink(Gen.option(smallInt))(None)
       },
       testM("printableChar shrinks to bottom of range") {
         checkShrink(Gen.printableChar)('!')
       },
-      testM("reShrink applies new shrinking logic") {
+      testM("reshrink applies new shrinking logic") {
         val gen = Gen.int(0, 10).reshrink(Sample.shrinkIntegral(10))
         checkShrink(gen)(10)
       },
