@@ -9,7 +9,7 @@ import zio.scheduler.scheduler
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestClock._
-import zio.{ clock, DefaultRuntime, Promise, ZIO }
+import zio.{ clock, Promise, ZIO }
 import zio.internal.{ Scheduler => IScheduler }
 
 object SchedulerSpec extends ZIOBaseSpec {

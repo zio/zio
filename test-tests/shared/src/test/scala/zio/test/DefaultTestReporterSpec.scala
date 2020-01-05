@@ -155,14 +155,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     for {
       _ <- TestTestRunner(testEnvironmentManaged)
             .run(spec)
-            .provideSomeManaged(for {
-              logSvc   <- TestLogger.fromConsoleM.toManaged_
-              clockSvc <- TestClock.make(TestClock.DefaultData)
-            } yield new TestLogger with Clock {
-              override def testLogger: TestLogger.Service = logSvc.testLogger
-
-              override val clock: Clock.Service[Any] = clockSvc.clock
-            })
+            .provideSomeManaged((TestLogger.fromConsole ++ TestClock.live(TestClock.DefaultData)).value)
       output <- TestConsole.output
     } yield output.mkString
 

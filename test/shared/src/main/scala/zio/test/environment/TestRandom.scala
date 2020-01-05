@@ -22,6 +22,7 @@ import scala.math.{ log, sqrt }
 
 import zio.{ Chunk, Has, Ref, UIO, ZIO, ZLayer }
 import zio.random.Random
+import zio.clock.Clock
 
 /**
  * `TestRandom` allows for deterministically testing effects involving
@@ -484,6 +485,20 @@ object TestRandom extends Serializable {
   }
 
   /**
+   * An arbitrary initial seed for the `TestRandom`.
+   */
+  val DefaultData: Data = Data(1071905196, 1911589680)
+
+  /**
+   * The seed of the `TestRandom`.
+   */
+  final case class Data(
+    seed1: Int,
+    seed2: Int,
+    private[TestRandom] val nextNextGaussians: Queue[Double] = Queue.empty
+  )
+
+  /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of booleans.
    */
@@ -600,11 +615,28 @@ object TestRandom extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Random`, such as with [[ZIO!.provide]].
    */
-  def live: ZLayer[Has.Any, Nothing, TestRandom] =
+  def make(data: Data): ZLayer[Has.Any, Nothing, TestRandom] =
     ZLayer.fromEffect(for {
-      data   <- Ref.make(DefaultData)
+      data   <- Ref.make(data)
       buffer <- Ref.make(Buffer())
     } yield Has(Test(data, buffer)))
+
+  val default: ZLayer[Has.Any, Nothing, TestRandom] =
+    make(DefaultData)
+
+  val live: ZLayer[Clock, Nothing, TestRandom] =
+    (default ++ ZLayer.environment[Clock]) >>>
+      ZLayer.fromFunctionM((tR: TestRandom) => zio.clock.nanoTime.flatMap(tR.get[TestRandom.Service].setSeed(_)).as(tR))
+
+  /**
+   * Constructs a new `Test` object that implements the `TestRandom` interface.
+   * This can be useful for mixing in with implementations of other interfaces.
+   */
+  def makeTest(data: Data): UIO[Test] =
+    for {
+      data   <- Ref.make(data)
+      buffer <- Ref.make(Buffer())
+    } yield Test(data, buffer)
 
   /**
    * Accesses a `TestRandom` instance in the environment and saves the random state in an effect which, when run,
@@ -618,20 +650,6 @@ object TestRandom extends Serializable {
    */
   def setSeed(seed: Long): ZIO[TestRandom, Nothing, Unit] =
     ZIO.accessM(_.get.setSeed(seed))
-
-  /**
-   * An arbitrary initial seed for the `TestRandom`.
-   */
-  val DefaultData: Data = Data(1071905196, 1911589680)
-
-  /**
-   * The seed of the `TestRandom`.
-   */
-  final case class Data(
-    seed1: Int,
-    seed2: Int,
-    private[TestRandom] val nextNextGaussians: Queue[Double] = Queue.empty
-  )
 
   /**
    * The buffer of the `TestRandom`.

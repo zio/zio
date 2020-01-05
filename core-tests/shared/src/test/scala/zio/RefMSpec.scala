@@ -117,8 +117,8 @@ object RefMSpec extends ZIOBaseSpec {
         fiber       <- makeAndWait.fork
         refM        <- promise.await
         _           <- fiber.interrupt
-        value       <- refM.update(_ => ZIO.succeed(Closed)).timeout(1.second).provide(Clock.Live)
-      } yield assert(value)(equalTo(Some(Closed)))
+        value       <- refM.update(_ => ZIO.succeed(Closed))
+      } yield assert(value)(equalTo(Closed))
     }
   )
 

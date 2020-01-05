@@ -43,6 +43,8 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
   def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
 }
 object ZLayer {
+  def environment[R <: Has[_]: Tagged]: ZLayer[R, Nothing, R] = ZLayer.fromFunction((r: R) => r)
+
   def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer[Has.Any, E, A] = ZLayer(ZManaged.fromEffect(zio))
 
   def fromFunction[A <: Has[_], E, B <: Has[_]: Tagged](f: A => B): ZLayer[A, E, B] =

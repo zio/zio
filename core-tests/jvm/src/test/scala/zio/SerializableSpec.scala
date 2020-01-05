@@ -5,9 +5,11 @@ import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream,
 import zio.SerializableSpecHelpers._
 import zio.internal.stacktracer.ZTraceElement
 import zio.random.Random
+import zio.system.System
 import zio.test.Assertion._
 import zio.test.{ test => testSync, _ }
 import zio.test.TestAspect.scala2Only
+import zio.test.environment.Live
 
 object SerializableSpec extends ZIOBaseSpec {
 
@@ -221,15 +223,16 @@ object SerializableSpec extends ZIOBaseSpec {
         result <- serializeAndBack(traced)
       } yield assert(result)(equalTo(traced))
     },
-    testSync("Random is serializable") {
-      val rnd = Random.Live
-      assert(serializeAndDeserialize(rnd))(equalTo(rnd))
+    testM("Random is serializable") {
+      Random.live.build.use { rnd =>
+        ZIO.succeed(assert(serializeAndDeserialize(rnd))(equalTo(rnd)))
+      }
     },
     testM("TracingStatus.Untraced is serializable") {
-      for {
-        system <- serializeAndBack(zio.system.System.Live)
-        result <- system.system.property("notpresent")
-      } yield assert(result)(equalTo(Option.empty[String]))
+      Live.live(for {
+        system <- ZIO.accessM[System](has => serializeAndBack(has.get[System.Service]))
+        result <- system.property("notpresent")
+      } yield assert(result)(equalTo(Option.empty[String])))
     }
   )
 }

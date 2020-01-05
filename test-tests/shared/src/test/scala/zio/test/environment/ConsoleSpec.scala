@@ -5,6 +5,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
 import zio.test.environment.TestConsole._
+import zio.ZIO
 
 object ConsoleSpec extends ZIOBaseSpec {
 
@@ -29,14 +30,16 @@ object ConsoleSpec extends ZIOBaseSpec {
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     },
     testM("reads from input") {
-      for {
-        testConsole <- TestConsole.makeTest(Data(List("Input 1", "Input 2"), Vector.empty))
-        input1      <- testConsole.getStrLn
-        input2      <- testConsole.getStrLn
-      } yield {
-        assert(input1)(equalTo("Input 1")) &&
-        assert(input2)(equalTo("Input 2"))
-      }
+      {
+        for {
+          testConsole <- ZIO.environment[TestConsole].map(_.get[TestConsole.Service])
+          input1      <- testConsole.getStrLn
+          input2      <- testConsole.getStrLn
+        } yield {
+          assert(input1)(equalTo("Input 1")) &&
+          assert(input2)(equalTo("Input 2"))
+        }
+      }.provideManaged(TestConsole.live(Data(List("Input 1", "Input 2"), Vector.empty)).build)
     },
     testM("fails on empty input") {
       for {

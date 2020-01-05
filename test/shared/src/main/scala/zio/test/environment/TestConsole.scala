@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -144,8 +144,11 @@ object TestConsole extends Serializable {
    * interface. This can be useful for mixing in with implementations of other
    * interfaces.
    */
-  def live: ZLayer[Has.Any, Nothing, TestConsole] =
-    ZLayer.fromEffect(Ref.make(DefaultData).map(ref => Has(Test(ref))))
+  def live(data: Data): ZLayer[Has.Any, Nothing, TestConsole] =
+    ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
+
+  val default: ZLayer[Has.Any, Nothing, TestConsole] =
+    live(DefaultData)
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the

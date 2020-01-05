@@ -9,6 +9,7 @@ import zio.test.Assertion._
 import zio.test.{ check => Check, checkN => CheckN }
 import zio.test.environment.TestRandom
 import zio.test.TestAspect.scala2Only
+import zio.ZLayer
 
 object GenSpec extends ZIOBaseSpec {
   def spec = suite("GenSpec")(
@@ -472,7 +473,7 @@ object GenSpec extends ZIOBaseSpec {
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
 
   def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = Managed.fromEffect(TestRandom.make(TestRandom.DefaultData))
+    val testRandom = TestRandom.default.build
     for {
       leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(testRandom)
       rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(testRandom)
@@ -480,7 +481,7 @@ object GenSpec extends ZIOBaseSpec {
   }
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = Managed.fromEffect(TestRandom.make(TestRandom.DefaultData))
+    val testRandom = TestRandom.default.build
     for {
       leftSample  <- sample100(left).provideManaged(testRandom)
       rightSample <- sample100(right).provideManaged(testRandom)
@@ -498,14 +499,7 @@ object GenSpec extends ZIOBaseSpec {
   val genStringIntFn: Gen[Random, String => Int] = Gen.function(Gen.int(-10, 10))
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    Sized.makeService(n).flatMap { service =>
-      zio.provideSome[Random] { r =>
-        new Random with Sized {
-          val random = r.random
-          val sized  = service
-        }
-      }
-    }
+    zio.provideSomeManaged((Sized.live(n) ++ ZLayer.environment[Random]).value)
 
   val random: Gen[Any, Gen[Random, Int]] =
     Gen.const(Gen.int(-10, 10))
