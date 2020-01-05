@@ -16,10 +16,10 @@
 
 package zio.test.mock
 
-import zio.{ IO, Managed, UIO, ZIO }
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.test.{ assertM, testM, Assertion }
+import zio.{ IO, Managed, UIO, ZIO }
 
 object ExpectationSpecUtils {
 

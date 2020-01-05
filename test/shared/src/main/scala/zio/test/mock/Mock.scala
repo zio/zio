@@ -16,9 +16,9 @@
 
 package zio.test.mock
 
-import zio.{ IO, Promise, Ref, ZIO }
 import zio.test.mock.Expectation.Call
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException }
+import zio.{ IO, Promise, Ref, ZIO }
 
 trait Mock {
 

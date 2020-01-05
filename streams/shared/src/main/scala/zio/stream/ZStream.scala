@@ -20,11 +20,12 @@ import java.io.{ IOException, InputStream }
 import java.{ util => ju }
 
 import com.github.ghik.silencer.silent
+
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.stream.ZStream.Pull
 import zio.internal.UniqueKey
+import zio.stream.ZStream.Pull
 
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of

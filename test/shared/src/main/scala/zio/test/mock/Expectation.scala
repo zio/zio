@@ -19,11 +19,12 @@ package zio.test.mock
 import scala.language.implicitConversions
 
 import com.github.ghik.silencer.silent
-import zio.{ IO, Managed, Ref, UIO, ZIO }
+
 import zio.test.Assertion
 import zio.test.mock.Expectation.{ AnyCall, Call, Empty, FlatMap, Next, State }
-import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
 import zio.test.mock.MockException.UnmetExpectationsException
+import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
+import zio.{ IO, Managed, Ref, UIO, ZIO }
 
 /**
  * An `Expectation[-M, +E, +A]` is an immutable data structure that represents

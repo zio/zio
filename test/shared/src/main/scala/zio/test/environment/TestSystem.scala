@@ -16,8 +16,8 @@
 
 package zio.test.environment
 
-import zio.{ Ref, UIO, ZIO }
 import zio.system.System
+import zio.{ Ref, UIO, ZIO }
 
 /**
  * `TestSystem` supports deterministic testing of effects involving system

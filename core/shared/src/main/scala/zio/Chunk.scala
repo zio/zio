@@ -16,9 +16,10 @@
 
 package zio
 
+import java.nio._
+
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
-import java.nio._
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed

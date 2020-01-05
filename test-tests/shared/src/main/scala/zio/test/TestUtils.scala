@@ -2,8 +2,8 @@ package zio.test
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import zio.{ UIO, ZIO }
 import zio.test.environment.TestEnvironment
+import zio.{ UIO, ZIO }
 
 object TestUtils {
 

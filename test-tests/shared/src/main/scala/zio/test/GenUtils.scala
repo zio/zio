@@ -1,11 +1,11 @@
 package zio.test
 
+import scala.concurrent.Future
+
 import zio.Exit.{ Failure, Success }
+import zio._
 import zio.random.Random
 import zio.test.environment.TestRandom
-import zio._
-
-import scala.concurrent.Future
 
 object GenUtils extends DefaultRuntime {
 

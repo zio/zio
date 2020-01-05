@@ -1,12 +1,11 @@
 import sbt._
 import Keys._
-
 import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport.CrossType
-
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
+import scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
 
 object BuildHelper {
   val testDeps = Seq("org.scalacheck" %% "scalacheck" % "1.14.3" % "test")
@@ -173,7 +172,8 @@ object BuildHelper {
       else
         Seq(
           "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,
-          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full)
+          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full),
+          compilerPlugin(scalafixSemanticdb)
         )
     },
     parallelExecution in Test := true,
@@ -265,6 +265,9 @@ object BuildHelper {
         |${header(s"/____|___\\___/   ${version.value}")}
         |
         |Useful sbt tasks:
+        |${item("build")} - Prepares sources, compiles and runs tests.
+        |${item("prepare")} - Prepares sources by applying both scalafix and scalafmt
+        |${item("fix")} - Fixes sources files using scalafix
         |${item("fmt")} - Formats source files using scalafmt
         |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
         |${item("testJVM")} - Runs all JVM tests

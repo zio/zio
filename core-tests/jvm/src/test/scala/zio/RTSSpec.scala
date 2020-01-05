@@ -5,9 +5,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import zio.clock.Clock
 import zio.duration._
-import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, jvm, nonFlaky }
+import zio.test._
 
 object RTSSpec extends ZIOBaseSpec {
 

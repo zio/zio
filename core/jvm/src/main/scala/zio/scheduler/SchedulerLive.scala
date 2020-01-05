@@ -16,12 +16,12 @@
 
 package zio.scheduler
 
+import java.util.concurrent._
+import java.util.concurrent.atomic.AtomicInteger
+
 import zio.ZIO
 import zio.duration.Duration
 import zio.internal.{ NamedThreadFactory, Scheduler => IScheduler }
-
-import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicInteger
 
 private[scheduler] object internal {
   private[scheduler] val GlobalScheduler = new IScheduler {

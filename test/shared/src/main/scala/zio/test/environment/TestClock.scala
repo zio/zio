@@ -23,8 +23,8 @@ import zio._
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
-import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
+import zio.internal.{ Scheduler => IScheduler }
 import zio.scheduler.Scheduler
 
 /**
@@ -97,7 +97,7 @@ import zio.scheduler.Scheduler
  */
 trait TestClock extends Clock with Scheduler {
   def clock: TestClock.Service[Any]
-  def scheduler: TestClock.Service[Any]
+  def scheduler: Scheduler.Service[Any]
 }
 
 object TestClock extends Serializable {

@@ -16,11 +16,11 @@
 
 package zio.test.environment
 
-import java.io.IOException
 import java.io.EOFException
+import java.io.IOException
 
-import zio.console._
 import zio._
+import zio.console._
 
 /**
  * `TestConsole` provides a testable interface for programs interacting with

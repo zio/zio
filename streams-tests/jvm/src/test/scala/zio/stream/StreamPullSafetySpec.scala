@@ -1,10 +1,11 @@
 package zio.stream
 
-import zio._
-import zio.test._
-import zio.test.Assertion.{ equalTo, isFalse, isTrue }
-import ZStream.Pull
 import StreamUtils.nPulls
+import ZStream.Pull
+
+import zio._
+import zio.test.Assertion.{ equalTo, isFalse, isTrue }
+import zio.test._
 
 object StreamPullSafetySpec extends ZIOBaseSpec {
 

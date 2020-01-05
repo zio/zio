@@ -2,13 +2,13 @@ package zio.test
 
 import scala.math.Numeric.DoubleIsFractional
 
-import zio.{ Managed, UIO, ZIO }
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.test.{ check => Check, checkN => CheckN }
-import zio.test.environment.TestRandom
 import zio.test.TestAspect.scala2Only
+import zio.test.environment.TestRandom
+import zio.test.{ check => Check, checkN => CheckN }
+import zio.{ Managed, UIO, ZIO }
 
 object GenSpec extends ZIOBaseSpec {
   def spec = suite("GenSpec")(
@@ -443,6 +443,42 @@ object GenSpec extends ZIOBaseSpec {
     },
     testM("runHead") {
       assertM(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
+    },
+    testM("crossAll") {
+      val gen = Gen.crossAll(
+        List(
+          Gen.fromIterable(List(1, 2)),
+          Gen.fromIterable(List(3)),
+          Gen.fromIterable(List(4, 5))
+        )
+      )
+      assertM(gen.runCollect)(
+        equalTo(
+          List(
+            List(1, 3, 4),
+            List(1, 3, 5),
+            List(2, 3, 4),
+            List(2, 3, 5)
+          )
+        )
+      )
+    },
+    testM("zipAll") {
+      val gen = Gen.zipAll(
+        List(
+          Gen.fromIterable(List(1, 2)),
+          Gen.fromIterable(List(3)),
+          Gen.fromIterable(List(4, 5))
+        )
+      )
+      assertM(gen.runCollect)(
+        equalTo(
+          List(
+            List(1, 3, 4),
+            List(2, 3, 5)
+          )
+        )
+      )
     }
   )
 

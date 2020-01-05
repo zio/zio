@@ -17,6 +17,7 @@
 package zio
 
 import java.util.concurrent.atomic.AtomicReference
+
 import Promise.internal._
 
 /**

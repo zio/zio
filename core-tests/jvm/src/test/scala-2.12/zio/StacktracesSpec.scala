@@ -1,9 +1,9 @@
 package zio
 
+import zio.blocking.Blocking
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
-import zio.blocking.Blocking
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestClock

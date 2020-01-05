@@ -27,17 +27,9 @@ import zio.scheduler.{ Scheduler, SchedulerLive }
 import zio.test.Annotations
 import zio.test.Sized
 
-case class TestEnvironment(
-  annotations: Annotations.Service[Any],
-  clock: TestClock.Service[Any],
-  console: TestConsole.Service[Any],
-  live: Live.Service[ZEnv],
-  random: TestRandom.Service[Any],
-  sized: Sized.Service[Any],
-  system: TestSystem.Service[Any]
-) extends Annotations
+trait TestEnvironment
+    extends Annotations
     with Live[ZEnv]
-    with Scheduler
     with Sized
     with TestClock
     with TestConsole
@@ -195,10 +187,29 @@ case class TestEnvironment(
       }
     }
 
-  val scheduler = clock
+  override final lazy val scheduler: Scheduler.Service[Any] = clock
 }
 
 object TestEnvironment extends Serializable {
+
+  def apply(
+    annotationsService: Annotations.Service[Any],
+    clockService: TestClock.Service[Any],
+    consoleService: TestConsole.Service[Any],
+    liveService: Live.Service[ZEnv],
+    randomService: TestRandom.Service[Any],
+    sizedService: Sized.Service[Any],
+    systemService: TestSystem.Service[Any]
+  ): TestEnvironment =
+    new TestEnvironment {
+      override val annotations = annotationsService
+      override val clock       = clockService
+      override val console     = consoleService
+      override val live        = liveService
+      override val random      = randomService
+      override val sized       = sizedService
+      override val system      = systemService
+    }
 
   val Value: Managed[Nothing, TestEnvironment] =
     for {
@@ -211,5 +222,5 @@ object TestEnvironment extends Serializable {
       system      <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
       time        <- live.provide(zio.clock.nanoTime).toManaged_
       _           <- random.setSeed(time).toManaged_
-    } yield new TestEnvironment(annotations, clock, console, live, random, sized, system)
+    } yield TestEnvironment(annotations, clock, console, live, random, sized, system)
 }

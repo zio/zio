@@ -16,12 +16,12 @@
 
 package zio.internal
 
+import scala.concurrent.ExecutionContext
+
 import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-
-import scala.concurrent.ExecutionContext
 
 object PlatformLive {
   lazy val Default = makeDefault()

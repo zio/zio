@@ -2,9 +2,8 @@ package zio.internal
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
-
 import BenchUtils._
+import org.openjdk.jmh.annotations._
 
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))

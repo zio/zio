@@ -3,15 +3,15 @@ package zio
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
+import zio.Cause._
+import zio.LatchOps._
 import zio.clock.Clock
 import zio.duration._
 import zio.random.Random
-import zio.test._
-import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
-import zio.Cause._
-import zio.LatchOps._
+import zio.test._
+import zio.test.environment._
 
 object ZIOSpec extends ZIOBaseSpec {
 
@@ -571,6 +571,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("fromFutureInterrupt")(
       testM("running Future can be interrupted") {
         import java.util.concurrent.atomic.AtomicInteger
+
         import scala.concurrent.{ ExecutionContext, Future }
         def infiniteFuture(ref: AtomicInteger)(implicit ec: ExecutionContext): Future[Nothing] =
           Future(ref.getAndIncrement()).flatMap(_ => infiniteFuture(ref))

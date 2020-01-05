@@ -17,6 +17,7 @@
 package zio.internal.impls
 
 import java.util.concurrent.atomic.AtomicLongArray
+
 import zio.internal.impls.padding.MutableQueueFieldsPadding
 import zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
 

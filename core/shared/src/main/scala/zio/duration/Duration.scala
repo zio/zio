@@ -18,6 +18,7 @@ package zio.duration
 
 import java.time.{ Duration => JavaDuration }
 import java.util.concurrent.TimeUnit
+
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 import scala.math.Ordered
 
@@ -56,7 +57,9 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
   /** Whether this is a zero duration */
   def isZero: Boolean
 
-  def asScala: ScalaDuration
+  type SpecificScalaDuration <: ScalaDuration
+
+  def asScala: SpecificScalaDuration
 
   /** The `java.time.Duration` returned for an infinite Duration is technically "only" ~2x10^16 hours long (`Long.MaxValue` number of seconds) */
   def asJava: JavaDuration
@@ -68,7 +71,7 @@ object Duration {
 
   object Finite {
 
-    def apply(nanos: Long): Duration =
+    def apply(nanos: Long): Finite =
       if (nanos >= 0) new Finite(nanos)
       else Zero
 
@@ -103,7 +106,9 @@ object Duration {
 
     def toNanos: Long = nanos
 
-    override def asScala: ScalaDuration = ScalaFiniteDuration(nanos, TimeUnit.NANOSECONDS)
+    override type SpecificScalaDuration = ScalaFiniteDuration
+
+    override def asScala: SpecificScalaDuration = ScalaFiniteDuration(nanos, TimeUnit.NANOSECONDS)
 
     override def asJava: JavaDuration = JavaDuration.ofNanos(nanos)
 
@@ -145,16 +150,18 @@ object Duration {
 
     val isZero: Boolean = false
 
-    override def asScala: ScalaDuration = ScalaDuration.Inf
+    override type SpecificScalaDuration = ScalaDuration.Infinite
+
+    override def asScala: SpecificScalaDuration = ScalaDuration.Inf
 
     override def asJava: JavaDuration = JavaDuration.ofMillis(Long.MaxValue)
 
     override def render: String = "Infinity"
   }
 
-  def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
+  def apply(amount: Long, unit: TimeUnit): Finite = fromNanos(unit.toNanos(amount))
 
-  def fromNanos(nanos: Long): Duration = Finite(nanos)
+  def fromNanos(nanos: Long): Finite = Finite(nanos)
 
   def fromScala(duration: ScalaDuration): Duration = duration match {
     case d: ScalaFiniteDuration => fromNanos(d.toNanos)
@@ -166,6 +173,6 @@ object Duration {
     else if (duration.compareTo(JavaDuration.ofNanos(Long.MaxValue)) >= 0) Infinity
     else fromNanos(duration.toNanos)
 
-  val Zero: Duration = Finite(0)
+  val Zero: Finite = Finite(0)
 
 }

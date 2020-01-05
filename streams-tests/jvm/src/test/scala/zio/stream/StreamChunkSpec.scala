@@ -1,13 +1,14 @@
 package zio.stream
 
+import scala.{ Stream => _ }
+
 import com.github.ghik.silencer.silent
+
+import zio._
 import zio.random.Random
 import zio.stream.StreamChunkUtils._
 import zio.test.Assertion.{ equalTo, isFalse, isLeft, succeeds }
 import zio.test._
-import zio._
-
-import scala.{ Stream => _ }
 
 object StreamChunkSpec extends ZIOBaseSpec {
 
