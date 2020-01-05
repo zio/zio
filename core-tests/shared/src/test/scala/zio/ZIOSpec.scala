@@ -438,6 +438,76 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("foreachPar")(
+      testM("rins single task") {
+        val as = List(2)
+        val results = IO.foreachPar(as) { a =>
+          IO.succeed(2 * a)
+        }
+        assertM(results)(equalTo(List(4)))
+      },
+      testM("runs two tasks") {
+        val as = List(2, 3)
+        val results = IO.foreachPar(as) { a =>
+          IO.succeed(2 * a)
+        }
+        assertM(results)(equalTo(List(4, 6)))
+      },
+      testM("runs many tasks") {
+        val as = (1 to 1000)
+        val results = IO.foreachPar(as) { a =>
+          IO.succeed(2 * a)
+        }
+        assertM(results)(equalTo(as.toList.map(2 * _)))
+      },
+      testM("runs a task that fails") {
+        val as = (1 to 10)
+        val results = IO
+          .foreachPar(as) {
+            case 5 => IO.fail("Boom!")
+            case a => IO.succeed(2 * a)
+          }
+          .flip
+        assertM(results)(equalTo("Boom!"))
+      },
+      testM("runs two failed tasks") {
+        val as = (1 to 10)
+        val results = IO
+          .foreachPar(as) {
+            case 5 => IO.fail("Boom1!")
+            case 8 => IO.fail("Boom2!")
+            case a => IO.succeed(2 * a)
+          }
+          .flip
+        assertM(results)(equalTo("Boom1!") || equalTo("Boom2!"))
+      },
+      testM("runs a task that dies") {
+        val as = (1 to 10)
+        val results = IO
+          .foreachPar(as) {
+            case 5 => IO.dieMessage("Boom!")
+            case a => IO.succeed(2 * a)
+          }
+          .run
+        assertM(results)(dies(hasMessage("Boom!")))
+      },
+      testM("runs a task that is interrupted") {
+        val as = (1 to 10)
+        val results = IO
+          .foreachPar(as) {
+            case 5 => IO.interrupt
+            case a => IO.succeed(2 * a)
+          }
+          .run
+        assertM(results)(isInterrupted)
+      },
+      testM("internal completion tracking does not occur in the stack trace") {
+        val as      = List(())
+        val results = IO.foreachPar(as)(_ => IO.fail("Boom!"))
+        results.foldCause(
+          cause => assert(cause.traces(1).stackTrace)(isEmpty),
+          success => assert(success)(nothing)
+        )
+      },
       testM("returns results in the same order") {
         val list = List("1", "2", "3")
         val res  = IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt))

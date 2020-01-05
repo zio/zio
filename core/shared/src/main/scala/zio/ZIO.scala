@@ -2225,42 +2225,30 @@ object ZIO {
     val resultList: ZIO[R, E, List[B]] = for {
       parentId <- ZIO.fiberId
       latch    <- CountdownLatch.make(n)
-      failed   <- Promise.make[Nothing, Int]
+      failed   <- Promise.make[Nothing, Unit]
       cause    <- Ref.make[Cause[E]](Cause.empty)
       fibers <- as
-                 .foldLeft[(Int, URIO[R, List[(Int, Fiber[E, B])]])]((0, URIO.succeed(Nil))) { (r, a) =>
-                   r match {
-                     case (i, acc) =>
-                       def handleExit(exit: Exit[E, B]): URIO[R, Any] = exit.foldM(
-                         c => cause.update(cs => cs && c) *> failed.succeed(i),
+                 .foldLeft[(Int, URIO[R, List[Fiber[E, _]]])]((0, URIO.succeed(Nil))) {
+                   case ((i, acc), a) =>
+                     val task = fn(a).traced
+                       .foldCauseM(
+                         c => cause.update(cs => cs && c) *> failed.succeed(()).unit,
                          b => ZIO.effectTotal(resultArr(i) = b)
                        )
+                       .ensuring(latch.countDown)
+                       .untraced
 
-                       val appended = for {
-                         fs <- acc
-                         f <- ZIO
-                               .bracketExit(
-                                 ZIO.succeed(a),
-                                 (_: A, exit: Exit[E, B]) => handleExit(exit).ensuring(latch.countDown),
-                                 fn
-                               )
-                               .fork
-                       } yield (i, f) :: fs
+                     val appended = for {
+                       fs <- acc
+                       f  <- task.fork
+                     } yield f :: fs
 
-                       (i + 1, appended)
-                   }
+                     (i + 1, appended)
                  }
                  ._2
-      interrupter = failed.await
-        .flatMap(
-          i =>
-            ZIO.foreach(fibers) {
-              case (j, f) if i != j => f.interruptAs(parentId).unit
-              case _                => UIO.unit
-            }
-        )
-        .toManaged_
-        .fork
+      interrupter = (failed.await *>
+        ZIO.foreach(fibers)(_.interruptAs(parentId))) // The failed fiber can be safely interrupted.
+      .toManaged_.fork
       _             <- interrupter.use_(latch.await)
       combinedCause <- cause.get
       results <- if (combinedCause.isEmpty) UIO.succeed(resultArr.asInstanceOf[Array[B]].toList)

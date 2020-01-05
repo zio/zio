@@ -151,8 +151,6 @@ object StackTracesSpec extends DefaultRunnableSpec {
               .traces(1)
               .parentTrace
               .get
-              .parentTrace
-              .get
               .stackTrace
               .exists(_.prettyPrint.contains("uploadUsers"))
           )(isTrue)
