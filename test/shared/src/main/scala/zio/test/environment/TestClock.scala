@@ -340,11 +340,11 @@ object TestClock extends Serializable {
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def make(data: Data): ZLayer[Live, Nothing, TestClock] =
+  def live: ZLayer[Live, Nothing, TestClock] =
     ZLayer.fromFunctionManaged { (live: Live) =>
       for {
-        ref      <- Ref.make(data).toManaged_
-        fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
+        ref      <- Ref.make(DefaultData).toManaged_
+        fiberRef <- FiberRef.make(FiberData(DefaultData.nanoTime), FiberData.combine).toManaged_
         refM     <- RefM.make(WarningData.start).toManaged_
         test     <- Managed.make(UIO(Test(ref, fiberRef, live.get, refM)))(_.warningDone)
       } yield Has(test)

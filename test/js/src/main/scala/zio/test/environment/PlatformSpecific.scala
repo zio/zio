@@ -24,19 +24,8 @@ trait PlatformSpecific {
   type TestEnvironment =
     Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
 
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = {
-    val annotations = Annotations.makeService
-    val live        = Live.makeService
-    val testClock   = live >>> TestClock.make(TestClock.DefaultData)
-    val testConsole = TestConsole.makeTest(TestConsole.DefaultData)
-    val testRandom  = TestRandom.make(TestRandom.DefaultData)
-    val sized       = Sized.makeService(100)
-    val testSystem  = TestSystem.make(TestSystem.DefaultData)
-
-    val whole =
-      ZEnv.live >>>
-        (annotations ++ testClock ++ testConsole ++ live ++ testRandom ++ sized ++ testSystem)
-
-    whole.build
-  }
+  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
+    (ZEnv.live >>>
+      (Annotations.live ++ (Live.live >>> TestClock.live) ++ TestConsole.live ++ Live.live ++ TestRandom.live ++ Sized
+        .live(100) ++ TestSystem.live)).build
 }

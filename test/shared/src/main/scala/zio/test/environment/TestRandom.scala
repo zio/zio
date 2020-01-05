@@ -600,9 +600,9 @@ object TestRandom extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Random`, such as with [[ZIO!.provide]].
    */
-  def make(data: Data): ZLayer[Has.Any, Nothing, TestRandom] =
+  def live: ZLayer[Has.Any, Nothing, TestRandom] =
     ZLayer.fromEffect(for {
-      data   <- Ref.make(data)
+      data   <- Ref.make(DefaultData)
       buffer <- Ref.make(Buffer())
     } yield Has(Test(data, buffer)))
 

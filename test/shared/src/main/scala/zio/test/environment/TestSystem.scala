@@ -115,8 +115,8 @@ object TestSystem extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Console`, such as with [[ZIO!.provide]].
    */
-  def make(data: Data): ZLayer[Has.Any, Nothing, TestSystem] =
-    ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
+  def live: ZLayer[Has.Any, Nothing, TestSystem] =
+    ZLayer.fromEffect(Ref.make(DefaultData).map(ref => Has(Test(ref))))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
