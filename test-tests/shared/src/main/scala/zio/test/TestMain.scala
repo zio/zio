@@ -8,7 +8,6 @@ object TestMain {
 
   def main(args: Array[String]): Unit = {
     val allTests: List[(String, AsyncBaseSpec)] = List(
-      ("SummaryBuilderSpec", SummaryBuilderSpec),
       ("SampleSpec", SampleSpec),
       ("TimeVariantsSpec", TimeVariantsSpec)
     )
