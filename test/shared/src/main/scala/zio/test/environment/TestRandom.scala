@@ -20,7 +20,7 @@ package zio.test.environment
 import scala.collection.immutable.Queue
 import scala.math.{ log, sqrt }
 
-import zio.{ Chunk, Has, Ref, UIO, ZLayer, ZIO }
+import zio.{ Chunk, Has, Ref, UIO, ZIO, ZLayer }
 import zio.random.Random
 
 /**
@@ -601,17 +601,10 @@ object TestRandom extends Serializable {
    * requires a `Random`, such as with [[ZIO!.provide]].
    */
   def make(data: Data): ZLayer[Has.Any, Nothing, TestRandom] =
-    ZLayer.fromEffect(makeTest(data))
-
-  /**
-   * Constructs a new `Test` object that implements the `TestRandom` interface.
-   * This can be useful for mixing in with implementations of other interfaces.
-   */
-  def makeTest(data: Data): UIO[Test] =
-    for {
+    ZLayer.fromEffect(for {
       data   <- Ref.make(data)
       buffer <- Ref.make(Buffer())
-    } yield Test(data, buffer)
+    } yield Has(Test(data, buffer)))
 
   /**
    * Accesses a `TestRandom` instance in the environment and saves the random state in an effect which, when run,

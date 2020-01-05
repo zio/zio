@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,6 @@
 
 package zio
 
-import zio.internal.Platform
-
-trait DefaultRuntime extends Runtime[Unit] {
-  val environment: Unit = ()
-
-  /**
-   * The platform of the runtime, which provides the essential capabilities
-   * necessary to bootstrap execution of tasks.
-   */
-  val platform: Platform = Platform.default
+object ZEnv {
+  val live: ZLayer[Has.Any, Nothing, ZEnv] = ZLayer.fromManaged(defaultEnvironment)
 }

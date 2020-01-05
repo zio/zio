@@ -18,7 +18,7 @@ package zio.console
 
 import java.io.{ EOFException, IOException, PrintStream, Reader }
 
-import zio.{ Has, IO, UIO, ZLayer, ZIO }
+import zio.{ Has, IO, UIO, ZIO, ZLayer }
 
 import scala.io.StdIn
 import scala.{ Console => SConsole }

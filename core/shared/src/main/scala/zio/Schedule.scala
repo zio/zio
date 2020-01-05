@@ -290,7 +290,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val initial =
         for {
           oldEnv <- ZIO.environment[R1]
-          env     = ev1.update(oldEnv, proxy(_, oldEnv))
+          env    = ev1.update(oldEnv, proxy(_, oldEnv))
           init   <- self.initial.provide(env)
         } yield (init, env)
       val extract = (a: A, s: State) => self.extract(a, s._1)
@@ -381,10 +381,14 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val extract = self.extract
       val update  = self.update
     }
+
   /**
    * Applies random jitter to all sleeps executed by the schedule.
    */
-  final def jittered[R1 <: R](min: Double, max: Double)(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1 with Random, A, B] =
+  final def jittered[R1 <: R](
+    min: Double,
+    max: Double
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1 with Random, A, B] =
     delayedM[R1 with Random] { duration =>
       random.nextDouble.map { random =>
         val d        = duration.toNanos

@@ -27,7 +27,7 @@ import zio.blocking.Blocking
 private[zio] trait PlatformSpecific {
   type ZEnv = Clock with Console with System with Random with Blocking
 
-  val defaultEnvironment: Managed[Nothing, ZEnv] = 
+  private[zio] val defaultEnvironment: Managed[Nothing, ZEnv] =
     ((Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Blocking.live).build
 
   type Tagged[A] = scala.reflect.runtime.universe.TypeTag[A]

@@ -32,7 +32,8 @@ case class TestRunner[R, E, L, -T, S](
   executor: TestExecutor[R, E, L, T, S],
   platform: Platform = Platform.default.withReportFailure(_ => ()),
   reporter: TestReporter[E, L, S] = DefaultTestReporter(TestAnnotationRenderer.default),
-  bootstrap: Managed[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ (Scheduler.live >>> Clock.live)).build
+  bootstrap: Managed[Nothing, TestLogger with Clock] =
+    ((Console.live >>> TestLogger.fromConsole) ++ (Scheduler.live >>> Clock.live)).build
 ) { self =>
 
   lazy val runtime = Runtime((), platform)

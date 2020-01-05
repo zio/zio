@@ -17,14 +17,14 @@
 package zio
 
 /**
- * A `ZLayer[A, E, B]` describes a layer of an application: every layer in an 
- * application requires some services (the input) and produces some services 
+ * A `ZLayer[A, E, B]` describes a layer of an application: every layer in an
+ * application requires some services (the input) and produces some services
  * (the output).
- * 
- * Layers can be thought of as recipes for producing bundles of services, given 
+ *
+ * Layers can be thought of as recipes for producing bundles of services, given
  * their dependencies (other services).
- * 
- * Construction of layers can be effectful and utilize resources that must be 
+ *
+ * Construction of layers can be effectful and utilize resources that must be
  * acquired and safetly released when the services are done being utilized.
  */
 final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]) { self =>
@@ -36,25 +36,25 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
     ZLayer(
       ZManaged.accessManaged[RIn with RIn2] { env =>
-        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => l.++[ROut2](r))
+        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => l.merge[ROut2](r))
       }
     )
 
   def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
 }
 object ZLayer {
-  def fromEffect[E, A: Tagged](zio: IO[E, A]): ZLayer[Has.Any, E, Has[A]] = ZLayer(ZManaged.fromEffect(zio.map(Has(_))))
+  def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer[Has.Any, E, A] = ZLayer(ZManaged.fromEffect(zio))
 
-  def fromFunction[A: Tagged, E, B <: Has[_]: Tagged](f: A => B): ZLayer[Has[A], E, B] =
-    ZLayer(ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get))))
+  def fromFunction[A <: Has[_], E, B <: Has[_]: Tagged](f: A => B): ZLayer[A, E, B] =
+    ZLayer(ZManaged.fromEffect(ZIO.access[A](m => f(m))))
 
-  def fromFunctionM[A: Tagged, R <: Has[_], E, B <: Has[_]: Tagged](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
-    ZLayer(ZManaged.fromEffect(ZIO.accessM[R with Has[A]](m => f(m.get))))
+  def fromFunctionM[A <: Has[_], R <: Has[_], E, B <: Has[_]: Tagged](f: A => ZIO[R, E, B]): ZLayer[R with A, E, B] =
+    ZLayer(ZManaged.fromEffect(ZIO.accessM[R with A](m => f(m))))
 
-  def fromFunctionManaged[A: Tagged, E, B <: Has[_]: Tagged](f: A => Managed[E, B]): ZLayer[Has[A], E, B] =
-    ZLayer(ZManaged.accessManaged[Has[A]](m => f(m.get)))
+  def fromFunctionManaged[A <: Has[_], E, B <: Has[_]: Tagged](f: A => Managed[E, B]): ZLayer[A, E, B] =
+    ZLayer(ZManaged.accessManaged[A](m => f(m)))
 
-  def fromManaged[E, A: Tagged](m: Managed[E, A]): ZLayer[Has.Any, E, Has[A]] = ZLayer(m.map(Has(_)))
+  def fromManaged[E, A <: Has[_]](m: Managed[E, A]): ZLayer[Has.Any, E, A] = ZLayer(m)
 
   def succeed[A: Tagged](a: A): ZLayer[Has.Any, Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
 }

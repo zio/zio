@@ -16,7 +16,7 @@
 
 package zio.random
 
-import zio.{ Chunk, Has, Ref, UIO, ZLayer, ZIO }
+import zio.{ Chunk, Has, Ref, UIO, ZIO, ZLayer }
 
 object Random extends Serializable {
   trait Service extends Serializable {

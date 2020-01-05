@@ -145,7 +145,7 @@ object TestConsole extends Serializable {
    * interfaces.
    */
   def makeTest(data: Data): ZLayer[Has.Any, Nothing, TestConsole] =
-    ZLayer.fromEffect(Ref.make(data).map(Test(_)))
+    ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the

@@ -19,7 +19,7 @@ package zio.internal
 import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 
 import zio.Cause
-import zio.internal.tracing.TracingConfig 
+import zio.internal.tracing.TracingConfig
 import zio.internal.stacktracer.Tracer
 import scala.concurrent.ExecutionContext
 
@@ -47,9 +47,9 @@ private[internal] trait PlatformSpecific {
 
   final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
-  
+
   final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
-  
+
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
 
   private final def makeDefault(): Platform = fromExecutionContext(ExecutionContext.global)

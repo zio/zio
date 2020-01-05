@@ -27,25 +27,26 @@ import zio.internal.tracing.TracingConfig
 import scala.concurrent.ExecutionContext
 
 private[internal] trait PlatformSpecific {
+
   /**
-   * A Runtime with settings suitable for benchmarks, specifically with Tracing 
+   * A Runtime with settings suitable for benchmarks, specifically with Tracing
    * and auto-yielding disabled.
    *
-   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an 
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    * */
   lazy val benchmark = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
 
   /**
-   * The default platform, configured with settings designed to work well for 
+   * The default platform, configured with settings designed to work well for
    * mainstream usage. Advanced users should consider making their own platform
    * customized for specific application requirements.
    */
   lazy val default = makeDefault()
 
   /**
-   * The default number of operations the ZIO runtime should execute before 
+   * The default number of operations the ZIO runtime should execute before
    * yielding to other fibers.
    */
   final val defaultYieldOpCount = 2048

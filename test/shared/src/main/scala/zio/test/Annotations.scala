@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ FiberRef, Has, UIO, ZLayer, ZIO }
+import zio.{ FiberRef, Has, UIO, ZIO, ZLayer }
 
 /**
  * The `Annotations` trait provides access to an annotation map that tests
@@ -53,7 +53,7 @@ object Annotations {
    */
   def makeService: ZLayer[Has.Any, Nothing, Annotations] =
     ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
-      new Annotations.Service {
+      Has(new Annotations.Service {
         def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
           fiberRef.update(_.annotate(key, value)).unit
         def get[V](key: TestAnnotation[V]): UIO[V] =
@@ -62,7 +62,7 @@ object Annotations {
           fiberRef.locally(TestAnnotationMap.empty) {
             zio.foldM(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
           }
-      }
+      })
     })
 
   /**
