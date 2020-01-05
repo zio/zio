@@ -23,6 +23,7 @@ import zio._
 import zio.duration._
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
+import zio.clock.Clock
 
 /**
  * `TestClock` makes it easy to deterministically and efficiently test effects
@@ -94,7 +95,7 @@ import zio.internal.Scheduler.CancelToken
  */
 object TestClock extends Serializable {
 
-  trait Service extends Restorable {
+  trait Service extends Restorable with Clock.Service {
     def adjust(duration: Duration): UIO[Unit]
     def fiberTime: UIO[Duration]
     def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
@@ -340,15 +341,18 @@ object TestClock extends Serializable {
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def live: ZLayer[Live, Nothing, TestClock] =
+  def live(data: Data): ZLayer[Live, Nothing, TestClock] =
     ZLayer.fromFunctionManaged { (live: Live) =>
       for {
-        ref      <- Ref.make(DefaultData).toManaged_
-        fiberRef <- FiberRef.make(FiberData(DefaultData.nanoTime), FiberData.combine).toManaged_
+        ref      <- Ref.make(data).toManaged_
+        fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
         refM     <- RefM.make(WarningData.start).toManaged_
         test     <- Managed.make(UIO(Test(ref, fiberRef, live.get, refM)))(_.warningDone)
       } yield Has(test)
     }
+
+  val default: ZLayer[Live, Nothing, TestClock] =
+    live(DefaultData)
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock state in an effect which, when run,

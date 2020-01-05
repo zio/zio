@@ -57,7 +57,7 @@ object Live {
    * could be useful if you are mixing in interfaces to create your own
    * environment type.
    */
-  def live: ZLayer[ZEnv, Nothing, Live] =
+  def make: ZLayer[ZEnv, Nothing, Live] =
     ZLayer.fromFunction { (zenv: ZEnv) =>
       Has(new Live.Service {
         def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =

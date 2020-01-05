@@ -8,6 +8,9 @@ import zio.test.TestUtils._
 import zio.{ Ref, Schedule, ZIO }
 
 import scala.reflect.ClassTag
+import zio.ZLayer
+import zio.ZEnv
+import _root_.zio.clock.Clock
 
 object TestAspectSpec extends ZIOBaseSpec {
 
@@ -210,13 +213,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("timeout reports problem with interruption") {
       for {
         testClock <- ZIO.environment[TestClock]
-        liveClock <- Live.make(testClock)
+        liveClock = (ZLayer.environment[ZEnv] ++ ZLayer.succeed[Clock.Service](testClock.get[Clock.Service])) >>> (Live.make ++ ZLayer.succeed[TestClock.Service](testClock.get[TestClock.Service]))
         spec = testM("uninterruptible test") {
           for {
-            _ <- (testClock.clock.adjust(11.milliseconds) *> ZIO.never).uninterruptible
+            _ <- (TestClock.adjust(11.milliseconds) *> ZIO.never).uninterruptible
           } yield assertCompletes
         } @@ timeout(10.milliseconds, 1.nanosecond) @@ failure(diesWith(equalTo(interruptionTimeoutFailure)))
-        result <- isSuccess(spec.provide(liveClock))
+        result <- isSuccess(spec.provideSomeManaged(liveClock.value))
       } yield assert(result)(isTrue)
     }
   )

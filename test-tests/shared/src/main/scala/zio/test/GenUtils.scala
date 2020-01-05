@@ -13,13 +13,13 @@ object GenUtils extends DefaultRuntime {
     unsafeRunToFuture(equal(left, right))
 
   def checkSample[A](gen: Gen[Random with Sized, A], size: Int = 100)(f: List[A] => Boolean): Future[Boolean] =
-    unsafeRunToFuture(provideSize(sample(gen).map(f))(size))
+    unsafeRunToFuture(provideSize(sample(gen).map(f))(size).provideManaged(Random.live.build))
 
   def checkFinite[A](gen: Gen[Random, A])(f: List[A] => Boolean): Future[Boolean] =
-    unsafeRunToFuture(gen.sample.map(_.value).runCollect.map(f))
+    unsafeRunToFuture(gen.sample.map(_.value).runCollect.map(f).provideManaged(Random.live.build))
 
   def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): Future[Boolean] =
-    unsafeRunToFuture(provideSize(alwaysShrinksTo(gen)(a: A))(100))
+    unsafeRunToFuture(provideSize(alwaysShrinksTo(gen)(a: A))(100).provideManaged(Random.live.build))
 
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.map(_.value).forever.take(100).runCollect
@@ -39,10 +39,10 @@ object GenUtils extends DefaultRuntime {
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
 
   def forAll[E <: Throwable, A](zio: ZIO[Random, E, Boolean]): Future[Boolean] =
-    unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)))
+    unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)).provideManaged(Random.live.build))
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = Managed.fromEffect(TestRandom.make(TestRandom.DefaultData))
+    val testRandom = TestRandom.default.build
     for {
       leftSample  <- sample(left).provideManaged(testRandom)
       rightSample <- sample(right).provideManaged(testRandom)
@@ -50,7 +50,7 @@ object GenUtils extends DefaultRuntime {
   }
 
   def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = Managed.fromEffect(TestRandom.make(TestRandom.DefaultData))
+    val testRandom = TestRandom.default.build
     for {
       leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(testRandom)
       rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(testRandom)
@@ -64,14 +64,7 @@ object GenUtils extends DefaultRuntime {
   }
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    Sized.makeService(n).flatMap { service =>
-      zio.provideSome[Random] { r =>
-        new Random with Sized {
-          val random = r.random
-          val sized  = service
-        }
-      }
-    }
+    zio.provideSomeManaged((Sized.live(n) ++ ZLayer.environment[Random]).value)
 
   def sampleEffect[E, A](
     gen: Gen[Random with Sized, ZIO[Random with Sized, E, A]],

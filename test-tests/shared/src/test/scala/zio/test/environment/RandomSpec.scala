@@ -53,10 +53,10 @@ object RandomSpec extends ZIOBaseSpec {
     },
     testM("check fed ints do not survive repeating tests") {
       for {
-        _      <- ZIO.accessM[TestRandom](_.random.setSeed(5))
+        _      <- ZIO.accessM[TestRandom](_.get[TestRandom.Service].setSeed(5))
         value  <- zio.random.nextInt
         value2 <- zio.random.nextInt
-        _      <- ZIO.accessM[TestRandom](_.random.feedInts(1, 2))
+        _      <- ZIO.accessM[TestRandom](_.get[TestRandom.Service].feedInts(1, 2))
       } yield assert(value)(equalTo(-1157408321)) && assert(value2)(equalTo(758500184))
     } @@ nonFlaky
   )
@@ -167,13 +167,13 @@ object RandomSpec extends ZIOBaseSpec {
     }
 
   def forAllBounded[A: Numeric](gen: Gen[Random, A])(
-    next: (Random.Service[Any], A) => UIO[A]
+    next: (Random.Service, A) => UIO[A]
   ): ZIO[Random, Nothing, TestResult] = {
     val num = implicitly[Numeric[A]]
     import num._
     checkM(gen.map(num.abs(_))) { upper =>
       for {
-        testRandom <- ZIO.environment[Random].map(_.random)
+        testRandom <- ZIO.environment[Random].map(_.get[Random.Service])
         nextRandom <- next(testRandom, upper)
       } yield assert(nextRandom)(isWithin(zero, upper))
     }
