@@ -34,6 +34,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
+- [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3): A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
 - [zio-email](https://github.com/funcit/zio-email): Purely functional email client
 - [zio-interop-log4j2](https://github.com/mlangc/zio-interop-log4j2): Fiber aware MDC logging for Log4j 2
 - [zio-kinesis](https://github.com/svroonland/zio-kinesis): ZIO Streams based AWS Kinesis client
