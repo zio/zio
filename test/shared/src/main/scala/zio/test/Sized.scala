@@ -16,39 +16,27 @@
 
 package zio.test
 
-import zio.{ FiberRef, UIO, ZIO }
-
-trait Sized {
-  val sized: Sized.Service[Any]
-}
+import zio.{ FiberRef, Has, UIO, ZDep, ZIO }
 
 object Sized {
-
-  trait Service[R] {
+  trait Service {
     val size: UIO[Int]
     def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
   }
 
-  def make(size: Int): UIO[Sized] =
-    makeService(size).map { service =>
-      new Sized {
-        val sized = service
-      }
-    }
-
-  def makeService(size: Int): UIO[Sized.Service[Any]] =
-    FiberRef.make(size).map { fiberRef =>
-      new Sized.Service[Any] {
+  def makeService(size: Int): ZDep[Has.Any, Nothing, Sized] =
+    ZDep.fromEffect(FiberRef.make(size).map { fiberRef =>
+      new Sized.Service {
         val size: UIO[Int] =
           fiberRef.get
         def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
           fiberRef.locally(size)(zio)
       }
-    }
+    })
 
   val size: ZIO[Sized, Nothing, Int] =
-    ZIO.accessM[Sized](_.sized.size)
+    ZIO.accessM[Sized](_.get.size)
 
   def withSize[R <: Sized, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.accessM[R](_.sized.withSize(size)(zio))
+    ZIO.accessM[R](_.get.withSize(size)(zio))
 }

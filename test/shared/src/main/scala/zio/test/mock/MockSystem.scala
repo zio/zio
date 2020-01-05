@@ -19,25 +19,18 @@ package zio.test.mock
 import zio.{ IO, UIO }
 import zio.system.System
 
-trait MockSystem extends System {
-
-  val system: MockSystem.Service[Any]
-}
-
 object MockSystem {
 
-  trait Service[R] extends System.Service[R]
+  trait Service extends System.Service
 
   object env           extends Method[MockSystem, String, Option[String]]
   object property      extends Method[MockSystem, String, Option[String]]
   object lineSeparator extends Method[MockSystem, Unit, String]
 
-  implicit val mockable: Mockable[MockSystem] = (mock: Mock) =>
-    new MockSystem {
-      val system = new Service[Any] {
-        def env(variable: String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
-        def property(prop: String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)
-        val lineSeparator: UIO[String]                                   = mock(MockSystem.lineSeparator)
-      }
+  implicit val mockable: Mockable[MockSystem.Service] = (mock: Mock) =>
+    new Service {
+      def env(variable: String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
+      def property(prop: String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)
+      val lineSeparator: UIO[String]                                   = mock(MockSystem.lineSeparator)
     }
 }

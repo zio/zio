@@ -300,9 +300,9 @@ object TestAspect extends TimeoutVariants {
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
-  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live[System] with Annotations] =
-    new TestAspectAtLeastR[Live[System] with Annotations] {
-      def some[R <: Live[System] with Annotations, E, S, L](
+  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live with Annotations] =
+    new TestAspectAtLeastR[Live with Annotations] {
+      def some[R <: Live with Annotations, E, S, L](
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] =
@@ -313,7 +313,7 @@ object TestAspect extends TimeoutVariants {
    * As aspect that only runs a test if the specified environment variable is
    * set.
    */
-  def ifEnvSet(env: String): TestAspectAtLeastR[Live[System] with Annotations] =
+  def ifEnvSet(env: String): TestAspectAtLeastR[Live with Annotations] =
     ifEnv(env, Assertion.anything)
 
   /**
@@ -323,9 +323,9 @@ object TestAspect extends TimeoutVariants {
   def ifProp(
     prop: String,
     assertion: Assertion[String]
-  ): TestAspectAtLeastR[Live[System] with Annotations] =
-    new TestAspectAtLeastR[Live[System] with Annotations] {
-      def some[R <: Live[System] with Annotations, E, S, L](
+  ): TestAspectAtLeastR[Live with Annotations] =
+    new TestAspectAtLeastR[Live with Annotations] {
+      def some[R <: Live with Annotations, E, S, L](
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] =
@@ -335,7 +335,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * As aspect that only runs a test if the specified Java property is set.
    */
-  def ifPropSet(prop: String): TestAspectAtLeastR[Live[System] with Annotations] =
+  def ifPropSet(prop: String): TestAspectAtLeastR[Live with Annotations] =
     ifProp(prop, Assertion.anything)
 
   /**
@@ -418,28 +418,28 @@ object TestAspect extends TimeoutVariants {
    * the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestClock: TestAspectAtLeastR[TestClock] = restore[TestClock](_.clock)
+  def restoreTestClock: TestAspectAtLeastR[TestClock] = restore[TestClock](_.get)
 
   /**
    * An aspect that restores the [[zio.test.environment.TestConsole TestConsole]]'s state to its starting state after
    * the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestConsole: TestAspectAtLeastR[TestConsole] = restore[TestConsole](_.console)
+  def restoreTestConsole: TestAspectAtLeastR[TestConsole] = restore[TestConsole](_.get)
 
   /**
    * An aspect that restores the [[zio.test.environment.TestRandom TestRandom]]'s state to its starting state after
    * the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestRandom: TestAspectAtLeastR[TestRandom] = restore[TestRandom](_.random)
+  def restoreTestRandom: TestAspectAtLeastR[TestRandom] = restore[TestRandom](_.get)
 
   /**
    * An aspect that restores the [[zio.test.environment.TestSystem TestSystem]]'s state to its starting state after
    * the test is run.
    * Note that this is only useful when repeating tests.
    */
-  def restoreTestSystem: TestAspectAtLeastR[ZTestEnv] = restore[TestSystem](_.system)
+  def restoreTestSystem: TestAspectAtLeastR[ZTestEnv] = restore[TestSystem](_.get)
 
   /**
    * An aspect that restores all state in the standard provided test environments
@@ -503,9 +503,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * Annotates tests with their execution times.
    */
-  val timed: TestAspect[Nothing, Live[Clock] with Annotations, Nothing, Any, Nothing, Any] =
-    new TestAspect.PerTest[Nothing, Live[Clock] with Annotations, Nothing, Any, Nothing, Any] {
-      def perTest[R >: Nothing <: Live[Clock] with Annotations, E >: Nothing <: Any, S >: Nothing <: Any](
+  val timed: TestAspect[Nothing, Live with Annotations, Nothing, Any, Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Live with Annotations, Nothing, Any, Nothing, Any] {
+      def perTest[R >: Nothing <: Live with Annotations, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         Live.withLive(test)(_.either.timed).flatMap {
@@ -522,9 +522,9 @@ object TestAspect extends TimeoutVariants {
   def timeout(
     duration: Duration,
     interruptDuration: Duration = 1.second
-  ): TestAspectAtLeastR[Live[Clock]] =
-    new PerTest.AtLeastR[Live[Clock]] {
-      def perTest[R >: Nothing <: Live[Clock], E >: Nothing <: Any, S >: Nothing <: Any](
+  ): TestAspectAtLeastR[Live] =
+    new PerTest.AtLeastR[Live] {
+      def perTest[R >: Nothing <: Live, E >: Nothing <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
         def timeoutFailure =

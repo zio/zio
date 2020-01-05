@@ -46,7 +46,10 @@ import zio.test.environment.{ TestClock, TestConsole, TestRandom, TestSystem }
  * }}}
  */
 package object test extends CompileVariants {
-
+  type Annotations  = Has[Annotations.Service]
+  type Sized        = Has[Sized.Service]
+  type TestLogger   = Has[TestLogger.Service]
+  
   type AssertResult = BoolAlgebraM[Any, Nothing, AssertionValue]
 
   /**

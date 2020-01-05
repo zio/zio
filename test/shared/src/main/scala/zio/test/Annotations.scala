@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ FiberRef, UIO, ZIO }
+import zio.{ FiberRef, Has, UIO, ZDep, ZIO }
 
 /**
  * The `Annotations` trait provides access to an annotation map that tests
@@ -26,15 +26,11 @@ import zio.{ FiberRef, UIO, ZIO }
  * structured logging service or as a super polymorphic version of the writer
  * monad effect.
  */
-trait Annotations {
-  val annotations: Annotations.Service[Any]
-}
-
 object Annotations {
 
-  trait Service[R] {
-    def annotate[V](key: TestAnnotation[V], value: V): ZIO[R, Nothing, Unit]
-    def get[V](key: TestAnnotation[V]): ZIO[R, Nothing, V]
+  trait Service {
+    def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit]
+    def get[V](key: TestAnnotation[V]): UIO[V]
     def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]]
   }
 
@@ -43,31 +39,21 @@ object Annotations {
    * specified annotation to the annotation map.
    */
   def annotate[V](key: TestAnnotation[V], value: V): ZIO[Annotations, Nothing, Unit] =
-    ZIO.accessM(_.annotations.annotate(key, value))
+    ZIO.accessM(_.get.annotate(key, value))
 
   /**
    * Accesses an `Annotations` instance in the environment and retrieves the
    * annotation of the specified type, or its default value if there is none.
    */
   def get[V](key: TestAnnotation[V]): ZIO[Annotations, Nothing, V] =
-    ZIO.accessM(_.annotations.get(key))
-
-  /**
-   * Constructs a new `Annotations` instance.
-   */
-  def make: UIO[Annotations] =
-    makeService.map { service =>
-      new Annotations {
-        val annotations = service
-      }
-    }
+    ZIO.accessM(_.get.get(key))
 
   /**
    * Constructs a new `Annotations` service.
    */
-  def makeService: UIO[Annotations.Service[Any]] =
-    FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
-      new Annotations.Service[Any] {
+  def makeService: ZDep[Has.Any, Nothing, Annotations] =
+    ZDep.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
+      new Annotations.Service {
         def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
           fiberRef.update(_.annotate(key, value)).unit
         def get[V](key: TestAnnotation[V]): UIO[V] =
@@ -77,7 +63,7 @@ object Annotations {
             zio.foldM(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
           }
       }
-    }
+    })
 
   /**
    * Accesses an `Annotations` instance in the environment and executes the
@@ -85,5 +71,5 @@ object Annotations {
    * map along with the result of execution.
    */
   def withAnnotation[R <: Annotations, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
-    ZIO.accessM(_.annotations.withAnnotation(zio))
+    ZIO.accessM(_.get.withAnnotation(zio))
 }

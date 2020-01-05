@@ -25,6 +25,5 @@ trait PlatformSpecific {
   type TestEnvironment = 
     Annotations with Blocking with TestClock with TestConsole with Live with TestRandom with Sized with System
 
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = 
-    ???
+  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = ???
 }

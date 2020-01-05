@@ -70,7 +70,7 @@ import zio.Managed
  * This can also be useful when you are creating a more complex environment
  * to provide the implementation for test services that you mix in.
  */
-package object environment {
+package object environment extends PlatformSpecific {
   type Live        = Has[Live.Service]
   type TestClock   = Has[TestClock.Service]
   type TestConsole = Has[TestConsole.Service]
@@ -102,10 +102,4 @@ package object environment {
     zio: ZIO[R, E, A]
   )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R with Live, E1, B] =
     Live.withLive(zio)(f)
-
-  /**
-   * A managed version of the `TestEnvironment` containing testable versions of
-   * all the standard ZIO environmental effects.
-   */
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = ???
 }

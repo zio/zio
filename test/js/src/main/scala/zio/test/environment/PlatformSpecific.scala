@@ -14,25 +14,22 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.test.environment
 
 import java.io.IOException
+import java.time.{ OffsetDateTime, ZoneId }
+import java.util.concurrent.TimeUnit
 
-import zio.{ IO, UIO }
-import zio.console.Console
+import zio._
+import zio.duration._
+import zio.internal.{ Scheduler => IScheduler }
+import zio.scheduler.Scheduler
+import zio.test.Annotations
+import zio.test.Sized
 
-object MockConsole {
+trait PlatformSpecific {
+  type TestEnvironment = 
+    Annotations with TestClock with TestConsole with Live with TestRandom with Sized with System
 
-  trait Service extends Console.Service
-
-  object putStr   extends Method[MockConsole, String, Unit]
-  object putStrLn extends Method[MockConsole, String, Unit]
-  object getStrLn extends Method[MockConsole, Unit, String]
-
-  implicit val mockable: Mockable[Service] = (mock: Mock) =>
-    new Service {
-      def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
-      def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
-      val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
-    }
+  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = ???
 }

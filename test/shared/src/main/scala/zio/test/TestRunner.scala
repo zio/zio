@@ -19,7 +19,8 @@ package zio.test
 import zio._
 import zio.clock.Clock
 import zio.console.Console
-import zio.internal.{ Platform, PlatformLive }
+import zio.scheduler.Scheduler
+import zio.internal.Platform
 
 /**
  * A `TestRunner[R, E, L, T, S]` encapsulates all the logic necessary to run
@@ -29,11 +30,12 @@ import zio.internal.{ Platform, PlatformLive }
  */
 case class TestRunner[R, E, L, -T, S](
   executor: TestExecutor[R, E, L, T, S],
-  platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[E, L, S] = DefaultTestReporter(TestAnnotationRenderer.default)
+  platform: Platform = Platform.default.withReportFailure(_ => ()),
+  reporter: TestReporter[E, L, S] = DefaultTestReporter(TestAnnotationRenderer.default),
+  bootstrap: Managed[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ (Scheduler.live >>> Clock.live)).build
 ) { self =>
 
-  final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
+  lazy val runtime = Runtime((), platform)
 
   /**
    * Runs the spec, producing the execution results.
@@ -47,23 +49,19 @@ case class TestRunner[R, E, L, -T, S](
    * An unsafe, synchronous run of the specified spec.
    */
   final def unsafeRun(
-    spec: ZSpec[R, E, L, T],
-    testLogger: TestLogger = defaultTestLogger,
-    clock: Clock = Clock.Live
+    spec: ZSpec[R, E, L, T]
   ): ExecutedSpec[E, L, S] =
-    buildRuntime(testLogger, clock).unsafeRun(run(spec))
+    runtime.unsafeRun(run(spec).provideManaged(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
   final def unsafeRunAsync(
-    spec: ZSpec[R, E, L, T],
-    testLogger: TestLogger = defaultTestLogger,
-    clock: Clock = Clock.Live
+    spec: ZSpec[R, E, L, T]
   )(
     k: ExecutedSpec[E, L, S] => Unit
   ): Unit =
-    buildRuntime(testLogger, clock).unsafeRunAsync(run(spec)) {
+    runtime.unsafeRunAsync(run(spec).provideManaged(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -72,11 +70,9 @@ case class TestRunner[R, E, L, -T, S](
    * An unsafe, synchronous run of the specified spec.
    */
   final def unsafeRunSync(
-    spec: ZSpec[R, E, L, T],
-    testLogger: TestLogger = defaultTestLogger,
-    clock: Clock = Clock.Live
+    spec: ZSpec[R, E, L, T]
   ): Exit[Nothing, ExecutedSpec[E, L, S]] =
-    buildRuntime(testLogger, clock).unsafeRunSync(run(spec))
+    runtime.unsafeRunSync(run(spec).provideManaged(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the reporter.
@@ -90,15 +86,6 @@ case class TestRunner[R, E, L, -T, S](
   final def withPlatform(f: Platform => Platform): TestRunner[R, E, L, T, S] =
     copy(platform = f(platform))
 
-  private[test] def buildRuntime(
-    loggerSvc: TestLogger = defaultTestLogger,
-    clockSvc: Clock = Clock.Live
-  ): Runtime[TestLogger with Clock] =
-    Runtime(buildEnv(loggerSvc, clockSvc), platform)
-
-  private def buildEnv(loggerSvc: TestLogger, clockSvc: Clock): TestLogger with Clock =
-    new TestLogger with Clock {
-      override def testLogger: TestLogger.Service = loggerSvc.testLogger
-      override val clock: Clock.Service[Any]      = clockSvc.clock
-    }
+  private[test] def buildRuntime: Managed[Nothing, Runtime[TestLogger with Clock]] =
+    bootstrap.map(Runtime(_, platform))
 }
