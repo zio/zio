@@ -21,8 +21,8 @@ import java.nio.ByteBuffer
 import java.nio.channels.{ SelectionKey, Selector, ServerSocketChannel, SocketChannel }
 import java.util.Iterator
 
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable.Set
+import scala.jdk.CollectionConverters._
 
 object ZMXServer {
   val BUFFER_SIZE = 256

@@ -17,6 +17,7 @@
 package zio.zmx
 
 import java.nio.charset.StandardCharsets._
+
 import scala.annotation.tailrec
 
 object ZMXProtocol {
