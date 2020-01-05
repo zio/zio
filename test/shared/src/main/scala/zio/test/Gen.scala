@@ -257,6 +257,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Composes the specified generators to create a cartesian product of
    * elements with the specified function.
    */
+  def crossAll[R, A](gens: Iterable[Gen[R, A]]): Gen[R, List[A]] =
+    gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.crossWith(_)(_ :: _))
+
+  /**
+   * Composes the specified generators to create a cartesian product of
+   * elements with the specified function.
+   */
   def crossN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
     gen1.crossWith(gen2)(f)
 
@@ -529,7 +536,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Zips the specified generators together pairwise. The new generator will
    * generate elements as long as any generator is generating elements, running
-   * the other generator multiple times if necessary.
+   * the other generators multiple times if necessary.
+   */
+  def zipAll[R, A](gens: Iterable[Gen[R, A]]): Gen[R, List[A]] =
+    gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.zipWith(_)(_ :: _))
+
+  /**
+   * Zips the specified generators together pairwise. The new generator will
+   * generate elements as long as any generator is generating elements, running
+   * the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
     gen1.zipWith(gen2)(f)
@@ -537,7 +552,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Zips the specified generators together pairwise. The new generator will
    * generate elements as long as any generator is generating elements, running
-   * the other generator multiple times if necessary.
+   * the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
     (gen1 <&> gen2 <&> gen3).map {
@@ -547,7 +562,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Zips the specified generators together pairwise. The new generator will
    * generate elements as long as any generator is generating elements, running
-   * the other generator multiple times if necessary.
+   * the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
     f: (A, B, C, D) => F
