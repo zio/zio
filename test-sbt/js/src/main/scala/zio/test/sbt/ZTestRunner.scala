@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package zio.test.sbt
 
+import scala.collection.mutable
+
 import sbt.testing._
+
 import zio.test.{ Summary, TestArgs }
 import zio.{ Exit, Runtime }
-
-import scala.collection.mutable
 
 sealed abstract class ZTestRunner(
   val args: Array[String],
@@ -78,7 +79,7 @@ final class ZSlaveTestRunner(
   val sendSummary: SendSummary
 ) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
 
-class ZTestTask(
+final class ZTestTask(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,
   runnerType: String,

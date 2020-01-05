@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -206,8 +206,8 @@ object FunctionIO extends Serializable {
     final def unsafeCoerce[E2] = error.asInstanceOf[E2]
   }
 
-  private[zio] final class Pure[E, A, B](val run: A => IO[E, B]) extends FunctionIO[E, A, B] {}
-  private[zio] final class Impure[E, A, B](val apply0: A => B) extends FunctionIO[E, A, B] {
+  private[zio] final class Pure[+E, -A, +B](val run: A => IO[E, B]) extends FunctionIO[E, A, B] {}
+  private[zio] final class Impure[+E, -A, +B](val apply0: A => B) extends FunctionIO[E, A, B] {
     val run: A => IO[E, B] = a =>
       IO.effectSuspendTotal {
         try IO.succeed[B](apply0(a))
@@ -220,41 +220,41 @@ object FunctionIO extends Serializable {
   /**
    * Lifts a value into the monad formed by `FunctionIO`.
    */
-  final def succeed[B](b: B): FunctionIO[Nothing, Any, B] = fromFunction((_: Any) => b)
+  def succeed[B](b: B): FunctionIO[Nothing, Any, B] = fromFunction((_: Any) => b)
 
   /**
    * Returns a `FunctionIO` representing a failure with the specified `E`.
    */
-  final def fail[E](e: E): FunctionIO[E, Any, Nothing] =
+  def fail[E](e: E): FunctionIO[E, Any, Nothing] =
     new Impure(_ => throw new FunctionIOError[E](e))
 
   /**
    * Returns the identity effectful function, which performs no effects and
    * merely returns its input unmodified.
    */
-  final def identity[A]: FunctionIO[Nothing, A, A] = fromFunction(a => a)
+  def identity[A]: FunctionIO[Nothing, A, A] = fromFunction(a => a)
 
   /**
    * Lifts a pure `A => IO[E, B]` into `FunctionIO`.
    */
-  final def fromFunctionM[E, A, B](f: A => IO[E, B]): FunctionIO[E, A, B] = new Pure(f)
+  def fromFunctionM[E, A, B](f: A => IO[E, B]): FunctionIO[E, A, B] = new Pure(f)
 
   /**
    * Lifts a pure `A => B` into `FunctionIO`.
    */
-  final def fromFunction[A, B](f: A => B): FunctionIO[Nothing, A, B] = new Impure(f)
+  def fromFunction[A, B](f: A => B): FunctionIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  final def swap[E, A, B]: FunctionIO[E, (A, B), (B, A)] =
+  def swap[E, A, B]: FunctionIO[E, (A, B), (B, A)] =
     FunctionIO.fromFunction[(A, B), (B, A)](_.swap)
 
   /**
    * Lifts an impure function into `FunctionIO`, converting throwables into the
    * specified error type `E`.
    */
-  final def effect[E, A, B](catcher: PartialFunction[Throwable, E])(f: A => B): FunctionIO[E, A, B] =
+  def effect[E, A, B](catcher: PartialFunction[Throwable, E])(f: A => B): FunctionIO[E, A, B] =
     new Impure(
       (a: A) =>
         try f(a)
@@ -268,14 +268,14 @@ object FunctionIO extends Serializable {
    * Lifts an impure function into `FunctionIO`, assuming any throwables are
    * non-recoverable and do not need to be converted into errors.
    */
-  final def effectTotal[A, B](f: A => B): FunctionIO[Nothing, A, B] = new Impure(f)
+  def effectTotal[A, B](f: A => B): FunctionIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns a new effectful function that passes an `A` to the condition, and
    * if the condition returns true, returns `Left(a)`, but if the condition
    * returns false, returns `Right(a)`.
    */
-  final def test[E, A](k: FunctionIO[E, A, Boolean]): FunctionIO[E, A, Either[A, A]] =
+  def test[E, A](k: FunctionIO[E, A, Boolean]): FunctionIO[E, A, Either[A, A]] =
     (k &&& FunctionIO.identity[A]) >>>
       FunctionIO.fromFunction((t: (Boolean, A)) => if (t._1) Left(t._2) else Right(t._2))
 
@@ -284,7 +284,7 @@ object FunctionIO extends Serializable {
    * if the condition returns true, passes the `A` to the `then0` function,
    * but if the condition returns false, passes the `A` to the `else0` function.
    */
-  final def ifThenElse[E, A, B](
+  def ifThenElse[E, A, B](
     cond: FunctionIO[E, A, Boolean]
   )(then0: FunctionIO[E, A, B])(else0: FunctionIO[E, A, B]): FunctionIO[E, A, B] =
     (cond, then0, else0) match {
@@ -298,7 +298,7 @@ object FunctionIO extends Serializable {
    * if the condition returns true, passes the `A` to the `then0` function, but
    * otherwise returns the original `A` unmodified.
    */
-  final def ifThen[E, A](cond: FunctionIO[E, A, Boolean])(then0: FunctionIO[E, A, A]): FunctionIO[E, A, A] =
+  def ifThen[E, A](cond: FunctionIO[E, A, Boolean])(then0: FunctionIO[E, A, A]): FunctionIO[E, A, A] =
     (cond, then0) match {
       case (cond: Impure[_, _, _], then0: Impure[_, _, _]) =>
         new Impure[E, A, A](a => if (cond.apply0(a)) then0.apply0(a) else a)
@@ -310,7 +310,7 @@ object FunctionIO extends Serializable {
    * if the condition returns false, passes the `A` to the `then0` function, but
    * otherwise returns the original `A` unmodified.
    */
-  final def ifNotThen[E, A](cond: FunctionIO[E, A, Boolean])(then0: FunctionIO[E, A, A]): FunctionIO[E, A, A] =
+  def ifNotThen[E, A](cond: FunctionIO[E, A, Boolean])(then0: FunctionIO[E, A, A]): FunctionIO[E, A, A] =
     (cond, then0) match {
       case (cond: Impure[_, _, _], then0: Impure[_, _, _]) =>
         new Impure[E, A, A](a => if (cond.apply0(a)) a else then0.apply0(a))
@@ -323,7 +323,7 @@ object FunctionIO extends Serializable {
    * new `A`, which repeats until the condition returns false. This is the
    * `FunctionIO` equivalent of a `while(cond) { body }` loop.
    */
-  final def whileDo[E, A](check: FunctionIO[E, A, Boolean])(body: FunctionIO[E, A, A]): FunctionIO[E, A, A] =
+  def whileDo[E, A](check: FunctionIO[E, A, Boolean])(body: FunctionIO[E, A, A]): FunctionIO[E, A, A] =
     (check, body) match {
       case (check: Impure[_, _, _], body: Impure[_, _, _]) =>
         new Impure[E, A, A]({ (a0: A) =>
@@ -352,24 +352,24 @@ object FunctionIO extends Serializable {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  final def _1[E, A, B]: FunctionIO[E, (A, B), A] = fromFunction[(A, B), A](_._1)
+  def _1[E, A, B]: FunctionIO[E, (A, B), A] = fromFunction[(A, B), A](_._1)
 
   /**
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  final def _2[E, A, B]: FunctionIO[E, (A, B), B] = fromFunction[(A, B), B](_._2)
+  def _2[E, A, B]: FunctionIO[E, (A, B), B] = fromFunction[(A, B), B](_._2)
 
   /**
    * See @FunctionIO.flatMap
    */
-  final def flatMap[E, A, B, C](fa: FunctionIO[E, A, B], f: B => FunctionIO[E, A, C]): FunctionIO[E, A, C] =
+  def flatMap[E, A, B, C](fa: FunctionIO[E, A, B], f: B => FunctionIO[E, A, C]): FunctionIO[E, A, C] =
     new Pure((a: A) => fa.run(a).flatMap(b => f(b).run(a)))
 
   /**
    * See FunctionIO.compose
    */
-  final def compose[E, A, B, C](second: FunctionIO[E, B, C], first: FunctionIO[E, A, B]): FunctionIO[E, A, C] =
+  def compose[E, A, B, C](second: FunctionIO[E, B, C], first: FunctionIO[E, A, B]): FunctionIO[E, A, C] =
     (second, first) match {
       case (second: Impure[_, _, _], first: Impure[_, _, _]) =>
         new Impure(second.apply0.compose(first.apply0))
@@ -381,7 +381,7 @@ object FunctionIO extends Serializable {
   /**
    * See FunctionIO.zipWith
    */
-  final def zipWith[E, A, B, C, D](l: FunctionIO[E, A, B], r: FunctionIO[E, A, C])(
+  def zipWith[E, A, B, C, D](l: FunctionIO[E, A, B], r: FunctionIO[E, A, C])(
     f: (B, C) => D
   ): FunctionIO[E, A, D] =
     (l, r) match {
@@ -406,7 +406,7 @@ object FunctionIO extends Serializable {
   /**
    * See FunctionIO.left
    */
-  final def left[E, A, B, C](k: FunctionIO[E, A, B]): FunctionIO[E, Either[A, C], Either[B, C]] =
+  def left[E, A, B, C](k: FunctionIO[E, A, B]): FunctionIO[E, Either[A, C], Either[B, C]] =
     k match {
       case k: Impure[E, A, B] =>
         new Impure[E, Either[A, C], Either[B, C]]({
@@ -423,7 +423,7 @@ object FunctionIO extends Serializable {
   /**
    * See FunctionIO.left
    */
-  final def right[E, A, B, C](k: FunctionIO[E, A, B]): FunctionIO[E, Either[C, A], Either[C, B]] =
+  def right[E, A, B, C](k: FunctionIO[E, A, B]): FunctionIO[E, Either[C, A], Either[C, B]] =
     k match {
       case k: Impure[E, A, B] =>
         new Impure[E, Either[C, A], Either[C, B]]({
@@ -440,7 +440,7 @@ object FunctionIO extends Serializable {
   /**
    * See FunctionIO.|||
    */
-  final def join[E, A, B, C](l: FunctionIO[E, A, B], r: FunctionIO[E, C, B]): FunctionIO[E, Either[A, C], B] =
+  def join[E, A, B, C](l: FunctionIO[E, A, B], r: FunctionIO[E, C, B]): FunctionIO[E, Either[A, C], B] =
     (l, r) match {
       case (l: Impure[_, _, _], r: Impure[_, _, _]) =>
         new Impure[E, Either[A, C], B]({

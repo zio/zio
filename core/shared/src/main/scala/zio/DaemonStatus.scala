@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ sealed abstract class DaemonStatus extends Serializable with Product {
   private[zio] final def toBoolean: Boolean = isDaemon
 }
 object DaemonStatus {
-  final def daemon: DaemonStatus    = Daemon
-  final def nonDaemon: DaemonStatus = NonDaemon
+  def daemon: DaemonStatus    = Daemon
+  def nonDaemon: DaemonStatus = NonDaemon
 
   /**
    * Indicates forked children of the fiber will be marked as daemons.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package zio.test
 
+import zio.ZIO
 import zio.clock.Clock
 import zio.console
 import zio.console.Console
 import zio.duration._
 import zio.test.environment.Live
-import zio.ZIO
 
 trait TimeoutVariants {
 

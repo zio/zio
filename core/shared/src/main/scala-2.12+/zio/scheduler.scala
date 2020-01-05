@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package zio
 import zio.internal.{ Scheduler => IScheduler }
 
 package object scheduler extends Scheduler.Service[Scheduler] {
-  final val schedulerService: ZIO[Scheduler, Nothing, Scheduler.Service[Any]] =
+  val schedulerService: ZIO[Scheduler, Nothing, Scheduler.Service[Any]] =
     ZIO.access(_.scheduler)
 
   def scheduler: ZIO[Scheduler, Nothing, IScheduler] =

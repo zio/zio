@@ -1,8 +1,8 @@
 package zio.stream
 
 import zio._
-import zio.test._
 import zio.test.Assertion.{ equalTo, isLeft, isTrue }
+import zio.test._
 
 object StreamInterruptWhenSpec extends ZIOBaseSpec {
   def spec = suite("ZStream.interruptWhen")(
@@ -19,7 +19,7 @@ object StreamInterruptWhenSpec extends ZIOBaseSpec {
         _      <- halt.succeed(())
         _      <- fiber.await
         result <- interrupted.get
-      } yield assert(result, isTrue)
+      } yield assert(result)(isTrue)
     },
     testM("propagates errors") {
       for {
@@ -29,7 +29,7 @@ object StreamInterruptWhenSpec extends ZIOBaseSpec {
                    .haltWhen(halt)
                    .runDrain
                    .either
-      } yield assert(result, isLeft(equalTo("Fail")))
+      } yield assert(result)(isLeft(equalTo("Fail")))
     }
   )
 }

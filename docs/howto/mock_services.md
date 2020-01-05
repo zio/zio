@@ -94,7 +94,7 @@ trait AccountEvent
 import zio.test.mock._
 
 trait AccountObserver {
-  val accountObserver: AccountObserver.Service[Any]
+  def accountObserver: AccountObserver.Service[Any]
 }
 
 object AccountObserver {
@@ -124,7 +124,7 @@ We model input arguments according to following scheme:
 
 ```scala mdoc:silent
 trait ExampleService {
-  val exampleService: ExampleService.Service[Any]
+  def exampleService: ExampleService.Service[Any]
 }
 
 object ExampleService {
@@ -183,7 +183,7 @@ import zio.console.Console
 @accessible(">")
 @mockable
 trait AccountObserver {
-  val accountObserver: AccountObserver.Service[Any]
+  def accountObserver: AccountObserver.Service[Any]
 }
 
 object AccountObserver {
@@ -253,7 +253,7 @@ object AccountObserverSpec extends DefaultRunnableSpec {
           val console = mockConsole.console
         }
       })
-      assertM(result, isUnit)
+      assertM(result)(isUnit)
     }
   )
 }
@@ -295,7 +295,7 @@ val combinedApp =
   } yield ()
 
 val result = combinedApp.provideManaged(combinedEnv)
-assertM(result, isUnit)
+assertM(result)(isUnit)
 ```
 
 [doc-use-module-pattern]: use_module_pattern.md

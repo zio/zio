@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ private[blocking] object internal {
  * and continuously create new threads as necessary.
  */
 trait Blocking extends Serializable {
-  val blocking: Blocking.Service[Any]
+  def blocking: Blocking.Service[Any]
 }
 object Blocking extends Serializable {
   trait Service[R] extends Serializable {
