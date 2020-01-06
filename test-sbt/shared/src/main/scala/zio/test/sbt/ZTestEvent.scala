@@ -2,10 +2,10 @@ package zio.test.sbt
 
 import sbt.testing._
 
-import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
 import zio.UIO
+import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
 
-case class ZTestEvent(
+final case class ZTestEvent(
   fullyQualifiedName: String,
   selector: Selector,
   status: Status,

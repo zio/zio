@@ -1,12 +1,14 @@
 package zio.stream
 
 import scala.concurrent.ExecutionContext.global
-import zio._
-import zio.ZQueueSpecUtil.waitForValue
-import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
-import zio.test._
-import zio.test.Assertion._
+
 import StreamUtils.inParallel
+
+import zio.ZQueueSpecUtil.waitForValue
+import zio._
+import zio.test.Assertion._
+import zio.test._
+import zio.{ IO, Promise, Ref, Task, UIO, ZIO }
 
 object StreamEffectAsyncSpec extends ZIOBaseSpec {
 
@@ -19,7 +21,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           }(global)
         }
 
-        assertM(s.take(list.size).runCollect, equalTo(list))
+        assertM(s.take(list.size.toLong).runCollect)(equalTo(list))
       })
     ),
     suite("Stream.effectAsyncMaybe")(
@@ -38,7 +40,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           Some(Stream.fromIterable(list))
         }
 
-        assertM(s.runCollect.map(_.take(list.size)), equalTo(list))
+        assertM(s.runCollect.map(_.take(list.size)))(equalTo(list))
       }),
       testM("effectAsyncMaybe None")(checkM(Gen.listOf(Gen.anyInt)) { list =>
         val s = Stream.effectAsyncMaybe[Throwable, Int] { k =>
@@ -48,7 +50,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           None
         }
 
-        assertM(s.take(list.size).runCollect, equalTo(list))
+        assertM(s.take(list.size.toLong).runCollect)(equalTo(list))
       }),
       testM("effectAsyncMaybe back pressure") {
         for {
@@ -69,7 +71,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           _      <- waitForValue(refCnt.get, 7)
           isDone <- refDone.get
           _      <- run.interrupt
-        } yield assert(isDone, isFalse)
+        } yield assert(isDone)(isFalse)
       }
     ),
     suite("Stream.effectAsyncM")(
@@ -84,12 +86,12 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
                       latch.succeed(()) *>
                         Task.unit
                     }
-                    .take(list.size)
+                    .take(list.size.toLong)
                     .run(Sink.collectAll[Int])
                     .fork
           _ <- latch.await
           s <- fiber.join
-        } yield assert(s, equalTo(list))
+        } yield assert(s)(equalTo(list))
       }),
       testM("effectAsyncM signal end stream") {
         for {
@@ -122,7 +124,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           _      <- waitForValue(refCnt.get, 7)
           isDone <- refDone.get
           _      <- run.interrupt
-        } yield assert(isDone, isFalse)
+        } yield assert(isDone)(isFalse)
       }
     ),
     suite("Stream.effectAsyncInterrupt")(
@@ -143,14 +145,14 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           _      <- latch.await
           _      <- fiber.interrupt
           result <- cancelled.get
-        } yield assert(result, isTrue)
+        } yield assert(result)(isTrue)
       },
       testM("effectAsyncInterrupt Right")(checkM(Gen.listOf(Gen.anyInt)) { list =>
         val s = Stream.effectAsyncInterrupt[Throwable, Int] { _ =>
           Right(Stream.fromIterable(list))
         }
 
-        assertM(s.take(list.size).runCollect, equalTo(list))
+        assertM(s.take(list.size.toLong).runCollect)(equalTo(list))
       }),
       testM("effectAsyncInterrupt signal end stream ") {
         for {
@@ -184,8 +186,8 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
           _      <- waitForValue(refCnt.get, 7)
           isDone <- refDone.get
           exit   <- run.interrupt
-        } yield assert(isDone, isFalse) &&
-          assert(exit.untraced, failsCause(containsCause(Cause.interrupt(selfId))))
+        } yield assert(isDone)(isFalse) &&
+          assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
       }
     )
   )

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package zio.test.mock
 
 import com.github.ghik.silencer.silent
+
 import zio.=!=
 import zio.test.Assertion
 
@@ -24,7 +25,7 @@ import zio.test.Assertion
  * A `Model[M, I, A]` represents a capability of module `M` that takes an
  * input `I` and returns an effect that may produce a single `A`.
  */
-trait Method[M, I, A] { self =>
+trait Method[-M, I, +A] { self =>
 
   /**
    * Provides the `Assertion` on method arguments `I` to produce `ArgumentExpectation`.
@@ -41,8 +42,10 @@ trait Method[M, I, A] { self =>
    * Available only for methods that don't take arguments.
    */
   @silent("parameter value ev in method returns is never used")
-  def returns[E](returns: ReturnExpectation[I, E, A])(implicit ev: I <:< Unit): Expectation[M, E, A] =
-    Expectation.Call[M, I, E, A](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
+  def returns[A1 >: A, E](
+    returns: ReturnExpectation[I, E, A1]
+  )(implicit ev: I <:< Unit): Expectation[M, E, A1] =
+    Expectation.Call[M, I, E, A1](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
 
   /**
    * Render method fully qualified name.

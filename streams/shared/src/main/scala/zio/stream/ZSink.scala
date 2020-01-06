@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package zio.stream
 
+import scala.collection.mutable
+
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-
-import scala.collection.mutable
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -739,13 +739,13 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
 
 object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
 
-  implicit class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
+  implicit final class InputRemainderOps[R, E, A, B](private val sink: ZSink[R, E, A, A, B]) {
 
     /**
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, Nothing, A, A, Option[B]] =
+    def ? : ZSink[R, Nothing, A, A, Option[B]] =
       new ZSink[R, Nothing, A, A, Option[B]] {
         type State = OptionalState
         sealed trait OptionalState
@@ -808,7 +808,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
      * will not improve performance, but can be used to adapt non-chunked sinks
      * wherever chunked sinks are required.
      */
-    final def chunked: ZSink[R, E, A, Chunk[A], B] =
+    def chunked: ZSink[R, E, A, Chunk[A], B] =
       new ZSink[R, E, A, Chunk[A], B] {
         type State = (sink.State, Chunk[A])
         val initial = sink.initial.map((_, Chunk.empty))
@@ -821,13 +821,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     /**
      * Repeatedly runs this sink and accumulates its outputs to a list.
      */
-    final def collectAll: ZSink[R, E, A, A, List[B]] =
+    def collectAll: ZSink[R, E, A, A, List[B]] =
       collectAllWith[List[B]](List[B]())((bs, b) => b :: bs).map(_.reverse)
 
     /**
      * Repeatedly runs this sink until `i` outputs have been accumulated.
      */
-    final def collectAllN(
+    def collectAllN(
       i: Int
     ): ZSink[R, E, A, A, List[B]] =
       new ZSink[R, E, A, A, List[B]] {
@@ -874,13 +874,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
      * Repeatedly runs this sink and accumulates the outputs into a value
      * of type `S`.
      */
-    final def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = collectAllWhileWith[S](_ => true)(z)(f)
+    def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = collectAllWhileWith[S](_ => true)(z)(f)
 
     /**
      * Repeatedly runs this sink and accumulates its outputs for as long
      * as incoming values verify the predicate.
      */
-    final def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] =
+    def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] =
       collectAllWhileWith[List[B]](p)(List.empty[B])((bs, b) => b :: bs)
         .map(_.reverse)
 
@@ -888,7 +888,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
      * Repeatedly runs this sink and accumulates its outputs into a value
      * of type `S` for as long as the incoming values satisfy the predicate.
      */
-    final def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
+    def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       new ZSink[R, E, A, A, S] {
         type State = CollectAllWhileWithState
         case class CollectAllWhileWithState(
@@ -929,13 +929,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, Nothing, A, A, Option[B]] = ?
+    def optional: ZSink[R, Nothing, A, A, Option[B]] = ?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
      * they verify the predicate `pred`.
      */
-    final def takeWhile(pred: A => Boolean): ZSink[R, E, A, A, B] =
+    def takeWhile(pred: A => Boolean): ZSink[R, E, A, A, B] =
       new ZSink[R, E, A, A, B] {
         type State = (sink.State, Chunk[A])
 
@@ -959,7 +959,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
      * Sinks that never signal completion (e.g. [[ZSink.collectAll]])
      * will not have the predicate applied to intermediate values.
      */
-    final def untilOutput(f: B => Boolean): ZSink[R, E, A, A, Option[B]] =
+    def untilOutput(f: B => Boolean): ZSink[R, E, A, A, Option[B]] =
       new ZSink[R, E, A, A, Option[B]] {
         type State = (sink.State, Option[B], Chunk[A], Boolean)
 
@@ -994,58 +994,58 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       }
   }
 
-  implicit class NoRemainderOps[R, E, A, B](private val sink: ZSink[R, E, Nothing, A, B]) extends AnyVal {
+  implicit final class NoRemainderOps[R, E, A, B](private val sink: ZSink[R, E, Nothing, A, B]) extends AnyVal {
     private def widen: ZSink[R, E, A, A, B] = sink
 
     /**
      * Returns a new sink that tries to produce the `B`, but if there is an
      * error in stepping or extraction, produces `None`.
      */
-    final def ? : ZSink[R, Nothing, A, A, Option[B]] = widen.?
+    def ? : ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Takes a `Sink`, and lifts it to be chunked in its input. This
      * will not improve performance, but can be used to adapt non-chunked sinks
      * wherever chunked sinks are required.
      */
-    final def chunked: ZSink[R, E, A, Chunk[A], B] = widen.chunked
+    def chunked: ZSink[R, E, A, Chunk[A], B] = widen.chunked
 
     /**
      * Accumulates the output into a list.
      */
-    final def collectAll: ZSink[R, E, A, A, List[B]] = widen.collectAll
+    def collectAll: ZSink[R, E, A, A, List[B]] = widen.collectAll
 
     /**
      * Accumulates the output into a list of maximum size `i`.
      */
-    final def collectAllN(i: Int): ZSink[R, E, A, A, List[B]] = widen.collectAllN(i)
+    def collectAllN(i: Int): ZSink[R, E, A, A, List[B]] = widen.collectAllN(i)
 
     /**
      * Accumulates the output into a value of type `S`.
      */
-    final def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = widen.collectAllWith(z)(f)
+    def collectAllWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] = widen.collectAllWith(z)(f)
 
     /**
      * Accumulates into a list for as long as incoming values verify predicate `p`.
      */
-    final def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] = widen.collectAllWhile(p)
+    def collectAllWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] = widen.collectAllWhile(p)
 
     /**
      * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
      */
-    final def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
+    def collectAllWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       widen.collectAllWhileWith(p)(z)(f)
 
     /**
      * A named alias for `?`.
      */
-    final def optional: ZSink[R, Nothing, A, A, Option[B]] = widen.?
+    def optional: ZSink[R, Nothing, A, A, Option[B]] = widen.?
 
     /**
      * Produces a sink consuming all the elements of type `A` as long as
      * they verify the predicate `pred`.
      */
-    final def takeWhile(pred: A => Boolean): ZSink[R, E, A, A, B] = widen.takeWhile(pred)
+    def takeWhile(pred: A => Boolean): ZSink[R, E, A, A, B] = widen.takeWhile(pred)
 
     /**
      * Creates a sink that produces values until one verifies
@@ -1056,16 +1056,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
      * Sinks that never signal completion (e.g. [[ZSink.collectAll]])
      * will not have the predicate applied to intermediate values.
      */
-    final def untilOutput(f: B => Boolean): ZSink[R, E, A, A, Option[B]] =
+    def untilOutput(f: B => Boolean): ZSink[R, E, A, A, Option[B]] =
       widen untilOutput f
   }
 
-  implicit class InvariantOps[R, E, A0, A, B](val sink: ZSink[R, E, A0, A, B]) extends AnyVal { self =>
+  implicit final class InvariantOps[R, E, A0, A, B](private val sink: ZSink[R, E, A0, A, B]) extends AnyVal { self =>
 
     /**
      * Drops the first `n`` elements from the sink.
      */
-    final def drop(n: Long): ZSink[R, E, A0, A, B] =
+    def drop(n: Long): ZSink[R, E, A0, A, B] =
       new ZSink[R, E, A0, A, B] {
         type State = (sink.State, Long)
 
@@ -1085,7 +1085,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
      * Drops all elements entering the sink for as long as the specified predicate
      * evaluates to `true`.
      */
-    final def dropWhile(pred: A => Boolean): ZSink[R, E, A0, A, B] =
+    def dropWhile(pred: A => Boolean): ZSink[R, E, A0, A, B] =
       new ZSink[R, E, A0, A, B] {
         type State = (sink.State, Boolean)
 
@@ -1132,7 +1132,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     /**
      * Effectfully filters the inputs fed to this sink.
      */
-    final def filterM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A, B] =
+    def filterM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A, B] =
       new ZSink[R1, E1, A0, A, B] {
         type State = sink.State
         val initial = sink.initial
@@ -1150,21 +1150,21 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
      * Filters this sink by the specified predicate, dropping all elements for
      * which the predicate evaluates to true.
      */
-    final def filterNot(f: A => Boolean): ZSink[R, E, A0, A, B] =
+    def filterNot(f: A => Boolean): ZSink[R, E, A0, A, B] =
       filter(a => !f(a))
 
     /**
      * Effectfully filters this sink by the specified predicate, dropping all elements for
      * which the predicate evaluates to true.
      */
-    final def filterNotM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A, B] =
+    def filterNotM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A, B] =
       filterM(a => f(a).map(!_))
 
     /**
      * Runs `n` sinks in parallel, where `n` is the number of possible keys
      * generated by `f`.
      */
-    final def keyed[K](f: A => K): ZSink[R, E, (K, Chunk[A0]), A, Map[K, B]] =
+    def keyed[K](f: A => K): ZSink[R, E, (K, Chunk[A0]), A, Map[K, B]] =
       new ZSink[R, E, (K, Chunk[A0]), A, Map[K, B]] {
         type State = Map[K, sink.State]
 
@@ -1218,30 +1218,30 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink that waits for a single value to be produced.
    */
-  final def await[A]: ZSink[Any, Unit, Nothing, A, A] = identity
+  def await[A]: ZSink[Any, Unit, Nothing, A, A] = identity
 
   /**
    * Creates a sink accumulating incoming values into a list.
    */
-  final def collectAll[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
+  def collectAll[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
     foldLeft[A, List[A]](List.empty[A])((as, a) => a :: as).map(_.reverse)
 
   /**
    * Creates a sink accumulating incoming values into a list of maximum size `n`.
    */
-  final def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
+  def collectAllN[A](n: Long): ZSink[Any, Nothing, A, A, List[A]] =
     foldUntil[List[A], A](List.empty[A], n)((list, element) => element :: list).map(_.reverse)
 
   /**
    * Creates a sink accumulating incoming values into a set.
    */
-  final def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
+  def collectAllToSet[A]: ZSink[Any, Nothing, Nothing, A, Set[A]] =
     foldLeft[A, Set[A]](Set.empty[A])((set, element) => set + element)
 
   /**
    * Creates a sink accumulating incoming values into a set of maximum size `n`.
    */
-  final def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] = {
+  def collectAllToSetN[A](n: Long): ZSink[Any, Nothing, A, A, Set[A]] = {
     type State = (Set[A], Boolean)
     def f(state: State, a: A): (State, Chunk[A]) = {
       val newSet = state._1 + a
@@ -1258,7 +1258,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Combines elements with same key with supplied function f.
    *
    */
-  final def collectAllToMap[K, A](key: A => K)(f: (A, A) => A): Sink[Nothing, Nothing, A, Map[K, A]] =
+  def collectAllToMap[K, A](key: A => K)(f: (A, A) => A): Sink[Nothing, Nothing, A, Map[K, A]] =
     foldLeft[A, Map[K, A]](Map.empty)((curMap, a) => {
       val k = key(a)
       curMap.get(k).fold(curMap.updated(k, a))(v => curMap.updated(k, f(v, a)))
@@ -1270,7 +1270,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    *
    * Combines elements with same key with supplied function f.
    */
-  final def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): Sink[Nothing, A, A, Map[K, A]] = {
+  def collectAllToMapN[K, A](n: Long)(key: A => K)(f: (A, A) => A): Sink[Nothing, A, A, Map[K, A]] = {
     type State = (Map[K, A], Boolean)
     def inner(state: State, a: A): (State, Chunk[A]) = {
       val k      = key(a)
@@ -1288,7 +1288,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
    */
-  final def collectAllWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
+  def collectAllWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
     fold[A, A, (List[A], Boolean)]((Nil, true))(_._2) {
       case ((as, _), a) =>
         if (p(a)) ((a :: as, true), Chunk.empty) else ((as, false), Chunk.single(a))
@@ -1297,7 +1297,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
    */
-  final def collectAllWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
+  def collectAllWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
     foldM[R, E, A, A, (List[A], Boolean)]((Nil, true))(_._2) {
       case ((as, _), a) =>
         p(a).map(if (_) ((a :: as, true), Chunk.empty) else ((as, false), Chunk.single(a)))
@@ -1306,38 +1306,38 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink halting with the specified `Throwable`.
    */
-  final def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
-  final def dieMessage(m: String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  def dieMessage(m: String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(new RuntimeException(m)))
 
   /**
    * Creates a sink consuming all incoming values until completion.
    */
-  final def drain: ZSink[Any, Nothing, Nothing, Any, Unit] =
+  def drain: ZSink[Any, Nothing, Nothing, Any, Unit] =
     foldLeft(())((s, _) => s)
 
   /**
    * Creates a sink containing the first value.
    */
-  final def head[A]: ZSink[Any, Nothing, A, A, Option[A]] =
+  def head[A]: ZSink[Any, Nothing, A, A, Option[A]] =
     identity[A].optional
 
   /**
    * Creates a sink containing the last value.
    */
-  final def last[A]: ZSink[Any, Nothing, Nothing, A, Option[A]] =
+  def last[A]: ZSink[Any, Nothing, Nothing, A, Option[A]] =
     foldLeft[A, Option[A]](None) { case (_, a) => Some(a) }
 
   /**
    * Creates a sink failing with a value of type `E`.
    */
-  final def fail[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
+  def fail[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
     new SinkPure[E, Nothing, Any, Nothing] {
       type State = Unit
       val initialPure                    = ()
@@ -1349,7 +1349,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink by folding over a structure of type `S`.
    */
-  final def fold[A0, A, S](
+  def fold[A0, A, S](
     z: S
   )(contFn: S => Boolean)(f: (S, A) => (S, Chunk[A0])): ZSink[Any, Nothing, A0, A, S] =
     new SinkPure[Nothing, A0, A, S] {
@@ -1363,19 +1363,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink by folding over a structure of type `S`.
    */
-  final def foldLeft[A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, Nothing, A, S] =
+  def foldLeft[A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, Nothing, A, S] =
     fold(z)(_ => true)((s, a) => (f(s, a), Chunk.empty))
 
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
    */
-  final def foldLeftM[R, E, A, S](z: S)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, Nothing, A, S] =
+  def foldLeftM[R, E, A, S](z: S)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, Nothing, A, S] =
     foldM(z)(_ => true)((s, a) => f(s, a).map((_, Chunk.empty)))
 
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
    */
-  final def foldM[R, E, A0, A, S](
+  def foldM[R, E, A0, A, S](
     z: S
   )(contFn: S => Boolean)(f: (S, A) => ZIO[R, E, (S, Chunk[A0])]): ZSink[R, E, A0, A, S] =
     new ZSink[R, E, A0, A, S] {
@@ -1395,7 +1395,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * cause the stream to hang. See [[ZSink.foldWeightedDecomposeM]] for
    * a variant that can handle these.
    */
-  final def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
+  def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
     z: S
   )(
     costFn: A => ZIO[R, E, Long],
@@ -1412,7 +1412,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * cause an `S` aggregate to cross `max` into smaller elements. See
    * [[ZSink.foldWeightedDecompose]] for an example.
    */
-  final def foldWeightedDecomposeM[R, R1 <: R, E, E1 >: E, A, S](
+  def foldWeightedDecomposeM[R, R1 <: R, E, E1 >: E, A, S](
     z: S
   )(
     costFn: A => ZIO[R, E, Long],
@@ -1451,7 +1451,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * cause the stream to hang. See [[ZSink.foldWeightedDecompose]] for
    * a variant that can handle these.
    */
-  final def foldWeighted[A, S](
+  def foldWeighted[A, S](
     z: S
   )(costFn: A => Long, max: Long)(
     f: (S, A) => S
@@ -1483,7 +1483,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * The [[ZSink.foldWeightedDecomposeM]] allows the decompose function
    * to return a `ZIO` value, and consequently it allows the sink to fail.
    */
-  final def foldWeightedDecompose[A, S](
+  def foldWeightedDecompose[A, S](
     z: S
   )(costFn: A => Long, max: Long, decompose: A => Chunk[A])(
     f: (S, A) => S
@@ -1516,7 +1516,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    *
    * Like [[ZSink.foldWeightedM]], but with a constant cost function of 1.
    */
-  final def foldUntilM[R, E, S, A](z: S, max: Long)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, A, A, S] =
+  def foldUntilM[R, E, S, A](z: S, max: Long)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, A, A, S] =
     foldWeightedM[R, R, E, E, A, S](z)(_ => UIO.succeed(1), max)(f)
 
   /**
@@ -1525,13 +1525,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    *
    * Like [[ZSink.foldWeighted]], but with a constant cost function of 1.
    */
-  final def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
+  def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
     foldWeighted[A, S](z)(_ => 1, max)(f)
 
   /**
    * Creates a single-value sink produced from an effect
    */
-  final def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
+  def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
     new ZSink[R, E, Nothing, Any, B] {
       type State = Unit
       val initial                    = IO.succeed(())
@@ -1543,19 +1543,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink that purely transforms incoming values.
    */
-  final def fromFunction[A, B](f: A => B): ZSink[Any, Unit, Nothing, A, B] =
+  def fromFunction[A, B](f: A => B): ZSink[Any, Unit, Nothing, A, B] =
     identity.map(f)
 
   /**
    * Creates a sink that effectfully transforms incoming values.
    */
-  final def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, Option[E], Nothing, A, B] =
+  def fromFunctionM[R, E, A, B](f: A => ZIO[R, E, B]): ZSink[R, Option[E], Nothing, A, B] =
     identity.mapError(_ => None).mapM(f(_).mapError(Some(_)))
 
   /**
    * Creates a sink halting with a specified cause.
    */
-  final def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+  def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
     new Sink[E, Nothing, Any, Nothing] {
       type State = Unit
       val initial                    = UIO.succeed(())
@@ -1567,7 +1567,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink by that merely passes on incoming values.
    */
-  final def identity[A]: ZSink[Any, Unit, Nothing, A, A] =
+  def identity[A]: ZSink[Any, Unit, Nothing, A, A] =
     new SinkPure[Unit, Nothing, A, A] {
       type State = Option[A]
       val initialPure                  = None
@@ -1580,7 +1580,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Creates a sink by starts consuming value as soon as one fails
    * the predicate `p`.
    */
-  final def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
+  def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
     new SinkPure[Nothing, A, A, Unit] {
       type State = Chunk[A]
       val initialPure                  = Chunk.empty
@@ -1593,7 +1593,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Creates a sink by starts consuming value as soon as one fails
    * the effectful predicate `p`.
    */
-  final def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, Unit] =
+  def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, Unit] =
     new ZSink[R, E, A, A, Unit] {
       type State = Chunk[A]
       val initial                  = IO.succeed(Chunk.empty)
@@ -1606,7 +1606,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Returns a sink that must at least perform one extraction or else
    * will "fail" with `end`.
    */
-  final def pull1[R, R1 <: R, E, A0, A, B](
+  def pull1[R, R1 <: R, E, A0, A, B](
     end: ZIO[R1, E, B]
   )(input: A => ZSink[R, E, A0, A, B]): ZSink[R1, E, A0, A, B] =
     new ZSink[R1, E, A0, A, B] {
@@ -1638,7 +1638,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Creates a sink that consumes the first value verifying the predicate `p`
    * or fails as soon as the sink won't make any more progress.
    */
-  final def read1[E, A](e: Option[A] => E)(p: A => Boolean): ZSink[Any, E, A, A, A] =
+  def read1[E, A](e: Option[A] => E)(p: A => Boolean): ZSink[Any, E, A, A, A] =
     new SinkPure[E, A, A, A] {
       type State = (Either[E, Option[A]], Chunk[A])
 
@@ -1670,7 +1670,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Splits strings on newlines. Handles both `\r\n` and `\n`.
    */
-  final val splitLines: ZSink[Any, Nothing, String, String, Chunk[String]] =
+  val splitLines: ZSink[Any, Nothing, String, String, Chunk[String]] =
     new SinkPure[Nothing, String, String, Chunk[String]] {
       type State = SplitLinesState
       case class SplitLinesState(
@@ -1744,13 +1744,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * Merges chunks of strings and splits them on newlines. Handles both
    * `\r\n` and `\n`.
    */
-  final val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
+  val splitLinesChunk: ZSink[Any, Nothing, Chunk[String], Chunk[String], Chunk[String]] =
     splitLines.contramap[Chunk[String]](_.mkString).mapRemainder(Chunk.single)
 
   /**
    * Splits strings on a delimiter.
    */
-  final def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
+  def splitOn(delimiter: String): ZSink[Any, Nothing, String, String, Chunk[String]] =
     new SinkPure[Nothing, String, String, Chunk[String]] {
       type State = SplitOnState
       case class SplitOnState(
@@ -1827,7 +1827,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a single-value sink from a value.
    */
-  final def succeed[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+  def succeed[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
     new SinkPure[Nothing, A, A, B] {
       type State = Chunk[A]
       val initialPure                  = Chunk.empty
@@ -1843,7 +1843,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` function.
    * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
    */
-  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
     throttleEnforceM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
@@ -1855,7 +1855,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` effectful function.
    * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
    */
-  final def throttleEnforceM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleEnforceM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R, E, Long]
   ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
     import ZSink.internal._
@@ -1907,7 +1907,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
    * determined by the `costFn` function.
    */
-  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
     throttleShapeM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
@@ -1918,7 +1918,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
    * determined by the `costFn` effectful function.
    */
-  final def throttleShapeM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
+  def throttleShapeM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R, E, Long]
   ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, A]] = {
     import ZSink.internal._

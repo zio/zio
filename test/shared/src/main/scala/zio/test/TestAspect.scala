@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package zio.test
 
-import zio.{ Cause, Schedule, ZIO, ZManaged }
-import zio.duration._
 import zio.clock.Clock
+import zio.duration._
 import zio.system
 import zio.system.System
 import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
+import zio.{ Cause, Schedule, ZIO, ZManaged }
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of

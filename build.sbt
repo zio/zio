@@ -29,8 +29,15 @@ inThisBuild(
 
 ThisBuild / publishTo := sonatypePublishToBundle.value
 
+addCommandAlias("build", "prepare; testJVM")
+addCommandAlias("prepare", "fix; fmt")
+addCommandAlias("fix", "all compile:scalafix test:scalafix")
+addCommandAlias(
+  "fixCheck",
+  "; compile:scalafix --check ; test:scalafix --check"
+)
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
-addCommandAlias("check", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
+addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
@@ -119,7 +126,6 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
   .enablePlugins(BuildInfoPlugin)
-  .settings(scalacOptions ++= { if (isDotty.value) Seq() else Seq("-P:silencer:globalFilters=assert") })
 
 lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
@@ -153,7 +159,6 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .settings(skip in publish := true)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
   .enablePlugins(BuildInfoPlugin)
-  .settings(scalacOptions ++= { if (isDotty.value) Seq() else Seq("-P:silencer:globalFilters=assert") })
 
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
 
@@ -187,7 +192,6 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.test"))
   .settings(skip in publish := true)
   .enablePlugins(BuildInfoPlugin)
-  .settings(scalacOptions ++= { if (isDotty.value) Seq() else Seq("-P:silencer:globalFilters=assert") })
 
 lazy val testTestsJVM = testTests.jvm.settings(
   dottySettings,
@@ -333,3 +337,5 @@ lazy val docs = project.module
     coreTestsJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
+
+scalafixDependencies in ThisBuild += "com.nequissimus" %% "sort-imports" % "0.3.1"

@@ -1,8 +1,8 @@
 package zio.stream
 
-import zio.{ Chunk, IO, UIO }
-import zio.test.{ assert, Gen, GenZIO, TestResult }
 import zio.test.Assertion.{ equalTo, isRight, isTrue }
+import zio.test.{ assert, Gen, GenZIO, TestResult }
+import zio.{ Chunk, IO, UIO }
 
 trait SinkUtils {
   def initErrorSink = new ZSink[Any, String, Int, Int, Int] {
@@ -70,8 +70,8 @@ trait SinkUtils {
       } yield {
         res match {
           case Right(((b, c), rem)) =>
-            assert(swapped, isRight(equalTo(((c, b), rem))))
-          case _ => assert(true, isTrue)
+            assert(swapped)(isRight(equalTo(((c, b), rem))))
+          case _ => assert(true)(isTrue)
         }
       }
 
@@ -87,9 +87,9 @@ trait SinkUtils {
       } yield {
         val (_, shorter) = if (rem1.length <= rem2.length) (rem2, rem1) else (rem1, rem2)
         // assert(longer, equalTo(rem))
-        assert(rem.endsWith(shorter), isTrue)
+        assert(rem.endsWith(shorter))(isTrue)
       }
-      maybeProp.catchAll(_ => UIO.succeed(assert(true, isTrue)))
+      maybeProp.catchAll(_ => UIO.succeed(assert(true)(isTrue)))
     }
 
     def laws[A, B, C](

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.IO
+import zio.{ IO, UIO }
 
 /**
  * A `ReturnExpectation[-I, E, +A]` represents an expectation on output for capability of module `M`
@@ -28,6 +28,6 @@ sealed trait ReturnExpectation[-I, +E, +A] {
 
 object ReturnExpectation {
 
-  private[mock] final case class Succeed[-I, +A](io: I => IO[Nothing, A]) extends ReturnExpectation[I, Nothing, A]
-  private[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing])    extends ReturnExpectation[I, E, Nothing]
+  private[mock] final case class Succeed[-I, +A](io: I => UIO[A])      extends ReturnExpectation[I, Nothing, A]
+  private[mock] final case class Fail[-I, +E](io: I => IO[E, Nothing]) extends ReturnExpectation[I, E, Nothing]
 }

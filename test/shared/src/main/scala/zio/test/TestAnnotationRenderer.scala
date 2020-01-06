@@ -1,7 +1,7 @@
 package zio.test
 
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,13 +71,13 @@ object TestAnnotationRenderer {
   /**
    * The default test annotation renderer used by the `DefaultTestReporter`.
    */
-  final lazy val default: TestAnnotationRenderer =
+  lazy val default: TestAnnotationRenderer =
     CompositeRenderer(Vector(ignored, repeated, retried, timed))
 
   /**
    * A test annotation renderer that renders the number of ignored tests.
    */
-  final val ignored: TestAnnotationRenderer =
+  val ignored: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.ignored) {
       case (child :: _) =>
         if (child == 0) None
@@ -88,7 +88,7 @@ object TestAnnotationRenderer {
    * A test annotation renderer that renders how many times a test was
    * repeated.
    */
-  final val repeated: TestAnnotationRenderer =
+  val repeated: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.repeated) {
       case (child :: _) =>
         if (child == 0) None
@@ -99,7 +99,7 @@ object TestAnnotationRenderer {
    * A test annotation renderer that renders how many times a test had to be
    * retried before it succeeded.
    */
-  final val retried: TestAnnotationRenderer =
+  val retried: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.retried) {
       case (child :: _) =>
         if (child == 0) None
@@ -109,7 +109,7 @@ object TestAnnotationRenderer {
   /**
    * A test annotation renderer that does not render any test annotations.
    */
-  final val silent: TestAnnotationRenderer =
+  val silent: TestAnnotationRenderer =
     new TestAnnotationRenderer {
       def run(ancestors: List[TestAnnotationMap], child: TestAnnotationMap): List[String] =
         List.empty
@@ -120,7 +120,7 @@ object TestAnnotationRenderer {
    * test or suite both in absolute duration and as a percentage of total
    * execution time.
    */
-  final val timed: TestAnnotationRenderer =
+  val timed: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.timing) {
       case (child :: ancestors) =>
         if (child.isZero) None

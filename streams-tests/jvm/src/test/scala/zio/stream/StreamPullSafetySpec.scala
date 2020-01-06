@@ -1,16 +1,126 @@
 package zio.stream
 
-import zio._
-import zio.test._
-import zio.test.Assertion.{ equalTo, isFalse, isTrue }
-import ZStream.Pull
 import StreamUtils.nPulls
+import ZStream.Pull
+
+import zio._
+import zio.test.Assertion.{ equalTo, isFalse, isTrue }
+import zio.test._
 
 object StreamPullSafetySpec extends ZIOBaseSpec {
 
   def spec = suite("StreamPullSafetySpec")(combinators, constructors)
 
   def combinators = suite("Combinators")(
+    suite("Stream.aggregate")(
+      testM("is safe to pull again after success") {
+        Stream(1, 2, 3, 4, 5, 6)
+          .aggregate(ZSink.collectAllN[Int](2).map(_.sum))
+          .process
+          .use(nPulls(_, 5))
+          .map(assert(_)(equalTo(List(Right(3), Right(7), Right(11), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after upstream failure") {
+        (Stream(1, 2) ++ Stream.fail("Ouch") ++ Stream(3, 4))
+          .aggregate(ZSink.collectAllN[Int](2).map(_.sum))
+          .process
+          .use(nPulls(_, 5))
+          .map(assert(_)(equalTo(List(Right(3), Left(Some("Ouch")), Right(7), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again after sink step failure") {
+        Stream(1, 2, 3, 4)
+          .aggregate(ZSink.identity[Int].contramapM { n: Int =>
+            if (n % 2 == 0) IO.fail("Ouch") else UIO.succeed(n)
+          })
+          .process
+          .use(nPulls(_, 6))
+          .map(
+            assert(_)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3), Left(Some("Ouch")), Left(None), Left(None))))
+          )
+      },
+      testM("is safe to pull again after sink extraction failure") {
+        assertM(
+          Stream(1, 2, 3, 4)
+            .aggregate(ZSink.fromFunctionM { n: Int =>
+              if (n % 2 == 0) IO.fail("Ouch") else UIO.succeed(n)
+            })
+            .process
+            .use(nPulls(_, 6))
+        )(
+          equalTo(
+            List(Right(1), Left(Some(Some("Ouch"))), Right(3), Left(Some(Some("Ouch"))), Left(None), Left(None))
+          )
+        )
+      }
+    ),
+    suite("Stream.aggregateManaged")(
+      testM("is safe to pull again after success") {
+        Stream(1, 2, 3, 4, 5, 6)
+          .aggregateManaged(Managed.succeed(ZSink.collectAllN[Int](2).map(_.sum)))
+          .process
+          .use(nPulls(_, 5))
+          .map(assert(_)(equalTo(List(Right(3), Right(7), Right(11), Left(None), Left(None)))))
+      },
+      testM("is safe to pull again from a failed Managed") {
+        Stream(1, 2, 3, 4, 5, 6)
+          .aggregateManaged(Managed.fail("Ouch"))
+          .process
+          .use(nPulls(_, 3))
+          .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
+      }
+    ),
+    testM("Stream.drop is safe to pull again") {
+      assertM(
+        Stream(1, 2, 3, 4, 5, 6, 7)
+          .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+          .drop(3)
+          .process
+          .use(nPulls(_, 6))
+      )(
+        equalTo(
+          List(
+            Left(Some("Ouch 2")), // dropped 1 up to here
+            Left(Some("Ouch 4")), // dropped 2 up to here
+            Left(Some("Ouch 6")), // dropped 3 up to here
+            Right(7),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
+    suite("Stream.dropWhile")(
+      testM("ZStream#dropWhile is safe to pull again") {
+        assertM(
+          Stream(1, 2, 3, 4, 5)
+            .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+            .dropWhile(_ < 3)
+            .process
+            .use(nPulls(_, 6))
+        )(equalTo(List(Left(Some("Ouch 2")), Right(3), Left(Some("Ouch 4")), Right(5), Left(None), Left(None))))
+      },
+      testM("StreamEffect#dropWhile is safe to pull again") {
+        val stream = StreamEffect[Any, String, Int] {
+          Managed.effectTotal {
+            var counter = 0
+
+            () => {
+              counter += 1
+              if (counter >= 6) StreamEffect.end[Int]
+              else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+              else counter
+            }
+          }
+        }
+
+        assertM(
+          stream
+            .dropWhile(_ < 3)
+            .process
+            .use(nPulls(_, 6))
+        )(equalTo(List(Left(Some("Ouch 2")), Right(3), Left(Some("Ouch 4")), Right(5), Left(None), Left(None))))
+      }
+    ),
     testM("Stream.mapAccumM is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)
@@ -26,6 +136,59 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
             Left(Some("Ouch")),
             Right(9),
             Left(None),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
+    suite("Stream.take") {
+      testM("ZStream#take is safe to pull again") {
+        assertM(
+          Stream(1, 2, 3, 4, 5)
+            .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+            .take(3)
+            .process
+            .use(nPulls(_, 7))
+        )(
+          equalTo(
+            List(
+              Right(1), // took 1 up to here
+              Left(Some("Ouch 2")),
+              Right(3), // took 2 up to here
+              Left(Some("Ouch 4")),
+              Right(5), // took 3 up to here
+              Left(None),
+              Left(None)
+            )
+          )
+        )
+      }
+    },
+    testM("StreamEffect#take is safe to pull again") {
+      val stream = StreamEffect[Any, String, Int] {
+        Managed.effectTotal {
+          var counter = 0
+
+          () => {
+            counter += 1
+            if (counter >= 6) StreamEffect.end[Int]
+            else if (counter % 2 == 0) StreamEffect.fail[String, Int](s"Ouch $counter")
+            else counter
+          }
+        }
+      }
+
+      assertM(
+        stream.take(3).process.use(nPulls(_, 7))
+      )(
+        equalTo(
+          List(
+            Right(1), // took 1 up to here
+            Left(Some("Ouch 2")),
+            Right(3), // took 2 up to here
+            Left(Some("Ouch 4")),
+            Right(5), // took 3 up to here
             Left(None),
             Left(None)
           )
@@ -48,7 +211,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           ref   <- Ref.make(false)
           pulls <- Stream.bracket(IO.fail("Ouch"))(_ => ref.set(true)).process.use(nPulls(_, 3))
           fin   <- ref.get
-        } yield assert(fin, isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+        } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
       },
       testM("is safe to pull again after inner failure") {
         for {
@@ -86,7 +249,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+        } yield assert(fin)(isTrue) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
       }
     ),
     suite("Stream.flatten")(
@@ -224,7 +387,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(pulls)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3))))
+        } yield assert(fin)(isTrue) && assert(pulls)(equalTo(List(Right(1), Left(Some("Ouch")), Right(3))))
       },
       testM("is safe to pull again after error sync case") {
         Stream
@@ -349,7 +512,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 4))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(pulls)(equalTo(List(Right(1), Right(2), Left(None), Left(None))))
+        } yield assert(fin)(isTrue) && assert(pulls)(equalTo(List(Right(1), Right(2), Left(None), Left(None))))
       },
       testM("is safe to pull again after failed acquisition") {
         for {
@@ -359,7 +522,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
-        } yield assert(fin, isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
+        } yield assert(fin)(isFalse) && assert(pulls)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None))))
       },
       testM("is safe to pull again after inner failure") {
         for {
@@ -372,7 +535,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .process
                     .use(nPulls(_, 8))
           fin <- ref.get
-        } yield assert(fin, isTrue) && assert(pulls)(
+        } yield assert(fin)(isTrue) && assert(pulls)(
           equalTo(
             List(
               Right("2"),

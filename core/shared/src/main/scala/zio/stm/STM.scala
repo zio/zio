@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,16 @@
 
 package zio.stm
 
-import java.util.{ HashMap => MutableMap }
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
+import java.util.{ HashMap => MutableMap }
+
+import scala.annotation.tailrec
+import scala.util.{ Failure, Success, Try }
 
 import com.github.ghik.silencer.silent
-import zio.{ CanFail, Fiber, IO, UIO }
-import zio.internal.{ Platform, Stack, Sync }
 
-import scala.util.{ Failure, Success, Try }
-import scala.annotation.tailrec
+import zio.internal.{ Platform, Stack, Sync }
+import zio.{ CanFail, Fiber, IO, UIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -78,52 +79,52 @@ final class STM[+E, +A] private[stm] (
   /**
    * Sequentially zips this value with the specified one.
    */
-  final def <*>[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
+  def <*>[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
     self zip that
 
   /**
    * Sequentially zips this value with the specified one, discarding the
    * second element of the tuple.
    */
-  final def <*[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
+  def <*[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
     self zipLeft that
 
   /**
    * Sequentially zips this value with the specified one, discarding the
    * first element of the tuple.
    */
-  final def *>[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
+  def *>[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
     self zipRight that
 
   /**
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
-  final def >>=[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
+  def >>=[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     self flatMap f
 
   /**
    * Maps the success value of this effect to the specified constant value.
    */
-  final def as[B](b: => B): STM[E, B] = self map (_ => b)
+  def as[B](b: => B): STM[E, B] = self map (_ => b)
 
   /**
    * Maps the error value of this effect to the specified constant value.
    */
-  final def asError[E1](e: => E1)(implicit ev: CanFail[E]): STM[E1, A] =
+  def asError[E1](e: => E1)(implicit ev: CanFail[E]): STM[E1, A] =
     self mapError (_ => e)
 
   /**
    * Simultaneously filters and maps the value produced by this effect.
    */
-  final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
+  def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
     collectM(pf.andThen(STM.succeed(_)))
 
   /**
    * Simultaneously filters and flatMaps the value produced by this effect.
    * Continues on the effect returned from pf.
    */
-  final def collectM[E1 >: E, B](pf: PartialFunction[A, STM[E1, B]]): STM[E1, B] =
+  def collectM[E1 >: E, B](pf: PartialFunction[A, STM[E1, B]]): STM[E1, B] =
     self.continueWithM {
       case TExit.Fail(e)    => STM.fail(e)
       case TExit.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else STM.retry
@@ -133,12 +134,12 @@ final class STM[+E, +A] private[stm] (
   /**
    * Commits this transaction atomically.
    */
-  final def commit: IO[E, A] = STM.atomically(self)
+  def commit: IO[E, A] = STM.atomically(self)
 
   /**
    * Converts the failure channel into an `Either`.
    */
-  final def either(implicit ev: CanFail[E]): STM[Nothing, Either[E, A]] =
+  def either(implicit ev: CanFail[E]): STM[Nothing, Either[E, A]] =
     fold(Left(_), Right(_))
 
   /**
@@ -146,21 +147,21 @@ final class STM[+E, +A] private[stm] (
    * not this effect succeeds. Note that as with all STM transactions,
    * if the full transaction fails, everything will be rolled back.
    */
-  final def ensuring(finalizer: STM[Nothing, Any]): STM[E, A] =
+  def ensuring(finalizer: STM[Nothing, Any]): STM[E, A] =
     foldM(e => finalizer *> STM.fail(e), a => finalizer *> STM.succeed(a))
 
   /**
    * Tries this effect first, and if it fails, succeeds with the specified
    * value.
    */
-  final def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): STM[Nothing, A1] =
+  def fallback[A1 >: A](a: => A1)(implicit ev: CanFail[E]): STM[Nothing, A1] =
     fold(_ => a, identity)
 
   /**
    * Filters the value produced by this effect, retrying the transaction until
    * the predicate returns true for the value.
    */
-  final def filter(f: A => Boolean): STM[E, A] =
+  def filter(f: A => Boolean): STM[E, A] =
     collect {
       case a if f(a) => a
     }
@@ -169,7 +170,7 @@ final class STM[+E, +A] private[stm] (
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
-  final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
+  def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     self.continueWithM {
       case TExit.Succeed(a) => f(a)
       case TExit.Fail(e)    => STM.fail(e)
@@ -179,14 +180,14 @@ final class STM[+E, +A] private[stm] (
   /**
    * Flattens out a nested `STM` effect.
    */
-  final def flatten[E1 >: E, B](implicit ev: A <:< STM[E1, B]): STM[E1, B] =
+  def flatten[E1 >: E, B](implicit ev: A <:< STM[E1, B]): STM[E1, B] =
     self flatMap ev
 
   /**
    * Folds over the `STM` effect, handling both failure and success, but not
    * retry.
    */
-  final def fold[B](f: E => B, g: A => B)(implicit ev: CanFail[E]): STM[Nothing, B] =
+  def fold[B](f: E => B, g: A => B)(implicit ev: CanFail[E]): STM[Nothing, B] =
     self.continueWithM {
       case TExit.Fail(e)    => STM.succeed(f(e))
       case TExit.Succeed(a) => STM.succeed(g(a))
@@ -197,7 +198,7 @@ final class STM[+E, +A] private[stm] (
    * Effectfully folds over the `STM` effect, handling both failure and
    * success.
    */
-  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B])(implicit ev: CanFail[E]): STM[E1, B] =
+  def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B])(implicit ev: CanFail[E]): STM[E1, B] =
     self.continueWithM {
       case TExit.Fail(e)    => f(e)
       case TExit.Succeed(a) => g(a)
@@ -207,12 +208,12 @@ final class STM[+E, +A] private[stm] (
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  final def ignore: STM[Nothing, Unit] = self.either.unit
+  def ignore: STM[Nothing, Unit] = self.either.unit
 
   /**
    * Maps the value produced by the effect.
    */
-  final def map[B](f: A => B): STM[E, B] =
+  def map[B](f: A => B): STM[E, B] =
     self.continueWithM {
       case TExit.Succeed(a) => STM.succeed(f(a))
       case TExit.Fail(e)    => STM.fail(e)
@@ -222,7 +223,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Maps from one error type to another.
    */
-  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): STM[E1, A] =
+  def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): STM[E1, A] =
     self.continueWithM {
       case TExit.Succeed(a) => STM.succeed(a)
       case TExit.Fail(e)    => STM.fail(f(e))
@@ -232,13 +233,13 @@ final class STM[+E, +A] private[stm] (
   /**
    * Converts the failure channel into an `Option`.
    */
-  final def option(implicit ev: CanFail[E]): STM[Nothing, Option[A]] =
+  def option(implicit ev: CanFail[E]): STM[Nothing, Option[A]] =
     fold(_ => None, Some(_))
 
   /**
    * Tries this effect first, and if it fails, tries the other effect.
    */
-  final def orElse[E1, A1 >: A](that: => STM[E1, A1])(implicit ev: CanFail[E]): STM[E1, A1] =
+  def orElse[E1, A1 >: A](that: => STM[E1, A1])(implicit ev: CanFail[E]): STM[E1, A1] =
     new STM(
       (journal, fiberId, stackSize) => {
         val reset = prepareResetJournal(journal)
@@ -272,42 +273,42 @@ final class STM[+E, +A] private[stm] (
    * Returns a transactional effect that will produce the value of this effect in left side, unless it
    * fails, in which case, it will produce the value of the specified effect in right side.
    */
-  final def orElseEither[E1 >: E, B](that: => STM[E1, B])(implicit ev: CanFail[E]): STM[E1, Either[A, B]] =
+  def orElseEither[E1 >: E, B](that: => STM[E1, B])(implicit ev: CanFail[E]): STM[E1, Either[A, B]] =
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
    * Maps the success value of this effect to unit.
    */
-  final def unit: STM[E, Unit] = as(())
+  def unit: STM[E, Unit] = as(())
 
   /**
    * Same as [[filter]]
    */
-  final def withFilter(f: A => Boolean): STM[E, A] = filter(f)
+  def withFilter(f: A => Boolean): STM[E, A] = filter(f)
 
   /**
    * Named alias for `<*>`.
    */
-  final def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
+  def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
     (self zipWith that)((a, b) => a -> b)
 
   /**
    * Named alias for `<*`.
    */
-  final def zipLeft[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
+  def zipLeft[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
     (self zip that) map (_._1)
 
   /**
    * Named alias for `*>`.
    */
-  final def zipRight[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
+  def zipRight[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
     (self zip that) map (_._2)
 
   /**
    * Sequentially zips this value with the specified one, combining the values
    * using the specified combiner function.
    */
-  final def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
+  def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
   private def continueWithM[E1, B](continueM: TExit[E, A] => STM[E1, B]): STM[E1, B] =
@@ -374,7 +375,8 @@ object STM {
   private[stm] object internal {
     final val DefaultJournalSize = 4
 
-    class Versioned[A](val value: A)
+    //Appears in reference comparisons, thus, cannot extends AnyVal to prevent boxing.
+    final class Versioned[A](val value: A)
 
     type TxnId = Long
 
@@ -386,7 +388,7 @@ object STM {
     /**
      * Creates a function that can reset the journal.
      */
-    final def prepareResetJournal(journal: Journal): () => Unit = {
+    def prepareResetJournal(journal: Journal): () => Unit = {
       val saved = new MutableMap[TRef[_], Entry](journal.size)
 
       val it = journal.entrySet.iterator
@@ -401,7 +403,7 @@ object STM {
     /**
      * Commits the journal.
      */
-    final def commitJournal(journal: Journal): Unit = {
+    def commitJournal(journal: Journal): Unit = {
       val it = journal.entrySet.iterator
       while (it.hasNext) it.next.getValue.commit()
     }
@@ -409,7 +411,7 @@ object STM {
     /**
      * Allocates memory for the journal, if it is null, otherwise just clears it.
      */
-    final def allocJournal(journal: Journal): Journal =
+    def allocJournal(journal: Journal): Journal =
       if (journal eq null) new MutableMap[TRef[_], Entry](DefaultJournalSize)
       else {
         journal.clear()
@@ -419,7 +421,7 @@ object STM {
     /**
      * Determines if the journal is valid.
      */
-    final def isValid(journal: Journal): Boolean = {
+    def isValid(journal: Journal): Boolean = {
       var valid = true
       val it    = journal.entrySet.iterator
       while (valid && it.hasNext) valid = it.next.getValue.isValid
@@ -432,7 +434,7 @@ object STM {
      * journal is read only will only be accurate if the journal is valid, due
      * to short-circuiting that occurs on an invalid journal.
      */
-    final def analyzeJournal(journal: Journal): JournalAnalysis = {
+    def analyzeJournal(journal: Journal): JournalAnalysis = {
       var result = JournalAnalysis.ReadOnly: JournalAnalysis
       val it     = journal.entrySet.iterator
       while ((result ne JournalAnalysis.Invalid) && it.hasNext) {
@@ -453,13 +455,13 @@ object STM {
     /**
      * Determines if the journal is invalid.
      */
-    final def isInvalid(journal: Journal): Boolean = !isValid(journal)
+    def isInvalid(journal: Journal): Boolean = !isValid(journal)
 
     /**
      * Atomically collects and clears all the todos from any `TRef` that
      * participated in the transaction.
      */
-    final def collectTodos(journal: Journal): MutableMap[TxnId, Todo] = {
+    def collectTodos(journal: Journal): MutableMap[TxnId, Todo] = {
       import collection.JavaConverters._
 
       val allTodos  = new MutableMap[TxnId, Todo](DefaultJournalSize)
@@ -486,7 +488,7 @@ object STM {
     /**
      * Executes the todos in the current thread, sequentially.
      */
-    final def execTodos(todos: MutableMap[TxnId, Todo]): Unit = {
+    def execTodos(todos: MutableMap[TxnId, Todo]): Unit = {
       val it = todos.entrySet.iterator
       while (it.hasNext) it.next.getValue.apply()
     }
@@ -495,7 +497,7 @@ object STM {
      * For the given transaction id, adds the specified todo effect to all
      * `TRef` values.
      */
-    final def addTodo(txnId: TxnId, journal: Journal, todoEffect: Todo): Boolean = {
+    def addTodo(txnId: TxnId, journal: Journal, todoEffect: Todo): Boolean = {
       var added = false
 
       val it = journal.entrySet.iterator
@@ -522,7 +524,7 @@ object STM {
     /**
      * Runs all the todos.
      */
-    final def completeTodos[E, A](io: IO[E, A], journal: Journal, platform: Platform): TryCommit[E, A] = {
+    def completeTodos[E, A](io: IO[E, A], journal: Journal, platform: Platform): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
       if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
@@ -533,7 +535,7 @@ object STM {
     /**
      * Finds all the new todo targets that are not already tracked in the `oldJournal`.
      */
-    final def untrackedTodoTargets(oldJournal: Journal, newJournal: Journal): Journal = {
+    def untrackedTodoTargets(oldJournal: Journal, newJournal: Journal): Journal = {
       val untracked = new MutableMap[TRef[_], Entry](newJournal.size)
 
       untracked.putAll(newJournal)
@@ -558,7 +560,7 @@ object STM {
       untracked
     }
 
-    final def tryCommitAsync[E, A](
+    def tryCommitAsync[E, A](
       journal: Journal,
       platform: Platform,
       fiberId: Fiber.Id,
@@ -599,7 +601,7 @@ object STM {
       }
     }
 
-    final def tryCommit[E, A](platform: Platform, fiberId: Fiber.Id, stm: STM[E, A]): TryCommit[E, A] = {
+    def tryCommit[E, A](platform: Platform, fiberId: Fiber.Id, stm: STM[E, A]): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
@@ -638,7 +640,7 @@ object STM {
       }
     }
 
-    final def makeTxnId(): Long = txnCounter.incrementAndGet()
+    def makeTxnId(): Long = txnCounter.incrementAndGet()
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()
 
@@ -663,22 +665,22 @@ object STM {
 
       private[this] var _isChanged = false
 
-      final def unsafeSet(value: Any): Unit = {
+      def unsafeSet(value: Any): Unit = {
         _isChanged = true
         newValue = value.asInstanceOf[A]
       }
 
-      final def unsafeGet[B]: B = newValue.asInstanceOf[B]
+      def unsafeGet[B]: B = newValue.asInstanceOf[B]
 
       /**
        * Commits the new value to the `TRef`.
        */
-      final def commit(): Unit = tref.versioned = new Versioned(newValue)
+      def commit(): Unit = tref.versioned = new Versioned(newValue)
 
       /**
        * Creates a copy of the Entry.
        */
-      final def copy(): Entry = new Entry {
+      def copy(): Entry = new Entry {
         type A = self.A
         val tref     = self.tref
         val expected = self.expected
@@ -691,18 +693,18 @@ object STM {
        * Determines if the entry is invalid. This is the negated version of
        * `isValid`.
        */
-      final def isInvalid: Boolean = !isValid
+      def isInvalid: Boolean = !isValid
 
       /**
        * Determines if the entry is valid. That is, if the version of the
        * `TRef` is equal to the expected version.
        */
-      final def isValid: Boolean = tref.versioned eq expected
+      def isValid: Boolean = tref.versioned eq expected
 
       /**
        * Determines if the variable has been set in a transaction.
        */
-      final def isChanged: Boolean = _isChanged
+      def isChanged: Boolean = _isChanged
 
       override def toString: String =
         s"Entry(expected.value = ${expected.value}, newValue = $newValue, tref = $tref, isChanged = $isChanged)"
@@ -714,7 +716,7 @@ object STM {
        * Creates an entry for the journal, given the `TRef` being untracked, the
        * new value of the `TRef`, and the expected version of the `TRef`.
        */
-      final def apply[A0](tref0: TRef[A0], isNew0: Boolean): Entry = {
+      def apply[A0](tref0: TRef[A0], isNew0: Boolean): Entry = {
         val versioned = tref0.versioned
 
         new Entry {
@@ -739,7 +741,7 @@ object STM {
   /**
    * Atomically performs a batch of operations in a single transaction.
    */
-  final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
+  def atomically[E, A](stm: STM[E, A]): IO[E, A] =
     IO.effectSuspendTotalWith { (platform, fiberId) =>
       tryCommit(platform, fiberId, stm) match {
         case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
@@ -756,13 +758,13 @@ object STM {
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
-  final def check(p: Boolean): STM[Nothing, Unit] = if (p) STM.unit else retry
+  def check(p: Boolean): STM[Nothing, Unit] = if (p) STM.unit else retry
 
   /**
    * Collects all the transactional effects in a list, returning a single
    * transactional effect that produces a list of values.
    */
-  final def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
+  def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
     i.foldRight[STM[E, List[A]]](STM.succeed(Nil)) {
       case (stm, acc) =>
         acc.zipWith(stm)((xs, x) => x :: xs)
@@ -771,18 +773,18 @@ object STM {
   /**
    * Kills the fiber running the effect.
    */
-  final def die(t: Throwable): STM[Nothing, Nothing] = succeed(throw t)
+  def die(t: Throwable): STM[Nothing, Nothing] = succeed(throw t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
    * the specified message.
    */
-  final def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
+  def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
 
   /**
    * Returns a value modelled on provided exit status.
    */
-  final def done[E, A](exit: TExit[E, A]): STM[E, A] =
+  def done[E, A](exit: TExit[E, A]): STM[E, A] =
     exit match {
       case TExit.Retry      => STM.retry
       case TExit.Fail(e)    => STM.fail(e)
@@ -792,18 +794,18 @@ object STM {
   /**
    * Returns a value that models failure in the transaction.
    */
-  final def fail[E](e: E): STM[E, Nothing] = new STM((_, _, _) => TExit.Fail(e))
+  def fail[E](e: E): STM[E, Nothing] = new STM((_, _, _) => TExit.Fail(e))
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  final val fiberId: STM[Nothing, Fiber.Id] = new STM((_, fiberId, _) => TExit.Succeed(fiberId))
+  val fiberId: STM[Nothing, Fiber.Id] = new STM((_, fiberId, _) => TExit.Succeed(fiberId))
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces a new `List[B]`.
    */
-  final def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+  def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
     collectAll(as.map(f))
 
   /**
@@ -813,7 +815,7 @@ object STM {
    * Equivalent to `foreach(as)(f).unit`, but without the cost of building
    * the list of results.
    */
-  final def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
+  def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
     STM.succeed(as.iterator).flatMap { it =>
       def loop: STM[E, Unit] =
         if (it.hasNext) f(it.next) *> loop
@@ -825,7 +827,7 @@ object STM {
   /**
    * Creates an STM effect from an `Either` value.
    */
-  final def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
+  def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     STM.suspend {
       e match {
         case Left(t)  => STM.fail(t)
@@ -836,7 +838,7 @@ object STM {
   /**
    * Creates an STM effect from a `Try` value.
    */
-  final def fromTry[A](a: => Try[A]): STM[Throwable, A] =
+  def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     STM.suspend {
       Try(a).flatten match {
         case Failure(t) => STM.fail(t)
@@ -847,27 +849,27 @@ object STM {
   /**
    * Creates an `STM` value from a partial (but pure) function.
    */
-  final def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
+  def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
 
   /**
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  final val retry: STM[Nothing, Nothing] = new STM((_, _, _) => TExit.Retry)
+  val retry: STM[Nothing, Nothing] = new STM((_, _, _) => TExit.Retry)
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  final def succeed[A](a: A): STM[Nothing, A] = new STM((_, _, _) => TExit.Succeed(a))
+  def succeed[A](a: A): STM[Nothing, A] = new STM((_, _, _) => TExit.Succeed(a))
 
   /**
    * Suspends creation of the specified transaction lazily.
    */
-  final def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
+  def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
     STM.succeed(stm).flatten
 
   /**
    * Returns an `STM` effect that succeeds with `Unit`.
    */
-  final val unit: STM[Nothing, Unit] = succeed(())
+  val unit: STM[Nothing, Unit] = succeed(())
 }

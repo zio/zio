@@ -147,12 +147,20 @@ At this point, you should re-run all tests to make sure everything is passing:
 sbt test
 ```
 
-If all the tests are passing, then you can format your code:
+If all the tests are passing, then you can prepare your code to be shipped:
 
 ```bash
-# If you are already in a SBT session you can type only 'fmt'
+# If you are already in a SBT session you can type only 'prepare'
 
-sbt fmt
+sbt prepare
+```
+
+For simplicity, there is a command that does everything. Prepares code, compiles it and runs tests:
+
+```bash
+# If you are already in a SBT session you can type only 'build'
+
+sbt build
 ```
 
 If your changes altered an API, then you may need to rebuild the microsite to make sure none of the (compiled) documentation breaks:

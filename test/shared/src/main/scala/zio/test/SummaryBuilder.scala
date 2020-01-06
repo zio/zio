@@ -1,7 +1,7 @@
 package zio.test
 
-import zio.{ UIO, ZIO }
 import zio.test.Spec._
+import zio.{ UIO, ZIO }
 
 object SummaryBuilder {
   def buildSummary[E, L, S](executedSpec: ExecutedSpec[E, L, S]): UIO[Summary] =

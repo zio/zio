@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -157,7 +157,7 @@ object Runtime {
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
    */
-  final def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
+  def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
     val environment = r
     val platform    = platform0
   }

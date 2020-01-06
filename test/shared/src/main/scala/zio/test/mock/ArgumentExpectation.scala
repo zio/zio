@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@ import zio.test.Assertion
  * An `ArgumentExpectation[M, I, A]` represents an expectation on input `I` arguments
  * for capability of module `M` that returns an effect that may produce a single `A`.
  */
-final case class ArgumentExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[I]) {
+final case class ArgumentExpectation[-M, I, +A](method: Method[M, I, A], assertion: Assertion[I]) {
 
   /**
    * Provides the `ReturnExpectation` to produce the final `Expectation`.
    */
-  def returns[E](returns: ReturnExpectation[I, E, A]): Expectation[M, E, A] =
-    Expectation.Call[M, I, E, A](method, assertion, returns.io)
+  def returns[A1 >: A, E](returns: ReturnExpectation[I, E, A1]): Expectation[M, E, A1] =
+    Expectation.Call[M, I, E, A1](method, assertion, returns.io)
 }

@@ -1,13 +1,13 @@
 package zio.test.environment
 
+import scala.util.{ Random => SRandom }
+
 import zio._
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
-import zio.test._
 import zio.test.TestAspect._
-
-import scala.util.{ Random => SRandom }
+import zio.test._
+import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
 
 object RandomSpec extends ZIOBaseSpec {
 
@@ -48,7 +48,7 @@ object RandomSpec extends ZIOBaseSpec {
         .map(rt => {
           val x = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
           val y = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
-          assert(x, equalTo(y))
+          assert(x)(equalTo(y))
         })
     },
     testM("check fed ints do not survive repeating tests") {
@@ -57,7 +57,7 @@ object RandomSpec extends ZIOBaseSpec {
         value  <- zio.random.nextInt
         value2 <- zio.random.nextInt
         _      <- ZIO.accessM[TestRandom](_.random.feedInts(1, 2))
-      } yield assert(value, equalTo(-1157408321)) && assert(value2, equalTo(758500184))
+      } yield assert(value)(equalTo(-1157408321)) && assert(value2)(equalTo(758500184))
     } @@ nonFlaky
   )
 
@@ -74,7 +74,7 @@ object RandomSpec extends ZIOBaseSpec {
         _          <- clear(testRandom)
         random     <- extract(testRandom)
         expected   <- ZIO.effectTotal(generate(new SRandom(seed)))
-      } yield assert(random, equalTo(expected))
+      } yield assert(random)(equalTo(expected))
     }
 
   def checkFeed[A, B >: Random](generate: SRandom => A)(
@@ -91,8 +91,8 @@ object RandomSpec extends ZIOBaseSpec {
         random     <- extract(testRandom)
         expected   <- ZIO.effectTotal(generate(new SRandom(seed)))
       } yield {
-        assert(results, equalTo(values)) &&
-        assert(random, equalTo(expected))
+        assert(results)(equalTo(values)) &&
+        assert(random)(equalTo(expected))
       }
     }
 
@@ -112,7 +112,7 @@ object RandomSpec extends ZIOBaseSpec {
         _          <- testRandom.setSeed(seed)
         actual     <- UIO.foreach(List.fill(100)(()))(_ => f(testRandom))
         expected   <- ZIO.effectTotal(List.fill(100)(g(sRandom)))
-      } yield assert(actual, equalTo(expected))
+      } yield assert(actual)(equalTo(expected))
     }
 
   def forAllEqualBytes: ZIO[Random, Nothing, TestResult] =
@@ -137,7 +137,7 @@ object RandomSpec extends ZIOBaseSpec {
         _          <- testRandom.setSeed(seed)
         actual     <- testRandom.nextGaussian
         expected   <- ZIO.effectTotal(sRandom.nextGaussian)
-      } yield assert(actual, approximatelyEquals(expected, 0.01))
+      } yield assert(actual)(approximatelyEquals(expected, 0.01))
     }
 
   def forAllEqualN[A](
@@ -150,7 +150,7 @@ object RandomSpec extends ZIOBaseSpec {
         _          <- testRandom.setSeed(seed)
         actual     <- f(testRandom, size)
         expected   <- ZIO.effectTotal(g(sRandom, size))
-      } yield assert(actual, equalTo(expected))
+      } yield assert(actual)(equalTo(expected))
     }
 
   def forAllEqualShuffle(
@@ -163,7 +163,7 @@ object RandomSpec extends ZIOBaseSpec {
         _          <- testRandom.setSeed(seed)
         actual     <- f(testRandom, testList)
         expected   <- ZIO.effectTotal(g(sRandom, testList))
-      } yield assert(actual, equalTo(expected))
+      } yield assert(actual)(equalTo(expected))
     }
 
   def forAllBounded[A: Numeric](gen: Gen[Random, A])(
@@ -175,7 +175,7 @@ object RandomSpec extends ZIOBaseSpec {
       for {
         testRandom <- ZIO.environment[Random].map(_.random)
         nextRandom <- next(testRandom, upper)
-      } yield assert(nextRandom, isWithin(zero, upper))
+      } yield assert(nextRandom)(isWithin(zero, upper))
     }
   }
 }

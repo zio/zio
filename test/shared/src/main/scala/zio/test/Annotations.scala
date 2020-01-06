@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import zio.{ FiberRef, UIO, ZIO }
  * monad effect.
  */
 trait Annotations {
-  val annotations: Annotations.Service[Any]
+  def annotations: Annotations.Service[Any]
 }
 
 object Annotations {

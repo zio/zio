@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package zio.internal
  * A variable that can be set a single time. The synchronous,
  * effectful equivalent of `Promise`.
  */
-private[zio] class OneShot[A] private (@volatile var value: A) {
+private[zio] final class OneShot[A] private (@volatile var value: A) {
 
   import OneShot._
 
@@ -28,7 +28,7 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
    * Sets the variable to the value. The behavior of this function
    * is undefined if the variable has already been set.
    */
-  final def set(v: A): Unit = {
+  def set(v: A): Unit = {
     if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
 
     this.synchronized {
@@ -43,7 +43,7 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
   /**
    * Determines if the variable has been set.
    */
-  final def isSet: Boolean = value != null
+  def isSet: Boolean = value != null
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
@@ -51,7 +51,7 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
    * @param timeout The maximum amount of time the thread will be blocked, in milliseconds.
    * @throws Error if the timeout is reached without the value being set.
    */
-  final def get(timeout: Long): A = {
+  def get(timeout: Long): A = {
     var remainingNano = math.min(timeout, Long.MaxValue / nanosPerMilli) * nanosPerMilli
     while (value == null && remainingNano > 0L) {
       val waitMilli = remainingNano / nanosPerMilli
@@ -73,7 +73,7 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
    *
    * This will block until the value is set or the thread is interrupted.
    */
-  final def get(): A = {
+  def get(): A = {
     while (value == null) {
       this.synchronized {
         if (value == null) this.wait()
@@ -86,10 +86,10 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
 
 object OneShot {
 
-  private val nanosPerMilli = 1000000L
+  private final val nanosPerMilli = 1000000L
 
   /**
    * Makes a new (unset) variable.
    */
-  final def make[A]: OneShot[A] = new OneShot(null.asInstanceOf[A])
+  def make[A]: OneShot[A] = new OneShot(null.asInstanceOf[A])
 }
