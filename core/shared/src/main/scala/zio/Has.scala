@@ -29,7 +29,7 @@ package zio
  * All modules in an environment must be monomorphic. Parameterized modules
  * are not supported.
  */
-final class Has[A] private (private val map: Map[Tagged[_], scala.Any])
+final class Has[+A] private (private val map: Map[Tagged[_], scala.Any])
 object Has {
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
@@ -45,6 +45,9 @@ object Has {
       }
   }
   type Contains[A, B] = A <:< B
+
+  private[Has] val TaggedAny    = implicitly[Tagged[Any]]
+  private[Has] val TaggedAnyRef = implicitly[Tagged[AnyRef]]
 
   implicit final class HasSyntax[Self <: Has[_]](val self: Self) extends AnyVal {
     def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = self add b
@@ -63,8 +66,14 @@ object Has {
     /**
      * Retrieves a module from the environment.
      */
-    def get[B](implicit ev: Self <:< Has[B], tag: Tagged[B]): B =
-      self.map(tag).asInstanceOf[B]
+    def get[B](implicit ev: Self <:< Has[B], tag: Tagged[B]): B = {
+      self.map.getOrElse(tag, {
+        if (tag == TaggedAny || tag == TaggedAnyRef) ()
+        else self.map.collectFirst {
+          case (curTag, value) if (taggedIsSubtype(curTag, tag)) => value
+        }.getOrElse(throw new Error("There's probably a bug in Has!"))
+      }).asInstanceOf[B]
+    }
 
     /**
      * Combines this environment with the specified environment. In the event

@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.internal.Platform
+
 /**
  * A `ZLayer[A, E, B]` describes a layer of an application: every layer in an
  * application requires some services (the input) and produces some services
@@ -57,6 +59,13 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
    * Builds a layer that has no dependencies into a managed value.
    */
   def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
+
+  /**
+   * Converts a layer that requires no services into a managed runtime, which 
+   * can be used to execute effects.
+   */
+  def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Has.Any =:= RIn2): Managed[E, Runtime[ROut]] = 
+    build.map(Runtime(_, p))
 }
 object ZLayer {
 
