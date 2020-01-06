@@ -213,7 +213,9 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("timeout reports problem with interruption") {
       for {
         testClock <- ZIO.environment[TestClock]
-        liveClock = (ZLayer.environment[ZEnv] ++ ZLayer.succeed[Clock.Service](testClock.get[Clock.Service])) >>> (Live.make ++ ZLayer.succeed[TestClock.Service](testClock.get[TestClock.Service]))
+        liveClock = (ZLayer
+          .environment[ZEnv] ++ ZLayer.succeed[Clock.Service](testClock.get[Clock.Service])) >>> (Live.make ++ ZLayer
+          .succeed[TestClock.Service](testClock.get[TestClock.Service]))
         spec = testM("uninterruptible test") {
           for {
             _ <- (TestClock.adjust(11.milliseconds) *> ZIO.never).uninterruptible

@@ -111,12 +111,22 @@ object TestSystem extends Serializable {
   }
 
   /**
+   * The default initial state of the `TestSystem` with no environment variable
+   * or system property mappings and the system line separator set to the new
+   * line character.
+   */
+  val DefaultData: Data = Data(Map(), Map(), "\n")
+
+  /**
    * Constructs a new `TestSystem` with the specified initial state. This can
    * be useful for providing the required environment to an effect that
    * requires a `Console`, such as with [[ZIO!.provide]].
    */
-  def live: ZLayer[Has.Any, Nothing, TestSystem] =
-    ZLayer.fromEffect(Ref.make(DefaultData).map(ref => Has(Test(ref))))
+  def live(data: Data): ZLayer[Has.Any, Nothing, TestSystem] =
+    ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
+
+  val default: ZLayer[Has.Any, Nothing, TestSystem] =
+    live(DefaultData)
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
@@ -158,13 +168,6 @@ object TestSystem extends Serializable {
    */
   def clearProperty(prop: String): ZIO[TestSystem, Nothing, Unit] =
     ZIO.accessM(_.get.clearProperty(prop))
-
-  /**
-   * The default initial state of the `TestSystem` with no environment variable
-   * or system property mappings and the system line separator set to the new
-   * line character.
-   */
-  val DefaultData: Data = Data(Map(), Map(), "\n")
 
   /**
    * The state of the `TestSystem`.

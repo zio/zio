@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -147,6 +147,12 @@ object TestConsole extends Serializable {
   def live(data: Data): ZLayer[Has.Any, Nothing, TestConsole] =
     ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
 
+  /**
+   * The default initial state of the `TestConsole` with input and output
+   * buffers both empty.
+   */
+  val DefaultData: Data = Data(Nil, Vector())
+
   val default: ZLayer[Has.Any, Nothing, TestConsole] =
     live(DefaultData)
 
@@ -177,12 +183,6 @@ object TestConsole extends Serializable {
    */
   val clearOutput: ZIO[TestConsole, Nothing, Unit] =
     ZIO.accessM(_.get.clearOutput)
-
-  /**
-   * The default initial state of the `TestConsole` with input and output
-   * buffers both empty.
-   */
-  val DefaultData: Data = Data(Nil, Vector())
 
   /**
    * Accesses a `TestConsole` instance in the environment and saves the console state in an effect which, when run,

@@ -7,6 +7,7 @@ import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ jvm, nonFlaky }
 import zio.ZQueueSpecUtil.waitForSize
+import zio.test.environment.Live
 
 object ZQueueSpec extends ZIOBaseSpec {
 
@@ -743,9 +744,9 @@ object ZQueueSpec extends ZIOBaseSpec {
 }
 
 object ZQueueSpecUtil {
-  def waitForValue[T](ref: UIO[T], value: T): UIO[T] =
-    (ref <* clock.sleep(10.millis)).repeat(Schedule.doWhile(_ != value)).provide(Clock.Live)
+  def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
+    Live.live((ref <* clock.sleep(10.millis)).repeat(Schedule.doWhile(_ != value)))
 
-  def waitForSize[A](queue: Queue[A], size: Int): UIO[Int] =
+  def waitForSize[A](queue: Queue[A], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)
 }

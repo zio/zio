@@ -1180,7 +1180,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interruptAs(fiberId).timeout(5.seconds).provide(zio.clock.Clock.Live)
+      interruption       <- Live.live(managedFiber.interruptAs(fiberId).timeout(5.seconds))
     } yield assert(interruption.map(_.untraced))(equalTo(expected(fiberId)))
 
   def testFinalizersPar[R, E](
@@ -1197,7 +1197,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def testAcquirePar[R, E](
     n: Int,
-    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, Any]
+    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, Any]
   ) =
     for {
       effects      <- Ref.make(0)
@@ -1214,7 +1214,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def testReservePar[R, E, A](
     n: Int,
-    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, A]
+    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, A]
   ) =
     for {
       effects      <- Ref.make(0)

@@ -155,7 +155,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     for {
       _ <- TestTestRunner(testEnvironmentManaged)
             .run(spec)
-            .provideSomeManaged((TestLogger.fromConsole ++ TestClock.live(TestClock.DefaultData)).value)
+            .provideSomeManaged((TestLogger.fromConsole ++ TestClock.default).value)
       output <- TestConsole.output
     } yield output.mkString
 

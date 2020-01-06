@@ -4,7 +4,8 @@ import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.clock.Clock
 import zio.scheduler.Scheduler
 import zio.test.{ AbstractRunnableSpec, SummaryBuilder, TestArgs, TestLogger }
-import zio.{ Runtime, ZIO, Has, ZLayer }
+import zio.{ Has, Runtime, ZIO, ZLayer }
+import zio.UIO
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -48,11 +49,14 @@ abstract class BaseTestTask(
     } ++ (Scheduler.live >>> Clock.live)
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    Runtime((), spec.platform).unsafeRun((sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_).use_(ZIO.unit))
+    Runtime((), spec.platform).unsafeRun(
+      (sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_)
+        .use_(ZIO.unit)
+        .onError(e => UIO(println(e.prettyPrint)))
+    )
     Array()
   }
 
   override def tags(): Array[String] = Array.empty
 
 }
-

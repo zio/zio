@@ -20,6 +20,7 @@ import zio.{ IO, Managed, UIO, ZIO }
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.test.{ assertM, testM, Assertion }
+import zio.test.environment.Live
 
 object ExpectationSpecUtils {
 
@@ -38,10 +39,11 @@ object ExpectationSpecUtils {
     check: Assertion[Option[A]]
   ) = testM(name) {
     val result =
-      mock
-        .use(app.provide _)
-        .timeout(duration)
-        .provide(Clock.Live)
+      Live.live {
+        mock
+          .use(app.provide _)
+          .timeout(duration)
+      }
 
     assertM(result)(check)
   }
