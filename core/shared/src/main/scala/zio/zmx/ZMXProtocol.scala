@@ -106,7 +106,7 @@ object ZMXProtocol {
    * 3) First bulk string is the command
    * 4) Subsequent bulk strings are the arguments to the command
    *
-   * Sample: "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+   * Sample: "*2\\r\\n\$3\\r\\nfoo\\r\\n\$3\\r\\nbar\\r\\n"
    *
    */
   def serverReceived(received: String): Option[ZMXServerRequest] = {
