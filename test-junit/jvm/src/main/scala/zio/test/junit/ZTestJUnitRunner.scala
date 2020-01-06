@@ -1,15 +1,15 @@
 package zio.test.junit
 
-import org.junit.runner.manipulation.{ Filter, Filterable }
-import org.junit.runner.notification.{ Failure, RunNotifier }
-import org.junit.runner.{ Description, RunWith, Runner }
+import org.junit.runner.manipulation.{Filter, Filterable}
+import org.junit.runner.notification.{Failure, RunNotifier}
+import org.junit.runner.{Description, Result, RunWith, Runner}
 import zio.ZIO.effectTotal
 import zio._
 import zio.clock.Clock
 import zio.test.FailureRenderer.FailureMessage.Message
-import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
-import zio.test.TestFailure.{ Assertion, Runtime }
-import zio.test.TestSuccess.{ Ignored, Succeeded }
+import zio.test.Spec.{SpecCase, SuiteCase, TestCase}
+import zio.test.TestFailure.{Assertion, Runtime}
+import zio.test.TestSuccess.{Ignored, Succeeded}
 import zio.test._
 import com.github.ghik.silencer.silent
 
@@ -83,16 +83,15 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
 
   private def testDescription(label: String, path: Vector[String]) = {
     val uniqueId = path.mkString(":") + ":" + label
-    Description.createTestDescription(path.headOption.getOrElse(className), label, uniqueId)
+    Description.createTestDescription(className, label, uniqueId)
   }
 
   private def instrumentSpec[R, E, L, S](
     zspec: ZSpec[R, E, L, S],
-    notifier: JUnitNotifier,
-    path: Vector[String] = Vector.empty
+    notifier: JUnitNotifier
   ): ZSpec[R, E, L, S] = {
     type ZSpecCase = SpecCase[R, TestFailure[E], L, TestSuccess[S], Spec[R, TestFailure[E], L, TestSuccess[S]]]
-    def instrumentTest(label: L, test: ZIO[R, TestFailure[E], TestSuccess[S]]) =
+    def instrumentTest(label: L, path: Vector[String], test: ZIO[R, TestFailure[E], TestSuccess[S]]) =
       notifier.fireTestStarted(label, path) *> test.tapBoth(
         {
           case Assertion(result) => reportAssertionFailure(notifier, path, label, result)
@@ -104,7 +103,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
       )
     def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =
       specCase match {
-        case TestCase(label, test) => TestCase(label, instrumentTest(label, test))
+        case TestCase(label, test) => TestCase(label, instrumentTest(label, path , test))
         case SuiteCase(label, specs, es) =>
           @silent("inferred to be `Any`")
           val instrumented =
