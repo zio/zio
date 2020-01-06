@@ -68,7 +68,7 @@ object SchedulerSpec extends ZIOBaseSpec {
     )
   )
 
-  val rt = new DefaultRuntime {}
+  val rt = zio.Runtime.default
   def runTask(scheduler: IScheduler, promise: Promise[Nothing, Unit], duration: Duration): CancelToken =
     scheduler.schedule(
       new Runnable {

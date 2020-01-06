@@ -352,7 +352,7 @@ object TestClock extends Serializable {
     }
 
   val default: ZLayer[Live, Nothing, TestClock] =
-    live(DefaultData)
+    live(Data(0, 0, Nil, ZoneId.of("UTC")))
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock state in an effect which, when run,
@@ -398,12 +398,6 @@ object TestClock extends Serializable {
    */
   val timeZone: ZIO[TestClock, Nothing, ZoneId] =
     ZIO.accessM(_.get.timeZone)
-
-  /**
-   * The default initial state of the `TestClock` with the clock time set to
-   * `0` and no effects scheduled to run.
-   */
-  val DefaultData = Data(0, 0, Nil, ZoneId.of("UTC"))
 
   /**
    * The state of the `TestClock`.
