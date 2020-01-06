@@ -16,33 +16,37 @@
 
 package zio.zmx
 
-import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
+import zio.{ UIO, ZIO, ZIOBaseSpec }
 
 object ZMXProtocolSpec extends ZIOBaseSpec {
   def spec =
     suite("ZMXProtocolSpec")(
       suite("Using the RESP protocol")(
         test("zmx test generating a successful command") {
-          val p = ZMXProtocol.generateRespCommand(args = List("foobar"))
+          val p: String = ZMXProtocol.generateRespCommand(args = List("foobar"))
           assert(p)(equalTo("*1\r\n$6\r\nfoobar\r\n"))
         },
         test("zmx test generating a successful multiple command") {
-          val p = ZMXProtocol.generateRespCommand(args = List("foo", "bar"))
+          val p: String = ZMXProtocol.generateRespCommand(args = List("foo", "bar"))
           assert(p)(equalTo("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"))
         },
         test("zmx test generating a successful empty command") {
-          val p = ZMXProtocol.generateRespCommand(args = List())
+          val p: String = ZMXProtocol.generateRespCommand(args = List())
           assert(p)(equalTo("*0\r\n"))
         },
-        test("zmx test generating a success reply") {
-          val p = ZMXProtocol.generateReply(ZMXMessage("foobar"), Success)
-          assert(p)(equalTo("+foobar"))
+        testM("zmx test generating a success reply") {
+          val p: UIO[String] = ZMXProtocol.generateReply(ZIO.succeed(ZMXMessage("foobar")), Success)
+          for {
+            content <- p
+          } yield assert(content)(equalTo("+foobar"))
         },
-        test("zmx test generating a fail reply") {
-          val p = ZMXProtocol.generateReply(ZMXMessage("foobar"), Fail)
-          assert(p)(equalTo("-foobar"))
+        testM("zmx test generating a fail reply") {
+          val p: UIO[String] = ZMXProtocol.generateReply(ZIO.succeed(ZMXMessage("foobar")), Fail)
+          for {
+            content <- p
+          } yield assert(content)(equalTo("-foobar"))
         },
         test("zmx get size of bulk string") {
           assert(ZMXProtocol.sizeOfBulkString("$6"))(equalTo(6))

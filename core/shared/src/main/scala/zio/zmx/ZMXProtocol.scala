@@ -16,9 +16,14 @@
 
 package zio.zmx
 
+import java.nio.ByteBuffer
+import java.nio.channels.SocketChannel
+import java.nio.charset.StandardCharsets
 import java.nio.charset.StandardCharsets._
 
 import scala.annotation.tailrec
+
+import zio.UIO
 
 object ZMXProtocol {
 
@@ -55,10 +60,14 @@ object ZMXProtocol {
    *
    *
    */
-  def generateReply(message: ZMXMessage, replyType: ZMXServerResponse): String =
-    replyType match {
-      case Success => s"+${message.toString}"
-      case Fail    => s"-${message.toString}"
+  def generateReply(message: UIO[ZMXMessage], replyType: ZMXServerResponse): UIO[String] =
+    for {
+      messageText <- message
+    } yield {
+      replyType match {
+        case Success => s"+${messageText}"
+        case Fail    => s"-${messageText}"
+      }
     }
 
   final val getSuccessfulResponse: PartialFunction[String, String] = {
@@ -130,4 +139,19 @@ object ZMXProtocol {
    *
    */
   val clientReceived: PartialFunction[String, String] = getSuccessfulResponse orElse getErrorResponse
+
+  def StringToByteBuffer(message: UIO[String]): UIO[ByteBuffer] =
+    for {
+      content <- message
+    } yield ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8))
+
+  def ByteBufferToString(bytes: ByteBuffer): String =
+    new String(bytes.array()).trim()
+
+  def writeToClient(message: UIO[ByteBuffer], client: SocketChannel): UIO[Int] =
+    for {
+      content <- message
+    } yield {
+      client.write(content)
+    }
 }

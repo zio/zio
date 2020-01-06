@@ -20,6 +20,10 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
 
+import ZMXProtocol._
+
+import zio.ZIO
+
 class ZMXClient(config: ZMXConfig) {
   val buffer: ByteBuffer = ByteBuffer.allocate(256)
 
@@ -29,10 +33,10 @@ class ZMXClient(config: ZMXConfig) {
   }
 
   def sendMessage(message: String): String = {
-    val client = SocketChannel.open(new InetSocketAddress(config.host, config.port))
-    client.write(ZMXCommands.StringToByteBuffer(message))
+    val client: SocketChannel = SocketChannel.open(new InetSocketAddress(config.host, config.port))
+    writeToClient(StringToByteBuffer(ZIO.succeed(message)), client)
     client.read(buffer)
-    val response: String = ZMXCommands.ByteBufferToString(buffer)
+    val response: String = ZMXProtocol.ByteBufferToString(buffer)
     buffer.clear()
     response
   }

@@ -24,6 +24,8 @@ import java.util.Iterator
 import scala.collection.mutable.Set
 import scala.jdk.CollectionConverters._
 
+import zio.{ Fiber, UIO, URIO, ZIO }
+
 object ZMXServer {
   val BUFFER_SIZE = 256
 
@@ -39,12 +41,15 @@ object ZMXServer {
     case ZMXServerRequest(command, None) if command.equalsIgnoreCase("stop") => ZMXCommands.Stop
   }
 
-  private def handleCommand(command: ZMXCommands): ZMXMessage =
+  private def handleCommand(command: ZMXCommands): UIO[ZMXMessage] =
     command match {
-      case ZMXCommands.FiberDump => ??? // use Fiber.dump
-      case ZMXCommands.Metrics   => ??? // wip by @dkarlinsky
-      case ZMXCommands.Test      => ZMXMessage("This is a TEST")
-      case _                     => ZMXMessage("Unknown Command")
+      case ZMXCommands.FiberDump =>
+        for {
+          dumps  <- Fiber.dump
+          result <- URIO.foreach(dumps)(_.prettyPrintM)
+        } yield ZMXMessage(result.mkString("\n"))
+      case ZMXCommands.Test => ZIO.succeed(ZMXMessage("This is a TEST"))
+      case _                => ZIO.succeed(ZMXMessage("Unknown Command"))
     }
 
   private def processCommand(received: String): Option[ZMXCommands] = {
@@ -55,21 +60,32 @@ object ZMXServer {
   private def responseReceived(buffer: ByteBuffer, key: SelectionKey, debug: Boolean): Boolean = {
     val client: SocketChannel = key.channel().asInstanceOf[SocketChannel]
     client.read(buffer)
-    val received: String = ZMXCommands.ByteBufferToString(buffer)
+    val received: String = ZMXProtocol.ByteBufferToString(buffer)
     if (debug)
       println(s"Server received: $received")
     val receivedCommand = processCommand(received)
     buffer.flip
     receivedCommand match {
       case Some(comm) if comm == ZMXCommands.Stop =>
-        client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply(ZMXMessage("Stopping Server"), Success)))
+        ZMXProtocol.writeToClient(
+          ZMXProtocol.StringToByteBuffer(
+            ZMXProtocol.generateReply(ZIO.succeed(ZMXMessage("Stopping Server")), Success)
+          ),
+          client
+        )
         client.close()
         return false
       case Some(comm) =>
-        val responseToSend: ZMXMessage = handleCommand(comm)
-        client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply(responseToSend, Success)))
+        val responseToSend: UIO[ZMXMessage] = handleCommand(comm)
+        ZMXProtocol.writeToClient(
+          ZMXProtocol.StringToByteBuffer(ZMXProtocol.generateReply(responseToSend, Success)),
+          client
+        )
       case None =>
-        client.write(ZMXCommands.StringToByteBuffer(ZMXProtocol.generateReply(ZMXMessage("No Response"), Fail)))
+        ZMXProtocol.writeToClient(
+          ZMXProtocol.StringToByteBuffer(ZMXProtocol.generateReply(ZIO.succeed(ZMXMessage("No Response")), Fail)),
+          client
+        )
     }
     buffer.clear
     true
