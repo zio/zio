@@ -17,11 +17,11 @@
 package zio
 
 /**
- * The trait `Has[A]` is used with ZIO environment to express an effect's 
- * dependency on an `A` module. For example, `RIO[Has[ConsoleService], Unit]` 
+ * The trait `Has[A]` is used with ZIO environment to express an effect's
+ * dependency on an `A` module. For example, `RIO[Has[ConsoleService], Unit]`
  * is an effect that requires a `ConsoleService` implementation. Inside the ZIO
  * library, type aliases are created as shorthands, e.g.:
- * 
+ *
  * {{{
  * type Console = Has[ConsoleService]
  * }}}
@@ -66,16 +66,20 @@ object Has {
     /**
      * Retrieves a module from the environment.
      */
-    def get[B](implicit ev: Self <:< Has[B], tag: Tagged[B]): B = {
-      self.map.getOrElse(tag, {
-        if (tag == TaggedAny || tag == TaggedAnyRef) ()
-        else self.map.collectFirst {
-          case (curTag, value) if taggedIsSubtype(curTag, tag) => 
-            self.map = self.map + (curTag -> value)
-            value
-        }.getOrElse(throw new Error("There's probably a bug in Has!"))
-      }).asInstanceOf[B]
-    }
+    def get[B](implicit ev: Self <:< Has[B], tag: Tagged[B]): B =
+      self.map
+        .getOrElse(
+          tag, {
+            if (tag == TaggedAny || tag == TaggedAnyRef) ()
+            else
+              self.map.collectFirst {
+                case (curTag, value) if taggedIsSubtype(curTag, tag) =>
+                  self.map = self.map + (curTag -> value)
+                  value
+              }.getOrElse(throw new Error("There's probably a bug in Has!"))
+          }
+        )
+        .asInstanceOf[B]
 
     /**
      * Combines this environment with the specified environment. In the event

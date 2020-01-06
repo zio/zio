@@ -61,10 +61,10 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
   def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
 
   /**
-   * Converts a layer that requires no services into a managed runtime, which 
+   * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
-  def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Has.Any =:= RIn2): Managed[E, Runtime[ROut]] = 
+  def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Has.Any =:= RIn2): Managed[E, Runtime[ROut]] =
     build.map(Runtime(_, p))
 }
 object ZLayer {

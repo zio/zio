@@ -32,6 +32,6 @@ private[zio] trait PlatformSpecific {
 
   type Tagged[A] = scala.reflect.runtime.universe.TypeTag[A]
 
-  private[zio] def taggedIsSubtype[A, B](left: Tagged[A], right: Tagged[B]): Boolean = 
+  private[zio] def taggedIsSubtype[A, B](left: Tagged[A], right: Tagged[B]): Boolean =
     left.tpe <:< right.tpe
 }
