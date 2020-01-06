@@ -1,6 +1,5 @@
 package zio.test
 
-import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan }
 import zio.test.ReportingTestUtils._
 import zio.test.TestUtils.label

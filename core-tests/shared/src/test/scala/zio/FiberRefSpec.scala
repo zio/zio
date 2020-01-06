@@ -1,7 +1,6 @@
 package zio
 
 import zio.FiberRefSpecUtil._
-import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._

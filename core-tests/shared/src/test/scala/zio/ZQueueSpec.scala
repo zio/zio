@@ -1,7 +1,6 @@
 package zio
 
 import scala.collection.immutable.Range
-import zio.clock.Clock
 import zio.duration._
 import zio.test._
 import zio.test.Assertion._

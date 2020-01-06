@@ -26,11 +26,24 @@ package zio
  *
  * Construction of layers can be effectful and utilize resources that must be
  * acquired and safetly released when the services are done being utilized.
+ *
+ * Because of their excellent composition properties, layers are the idiomatic
+ * way in ZIO to create services that depend on other services.
  */
 final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]) { self =>
+
+  /**
+   * Feeds the output services of this layer into the input of the specified
+   * layer, resulting in a new layer with the inputs of this layer, and the
+   * outputs of the specified layer.
+   */
   def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
     ZLayer(self.value.flatMap(v => that.value.provide(v)))
 
+  /**
+   * Combines this layer with the specified layer, producing a new layer that
+   * has the inputs of both layers, and the outputs of both layers.
+   */
   def ++[E1 >: E, RIn2 <: Has[_], ROut2 <: Has[_]](
     that: ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
@@ -40,10 +53,17 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
       }
     )
 
+  /**
+   * Builds a layer that has no dependencies into a managed value.
+   */
   def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
 }
 object ZLayer {
-  def environment[R <: Has[_]]: ZLayer[R, Nothing, R] = ZLayer.fromFunction((r: R) => r)
+
+  /**
+   * Produces a layer that passes along its inputs as outputs.
+   */
+  def environment[R <: Has[_]]: ZLayer[R, Nothing, R] = identity[R]
 
   def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer[Has.Any, E, A] = ZLayer(ZManaged.fromEffect(zio))
 
@@ -57,6 +77,8 @@ object ZLayer {
     ZLayer(ZManaged.accessManaged[A](m => f(m)))
 
   def fromManaged[E, A <: Has[_]](m: Managed[E, A]): ZLayer[Has.Any, E, A] = ZLayer(m)
+
+  def identity[R <: Has[_]]: ZLayer[R, Nothing, R] = ZLayer.fromFunction((r: R) => r)
 
   def succeed[A: Tagged](a: A): ZLayer[Has.Any, Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
 }

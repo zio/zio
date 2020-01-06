@@ -17,14 +17,19 @@
 package zio
 
 /**
- * The trait `Has[A]` is used to express an effect's dependency on an `A`
- * module. For example, `RIO[Has[ConsoleService], Unit]` is an effect that
- * requires a `ConsoleService` implementation.
+ * The trait `Has[A]` is used with ZIO environment to express an effect's 
+ * dependency on an `A` module. For example, `RIO[Has[ConsoleService], Unit]` 
+ * is an effect that requires a `ConsoleService` implementation. Inside the ZIO
+ * library, type aliases are created as shorthands, e.g.:
+ * 
+ * {{{
+ * type Console = Has[ConsoleService]
+ * }}}
  *
  * All modules in an environment must be monomorphic. Parameterized modules
  * are not supported.
  */
-final class Has[+A] private (private val map: Map[Tagged[_], scala.Any])
+final class Has[A] private (private val map: Map[Tagged[_], scala.Any])
 object Has {
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]

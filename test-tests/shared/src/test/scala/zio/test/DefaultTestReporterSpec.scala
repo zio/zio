@@ -1,7 +1,6 @@
 package zio.test
 
 import zio._
-import zio.clock.Clock
 import zio.test.Assertion._
 import zio.test.ReportingTestUtils._
 import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }

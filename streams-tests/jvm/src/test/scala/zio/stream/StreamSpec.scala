@@ -2,7 +2,6 @@ package zio.stream
 
 import zio._
 import zio.ZQueueSpecUtil.waitForSize
-import zio.clock.Clock
 import zio.duration._
 import zio.test._
 import zio.test.Assertion.{
