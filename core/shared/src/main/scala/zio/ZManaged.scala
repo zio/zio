@@ -718,16 +718,16 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Returns an effect that effectfully peeks at the failure or success of the acquired resource.
    */
-  final def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(g: A => ZManaged[R1, E1, Any])(
-    implicit ev: CanFail[E] // curried for better type inference
+  final def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(
+    implicit ev: CanFail[E]
   ): ZManaged[R1, E1, A] =
-    flatMap(a => g(a) *> tapError(f))
+    flatMap(a => foldM(f(_).as(a), a => g(a).as(a)))
 
   /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
    */
   final def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
-    flatMap(a => flip.tap(f).flip.as(a))
+    flatMap(a => foldM(f(_).as(a), a => ZManaged.succeed(a)))
 
   /**
    * Like [[ZManaged#tap]], but uses a function that returns a ZIO value rather than a

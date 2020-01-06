@@ -800,7 +800,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("Doesn't change the managed resource") {
         ZManaged
           .fromEither(Right[String, Int](1))
-          .tapBoth(_ => ZManaged.unit)(n => ZManaged.succeed(n + 1))
+          .tapBoth(_ => ZManaged.unit, n => ZManaged.succeed(n + 1))
           .map(actual => assert(1)(equalTo(actual)))
           .use(ZIO.succeed)
       },
@@ -810,7 +810,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             ref <- Ref.make(0).toManaged_
             _ <- ZManaged
                   .fromEither(Left(1))
-                  .tapBoth(e => ref.update(_ + e).toManaged_)(_ => ZManaged.unit)
+                  .tapBoth(e => ref.update(_ + e).toManaged_, (_: Any) => ZManaged.unit)
             actual <- ref.get.toManaged_
           } yield assert(actual)(equalTo(2))
         ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed)
@@ -821,7 +821,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             ref <- Ref.make(1).toManaged_
             _ <- ZManaged
                   .fromEither(Right[String, Int](2))
-                  .tapBoth(_ => ZManaged.unit)(n => ref.update(_ + n).toManaged_)
+                  .tapBoth(_ => ZManaged.unit, n => ref.update(_ + n).toManaged_)
             actual <- ref.get.toManaged_
           } yield assert(actual)(equalTo(3))
         ).use(ZIO.succeed)
