@@ -1376,7 +1376,7 @@ object ZIOSpec extends ZIOBaseSpec {
             test <- r.get
           } yield test
 
-        assertM(io.provide(Clock.Live))(isTrue)
+        assertM(Live.live(io))(isTrue)
       }
     ),
     suite("RTS synchronous stack safety")(
@@ -1466,7 +1466,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           step            <- Promise.make[Nothing, Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Live[Clock]]
+          runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                    .effectAsync[Any, Nothing, Unit] { k =>
                      runtime.unsafeRunAsync_ {
@@ -1492,7 +1492,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           step            <- Promise.make[Nothing, Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Live[Clock]]
+          runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                    .effectAsyncMaybe[Any, Nothing, Unit] { k =>
                      runtime.unsafeRunAsync_ {
@@ -1519,7 +1519,7 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       } @@ flaky,
       testM("sleep 0 must return") {
-        assertM(clock.sleep(1.nanos).provide(Clock.Live))(isUnit)
+        assertM(Live.live(clock.sleep(1.nanos)))(isUnit)
       },
       testM("shallow bind of async chain") {
         val io = (0 until 10).foldLeft[Task[Int]](IO.succeed[Int](0)) { (acc, _) =>
@@ -1739,7 +1739,7 @@ object ZIOSpec extends ZIOBaseSpec {
             value <- counter.get
           } yield value
 
-        assertM(io.provide(Clock.Live))(equalTo(2))
+        assertM(Live.live(io))(equalTo(2))
       } @@ nonFlaky(100),
       testM("race of fail with success") {
         val io = IO.fail(42).race(IO.succeed(24)).either
@@ -1763,7 +1763,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("firstSuccessOf of failures") {
         val io = ZIO.firstSuccessOf(IO.fail(0).delay(10.millis), List(IO.fail(101))).either
-        assertM(io.provide(Clock.Live))(isLeft(equalTo(101)))
+        assertM(Live.live(io))(isLeft(equalTo(101)))
       },
       testM("firstSuccessOF of failures & 1 success") {
         val io = ZIO.firstSuccessOf(IO.fail(0), List(IO.succeed(102).delay(1.millis))).either
@@ -2228,7 +2228,7 @@ object ZIOSpec extends ZIOBaseSpec {
             value <- ref.get
           } yield value
 
-        assertM(io.provide(Clock.Live))(isTrue)
+        assertM(Live.live(io))(isTrue)
       },
       testM("async can be uninterruptible") {
         val io =
