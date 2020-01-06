@@ -87,11 +87,12 @@ class ZTestTask(
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
-    Runtime((), spec.platform).unsafeRunAsync((sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_).use_(ZIO.unit)) { exit =>
-      exit match {
-        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-        case _                   =>
+    Runtime((), spec.platform)
+      .unsafeRunAsync((sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_).use_(ZIO.unit)) { exit =>
+        exit match {
+          case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+          case _                   =>
+        }
+        continuation(Array())
       }
-      continuation(Array())
-    }
 }

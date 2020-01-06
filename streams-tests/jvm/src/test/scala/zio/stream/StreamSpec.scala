@@ -24,6 +24,7 @@ import zio.test.TestAspect.flaky
 import scala.{ Stream => _ }
 import Exit.Success
 import StreamUtils._
+import zio.test.environment.Live
 
 object StreamSpec extends ZIOBaseSpec {
 
@@ -1309,14 +1310,14 @@ object StreamSpec extends ZIOBaseSpec {
       )
     ),
     testM("Stream.repeatEffectWith")(
-      (for {
+      Live.live(for {
         ref <- Ref.make[List[Int]](Nil)
         _ <- ZStream
               .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
               .take(2)
               .run(Sink.drain)
         result <- ref.get
-      } yield assert(result)(equalTo(List(1, 1)))).provide(Clock.Live)
+      } yield assert(result)(equalTo(List(1, 1))))
     ),
     suite("Stream.mapMPar")(
       testM("foreachParN equivalence") {
@@ -1520,7 +1521,7 @@ object StreamSpec extends ZIOBaseSpec {
         )(equalTo(List(1, 1, 1, 1, 1)))
       ),
       testM("short circuits")(
-        (for {
+        Live.live(for {
           ref <- Ref.make[List[Int]](Nil)
           _ <- Stream
                 .fromEffect(ref.update(1 :: _))
@@ -1528,7 +1529,7 @@ object StreamSpec extends ZIOBaseSpec {
                 .take(2)
                 .run(Sink.drain)
           result <- ref.get
-        } yield assert(result)(equalTo(List(1, 1)))).provide(Clock.Live)
+        } yield assert(result)(equalTo(List(1, 1))))
       )
     ),
     suite("Stream.repeatEither")(
@@ -1554,7 +1555,7 @@ object StreamSpec extends ZIOBaseSpec {
         )
       ),
       testM("short circuits") {
-        (for {
+        Live.live(for {
           ref <- Ref.make[List[Int]](Nil)
           _ <- Stream
                 .fromEffect(ref.update(1 :: _))
@@ -1562,7 +1563,7 @@ object StreamSpec extends ZIOBaseSpec {
                 .take(3) // take one schedule output
                 .run(Sink.drain)
           result <- ref.get
-        } yield assert(result)(equalTo(List(1, 1)))).provide(Clock.Live)
+        } yield assert(result)(equalTo(List(1, 1))))
       }
     ),
     suite("Stream.schedule")(

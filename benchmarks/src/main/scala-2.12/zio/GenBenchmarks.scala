@@ -23,11 +23,27 @@ class GenBenchmarks {
 
   @Benchmark
   def zioIntListsOfSizeN: List[List[Int]] =
-    unsafeRun(Gen.listOfN(listSize)(Gen.listOfN(elementSize)(Gen.anyInt)).sample.map(_.value).runHead.get.provideManaged(ZEnv.live.build))
+    unsafeRun(
+      Gen
+        .listOfN(listSize)(Gen.listOfN(elementSize)(Gen.anyInt))
+        .sample
+        .map(_.value)
+        .runHead
+        .get
+        .provideManaged(ZEnv.live.build)
+    )
 
   @Benchmark
   def zioStringsOfSizeN: List[String] =
-    unsafeRun(Gen.listOfN(listSize)(Gen.stringN(elementSize)(Gen.anyChar)).sample.map(_.value).runHead.get.provideManaged(ZEnv.live.build))
+    unsafeRun(
+      Gen
+        .listOfN(listSize)(Gen.stringN(elementSize)(Gen.anyChar))
+        .sample
+        .map(_.value)
+        .runHead
+        .get
+        .provideManaged(ZEnv.live.build)
+    )
 
   @Benchmark
   def scalaCheckDoubles: List[Double] =
