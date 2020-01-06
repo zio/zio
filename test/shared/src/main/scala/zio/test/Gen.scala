@@ -182,7 +182,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * A generator of integers. Shrinks toward '0'.
+   * A generator of doubles. Shrinks toward '0'.
+   */
+  val anyDouble: Gen[Random, Double] =
+    fromEffectSample(nextDouble.map(Sample.shrinkFractional(0f)))
+
+  /**
+   * A generator of floats. Shrinks toward '0'.
    */
   val anyFloat: Gen[Random, Float] =
     fromEffectSample(nextFloat.map(Sample.shrinkFractional(0f)))

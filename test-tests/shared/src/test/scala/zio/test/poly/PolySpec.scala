@@ -1,18 +1,12 @@
-package zio.test
+package zio.test.poly
 
 import scala.annotation.tailrec
 
 import zio.random._
 import zio.test.Assertion._
+import zio.test._
 
 object PolySpec extends DefaultRunnableSpec {
-
-  type Testing[+A] = Gen[Random with Sized, A]
-
-  val genInt: TypeWith[Testing]    = TypeWith(Gen.anyInt)
-  val genString: TypeWith[Testing] = TypeWith(Gen.anyString)
-
-  val genPoly: Gen[Random, TypeWith[Testing]] = Gen.elements(genInt, genString)
 
   sealed trait Expr[+A]
 
@@ -30,26 +24,26 @@ object PolySpec extends DefaultRunnableSpec {
     case x                         => x
   }
 
-  def genValue(t: TypeWith[Testing]): Gen[Random with Sized, Expr[t.Type]] =
-    t.evidence.map(Value(_))
+  def genValue(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+    t.genT.map(Value(_))
 
-  def genMapping(t: TypeWith[Testing]): Gen[Random with Sized, Expr[t.Type]] =
+  def genMapping(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
     Gen.suspend {
-      genPoly.flatMap { t0 =>
+      GenPoly.genPoly.flatMap { t0 =>
         genExpr(t0).flatMap { expr =>
-          val genFunction: Testing[t0.Type => t.Type] = Gen.function(t.evidence)
-          val genExpr1: Testing[Expr[t.Type]]         = genFunction.map(f => Mapping(expr, f))
+          val genFunction: Gen[Random with Sized, t0.T => t.T] = Gen.function(t.genT)
+          val genExpr1: Gen[Random with Sized, Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
           genExpr1
         }
       }
     }
 
-  def genExpr(t: TypeWith[Testing]): Gen[Random with Sized, Expr[t.Type]] =
+  def genExpr(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
     Gen.oneOf(genMapping(t), genValue(t))
 
   def spec = suite("PolySpec")(
-    testM("polymorphic generators can be created") {
-      check(genPoly.flatMap(genExpr(_))) { expr =>
+    testM("map fusion") {
+      check(GenPoly.genPoly.flatMap(genExpr(_))) { expr =>
         assert(eval(fuse(expr)))(equalTo(eval(expr)))
       }
     }
