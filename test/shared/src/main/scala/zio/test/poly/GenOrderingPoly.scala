@@ -85,7 +85,7 @@ object GenOrderingPoly {
       string,
       unit
     )
-    val constructors = Gen.elements(list(_), option(_), vector(_))
+    val constructors = Gen.elements(list _, option _, vector _)
     val collections = for {
       constructor <- constructors
       primitive   <- primitives
