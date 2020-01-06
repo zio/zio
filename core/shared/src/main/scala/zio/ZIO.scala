@@ -2230,17 +2230,20 @@ object ZIO {
       fibers <- as
                  .foldLeft[(Int, URIO[R, List[Fiber[E, _]]])]((0, URIO.succeed(Nil))) {
                    case ((i, acc), a) =>
-                     val task = fn(a).traced
-                       .foldCauseM(
-                         c => cause.update(cs => cs && c) *> failed.succeed(()).unit,
-                         b => ZIO.effectTotal(resultArr(i) = b)
-                       )
-                       .ensuring(latch.countDown)
-                       .untraced
+                     val task = ZIOFn(fn)(
+                       (x: A) =>
+                         fn(x).traced
+                           .foldCauseM(
+                             c => cause.update(cs => cs && c) *> failed.succeed(()).unit,
+                             b => ZIO.effectTotal(resultArr(i) = b)
+                           )
+                           .ensuring(latch.countDown)
+                           .untraced
+                     )
 
                      val appended = for {
                        fs <- acc
-                       f  <- task.fork
+                       f  <- task(a).fork
                      } yield f :: fs
 
                      (i + 1, appended)
