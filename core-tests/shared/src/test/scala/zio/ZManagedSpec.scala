@@ -825,7 +825,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             actual <- ref.get.toManaged_
           } yield assert(actual)(equalTo(3))
         ).use(ZIO.succeed)
-      },
+      }
     ),
     suite("tapError")(
       testM("Doesn't change the managed resource") {
@@ -840,23 +840,23 @@ object ZManagedSpec extends ZIOBaseSpec {
           for {
             ref <- Ref.make(0).toManaged_
             _ <- ZManaged
-              .fromEither(Left(1))
-              .tapError(e => ref.update(_ + e).toManaged_)
+                  .fromEither(Left(1))
+                  .tapError(e => ref.update(_ + e).toManaged_)
             actual <- ref.get.toManaged_
           } yield assert(actual)(equalTo(2))
-          ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed)
+        ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed)
       },
       testM("Doesn't run given effect on success") {
         (
           for {
             ref <- Ref.make(1).toManaged_
             _ <- ZManaged
-              .fromEither(Right[Int, Int](2))
-              .tapError(n => ref.update(_ + n).toManaged_)
+                  .fromEither(Right[Int, Int](2))
+                  .tapError(n => ref.update(_ + n).toManaged_)
             actual <- ref.get.toManaged_
           } yield assert(actual)(equalTo(1))
-          ).use(ZIO.succeed)
-      },
+        ).use(ZIO.succeed)
+      }
     ),
     suite("timed")(
       testM("Should time both the reservation and the acquisition") {
