@@ -65,7 +65,7 @@ object GenUtils extends DefaultRuntime {
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
     zio.provideSomeManaged {
-      ZLayer.fromFunctionManaged((random: Random.Service) => Sized.live(n).build.map(_ ++ Has(random))).value
+      (ZLayer.service[Random] ++ Sized.live(n)).value
     }
 
   def sampleEffect[E, A](
