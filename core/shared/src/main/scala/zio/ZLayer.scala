@@ -51,7 +51,7 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
     ZLayer(
       ZManaged.accessManaged[RIn with RIn2] { env =>
-        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => l.merge[ROut2](r))
+        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => l.union[ROut2](r))
       }
     )
 

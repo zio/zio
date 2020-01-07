@@ -23,8 +23,7 @@ object HasSpec extends ZIOBaseSpec {
       val dog = hasBoth.get[Dog]
       val cat = hasBoth.get[Cat]
 
-      assert(dog)(anything) && assert(cat)(anything) &&
-      assert(hasBoth.get[Any])(equalTo[Dog, Any](dog) || equalTo[Cat, Any](cat))
+      assert(dog)(anything) && assert(cat)(anything)
     }
   )
 }

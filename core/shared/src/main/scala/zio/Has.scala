@@ -61,14 +61,14 @@ object Has {
 
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
-    def concat[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1
+    def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1
     def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
   }
   object IsHas {
     implicit def ImplicitIs[R <: Has[_]]: IsHas[R] =
       new IsHas[R] {
         def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]                         = r.add(m)
-        def concat[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1                     = r.merge[R1](r1)
+        def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1                      = r.union[R1](r1)
         def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
       }
   }
@@ -76,7 +76,7 @@ object Has {
   implicit final class HasSyntax[Self <: Has[_]](val self: Self) extends AnyVal {
     def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = self add b
 
-    def ++[B <: Has[_]](that: B): Self with B = self merge [B] that
+    def ++[B <: Has[_]](that: B): Self with B = self union [B] that
 
     /**
      * Adds a module to the environment. The module must be monomorphic rather
@@ -110,7 +110,7 @@ object Has {
      * Combines this environment with the specified environment. In the event
      * of module collisions, the right side wins.
      */
-    def merge[B <: Has[_]](that: B): Self with B =
+    def union[B <: Has[_]](that: B): Self with B =
       (new Has(self.map ++ that.map)).asInstanceOf[Self with B]
 
     /**
