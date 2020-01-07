@@ -97,6 +97,8 @@ object ClockSpec extends ZIOBaseSpec {
     },
     testM("setTime correctly sets nanotime") {
       for {
+        env  <- ZIO.environment[zio.clock.Clock]
+        _    = println(env)
         _    <- setTime(1.millis)
         time <- clock.nanoTime
       } yield assert(time)(equalTo(1.millis.toNanos))

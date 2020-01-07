@@ -105,7 +105,7 @@ object TestClock extends Serializable {
     def timeZone: UIO[ZoneId]
   }
 
-  case class Test(
+  final case class Test(
     clockState: Ref[TestClock.Data],
     fiberState: FiberRef[TestClock.FiberData],
     live: Live.Service,
