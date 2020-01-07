@@ -8,8 +8,7 @@ object TestMain {
 
   def main(args: Array[String]): Unit = {
     val allTests: List[(String, AsyncBaseSpec)] = List(
-      ("SampleSpec", SampleSpec),
-      ("TimeVariantsSpec", TimeVariantsSpec)
+      ("SampleSpec", SampleSpec)
     )
 
     val selectedTests = args match {

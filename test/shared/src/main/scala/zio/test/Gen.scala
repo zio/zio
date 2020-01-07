@@ -16,6 +16,8 @@
 
 package zio.test
 
+import java.util.UUID
+
 import scala.collection.immutable.SortedMap
 import scala.math.Numeric.DoubleIsFractional
 
@@ -93,6 +95,12 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    */
   def mapM[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
     Gen(sample.mapM(_.traverse(f)))
+
+  /**
+   * Discards the shrinker for this generator.
+   */
+  def noShrink: Gen[R, A] =
+    reshrink(Sample.noShrink)
 
   /**
    * Discards the shrinker for this generator and applies a new shrinker by
@@ -227,6 +235,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val anyUnicodeChar: Gen[Random, Char] =
     Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
+
+  /**
+   * A generator of universally unique identifiers. The returned generator will
+   * not have any shrinking.
+   */
+  val anyUUID: Gen[Random, UUID] =
+    for {
+      mostSigBits  <- Gen.anyLong.noShrink
+      leastSigBits <- Gen.anyLong.noShrink
+    } yield new UUID(
+      (mostSigBits & ~0x0000F000) | 0x00004000,
+      (leastSigBits & ~(0xC0000000L << 32)) | (0x80000000L << 32)
+    )
 
   /**
    * A generator of booleans. Shrinks toward 'false'.
