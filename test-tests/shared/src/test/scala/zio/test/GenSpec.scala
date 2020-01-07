@@ -499,7 +499,7 @@ object GenSpec extends ZIOBaseSpec {
   val genStringIntFn: Gen[Random, String => Int] = Gen.function(Gen.int(-10, 10))
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    zio.provideSomeManaged((Sized.live(n) ++ ZLayer.environment[Random]).value)
+    zio.provideSomeManaged((Sized.live(n) ++ ZLayer.environment[Random.Service]).value)
 
   val random: Gen[Any, Gen[Random, Int]] =
     Gen.const(Gen.int(-10, 10))
