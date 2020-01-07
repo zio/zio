@@ -40,6 +40,8 @@ final class Has[+A] private (private val map: Map[Tagged[_], scala.Any], var cac
   override def hashCode: Int = map.hashCode
 
   override def toString: String = map.mkString("Map(", ",\n", ")")
+
+  def size: Int = (map.size - 1) // Subtract the AnyRef
 }
 object Has {
   type MustHave[A, B]    = A <:< Has[B]
@@ -51,7 +53,9 @@ object Has {
   object NotExtends {
     implicit def notExtends0[A, B]: A NotExtends B      = new NotExtends[A, B] {}
     implicit def notExtends1[A <: B, B]: A NotExtends B = ???
-    @annotation.implicitAmbiguous("Due to covariance, the environment ${A} already contains ${B}. Use Has#update to update an existing module.")
+    @annotation.implicitAmbiguous(
+      "Due to covariance, the environment ${A} already contains ${B}. Use Has#update to update an existing module."
+    )
     implicit def notExtends2[A <: B, B]: A NotExtends B = ???
   }
 
