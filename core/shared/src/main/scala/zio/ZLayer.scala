@@ -68,7 +68,7 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
     build.map(Runtime(_, p))
 }
 object ZLayer {
-  def environment[A]: ZLayer[Has[A], Nothing, Has[A]] = ZLayer(ZManaged.environment[Has[A]])
+  def service[A]: ZLayer[Has[A], Nothing, Has[A]] = ZLayer(ZManaged.environment[Has[A]])
 
   def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer[Has.Any, E, A] = ZLayer(ZManaged.fromEffect(zio))
 
