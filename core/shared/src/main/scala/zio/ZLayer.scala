@@ -68,8 +68,6 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
     build.map(Runtime(_, p))
 }
 object ZLayer {
-  def service[A]: ZLayer[Has[A], Nothing, Has[A]] = ZLayer(ZManaged.environment[Has[A]])
-
   def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer[Has.Any, E, A] = ZLayer(ZManaged.fromEffect(zio))
 
   def fromFunction[A: Tagged, E, B <: Has[_]](f: A => B): ZLayer[Has[A], E, B] =
@@ -204,6 +202,12 @@ object ZLayer {
     }
 
   def fromManaged[E, A <: Has[_]](m: Managed[E, A]): ZLayer[Has.Any, E, A] = ZLayer(m)
+
+  /**
+   * Constructs a layer that accesses and returns the specified service from 
+   * the environment.
+   */
+  def service[A]: ZLayer[Has[A], Nothing, Has[A]] = ZLayer(ZManaged.environment[Has[A]])
 
   def succeed[A: Tagged](a: A): ZLayer[Has.Any, Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
 }
