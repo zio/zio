@@ -4,7 +4,6 @@ import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream,
 
 import zio.SerializableSpecHelpers._
 import zio.internal.stacktracer.ZTraceElement
-import zio.random.Random
 import zio.system.System
 import zio.test.Assertion._
 import zio.test.{ test => testSync, _ }
@@ -222,11 +221,6 @@ object SerializableSpec extends ZIOBaseSpec {
       for {
         result <- serializeAndBack(traced)
       } yield assert(result)(equalTo(traced))
-    },
-    testM("Random is serializable") {
-      Random.live.build.use { rnd =>
-        ZIO.succeed(assert(serializeAndDeserialize(rnd))(equalTo(rnd)))
-      }
     },
     testM("TracingStatus.Untraced is serializable") {
       Live.live(for {

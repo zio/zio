@@ -29,7 +29,15 @@ package zio
  * All modules in an environment must be monomorphic. Parameterized modules
  * are not supported.
  */
-final class Has[+A] private (private var map: Map[Tagged[_], scala.Any])
+final class Has[+A] private (private var map: Map[Tagged[_], scala.Any]) extends Serializable {
+  override def equals(that: Any): Boolean = that match {
+    case that: Has[_] => map == that.map
+  }
+
+  override def hashCode: Int = map.hashCode
+
+  override def toString: String = map.mkString("Map(", ",", ")")
+}
 object Has {
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
@@ -44,7 +52,7 @@ object Has {
         def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
       }
   }
-  type Contains[A, B] = A <:< B
+  type Contains[A, B] = Has[A] <:< B
 
   private[Has] val TaggedAny    = implicitly[Tagged[Any]]
   private[Has] val TaggedAnyRef = implicitly[Tagged[AnyRef]]
