@@ -58,7 +58,7 @@ object Live {
    * environment type.
    */
   def default: ZLayer[ZEnv, Nothing, Live] =
-    ZLayer.fromFunction { (zenv: ZEnv) =>
+    ZLayer.fromFunction { zenv: ZEnv =>
       Has(new Live.Service {
         def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
           zio.provide(zenv)

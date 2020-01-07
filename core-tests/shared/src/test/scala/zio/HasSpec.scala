@@ -2,7 +2,6 @@ package zio
 
 import zio.test._
 import zio.test.Assertion._
-//import zio.test.TestAspect._
 
 object HasSpec extends ZIOBaseSpec {
   trait Animal

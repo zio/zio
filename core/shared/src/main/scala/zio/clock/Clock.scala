@@ -31,7 +31,7 @@ object Clock extends Serializable {
     def sleep(duration: Duration): UIO[Unit]
   }
 
-  val live: ZLayer[Scheduler, Nothing, Clock] = ZLayer.fromFunction { (scheduler: Scheduler) =>
+  val live: ZLayer[Scheduler, Nothing, Clock] = ZLayer.fromFunction { scheduler: Scheduler =>
     Has(new Service {
       def currentTime(unit: TimeUnit): UIO[Long] =
         IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
