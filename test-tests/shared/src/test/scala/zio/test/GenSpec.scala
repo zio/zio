@@ -115,6 +115,12 @@ object GenSpec extends ZIOBaseSpec {
       testM("alphaNumericChar generates numbers and letters") {
         checkSample(Gen.alphaNumericChar)(forall(isTrue), _.map(_.isLetterOrDigit))
       },
+      testM("alphaNumericString generates numbers and letters") {
+        checkSample(Gen.alphaNumericString)(forall(isTrue), _.map(_.forall(_.isLetterOrDigit)))
+      },
+      testM("alphaNumericStringBounded generates strings whose size is in bounds") {
+        checkSample(Gen.alphaNumericStringBounded(2, 10))(forall(hasSizeString(isWithin(2, 10))))
+      },
       testM("anyFiniteDuration generates Duration values") {
         checkSample(Gen.anyFiniteDuration)(isNonEmpty)
       },
@@ -204,6 +210,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("listOf1 generates nonempty lists") {
         checkSample(Gen.listOf1(smallInt), size = 0)(forall(isNonEmpty))
       },
+      testM("listOfBounded generates lists whose size is in bounds") {
+        checkSample(Gen.listOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
+      },
       testM("listOfN generates lists of correct size") {
         checkSample(Gen.listOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
       },
@@ -268,6 +277,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("string1 generates nonempty strings") {
         checkSample(Gen.string1(Gen.printableChar), size = 0)(forall(isFalse), _.map(_.isEmpty))
       },
+      testM("stringBounded generates strings whose size is in bounds") {
+        checkSample(Gen.stringBounded(2, 10)(Gen.printableChar))(forall(hasSizeString(isWithin(2, 10))))
+      },
       testM("stringN generates strings of correct size") {
         checkSample(Gen.stringN(10)(Gen.printableChar))(forall(equalTo(10)), _.map(_.length))
       },
@@ -286,6 +298,9 @@ object GenSpec extends ZIOBaseSpec {
           _.map(_.length)
         )
       },
+      testM("vectorOfBounded generates vectors whose size is in bounds") {
+        checkSample(Gen.vectorOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
+      },
       testM("vectorOf1 generates nonempty vectors") {
         checkSample(Gen.vectorOf1(smallInt), size = 0)(forall(isNonEmpty))
       },
@@ -300,6 +315,12 @@ object GenSpec extends ZIOBaseSpec {
     suite("shrinks")(
       testM("alphaNumericChar shrinks to zero") {
         checkShrink(Gen.alphaNumericChar)('0')
+      },
+      testM("alphaNumericString shrinks to empty string") {
+        checkShrink(Gen.alphaNumericString)("")
+      },
+      testM("alphaNumericStringBounded shrinks to bottom of range") {
+        checkShrink(Gen.alphaNumericStringBounded(2, 10))("00")
       },
       testM("anyByte shrinks to zero") {
         checkShrink(Gen.anyByte)(0)
@@ -379,6 +400,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("listOf1 shrinks to singleton list") {
         checkShrink(Gen.listOf1(smallInt))(List(-10))
       },
+      testM("listOfBounded shrinks to bottom of range") {
+        checkShrink(Gen.listOfBounded(2, 10)(smallInt))(List(-10, -10))
+      },
       testM("listOfN shrinks elements") {
         checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-10))
       },
@@ -422,6 +446,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("string1 shrinks to single character") {
         checkShrink(Gen.string1(Gen.printableChar))("!")
       },
+      testM("stringBounded shrinks to bottom of range") {
+        checkShrink(Gen.stringBounded(2, 10)(Gen.printableChar))("!!")
+      },
       testM("stringN shrinks characters") {
         checkShrink(Gen.stringN(10)(Gen.printableChar))("!!!!!!!!!!")
       },
@@ -433,6 +460,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("vectorOf1 shrinks to singleton vector") {
         checkShrink(Gen.vectorOf1(smallInt))(Vector(-10))
+      },
+      testM("vectorOfBounded shrinks to bottom of range") {
+        checkShrink(Gen.vectorOfBounded(2, 10)(smallInt))(Vector(-10, -10))
       },
       testM("vectorOfN shrinks elements") {
         checkShrink(Gen.vectorOfN(10)(smallInt))(Vector.fill(10)(-10))
