@@ -18,6 +18,8 @@ package zio.test
 
 import java.util.regex.Pattern
 
+import scala.io.AnsiColor
+
 import zio.duration.Duration
 import zio.test.ConsoleUtils.{ cyan, red, _ }
 import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
@@ -27,8 +29,6 @@ import zio.test.RenderedResult.{ CaseType, Status }
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
 import zio.test.mock.{ Method, MockException }
 import zio.{ Cause, UIO, URIO }
-
-import scala.io.AnsiColor
 
 object DefaultTestReporter {
 
