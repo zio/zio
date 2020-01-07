@@ -31,5 +31,5 @@ private[zio] trait PlatformSpecific {
   type Tagged[A] = scala.reflect.ClassTag[A]
 
   private[zio] def taggedIsSubtype[A, B](left: Tagged[A], right: Tagged[B]): Boolean =
-    left.runtimeClass.isAssignableFrom(right.runtimeClass)
+    right.runtimeClass.isAssignableFrom(left.runtimeClass)
 }
