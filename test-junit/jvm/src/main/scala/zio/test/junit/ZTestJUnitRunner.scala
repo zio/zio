@@ -1,17 +1,18 @@
 package zio.test.junit
 
-import org.junit.runner.manipulation.{ Filter, Filterable }
-import org.junit.runner.notification.{ Failure, RunNotifier }
-import org.junit.runner.{ Description, Result, RunWith, Runner }
+import com.github.ghik.silencer.silent
+import org.junit.runner.manipulation.{Filter, Filterable}
+import org.junit.runner.notification.{Failure, RunNotifier}
+import org.junit.runner.{Description, RunWith, Runner}
+
 import zio.ZIO.effectTotal
 import zio._
 import zio.clock.Clock
 import zio.test.FailureRenderer.FailureMessage.Message
-import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
-import zio.test.TestFailure.{ Assertion, Runtime }
-import zio.test.TestSuccess.{ Ignored, Succeeded }
+import zio.test.Spec.{SpecCase, SuiteCase, TestCase}
+import zio.test.TestFailure.{Assertion, Runtime}
+import zio.test.TestSuccess.{Ignored, Succeeded}
 import zio.test._
-import com.github.ghik.silencer.silent
 
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with DefaultRuntime {
   private val className = klass.getName.stripSuffix("$")
