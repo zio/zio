@@ -66,14 +66,26 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
    */
   def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Has.Any =:= RIn2): Managed[E, Runtime[ROut]] =
     build.map(Runtime(_, p))
+
+  /**
+   * Updates one of the services output by this layer.
+   */
+  def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
+    ZLayer(value.map(env => env.update[A](f)))
 }
 object ZLayer {
-  def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer[Has.Any, E, A] = ZLayer(ZManaged.fromEffect(zio))
+  type NoDeps[+E, +B <: Has[_]] = ZLayer[Has.Any, E, B]
 
-  def fromFunction[A: Tagged, E, B <: Has[_]](f: A => B): ZLayer[Has[A], E, B] =
+  trait Poly[R, U] {
+    def apply[U <: R](u: U): R
+  }
+
+  def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer.NoDeps[E, A] = ZLayer(ZManaged.fromEffect(zio))
+
+  def fromService[A: Tagged, E, B <: Has[_]](f: A => B): ZLayer[Has[A], E, B] =
     ZLayer(ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get[A]))))
 
-  def fromFunction[A0: Tagged, A1: Tagged, E, B <: Has[_]](f: (A0, A1) => B): ZLayer[Has[A0 with A1], E, B] =
+  def fromServices[A0: Tagged, A1: Tagged, E, B <: Has[_]](f: (A0, A1) => B): ZLayer[Has[A0 with A1], E, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -81,7 +93,9 @@ object ZLayer {
       } yield f(a0, a1)
     })
 
-  def fromFunction[A0: Tagged, A1: Tagged, A2: Tagged, E, B <: Has[_]](f: (A0, A1, A2) => B): ZLayer[Has[A0] with Has[A1] with Has[A2], E, B] =
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, E, B <: Has[_]](
+    f: (A0, A1, A2) => B
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2], E, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -90,7 +104,9 @@ object ZLayer {
       } yield f(a0, a1, a2)
     })
 
-  def fromFunction[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, E, B <: Has[_]](f: (A0, A1, A2, A3) => B): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, E, B <: Has[_]](
+    f: (A0, A1, A2, A3) => B
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -100,7 +116,9 @@ object ZLayer {
       } yield f(a0, a1, a2, a3)
     })
 
-  def fromFunction[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, E, B <: Has[_]](f: (A0, A1, A2, A3, A4) => B): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
+  def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, E, B <: Has[_]](
+    f: (A0, A1, A2, A3, A4) => B
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -111,11 +129,13 @@ object ZLayer {
       } yield f(a0, a1, a2, a3, a4)
     })
 
-  def fromFunctionM[A: Tagged, R <: Has[_], E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
+  def fromServiceM[A: Tagged, R <: Has[_], E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
     ZLayer(ZManaged.fromEffect(ZIO.accessM[R with Has[A]](m => f(m.get[A]))))
 
-  def fromFunctionM[A0: Tagged, A1: Tagged, R <: Has[_], E, B <: Has[_]](f: (A0, A1) => ZIO[R, E, B]): ZLayer[R with Has[A0] with Has[A1], E, B] =
-    ZLayer(ZManaged.fromEffect{
+  def fromServicesM[A0: Tagged, A1: Tagged, R <: Has[_], E, B <: Has[_]](
+    f: (A0, A1) => ZIO[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1], E, B] =
+    ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
         a1 <- ZIO.environment[Has[A1]].map(_.get[A1])
@@ -123,8 +143,10 @@ object ZLayer {
       } yield b
     })
 
-  def fromFunctionM[A0: Tagged, A1: Tagged, A2: Tagged, R <: Has[_], E, B <: Has[_]](f: (A0, A1, A2) => ZIO[R, E, B]): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
-    ZLayer(ZManaged.fromEffect{
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, R <: Has[_], E, B <: Has[_]](
+    f: (A0, A1, A2) => ZIO[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
+    ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
         a1 <- ZIO.environment[Has[A1]].map(_.get[A1])
@@ -133,8 +155,10 @@ object ZLayer {
       } yield b
     })
 
-  def fromFunctionM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R <: Has[_], E, B <: Has[_]](f: (A0, A1, A2, A3) => ZIO[R, E, B]): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
-    ZLayer(ZManaged.fromEffect{
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R <: Has[_], E, B <: Has[_]](
+    f: (A0, A1, A2, A3) => ZIO[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
+    ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
         a1 <- ZIO.environment[Has[A1]].map(_.get[A1])
@@ -144,8 +168,10 @@ object ZLayer {
       } yield b
     })
 
-  def fromFunctionM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R <: Has[_], E, B <: Has[_]](f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
-    ZLayer(ZManaged.fromEffect{
+  def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R <: Has[_], E, B <: Has[_]](
+    f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
+    ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
         a1 <- ZIO.environment[Has[A1]].map(_.get[A1])
@@ -156,10 +182,12 @@ object ZLayer {
       } yield b
     })
 
-  def fromFunctionManaged[A: Tagged, E, B <: Has[_]](f: A => Managed[E, B]): ZLayer[Has[A], E, B] =
+  def fromServiceManaged[A: Tagged, E, B <: Has[_]](f: A => Managed[E, B]): ZLayer[Has[A], E, B] =
     ZLayer(ZManaged.accessManaged[Has[A]](m => f(m.get[A])))
 
-  def fromFunctionManaged[A0: Tagged, A1: Tagged, E, B <: Has[_]](f: (A0, A1) => Managed[E, B]): ZLayer[Has[A0] with Has[A1], E, B] =
+  def fromServicesManaged[A0: Tagged, A1: Tagged, E, B <: Has[_]](
+    f: (A0, A1) => Managed[E, B]
+  ): ZLayer[Has[A0] with Has[A1], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -168,7 +196,9 @@ object ZLayer {
       } yield b
     }
 
-  def fromFunctionManaged[A0: Tagged, A1: Tagged, A2: Tagged, E, B <: Has[_]](f: (A0, A1, A2) => Managed[E, B]): ZLayer[Has[A0] with Has[A1] with Has[A2], E, B] =
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, E, B <: Has[_]](
+    f: (A0, A1, A2) => Managed[E, B]
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -178,7 +208,9 @@ object ZLayer {
       } yield b
     }
 
-  def fromFunctionManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, E, B <: Has[_]](f: (A0, A1, A2, A3) => Managed[E, B]): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, E, B <: Has[_]](
+    f: (A0, A1, A2, A3) => Managed[E, B]
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -189,7 +221,9 @@ object ZLayer {
       } yield b
     }
 
-  def fromFunctionManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, E, B <: Has[_]](f: (A0, A1, A2, A3, A4) => Managed[E, B]): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
+  def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, E, B <: Has[_]](
+    f: (A0, A1, A2, A3, A4) => Managed[E, B]
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -204,7 +238,7 @@ object ZLayer {
   def fromManaged[E, A <: Has[_]](m: Managed[E, A]): ZLayer[Has.Any, E, A] = ZLayer(m)
 
   /**
-   * Constructs a layer that accesses and returns the specified service from 
+   * Constructs a layer that accesses and returns the specified service from
    * the environment.
    */
   def service[A]: ZLayer[Has[A], Nothing, Has[A]] = ZLayer(ZManaged.environment[Has[A]])

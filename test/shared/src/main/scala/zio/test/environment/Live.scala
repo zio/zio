@@ -38,11 +38,26 @@ import zio._
  * with the test environment, for example to time out a test. Both of these
  * methods are re-exported in the `environment` package for easy availability.
  */
-object Live extends LivePlatformSpecific {
+object Live {
 
   trait Service {
     def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A]
   }
+
+  /**
+   * Constructs a new `Live` service that implements the `Live` interface.
+   * This typically should not be necessary as `TestEnvironment` provides
+   * access to live versions of all the standard ZIO environment types but
+   * could be useful if you are mixing in interfaces to create your own
+   * environment type.
+   */
+  def default: ZLayer[ZEnv, Nothing, Live] =
+    ZLayer(ZManaged.access[ZEnv] { zenv =>
+      Has(new Live.Service {
+        def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
+          zio.provide(zenv)
+      })
+    })
 
   /**
    * Provides an effect with the "live" environment.

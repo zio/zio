@@ -625,7 +625,7 @@ object TestRandom extends Serializable {
     make(DefaultData)
 
   val live: ZLayer[Clock, Nothing, TestRandom] =
-    ZLayer.fromFunctionManaged { (clock: Clock.Service) =>
+    ZLayer.fromServiceManaged { (clock: Clock.Service) =>
       default.build.tapM(tR => clock.nanoTime.flatMap(tR.get[TestRandom.Service].setSeed(_)))
 
     }

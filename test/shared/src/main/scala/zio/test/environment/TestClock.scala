@@ -342,7 +342,7 @@ object TestClock extends Serializable {
    * This can be useful for mixing in with implementations of other interfaces.
    */
   def live(data: Data): ZLayer[Live, Nothing, TestClock] =
-    ZLayer.fromFunctionManaged { (live: Live.Service) =>
+    ZLayer.fromServiceManaged { (live: Live.Service) =>
       for {
         ref      <- Ref.make(data).toManaged_
         fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_

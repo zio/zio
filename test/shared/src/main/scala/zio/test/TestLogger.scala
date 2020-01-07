@@ -25,7 +25,7 @@ object TestLogger {
   }
 
   def fromConsole: ZLayer[Console, Nothing, TestLogger] =
-    ZLayer.fromFunction { (console: Console.Service) =>
+    ZLayer.fromService { (console: Console.Service) =>
       Has(new Service {
         def logLine(line: String): UIO[Unit] = console.putStrLn(line)
       })
