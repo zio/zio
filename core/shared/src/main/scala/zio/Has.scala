@@ -39,19 +39,19 @@ final class Has[+A] private (private val map: Map[Tagged[_], scala.Any], var cac
 
   override def hashCode: Int = map.hashCode
 
-  override def toString: String = map.mkString("Map(", ",", ")")
+  override def toString: String = map.mkString("Map(", ",\n", ")")
 }
 object Has {
   type MustHave[A, B]    = A <:< Has[B]
   type MustNotHave[A, B] = NotExtends[A, Has[B]]
 
-  @annotation.implicitAmbiguous("Could not prove ${A} <:!< ${B}")
   @silent("define classes/objects inside of package objects")
   trait NotExtends[A, B] extends Serializable
 
   object NotExtends {
     implicit def notExtends0[A, B]: A NotExtends B      = new NotExtends[A, B] {}
     implicit def notExtends1[A <: B, B]: A NotExtends B = ???
+    @annotation.implicitAmbiguous("Due to covariance, the environment ${A} already contains ${B}. Use Has#update to update an existing module.")
     implicit def notExtends2[A <: B, B]: A NotExtends B = ???
   }
 
