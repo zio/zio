@@ -625,8 +625,10 @@ object TestRandom extends Serializable {
     make(DefaultData)
 
   val live: ZLayer[Clock, Nothing, TestRandom] =
-    (default ++ ZLayer.environment[Clock.Service]) >>>
-      ZLayer.fromFunctionM((tR: TestRandom) => zio.clock.nanoTime.flatMap(tR.get[TestRandom.Service].setSeed(_)).as(tR))
+    ZLayer.fromFunctionManaged { (clock: Clock.Service) =>
+      default.build.tapM(tR => clock.nanoTime.flatMap(tR.get[TestRandom.Service].setSeed(_)))
+
+    }
 
   /**
    * Constructs a new `Test` object that implements the `TestRandom` interface.

@@ -154,6 +154,19 @@ object Has {
     any.add(a).add(b).add(c).add(d)
 
   /**
+   * Constructs a new environment holding the specified modules. The module
+   * must be monomorphic. Parameterized modules are not supported.
+   */
+  def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged](
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E
+  ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] =
+    any.add(a).add(b).add(c).add(d).add(e)
+
+  /**
    * Constructs an empty environment that cannot provide anything.
    */
   lazy val any: Any = {

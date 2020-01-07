@@ -1,15 +1,13 @@
 package zio.test
 
 import scala.math.Numeric.DoubleIsFractional
-
-import zio.{ UIO, ZIO }
+import zio.{Has, UIO, ZIO, ZLayer}
 import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.test.{ check => Check, checkN => CheckN }
+import zio.test.{check => Check, checkN => CheckN}
 import zio.test.environment.TestRandom
 import zio.test.TestAspect.scala2Only
-import zio.ZLayer
 
 object GenSpec extends ZIOBaseSpec {
   def spec = suite("GenSpec")(
@@ -499,7 +497,9 @@ object GenSpec extends ZIOBaseSpec {
   val genStringIntFn: Gen[Random, String => Int] = Gen.function(Gen.int(-10, 10))
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    zio.provideSomeManaged((Sized.live(n) ++ ZLayer.environment[Random.Service]).value)
+    zio.provideSomeManaged {
+      (ZLayer.service[Random] ++ Sized.live(n)).value
+    }
 
   val random: Gen[Any, Gen[Random, Int]] =
     Gen.const(Gen.int(-10, 10))

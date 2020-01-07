@@ -18,24 +18,16 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def spec = suite("ZLayerSpec")(
     zio.test.testM("Size of >>> (1)") {
-      val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction((i: Has[Int]) => Has(i.get.toString))
+      val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction((i: Int) => Has(i.toString))
 
       testSize(layer, 1)
     },
     zio.test.testM("Size of >>> (2)") {
       val layer = ZLayer.succeed(1) >>>
-        (ZLayer.fromFunction((i: Has[Int]) => Has(i.get.toString)) ++
-          ZLayer.fromFunction((i: Has[Int]) => Has(i.get % 2 == 0)))
+        (ZLayer.fromFunction((i: Int) => Has(i.toString)) ++
+          ZLayer.fromFunction((i: Int) => Has(i % 2 == 0)))
 
       testSize(layer, 2)
-    },
-    zio.test.testM("Size of >>> (3)") {
-      val layer = ZLayer.succeed(1) >>>
-        (ZLayer.fromFunction((i: Has[Int]) => Has(i.get.toString)) ++
-          ZLayer.fromFunction((i: Has[Int]) => Has(i.get % 2 == 0)) ++
-          ZLayer.environment[Has[Int]])
-
-      testSize(layer, 3)
     },
     zio.test.testM("Size of Test layers") {
       for {
