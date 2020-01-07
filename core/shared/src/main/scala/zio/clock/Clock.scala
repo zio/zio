@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
 import zio.scheduler.Scheduler
+import zio.internal.{ Scheduler => IScheduler }
 import zio.{ Has, IO, UIO, ZIO, ZLayer }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 
@@ -31,7 +32,7 @@ object Clock extends Serializable {
     def sleep(duration: Duration): UIO[Unit]
   }
 
-  val live: ZLayer[Scheduler, Nothing, Clock] = ZLayer.fromFunction { scheduler: Scheduler =>
+  val live: ZLayer[Scheduler, Nothing, Clock] = ZLayer.fromFunction { (scheduler: IScheduler) =>
     Has(new Service {
       def currentTime(unit: TimeUnit): UIO[Long] =
         IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
@@ -40,8 +41,7 @@ object Clock extends Serializable {
 
       def sleep(duration: Duration): UIO[Unit] =
         ZIO.effectAsyncInterrupt[Any, Nothing, Unit] { k =>
-          val canceler = scheduler.get
-            .schedule(() => k(ZIO.unit), duration)
+          val canceler = scheduler.schedule(() => k(ZIO.unit), duration)
 
           Left(ZIO.effectTotal(canceler()))
         }

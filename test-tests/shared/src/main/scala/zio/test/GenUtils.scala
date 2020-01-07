@@ -64,7 +64,7 @@ object GenUtils extends DefaultRuntime {
   }
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    zio.provideSomeManaged((Sized.live(n) ++ ZLayer.environment[Random]).value)
+    zio.provideSomeManaged((Sized.live(n) ++ ZLayer.environment[Random.Service]).value)
 
   def sampleEffect[E, A](
     gen: Gen[Random with Sized, ZIO[Random with Sized, E, A]],
