@@ -16,15 +16,16 @@
 
 package zio.stm
 
-import java.util.{ HashMap => MutableMap }
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
+import java.util.{ HashMap => MutableMap }
+
+import scala.annotation.tailrec
+import scala.util.{ Failure, Success, Try }
 
 import com.github.ghik.silencer.silent
-import zio.{ CanFail, Fiber, IO, UIO, ZIO }
-import zio.internal.{ Platform, Stack, Sync }
 
-import scala.util.{ Failure, Success, Try }
-import scala.annotation.tailrec
+import zio.internal.{ Platform, Stack, Sync }
+import zio.{ CanFail, Fiber, IO, UIO, ZIO }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
