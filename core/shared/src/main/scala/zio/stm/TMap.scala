@@ -180,7 +180,7 @@ final class TMap[K, V] private (
       val overwrite =
         STM
           .foreach(original)(_.get.map(_.view.map(g)))
-          .flatMap { xs =>
+          .flatMap[Any, Nothing, Unit] { xs =>
             STM.foreach_(xs.view.flatten.toMap) { kv =>
               newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _)
             }
@@ -212,7 +212,7 @@ final class TMap[K, V] private (
         STM
           .foreach(original)(_.get.map(_.view.map(g)))
           .flatMap { xs =>
-            STM.collectAll(xs.view.flatten.toIterable).flatMap { items =>
+            STM.collectAll(xs.view.flatten.toIterable).flatMap[Any, E, Unit] { items =>
               val distinct = items.toMap
               STM.foreach_(distinct)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
             }

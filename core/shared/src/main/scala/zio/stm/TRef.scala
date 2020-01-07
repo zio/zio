@@ -19,7 +19,7 @@ package zio.stm
 import java.util.concurrent.atomic.AtomicReference
 
 import zio.UIO
-import zio.stm.STM.internal._
+import zio.stm.ZSTM.internal._
 
 /**
  * A variable that can be modified as part of a transactional effect.
@@ -34,7 +34,7 @@ final class TRef[A] private (
    * Retrieves the value of the `TRef`.
    */
   val get: STM[Nothing, A] =
-    new STM((journal, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       TExit.Succeed(entry.unsafeGet[A])
@@ -44,7 +44,7 @@ final class TRef[A] private (
    * Sets the value of the `TRef`.
    */
   def set(newValue: A): STM[Nothing, Unit] =
-    new STM((journal, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       entry.unsafeSet(newValue)
@@ -59,7 +59,7 @@ final class TRef[A] private (
    * Updates the value of the variable.
    */
   def update(f: A => A): STM[Nothing, A] =
-    new STM((journal, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       val newValue = f(entry.unsafeGet[A])
@@ -80,7 +80,7 @@ final class TRef[A] private (
    * value.
    */
   def modify[B](f: A => (B, A)): STM[Nothing, B] =
-    new STM((journal, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       val (retValue, newValue) = f(entry.unsafeGet[A])
@@ -112,7 +112,7 @@ object TRef {
    * Makes a new `TRef` that is initialized to the specified value.
    */
   def make[A](a: => A): STM[Nothing, TRef[A]] =
-    new STM((journal, _, _) => {
+    new ZSTM((journal, _, _, _) => {
       val value     = a
       val versioned = new Versioned(value)
 

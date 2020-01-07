@@ -6,9 +6,9 @@ import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
 
-object STMSpec extends ZIOBaseSpec {
+object ZSTMSpec extends ZIOBaseSpec {
 
-  def spec = suite("STMSpec")(
+  def spec = suite("ZSTMSpec")(
     suite("Using `STM.atomically` to perform different computations and call:")(
       testM("`STM.succeed` to make a successful computation and check the value") {
         assertM(STM.succeed("Hello World").commit)(equalTo("Hello World"))
@@ -290,9 +290,12 @@ object STMSpec extends ZIOBaseSpec {
         )
       },
       testM("Using `collectM` filter and map simultaneously the value produced by the transaction") {
-        assertM(STM.succeed((1 to 20).toList).collectM { case l if l.forall(_ > 0) => STM.succeed("Positive") }.commit)(
-          equalTo("Positive")
-        )
+        assertM(
+          STM
+            .succeed((1 to 20).toList)
+            .collectM[Any, Nothing, String] { case l if l.forall(_ > 0) => STM.succeed("Positive") }
+            .commit
+        )(equalTo("Positive"))
       }
     ),
     testM("Permute 2 variables") {
@@ -468,9 +471,40 @@ object STMSpec extends ZIOBaseSpec {
         }
 
         assertM(chain(10000).run)(fails(equalTo(10000)))
+      },
+      testM("long provide chains") {
+        assertM(chain(10000)(_.provide(0)))(equalTo(0))
+      }
+    ),
+    suite("STM environment")(
+      testM("access environment and provide it outside transaction") {
+        STMEnv.make(0).flatMap { env =>
+          ZSTM.accessM[STMEnv](_.ref.update(_ + 1)).commit.provide(env) *>
+            assertM(env.ref.get.commit)(equalTo(1))
+        }
+      },
+      testM("access environment and provide it inside transaction") {
+        STMEnv.make(0).flatMap { env =>
+          ZSTM.accessM[STMEnv](_.ref.update(_ + 1)).provide(env).commit *>
+            assertM(env.ref.get.commit)(equalTo(1))
+        }
       }
     )
   )
+
+  trait STMEnv {
+    val ref: TRef[Int]
+  }
+  object STMEnv {
+    def make(i: Int): UIO[STMEnv] =
+      TRef
+        .makeCommit(i)
+        .map { ref0 =>
+          new STMEnv {
+            val ref = ref0
+          }
+        }
+  }
 
   def unpureSuspend(ms: Long) = STM.succeed {
     val t0 = System.currentTimeMillis()
