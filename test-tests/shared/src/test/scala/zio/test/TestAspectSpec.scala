@@ -214,7 +214,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         testClock <- ZIO.environment[TestClock]
         liveClock = (ZLayer
-          .environment[ZEnv] ++ ZLayer.succeed[Clock.Service](testClock.get[Clock.Service])) >>> (Live.make ++ ZLayer
+          .environment[ZEnv] ++ ZLayer.succeed[Clock.Service](testClock.get[Clock.Service])) >>> (Live.default ++ ZLayer
           .succeed[TestClock.Service](testClock.get[TestClock.Service]))
         spec = testM("uninterruptible test") {
           for {

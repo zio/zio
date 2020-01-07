@@ -16,6 +16,8 @@
 
 package zio
 
+import com.github.ghik.silencer.silent
+
 /**
  * The trait `Has[A]` is used with ZIO environment to express an effect's
  * dependency on an `A` module. For example, `RIO[Has[ConsoleService], Unit]`
@@ -29,7 +31,8 @@ package zio
  * All modules in an environment must be monomorphic. Parameterized modules
  * are not supported.
  */
-final class Has[+A] private (private var map: Map[Tagged[_], scala.Any]) extends Serializable {
+final class Has[+A] private (private val map: Map[Tagged[_], scala.Any], var cache: Map[Tagged[_], scala.Any] = Map())
+    extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
   }
@@ -39,6 +42,19 @@ final class Has[+A] private (private var map: Map[Tagged[_], scala.Any]) extends
   override def toString: String = map.mkString("Map(", ",", ")")
 }
 object Has {
+  type MustHave[A, B]    = A <:< Has[B]
+  type MustNotHave[A, B] = NotExtends[A, Has[B]]
+
+  @annotation.implicitAmbiguous("Could not prove ${A} <:!< ${B}")
+  @silent("define classes/objects inside of package objects")
+  trait NotExtends[A, B] extends Serializable
+
+  object NotExtends {
+    implicit def notExtends0[A, B]: A NotExtends B      = new NotExtends[A, B] {}
+    implicit def notExtends1[A <: B, B]: A NotExtends B = ???
+    implicit def notExtends2[A <: B, B]: A NotExtends B = ???
+  }
+
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
     def concat[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1
@@ -52,10 +68,6 @@ object Has {
         def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
       }
   }
-  type Contains[A, B] = Has[A] <:< B
-
-  private[Has] val TaggedAny    = implicitly[Tagged[Any]]
-  private[Has] val TaggedAnyRef = implicitly[Tagged[AnyRef]]
 
   implicit final class HasSyntax[Self <: Has[_]](val self: Self) extends AnyVal {
     def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = self add b
@@ -68,24 +80,25 @@ object Has {
      *
      * Good: `Logging`, bad: `Logging[String]`.
      */
-    def add[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] =
+    def add[B](b: B)(implicit tag: Tagged[B], ev: Self MustNotHave B): Self with Has[B] =
       (new Has(self.map + (tag -> b))).asInstanceOf[Self with Has[B]]
 
     /**
      * Retrieves a module from the environment.
      */
-    def get[B](implicit ev: Self <:< Has[B], tag: Tagged[B]): B =
+    def get[B](implicit ev: Self MustHave B, tag: Tagged[B]): B =
       self.map
         .getOrElse(
-          tag, {
-            if (tag == TaggedAny || tag == TaggedAnyRef) ()
-            else
+          tag,
+          self.cache.getOrElse(
+            tag, {
               self.map.collectFirst {
                 case (curTag, value) if taggedIsSubtype(curTag, tag) =>
-                  self.map = self.map + (curTag -> value)
+                  self.cache = self.cache + (curTag -> value)
                   value
               }.getOrElse(throw new Error("There's probably a bug in Has!"))
-          }
+            }
+          )
         )
         .asInstanceOf[B]
 
@@ -99,7 +112,7 @@ object Has {
     /**
      * Updates a module in the environment.
      */
-    def update[B: Tagged](f: B => B)(implicit ev: Self <:< Has[B]): Self =
+    def update[B: Tagged](f: B => B)(implicit ev: Self MustHave B): Self =
       self.add(f(get[B]))
   }
 
@@ -139,7 +152,11 @@ object Has {
   /**
    * Constructs an empty environment that cannot provide anything.
    */
-  def any: Any = new Has(Map())
+  lazy val any: Any = {
+    val anyRef: AnyRef = ().asInstanceOf[AnyRef]
+
+    new Has(Map(implicitly[Tagged[AnyRef]] -> anyRef))
+  }
 
   /**
    * Modifies an environment in a scoped way.
