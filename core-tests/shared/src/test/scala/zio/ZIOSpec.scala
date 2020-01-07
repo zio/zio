@@ -16,7 +16,7 @@ import zio.scheduler.Scheduler
 
 object ZIOSpec extends ZIOBaseSpec {
 
-  def spec = suite("ZIO")(
+  def spec = suite("ZIOSpec")(
     suite("absorbWith")(
       testM("on fail") {
         assertM(TaskExampleError.absorbWith(identity).run)(fails(equalTo(ExampleError)))
