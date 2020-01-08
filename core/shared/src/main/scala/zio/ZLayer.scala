@@ -76,15 +76,47 @@ final case class ZLayer[-RIn, +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]
 object ZLayer {
   type NoDeps[+E, +B <: Has[_]] = ZLayer[Any, E, B]
 
-  trait Poly[R, U] {
-    def apply[U <: R](u: U): R
-  }
+  /**
+   * Constructs a layer that passes along the specified environment as an output.
+   */
+  def environment[A <: Has[_]]: ZLayer[A, Nothing, A] = ZLayer(ZManaged.environment[A])
 
+  /**
+   * Constructs a layer from the specified effect, which must produce one or
+   * more services.
+   */
   def fromEffect[E, A <: Has[_]](zio: IO[E, A]): ZLayer.NoDeps[E, A] = ZLayer(ZManaged.fromEffect(zio))
 
+  /**
+   * Constructs a layer from the environment using the specified function,
+   * which must return one or more services.
+   */
+  def fromEnvironment[A, B <: Has[_]](f: A => B): ZLayer[A, Nothing, B] =
+    fromEnvironmentM(a => ZIO.succeed(f(a)))
+
+  /**
+   * Constructs a layer from the environment using the specified effectful
+   * function, which must return one or more services.
+   */
+  def fromEnvironmentM[A, E, B <: Has[_]](f: A => IO[E, B]): ZLayer[A, E, B] =
+    fromEnvironmentManaged(a => f(a).toManaged_)
+
+  /**
+   * Constructs a layer from the environment using the specified effectful
+   * resourceful function, which must return one or more services.
+   */
+  def fromEnvironmentManaged[A, E, B <: Has[_]](f: A => Managed[E, B]): ZLayer[A, E, B] =
+    ZLayer(ZManaged.fromFunctionM(f))
+
+  /**
+   * Constructs a layer that purely depends on the specified service.
+   */
   def fromService[A: Tagged, E, B <: Has[_]](f: A => B): ZLayer[Has[A], E, B] =
     ZLayer(ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get[A]))))
 
+  /**
+   * Constructs a layer that purely depends on the specified services.
+   */
   def fromServices[A0: Tagged, A1: Tagged, E, B <: Has[_]](f: (A0, A1) => B): ZLayer[Has[A0] with Has[A1], E, B] =
     ZLayer(ZManaged.fromEffect {
       for {
@@ -93,6 +125,9 @@ object ZLayer {
       } yield f(a0, a1)
     })
 
+  /**
+   * Constructs a layer that purely depends on the specified services.
+   */
   def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, E, B <: Has[_]](
     f: (A0, A1, A2) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2], E, B] =
@@ -104,6 +139,9 @@ object ZLayer {
       } yield f(a0, a1, a2)
     })
 
+  /**
+   * Constructs a layer that purely depends on the specified services.
+   */
   def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, E, B <: Has[_]](
     f: (A0, A1, A2, A3) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
@@ -116,6 +154,9 @@ object ZLayer {
       } yield f(a0, a1, a2, a3)
     })
 
+  /**
+   * Constructs a layer that purely depends on the specified services.
+   */
   def fromServices[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
@@ -129,9 +170,15 @@ object ZLayer {
       } yield f(a0, a1, a2, a3, a4)
     })
 
+  /**
+   * Constructs a layer that effectfully depends on the specified service.
+   */
   def fromServiceM[A: Tagged, R <: Has[_], E, B <: Has[_]](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
     ZLayer(ZManaged.fromEffect(ZIO.accessM[R with Has[A]](m => f(m.get[A]))))
 
+  /**
+   * Constructs a layer that effectfully depends on the specified services.
+   */
   def fromServicesM[A0: Tagged, A1: Tagged, R <: Has[_], E, B <: Has[_]](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] =
@@ -143,6 +190,9 @@ object ZLayer {
       } yield b
     })
 
+  /**
+   * Constructs a layer that effectfully depends on the specified services.
+   */
   def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, R <: Has[_], E, B <: Has[_]](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
@@ -155,6 +205,9 @@ object ZLayer {
       } yield b
     })
 
+  /**
+   * Constructs a layer that effectfully depends on the specified services.
+   */
   def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, R <: Has[_], E, B <: Has[_]](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
@@ -168,6 +221,9 @@ object ZLayer {
       } yield b
     })
 
+  /**
+   * Constructs a layer that effectfully depends on the specified services.
+   */
   def fromServicesM[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, R <: Has[_], E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
@@ -182,9 +238,17 @@ object ZLayer {
       } yield b
     })
 
+  /**
+   * Constructs a layer that resourcefully and effectfully depends on the
+   * specified service.
+   */
   def fromServiceManaged[A: Tagged, E, B <: Has[_]](f: A => Managed[E, B]): ZLayer[Has[A], E, B] =
     ZLayer(ZManaged.accessManaged[Has[A]](m => f(m.get[A])))
 
+  /**
+   * Constructs a layer that resourcefully and effectfully depends on the
+   * specified services.
+   */
   def fromServicesManaged[A0: Tagged, A1: Tagged, E, B <: Has[_]](
     f: (A0, A1) => Managed[E, B]
   ): ZLayer[Has[A0] with Has[A1], E, B] =
@@ -196,6 +260,10 @@ object ZLayer {
       } yield b
     }
 
+  /**
+   * Constructs a layer that resourcefully and effectfully depends on the
+   * specified services.
+   */
   def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, E, B <: Has[_]](
     f: (A0, A1, A2) => Managed[E, B]
   ): ZLayer[Has[A0] with Has[A1] with Has[A2], E, B] =
@@ -208,6 +276,10 @@ object ZLayer {
       } yield b
     }
 
+  /**
+   * Constructs a layer that resourcefully and effectfully depends on the
+   * specified services.
+   */
   def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, E, B <: Has[_]](
     f: (A0, A1, A2, A3) => Managed[E, B]
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
@@ -221,6 +293,10 @@ object ZLayer {
       } yield b
     }
 
+  /**
+   * Constructs a layer that resourcefully and effectfully depends on the
+   * specified services.
+   */
   def fromServicesManaged[A0: Tagged, A1: Tagged, A2: Tagged, A3: Tagged, A4: Tagged, E, B <: Has[_]](
     f: (A0, A1, A2, A3, A4) => Managed[E, B]
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
@@ -235,7 +311,16 @@ object ZLayer {
       } yield b
     }
 
+  /**
+   * Constructs a layer that has no dependencies but must be created from a
+   * managed resource.
+   */
   def fromManaged[E, A <: Has[_]](m: Managed[E, A]): ZLayer.NoDeps[E, A] = ZLayer(m)
+
+  /**
+   * An identity layer that passes along its inputs.
+   */
+  def identity[A <: Has[_]]: ZLayer[A, Nothing, A] = ZLayer.environment[A]
 
   /**
    * Constructs a layer that accesses and returns the specified service from
@@ -243,5 +328,8 @@ object ZLayer {
    */
   def service[A]: ZLayer[Has[A], Nothing, Has[A]] = ZLayer(ZManaged.environment[Has[A]])
 
-  def succeed[A: Tagged](a: A): ZLayer.NoDeps[Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
+  /**
+   * Constructs a layer from the specified value.
+   */
+  def succeed[A: Tagged](a: => A): ZLayer.NoDeps[Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
 }

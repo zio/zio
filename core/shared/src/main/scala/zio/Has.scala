@@ -45,7 +45,6 @@ final class Has[A] private (private val map: Map[Tagged[_], scala.Any], var cach
 }
 object Has {
   private val TaggedAnyRef: Tagged[AnyRef] = implicitly[Tagged[AnyRef]]
-  private val TaggedAny: Tagged[Any]       = implicitly[Tagged[Any]]
 
   type MustHave[A, B]    = A <:< Has[B]
   type MustNotHave[A, B] = NotExtends[A, Has[B]]
@@ -57,7 +56,7 @@ object Has {
     implicit def notExtends0[A, B]: A NotExtends B      = new NotExtends[A, B] {}
     implicit def notExtends1[A <: B, B]: A NotExtends B = ???
     @annotation.implicitAmbiguous(
-      "Due to covariance, the environment ${A} already contains ${B}. Use Has#update to update an existing module."
+      "The environment ${A} already contains service ${B}, are you sure you want to overwrite it? Use Has#update to update a service already inside the environment."
     )
     implicit def notExtends2[A <: B, B]: A NotExtends B = ???
   }
@@ -99,13 +98,11 @@ object Has {
           tag,
           self.cache.getOrElse(
             tag, {
-              if (tag == TaggedAnyRef || tag == TaggedAny) ()
-              else
-                self.map.collectFirst {
-                  case (curTag, value) if taggedIsSubtype(curTag, tag) =>
-                    self.cache = self.cache + (curTag -> value)
-                    value
-                }.getOrElse(throw new Error("There's probably a bug in Has!"))
+              self.map.collectFirst {
+                case (curTag, value) if taggedIsSubtype(curTag, tag) =>
+                  self.cache = self.cache + (curTag -> value)
+                  value
+              }.getOrElse(throw new Error("There's probably a bug in Has!"))
             }
           )
         )
