@@ -115,10 +115,26 @@ object Has {
 
     /**
      * Combines this environment with the specified environment. In the event
-     * of service collisions, the right side wins.
+     * of service collisions, which may not be reflected in statically known
+     * types, the right hand side will be preferred.
      */
     def union[B <: Has[_]](that: B): Self with B =
       (new Has(self.map ++ that.map)).asInstanceOf[Self with B]
+
+    def upcast[A: Tagged](implicit ev: Self <:< Has[A]): Has[A] = 
+      Has(ev(self).get[A])
+
+    def upcast[A: Tagged, B: Tagged](implicit ev: Self <:< Has[A] with Has[B]): Has[A] with Has[B] = 
+      Has.allOf[A, B](ev(self).get[A], ev(self).get[B])
+
+    def upcast[A: Tagged, B: Tagged, C: Tagged](implicit ev: Self <:< Has[A] with Has[B] with Has[C]): Has[A] with Has[B] with Has[C] = 
+      Has.allOf[A, B, C](ev(self).get[A], ev(self).get[B], ev(self).get[C])
+
+    def upcast[A: Tagged, B: Tagged, C: Tagged, D: Tagged](implicit ev: Self <:< Has[A] with Has[B] with Has[C] with Has[D]): Has[A] with Has[B] with Has[C] with Has[D] = 
+      Has.allOf[A, B, C, D](ev(self).get[A], ev(self).get[B], ev(self).get[C], ev(self).get[D])
+
+    def upcast[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged](implicit ev: Self <:< Has[A] with Has[B] with Has[C] with Has[D] with Has[E]): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] = 
+      Has.allOf[A, B, C, D, E](ev(self).get[A], ev(self).get[B], ev(self).get[C], ev(self).get[D], ev(self).get[E])
 
     /**
      * Updates a service in the environment.
