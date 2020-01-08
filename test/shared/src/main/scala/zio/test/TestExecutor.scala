@@ -24,7 +24,7 @@ object TestExecutor {
   ): TestExecutor[R, E, L, S, S] =
     (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
       spec.annotated
-        .provideManaged(environment)
+        .provideManagedShared(environment)
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(
