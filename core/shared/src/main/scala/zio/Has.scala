@@ -41,9 +41,12 @@ final class Has[+A] private (private val map: Map[Tagged[_], scala.Any], var cac
 
   override def toString: String = map.mkString("Map(", ",\n", ")")
 
-  def size: Int = (map.size - 1) // Subtract the AnyRef
+  def size: Int = map.size
 }
 object Has {
+  private val TaggedAnyRef: Tagged[AnyRef] = implicitly[Tagged[AnyRef]]
+  private val TaggedAny: Tagged[Any]       = implicitly[Tagged[Any]]
+
   type MustHave[A, B]    = A <:< Has[B]
   type MustNotHave[A, B] = NotExtends[A, Has[B]]
 
@@ -84,8 +87,22 @@ object Has {
      *
      * Good: `Logging`, bad: `Logging[String]`.
      */
-    def add[B](b: B)(implicit tag: Tagged[B], ev: Self MustNotHave B): Self with Has[B] =
-      (new Has(self.map + (tag -> b))).asInstanceOf[Self with Has[B]]
+    def add[B](b: B)(implicit tag: Tagged[B], ev: Self MustNotHave B): Self with Has[B] = {
+      val moreSpecific: ((Tagged[_], scala.Any)) => Boolean = {
+        case (curTag, _) => taggedIsSubtype(curTag, tag) && !taggedIsSubtype(tag, curTag)
+      }
+
+      val newMap =
+        if (self.map.exists(moreSpecific)) self.map
+        else {
+          val filtered = self.map.filter {
+            case (curTag, _) => !taggedIsSubtype(tag, curTag)
+          }
+          filtered + (tag -> b)
+        }
+
+      new Has(newMap).asInstanceOf[Self with Has[B]]
+    }
 
     /**
      * Retrieves a module from the environment.
@@ -96,11 +113,13 @@ object Has {
           tag,
           self.cache.getOrElse(
             tag, {
-              self.map.collectFirst {
-                case (curTag, value) if taggedIsSubtype(curTag, tag) =>
-                  self.cache = self.cache + (curTag -> value)
-                  value
-              }.getOrElse(throw new Error("There's probably a bug in Has!"))
+              if (tag == TaggedAnyRef || tag == TaggedAny) ()
+              else
+                self.map.collectFirst {
+                  case (curTag, value) if taggedIsSubtype(curTag, tag) =>
+                    self.cache = self.cache + (curTag -> value)
+                    value
+                }.getOrElse(throw new Error("There's probably a bug in Has!"))
             }
           )
         )
