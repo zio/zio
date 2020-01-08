@@ -34,14 +34,14 @@ object ZLayerSpec extends ZIOBaseSpec {
         r1 <- testSize(Annotations.live, 1, "Annotations.live")
         r2 <- testSize(TestConsole.default, 2, "TestConsole.default")
         r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
-        r4 <- testSize(ZEnv.live >>> TestRandom.live, 2, "TestRandom.live")
+        r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 2, "TestRandom.live")
         r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
         r6 <- testSize(TestSystem.default, 2, "TestSystem.default")
       } yield r1 && r2 && r3 && r4 && r5 && r6
     },
     zio.test.testM("Size of >>> (9)") {
       val layer = (ZEnv.live >>>
-        (Annotations.live ++ TestConsole.default ++ Live.default ++ TestRandom.live ++ Sized
+        (Annotations.live ++ TestConsole.default ++ Live.default ++ TestRandom.deterministic ++ Sized
           .live(100) ++ TestSystem.default))
 
       testSize(layer, 9)

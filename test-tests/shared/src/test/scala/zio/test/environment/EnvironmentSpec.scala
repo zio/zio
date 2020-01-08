@@ -43,9 +43,9 @@ object EnvironmentSpec extends ZIOBaseSpec {
             Node.js only has 1ms resolution so need to wait at least that long to avoid flakiness on ScalaJS*/
     testM("Check different copies of TestEnvironment are seeded with different seeds") {
       for {
-        i <- Live.live(random.nextInt.provideSomeManaged(TestRandom.live.value))
+        i <- Live.live(random.nextInt.provideSomeManaged(TestRandom.random.value))
         _ <- Live.live(clock.sleep(1.millisecond))
-        j <- Live.live(random.nextInt.provideSomeManaged(TestRandom.live.value))
+        j <- Live.live(random.nextInt.provideSomeManaged(TestRandom.random.value))
       } yield !assert(i)(equalTo(j))
     },
     testM("System returns an environment variable when it is set") {

@@ -13,13 +13,13 @@ object GenUtils extends DefaultRuntime {
     unsafeRunToFuture(equal(left, right))
 
   def checkSample[A](gen: Gen[Random with Sized, A], size: Int = 100)(f: List[A] => Boolean): Future[Boolean] =
-    unsafeRunToFuture(provideSize(sample(gen).map(f))(size).provideManaged(Random.live.build))
+    unsafeRunToFuture(provideSize(sample(gen).map(f))(size).provideLayer(Random.live))
 
   def checkFinite[A](gen: Gen[Random, A])(f: List[A] => Boolean): Future[Boolean] =
-    unsafeRunToFuture(gen.sample.map(_.value).runCollect.map(f).provideManaged(Random.live.build))
+    unsafeRunToFuture(gen.sample.map(_.value).runCollect.map(f).provideLayer(Random.live))
 
   def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): Future[Boolean] =
-    unsafeRunToFuture(provideSize(alwaysShrinksTo(gen)(a: A))(100).provideManaged(Random.live.build))
+    unsafeRunToFuture(provideSize(alwaysShrinksTo(gen)(a: A))(100).provideLayer(Random.live))
 
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.map(_.value).forever.take(100).runCollect
@@ -39,7 +39,7 @@ object GenUtils extends DefaultRuntime {
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
 
   def forAll[E <: Throwable, A](zio: ZIO[Random, E, Boolean]): Future[Boolean] =
-    unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)).provideManaged(Random.live.build))
+    unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)).provideLayer(Random.live))
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
     for {

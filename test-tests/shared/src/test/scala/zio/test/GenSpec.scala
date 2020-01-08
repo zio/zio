@@ -471,18 +471,18 @@ object GenSpec extends ZIOBaseSpec {
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
 
   def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = TestRandom.default.build
+    val testRandom = TestRandom.deterministic
     for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(testRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(testRandom)
+      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideLayer(testRandom)
+      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideLayer(testRandom)
     } yield leftShrinks == rightShrinks
   }
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = TestRandom.default.build
+    val testRandom = TestRandom.deterministic
     for {
-      leftSample  <- sample100(left).provideManaged(testRandom)
-      rightSample <- sample100(right).provideManaged(testRandom)
+      leftSample  <- sample100(left).provideLayer(testRandom)
+      rightSample <- sample100(right).provideLayer(testRandom)
     } yield leftSample == rightSample
   }
 
