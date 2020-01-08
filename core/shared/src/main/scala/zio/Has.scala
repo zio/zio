@@ -20,16 +20,17 @@ import com.github.ghik.silencer.silent
 
 /**
  * The trait `Has[A]` is used with ZIO environment to express an effect's
- * dependency on an `A` module. For example, `RIO[Has[ConsoleService], Unit]`
- * is an effect that requires a `ConsoleService` implementation. Inside the ZIO
- * library, type aliases are created as shorthands, e.g.:
+ * dependency on a service of type `A`. For example,
+ * `RIO[Has[Console.Service], Unit]` is an effect that requires a
+ * `Console.Service` service. Inside the ZIO library, type aliases are provided
+ * as shorthands for common services, e.g.:
  *
  * {{{
  * type Console = Has[ConsoleService]
  * }}}
  *
- * All modules in an environment must be monomorphic. Parameterized modules
- * are not supported.
+ * Currently, to be portable across all platforms, all services added to an
+ * environment must be monomorphic. Parameterized services are not supported.
  */
 final class Has[A] private (private val map: Map[Tagged[_], scala.Any], var cache: Map[Tagged[_], scala.Any] = Map())
     extends Serializable {
@@ -41,6 +42,10 @@ final class Has[A] private (private val map: Map[Tagged[_], scala.Any], var cach
 
   override def toString: String = map.mkString("Map(", ",\n", ")")
 
+  /**
+   * The size of the environment, which is the number of services contained
+   * in the environment. This is intended primarily for testing purposes.
+   */
   def size: Int = map.size
 }
 object Has {
@@ -81,8 +86,8 @@ object Has {
     def ++[B <: Has[_]](that: B): Self with B = self union [B] that
 
     /**
-     * Adds a module to the environment. The module must be monomorphic rather
-     * than parameterized. Parameterized modules are not supported.
+     * Adds a service to the environment. The service must be monomorphic rather
+     * than parameterized. Parameterized services are not supported.
      *
      * Good: `Logging`, bad: `Logging[String]`.
      */
@@ -90,7 +95,7 @@ object Has {
       new Has(self.map + (tag -> b)).asInstanceOf[Self with Has[B]]
 
     /**
-     * Retrieves a module from the environment.
+     * Retrieves a service from the environment.
      */
     def get[B](implicit ev: Self <:< Has[_ <: B], tag: Tagged[B]): B =
       self.map
@@ -102,7 +107,7 @@ object Has {
                 case (curTag, value) if taggedIsSubtype(curTag, tag) =>
                   self.cache = self.cache + (curTag -> value)
                   value
-              }.getOrElse(throw new Error("There's probably a bug in Has!"))
+              }.getOrElse(throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}"))
             }
           )
         )
@@ -110,40 +115,40 @@ object Has {
 
     /**
      * Combines this environment with the specified environment. In the event
-     * of module collisions, the right side wins.
+     * of service collisions, the right side wins.
      */
     def union[B <: Has[_]](that: B): Self with B =
       (new Has(self.map ++ that.map)).asInstanceOf[Self with B]
 
     /**
-     * Updates a module in the environment.
+     * Updates a service in the environment.
      */
     def update[B: Tagged](f: B => B)(implicit ev: Self MustHave B): Self =
       self.add(f(get[B]))
   }
 
   /**
-   * Constructs a new environment holding the single module. The module
-   * must be monomorphic. Parameterized modules are not supported.
+   * Constructs a new environment holding the single service. The service
+   * must be monomorphic. Parameterized services are not supported.
    */
   def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(TaggedAnyRef -> (()))).add(a)
 
   /**
-   * Constructs a new environment holding the specified modules. The module
-   * must be monomorphic. Parameterized modules are not supported.
+   * Constructs a new environment holding the specified services. The service
+   * must be monomorphic. Parameterized services are not supported.
    */
   def allOf[A: Tagged, B: Tagged](a: A, b: B): Has[A] with Has[B] = Has(a).add(b)
 
   /**
-   * Constructs a new environment holding the specified modules. The module
-   * must be monomorphic. Parameterized modules are not supported.
+   * Constructs a new environment holding the specified services. The service
+   * must be monomorphic. Parameterized services are not supported.
    */
   def allOf[A: Tagged, B: Tagged, C: Tagged](a: A, b: B, c: C): Has[A] with Has[B] with Has[C] =
     Has(a).add(b).add(c)
 
   /**
-   * Constructs a new environment holding the specified modules. The module
-   * must be monomorphic. Parameterized modules are not supported.
+   * Constructs a new environment holding the specified services. The service
+   * must be monomorphic. Parameterized services are not supported.
    */
   def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged](
     a: A,
@@ -154,8 +159,8 @@ object Has {
     Has(a).add(b).add(c).add(d)
 
   /**
-   * Constructs a new environment holding the specified modules. The module
-   * must be monomorphic. Parameterized modules are not supported.
+   * Constructs a new environment holding the specified services. The service
+   * must be monomorphic. Parameterized services are not supported.
    */
   def allOf[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged](
     a: A,
