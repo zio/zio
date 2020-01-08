@@ -2232,14 +2232,8 @@ object ZIO {
    * For a sequential version of this method, see `foreach_`.
    */
   def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    ZIO
-      .effectTotal(as.iterator)
-      .flatMap { i =>
-        def loop(a: A): ZIO[R, E, Unit] =
-          if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
-          else f(a).unit
-        if (i.hasNext) loop(i.next)
-        else ZIO.unit
+    as.foldLeft(unit: ZIO[R, E, Unit]) { (acc, a) =>
+        acc.zipParLeft(f(a))
       }
       .refailWithTrace
 
