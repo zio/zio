@@ -70,8 +70,8 @@ object Live {
    * while ensuring that the effect itself is provided with the test
    * environment.
    */
-  def withLive[R, E, E1, A, B](
+  def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R with Live, E1, B] =
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R, E1, B] =
     ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))
 }

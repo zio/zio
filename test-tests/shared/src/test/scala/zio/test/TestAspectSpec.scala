@@ -10,7 +10,6 @@ import zio.{ Ref, Schedule, ZIO }
 import scala.reflect.ClassTag
 import zio.ZLayer
 import zio.ZEnv
-import _root_.zio.clock.Clock
 
 object TestAspectSpec extends ZIOBaseSpec {
 
