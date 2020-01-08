@@ -23,7 +23,7 @@ import zio.test.Sized
 
 trait PlatformSpecific {
   type TestEnvironment =
-    Annotations with Blocking with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
+    ZEnv with Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
 
   val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
     (ZEnv.live >>>

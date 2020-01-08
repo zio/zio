@@ -10,7 +10,12 @@ object HasSpec extends ZIOBaseSpec {
 
   def spec = suite("HasSpec")(
     zio.test.test("Get from Has[Any] must succeed") {
-      assert(Has.any.get[Any])(anything)
+      val dog = new Dog {}
+
+      val hasDog: Has[Dog] = Has(dog)
+
+      assert(hasDog.get[Any])(anything) &&
+      assert(hasDog.get[AnyRef])(anything)
     },
     zio.test.test("Access any supertype") {
       val dog = new Dog {}
@@ -36,25 +41,6 @@ object HasSpec extends ZIOBaseSpec {
 
       assert(hasDog.size)(equalTo(1)) &&
       assert(hasDog.get[Animal])(equalTo(dog))
-    },
-    zio.test.test("Supertype cannot replace subtype") {
-      val dog = new Dog {}
-
-      val hasDog: Has[Dog]       = Has(dog)
-      val hasAnimal: Has[Animal] = (hasDog: Has[Any]).add(new Animal {})
-
-      assert(hasAnimal.size)(equalTo(1)) &&
-      assert(hasAnimal.get[Animal])(equalTo(dog))
-    },
-    zio.test.test("Update of supertype has no effect") {
-      val dog    = new Dog    {}
-      val animal = new Animal {}
-
-      val hasDog: Has[Dog]  = Has(dog)
-      val updated: Has[Dog] = hasDog.update[Animal](_ => animal)
-
-      assert(updated.size)(equalTo(1)) &&
-      assert(updated.get[Animal])(equalTo(dog))
     },
     zio.test.test("Siblings can be updated independently") {
       val dog1: Dog = new Dog { override val toString = "dog1" }

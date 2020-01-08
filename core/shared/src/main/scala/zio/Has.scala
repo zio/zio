@@ -107,7 +107,7 @@ object Has {
     /**
      * Retrieves a module from the environment.
      */
-    def get[B](implicit ev: Self MustHave B, tag: Tagged[B]): B =
+    def get[B](implicit ev: Self <:< Has[_ <: B], tag: Tagged[B]): B =
       self.map
         .getOrElse(
           tag,
@@ -139,13 +139,11 @@ object Has {
       self.add(f(get[B]))
   }
 
-  type Empty = Has[Unit]
-
   /**
    * Constructs a new environment holding the single module. The module
    * must be monomorphic. Parameterized modules are not supported.
    */
-  def apply[A: Tagged](a: A): Has[A] = empty.add(a)
+  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(TaggedAnyRef -> (()))).add(a)
 
   /**
    * Constructs a new environment holding the specified modules. The module
@@ -184,8 +182,6 @@ object Has {
     e: E
   ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] =
     Has(a).add(b).add(c).add(d).add(e)
-
-  val empty: Empty = Has[Unit](())
 
   /**
    * Modifies an environment in a scoped way.

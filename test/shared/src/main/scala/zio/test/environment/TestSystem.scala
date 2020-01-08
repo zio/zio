@@ -39,7 +39,7 @@ import zio.system.System
  */
 object TestSystem extends Serializable {
 
-  trait Service extends System.Service with Restorable {
+  trait Service extends Restorable {
     def putEnv(name: String, value: String): UIO[Unit]
     def putProperty(name: String, value: String): UIO[Unit]
     def setLineSeparator(lineSep: String): UIO[Unit]
@@ -47,7 +47,7 @@ object TestSystem extends Serializable {
     def clearProperty(prop: String): UIO[Unit]
   }
 
-  case class Test(systemState: Ref[TestSystem.Data]) extends TestSystem.Service {
+  case class Test(systemState: Ref[TestSystem.Data]) extends System.Service with TestSystem.Service {
 
     /**
      * Returns the specified environment variable if it exists.
@@ -122,10 +122,10 @@ object TestSystem extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Console`, such as with [[ZIO!.provide]].
    */
-  def live(data: Data): ZLayer.NoDeps[Nothing, TestSystem] =
-    ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
+  def live(data: Data): ZLayer.NoDeps[Nothing, System with TestSystem] =
+    ZLayer.fromEffect(Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref))))
 
-  val default: ZLayer.NoDeps[Nothing, TestSystem] =
+  val default: ZLayer.NoDeps[Nothing, System with TestSystem] =
     live(DefaultData)
 
   /**

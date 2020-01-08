@@ -244,6 +244,17 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     provideM(ZIO.succeed(r))
 
   /**
+   * Provides a layer to the spec, translating it up a level.
+   */
+  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+    layer: ZLayer[R0, E1, R1]
+  )(implicit ev: R1 <:< R): Spec[R0, E1, L, T] =
+    self.provideSomeManaged(for {
+      r0 <- ZManaged.environment[R0]
+      r1 <- layer.value.provide(r0)
+    } yield ev(r1))
+
+  /**
    * Uses the specified effect to provide each test in this spec with its
    * required environment.
    */

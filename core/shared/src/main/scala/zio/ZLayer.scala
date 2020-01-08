@@ -32,21 +32,21 @@ import zio.internal.Platform
  * Because of their excellent composition properties, layers are the idiomatic
  * way in ZIO to create services that depend on other services.
  */
-final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]) { self =>
+final case class ZLayer[-RIn, +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]) { self =>
 
   /**
    * Feeds the output services of this layer into the input of the specified
    * layer, resulting in a new layer with the inputs of this layer, and the
    * outputs of the specified layer.
    */
-  def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut with Has.Empty, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    ZLayer(self.value.flatMap(v => that.value.provide(v.union[Has.Empty](Has.empty))))
+  def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+    ZLayer(self.value.flatMap(v => that.value.provide(v)))
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
    * has the inputs of both layers, and the outputs of both layers.
    */
-  def ++[E1 >: E, RIn2 <: Has[_], ROut2 <: Has[_]](
+  def ++[E1 >: E, RIn2, ROut2 <: Has[_]](
     that: ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
     ZLayer(
@@ -58,13 +58,13 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
   /**
    * Builds a layer that has no dependencies into a managed value.
    */
-  def build[RIn2 <: RIn](implicit ev: Has.Empty =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.empty))
+  def build[RIn2 <: RIn](implicit ev: Any =:= RIn2): Managed[E, ROut] = value.provide(ev(()))
 
   /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
-  def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Has.Empty =:= RIn2): Managed[E, Runtime[ROut]] =
+  def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Any =:= RIn2): Managed[E, Runtime[ROut]] =
     build.map(Runtime(_, p))
 
   /**
@@ -74,7 +74,7 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
     ZLayer(value.map(env => env.update[A](f)))
 }
 object ZLayer {
-  type NoDeps[+E, +B <: Has[_]] = ZLayer[Has.Empty, E, B]
+  type NoDeps[+E, +B <: Has[_]] = ZLayer[Any, E, B]
 
   trait Poly[R, U] {
     def apply[U <: R](u: U): R

@@ -68,7 +68,7 @@ import zio.clock.Clock
  */
 object TestRandom extends Serializable {
 
-  trait Service extends Random.Service with Restorable {
+  trait Service extends Restorable {
     def clearBooleans: UIO[Unit]
     def clearBytes: UIO[Unit]
     def clearChars: UIO[Unit]
@@ -91,7 +91,7 @@ object TestRandom extends Serializable {
   /**
    * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
    */
-  case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends TestRandom.Service {
+  case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends Random.Service with TestRandom.Service {
 
     /**
      * Clears the buffer of booleans.
@@ -615,16 +615,17 @@ object TestRandom extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Random`, such as with [[ZIO!.provide]].
    */
-  def make(data: Data): ZLayer.NoDeps[Nothing, TestRandom] =
+  def make(data: Data): ZLayer.NoDeps[Nothing, Random with TestRandom] =
     ZLayer.fromEffect(for {
       data   <- Ref.make(data)
       buffer <- Ref.make(Buffer())
-    } yield Has(Test(data, buffer)))
+      test   = Test(data, buffer)
+    } yield Has.allOf[Random.Service, TestRandom.Service](test, test))
 
-  val default: ZLayer.NoDeps[Nothing, TestRandom] =
+  val default: ZLayer.NoDeps[Nothing, Random with TestRandom] =
     make(DefaultData)
 
-  val live: ZLayer[Clock, Nothing, TestRandom] =
+  val live: ZLayer[Clock, Nothing, Random with TestRandom] =
     ZLayer.fromServiceManaged { (clock: Clock.Service) =>
       default.build.tapM(tR => clock.nanoTime.flatMap(tR.get[TestRandom.Service].setSeed(_)))
 

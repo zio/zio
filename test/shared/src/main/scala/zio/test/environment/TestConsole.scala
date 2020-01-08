@@ -58,14 +58,14 @@ import zio._
  */
 object TestConsole extends Serializable {
 
-  trait Service extends Console.Service with Restorable {
+  trait Service extends Restorable {
     def feedLines(lines: String*): UIO[Unit]
     def output: UIO[Vector[String]]
     def clearInput: UIO[Unit]
     def clearOutput: UIO[Unit]
   }
 
-  case class Test(consoleState: Ref[TestConsole.Data]) extends TestConsole.Service {
+  case class Test(consoleState: Ref[TestConsole.Data]) extends Console.Service with TestConsole.Service {
 
     /**
      * Clears the contents of the input buffer.
@@ -144,17 +144,11 @@ object TestConsole extends Serializable {
    * interface. This can be useful for mixing in with implementations of other
    * interfaces.
    */
-  def live(data: Data): ZLayer.NoDeps[Nothing, TestConsole] =
-    ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
+  def live(data: Data): ZLayer.NoDeps[Nothing, Console with TestConsole] =
+    ZLayer.fromEffect(Ref.make(data).map(ref => Has.allOf[Console.Service, TestConsole.Service](Test(ref), Test(ref))))
 
-  /**
-   * The default initial state of the `TestConsole` with input and output
-   * buffers both empty.
-   */
-  val DefaultData: Data = Data(Nil, Vector())
-
-  val default: ZLayer.NoDeps[Nothing, TestConsole] =
-    live(DefaultData)
+  val default: ZLayer.NoDeps[Nothing, Console with TestConsole] =
+    live(Data(Nil, Vector()))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the

@@ -32,7 +32,7 @@ object ConsoleSpec extends ZIOBaseSpec {
     testM("reads from input") {
       {
         for {
-          testConsole <- ZIO.environment[TestConsole].map(_.get[TestConsole.Service])
+          testConsole <- ZIO.environment[Console].map(_.get)
           input1      <- testConsole.getStrLn
           input2      <- testConsole.getStrLn
         } yield {

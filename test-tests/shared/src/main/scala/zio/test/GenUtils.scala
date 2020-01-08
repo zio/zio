@@ -42,10 +42,10 @@ object GenUtils extends DefaultRuntime {
     unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)).provideManaged(Random.live.build))
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = TestRandom.default.build
+    val testRandom = TestRandom.default
     for {
-      leftSample  <- sample(left).provideManaged(testRandom)
-      rightSample <- sample(right).provideManaged(testRandom)
+      leftSample  <- sample(left).provideLayer(testRandom)
+      rightSample <- sample(right).provideLayer(testRandom)
     } yield leftSample == rightSample
   }
 

@@ -95,7 +95,7 @@ import zio.clock.Clock
  */
 object TestClock extends Serializable {
 
-  trait Service extends Restorable with Clock.Service {
+  trait Service extends Restorable {
     def adjust(duration: Duration): UIO[Unit]
     def fiberTime: UIO[Duration]
     def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
@@ -110,7 +110,8 @@ object TestClock extends Serializable {
     fiberState: FiberRef[TestClock.FiberData],
     live: Live.Service,
     warningState: RefM[TestClock.WarningData]
-  ) extends TestClock.Service {
+  ) extends Clock.Service
+      with TestClock.Service {
 
     /**
      * Increments the current clock time by the specified duration. Any effects
@@ -341,17 +342,17 @@ object TestClock extends Serializable {
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def live(data: Data): ZLayer[Live, Nothing, TestClock] =
+  def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
     ZLayer.fromServiceManaged { (live: Live.Service) =>
       for {
         ref      <- Ref.make(data).toManaged_
         fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
         refM     <- RefM.make(WarningData.start).toManaged_
         test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
-      } yield Has(test)
+      } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
     }
 
-  val default: ZLayer[Live, Nothing, TestClock] =
+  val default: ZLayer[Live, Nothing, Clock with TestClock] =
     live(Data(0, 0, Nil, ZoneId.of("UTC")))
 
   /**
