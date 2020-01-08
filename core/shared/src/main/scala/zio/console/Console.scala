@@ -18,7 +18,7 @@ package zio.console
 
 import java.io.{ EOFException, IOException, PrintStream, Reader }
 
-import zio.{ Has, IO, UIO, ZIO, ZLayer }
+import zio.{ IO, UIO, ZIO, ZLayer }
 
 import scala.io.StdIn
 import scala.{ Console => SConsole }
@@ -31,7 +31,7 @@ object Console extends Serializable {
 
     val getStrLn: IO[IOException, String]
   }
-  val live: ZLayer[Has.Any, Nothing, Console] = ZLayer.succeed {
+  val live: ZLayer.NoDeps[Nothing, Console] = ZLayer.succeed {
     new Service {
 
       /**

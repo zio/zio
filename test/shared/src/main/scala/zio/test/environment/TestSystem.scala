@@ -122,10 +122,10 @@ object TestSystem extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Console`, such as with [[ZIO!.provide]].
    */
-  def live(data: Data): ZLayer[Has.Any, Nothing, TestSystem] =
+  def live(data: Data): ZLayer.NoDeps[Nothing, TestSystem] =
     ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
 
-  val default: ZLayer[Has.Any, Nothing, TestSystem] =
+  val default: ZLayer.NoDeps[Nothing, TestSystem] =
     live(DefaultData)
 
   /**

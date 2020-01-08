@@ -4,7 +4,7 @@ import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 import zio.clock.Clock
 import zio.scheduler.Scheduler
 import zio.test.{ AbstractRunnableSpec, SummaryBuilder, TestArgs, TestLogger }
-import zio.{ Has, Runtime, ZIO, ZLayer }
+import zio.{ Runtime, ZIO, ZLayer }
 import zio.UIO
 
 abstract class BaseTestTask(
@@ -41,7 +41,7 @@ abstract class BaseTestTask(
       _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
-  protected def sbtTestLayer(loggers: Array[Logger]): ZLayer[Has.Any, Nothing, TestLogger with Clock] =
+  protected def sbtTestLayer(loggers: Array[Logger]): ZLayer.NoDeps[Nothing, TestLogger with Clock] =
     ZLayer.succeed[TestLogger.Service] { (line: String) =>
       ZIO
         .effect(loggers.foreach(_.info(colored(line))))

@@ -51,7 +51,7 @@ object Annotations {
   /**
    * Constructs a new `Annotations` service.
    */
-  def live: ZLayer[Has.Any, Nothing, Annotations] =
+  def live: ZLayer.NoDeps[Nothing, Annotations] =
     ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       Has(new Annotations.Service {
         def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =

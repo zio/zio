@@ -24,7 +24,7 @@ object Sized {
     def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
   }
 
-  def live(size: Int): ZLayer[Has.Any, Nothing, Sized] =
+  def live(size: Int): ZLayer.NoDeps[Nothing, Sized] =
     ZLayer.fromEffect(FiberRef.make(size).map { fiberRef =>
       Has(new Sized.Service {
         val size: UIO[Int] =

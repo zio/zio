@@ -17,5 +17,5 @@
 package zio
 
 object ZEnv {
-  val live: ZLayer[Has.Any, Nothing, ZEnv] = ZLayer.fromManaged(defaultEnvironment)
+  val live: ZLayer.NoDeps[Nothing, ZEnv] = ZLayer.fromManaged(defaultEnvironment)
 }

@@ -39,8 +39,8 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
    * layer, resulting in a new layer with the inputs of this layer, and the
    * outputs of the specified layer.
    */
-  def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    ZLayer(self.value.flatMap(v => that.value.provide(v)))
+  def >>>[E1 >: E, ROut2 <: Has[_]](that: ZLayer[ROut with Has.Empty, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+    ZLayer(self.value.flatMap(v => that.value.provide(v.union[Has.Empty](Has.empty))))
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -58,13 +58,13 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
   /**
    * Builds a layer that has no dependencies into a managed value.
    */
-  def build[RIn2 <: RIn](implicit ev: Has.Any =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.any))
+  def build[RIn2 <: RIn](implicit ev: Has.Empty =:= RIn2): Managed[E, ROut] = value.provide(ev(Has.empty))
 
   /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
-  def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Has.Any =:= RIn2): Managed[E, Runtime[ROut]] =
+  def toRuntime[RIn2 <: RIn](p: Platform)(implicit ev: Has.Empty =:= RIn2): Managed[E, Runtime[ROut]] =
     build.map(Runtime(_, p))
 
   /**
@@ -74,7 +74,7 @@ final case class ZLayer[-RIn <: Has[_], +E, +ROut <: Has[_]](value: ZManaged[RIn
     ZLayer(value.map(env => env.update[A](f)))
 }
 object ZLayer {
-  type NoDeps[+E, +B <: Has[_]] = ZLayer[Has.Any, E, B]
+  type NoDeps[+E, +B <: Has[_]] = ZLayer[Has.Empty, E, B]
 
   trait Poly[R, U] {
     def apply[U <: R](u: U): R
@@ -85,7 +85,7 @@ object ZLayer {
   def fromService[A: Tagged, E, B <: Has[_]](f: A => B): ZLayer[Has[A], E, B] =
     ZLayer(ZManaged.fromEffect(ZIO.access[Has[A]](m => f(m.get[A]))))
 
-  def fromServices[A0: Tagged, A1: Tagged, E, B <: Has[_]](f: (A0, A1) => B): ZLayer[Has[A0 with A1], E, B] =
+  def fromServices[A0: Tagged, A1: Tagged, E, B <: Has[_]](f: (A0, A1) => B): ZLayer[Has[A0] with Has[A1], E, B] =
     ZLayer(ZManaged.fromEffect {
       for {
         a0 <- ZIO.environment[Has[A0]].map(_.get[A0])
@@ -235,7 +235,7 @@ object ZLayer {
       } yield b
     }
 
-  def fromManaged[E, A <: Has[_]](m: Managed[E, A]): ZLayer[Has.Any, E, A] = ZLayer(m)
+  def fromManaged[E, A <: Has[_]](m: Managed[E, A]): ZLayer.NoDeps[E, A] = ZLayer(m)
 
   /**
    * Constructs a layer that accesses and returns the specified service from
@@ -243,5 +243,5 @@ object ZLayer {
    */
   def service[A]: ZLayer[Has[A], Nothing, Has[A]] = ZLayer(ZManaged.environment[Has[A]])
 
-  def succeed[A: Tagged](a: A): ZLayer[Has.Any, Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
+  def succeed[A: Tagged](a: A): ZLayer.NoDeps[Nothing, Has[A]] = ZLayer(ZManaged.succeed(Has(a)))
 }

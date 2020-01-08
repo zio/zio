@@ -16,7 +16,7 @@
 
 package zio.random
 
-import zio.{ Chunk, Has, Ref, UIO, ZIO, ZLayer }
+import zio.{ Chunk, Ref, UIO, ZIO, ZLayer }
 
 object Random extends Serializable {
   trait Service extends Serializable {
@@ -35,7 +35,7 @@ object Random extends Serializable {
     def shuffle[A](list: List[A]): UIO[List[A]]
   }
 
-  val live: ZLayer[Has.Any, Nothing, Random] = ZLayer.succeed {
+  val live: ZLayer.NoDeps[Nothing, Random] = ZLayer.succeed {
     new Service {
       import scala.util.{ Random => SRandom }
 

@@ -20,5 +20,5 @@ import zio.{ Has, ZLayer }
 import zio.internal.{ Scheduler => IScheduler }
 
 object Scheduler extends PlatformSpecific {
-  val live: ZLayer[Has.Any, Nothing, Has[IScheduler]] = ZLayer.succeed(globalScheduler)
+  val live: ZLayer.NoDeps[Nothing, Has[IScheduler]] = ZLayer.succeed(globalScheduler)
 }

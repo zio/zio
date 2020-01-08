@@ -144,7 +144,7 @@ object TestConsole extends Serializable {
    * interface. This can be useful for mixing in with implementations of other
    * interfaces.
    */
-  def live(data: Data): ZLayer[Has.Any, Nothing, TestConsole] =
+  def live(data: Data): ZLayer.NoDeps[Nothing, TestConsole] =
     ZLayer.fromEffect(Ref.make(data).map(ref => Has(Test(ref))))
 
   /**
@@ -153,7 +153,7 @@ object TestConsole extends Serializable {
    */
   val DefaultData: Data = Data(Nil, Vector())
 
-  val default: ZLayer[Has.Any, Nothing, TestConsole] =
+  val default: ZLayer.NoDeps[Nothing, TestConsole] =
     live(DefaultData)
 
   /**

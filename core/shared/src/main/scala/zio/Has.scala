@@ -31,7 +31,7 @@ import com.github.ghik.silencer.silent
  * All modules in an environment must be monomorphic. Parameterized modules
  * are not supported.
  */
-final class Has[+A] private (private val map: Map[Tagged[_], scala.Any], var cache: Map[Tagged[_], scala.Any] = Map())
+final class Has[A] private (private val map: Map[Tagged[_], scala.Any], var cache: Map[Tagged[_], scala.Any] = Map())
     extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
@@ -139,26 +139,26 @@ object Has {
       self.add(f(get[B]))
   }
 
-  type Any = Has[scala.Any]
+  type Empty = Has[Unit]
 
   /**
    * Constructs a new environment holding the single module. The module
    * must be monomorphic. Parameterized modules are not supported.
    */
-  def apply[A: Tagged](a: A): Has[A] = any.add(a)
+  def apply[A: Tagged](a: A): Has[A] = empty.add(a)
 
   /**
    * Constructs a new environment holding the specified modules. The module
    * must be monomorphic. Parameterized modules are not supported.
    */
-  def allOf[A: Tagged, B: Tagged](a: A, b: B): Has[A] with Has[B] = any.add(a).add(b)
+  def allOf[A: Tagged, B: Tagged](a: A, b: B): Has[A] with Has[B] = Has(a).add(b)
 
   /**
    * Constructs a new environment holding the specified modules. The module
    * must be monomorphic. Parameterized modules are not supported.
    */
   def allOf[A: Tagged, B: Tagged, C: Tagged](a: A, b: B, c: C): Has[A] with Has[B] with Has[C] =
-    any.add(a).add(b).add(c)
+    Has(a).add(b).add(c)
 
   /**
    * Constructs a new environment holding the specified modules. The module
@@ -170,7 +170,7 @@ object Has {
     c: C,
     d: D
   ): Has[A] with Has[B] with Has[C] with Has[D] =
-    any.add(a).add(b).add(c).add(d)
+    Has(a).add(b).add(c).add(d)
 
   /**
    * Constructs a new environment holding the specified modules. The module
@@ -183,16 +183,9 @@ object Has {
     d: D,
     e: E
   ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] =
-    any.add(a).add(b).add(c).add(d).add(e)
+    Has(a).add(b).add(c).add(d).add(e)
 
-  /**
-   * Constructs an empty environment that cannot provide anything.
-   */
-  lazy val any: Any = {
-    val anyRef: AnyRef = ().asInstanceOf[AnyRef]
-
-    new Has(Map(implicitly[Tagged[AnyRef]] -> anyRef))
-  }
+  val empty: Empty = Has[Unit](())
 
   /**
    * Modifies an environment in a scoped way.
