@@ -9,7 +9,7 @@ object HasSpec extends ZIOBaseSpec {
   trait Cat extends Animal
 
   def spec = suite("HasSpec")(
-    zio.test.test("Get from Has[Any] must succeed") {
+    zio.test.test("Access topmost supertype") {
       val dog = new Dog {}
 
       val hasDog: Has[Dog] = Has(dog)
@@ -31,16 +31,6 @@ object HasSpec extends ZIOBaseSpec {
       val cat = hasBoth.get[Cat]
 
       assert(dog)(anything) && assert(cat)(anything)
-    },
-    zio.test.test("Subtype can replace supertype") {
-      val hasAnimal: Has[Animal] = Has(new Animal {})
-
-      val dog = new Dog {}
-
-      val hasDog = hasAnimal.add(dog)
-
-      assert(hasDog.size)(equalTo(1)) &&
-      assert(hasDog.get[Animal])(equalTo(dog))
     },
     zio.test.test("Siblings can be updated independently") {
       val dog1: Dog = new Dog { override val toString = "dog1" }

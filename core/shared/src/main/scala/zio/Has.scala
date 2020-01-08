@@ -87,22 +87,8 @@ object Has {
      *
      * Good: `Logging`, bad: `Logging[String]`.
      */
-    def add[B](b: B)(implicit tag: Tagged[B], ev: Self MustNotHave B): Self with Has[B] = {
-      val moreSpecific: ((Tagged[_], scala.Any)) => Boolean = {
-        case (curTag, _) => taggedIsSubtype(curTag, tag) && !taggedIsSubtype(tag, curTag)
-      }
-
-      val newMap =
-        if (self.map.exists(moreSpecific)) self.map
-        else {
-          val filtered = self.map.filter {
-            case (curTag, _) => !taggedIsSubtype(tag, curTag)
-          }
-          filtered + (tag -> b)
-        }
-
-      new Has(newMap).asInstanceOf[Self with Has[B]]
-    }
+    def add[B](b: B)(implicit tag: Tagged[B], ev: Self MustNotHave B): Self with Has[B] =
+      new Has(self.map + (tag -> b)).asInstanceOf[Self with Has[B]]
 
     /**
      * Retrieves a module from the environment.
