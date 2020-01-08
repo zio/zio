@@ -622,14 +622,20 @@ object TestRandom extends Serializable {
       test   = Test(data, buffer)
     } yield Has.allOf[Random.Service, TestRandom.Service](test, test))
 
-  val default: ZLayer.NoDeps[Nothing, Random with TestRandom] =
+  val deterministic: ZLayer.NoDeps[Nothing, Random with TestRandom] =
     make(DefaultData)
 
-  val live: ZLayer[Clock, Nothing, Random with TestRandom] =
-    ZLayer.fromServiceManaged { (clock: Clock.Service) =>
-      default.build.tapM(tR => clock.nanoTime.flatMap(tR.get[TestRandom.Service].setSeed(_)))
+  val random: ZLayer[Clock, Nothing, Random with TestRandom] =
+    (ZLayer.service[Clock.Service] ++ deterministic) >>>
+      (ZLayer.fromEnvironmentM { (env: Clock with Random with TestRandom) =>
+        val random     = env.get[Random.Service]
+        val testRandom = env.get[TestRandom.Service]
 
-    }
+        for {
+          time <- env.get[Clock.Service].nanoTime
+          _    <- env.get[TestRandom.Service].setSeed(time)
+        } yield Has.allOf[Random.Service, TestRandom.Service](random, testRandom)
+      })
 
   /**
    * Constructs a new `Test` object that implements the `TestRandom` interface.

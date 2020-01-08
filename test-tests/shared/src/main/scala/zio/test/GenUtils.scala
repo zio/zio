@@ -41,21 +41,17 @@ object GenUtils extends DefaultRuntime {
   def forAll[E <: Throwable, A](zio: ZIO[Random, E, Boolean]): Future[Boolean] =
     unsafeRunToFuture(ZIO.collectAll(List.fill(100)(zio)).map(_.forall(identity)).provideManaged(Random.live.build))
 
-  def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = TestRandom.default
+  def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
     for {
-      leftSample  <- sample(left).provideLayer(testRandom)
-      rightSample <- sample(right).provideLayer(testRandom)
+      leftSample  <- sample(left).provideLayer(TestRandom.deterministic)
+      rightSample <- sample(right).provideLayer(TestRandom.deterministic)
     } yield leftSample == rightSample
-  }
 
-  def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = TestRandom.default.build
+  def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
     for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(testRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(testRandom)
+      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideLayer(TestRandom.deterministic)
+      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideLayer(TestRandom.deterministic)
     } yield leftShrinks == rightShrinks
-  }
 
   def showTree[R, A](sample: Sample[R, A], offset: Int = 0): ZIO[R, Nothing, String] = {
     val head = " " * offset + sample.value + "\n"

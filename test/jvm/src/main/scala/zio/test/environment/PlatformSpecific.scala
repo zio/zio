@@ -27,6 +27,6 @@ trait PlatformSpecific {
 
   val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
     (ZEnv.live >>>
-      (Annotations.live ++ Blocking.live ++ (Live.default >>> TestClock.default) ++ TestConsole.default ++ Live.default ++ TestRandom.default ++ Sized
+      (Annotations.live ++ Blocking.live ++ (Live.default >>> TestClock.default) ++ TestConsole.default ++ Live.default ++ TestRandom.random ++ Sized
         .live(100) ++ TestSystem.default)).build
 }
