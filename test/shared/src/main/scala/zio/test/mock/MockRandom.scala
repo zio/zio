@@ -23,22 +23,22 @@ object MockRandom {
 
   trait Service extends Random.Service
 
-  object nextBoolean  extends Method[MockRandom, Unit, Boolean]
-  object nextBytes    extends Method[MockRandom, Int, Chunk[Byte]]
-  object nextDouble   extends Method[MockRandom, Unit, Double]
-  object nextFloat    extends Method[MockRandom, Unit, Float]
-  object nextGaussian extends Method[MockRandom, Unit, Double]
+  object nextBoolean  extends Method[MockRandom.Service, Unit, Boolean]
+  object nextBytes    extends Method[MockRandom.Service, Int, Chunk[Byte]]
+  object nextDouble   extends Method[MockRandom.Service, Unit, Double]
+  object nextFloat    extends Method[MockRandom.Service, Unit, Float]
+  object nextGaussian extends Method[MockRandom.Service, Unit, Double]
   object nextInt {
-    object _0 extends Method[MockRandom, Int, Int]
-    object _1 extends Method[MockRandom, Unit, Int]
+    object _0 extends Method[MockRandom.Service, Int, Int]
+    object _1 extends Method[MockRandom.Service, Unit, Int]
   }
   object nextLong {
-    object _0 extends Method[MockRandom, Unit, Long]
-    object _1 extends Method[MockRandom, Long, Long]
+    object _0 extends Method[MockRandom.Service, Unit, Long]
+    object _1 extends Method[MockRandom.Service, Long, Long]
   }
-  object nextPrintableChar extends Method[MockRandom, Unit, Char]
-  object nextString        extends Method[MockRandom, Int, String]
-  object shuffle           extends Method[MockRandom, List[Any], List[Any]]
+  object nextPrintableChar extends Method[MockRandom.Service, Unit, Char]
+  object nextString        extends Method[MockRandom.Service, Int, String]
+  object shuffle           extends Method[MockRandom.Service, List[Any], List[Any]]
 
   implicit val mockable: Mockable[MockRandom.Service] = (mock: Mock) =>
     new Service {

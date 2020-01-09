@@ -27,10 +27,10 @@ object MockClock {
 
   trait Service extends Clock.Service
 
-  object currentTime     extends Method[MockClock, TimeUnit, Long]
-  object currentDateTime extends Method[MockClock, Unit, OffsetDateTime]
-  object nanoTime        extends Method[MockClock, Unit, Long]
-  object sleep           extends Method[MockClock, Duration, Unit]
+  object currentTime     extends Method[MockClock.Service, TimeUnit, Long]
+  object currentDateTime extends Method[MockClock.Service, Unit, OffsetDateTime]
+  object nanoTime        extends Method[MockClock.Service, Unit, Long]
+  object sleep           extends Method[MockClock.Service, Duration, Unit]
 
   implicit val mockable: Mockable[MockClock.Service] = (mock: Mock) =>
     new Service {

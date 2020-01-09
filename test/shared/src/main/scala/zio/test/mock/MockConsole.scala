@@ -25,9 +25,9 @@ object MockConsole {
 
   trait Service extends Console.Service
 
-  object putStr   extends Method[MockConsole, String, Unit]
-  object putStrLn extends Method[MockConsole, String, Unit]
-  object getStrLn extends Method[MockConsole, Unit, String]
+  object putStr   extends Method[MockConsole.Service, String, Unit]
+  object putStrLn extends Method[MockConsole.Service, String, Unit]
+  object getStrLn extends Method[MockConsole.Service, Unit, String]
 
   implicit val mockable: Mockable[Service] = (mock: Mock) =>
     new Service {

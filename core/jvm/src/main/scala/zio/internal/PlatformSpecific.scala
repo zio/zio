@@ -43,7 +43,7 @@ private[internal] trait PlatformSpecific {
    * mainstream usage. Advanced users should consider making their own platform
    * customized for specific application requirements.
    */
-  lazy val default = makeDefault()
+  lazy val default: Platform = makeDefault()
 
   /**
    * The default number of operations the ZIO runtime should execute before
@@ -52,7 +52,7 @@ private[internal] trait PlatformSpecific {
   final val defaultYieldOpCount = 2048
 
   /**
-   * A platform created using Scala's global execution context.
+   * A `Platform` created from Scala's global execution context.
    */
   lazy val global = fromExecutionContext(ExecutionContext.global)
 
@@ -88,11 +88,14 @@ private[internal] trait PlatformSpecific {
   final def fromExecutionContext(ec: ExecutionContext): Platform =
     fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
 
+  /**
+   * Makes a new default platform. This is a side-effecting method.
+   */
+  def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
+    fromExecutor(Executor.makeDefault(yieldOpCount))
+
   final def newWeakHashMap[A, B](): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
 
   final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
-
-  private def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
-    fromExecutor(Executor.makeDefault(yieldOpCount))
 }
