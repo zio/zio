@@ -1534,8 +1534,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
     new ZSink[R, E, Nothing, Any, B] {
       type State = Unit
-      val initial                    = IO.succeed(())
-      def step(state: State, a: Any) = IO.succeed(())
+      val initial                    = IO.unit
+      def step(state: State, a: Any) = IO.unit
       def extract(state: State)      = b.map((_, Chunk.empty))
       def cont(state: State)         = false
     }
@@ -1558,8 +1558,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
     new Sink[E, Nothing, Any, Nothing] {
       type State = Unit
-      val initial                    = UIO.succeed(())
-      def step(state: State, a: Any) = UIO.succeed(())
+      val initial                    = UIO.unit
+      def step(state: State, a: Any) = UIO.unit
       def extract(state: State)      = IO.halt(e)
       def cont(state: State)         = false
     }

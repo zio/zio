@@ -507,7 +507,7 @@ object SinkSpec extends ZIOBaseSpec {
         testM("step error") {
           val s = new ZSink[Any, String, Nothing, Any, Nothing] {
             type State = Unit
-            val initial                    = UIO.succeed(())
+            val initial                    = UIO.unit
             def step(state: State, a: Any) = IO.fail("Ouch")
             def extract(state: State)      = IO.fail("Ouch")
             def cont(state: State)         = true
