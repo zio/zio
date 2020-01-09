@@ -19,11 +19,8 @@ package zio
 import zio.internal.{ Scheduler => IScheduler }
 
 package object scheduler {
-  type Scheduler = Has[Scheduler.Service]
+  type Scheduler = Has[IScheduler]
 
-  val schedulerService: ZIO[Scheduler, Nothing, Scheduler.Service] =
+  def scheduler: ZIO[Scheduler, Nothing, IScheduler] =
     ZIO.access(_.get)
-
-  val scheduler: ZIO[Scheduler, Nothing, IScheduler] =
-    ZIO.accessM(_.get.scheduler)
 }

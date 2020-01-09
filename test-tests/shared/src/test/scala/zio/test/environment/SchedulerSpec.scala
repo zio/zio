@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import zio.duration.Duration._
 import zio.duration._
 import zio.internal.Scheduler.CancelToken
+import zio.scheduler.scheduler
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestClock._
@@ -16,7 +17,7 @@ object SchedulerSpec extends ZIOBaseSpec {
   def spec = suite("SchedulerSpec")(
     testM("scheduled tasks get executed")(
       for {
-        scheduler <- TestClock.scheduler
+        scheduler <- scheduler
         promise   <- Promise.make[Nothing, Unit]
         _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
         _         <- TestClock.adjust(10.seconds)
@@ -25,7 +26,7 @@ object SchedulerSpec extends ZIOBaseSpec {
     ),
     testM("scheduled tasks only get executed when time has passed")(
       for {
-        scheduler <- TestClock.scheduler
+        scheduler <- scheduler
         promise   <- Promise.make[Nothing, Unit]
         _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds + 1.nanosecond))
         _         <- adjust(10.seconds)
@@ -34,7 +35,7 @@ object SchedulerSpec extends ZIOBaseSpec {
     ),
     testM("scheduled tasks can be canceled")(
       for {
-        scheduler <- TestClock.scheduler
+        scheduler <- scheduler
         promise   <- Promise.make[Nothing, Unit]
         cancel    <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds + 1.nanosecond))
         canceled  <- ZIO.effectTotal(cancel())
@@ -47,7 +48,7 @@ object SchedulerSpec extends ZIOBaseSpec {
     ),
     testM("tasks that are cancelled after completion are not reported as interrupted")(
       for {
-        scheduler <- TestClock.scheduler
+        scheduler <- scheduler
         promise   <- Promise.make[Nothing, Unit]
         cancel    <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
         _         <- adjust(10.seconds + 1.nanos)
@@ -57,7 +58,7 @@ object SchedulerSpec extends ZIOBaseSpec {
     ),
     testM("scheduled tasks get executed before shutdown")(
       for {
-        scheduler <- TestClock.scheduler
+        scheduler <- scheduler
         promise   <- Promise.make[Nothing, Unit]
         _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
         _         <- ZIO.effectTotal(scheduler.shutdown())

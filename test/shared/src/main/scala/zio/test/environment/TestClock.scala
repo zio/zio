@@ -96,7 +96,7 @@ import zio.scheduler.Scheduler
  */
 object TestClock extends Serializable {
 
-  trait Service extends Restorable with Clock.Service with Scheduler.Service {
+  trait Service extends Restorable {
     def adjust(duration: Duration): UIO[Unit]
     def fiberTime: UIO[Duration]
     def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
@@ -112,7 +112,6 @@ object TestClock extends Serializable {
     live: Live.Service,
     warningState: RefM[TestClock.WarningData]
   ) extends Clock.Service
-      with Scheduler.Service
       with TestClock.Service {
 
     /**
@@ -344,17 +343,18 @@ object TestClock extends Serializable {
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
+  def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
     ZLayer.fromServiceManaged { (live: Live.Service) =>
       for {
-        ref      <- Ref.make(data).toManaged_
-        fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
-        refM     <- RefM.make(WarningData.start).toManaged_
-        test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
-      } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
+        ref       <- Ref.make(data).toManaged_
+        fiberRef  <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
+        refM      <- RefM.make(WarningData.start).toManaged_
+        test      <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
+        scheduler <- test.scheduler.toManaged_
+      } yield Has.allOf[Clock.Service, TestClock.Service, IScheduler](test, test, scheduler)
     }
 
-  val default: ZLayer[Live, Nothing, Clock with TestClock] =
+  val default: ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
     live(Data(0, 0, Nil, ZoneId.of("UTC")))
 
   /**
@@ -387,13 +387,6 @@ object TestClock extends Serializable {
    */
   def setTimeZone(zone: ZoneId): ZIO[TestClock, Nothing, Unit] =
     ZIO.accessM(_.get.setTimeZone(zone))
-
-  /**
-   * Accesses a `TestClock` instance in the environment and returns a new
-   * `Scheduler` backed by this `TestClock`.
-   */
-  val scheduler: ZIO[TestClock, Nothing, IScheduler] =
-    ZIO.accessM(_.get.scheduler)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list of
