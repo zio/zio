@@ -35,7 +35,7 @@ private[zio] trait PlatformSpecific {
   type Tagged[A] = TypeTag[A]
   type TagType   = Type
 
-  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tpe
+  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tpe.dealias
 
   private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
     left <:< right
@@ -43,6 +43,6 @@ private[zio] trait PlatformSpecific {
   private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] =
     t.dealias match {
       case RefinedType(parents, _) => parents.toSet.flatMap((p: TagType) => taggedGetHasServices(p))
-      case t                       => Set(t.typeArgs(0))
+      case t                       => Set(t.typeArgs(0).dealias)
     }
 }
