@@ -188,10 +188,10 @@ object TestClock extends Serializable {
      * Returns an effect that creates a new `Scheduler` backed by this
      * `TestClock`.
      */
-    val scheduler: ZIO[Any, Nothing, IScheduler] =
+    val scheduler: ZIO[Any, Nothing, Scheduler.Service] =
       ZIO.runtime[Any].flatMap { runtime =>
         ZIO.succeed {
-          new IScheduler {
+          new Scheduler.Service {
             final def schedule(task: Runnable, duration: Duration): CancelToken =
               duration match {
                 case Duration.Infinity =>
@@ -351,7 +351,7 @@ object TestClock extends Serializable {
         refM      <- RefM.make(WarningData.start).toManaged_
         test      <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
         scheduler <- test.scheduler.toManaged_
-      } yield Has.allOf[Clock.Service, TestClock.Service, IScheduler](test, test, scheduler)
+      } yield Has.allOf[Clock.Service, TestClock.Service, Scheduler.Service](test, test, scheduler)
     }
 
   val default: ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =

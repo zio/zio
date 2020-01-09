@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import zio.duration._
 
-trait Scheduler {
+private[zio] trait Scheduler {
   import Scheduler.CancelToken
 
   def schedule(task: Runnable, duration: Duration): CancelToken

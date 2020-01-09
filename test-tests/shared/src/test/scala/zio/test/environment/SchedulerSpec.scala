@@ -5,12 +5,12 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import zio.duration.Duration._
 import zio.duration._
 import zio.internal.Scheduler.CancelToken
+import zio.scheduler.Scheduler
 import zio.scheduler.scheduler
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestClock._
 import zio.{ clock, Promise, ZIO }
-import zio.internal.{ Scheduler => IScheduler }
 
 object SchedulerSpec extends ZIOBaseSpec {
 
@@ -69,7 +69,7 @@ object SchedulerSpec extends ZIOBaseSpec {
   )
 
   val rt = zio.Runtime.default
-  def runTask(scheduler: IScheduler, promise: Promise[Nothing, Unit], duration: Duration): CancelToken =
+  def runTask(scheduler: Scheduler.Service, promise: Promise[Nothing, Unit], duration: Duration): CancelToken =
     scheduler.schedule(
       new Runnable {
         override def run(): Unit = {

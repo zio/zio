@@ -16,9 +16,31 @@
 
 package zio.scheduler
 
-import zio.{ Has, ZLayer }
-import zio.internal.{ Scheduler => IScheduler }
+import zio.{ Has, UIO, ZLayer }
+import zio.duration.Duration
+import zio.internal.Scheduler.CancelToken
 
 object Scheduler extends PlatformSpecific {
-  val live: ZLayer.NoDeps[Nothing, Has[IScheduler]] = ZLayer.succeed(globalScheduler)
+
+  trait Service extends Serializable {
+    def submit(task: Runnable, duration: Duration): UIO[Unit] =
+      UIO.effectAsyncInterrupt { cb =>
+        val canceler = schedule(() => cb(UIO.effectTotal(task.run())), duration)
+        Left(UIO.effectTotal(canceler()))
+      }
+    private[zio] def schedule(task: Runnable, duration: Duration): CancelToken
+    private[zio] def size: Int
+    private[zio] def shutdown(): Unit
+  }
+
+  val live: ZLayer.NoDeps[Nothing, Has[Service]] = ZLayer.succeed {
+    new Service {
+      private[zio] def schedule(task: Runnable, duration: Duration): CancelToken =
+        globalScheduler.schedule(task, duration)
+      private[zio] def size: Int =
+        globalScheduler.size
+      private[zio] def shutdown(): Unit =
+        globalScheduler.shutdown()
+    }
+  }
 }
