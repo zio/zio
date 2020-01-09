@@ -29,7 +29,15 @@ private[zio] trait PlatformSpecific {
     ((Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live).build
 
   type Tagged[A] = scala.reflect.ClassTag[A]
+  type TagType   = scala.reflect.ClassTag[_]
 
-  private[zio] def taggedIsSubtype[A, B](left: Tagged[A], right: Tagged[B]): Boolean =
+  private[zio] def taggedIsSubtype[A, B](left: TagType, right: TagType): Boolean =
     right.runtimeClass.isAssignableFrom(left.runtimeClass)
+
+  private[zio] def taggedTagType[A](tagged: Tagged[A]): TagType = tagged
+
+  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] = {
+    val _ = t
+    Set()
+  }
 }

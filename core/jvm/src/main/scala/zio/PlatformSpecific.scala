@@ -30,8 +30,19 @@ private[zio] trait PlatformSpecific {
   private[zio] val defaultEnvironment: Managed[Nothing, ZEnv] =
     ((Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Blocking.live).build
 
-  type Tagged[A] = scala.reflect.runtime.universe.TypeTag[A]
+  import scala.reflect.runtime.universe._
 
-  private[zio] def taggedIsSubtype[A, B](left: Tagged[A], right: Tagged[B]): Boolean =
-    left.tpe <:< right.tpe
+  type Tagged[A] = TypeTag[A]
+  type TagType   = Type
+
+  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tpe
+
+  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
+    left <:< right
+
+  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] =
+    t.dealias match {
+      case RefinedType(parents, _) => parents.toSet.flatMap((p: TagType) => taggedGetHasServices(p))
+      case t                       => Set(t.typeArgs(0))
+    }
 }

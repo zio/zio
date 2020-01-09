@@ -46,12 +46,21 @@ final case class ZLayer[-RIn, +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]
    * Combines this layer with the specified layer, producing a new layer that
    * has the inputs of both layers, and the outputs of both layers.
    */
-  def ++[E1 >: E, RIn2, ROut2 <: Has[_]](
+  def ++[E1 >: E, RIn2, ROut1 >: ROut <: Has[_], ROut2 <: Has[_]](
+    that: ZLayer[RIn2, E1, ROut2]
+  )(implicit t1: Tagged[ROut1], t2: Tagged[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    ZLayer(
+      ZManaged.accessManaged[RIn with RIn2] { env =>
+        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => (l: ROut1).union[ROut2](r))
+      }
+    )
+
+  def +!+[E1 >: E, RIn2, ROut2 <: Has[_]](
     that: ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
     ZLayer(
       ZManaged.accessManaged[RIn with RIn2] { env =>
-        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => l.union[ROut2](r))
+        (self.value.provide(env) zipWith that.value.provide(env))((l, r) => l.unionAll[ROut2](r))
       }
     )
 

@@ -32,7 +32,7 @@ import com.github.ghik.silencer.silent
  * Currently, to be portable across all platforms, all services added to an
  * environment must be monomorphic. Parameterized services are not supported.
  */
-final class Has[A] private (private val map: Map[Tagged[_], scala.Any], var cache: Map[Tagged[_], scala.Any] = Map())
+final class Has[A] private (private val map: Map[TagType, scala.Any], var cache: Map[TagType, scala.Any] = Map())
     extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
@@ -68,14 +68,15 @@ object Has {
 
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
-    def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1
+    def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit t1: Tagged[R0], t2: Tagged[R1]): R0 with R1
     def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
   }
   object IsHas {
     implicit def ImplicitIs[R <: Has[_]]: IsHas[R] =
       new IsHas[R] {
-        def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]                         = r.add(m)
-        def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1): R0 with R1                      = r.union[R1](r1)
+        def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M] = r.add(m)
+        def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit t1: Tagged[R0], t2: Tagged[R1]): R0 with R1 =
+          r.union[R1](r1)
         def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
       }
   }
@@ -83,7 +84,7 @@ object Has {
   implicit final class HasSyntax[Self <: Has[_]](val self: Self) extends AnyVal {
     def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = self add b
 
-    def ++[B <: Has[_]](that: B): Self with B = self union [B] that
+    def ++[B <: Has[_]](that: B)(implicit t1: Tagged[Self], t2: Tagged[B]): Self with B = self union [B] that
 
     /**
      * Adds a service to the environment. The service must be monomorphic rather
@@ -91,13 +92,15 @@ object Has {
      *
      * Good: `Logging`, bad: `Logging[String]`.
      */
-    def add[B](b: B)(implicit tag: Tagged[B], ev: Self MustNotHave B): Self with Has[B] =
-      new Has(self.map + (tag -> b)).asInstanceOf[Self with Has[B]]
+    def add[B](b: B)(implicit tagged: Tagged[B], ev: Self MustNotHave B): Self with Has[B] =
+      new Has(self.map + (taggedTagType(tagged) -> b)).asInstanceOf[Self with Has[B]]
 
     /**
      * Retrieves a service from the environment.
      */
-    def get[B](implicit ev: Self <:< Has[_ <: B], tag: Tagged[B]): B =
+    def get[B](implicit ev: Self <:< Has[_ <: B], tagged: Tagged[B]): B = {
+      val tag = taggedTagType(tagged)
+
       self.map
         .getOrElse(
           tag,
@@ -112,28 +115,53 @@ object Has {
           )
         )
         .asInstanceOf[B]
+    }
+
+    /**
+     * Prunes the environment to the set of services statically known to be
+     * contained within it.
+     */
+    def prune(implicit tagged: Tagged[Self]): Self = {
+      val tag = taggedTagType(tagged)
+      val set = taggedGetHasServices(tag)
+
+      if (set.isEmpty) self
+      else new Has(self.map.filterKeys(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[Self]
+    }
+
+    /**
+     * Combines this environment with the specified environment.
+     */
+    def union[B <: Has[_]](that: B)(implicit ev1: Tagged[Self], ev2: Tagged[B]): Self with B =
+      self.prune.unionAll[B](that.prune)
 
     /**
      * Combines this environment with the specified environment. In the event
      * of service collisions, which may not be reflected in statically known
      * types, the right hand side will be preferred.
      */
-    def union[B <: Has[_]](that: B): Self with B =
+    def unionAll[B <: Has[_]](that: B): Self with B =
       (new Has(self.map ++ that.map)).asInstanceOf[Self with B]
 
-    def upcast[A: Tagged](implicit ev: Self <:< Has[A]): Has[A] = 
+    def upcast[A: Tagged](implicit ev: Self <:< Has[A]): Has[A] =
       Has(ev(self).get[A])
 
-    def upcast[A: Tagged, B: Tagged](implicit ev: Self <:< Has[A] with Has[B]): Has[A] with Has[B] = 
+    def upcast[A: Tagged, B: Tagged](implicit ev: Self <:< Has[A] with Has[B]): Has[A] with Has[B] =
       Has.allOf[A, B](ev(self).get[A], ev(self).get[B])
 
-    def upcast[A: Tagged, B: Tagged, C: Tagged](implicit ev: Self <:< Has[A] with Has[B] with Has[C]): Has[A] with Has[B] with Has[C] = 
+    def upcast[A: Tagged, B: Tagged, C: Tagged](
+      implicit ev: Self <:< Has[A] with Has[B] with Has[C]
+    ): Has[A] with Has[B] with Has[C] =
       Has.allOf[A, B, C](ev(self).get[A], ev(self).get[B], ev(self).get[C])
 
-    def upcast[A: Tagged, B: Tagged, C: Tagged, D: Tagged](implicit ev: Self <:< Has[A] with Has[B] with Has[C] with Has[D]): Has[A] with Has[B] with Has[C] with Has[D] = 
+    def upcast[A: Tagged, B: Tagged, C: Tagged, D: Tagged](
+      implicit ev: Self <:< Has[A] with Has[B] with Has[C] with Has[D]
+    ): Has[A] with Has[B] with Has[C] with Has[D] =
       Has.allOf[A, B, C, D](ev(self).get[A], ev(self).get[B], ev(self).get[C], ev(self).get[D])
 
-    def upcast[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged](implicit ev: Self <:< Has[A] with Has[B] with Has[C] with Has[D] with Has[E]): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] = 
+    def upcast[A: Tagged, B: Tagged, C: Tagged, D: Tagged, E: Tagged](
+      implicit ev: Self <:< Has[A] with Has[B] with Has[C] with Has[D] with Has[E]
+    ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] =
       Has.allOf[A, B, C, D, E](ev(self).get[A], ev(self).get[B], ev(self).get[C], ev(self).get[D], ev(self).get[E])
 
     /**
@@ -147,7 +175,7 @@ object Has {
    * Constructs a new environment holding the single service. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(TaggedAnyRef -> (()))).add(a)
+  def apply[A: Tagged](a: A): Has[A] = new Has[AnyRef](Map(), Map(taggedTagType(TaggedAnyRef) -> (()))).add(a)
 
   /**
    * Constructs a new environment holding the specified services. The service
