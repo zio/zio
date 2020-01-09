@@ -1244,6 +1244,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Retries this effect until its error satisfies the specified predicate.
+   */
+  final def retryUntil(f: E => Boolean): ZIO[R, E, A] =
+    retry(Schedule.doUntil(f))
+
+  /**
+   * Retries this effect while its error satisfies the specified predicate.
+   */
+  final def retryWhile(f: E => Boolean): ZIO[R, E, A] =
+    retry(Schedule.doWhile(f))
+
+  /**
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
    */

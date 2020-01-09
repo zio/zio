@@ -913,6 +913,40 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.sequence(lst))(equalTo(List(12, 12)))
       }
     ),
+    suite("retryUntil")(
+      testM("retryUntil retries until condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.update(_ - 1) <* out.update(_ + 1)).flipWith(_.retryUntil(_ == 0))
+          result <- out.get
+        } yield assert(result)(equalTo(10))
+      },
+      testM("retryUntil doesn't retry when condition is true") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).flipWith(_.doUntil(_ => true))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
+    suite("retryWhile")(
+      testM("retryWhile retries while condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.update(_ - 1) <* out.update(_ + 1)).flipWith(_.retryWhile(_ >= 0))
+          result <- out.get
+        } yield assert(result)(equalTo(11))
+      },
+      testM("retryWhile doesn't retry when condition is false") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).flipWith(_.retryWhile(_ => false))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
     suite("right")(
       testM("on Right value") {
         assertM(ZIO.succeed(Right("Right")).right)(equalTo("Right"))
