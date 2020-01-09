@@ -25,10 +25,10 @@ import zio.scheduler.Scheduler
 import zio.blocking.Blocking
 
 private[zio] trait PlatformSpecific {
-  type ZEnv = Clock with Console with System with Random with Blocking
+  type ZEnv = Clock with Console with System with Random with Scheduler with Blocking
 
   private[zio] val defaultEnvironment: Managed[Nothing, ZEnv] =
-    ((Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Blocking.live).build
+    ((Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live ++ Blocking.live).build
 
   import scala.reflect.runtime.universe._
 

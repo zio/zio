@@ -24,6 +24,7 @@ import zio.duration._
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
 import zio.clock.Clock
+import zio.scheduler.Scheduler
 
 /**
  * `TestClock` makes it easy to deterministically and efficiently test effects
@@ -342,17 +343,18 @@ object TestClock extends Serializable {
    * Constructs a new `Test` object that implements the `TestClock` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock] =
+  def live(data: Data): ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
     ZLayer.fromServiceManaged { (live: Live.Service) =>
       for {
-        ref      <- Ref.make(data).toManaged_
-        fiberRef <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
-        refM     <- RefM.make(WarningData.start).toManaged_
-        test     <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
-      } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
+        ref       <- Ref.make(data).toManaged_
+        fiberRef  <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
+        refM      <- RefM.make(WarningData.start).toManaged_
+        test      <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
+        scheduler <- test.scheduler.toManaged_
+      } yield Has.allOf[Clock.Service, TestClock.Service, IScheduler](test, test, scheduler)
     }
 
-  val default: ZLayer[Live, Nothing, Clock with TestClock] =
+  val default: ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
     live(Data(0, 0, Nil, ZoneId.of("UTC")))
 
   /**
