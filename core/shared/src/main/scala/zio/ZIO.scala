@@ -2808,7 +2808,7 @@ object ZIO {
   /**
    * Strictly-evaluated unit lifted into the `ZIO` monad.
    */
-  val unit: URIO[Any, Unit] = succeed(())
+  val unit: UIO[Unit] = succeed(())
 
   /**
    * Prefix form of `ZIO#uninterruptible`.

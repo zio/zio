@@ -2556,7 +2556,7 @@ object ZIOSpec extends ZIOBaseSpec {
         _ <- if (count != 1) {
               ZIO.fail("Accessed more than once")
             } else {
-              ZIO.succeed(())
+              ZIO.unit
             }
       } yield res
     }
