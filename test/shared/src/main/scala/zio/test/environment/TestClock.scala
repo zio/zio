@@ -24,6 +24,7 @@ import zio.duration._
 import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
 import zio.clock.Clock
+import zio.scheduler.Scheduler
 
 /**
  * `TestClock` makes it easy to deterministically and efficiently test effects
@@ -95,7 +96,7 @@ import zio.clock.Clock
  */
 object TestClock extends Serializable {
 
-  trait Service extends Restorable {
+  trait Service extends Restorable with Clock.Service with Scheduler.Service {
     def adjust(duration: Duration): UIO[Unit]
     def fiberTime: UIO[Duration]
     def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
@@ -111,6 +112,7 @@ object TestClock extends Serializable {
     live: Live.Service,
     warningState: RefM[TestClock.WarningData]
   ) extends Clock.Service
+      with Scheduler.Service
       with TestClock.Service {
 
     /**
@@ -385,6 +387,13 @@ object TestClock extends Serializable {
    */
   def setTimeZone(zone: ZoneId): ZIO[TestClock, Nothing, Unit] =
     ZIO.accessM(_.get.setTimeZone(zone))
+
+  /**
+   * Accesses a `TestClock` instance in the environment and returns a new
+   * `Scheduler` backed by this `TestClock`.
+   */
+  val scheduler: ZIO[TestClock, Nothing, IScheduler] =
+    ZIO.accessM(_.get.scheduler)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list of

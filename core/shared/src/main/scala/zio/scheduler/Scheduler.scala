@@ -16,9 +16,17 @@
 
 package zio.scheduler
 
-import zio.{ Has, ZLayer }
+import zio.{ UIO, ZLayer }
 import zio.internal.{ Scheduler => IScheduler }
 
 object Scheduler extends PlatformSpecific {
-  val live: ZLayer.NoDeps[Nothing, Has[IScheduler]] = ZLayer.succeed(globalScheduler)
+  trait Service extends Serializable {
+    val scheduler: UIO[IScheduler]
+  }
+  val live: ZLayer.NoDeps[Nothing, Scheduler] = ZLayer.succeed {
+    new Service {
+      val scheduler: UIO[IScheduler] =
+        UIO.succeed(globalScheduler)
+    }
+  }
 }
