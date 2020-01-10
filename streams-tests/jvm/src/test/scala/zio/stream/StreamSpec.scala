@@ -718,7 +718,7 @@ object StreamSpec extends ZIOBaseSpec {
       }
     ),
     suite("Stream.flatMapPar / flattenPar / mergeAll")(
-      testM("guarantee ordering")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { m: List[Int] =>
+      testM("guarantee ordering")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { (m: List[Int]) =>
         for {
           flatMap    <- Stream.fromIterable(m).flatMap(i => Stream(i, i)).runCollect
           flatMapPar <- Stream.fromIterable(m).flatMapPar(1)(i => Stream(i, i)).runCollect
@@ -1719,15 +1719,15 @@ object StreamSpec extends ZIOBaseSpec {
           .runCollect
       )(equalTo(List(1, 2, 3, 4)))
     }),
-    testM("Stream.toQueue")(checkM(smallChunks(Gen.anyInt)) { c: Chunk[Int] =>
+    testM("Stream.toQueue")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
       val s = Stream.fromChunk(c)
-      assertM(s.toQueue(1000).use { queue: Queue[Take[Nothing, Int]] =>
+      assertM(s.toQueue(1000).use { (queue: Queue[Take[Nothing, Int]]) =>
         waitForSize(queue, c.length + 1) *> queue.takeAll
       })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End))
     }),
-    testM("Stream.toQueueUnbounded")(checkM(smallChunks(Gen.anyInt)) { c: Chunk[Int] =>
+    testM("Stream.toQueueUnbounded")(checkM(smallChunks(Gen.anyInt)) { (c: Chunk[Int]) =>
       val s = Stream.fromChunk(c)
-      assertM(s.toQueueUnbounded.use { queue: Queue[Take[Nothing, Int]] =>
+      assertM(s.toQueueUnbounded.use { (queue: Queue[Take[Nothing, Int]]) =>
         waitForSize(queue, c.length + 1) *> queue.takeAll
       })(equalTo(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End))
     }),
