@@ -95,15 +95,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
   .settings(buildInfoSettings("zio"))
+  .settings(scalaReflectSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(
-    libraryDependencies +=
-      "org.scala-lang" % "scala-reflect" % scalaVersion.value
-  )
 
 lazy val coreJS = core.js
 

@@ -73,6 +73,12 @@ object BuildHelper {
     }
   )
 
+  val scalaReflectSettings = Seq(
+    libraryDependencies ++=
+      (if (isDotty.value) Seq()
+       else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value))
+  )
+
   val replSettings = makeReplSettings {
     """|import zio._
        |import zio.console._
@@ -88,9 +94,8 @@ object BuildHelper {
        |import zio.console._
        |import zio.duration._
        |import zio.stream._
-       |object replRTS extends DefaultRuntime {}
-       |import replRTS._
-       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |import zio.Runtime.default._
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = unsafeRun(io.provideLayer(ZEnv.live)) }
     """.stripMargin
   }
 
