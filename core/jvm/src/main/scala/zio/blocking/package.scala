@@ -17,6 +17,7 @@
 package zio
 
 import java.io.IOException
+
 import zio.blocking.Blocking.Service
 
 package object blocking {
