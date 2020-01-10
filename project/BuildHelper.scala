@@ -256,7 +256,7 @@ object BuildHelper {
 
     def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
 
-    def item(text: String): String = s"${Console.GREEN}> ${Console.CYAN}$text${Console.RESET}"
+    def item(text: String): String    = s"${Console.GREEN}> ${Console.CYAN}$text${Console.RESET}"
     def subItem(text: String): String = s"  ${Console.YELLOW}> ${Console.CYAN}$text${Console.RESET}"
 
     s"""|${header(" ________ ___")}
