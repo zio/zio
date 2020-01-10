@@ -3,18 +3,18 @@ package zio
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
-import zio.test._
 import zio.Cause._
+import zio.Cause._
+import zio.LatchOps._
 import zio.LatchOps._
 import zio.clock.Clock
 import zio.duration._
 import zio.random.Random
+import zio.scheduler.Scheduler
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
+import zio.test._
 import zio.test.environment.{ Live, TestClock }
-import zio.Cause._
-import zio.LatchOps._
-import zio.scheduler.Scheduler
 
 object ZIOSpec extends ZIOBaseSpec {
 

@@ -1,9 +1,9 @@
 package zio.test
 
 import zio._
-import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.ReportingTestUtils._
+import zio.test.environment._
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 

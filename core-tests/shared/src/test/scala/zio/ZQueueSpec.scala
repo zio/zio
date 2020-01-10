@@ -1,11 +1,12 @@
 package zio
 
 import scala.collection.immutable.Range
+
+import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
-import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ jvm, nonFlaky }
-import zio.ZQueueSpecUtil.waitForSize
+import zio.test._
 import zio.test.environment.Live
 
 object ZQueueSpec extends ZIOBaseSpec {

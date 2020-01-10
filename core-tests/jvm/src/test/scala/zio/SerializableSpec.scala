@@ -5,10 +5,10 @@ import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream,
 import zio.SerializableSpecHelpers._
 import zio.internal.stacktracer.ZTraceElement
 import zio.system.System
-import zio.test.{ test => testSync, _ }
 import zio.test.Assertion._
 import zio.test.TestAspect.scala2Only
 import zio.test.environment.Live
+import zio.test.{ test => testSync, _ }
 
 object SerializableSpec extends ZIOBaseSpec {
 

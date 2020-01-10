@@ -16,10 +16,10 @@
 
 package zio.test.mock
 
-import zio.{ Has, IO, UIO, ZIO, ZLayer }
 import zio.duration.Duration
-import zio.test.{ assertM, testM, Assertion }
 import zio.test.environment.Live
+import zio.test.{ assertM, testM, Assertion }
+import zio.{ Has, IO, UIO, ZIO, ZLayer }
 
 object ExpectationSpecUtils {
 

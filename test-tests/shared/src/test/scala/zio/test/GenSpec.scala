@@ -1,11 +1,13 @@
 package zio.test
 
 import java.time._
+
 import scala.math.Numeric.DoubleIsFractional
+
 import zio.ZIO
+import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
-import zio.duration.{ Duration, _ }
 import zio.test.GenUtils._
 import zio.test.TestAspect.scala2Only
 import zio.test.{ check => Check, checkN => CheckN }

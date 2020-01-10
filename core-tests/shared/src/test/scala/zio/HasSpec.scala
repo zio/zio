@@ -1,8 +1,8 @@
 package zio
 
-import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ exceptDotty, jvmOnly }
+import zio.test._
 
 object HasSpec extends ZIOBaseSpec {
   trait Animal
