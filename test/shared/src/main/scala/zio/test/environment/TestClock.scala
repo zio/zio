@@ -21,8 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import zio._
 import zio.duration._
-import zio.internal.{ Scheduler => IScheduler }
-import zio.internal.Scheduler.CancelToken
+import zio.scheduler.Scheduler.CancelToken
 import zio.clock.Clock
 import zio.scheduler.Scheduler
 

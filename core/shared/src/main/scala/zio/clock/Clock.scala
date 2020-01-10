@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
 import zio.scheduler.Scheduler
-import zio.internal.{ Scheduler => IScheduler }
 import zio.{ Has, IO, UIO, ZIO, ZLayer }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
 

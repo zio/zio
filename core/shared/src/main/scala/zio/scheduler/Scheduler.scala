@@ -16,16 +16,20 @@
 
 package zio.scheduler
 
-import zio.{ Has, UIO, ZLayer }
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
+
+import zio.{ UIO, ZLayer }
 import zio.duration.Duration
-import zio.internal.Scheduler.CancelToken
 
 object Scheduler extends PlatformSpecific {
+  private[zio] type CancelToken = () => Boolean
 
   trait Service extends Serializable {
-    def submit(task: Runnable, duration: Duration): UIO[Unit] =
+    def schedule[A](task: => A, duration: Duration): UIO[A] =
       UIO.effectAsyncInterrupt { cb =>
-        val canceler = schedule(() => cb(UIO.effectTotal(task.run())), duration)
+        val canceler = schedule(() => cb(UIO.effectTotal(task)), duration)
         Left(UIO.effectTotal(canceler()))
       }
     private[zio] def schedule(task: Runnable, duration: Duration): CancelToken
@@ -33,14 +37,54 @@ object Scheduler extends PlatformSpecific {
     private[zio] def shutdown(): Unit
   }
 
-  val live: ZLayer.NoDeps[Nothing, Has[Service]] = ZLayer.succeed {
+  val live: ZLayer.NoDeps[Nothing, Scheduler] = ZLayer.succeed {
     new Service {
       private[zio] def schedule(task: Runnable, duration: Duration): CancelToken =
-        globalScheduler.schedule(task, duration)
+        defaultScheduler.schedule(task, duration)
       private[zio] def size: Int =
-        globalScheduler.size
+        defaultScheduler.size
       private[zio] def shutdown(): Unit =
-        globalScheduler.shutdown()
+        defaultScheduler.shutdown()
     }
   }
+
+  /**
+   * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.
+   */
+  final def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler.Service =
+    new Scheduler.Service {
+      val ConstFalse = () => false
+
+      val _size = new AtomicInteger()
+
+      override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+        case Duration.Infinity => ConstFalse
+        case Duration.Zero =>
+          task.run()
+
+          ConstFalse
+        case duration: Duration.Finite =>
+          _size.incrementAndGet
+
+          val future = service.schedule(new Runnable {
+            def run: Unit =
+              try task.run()
+              finally {
+                val _ = _size.decrementAndGet
+              }
+          }, duration.toNanos, TimeUnit.NANOSECONDS)
+
+          () => {
+            val canceled = future.cancel(true)
+
+            if (canceled) _size.decrementAndGet
+
+            canceled
+          }
+      }
+
+      override def size: Int = _size.get
+
+      override def shutdown(): Unit = service.shutdown()
+    }
 }

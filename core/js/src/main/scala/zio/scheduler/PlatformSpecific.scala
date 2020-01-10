@@ -17,13 +17,12 @@
 package zio.scheduler
 
 import zio.duration.Duration
-import zio.internal.{ Scheduler => IScheduler }
 
 import scala.scalajs.js
 
 private[scheduler] trait PlatformSpecific {
-  private[scheduler] val globalScheduler = new IScheduler {
-    import IScheduler.CancelToken
+  private[scheduler] val defaultScheduler = new Scheduler.Service {
+    import Scheduler.CancelToken
 
     private[this] val ConstFalse = () => false
 

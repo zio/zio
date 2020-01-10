@@ -17,14 +17,14 @@
 package zio.scheduler
 
 import zio.duration.Duration
-import zio.internal.{ NamedThreadFactory, Scheduler => IScheduler }
+import zio.internal.NamedThreadFactory
 
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
 private[scheduler] trait PlatformSpecific {
-  private[scheduler] val globalScheduler = new IScheduler {
-    import IScheduler.CancelToken
+  private[scheduler] val defaultScheduler = new Scheduler.Service {
+    import Scheduler.CancelToken
 
     private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
 

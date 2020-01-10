@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.internal.{ Scheduler => IScheduler }
-
 package object scheduler {
   type Scheduler = Has[Scheduler.Service]
 

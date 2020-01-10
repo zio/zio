@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import zio.duration.Duration._
 import zio.duration._
-import zio.internal.Scheduler.CancelToken
+import zio.scheduler.Scheduler.CancelToken
 import zio.scheduler.Scheduler
 import zio.scheduler.scheduler
 import zio.test.Assertion._
