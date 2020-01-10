@@ -3,6 +3,7 @@ package zio.platform
 import zio.internal.Platform
 import zio.test._
 import zio.test.Assertion._
+import zio.test._
 import zio.ZIOBaseSpec
 
 object PlatformSpec extends ZIOBaseSpec {

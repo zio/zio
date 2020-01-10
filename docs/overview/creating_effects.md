@@ -135,7 +135,7 @@ A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
 ```scala mdoc:silent
 import scala.io.StdIn
 
-val getStrLn: Task[Unit] =
+val getStrLn: Task[String] =
   ZIO.effect(StdIn.readLine())
 ```
 

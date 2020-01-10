@@ -1,12 +1,12 @@
 package zio
 
+import scala.concurrent.Future
+
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.{ assert, assertM, suite, testM, TestResult }
-
-import scala.concurrent.Future
 import zio.test.environment.{ TestClock, TestRandom }
+import zio.test.{ assert, assertM, suite, testM, TestResult }
 
 object ScheduleSpec extends ZIOBaseSpec {
 

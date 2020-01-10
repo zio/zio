@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package zio.stm
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
  */
-class TMap[K, V] private (
+final class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],
   private val tCapacity: TRef[Int],
   private val tSize: TRef[Int]
@@ -29,13 +29,13 @@ class TMap[K, V] private (
   /**
    * Tests whether or not map contains a key.
    */
-  final def contains(k: K): STM[Nothing, Boolean] =
+  def contains(k: K): STM[Nothing, Boolean] =
     get(k).map(_.isDefined)
 
   /**
    * Removes binding for given key.
    */
-  final def delete(k: K): STM[Nothing, Unit] = {
+  def delete(k: K): STM[Nothing, Unit] = {
     def removeMatching(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
       val (toRemove, toRetain) = bucket.partition(_._1 == k)
       if (toRemove.isEmpty) STM.succeed(toRetain) else tSize.update(_ - toRemove.size).as(toRetain)
@@ -51,13 +51,13 @@ class TMap[K, V] private (
   /**
    * Atomically folds using a pure function.
    */
-  final def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
+  def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
     tBuckets.get.flatMap(_.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op)))
 
   /**
    * Atomically folds using a transactional function.
    */
-  final def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
+  def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
     def loopM(res: A, remaining: List[(K, V)]): STM[E, A] =
       remaining match {
         case Nil          => STM.succeed(res)
@@ -70,13 +70,13 @@ class TMap[K, V] private (
   /**
    * Atomically performs transactional-effect for each binding present in map.
    */
-  final def foreach[E](f: (K, V) => STM[E, Unit]): STM[E, Unit] =
+  def foreach[E](f: (K, V) => STM[E, Unit]): STM[E, Unit] =
     foldM(())((_, kv) => f(kv._1, kv._2))
 
   /**
    * Retrieves value associated with given key.
    */
-  final def get(k: K): STM[Nothing, Option[V]] =
+  def get(k: K): STM[Nothing, Option[V]] =
     for {
       buckets <- tBuckets.get
       idx     <- indexOf(k)
@@ -87,13 +87,13 @@ class TMap[K, V] private (
    * Retrieves value associated with given key or default value, in case the
    * key isn't present.
    */
-  final def getOrElse(k: K, default: => V): STM[Nothing, V] =
+  def getOrElse(k: K, default: => V): STM[Nothing, V] =
     get(k).map(_.getOrElse(default))
 
   /**
    * Collects all keys stored in map.
    */
-  final def keys: STM[Nothing, List[K]] =
+  def keys: STM[Nothing, List[K]] =
     toList.map(_.map(_._1))
 
   /**
@@ -101,7 +101,7 @@ class TMap[K, V] private (
    * value, otherwise merge the existing value with the new one using function `f`
    * and store the result
    */
-  final def merge(k: K, v: V)(f: (V, V) => V): STM[Nothing, V] =
+  def merge(k: K, v: V)(f: (V, V) => V): STM[Nothing, V] =
     get(k).flatMap(_.fold(put(k, v).as(v)) { v0 =>
       val v1 = f(v0, v)
       put(k, v1).as(v1)
@@ -110,7 +110,7 @@ class TMap[K, V] private (
   /**
    * Stores new binding into the map.
    */
-  final def put(k: K, v: V): STM[Nothing, Unit] = {
+  def put(k: K, v: V): STM[Nothing, Unit] = {
     def upsert(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
       val exists = bucket.exists(_._1 == k)
 
@@ -143,25 +143,25 @@ class TMap[K, V] private (
   /**
    * Removes bindings matching predicate.
    */
-  final def removeIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
+  def removeIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
     tBuckets.get.flatMap(_.transform(_.filterNot(kv => p(kv._1, kv._2))))
 
   /**
    * Retains bindings matching predicate.
    */
-  final def retainIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
+  def retainIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
     tBuckets.get.flatMap(_.transform(_.filter(kv => p(kv._1, kv._2))))
 
   /**
    * Collects all bindings into a list.
    */
-  final def toList: STM[Nothing, List[(K, V)]] =
+  def toList: STM[Nothing, List[(K, V)]] =
     fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
 
   /**
    * Atomically updates all bindings using a pure function.
    */
-  final def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
+  def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
     tBuckets.get.flatMap { tArr =>
       val g = f.tupled
 
@@ -180,7 +180,7 @@ class TMap[K, V] private (
       val overwrite =
         STM
           .foreach(original)(_.get.map(_.view.map(g)))
-          .flatMap { xs =>
+          .flatMap[Any, Nothing, Unit] { xs =>
             STM.foreach_(xs.view.flatten.toMap) { kv =>
               newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _)
             }
@@ -192,7 +192,7 @@ class TMap[K, V] private (
   /**
    * Atomically updates all bindings using a transactional function.
    */
-  final def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
+  def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
     tBuckets.get.flatMap { tArr =>
       val g = f.tupled
 
@@ -212,7 +212,7 @@ class TMap[K, V] private (
         STM
           .foreach(original)(_.get.map(_.view.map(g)))
           .flatMap { xs =>
-            STM.collectAll(xs.view.flatten.toIterable).flatMap { items =>
+            STM.collectAll(xs.view.flatten.toIterable).flatMap[Any, E, Unit] { items =>
               val distinct = items.toMap
               STM.foreach_(distinct)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
             }
@@ -224,19 +224,19 @@ class TMap[K, V] private (
   /**
    * Atomically updates all values using a pure function.
    */
-  final def transformValues(f: V => V): STM[Nothing, Unit] =
+  def transformValues(f: V => V): STM[Nothing, Unit] =
     tBuckets.get.flatMap(_.transform(_.map(kv => kv._1 -> f(kv._2))))
 
   /**
    * Atomically updates all values using a transactional function.
    */
-  final def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
+  def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
     tBuckets.get.flatMap(_.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _)))))
 
   /**
    * Collects all values stored in map.
    */
-  final def values: STM[Nothing, List[V]] =
+  def values: STM[Nothing, List[V]] =
     toList.map(_.map(_._2))
 
   private def indexOf(k: K): STM[Nothing, Int] =
@@ -248,12 +248,12 @@ object TMap {
   /**
    * Makes an empty `TMap`.
    */
-  final def empty[K, V]: STM[Nothing, TMap[K, V]] = fromIterable(Nil)
+  def empty[K, V]: STM[Nothing, TMap[K, V]] = fromIterable(Nil)
 
   /**
    * Makes a new `TMap` initialized with provided iterable.
    */
-  final def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
+  def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val size     = data.size
     val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
     allocate(capacity, data.toList)
@@ -262,7 +262,7 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with specified values.
    */
-  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
+  def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
 
   private def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)

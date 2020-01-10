@@ -1,6 +1,11 @@
 package zio.stream
 
+import scala.{ Stream => _ }
+
+import StreamUtils._
+
 import zio._
+import zio.Exit.Success
 import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
 import zio.test._

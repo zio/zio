@@ -1,8 +1,8 @@
 package zio.stream
 
-import zio.{ Chunk, IO, UIO }
-import zio.test.{ assert, Gen, GenZIO, TestResult }
 import zio.test.Assertion.{ equalTo, isRight, isTrue }
+import zio.test.{ assert, Gen, GenZIO, TestResult }
+import zio.{ Chunk, IO, UIO }
 
 trait SinkUtils {
   def initErrorSink = new ZSink[Any, String, Int, Int, Int] {
@@ -15,7 +15,7 @@ trait SinkUtils {
 
   def stepErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
-    val initial                    = UIO.succeed(())
+    val initial                    = UIO.unit
     def step(state: State, a: Int) = IO.fail("Ouch")
     def extract(state: State)      = IO.fail("Ouch")
     def cont(state: State)         = false
@@ -23,8 +23,8 @@ trait SinkUtils {
 
   def extractErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
-    val initial                    = UIO.succeed(())
-    def step(state: State, a: Int) = UIO.succeed(())
+    val initial                    = UIO.unit
+    def step(state: State, a: Int) = UIO.unit
     def extract(state: State)      = IO.fail("Ouch")
     def cont(state: State)         = false
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ package zio.internal
 
 import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 
-import zio.Cause
-import zio.internal.tracing.TracingConfig
-import zio.internal.stacktracer.Tracer
 import scala.concurrent.ExecutionContext
+
+import zio.Cause
+import zio.internal.stacktracer.Tracer
+import zio.internal.tracing.TracingConfig
 
 private[internal] trait PlatformSpecific {
 

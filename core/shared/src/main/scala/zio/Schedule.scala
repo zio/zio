@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,11 @@
 
 package zio
 
+import java.util.concurrent.TimeUnit
+
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.random.Random
-import java.util.concurrent.TimeUnit
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -812,7 +813,7 @@ object Schedule {
    * A schedule that recurs forever, returning each input as the output.
    */
   def identity[A]: Schedule[Any, A, A] =
-    Schedule[Any, Unit, A, A](ZIO.succeed(()), (_, _) => ZIO.succeed(()), (a, _) => a)
+    Schedule[Any, Unit, A, A](ZIO.unit, (_, _) => ZIO.unit, (a, _) => a)
 
   /**
    * A schedule that always recurs, but will repeat on a linear time

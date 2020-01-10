@@ -3,13 +3,15 @@ package zio
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
+import zio.test._
+import zio.Cause._
+import zio.LatchOps._
 import zio.clock.Clock
 import zio.duration._
 import zio.random.Random
-import zio.test._
-import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ flaky, jvm, nonFlaky, scala2Only }
+import zio.test.environment.{ Live, TestClock }
 import zio.Cause._
 import zio.LatchOps._
 import zio.scheduler.Scheduler
@@ -572,6 +574,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("fromFutureInterrupt")(
       testM("running Future can be interrupted") {
         import java.util.concurrent.atomic.AtomicInteger
+
         import scala.concurrent.{ ExecutionContext, Future }
         def infiniteFuture(ref: AtomicInteger)(implicit ec: ExecutionContext): Future[Nothing] =
           Future(ref.getAndIncrement()).flatMap(_ => infiniteFuture(ref))
@@ -893,10 +896,10 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("Fail").raceAll(List(IO.succeed(24))))(equalTo(24))
       },
       testM("returns last failure") {
-        assertM(live(ZIO.sleep(100.millis) *> ZIO.fail(24)).raceAll(List(ZIO.fail(25))).flip)(equalTo(24))
+        assertM(Live.live(ZIO.sleep(100.millis) *> ZIO.fail(24)).raceAll(List(ZIO.fail(25))).flip)(equalTo(24))
       } @@ flaky,
       testM("returns success when it happens after failure") {
-        assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* live(ZIO.sleep(100.millis)))))(equalTo(24))
+        assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* Live.live(ZIO.sleep(100.millis)))))(equalTo(24))
       }
     ),
     suite("replicate")(
@@ -911,6 +914,40 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("positive") {
         val lst: Iterable[UIO[Int]] = ZIO.replicate(2)(ZIO.succeed(12))
         assertM(ZIO.sequence(lst))(equalTo(List(12, 12)))
+      }
+    ),
+    suite("retryUntil")(
+      testM("retryUntil retries until condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.update(_ - 1) <* out.update(_ + 1)).flipWith(_.retryUntil(_ == 0))
+          result <- out.get
+        } yield assert(result)(equalTo(10))
+      },
+      testM("retryUntil doesn't retry when condition is true") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).flipWith(_.doUntil(_ => true))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
+    suite("retryWhile")(
+      testM("retryWhile retries while condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.update(_ - 1) <* out.update(_ + 1)).flipWith(_.retryWhile(_ >= 0))
+          result <- out.get
+        } yield assert(result)(equalTo(11))
+      },
+      testM("retryWhile doesn't retry when condition is false") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).flipWith(_.retryWhile(_ => false))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
       }
     ),
     suite("right")(
@@ -1481,7 +1518,7 @@ object ZIOSpec extends ZIOBaseSpec {
                    })
                    .ensuring(unexpectedPlace.update(2 :: _))
                    .fork
-          result     <- withLive(fork.interrupt)(_.timeout(5.seconds))
+          result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
           unexpected <- unexpectedPlace.get
         } yield {
           assert(unexpected)(isEmpty) &&
@@ -1511,7 +1548,7 @@ object ZIOSpec extends ZIOBaseSpec {
                    .ensuring(unexpectedPlace.update(2 :: _))
                    .uninterruptible
                    .fork
-          result     <- withLive(fork.interrupt)(_.timeout(5.seconds))
+          result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
           unexpected <- unexpectedPlace.get
         } yield {
           assert(unexpected)(isEmpty) &&
@@ -2001,7 +2038,7 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield ()
 
         assertM(Live.live(io).timeoutTo(42)(_ => 0)(1.second))(equalTo(0))
-      },
+      } @@ flaky,
       testM("bracketForkExit release called on interrupt in separate fiber") {
         for {
           done <- Promise.make[Nothing, Unit]
@@ -2372,13 +2409,32 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(in))
       }
     ),
+    suite("validateMPar")(
+      testM("returns all errors if never valid") {
+        val in  = List.fill(1000)(0)
+        val res = IO.validateMPar(in)(a => ZIO.fail(a)).flip
+        assertM(res)(equalTo(in))
+      },
+      testM("accumulate errors and ignore successes") {
+        import zio.CanFail.canFail
+        val in  = List.range(0, 10)
+        val res = ZIO.validateMPar(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
+        assertM(res.flip)(equalTo(List(1, 3, 5, 7, 9)))
+      },
+      testM("accumulate successes") {
+        import zio.CanFail.canFail
+        val in  = List.range(0, 10)
+        val res = IO.validateMPar(in)(a => ZIO.succeed(a))
+        assertM(res)(equalTo(in))
+      }
+    ),
     suite("validateFirstM")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)
         val res = IO.validateFirstM(in)(a => ZIO.fail(a)).flip
         assertM(res)(equalTo(in))
       },
-      testM("short circuits on first success validation") {
+      testM("runs sequentially and short circuits on first success validation") {
         import zio.CanFail.canFail
         val in = List.range(1, 10)
         val f  = (a: Int) => if (a == 6) ZIO.succeed(a) else ZIO.fail(a)
@@ -2388,6 +2444,20 @@ object ZIOSpec extends ZIOBaseSpec {
           res        <- ZIO.validateFirstM(in)(a => counter.update(_ + 1) *> f(a))
           assertions <- assertM(ZIO.succeed(res))(equalTo(6)) && assertM(counter.get)(equalTo(6))
         } yield assertions
+      }
+    ),
+    suite("validateFirstMPar")(
+      testM("returns all errors if never valid") {
+        val in  = List.fill(1000)(0)
+        val res = IO.validateFirstMPar(in)(a => ZIO.fail(a)).flip
+        assertM(res)(equalTo(in))
+      },
+      testM("returns success if valid") {
+        import zio.CanFail.canFail
+        val in  = List.range(1, 10)
+        val f   = (a: Int) => if (a == 6) ZIO.succeed(a) else ZIO.fail(a)
+        val res = ZIO.validateFirstMPar(in)(f(_))
+        assertM(res)(equalTo(6))
       }
     ),
     suite("when")(
@@ -2523,7 +2593,7 @@ object ZIOSpec extends ZIOBaseSpec {
         _ <- if (count != 1) {
               ZIO.fail("Accessed more than once")
             } else {
-              ZIO.succeed(())
+              ZIO.unit
             }
       } yield res
     }

@@ -1,14 +1,17 @@
 package zio.stream
 
 import java.util.concurrent.TimeUnit
+
 import scala.{ Stream => _ }
+
+import SinkUtils._
+
 import zio._
 import zio.clock.Clock
 import zio.duration._
-import zio.test._
 import zio.test.Assertion.{ equalTo, fails, isFalse, isLeft, isSome, isTrue, succeeds }
+import zio.test._
 import zio.test.environment.TestClock
-import SinkUtils._
 
 object SinkSpec extends ZIOBaseSpec {
 
@@ -504,7 +507,7 @@ object SinkSpec extends ZIOBaseSpec {
         testM("step error") {
           val s = new ZSink[Any, String, Nothing, Any, Nothing] {
             type State = Unit
-            val initial                    = UIO.succeed(())
+            val initial                    = UIO.unit
             def step(state: State, a: Any) = IO.fail("Ouch")
             def extract(state: State)      = IO.fail("Ouch")
             def cont(state: State)         = true

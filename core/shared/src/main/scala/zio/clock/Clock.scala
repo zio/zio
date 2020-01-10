@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 package zio.clock
 
+import java.time.{ Instant, OffsetDateTime, ZoneId }
+import java.time.{ Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
-import zio.scheduler.Scheduler
 import zio.internal.{ Scheduler => IScheduler }
+import zio.scheduler.Scheduler
 import zio.{ Has, IO, UIO, ZIO, ZLayer }
-import java.time.{ Instant, OffsetDateTime, ZoneId }
 
 object Clock extends Serializable {
   trait Service extends Serializable {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package zio.blocking
 
 import java.util.concurrent._
 
+import zio._
 import zio.internal.tracing.ZIOFn
 import zio.internal.{ Executor, NamedThreadFactory }
-import zio._
 
 private[blocking] object internal {
   private[blocking] val blockingExecutor0 =

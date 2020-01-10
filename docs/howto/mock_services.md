@@ -171,7 +171,7 @@ import zio.console.Console
 @accessible(">")
 @mockable
 trait AccountObserver {
-  val accountObserver: AccountObserver.Service[Any]
+  def accountObserver: AccountObserver.Service[Any]
 }
 
 object AccountObserver {

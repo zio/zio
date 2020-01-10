@@ -16,13 +16,13 @@
 
 package zio
 
+import zio.blocking.Blocking
+import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
-import zio.system.System
 import zio.random.Random
-import zio.blocking.Blocking
 import zio.scheduler.Scheduler
-import zio.blocking.Blocking
+import zio.system.System
 
 private[zio] trait PlatformSpecific {
   type ZEnv = Clock with Console with System with Random with Scheduler with Blocking

@@ -83,7 +83,7 @@ object Has {
       }
   }
 
-  implicit final class HasSyntax[Self <: Has[_]](val self: Self) extends AnyVal {
+  implicit final class HasSyntax[Self <: Has[_]](private val self: Self) extends AnyVal {
     def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = self add b
 
     def ++[B <: Has[_]](that: B)(implicit tagged: Tagged[B]): Self with B = self union [B] that
