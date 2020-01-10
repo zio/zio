@@ -202,7 +202,7 @@ object CauseSpec extends ZIOBaseSpec {
               )
               .map(new Throwable(msg1, _))
         }
-        val failOrDie = Gen.elements(Cause.fail[Throwable](_), Cause.die(_))
+        val failOrDie = Gen.elements[Throwable => Cause[Throwable]](Cause.fail, Cause.die)
         check(throwable, failOrDie) { (e, makeCause) =>
           val rootCause        = makeCause(e)
           val cause            = Cause.traced(rootCause, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))
