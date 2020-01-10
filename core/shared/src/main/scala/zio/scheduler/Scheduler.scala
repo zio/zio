@@ -34,7 +34,13 @@ object Scheduler extends PlatformSpecific {
   val live: ZLayer.NoDeps[Nothing, Scheduler] =
     ZLayer.succeed(defaultScheduler)
 
-  def fromPlatformScheduler(platformScheduler: PlatformScheduler): Scheduler.Service =
+  /**
+   * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.
+   */
+  final def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler.Service =
+    fromPlatformScheduler(PlatformScheduler.fromScheduledExecutorService(service))
+
+  private[zio] def fromPlatformScheduler(platformScheduler: PlatformScheduler): Scheduler.Service =
     new Scheduler.Service {
       def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
         ZIO.effectAsyncInterrupt { cb =>
@@ -42,10 +48,4 @@ object Scheduler extends PlatformSpecific {
           Left(ZIO.effectTotal(canceler()))
         }
     }
-
-  /**
-   * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.
-   */
-  final def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler.Service =
-    fromPlatformScheduler(PlatformScheduler.fromScheduledExecutorService(service))
 }
