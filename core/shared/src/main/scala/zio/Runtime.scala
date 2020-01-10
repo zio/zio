@@ -57,6 +57,18 @@ trait Runtime[+R] {
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
+   * Executes the Task/RIO effect synchronously, failing
+   * with with a the original throwable on both [[Cause.Fail]] and [[Cause.Die]].
+   * In addition, appends a new element the `Thrwoable`s "caused by" chain,
+   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   * May fail on Scala.js if the effect cannot be entirely run synchronously.
+   *
+   * This method is effectful and should only be done at the edges of your program.
+   */
+  final def unsafeRunTask[A](task: => ZIO[R, Throwable, A]): A =
+    unsafeRunSync(task).fold(cause => throw cause.squashWithTrace(identity), identity)
+
+  /**
    * Executes the effect synchronously. May
    * fail on Scala.js if the effect cannot be entirely run synchronously.
    *
