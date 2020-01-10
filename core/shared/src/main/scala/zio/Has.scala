@@ -84,9 +84,9 @@ object Has {
   }
 
   implicit final class HasSyntax[Self <: Has[_]](private val self: Self) extends AnyVal {
-    def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = self add b
+    def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = self.add(b)
 
-    def ++[B <: Has[_]](that: B)(implicit tagged: Tagged[B]): Self with B = self union [B] that
+    def ++[B <: Has[_]](that: B)(implicit tagged: Tagged[B]): Self with B = self.union[B](that)
 
     /**
      * Adds a service to the environment. The service must be monomorphic rather
