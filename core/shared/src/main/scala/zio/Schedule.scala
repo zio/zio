@@ -382,7 +382,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val update  = self.update
     }
 
-  def jittered[R1 <: R](implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1 with Random, A, B] = 
+  def jittered[R1 <: R](implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1 with Random, A, B] =
     jittered(0.0, 1.0)
 
   /**
