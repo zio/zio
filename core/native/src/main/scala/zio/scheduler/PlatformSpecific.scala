@@ -16,7 +16,6 @@
 
 package zio.scheduler
 
-import zio.ZIO
 import zio.duration.Duration
 import zio.internal.IScheduler
 
