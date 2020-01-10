@@ -17,20 +17,18 @@
 package zio.scheduler
 
 import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicInteger
 
 import zio.duration.Duration
-import zio.internal.{ NamedThreadFactory, Scheduler => IScheduler }
+import zio.internal.{ IScheduler, NamedThreadFactory }
 
 private[scheduler] trait PlatformSpecific {
+  import IScheduler.CancelToken
+
   private[scheduler] val globalScheduler = new IScheduler {
-    import IScheduler.CancelToken
 
     private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
 
     private[this] val ConstFalse = () => false
-
-    private[this] val _size = new AtomicInteger()
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
@@ -39,27 +37,16 @@ private[scheduler] trait PlatformSpecific {
 
         ConstFalse
       case duration: Duration.Finite =>
-        _size.incrementAndGet
-
         val future = service.schedule(new Runnable {
           def run: Unit =
-            try task.run()
-            finally {
-              val _ = _size.decrementAndGet
-            }
+            task.run()
         }, duration.toNanos, TimeUnit.NANOSECONDS)
 
         () => {
           val canceled = future.cancel(true)
 
-          if (canceled) _size.decrementAndGet
-
           canceled
         }
     }
-
-    override def size: Int = _size.get
-
-    override def shutdown(): Unit = service.shutdown()
   }
 }
