@@ -1,8 +1,5 @@
 package zio.test.environment
 
-import java.util.concurrent.TimeUnit.NANOSECONDS
-
-import zio.duration.Duration._
 import zio.duration._
 import zio.scheduler.Scheduler.CancelToken
 import zio.scheduler.Scheduler
@@ -10,7 +7,7 @@ import zio.scheduler.scheduler
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestClock._
-import zio.{ clock, Promise, ZIO }
+import zio.{ Promise, ZIO }
 
 object SchedulerSpec extends ZIOBaseSpec {
 
@@ -55,16 +52,6 @@ object SchedulerSpec extends ZIOBaseSpec {
         _         <- promise.await
         canceled  <- ZIO.effectTotal(cancel())
       } yield assert(canceled)(isFalse)
-    ),
-    testM("scheduled tasks get executed before shutdown")(
-      for {
-        scheduler <- scheduler
-        promise   <- Promise.make[Nothing, Unit]
-        _         <- ZIO.effectTotal(runTask(scheduler, promise, 10.seconds))
-        _         <- ZIO.effectTotal(scheduler.shutdown())
-        _         <- promise.await
-        time      <- clock.currentTime(NANOSECONDS)
-      } yield assert(fromNanos(time))(equalTo(10.seconds))
     )
   )
 

@@ -33,18 +33,12 @@ object Scheduler extends PlatformSpecific {
         Left(UIO.effectTotal(canceler()))
       }
     private[zio] def schedule(task: Runnable, duration: Duration): CancelToken
-    private[zio] def size: Int
-    private[zio] def shutdown(): Unit
   }
 
   val live: ZLayer.NoDeps[Nothing, Scheduler] = ZLayer.succeed {
     new Service {
       private[zio] def schedule(task: Runnable, duration: Duration): CancelToken =
         defaultScheduler.schedule(task, duration)
-      private[zio] def size: Int =
-        defaultScheduler.size
-      private[zio] def shutdown(): Unit =
-        defaultScheduler.shutdown()
     }
   }
 
@@ -83,8 +77,8 @@ object Scheduler extends PlatformSpecific {
           }
       }
 
-      override def size: Int = _size.get
+      // override def size: Int = _size.get
 
-      override def shutdown(): Unit = service.shutdown()
+      // override def shutdown(): Unit = service.shutdown()
     }
 }

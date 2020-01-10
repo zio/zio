@@ -213,19 +213,6 @@ object TestClock extends Serializable {
                     } yield () => runtime.unsafeRun(cancel(latch))
                   }
               }
-            final def shutdown(): Unit =
-              runtime.unsafeRunAsync_ {
-                warningDone *> clockState.modify { data =>
-                  if (data.sleeps.isEmpty)
-                    (Nil, data)
-                  else {
-                    val duration = data.sleeps.map(_._1).max
-                    (data.sleeps, Data(duration.toNanos, duration.toMillis, Nil, data.timeZone))
-                  }
-                }.flatMap(run)
-              }
-            final def size: Int =
-              runtime.unsafeRun(clockState.get.map(_.sleeps.length))
             private val ConstFalse = () => false
           }
         }

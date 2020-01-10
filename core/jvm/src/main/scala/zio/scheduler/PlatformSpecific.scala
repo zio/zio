@@ -57,9 +57,5 @@ private[scheduler] trait PlatformSpecific {
           canceled
         }
     }
-
-    override def size: Int = _size.get
-
-    override def shutdown(): Unit = service.shutdown()
   }
 }

@@ -54,15 +54,5 @@ private[scheduler] trait PlatformSpecific  {
           !completed
         }
     }
-
-    /**
-     * The number of tasks scheduled.
-     */
-    override def size: Int = _size
-
-    /**
-     * Initiates shutdown of the scheduler.
-     */
-    override def shutdown(): Unit = ()
   }
 }
