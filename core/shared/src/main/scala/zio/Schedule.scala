@@ -291,7 +291,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val initial =
         for {
           oldEnv <- ZIO.environment[R1]
-          env    = ev1.update(oldEnv, proxy(_, oldEnv))
+          env    = ev1.update[R1, Clock.Service](oldEnv, proxy(_, oldEnv))
           init   <- self.initial.provide(env)
         } yield (init, env)
       val extract = (a: A, s: State) => self.extract(a, s._1)
@@ -440,7 +440,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val initial = self.initial
       val extract = (a: A, s: self.State) => self.extract(a, s)
       val update = (a: A, s: self.State) =>
-        self.update(a, s).provideSome[R1](env => ev1.update(env, proxy(_, env, self.extract(a, s))))
+        self.update(a, s).provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_, env, self.extract(a, s))))
     }
   }
 

@@ -16,7 +16,7 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromOutputStream(
     os: OutputStream
-  ): ZSink[Blocking, IOException, Nothing, Chunk[Byte], Int] =
+  ): ZSink[Has[Blocking.Service], IOException, Nothing, Chunk[Byte], Int] =
     ZSink.foldM(0)(_ => true) { (bytesWritten, byteChunk: Chunk[Byte]) =>
       effectBlocking {
         val bytes = byteChunk.toArray

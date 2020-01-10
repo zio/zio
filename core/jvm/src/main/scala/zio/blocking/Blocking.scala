@@ -22,29 +22,6 @@ import zio._
 import zio.internal.tracing.ZIOFn
 import zio.internal.{ Executor, NamedThreadFactory }
 
-private[blocking] object internal {
-  private[blocking] val blockingExecutor0 =
-    Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
-      val corePoolSize  = 0
-      val maxPoolSize   = Int.MaxValue
-      val keepAliveTime = 1000L
-      val timeUnit      = TimeUnit.MILLISECONDS
-      val workQueue     = new SynchronousQueue[Runnable]()
-      val threadFactory = new NamedThreadFactory("zio-default-blocking", true)
-
-      val threadPool = new ThreadPoolExecutor(
-        corePoolSize,
-        maxPoolSize,
-        keepAliveTime,
-        timeUnit,
-        workQueue,
-        threadFactory
-      )
-
-      threadPool
-    }
-}
-
 /**
  * The `Blocking` module provides access to a thread pool that can be used for performing
  * blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
@@ -152,4 +129,27 @@ object Blocking extends Serializable {
       override val blockingExecutor: Executor = internal.blockingExecutor0
     }
   }
+}
+
+private[blocking] object internal {
+  private[blocking] val blockingExecutor0 =
+    Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
+      val corePoolSize  = 0
+      val maxPoolSize   = Int.MaxValue
+      val keepAliveTime = 1000L
+      val timeUnit      = TimeUnit.MILLISECONDS
+      val workQueue     = new SynchronousQueue[Runnable]()
+      val threadFactory = new NamedThreadFactory("zio-default-blocking", true)
+
+      val threadPool = new ThreadPoolExecutor(
+        corePoolSize,
+        maxPoolSize,
+        keepAliveTime,
+        timeUnit,
+        workQueue,
+        threadFactory
+      )
+
+      threadPool
+    }
 }
