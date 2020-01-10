@@ -642,7 +642,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                     sink
                       .step(s, leftovers(index))
                       .foldCauseM(
-                        Pull.halt,
+                        c => stateRef.set(AggregateState.Drain(s, leftovers, index + 1)) *> Pull.halt(c),
                         s => {
                           val next =
                             if (sink.cont(s)) AggregateState.Drain(s, leftovers, index + 1)
