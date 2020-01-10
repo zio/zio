@@ -10,6 +10,7 @@ import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodExc
 import ExpectationSpecUtils._
 
 object ExpectationSpec extends ZIOBaseSpec {
+  import Module.mockableModule
 
   def spec = suite("ExpectationSpec")(
     suite("static")(

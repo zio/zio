@@ -14,23 +14,22 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio
 
 import java.io.IOException
 
-import zio.{ Has, IO, UIO }
-import zio.console.Console
+package object blocking {
+  type Blocking = Has[Blocking.Service]
 
-object MockConsole {
+  def blocking[R <: Blocking, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.accessM[R](_.get.blocking(zio))
 
-  object putStr   extends Method[Console.Service, String, Unit]
-  object putStrLn extends Method[Console.Service, String, Unit]
-  object getStrLn extends Method[Console.Service, Unit, String]
+  def effectBlocking[A](effect: => A): ZIO[Blocking, Throwable, A] =
+    ZIO.accessM[Blocking](_.get.effectBlocking(effect))
 
-  implicit val mockableConsole: Mockable[Console.Service] = (mock: Mock) =>
-    Has(new Console.Service {
-      def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
-      def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
-      val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
-    })
+  def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
+    effectBlocking(effect).refineToOrDie[IOException]
+
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
+    ZIO.accessM[Blocking](_.get.effectBlockingCancelable(effect)(cancel))
 }

@@ -16,32 +16,30 @@
 
 package zio.test.mock
 
-import zio.{ Chunk, UIO }
+import zio.{ Chunk, Has, UIO }
 import zio.random.Random
 
 object MockRandom {
 
-  trait Service extends Random.Service
-
-  object nextBoolean  extends Method[MockRandom.Service, Unit, Boolean]
-  object nextBytes    extends Method[MockRandom.Service, Int, Chunk[Byte]]
-  object nextDouble   extends Method[MockRandom.Service, Unit, Double]
-  object nextFloat    extends Method[MockRandom.Service, Unit, Float]
-  object nextGaussian extends Method[MockRandom.Service, Unit, Double]
+  object nextBoolean  extends Method[Random.Service, Unit, Boolean]
+  object nextBytes    extends Method[Random.Service, Int, Chunk[Byte]]
+  object nextDouble   extends Method[Random.Service, Unit, Double]
+  object nextFloat    extends Method[Random.Service, Unit, Float]
+  object nextGaussian extends Method[Random.Service, Unit, Double]
   object nextInt {
-    object _0 extends Method[MockRandom.Service, Int, Int]
-    object _1 extends Method[MockRandom.Service, Unit, Int]
+    object _0 extends Method[Random.Service, Int, Int]
+    object _1 extends Method[Random.Service, Unit, Int]
   }
   object nextLong {
-    object _0 extends Method[MockRandom.Service, Unit, Long]
-    object _1 extends Method[MockRandom.Service, Long, Long]
+    object _0 extends Method[Random.Service, Unit, Long]
+    object _1 extends Method[Random.Service, Long, Long]
   }
-  object nextPrintableChar extends Method[MockRandom.Service, Unit, Char]
-  object nextString        extends Method[MockRandom.Service, Int, String]
-  object shuffle           extends Method[MockRandom.Service, List[Any], List[Any]]
+  object nextPrintableChar extends Method[Random.Service, Unit, Char]
+  object nextString        extends Method[Random.Service, Int, String]
+  object shuffle           extends Method[Random.Service, List[Any], List[Any]]
 
-  implicit val mockable: Mockable[MockRandom.Service] = (mock: Mock) =>
-    new Service {
+  implicit val mockableRandom: Mockable[Random.Service] = (mock: Mock) =>
+    Has(new Random.Service {
       val nextBoolean: UIO[Boolean]                = mock(MockRandom.nextBoolean)
       def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(MockRandom.nextBytes, length)
       val nextDouble: UIO[Double]                  = mock(MockRandom.nextDouble)
@@ -54,5 +52,5 @@ object MockRandom {
       val nextPrintableChar: UIO[Char]             = mock(MockRandom.nextPrintableChar)
       def nextString(length: Int)                  = mock(MockRandom.nextString, length)
       def shuffle[A](list: List[A]): UIO[List[A]]  = mock(MockRandom.shuffle, list).asInstanceOf[UIO[List[A]]]
-    }
+    })
 }
