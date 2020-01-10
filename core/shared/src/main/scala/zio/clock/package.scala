@@ -16,10 +16,10 @@
 
 package zio
 
-import zio.duration.Duration
-
-import java.util.concurrent.TimeUnit
 import java.time.OffsetDateTime
+import java.util.concurrent.TimeUnit
+
+import zio.duration.Duration
 
 package object clock {
   type Clock = Has[Clock.Service]

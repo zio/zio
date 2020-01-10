@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,21 +18,20 @@ package zio.test.mock
 
 import java.io.IOException
 
-import zio.{ IO, UIO }
 import zio.console.Console
+import zio.{ Has, IO, UIO }
+import zio.{ IO, UIO }
 
 object MockConsole {
 
-  trait Service extends Console.Service
+  object putStr   extends Method[Console.Service, String, Unit]
+  object putStrLn extends Method[Console.Service, String, Unit]
+  object getStrLn extends Method[Console.Service, Unit, String]
 
-  object putStr   extends Method[MockConsole, String, Unit]
-  object putStrLn extends Method[MockConsole, String, Unit]
-  object getStrLn extends Method[MockConsole, Unit, String]
-
-  implicit val mockable: Mockable[Service] = (mock: Mock) =>
-    new Service {
+  implicit val mockableConsole: Mockable[Console.Service] = (mock: Mock) =>
+    Has(new Console.Service {
       def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
       def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
       val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
-    }
+    })
 }

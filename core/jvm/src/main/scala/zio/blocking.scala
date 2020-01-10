@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,20 @@
 
 package zio
 
-import zio.internal.Executor
+import java.io.IOException
 
-// This cannot extend Blocking.Service[Blocking] because of Scala 2.11 support
 package object blocking {
-  def blockingExecutor: ZIO[Blocking, Nothing, Executor] =
-    ZIO.accessM(_.blocking.blockingExecutor)
+  type Blocking = Has[Blocking.Service]
 
-  def blocking[R1 <: Blocking, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
-    ZIO.accessM(_.blocking.blocking(zio))
+  def blocking[R <: Blocking, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.accessM[R](_.get.blocking(zio))
 
   def effectBlocking[A](effect: => A): ZIO[Blocking, Throwable, A] =
-    ZIO.accessM(_.blocking.effectBlocking(effect))
+    ZIO.accessM[Blocking](_.get.effectBlocking(effect))
+
+  def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
+    effectBlocking(effect).refineToOrDie[IOException]
 
   def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
-    ZIO.accessM(_.blocking.effectBlockingCancelable(effect)(cancel))
+    ZIO.accessM[Blocking](_.get.effectBlockingCancelable(effect)(cancel))
 }

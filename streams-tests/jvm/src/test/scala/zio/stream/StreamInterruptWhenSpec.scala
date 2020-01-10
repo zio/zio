@@ -1,8 +1,8 @@
 package zio.stream
 
 import zio._
-import zio.test._
 import zio.test.Assertion.{ equalTo, isLeft, isTrue }
+import zio.test._
 
 object StreamInterruptWhenSpec extends ZIOBaseSpec {
   def spec = suite("ZStream.interruptWhen")(

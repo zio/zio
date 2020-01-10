@@ -1,6 +1,6 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
- * Copyright 2014-2019 EPFL
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2014-2020 EPFL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ package zio.test.environment
 import scala.collection.immutable.Queue
 import scala.math.{ log, sqrt }
 
-import zio.{ Chunk, Has, Ref, UIO, ZIO, ZLayer }
-import zio.random.Random
 import zio.clock.Clock
+import zio.random.Random
+import zio.{ Chunk, Has, Ref, UIO, ZIO, ZLayer }
 
 /**
  * `TestRandom` allows for deterministically testing effects involving
@@ -91,7 +91,9 @@ object TestRandom extends Serializable {
   /**
    * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
    */
-  case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends Random.Service with TestRandom.Service {
+  final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer])
+      extends Random.Service
+      with TestRandom.Service {
 
     /**
      * Clears the buffer of booleans.

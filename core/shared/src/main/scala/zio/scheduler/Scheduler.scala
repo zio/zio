@@ -16,9 +16,36 @@
 
 package zio.scheduler
 
-import zio.{ Has, ZLayer }
-import zio.internal.{ Scheduler => IScheduler }
+import java.util.concurrent.ScheduledExecutorService
+
+import zio.duration.Duration
+import zio.internal.IScheduler
+import zio.{ ZIO, ZLayer }
 
 object Scheduler extends PlatformSpecific {
-  val live: ZLayer.NoDeps[Nothing, Has[IScheduler]] = ZLayer.succeed(globalScheduler)
+
+  trait Service extends Serializable {
+    def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A]
+  }
+
+  val defaultScheduler: Scheduler.Service =
+    fromIScheduler(globalScheduler)
+
+  val live: ZLayer.NoDeps[Nothing, Scheduler] =
+    ZLayer.succeed(defaultScheduler)
+
+  /**
+   * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.
+   */
+  final def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler.Service =
+    fromIScheduler(IScheduler.fromScheduledExecutorService(service))
+
+  private[zio] def fromIScheduler(scheduler: IScheduler): Scheduler.Service =
+    new Scheduler.Service {
+      def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
+        ZIO.effectAsyncInterrupt { cb =>
+          val canceler = scheduler.schedule(() => cb(task), duration)
+          Left(ZIO.effectTotal(canceler()))
+        }
+    }
 }

@@ -1,9 +1,9 @@
 package zio.test
 
+import scala.math.abs
+
 import zio.test.Assertion._
 import zio.{ random, ZIO }
-
-import scala.math.abs
 
 object FunSpec extends ZIOBaseSpec {
 

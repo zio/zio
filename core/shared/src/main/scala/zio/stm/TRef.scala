@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ package zio.stm
 import java.util.concurrent.atomic.AtomicReference
 
 import zio.UIO
-import zio.stm.STM.internal._
+import zio.stm.ZSTM.internal._
 
 /**
  * A variable that can be modified as part of a transactional effect.
  */
-class TRef[A] private (
+final class TRef[A] private (
   @volatile private[stm] var versioned: Versioned[A],
   private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
 ) {
@@ -33,8 +33,8 @@ class TRef[A] private (
   /**
    * Retrieves the value of the `TRef`.
    */
-  final val get: STM[Nothing, A] =
-    new STM((journal, _, _) => {
+  val get: STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       TExit.Succeed(entry.unsafeGet[A])
@@ -43,8 +43,8 @@ class TRef[A] private (
   /**
    * Sets the value of the `TRef`.
    */
-  final def set(newValue: A): STM[Nothing, Unit] =
-    new STM((journal, _, _) => {
+  def set(newValue: A): STM[Nothing, Unit] =
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       entry.unsafeSet(newValue)
@@ -52,14 +52,14 @@ class TRef[A] private (
       TExit.Succeed(())
     })
 
-  override final def toString =
+  override def toString =
     s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
 
   /**
    * Updates the value of the variable.
    */
-  final def update(f: A => A): STM[Nothing, A] =
-    new STM((journal, _, _) => {
+  def update(f: A => A): STM[Nothing, A] =
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       val newValue = f(entry.unsafeGet[A])
@@ -72,15 +72,15 @@ class TRef[A] private (
   /**
    * Updates some values of the variable but leaves others alone.
    */
-  final def updateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
+  def updateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
     update(f orElse { case a => a })
 
   /**
    * Updates the value of the variable, returning a function of the specified
    * value.
    */
-  final def modify[B](f: A => (B, A)): STM[Nothing, B] =
-    new STM((journal, _, _) => {
+  def modify[B](f: A => (B, A)): STM[Nothing, B] =
+    new ZSTM((journal, _, _, _) => {
       val entry = getOrMakeEntry(journal)
 
       val (retValue, newValue) = f(entry.unsafeGet[A])
@@ -94,10 +94,10 @@ class TRef[A] private (
    * Updates some values of the variable, returning a function of the specified
    * value or the default.
    */
-  final def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
+  def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
     modify(a => f.lift(a).getOrElse((default, a)))
 
-  private final def getOrMakeEntry(journal: Journal): Entry =
+  private def getOrMakeEntry(journal: Journal): Entry =
     if (journal.containsKey(self)) journal.get(self)
     else {
       val entry = Entry(self, false)
@@ -111,8 +111,8 @@ object TRef {
   /**
    * Makes a new `TRef` that is initialized to the specified value.
    */
-  final def make[A](a: => A): STM[Nothing, TRef[A]] =
-    new STM((journal, _, _) => {
+  def make[A](a: => A): STM[Nothing, TRef[A]] =
+    new ZSTM((journal, _, _, _) => {
       val value     = a
       val versioned = new Versioned(value)
 
@@ -129,7 +129,7 @@ object TRef {
    * A convenience method that makes a `TRef` and immediately commits the
    * transaction to extract the value out.
    */
-  final def makeCommit[A](a: => A): UIO[TRef[A]] =
+  def makeCommit[A](a: => A): UIO[TRef[A]] =
     STM.atomically(TRef.make(a))
 
   private[stm] def unsafeMake[A](a: A): TRef[A] = {

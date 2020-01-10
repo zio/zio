@@ -1,6 +1,7 @@
 package zio.stream
 
 import scala.reflect.ClassTag
+
 import zio.Chunk
 import zio.random.Random
 import zio.test.{ Gen, Sized }

@@ -1,15 +1,16 @@
 package zio.test
 
+import scala.reflect.ClassTag
+import scala.reflect.ClassTag
+
+import zio.ZEnv
+import zio.ZLayer
 import zio.duration._
-import zio.test.environment.{ Live, TestClock }
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
+import zio.test.environment.{ Live, TestClock }
 import zio.{ Ref, Schedule, ZIO }
-
-import scala.reflect.ClassTag
-import zio.ZLayer
-import zio.ZEnv
 
 object TestAspectSpec extends ZIOBaseSpec {
 

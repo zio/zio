@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,32 +16,31 @@
 
 package zio.test.mock
 
-import zio.{ Chunk, UIO }
 import zio.random.Random
+import zio.{ Chunk, Has, UIO }
+import zio.{ Chunk, UIO }
 
 object MockRandom {
 
-  trait Service extends Random.Service
-
-  object nextBoolean  extends Method[MockRandom, Unit, Boolean]
-  object nextBytes    extends Method[MockRandom, Int, Chunk[Byte]]
-  object nextDouble   extends Method[MockRandom, Unit, Double]
-  object nextFloat    extends Method[MockRandom, Unit, Float]
-  object nextGaussian extends Method[MockRandom, Unit, Double]
+  object nextBoolean  extends Method[Random.Service, Unit, Boolean]
+  object nextBytes    extends Method[Random.Service, Int, Chunk[Byte]]
+  object nextDouble   extends Method[Random.Service, Unit, Double]
+  object nextFloat    extends Method[Random.Service, Unit, Float]
+  object nextGaussian extends Method[Random.Service, Unit, Double]
   object nextInt {
-    object _0 extends Method[MockRandom, Int, Int]
-    object _1 extends Method[MockRandom, Unit, Int]
+    object _0 extends Method[Random.Service, Int, Int]
+    object _1 extends Method[Random.Service, Unit, Int]
   }
   object nextLong {
-    object _0 extends Method[MockRandom, Unit, Long]
-    object _1 extends Method[MockRandom, Long, Long]
+    object _0 extends Method[Random.Service, Unit, Long]
+    object _1 extends Method[Random.Service, Long, Long]
   }
-  object nextPrintableChar extends Method[MockRandom, Unit, Char]
-  object nextString        extends Method[MockRandom, Int, String]
-  object shuffle           extends Method[MockRandom, List[Any], List[Any]]
+  object nextPrintableChar extends Method[Random.Service, Unit, Char]
+  object nextString        extends Method[Random.Service, Int, String]
+  object shuffle           extends Method[Random.Service, List[Any], List[Any]]
 
-  implicit val mockable: Mockable[MockRandom.Service] = (mock: Mock) =>
-    new Service {
+  implicit val mockableRandom: Mockable[Random.Service] = (mock: Mock) =>
+    Has(new Random.Service {
       val nextBoolean: UIO[Boolean]                = mock(MockRandom.nextBoolean)
       def nextBytes(length: Int): UIO[Chunk[Byte]] = mock(MockRandom.nextBytes, length)
       val nextDouble: UIO[Double]                  = mock(MockRandom.nextDouble)
@@ -54,5 +53,5 @@ object MockRandom {
       val nextPrintableChar: UIO[Char]             = mock(MockRandom.nextPrintableChar)
       def nextString(length: Int)                  = mock(MockRandom.nextString, length)
       def shuffle[A](list: List[A]): UIO[List[A]]  = mock(MockRandom.shuffle, list).asInstanceOf[UIO[List[A]]]
-    }
+    })
 }

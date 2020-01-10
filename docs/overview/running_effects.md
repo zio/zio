@@ -48,7 +48,7 @@ val runtime = new DefaultRuntime {}
 Once you have a runtime, you can use it to execute effects:
 
 ```scala mdoc:silent
-runtime.unsafeRun(putStrLn("Hello World!"))
+runtime.unsafeRun(ZIO(println("Hello World!")))
 ```
 
 In addition to the `unsafeRun` method, there are other methods that allow executing effects asynchronously or into `Future` values.
@@ -65,9 +65,9 @@ A custom `Runtime[R]` can be created with two values:
 For example, the following creates a `Runtime` that can provide an `Int` to effects, using the default `Platform` provided by ZIO:
 
 ```scala mdoc:silent
-import zio.internal.PlatformLive
+import zio.internal.Platform
 
-val myRuntime: Runtime[Int] = Runtime(42, PlatformLive.Default)
+val myRuntime: Runtime[Int] = Runtime(42, Platform.default)
 ```
 
 ## Error Reporting

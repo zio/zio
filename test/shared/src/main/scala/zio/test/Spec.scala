@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package zio.test
 
-import zio._
-
 import Spec._
+
+import zio._
 
 /**
  * A `Spec[R, E, L, T]` is the backbone of _ZIO Test_. Every spec is either a

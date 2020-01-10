@@ -1,9 +1,9 @@
 package zio.test
 
-import zio.{ Ref, ZIO, ZManaged }
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
+import zio.{ Ref, ZIO, ZManaged }
 
 object SpecSpec extends ZIOBaseSpec {
 

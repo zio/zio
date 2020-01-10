@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 
 package zio.internal
 
-import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
 import java.util.concurrent.ConcurrentHashMap
+import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
+
+import scala.concurrent.ExecutionContext
 
 import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-
-import scala.concurrent.ExecutionContext
 
 private[internal] trait PlatformSpecific {
 
@@ -43,7 +43,7 @@ private[internal] trait PlatformSpecific {
    * mainstream usage. Advanced users should consider making their own platform
    * customized for specific application requirements.
    */
-  lazy val default = makeDefault()
+  lazy val default: Platform = makeDefault()
 
   /**
    * The default number of operations the ZIO runtime should execute before
@@ -52,7 +52,7 @@ private[internal] trait PlatformSpecific {
   final val defaultYieldOpCount = 2048
 
   /**
-   * A platform created using Scala's global execution context.
+   * A `Platform` created from Scala's global execution context.
    */
   lazy val global = fromExecutionContext(ExecutionContext.global)
 
@@ -88,11 +88,14 @@ private[internal] trait PlatformSpecific {
   final def fromExecutionContext(ec: ExecutionContext): Platform =
     fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
 
+  /**
+   * Makes a new default platform. This is a side-effecting method.
+   */
+  def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
+    fromExecutor(Executor.makeDefault(yieldOpCount))
+
   final def newWeakHashMap[A, B](): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
 
   final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
-
-  private def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
-    fromExecutor(Executor.makeDefault(yieldOpCount))
 }

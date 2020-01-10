@@ -29,8 +29,15 @@ inThisBuild(
 
 ThisBuild / publishTo := sonatypePublishToBundle.value
 
+addCommandAlias("build", "prepare; testJVM")
+addCommandAlias("prepare", "fix; fmt")
+addCommandAlias("fix", "all compile:scalafix test:scalafix")
+addCommandAlias(
+  "fixCheck",
+  "; compile:scalafix --check ; test:scalafix --check"
+)
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
-addCommandAlias("check", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
+addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
@@ -88,15 +95,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
   .settings(buildInfoSettings("zio"))
+  .settings(scalaReflectSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(
-    libraryDependencies +=
-      "org.scala-lang" % "scala-reflect" % scalaVersion.value
-  )
 
 lazy val coreJS = core.js
 
@@ -334,3 +338,5 @@ lazy val docs = project.module
     coreTestsJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
+
+scalafixDependencies in ThisBuild += "com.nequissimus" %% "sort-imports" % "0.3.1"

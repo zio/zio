@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package zio
 
-import zio.internal.Executor
-
-import scala.concurrent.Future
 import scala.collection.JavaConverters._
+import scala.concurrent.Future
+
 import com.github.ghik.silencer.silent
+
+import zio.internal.Executor
 import zio.internal.stacktracer.ZTraceElement
 
 /**

@@ -1,10 +1,11 @@
 package zio.stream
 
-import zio.{ Chunk, IO, UIO, ZIOBaseSpec }
-import zio.random.Random
-import zio.test._
-import zio.test.Assertion.{ equalTo, isLeft }
 import ChunkUtils._
+
+import zio.random.Random
+import zio.test.Assertion.{ equalTo, isLeft }
+import zio.test._
+import zio.{ Chunk, IO, UIO, ZIOBaseSpec }
 
 case class Value(i: Int) extends AnyVal
 
