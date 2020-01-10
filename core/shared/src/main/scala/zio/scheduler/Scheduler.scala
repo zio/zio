@@ -17,47 +17,35 @@
 package zio.scheduler
 
 import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
+import zio.internal.PlatformScheduler
 import zio.{ ZIO, ZLayer }
 
 object Scheduler extends PlatformSpecific {
-  private[zio] type CancelToken = () => Boolean
 
   trait Service extends Serializable {
     def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A]
   }
 
+  val defaultScheduler: Scheduler.Service =
+    fromPlatformScheduler(platformScheduler)
+
   val live: ZLayer.NoDeps[Nothing, Scheduler] =
     ZLayer.succeed(defaultScheduler)
+
+  def fromPlatformScheduler(platformScheduler: PlatformScheduler): Scheduler.Service =
+    new Scheduler.Service {
+      def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
+        ZIO.effectAsyncInterrupt { cb =>
+          val canceler = platformScheduler.schedule(() => cb(task), duration)
+          Left(ZIO.effectTotal(canceler()))
+        }
+    }
 
   /**
    * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.
    */
   final def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler.Service =
-    new Scheduler.Service {
-      val ConstFalse = () => false
-
-      override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
-        ZIO.effectAsyncInterrupt { cb =>
-          val canceler = _schedule(() => cb(task), duration)
-          Left(ZIO.effectTotal(canceler()))
-        }
-
-      private[this] def _schedule(task: Runnable, duration: Duration): CancelToken = duration match {
-        case Duration.Infinity => ConstFalse
-        case Duration.Zero =>
-          task.run()
-
-          ConstFalse
-        case duration: Duration.Finite =>
-          val future = service.schedule(new Runnable {
-            def run: Unit =
-              task.run()
-          }, duration.toNanos, TimeUnit.NANOSECONDS)
-
-          () => future.cancel(true)
-      }
-    }
+    fromPlatformScheduler(PlatformScheduler.fromScheduledExecutorService(service))
 }
