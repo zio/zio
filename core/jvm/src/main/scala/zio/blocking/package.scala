@@ -18,10 +18,8 @@ package zio
 
 import java.io.IOException
 
-import zio.blocking.Blocking.Service
-
 package object blocking {
-  type Blocking = Has[Service]
+  type Blocking = Has[Blocking.Service]
 
   def blocking[R <: Blocking, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.accessM[R](_.get.blocking(zio))
