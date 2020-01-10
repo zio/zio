@@ -140,7 +140,7 @@ object BuildHelper {
       case Some((2, x)) if x <= 11 => crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.11", "2.x")
       case Some((2, x)) if x >= 12 =>
         crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.12", "2.12+", "2.x")
-      case _ if (isDotty) => crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("-2.12+", "dotty")
+      case _ if (isDotty) => crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.12+", "dotty")
       case _              => Nil
     }
 
