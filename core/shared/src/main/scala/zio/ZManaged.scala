@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package zio
 
 import scala.reflect.ClassTag
+
 import zio.clock.Clock
 import zio.duration.Duration
 
@@ -713,6 +714,23 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def tap[R1 <: R, E1 >: E](f: A => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
     flatMap(a => f(a).as(a))
+
+  /**
+   * Returns an effect that effectfully peeks at the failure or success of the acquired resource.
+   */
+  final def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(
+    implicit ev: CanFail[E]
+  ): ZManaged[R1, E1, A] =
+    foldM(
+      e => f(e) *> ZManaged.fail(e),
+      a => g(a).as(a)
+    )
+
+  /**
+   * Returns an effect that effectfully peeks at the failure of the acquired resource.
+   */
+  final def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
+    tapBoth(f, ZManaged.succeed)
 
   /**
    * Like [[ZManaged#tap]], but uses a function that returns a ZIO value rather than a

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,20 @@
 
 package zio.test.mock
 
-import zio.{ IO, UIO }
 import zio.system.System
+import zio.{ Has, IO, UIO }
+import zio.{ IO, UIO }
 
 object MockSystem {
 
-  trait Service extends System.Service
+  object env           extends Method[System.Service, String, Option[String]]
+  object property      extends Method[System.Service, String, Option[String]]
+  object lineSeparator extends Method[System.Service, Unit, String]
 
-  object env           extends Method[MockSystem, String, Option[String]]
-  object property      extends Method[MockSystem, String, Option[String]]
-  object lineSeparator extends Method[MockSystem, Unit, String]
-
-  implicit val mockable: Mockable[MockSystem.Service] = (mock: Mock) =>
-    new Service {
+  implicit val mockableSystem: Mockable[System.Service] = (mock: Mock) =>
+    Has(new System.Service {
       def env(variable: String): IO[SecurityException, Option[String]] = mock(MockSystem.env, variable)
       def property(prop: String): IO[Throwable, Option[String]]        = mock(MockSystem.property, prop)
       val lineSeparator: UIO[String]                                   = mock(MockSystem.lineSeparator)
-    }
+    })
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@
 
 package zio.test.sbt
 
+import scala.collection.mutable.ArrayBuffer
+
 import sbt.testing._
+
 import zio.FunctionIO
 import zio.test.sbt.TestingSupport._
 import zio.test.{ Assertion, DefaultRunnableSpec, Summary, TestArgs, TestAspect }
-
-import scala.collection.mutable.ArrayBuffer
 
 object ZTestFrameworkSpec {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package zio.test.environment
 
-import java.io.IOException
 import java.io.EOFException
+import java.io.IOException
 
-import zio.console._
 import zio._
+import zio.console._
 
 /**
  * `TestConsole` provides a testable interface for programs interacting with
@@ -187,5 +187,5 @@ object TestConsole extends Serializable {
   /**
    * The state of the `TestConsole`.
    */
-  case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
+  final case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
 }

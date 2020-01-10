@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package zio.stm
 
-import zio.{ Exit, Promise, Ref, Schedule, ZIO }
 import zio.duration._
-import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.timeout
+import zio.test._
+import zio.{ Exit, Promise, Ref, Schedule, ZIO }
 
 object TReentrantLockSpec extends DefaultRunnableSpec {
   def pollSchedule[E, A] =

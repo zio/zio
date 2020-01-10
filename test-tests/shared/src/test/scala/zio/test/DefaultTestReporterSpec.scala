@@ -3,7 +3,7 @@ package zio.test
 import zio._
 import zio.test.Assertion._
 import zio.test.ReportingTestUtils._
-import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
+import zio.test.environment._
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 
@@ -24,7 +24,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
       assertM(runLog(suite2))(equalTo(suite2Expected.mkString + reportStats(2, 0, 1)))
     },
     testM("correctly reports multiple test suites") {
-      assertM(runLog(suite3))(equalTo(suite3Expected.mkString + reportStats(2, 0, 1)))
+      assertM(runLog(suite3))(equalTo(suite3Expected.mkString + reportStats(4, 0, 2)))
     },
     testM("correctly reports empty test suite") {
       assertM(runLog(suite4))(equalTo(suite4Expected.mkString + reportStats(2, 0, 1)))

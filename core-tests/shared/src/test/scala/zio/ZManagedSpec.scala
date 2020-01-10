@@ -1,11 +1,11 @@
 package zio
 
 import zio.Cause.Interrupt
-import zio.duration._
 import zio.Exit.Failure
+import zio.duration._
 import zio.test.Assertion._
-import zio.test.environment._
 import zio.test._
+import zio.test.environment._
 
 object ZManagedSpec extends ZIOBaseSpec {
 
@@ -776,6 +776,86 @@ object ZManagedSpec extends ZIOBaseSpec {
             preallocate(res) *> preallocate(res)
           } *> assertM(ref.get)(equalTo(2))
         }
+      }
+    ),
+    suite("tap")(
+      testM("Doesn't change the managed resource") {
+        ZManaged
+          .succeed(1)
+          .tap(n => ZManaged.succeed(n + 1))
+          .map(actual => assert(1)(equalTo(actual)))
+          .use(ZIO.succeed)
+      },
+      testM("Runs given effect") {
+        Ref
+          .make(0)
+          .toManaged_
+          .tap(_.update(_ + 1).toManaged_)
+          .mapM(_.get)
+          .map(i => assert(i)(equalTo(1)))
+          .use(ZIO.succeed)
+      }
+    ),
+    suite("tapBoth")(
+      testM("Doesn't change the managed resource") {
+        ZManaged
+          .fromEither(Right[String, Int](1))
+          .tapBoth(_ => ZManaged.unit, n => ZManaged.succeed(n + 1))
+          .map(actual => assert(1)(equalTo(actual)))
+          .use(ZIO.succeed)
+      },
+      testM("Runs given effect on failure") {
+        (
+          for {
+            ref <- Ref.make(0).toManaged_
+            _ <- ZManaged
+                  .fromEither(Left(1))
+                  .tapBoth(e => ref.update(_ + e).toManaged_, (_: Any) => ZManaged.unit)
+            actual <- ref.get.toManaged_
+          } yield assert(actual)(equalTo(2))
+        ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed)
+      },
+      testM("Runs given effect on success") {
+        (
+          for {
+            ref <- Ref.make(1).toManaged_
+            _ <- ZManaged
+                  .fromEither(Right[String, Int](2))
+                  .tapBoth(_ => ZManaged.unit, n => ref.update(_ + n).toManaged_)
+            actual <- ref.get.toManaged_
+          } yield assert(actual)(equalTo(3))
+        ).use(ZIO.succeed)
+      }
+    ),
+    suite("tapError")(
+      testM("Doesn't change the managed resource") {
+        ZManaged
+          .fromEither(Right[String, Int](1))
+          .tapError(str => ZManaged.succeed(str.length))
+          .map(actual => assert(1)(equalTo(actual)))
+          .use(ZIO.succeed)
+      },
+      testM("Runs given effect on failure") {
+        (
+          for {
+            ref <- Ref.make(0).toManaged_
+            _ <- ZManaged
+                  .fromEither(Left(1))
+                  .tapError(e => ref.update(_ + e).toManaged_)
+            actual <- ref.get.toManaged_
+          } yield assert(actual)(equalTo(2))
+        ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed)
+      },
+      testM("Doesn't run given effect on success") {
+        (
+          for {
+            ref <- Ref.make(1).toManaged_
+            _ <- ZManaged
+                  .fromEither(Right[Int, Int](2))
+                  .tapError(n => ref.update(_ + n).toManaged_)
+            actual <- ref.get.toManaged_
+          } yield assert(actual)(equalTo(1))
+        ).use(ZIO.succeed)
       }
     ),
     suite("timed")(

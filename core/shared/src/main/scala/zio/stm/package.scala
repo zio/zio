@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio
 
-import zio.test.environment._
+package object stm {
 
-/**
- * A `Runner` that provides a default testable environment.
- */
-object DefaultTestRunner
-    extends TestRunner[TestEnvironment, Any, String, Any, Any](
-      TestExecutor.managed(testEnvironmentManaged)
-    ) {}
+  type STM[+E, +A] = ZSTM[Any, E, A]
+
+}

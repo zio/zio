@@ -1,8 +1,8 @@
 package zio
 
-import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ exceptDotty, jvmOnly }
+import zio.test._
 
 object HasSpec extends ZIOBaseSpec {
   trait Animal
@@ -59,11 +59,11 @@ object HasSpec extends ZIOBaseSpec {
       assert((whole: Has[Dog]).prune.size)(equalTo(1)) &&
       assert((whole: Has[Cat]).prune.size)(equalTo(1))
     } @@ exceptDotty @@ jvmOnly,
-    zio.test.test("Union will prune what is not known about") {
-      val whole: Has[Dog] with Has[Cat] with Has[Bunny] = Has(dog1).add(cat1).add(bunny1)
+    zio.test.test("Union will prune what is not known about on RHS") {
+      val unioned = Has(dog1) union ((Has(dog2).add(bunny1)): Has[Bunny])
 
-      assert(whole.size)(equalTo(3)) &&
-      assert(((whole: Has[Dog]) union (whole: Has[Cat])).size)(equalTo(2))
+      assert(unioned.get[Dog])(equalTo(dog1)) &&
+      assert(unioned.size)(equalTo(2))
     } @@ exceptDotty @@ jvmOnly
   )
 }

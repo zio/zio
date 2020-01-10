@@ -32,8 +32,10 @@ import com.github.ghik.silencer.silent
  * Currently, to be portable across all platforms, all services added to an
  * environment must be monomorphic. Parameterized services are not supported.
  */
-final class Has[A] private (private val map: Map[TagType, scala.Any], var cache: Map[TagType, scala.Any] = Map())
-    extends Serializable {
+final class Has[A] private (
+  private val map: Map[TagType, scala.Any],
+  private var cache: Map[TagType, scala.Any] = Map()
+) extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case that: Has[_] => map == that.map
   }
@@ -68,23 +70,23 @@ object Has {
 
   trait IsHas[-R] {
     def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M]
-    def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit t1: Tagged[R0], t2: Tagged[R1]): R0 with R1
+    def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit tagged: Tagged[R1]): R0 with R1
     def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
   }
   object IsHas {
     implicit def ImplicitIs[R <: Has[_]]: IsHas[R] =
       new IsHas[R] {
         def add[R0 <: R, M: Tagged](r: R0, m: M): R0 with Has[M] = r.add(m)
-        def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit t1: Tagged[R0], t2: Tagged[R1]): R0 with R1 =
+        def union[R0 <: R, R1 <: Has[_]](r: R0, r1: R1)(implicit tagged: Tagged[R1]): R0 with R1 =
           r.union[R1](r1)
         def update[R0 <: R, M: Tagged](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
       }
   }
 
-  implicit final class HasSyntax[Self <: Has[_]](val self: Self) extends AnyVal {
+  implicit final class HasSyntax[Self <: Has[_]](private val self: Self) extends AnyVal {
     def +[B](b: B)(implicit tag: Tagged[B]): Self with Has[B] = self add b
 
-    def ++[B <: Has[_]](that: B)(implicit t1: Tagged[Self], t2: Tagged[B]): Self with B = self union [B] that
+    def ++[B <: Has[_]](that: B)(implicit tagged: Tagged[B]): Self with B = self union [B] that
 
     /**
      * Adds a service to the environment. The service must be monomorphic rather
@@ -132,8 +134,8 @@ object Has {
     /**
      * Combines this environment with the specified environment.
      */
-    def union[B <: Has[_]](that: B)(implicit ev1: Tagged[Self], ev2: Tagged[B]): Self with B =
-      self.prune.unionAll[B](that.prune)
+    def union[B <: Has[_]](that: B)(implicit tagged: Tagged[B]): Self with B =
+      self.unionAll[B](that.prune)
 
     /**
      * Combines this environment with the specified environment. In the event

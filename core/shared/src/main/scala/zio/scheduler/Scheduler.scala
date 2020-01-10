@@ -16,12 +16,11 @@
 
 package zio.scheduler
 
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
-import zio.{ UIO, ZLayer }
 import zio.duration.Duration
+import zio.{ UIO, ZLayer }
 
 object Scheduler extends PlatformSpecific {
   private[zio] type CancelToken = () => Boolean
@@ -49,8 +48,6 @@ object Scheduler extends PlatformSpecific {
     new Scheduler.Service {
       val ConstFalse = () => false
 
-      val _size = new AtomicInteger()
-
       override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
         case Duration.Infinity => ConstFalse
         case Duration.Zero =>
@@ -58,27 +55,12 @@ object Scheduler extends PlatformSpecific {
 
           ConstFalse
         case duration: Duration.Finite =>
-          _size.incrementAndGet
-
           val future = service.schedule(new Runnable {
             def run: Unit =
-              try task.run()
-              finally {
-                val _ = _size.decrementAndGet
-              }
+              task.run()
           }, duration.toNanos, TimeUnit.NANOSECONDS)
 
-          () => {
-            val canceled = future.cancel(true)
-
-            if (canceled) _size.decrementAndGet
-
-            canceled
-          }
+          () => future.cancel(true)
       }
-
-      // override def size: Int = _size.get
-
-      // override def shutdown(): Unit = service.shutdown()
     }
 }

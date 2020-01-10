@@ -1,8 +1,8 @@
 package zio.stream
 
 import zio._
-import zio.test._
 import zio.test.Assertion.{ dies, equalTo, fails, isTrue }
+import zio.test._
 
 object StreamDrainForkSpec extends ZIOBaseSpec {
   def spec = suite("ZStream.drainFork")(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package zio.test
 import zio.{ FiberRef, Has, UIO, ZIO, ZLayer }
 
 object Sized {
-  trait Service {
+  trait Service extends Serializable {
     val size: UIO[Int]
     def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
   }

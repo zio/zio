@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  * Copyright 2017-2018 Łukasz Biały, Paul Chiusano, Michael Pilquist,
  * Oleg Pyzhcov, Fabio Labella, Alexandru Nedelcu, Pavel Chlupacek.
  *
@@ -20,10 +20,10 @@
 
 package zio
 
-import internals._
-
 import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
+
+import internals._
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package zio.test.environment
 
-import zio.{ Has, Ref, UIO, ZIO, ZLayer }
 import zio.system.System
+import zio.{ Has, Ref, UIO, ZIO, ZLayer }
+import zio.{ Ref, UIO, ZIO }
 
 /**
  * `TestSystem` supports deterministic testing of effects involving system
@@ -47,7 +48,7 @@ object TestSystem extends Serializable {
     def clearProperty(prop: String): UIO[Unit]
   }
 
-  case class Test(systemState: Ref[TestSystem.Data]) extends System.Service with TestSystem.Service {
+  final case class Test(systemState: Ref[TestSystem.Data]) extends System.Service with TestSystem.Service {
 
     /**
      * Returns the specified environment variable if it exists.
@@ -172,7 +173,7 @@ object TestSystem extends Serializable {
   /**
    * The state of the `TestSystem`.
    */
-  case class Data(
+  final case class Data(
     properties: Map[String, String] = Map.empty,
     envs: Map[String, String] = Map.empty,
     lineSeparator: String = "\n"

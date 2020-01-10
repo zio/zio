@@ -1,8 +1,8 @@
 package zio.test.environment
 
 import zio.duration._
-import zio.scheduler.Scheduler.CancelToken
 import zio.scheduler.Scheduler
+import zio.scheduler.Scheduler.CancelToken
 import zio.scheduler.scheduler
 import zio.test.Assertion._
 import zio.test._

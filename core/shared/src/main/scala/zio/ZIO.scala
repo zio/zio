@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
-import zio.{ InterruptStatus => InterruptS }
 import zio.{ DaemonStatus => DaemonS }
+import zio.{ InterruptStatus => InterruptS }
 import zio.{ TracingStatus => TracingS }
 
 /**
@@ -1253,6 +1253,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Retries this effect until its error satisfies the specified predicate.
+   */
+  final def retryUntil(f: E => Boolean): ZIO[R, E, A] =
+    retry(Schedule.doUntil(f))
+
+  /**
+   * Retries this effect while its error satisfies the specified predicate.
+   */
+  final def retryWhile(f: E => Boolean): ZIO[R, E, A] =
+    retry(Schedule.doWhile(f))
+
+  /**
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
    */
@@ -2048,6 +2060,7 @@ object ZIO {
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
+
     import internal.OneShot
 
     effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap {
@@ -2816,7 +2829,7 @@ object ZIO {
   /**
    * Strictly-evaluated unit lifted into the `ZIO` monad.
    */
-  val unit: URIO[Any, Unit] = succeed(())
+  val unit: UIO[Unit] = succeed(())
 
   /**
    * Prefix form of `ZIO#uninterruptible`.
@@ -2864,6 +2877,21 @@ object ZIO {
     }
 
   /**
+   * Feeds elements of type A to f and accumulates, in parallel,
+   * all errors in error channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes will be lost.
+   * To retain all information please use ZIO#partitionMPar
+   */
+  def validateMPar[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, ::[E], List[B]] =
+    partitionMPar(in)(f).flatMap {
+      case (e :: es, _) => ZIO.fail(::(e, es))
+      case (_, bs)      => ZIO.succeed(bs)
+    }
+
+  /**
    * Feeds elements of type A to f until it succeeds. Returns first success or the accumulation of all errors.
    */
   def validateFirstM[R, E, A, B](
@@ -2875,6 +2903,16 @@ object ZIO {
           f(a).foldM(e => ZIO.succeed(e :: es), b => ZIO.fail(b))
       }
       .flip
+
+  /**
+   * Feeds elements of type A to f, in parallel, until it succeeds. Returns first success or the accumulation of all errors.
+   *
+   * In case of success all other running fibers are terminated.
+   */
+  def validateFirstMPar[R, E, A, B](
+    in: Iterable[A]
+  )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], B] =
+    ZIO.foreachPar(in)(f(_).flip).flip
 
   /**
    * The moral equivalent of `if (p) exp`

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package zio.test
 
-import zio.duration._
-
 import scala.reflect.ClassTag
+
+import zio.duration._
 
 /**
  * A type of annotation.
@@ -28,12 +28,12 @@ final class TestAnnotation[V] private (
   val initial: V,
   val combine: (V, V) => V,
   private val classTag: ClassTag[V]
-) {
-  override final def equals(that: Any): Boolean = that match {
+) extends Serializable {
+  override def equals(that: Any): Boolean = that match {
     case that: TestAnnotation[_] => (identifier, classTag) == ((that.identifier, that.classTag))
   }
 
-  override final lazy val hashCode =
+  override lazy val hashCode =
     (identifier, classTag).hashCode
 }
 object TestAnnotation {
@@ -46,24 +46,24 @@ object TestAnnotation {
   /**
    * An annotation which counts ignored tests.
    */
-  final val ignored: TestAnnotation[Int] =
+  val ignored: TestAnnotation[Int] =
     TestAnnotation("ignored", 0, _ + _)
 
   /**
    * An annotation which counts repeated tests.
    */
-  final val repeated: TestAnnotation[Int] =
+  val repeated: TestAnnotation[Int] =
     TestAnnotation("repeated", 0, _ + _)
 
   /**
    * An annotation which counts retried tests.
    */
-  final val retried: TestAnnotation[Int] =
+  val retried: TestAnnotation[Int] =
     TestAnnotation("retried", 0, _ + _)
 
   /**
    * An annotation for timing.
    */
-  final val timing: TestAnnotation[Duration] =
+  val timing: TestAnnotation[Duration] =
     TestAnnotation("timing", Duration.Zero, _ + _)
 }

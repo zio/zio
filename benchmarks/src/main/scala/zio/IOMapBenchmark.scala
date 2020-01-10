@@ -2,10 +2,11 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
-
 import scala.annotation.tailrec
+
+import org.openjdk.jmh.annotations._
+
+import zio.IOBenchmarks._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -26,8 +27,8 @@ class IOMapBenchmark {
 
   @Benchmark
   def futureMap(): BigInt = {
-    import scala.concurrent.{ Await, Future }
     import scala.concurrent.duration.Duration.Inf
+    import scala.concurrent.{ Await, Future }
 
     @tailrec
     def sumTo(t: Future[BigInt], n: Int): Future[BigInt] =

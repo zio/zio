@@ -2,6 +2,7 @@ package zio.stream
 
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
+
 import zio.random.Random
 import zio.test.{ Gen, Sized }
 import zio.{ Chunk, IO }

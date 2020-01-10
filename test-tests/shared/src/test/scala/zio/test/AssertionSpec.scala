@@ -163,6 +163,15 @@ object AssertionSpec extends ZIOBaseSpec {
     test("hasSize must succeed when iterable size is equal to specified assertion") {
       assert(Seq(1, 2, 3))(hasSize(equalTo(3)))
     },
+    test("hasSize must fail when iterable size is not equal to specified assertion") {
+      assert(Seq(1, 2, 3))(hasSize(equalTo(1)))
+    } @@ failure,
+    test("hasSizeString must succeed when string size is equal to specified assertion") {
+      assert("aaa")(hasSizeString(equalTo(3)))
+    },
+    test("hasSizeString must fail when string size is not equal to specified assertion") {
+      assert("aaa")(hasSizeString(equalTo(2)))
+    } @@ failure,
     test("isCase must fail when unapply fails (returns None)") {
       assert(42)(isCase[Int, String](termName = "term", _ => None, equalTo("number: 42")))
     } @@ failure,
