@@ -22,8 +22,8 @@ import zio._
 import zio.internal.tracing.ZIOFn
 import zio.internal.{ Executor, NamedThreadFactory }
 
-private[zio] object internal {
-  private[zio] val blockingExecutor0 =
+private[blocking] object internal {
+  private[blocking] val blockingExecutor0 =
     Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
       val corePoolSize  = 0
       val maxPoolSize   = Int.MaxValue
