@@ -512,8 +512,7 @@ object SinkSpec extends ZIOBaseSpec {
             def extract(state: State)      = IO.fail("Ouch")
             def cont(state: State)         = true
           }
-          val sink = s.optional
-          assertM(sinkIteration(sink, 1))(equalTo((None, Chunk.single(1))))
+          assertM(sinkIteration(s.optional, 1))(equalTo((None, Chunk.single(1))))
         },
         testM("extract error") {
           val sink = extractErrorSink.optional

@@ -29,7 +29,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       },
       testM("is safe to pull again after sink step failure") {
         Stream(1, 2, 3, 4)
-          .aggregate(ZSink.identity[Int].contramapM { n: Int =>
+          .aggregate(ZSink.identity[Int].contramapM { (n: Int) =>
             if (n % 2 == 0) IO.fail("Ouch") else UIO.succeed(n)
           })
           .process
@@ -41,7 +41,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       testM("is safe to pull again after sink extraction failure") {
         assertM(
           Stream(1, 2, 3, 4)
-            .aggregate(ZSink.fromFunctionM { n: Int =>
+            .aggregate(ZSink.fromFunctionM { (n: Int) =>
               if (n % 2 == 0) IO.fail("Ouch") else UIO.succeed(n)
             })
             .process

@@ -53,7 +53,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVMDotty",
-  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsJVM/test:compile;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/run;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
@@ -160,7 +160,9 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
+lazy val streamsTestsJVM = streamsTests.jvm
+  .dependsOn(coreTestsJVM % "test->compile")
+  .settings(dottySettings)
 
 lazy val streamsTestsJS = streamsTests.js
   .settings(
