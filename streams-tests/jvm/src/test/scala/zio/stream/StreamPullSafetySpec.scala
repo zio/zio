@@ -27,6 +27,47 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .use(nPulls(_, 5))
           .map(assert(_)(equalTo(List(Right(3), Left(Some("Ouch")), Right(7), Left(None), Left(None)))))
       },
+      testM("is safe to pull again after initial failure") {
+        def initFailureSink(ref: Ref[(Int, Boolean)]): Sink[String, Nothing, Int, String] =
+          new Sink[String, Nothing, Int, String] {
+            type State = Option[Int]
+
+            def initial: IO[String, State] =
+              ref.modify {
+                case (n, failed) =>
+                  if (failed) (UIO.succeed(None), (n + 1, false)) else (IO.fail("Ouch"), (n, true))
+              }.flatten
+
+            def step(s: State, a: Int): UIO[State] = UIO.succeed(Some(a))
+
+            def extract(s: State): IO[String, (String, Chunk[Nothing])] =
+              IO.fromOption(s).map(n => (n.toString, Chunk.empty)).asError("Empty")
+
+            def cont(s: State): Boolean = s.isEmpty
+          }
+
+        for {
+          ref <- Ref.make((1, false))
+          pulls <- Stream(1, 2, 3)
+                    .aggregate(initFailureSink(ref))
+                    .process
+                    .use(nPulls(_, 9))
+        } yield assert(pulls)(
+          equalTo(
+            List(
+              Left(Some("Ouch")),
+              Right("1"),
+              Left(Some("Ouch")),
+              Right("2"),
+              Left(Some("Ouch")),
+              Right("3"),
+              Left(Some("Ouch")),
+              Left(None),
+              Left(None)
+            )
+          )
+        )
+      },
       testM("is safe to pull again after sink step failure") {
         Stream(1, 2, 3, 4)
           .aggregate(ZSink.identity[Int].contramapM { n: Int =>
