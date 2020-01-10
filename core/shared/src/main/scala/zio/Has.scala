@@ -128,7 +128,7 @@ object Has {
       val set = taggedGetHasServices(tag)
 
       if (set.isEmpty) self
-      else new Has(self.map.filterKeys(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[Self]
+      else new Has(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[Self]
     }
 
     /**
@@ -230,4 +230,13 @@ object Has {
     def apply[R <: Has[M], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       ZIO.environment[R].flatMap(env => zio.provide(env.update(f)))
   }
+
+  /**
+   * Filters a map by retaining only keys satisfying a predicate.
+   */
+  private def filterKeys[K, V](map: Map[K, V])(f: K => Boolean): Map[K, V] =
+    map.foldLeft[Map[K, V]](Map.empty) {
+      case (acc, (key, value)) =>
+        if (f(key)) acc + (key -> value) else acc
+    }
 }

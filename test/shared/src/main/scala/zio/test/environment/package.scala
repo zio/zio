@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio._
+import zio.{ Has, IO, Managed, ZEnv, ZIO }
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
