@@ -22,15 +22,19 @@ import zio.internal.{ Scheduler => IScheduler }
 
 import scala.scalajs.js
 
-private[scheduler] trait PlatformSpecific  {
+private[scheduler] trait PlatformSpecific {
   private[scheduler] val defaultScheduler = new Scheduler.Service {
     import Scheduler.CancelToken
 
     private[this] val ConstFalse = () => false
 
-    private[this] var _size = 0
+    override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
+      ZIO.effectAsyncInterrupt { cb =>
+        val canceler = _schedule(() => cb(task), duration)
+        Left(ZIO.effectTotal(canceler()))
+      }
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+    private[this] def _schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
       case Duration.Zero =>
         task.run()

@@ -20,26 +20,17 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
-import zio.{ UIO, ZLayer }
+import zio.{ ZIO, ZLayer }
 
 object Scheduler extends PlatformSpecific {
   private[zio] type CancelToken = () => Boolean
 
   trait Service extends Serializable {
-    def schedule[A](task: => A, duration: Duration): UIO[A] =
-      UIO.effectAsyncInterrupt { cb =>
-        val canceler = schedule(() => cb(UIO.effectTotal(task)), duration)
-        Left(UIO.effectTotal(canceler()))
-      }
-    private[zio] def schedule(task: Runnable, duration: Duration): CancelToken
+    def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A]
   }
 
-  val live: ZLayer.NoDeps[Nothing, Scheduler] = ZLayer.succeed {
-    new Service {
-      private[zio] def schedule(task: Runnable, duration: Duration): CancelToken =
-        defaultScheduler.schedule(task, duration)
-    }
-  }
+  val live: ZLayer.NoDeps[Nothing, Scheduler] =
+    ZLayer.succeed(defaultScheduler)
 
   /**
    * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.
@@ -48,7 +39,13 @@ object Scheduler extends PlatformSpecific {
     new Scheduler.Service {
       val ConstFalse = () => false
 
-      override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+      override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
+        ZIO.effectAsyncInterrupt { cb =>
+          val canceler = _schedule(() => cb(task), duration)
+          Left(ZIO.effectTotal(canceler()))
+        }
+
+      private[this] def _schedule(task: Runnable, duration: Duration): CancelToken = duration match {
         case Duration.Infinity => ConstFalse
         case Duration.Zero =>
           task.run()

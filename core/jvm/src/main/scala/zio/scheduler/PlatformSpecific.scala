@@ -18,6 +18,7 @@ package zio.scheduler
 
 import java.util.concurrent._
 
+import zio.ZIO
 import zio.duration.Duration
 import zio.internal.NamedThreadFactory
 
@@ -29,14 +30,19 @@ private[scheduler] trait PlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+    override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
+      ZIO.effectAsyncInterrupt { cb =>
+        val canceler = _schedule(() => cb(task), duration)
+        Left(ZIO.effectTotal(canceler()))
+      }
+
+    private[this] def _schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
       case Duration.Zero =>
         task.run()
 
         ConstFalse
       case duration: Duration.Finite =>
-
         val future = service.schedule(new Runnable {
           def run: Unit =
             task.run()
