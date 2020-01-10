@@ -4,17 +4,17 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
-import zio.internal.PlatformScheduler.CancelToken
+import zio.internal.IScheduler.CancelToken
 
-private[zio] trait PlatformScheduler {
+private[zio] trait IScheduler {
   def schedule(task: Runnable, duration: Duration): CancelToken
 }
 
-private[zio] object PlatformScheduler {
+private[zio] object IScheduler {
   type CancelToken = () => Boolean
 
-  def fromScheduledExecutorService(service: ScheduledExecutorService): PlatformScheduler =
-    new PlatformScheduler {
+  def fromScheduledExecutorService(service: ScheduledExecutorService): IScheduler =
+    new IScheduler {
       val ConstFalse = () => false
 
       override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
