@@ -30,7 +30,7 @@ private[scheduler] trait PlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
       case Duration.Zero =>
         task.run()
