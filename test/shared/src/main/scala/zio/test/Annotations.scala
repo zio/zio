@@ -28,7 +28,7 @@ import zio.{ FiberRef, Has, UIO, ZIO, ZLayer }
  */
 object Annotations {
 
-  trait Service {
+  trait Service extends Serializable {
     def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit]
     def get[V](key: TestAnnotation[V]): UIO[V]
     def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]]

@@ -24,7 +24,7 @@ import scala.io.StdIn
 import scala.{ Console => SConsole }
 
 object Console extends Serializable {
-  trait Service {
+  trait Service extends Serializable {
     def putStr(line: String): UIO[Unit]
 
     def putStrLn(line: String): UIO[Unit]

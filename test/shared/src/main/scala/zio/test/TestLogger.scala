@@ -20,7 +20,7 @@ import zio.{ Has, UIO, URIO, ZIO, ZLayer }
 import zio.console.Console
 
 object TestLogger {
-  trait Service {
+  trait Service extends Serializable {
     def logLine(line: String): UIO[Unit]
   }
 

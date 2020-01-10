@@ -19,7 +19,7 @@ package zio.test
 import zio.{ FiberRef, Has, UIO, ZIO, ZLayer }
 
 object Sized {
-  trait Service {
+  trait Service extends Serializable {
     val size: UIO[Int]
     def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
   }
