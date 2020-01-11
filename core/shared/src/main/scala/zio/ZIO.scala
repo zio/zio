@@ -2261,13 +2261,13 @@ object ZIO {
       succeed  <- Ref.make(0)
       _ <- ZIO.traverse_(as) {
             f(_)
-              .foldM(result.fail, _ => {
+              .foldCauseM(result.halt, _ => {
                 succeed.update(_ + 1) >>= { succeed =>
                   ZIO.when(succeed == size)(result.succeed(()))
                 }
               })
               .fork >>= { fiber =>
-              result.await.catchAll(_ => fiber.interruptAs(parentId)).fork
+              result.await.catchAllCause(_ => fiber.interruptAs(parentId)).fork
             }
           }
       _ <- result.await
