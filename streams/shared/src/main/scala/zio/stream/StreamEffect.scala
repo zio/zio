@@ -241,10 +241,14 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
         StreamEffect {
           self.processEffect.flatMap { thunk =>
             Managed.effectTotal {
-              var state: AggregateState[sink.State, A1] = AggregateState.Pull(sink.initialPure, false)
+              var state: AggregateState[sink.State, A1] = AggregateState.Initial(Chunk.empty)
 
               @annotation.tailrec
               def go(): B = state match {
+                case AggregateState.Initial(leftovers) =>
+                  state = AggregateState.Drain(sink.initialPure, leftovers, 0)
+                  go()
+
                 case AggregateState.Pull(s, dirty) =>
                   try {
                     val a  = thunk()
@@ -260,9 +264,12 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
                 case AggregateState.Extract(s, chunk) =>
                   sink
                     .extractPure(s)
-                    .fold(StreamEffect.fail[E1, B], {
+                    .fold(e => {
+                      state = AggregateState.Initial(chunk)
+                      StreamEffect.fail[E1, B](e)
+                    }, {
                       case (b, leftovers) =>
-                        state = AggregateState.Drain(sink.initialPure, chunk ++ leftovers, 0)
+                        state = AggregateState.Initial(chunk ++ leftovers)
                         b
                     })
 

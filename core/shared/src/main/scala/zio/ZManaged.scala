@@ -1182,11 +1182,8 @@ object ZManaged {
    * For a sequential version of this method, see `foreach_`.
    */
   def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    ZManaged.succeed(as.iterator).flatMap { i =>
-      def loop: ZManaged[R, E, Unit] =
-        if (i.hasNext) f(i.next).zipWithPar(loop)((_, _) => ())
-        else ZManaged.unit
-      loop
+    as.foldLeft(unit: ZManaged[R, E, Unit]) { (acc, a) =>
+      acc.zipParLeft(f(a))
     }
 
   /**

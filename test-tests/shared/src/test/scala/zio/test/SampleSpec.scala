@@ -1,51 +1,41 @@
 package zio.test
 
-import scala.concurrent.Future
-
 import zio.stream.ZStream
-import zio.test.TestUtils.label
+import zio.test.Assertion._
 import zio.{ UIO, ZIO }
 
-object SampleSpec extends AsyncBaseSpec {
+object SampleSpec extends ZIOBaseSpec {
 
-  val run: List[Async[(Boolean, String)]] = List(
-    label(monadLeftIdentity, "monad left identity"),
-    label(monadRightIdentity, "monad right identity"),
-    label(monadAssociativity, "monad associativity"),
-    label(traverseFusion, "traverse fusion")
-  )
-
-  def monadLeftIdentity: Future[Boolean] =
-    unsafeRunToFuture {
+  def spec = suite("SampleSpec")(
+    testM("monad left identity") {
       val sample = Sample.shrinkIntegral(0)(5)
-      equalSamples(sample.flatMap(Sample.noShrink), sample)
-    }
-
-  def monadRightIdentity: Future[Boolean] =
-    unsafeRunToFuture {
+      val result = equalSamples(sample.flatMap(Sample.noShrink), sample)
+      assertM(result)(isTrue)
+    },
+    testM("monad right identity") {
       val n                           = 5
       def f(n: Int): Sample[Any, Int] = Sample.shrinkIntegral(0)(n)
-      equalSamples(Sample.noShrink(n).flatMap(f), f(n))
-    }
-
-  def monadAssociativity: Future[Boolean] =
-    unsafeRunToFuture {
+      val result                      = equalSamples(Sample.noShrink(n).flatMap(f), f(n))
+      assertM(result)(isTrue)
+    },
+    testM("monad associativity") {
       val sample                      = Sample.shrinkIntegral(0)(2)
       def f(n: Int): Sample[Any, Int] = Sample.shrinkIntegral(0)(n + 3)
       def g(n: Int): Sample[Any, Int] = Sample.shrinkIntegral(0)(n + 5)
-      equalSamples(sample.flatMap(f).flatMap(g), sample.flatMap(a => f(a).flatMap(g)))
-    }
-
-  def traverseFusion: Future[Boolean] =
-    unsafeRunToFuture {
+      val result                      = equalSamples(sample.flatMap(f).flatMap(g), sample.flatMap(a => f(a).flatMap(g)))
+      assertM(result)(isTrue)
+    },
+    testM("traverse fusion") {
       val sample              = Sample.shrinkIntegral(0)(5)
       def f(n: Int): UIO[Int] = ZIO.succeed(n + 2)
       def g(n: Int): UIO[Int] = ZIO.succeed(n * 3)
-      equalEffects(
+      val result = equalEffects(
         sample.traverse(a => f(a).flatMap(g)),
         sample.traverse(f).flatMap(_.traverse(g))
       )
+      assertM(result)(isTrue)
     }
+  )
 
   def equalEffects[A, B](
     left: ZIO[Any, Nothing, Sample[Any, A]],
