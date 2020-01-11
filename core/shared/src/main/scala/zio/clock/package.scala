@@ -16,13 +16,42 @@
 
 package zio
 
-import java.time.OffsetDateTime
+import java.time.{ Instant, OffsetDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import zio.duration.Duration
+import zio.scheduler.Scheduler
 
 package object clock {
   type Clock = Has[Clock.Service]
+
+  object Clock extends Serializable {
+    trait Service extends Serializable {
+      def currentTime(unit: TimeUnit): UIO[Long]
+      def currentDateTime: UIO[OffsetDateTime]
+      val nanoTime: UIO[Long]
+      def sleep(duration: Duration): UIO[Unit]
+    }
+
+    val live: ZLayer[Scheduler, Nothing, Clock] = ZLayer.fromService { (scheduler: Scheduler.Service) =>
+      Has(new Service {
+        def currentTime(unit: TimeUnit): UIO[Long] =
+          IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
+
+        val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
+
+        def sleep(duration: Duration): UIO[Unit] =
+          scheduler.schedule(UIO.unit, duration)
+
+        def currentDateTime: ZIO[Any, Nothing, OffsetDateTime] =
+          for {
+            millis <- currentTime(TimeUnit.MILLISECONDS)
+            zone   <- ZIO.effectTotal(ZoneId.systemDefault)
+          } yield OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), zone)
+
+      })
+    }
+  }
 
   /**
    * Returns the current time, relative to the Unix epoch.
