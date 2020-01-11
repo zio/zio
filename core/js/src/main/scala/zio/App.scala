@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSEx-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,5 +28,5 @@ trait App extends DefaultRuntime {
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList).provideLayer(defaultEnvironment))(_ => ())
+    unsafeRunAsync(run(args0.toList).provideLayer(ZEnv.live))(_ => ())
 }

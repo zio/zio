@@ -1,7 +1,8 @@
 import sbt._
 import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
-import sbtcrossproject.CrossPlugin.autoImport.CrossType
+import sbtcrossproject.Platform
+import sbtcrossproject.CrossPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
@@ -83,9 +84,8 @@ object BuildHelper {
     """|import zio._
        |import zio.console._
        |import zio.duration._
-       |object replRTS extends DefaultRuntime {}
-       |import replRTS._
-       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |import zio.Runtime.default._
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = unsafeRun(io.provideLayer(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -116,6 +116,29 @@ object BuildHelper {
     ),
     initialCommands in Compile in console := initialCommandsStr
   )
+
+  def crossVersionFiles(conf: String, baseDirectory: File, crossProjectPlatform: Platform)(versions: String*) =
+    versions.toSeq.flatMap { version =>
+      CrossType.Full.sharedSrcDir(baseDirectory, conf).toList.map(f => file(f.getPath + s"-${version}")).toSet ++
+        Set(
+          baseDirectory.getParentFile / crossProjectPlatform.identifier.toLowerCase / "src" / conf / s"scala-${version}"
+        )
+    }
+
+  def crossSourceFiles(
+    conf: String,
+    isDotty: Boolean,
+    scalaVersion: String,
+    baseDirectory: File,
+    crossProjectPlatform: Platform
+  ) =
+    CrossVersion.partialVersion(scalaVersion) match {
+      case Some((2, x)) if x <= 11 => crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.11", "2.x")
+      case Some((2, x)) if x >= 12 =>
+        crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.12", "2.12+", "2.x")
+      case _ if (isDotty) => crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.12+", "dotty")
+      case _              => Nil
+    }
 
   def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
@@ -164,6 +187,23 @@ object BuildHelper {
       case _ => Seq.empty
     }
 
+  def crossProjectSettings(prjName: String) = Seq(
+    Compile / unmanagedSourceDirectories ++= crossSourceFiles(
+      "main",
+      isDotty.value,
+      scalaVersion.value,
+      baseDirectory.value,
+      crossProjectPlatform.value
+    ),
+    Test / unmanagedSourceDirectories ++= crossSourceFiles(
+      "test",
+      isDotty.value,
+      scalaVersion.value,
+      baseDirectory.value,
+      crossProjectPlatform.value
+    )
+  )
+
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
@@ -184,60 +224,7 @@ object BuildHelper {
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
-    Compile / unmanagedSourceDirectories ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, x)) if x <= 11 =>
-          Seq(
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
-          ).flatten
-        case Some((2, x)) if x >= 12 =>
-          Seq(
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
-          ).flatten
-        case _ =>
-          if (isDotty.value)
-            Seq(
-              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
-              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-dotty"))
-            ).flatten
-          else
-            Nil
-      }
-    },
-    Test / unmanagedSourceDirectories ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, x)) if x <= 11 =>
-          Seq(
-            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
-          ).flatten
-        case Some((2, x)) if x >= 12 =>
-          Seq(
-            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12")),
-            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
-          ).flatten
-        case _ =>
-          if (isDotty.value)
-            Seq(
-              Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-dotty"))
-            ).flatten
-          else
-            Nil
-      }
-    }
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
 
   def macroSettings = Seq(

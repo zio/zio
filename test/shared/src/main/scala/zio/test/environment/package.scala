@@ -75,7 +75,7 @@ package object environment extends PlatformSpecific {
   type TestRandom  = Has[TestRandom.Service]
   type TestSystem  = Has[TestSystem.Service]
 
-  val liveEnvironment: ZLayer.NoDeps[Nothing, zio.ZEnv] = zio.defaultEnvironment
+  val liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv] = ZEnv.live
 
   /**
    * Provides an effect with the "real" environment as opposed to the test

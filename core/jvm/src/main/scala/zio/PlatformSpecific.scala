@@ -27,22 +27,17 @@ import zio.system.System
 private[zio] trait PlatformSpecific {
   type ZEnv = Clock with Console with System with Random with Scheduler with Blocking
 
-  private[zio] val defaultEnvironment: ZLayer.NoDeps[Nothing, ZEnv] =
-    (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live ++ Blocking.live
+  object ZEnv {
+    val live: ZLayer.NoDeps[Nothing, ZEnv] =
+      (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live ++ Blocking.live
+  }
 
-  import scala.reflect.runtime.universe._
+  type Tagged[A] = ScalaSpecific.Tagged[A]
+  type TagType   = ScalaSpecific.TagType
 
-  type Tagged[A] = TypeTag[A]
-  type TagType   = Type
+  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = ScalaSpecific.taggedTagType(t)
 
-  private[zio] def taggedTagType[A](t: Tagged[A]): TagType = t.tpe.dealias
+  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean = ScalaSpecific.taggedIsSubtype(left, right)
 
-  private[zio] def taggedIsSubtype(left: TagType, right: TagType): Boolean =
-    left <:< right
-
-  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] =
-    t.dealias match {
-      case RefinedType(parents, _) => parents.toSet.flatMap((p: TagType) => taggedGetHasServices(p))
-      case t                       => Set(t.typeArgs(0).dealias)
-    }
+  private[zio] def taggedGetHasServices[A](t: TagType): Set[TagType] = ScalaSpecific.taggedGetHasServices(t)
 }

@@ -61,7 +61,7 @@ trait App extends DefaultRuntime {
               }))
           result <- fiber.join
           _      <- fiber.interrupt
-        } yield result).provideLayer(defaultEnvironment)
+        } yield result).provideLayer(ZEnv.live)
       )
     )
     catch { case _: SecurityException => }
