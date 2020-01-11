@@ -197,7 +197,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
 lazy val testTestsJS = testTests.js.settings(
-  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3",
+  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3"
 )
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
