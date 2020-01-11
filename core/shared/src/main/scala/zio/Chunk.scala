@@ -161,7 +161,7 @@ sealed trait Chunk[+A] { self =>
    */
   def exists(f: A => Boolean): Boolean = {
     val len  = self.length
-    var exists = true
+    var exists = false
     var i = 0
     while (i < len) {
       if(f(self(i))) exists = true
