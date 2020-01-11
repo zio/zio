@@ -217,7 +217,7 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with specified values.
    */
-  final def make[K, V](a: (K, V), as: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(a :: as.toList)
+  final def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data.toList)
 
   /**
    * Makes an empty `TMap`.
