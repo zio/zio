@@ -2260,13 +2260,14 @@ object ZIO {
       result   <- Promise.make[E, Unit]
       succeed  <- Ref.make(0)
       _ <- ZIO.traverse_(as) {
-            f(_).fork >>= { fiber =>
-              result.await.catchAll(_ => fiber.interruptAs(parentId)).fork *>
-                fiber.join.foldM(result.fail, _ => {
-                  succeed.update(_ + 1) >>= { succeed =>
-                    ZIO.when(succeed == size)(result.succeed(()))
-                  }
-                })
+            f(_)
+              .foldM(result.fail, _ => {
+                succeed.update(_ + 1) >>= { succeed =>
+                  ZIO.when(succeed == size)(result.succeed(()))
+                }
+              })
+              .fork >>= { fiber =>
+              result.await.catchAll(_ => fiber.interruptAs(parentId)).fork
             }
           }
       _ <- result.await
