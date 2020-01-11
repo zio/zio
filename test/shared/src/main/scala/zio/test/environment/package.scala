@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Has, IO, Managed, ZEnv, ZIO }
+import zio.{ Has, IO, ZEnv, ZIO, ZLayer }
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
@@ -75,7 +75,7 @@ package object environment extends PlatformSpecific {
   type TestRandom  = Has[TestRandom.Service]
   type TestSystem  = Has[TestSystem.Service]
 
-  val liveEnvironment: Managed[Nothing, zio.ZEnv] = zio.defaultEnvironment
+  val liveEnvironment: ZLayer.NoDeps[Nothing, zio.ZEnv] = zio.defaultEnvironment
 
   /**
    * Provides an effect with the "real" environment as opposed to the test

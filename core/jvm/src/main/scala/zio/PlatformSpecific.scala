@@ -27,8 +27,8 @@ import zio.system.System
 private[zio] trait PlatformSpecific {
   type ZEnv = Clock with Console with System with Random with Scheduler with Blocking
 
-  private[zio] val defaultEnvironment: Managed[Nothing, ZEnv] =
-    ((Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live ++ Blocking.live).build
+  private[zio] val defaultEnvironment: ZLayer.NoDeps[Nothing, ZEnv] =
+    (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live ++ Blocking.live
 
   import scala.reflect.runtime.universe._
 

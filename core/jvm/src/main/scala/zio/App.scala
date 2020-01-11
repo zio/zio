@@ -61,7 +61,7 @@ trait App extends DefaultRuntime {
               }))
           result <- fiber.join
           _      <- fiber.interrupt
-        } yield result).provideManaged(defaultEnvironment)
+        } yield result).provideLayer(defaultEnvironment)
       )
     )
     catch { case _: SecurityException => }

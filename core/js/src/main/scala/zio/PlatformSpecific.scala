@@ -25,8 +25,8 @@ import zio.system.System
 private[zio] trait PlatformSpecific {
   type ZEnv = Clock with Console with System with Random with Scheduler
 
-  private[zio] val defaultEnvironment: Managed[Nothing, ZEnv] =
-    ((Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live).build
+  private[zio] val defaultEnvironment: ZLayer.NoDeps[Nothing, ZEnv] =
+    (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live
 
   type Tagged[A] = scala.reflect.ClassTag[A]
   type TagType   = scala.reflect.ClassTag[_]
