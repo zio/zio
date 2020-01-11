@@ -286,7 +286,7 @@ trait Fiber[+E, +A] { self =>
   /**
    * Converts this fiber into a [[scala.concurrent.Future]], translating
    * any errors to [[java.lang.Throwable]] with the specified conversion function,
-   * using [[Cause.squashWithTrace()]]
+   * using [[Cause.squashWithTrace]]
    *
    * @param f function to the error into a Throwable
    * @return `UIO[Future[A]]`

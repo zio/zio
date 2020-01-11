@@ -100,7 +100,7 @@ private[internal] trait PlatformSpecific {
   final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
 
   /**
-   * calling [[Throwable.initCause]] may will on the JVM if `newCause != this`,
+   * calling `initCause()` on [[java.lang.Throwable]] may fail on the JVM if `newCause != this`,
    * which may happen if the cause is setto null.
    * This works around this with reflection.
    */
