@@ -600,12 +600,15 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
         ZStream.managed {
           for {
-            as <- self.process
-            stateRef <- sink.initial
-                         .flatMap(s => Ref.make[AggregateState[sink.State, A1]](AggregateState.Pull(s, false)))
-                         .toManaged_
+            as       <- self.process
+            stateRef <- Ref.make[AggregateState[sink.State, A1]](AggregateState.Initial(Chunk.empty)).toManaged_
             pull = {
               def go: Pull[R1, E1, B] = stateRef.get.flatMap {
+                case AggregateState.Initial(leftovers) =>
+                  sink.initial.mapError(Some(_)).flatMap { s =>
+                    stateRef.set(AggregateState.Drain(s, leftovers, 0)) *> go
+                  }
+
                 case AggregateState.Pull(s, dirty) =>
                   as.foldCauseM(
                     Cause
@@ -626,23 +629,20 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                   )
 
                 case AggregateState.Extract(s, chunk) =>
-                  def modifyState(leftovers: Chunk[A1]): ZIO[R1, Option[E1], Unit] =
-                    sink.initial
-                      .flatMap(s => stateRef.set(AggregateState.Drain(s, chunk ++ leftovers, 0)))
-                      .mapError(Some(_))
-
                   sink
                     .extract(s)
-                    .foldCauseM(c => modifyState(Chunk.empty) *> Pull.halt(c), {
-                      case (b, leftovers) => modifyState(leftovers) *> Pull.emit(b)
-                    })
+                    .foldCauseM(
+                      c => stateRef.set(AggregateState.Initial(chunk)) *> Pull.halt(c), {
+                        case (b, leftovers) => stateRef.set(AggregateState.Initial(chunk ++ leftovers)) *> Pull.emit(b)
+                      }
+                    )
 
                 case AggregateState.Drain(s, leftovers, index) =>
                   if (index < leftovers.length) {
                     sink
                       .step(s, leftovers(index))
                       .foldCauseM(
-                        Pull.halt,
+                        c => stateRef.set(AggregateState.Drain(s, leftovers, index + 1)) *> Pull.halt(c),
                         s => {
                           val next =
                             if (sink.cont(s)) AggregateState.Drain(s, leftovers, index + 1)
@@ -2674,6 +2674,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   private[stream] object internal {
     sealed abstract class AggregateState[+S, +A]
     object AggregateState {
+      final case class Initial[A](leftovers: Chunk[A])                    extends AggregateState[Nothing, A]
       final case class Pull[S](s: S, dirty: Boolean)                      extends AggregateState[S, Nothing]
       final case class Extract[S, A](s: S, leftovers: Chunk[A])           extends AggregateState[S, A]
       final case class Drain[S, A](s: S, leftovers: Chunk[A], index: Int) extends AggregateState[S, A]
