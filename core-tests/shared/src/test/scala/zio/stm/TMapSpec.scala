@@ -132,6 +132,26 @@ object TMapSpec extends ZIOBaseSpec {
       }
     ),
     suite("transformations")(
+      testM("toList") {
+        val elems = List("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap <- TMap.fromIterable(elems)
+            list <- tmap.toList
+          } yield list
+
+        assertM(tx.commit)(hasSameElements(elems))
+      },
+      testM("toMap") {
+        val elems = Map("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap <- TMap.fromIterable(elems)
+            map  <- tmap.toMap
+          } yield map
+
+        assertM(tx.commit)(equalTo(elems))
+      },
       testM("merge") {
         val tx =
           for {
