@@ -2258,6 +2258,7 @@ object ZIO {
     for {
       parentId <- ZIO.fiberId
       result   <- Promise.make[E, Unit]
+      _        <- ZIO.when(as.isEmpty)(result.succeed(()))
       succeed  <- Ref.make(0)
       _ <- ZIO.traverse_(as) {
             f(_)
