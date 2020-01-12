@@ -54,6 +54,36 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
       .map(_.splitAt(max))
       .flatMap(split => ref.set(split._2) *> STM.succeed(split._1))
       .map(_.toList)
+
+  /**
+   * This method is used to view the next element in the queue without removing it.
+   * It retries if the queue is empty.
+   */
+  def peek: STM[Nothing, A] =
+    ref.get.flatMap(q => q.headOption match {
+      case Some(a) => STM.succeed(a)
+      case None => STM.retry
+    })
+
+  /**
+   * This method is used to view the last element inserted into the queue
+   * It retries if the queue is empty
+   */
+  def back: STM[Nothing, A] =
+    ref.get.flatMap(q => q.lastOption match {
+      case Some(a) => STM.succeed(a)
+      case None => STM.retry
+    })
+
+  /**
+   * Checks if the Queue is empty
+   */
+  def isEmpty: STM[Nothing, Boolean] = ref.get.map(_.isEmpty)
+
+  /**
+   * Checks if the Queue is at capacity
+   */
+  def isFull: STM[Nothing, Boolean] = ref.get.map(_.size == capacity)
 }
 
 object TQueue {
