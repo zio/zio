@@ -66,7 +66,11 @@ object Blocking extends Serializable {
      * Locks the specified effect to the blocking thread pool.
      */
     def blocking[R1 <: R, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
-      blockingExecutor.flatMap(exec => zio.lock(exec))
+      for {
+        executor <- blockingExecutor
+        here     <- ZIO.effectTotal(executor.here)
+        a        <- if (here) zio else zio.lock(executor)
+      } yield a
 
     /**
      * Imports a synchronous effect that does blocking IO into a pure value.
