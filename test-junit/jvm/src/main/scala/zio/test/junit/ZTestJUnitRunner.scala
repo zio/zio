@@ -38,8 +38,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
           effectTotal(description.addChild(suiteDesc)) *>
             specs
               .flatMap(ZIO.foreach(_)(traverse(_, suiteDesc, path :+ label.toString)))
-              .catchAll(_ => ZIO.unit)
-              .unit
+              .ignore
         case TestCase(label, _) =>
           effectTotal(description.addChild(testDescription(label.toString, path)))
       }
