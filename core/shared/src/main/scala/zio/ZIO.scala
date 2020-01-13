@@ -16,6 +16,8 @@
 
 package zio
 
+import java.util.concurrent.atomic.AtomicReferenceArray
+
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
@@ -2221,7 +2223,7 @@ object ZIO {
    */
   final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
     val n         = as.size
-    val resultArr = new Array[Any](n)
+    val resultArr = new AtomicReferenceArray[B](n)
     val resultList: ZIO[R, E, List[B]] = for {
       parentId <- ZIO.fiberId
       latch    <- CountdownLatch.make(n)
@@ -2235,7 +2237,7 @@ object ZIO {
                          fn(x).traced
                            .foldCauseM(
                              c => cause.update(cs => cs && c) *> failed.succeed(()).unit,
-                             b => ZIO.effectTotal(resultArr(i) = b)
+                             b => ZIO.effectTotal(resultArr.set(i, b))
                            )
                            .ensuring(latch.countDown)
                            .untraced
@@ -2254,8 +2256,11 @@ object ZIO {
       .toManaged_.fork
       _             <- interrupter.use_(latch.await)
       combinedCause <- cause.get
-      results <- if (combinedCause.isEmpty) UIO.succeed(resultArr.asInstanceOf[Array[B]].toList)
-                else ZIO.halt(combinedCause)
+      results <- if (combinedCause.isEmpty) {
+                  ZIO.succeed((0 until n).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
+                    resultArr.get(i) :: acc
+                  })
+                } else ZIO.halt(combinedCause)
     } yield results
     resultList.refailWithTrace
   }
