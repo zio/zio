@@ -1,7 +1,5 @@
 package zio
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
