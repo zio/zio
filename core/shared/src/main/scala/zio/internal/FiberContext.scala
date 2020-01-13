@@ -509,7 +509,9 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Lock =>
                     val zio = curZio.asInstanceOf[ZIO.Lock[Any, E, Any]]
 
-                    curZio = lock(zio.executor).bracket_(unlock, zio.zio)
+                    curZio =
+                      if (zio.executor eq executors.peek()) zio.zio
+                      else lock(zio.executor).bracket_(unlock, zio.zio)
 
                   case ZIO.Tags.Yield =>
                     evaluateLater(ZIO.unit)
