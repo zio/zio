@@ -189,7 +189,7 @@ object TestAspect extends TimeoutVariants {
    * Constructs an aspect that requires a test to not terminate within the
    * specified time.
    */
-  def doesNotTerminate(duration: Duration): TestAspect[Nothing, Live[Clock], Nothing, Any, Unit, Unit] =
+  def nonTermination(duration: Duration): TestAspect[Nothing, Live[Clock], Nothing, Any, Unit, Unit] =
     timeout(duration) >>>
       failure(
         isCase[TestFailure[Any], Throwable](
