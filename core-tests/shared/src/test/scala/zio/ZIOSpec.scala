@@ -438,7 +438,7 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("foreachPar")(
-      testM("rins single task") {
+      testM("runs single task") {
         val as = List(2)
         val results = IO.foreachPar(as) { a =>
           IO.succeed(2 * a)
