@@ -2167,12 +2167,12 @@ private[zio] trait ZIOFunctions extends Serializable {
       }
       .refailWithTrace
 
-    /**
-    * Applies the function `f` to each element of the `Iterable[A]` and runs
-    * produced effects in parallel, discarding the results.
-    *
-    * For a sequential version of this method, see `foreach_`.
-    */
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects in parallel, discarding the results.
+   *
+   * For a sequential version of this method, see `foreach_`.
+   */
   final def foreachPar_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     as.mapMPar_(f)
 
@@ -2644,9 +2644,21 @@ private[zio] trait ZIOFunctions extends Serializable {
     foreachPar[R, E, A, B](as)(fn)
 
   /**
+   * Alias for [[ZIO.foreachPar]]
+   */
+  final def traversePar[R, E, A, B](as: Chunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+    foreachPar[R, E, A, B](as)(fn)
+
+  /**
    * Alias for [[ZIO.foreachPar_]]
    */
   final def traversePar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    foreachPar_[R, E, A](as)(f)
+
+  /**
+   * Alias for [[ZIO.foreachPar_]]
+   */
+  final def traversePar_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreachPar_[R, E, A](as)(f)
 
   /**

@@ -436,10 +436,22 @@ object ZIOSpec extends ZIOBaseSpec {
         val res  = IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt))
         assertM(res, equalTo(List(1, 2, 3)))
       },
+      testM("returns results in the same order for Chunk") {
+        val chunk = Chunk("1", "2", "3")
+        val res   = IO.foreachPar(chunk)(x => IO.effectTotal[Int](x.toInt))
+        assertM(res, equalTo(Chunk(1, 2, 3)))
+      },
       testM("runs effects in parallel") {
         assertM(for {
           p <- Promise.make[Nothing, Unit]
           _ <- UIO.foreachPar(List(UIO.never, p.succeed(())))(a => a).fork
+          _ <- p.await
+        } yield true, isTrue)
+      },
+      testM("runs effects in parallel for Chunk") {
+        assertM(for {
+          p <- Promise.make[Nothing, Unit]
+          _ <- UIO.foreachPar(Chunk(UIO.never, p.succeed(()), UIO.never))(a => a).fork
           _ <- p.await
         } yield true, isTrue)
       },
@@ -474,6 +486,15 @@ object ZIOSpec extends ZIOBaseSpec {
           rs  <- ref.get
         } yield assert(rs, hasSize(equalTo(as.length))) &&
           assert(rs.toSet, equalTo(as.toSet))
+      },
+      testM("runs all effects for Chunk") {
+        val as = Chunk(1, 2, 3, 4, 5)
+        for {
+          ref <- Ref.make(Seq.empty[Int])
+          _   <- ZIO.foreachPar_(as)(a => ref.update(_ :+ a))
+          rs  <- ref.get
+        } yield assert(rs, hasSize(equalTo(as.length))) &&
+          assert(rs.toSet, equalTo(as.toList.toSet))
       }
     ),
     suite("foreachParN")(

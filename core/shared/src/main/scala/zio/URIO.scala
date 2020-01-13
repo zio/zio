@@ -271,6 +271,12 @@ object URIO {
     ZIO.foreachPar(as)(fn)
 
   /**
+   * @see [[zio.ZIO.foreachPar]]
+   */
+  final def foreachPar[R, A, B](as: Chunk[A])(fn: A => URIO[R, B]): URIO[R, Chunk[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
    * @see [[zio.ZIO.foreachParN]]
    */
   final def foreachParN[R, A, B](n: Int)(as: Iterable[A])(fn: A => URIO[R, B]): URIO[R, List[B]] =
@@ -292,6 +298,12 @@ object URIO {
    * @see [[zio.ZIO.foreachPar_]]
    */
   final def foreachPar_[R, A, B](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+    ZIO.foreachPar_(as)(f)
+
+  /**
+   * @see [[zio.ZIO.foreachPar_]]
+   */
+  final def foreachPar_[R, A, B](as: Chunk[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -575,6 +587,11 @@ object URIO {
   final def traversePar[R, A, B](as: Iterable[A])(fn: A => URIO[R, B]): URIO[R, List[B]] = ZIO.traversePar(as)(fn)
 
   /**
+   * @see [[zio.ZIO.traversePar]]
+   */
+  final def traversePar[R, A, B](as: Chunk[A])(fn: A => URIO[R, B]): URIO[R, Chunk[B]] = ZIO.traversePar(as)(fn)
+
+  /**
    * Alias for [[ZIO.foreachParN]]
    */
   final def traverseParN[R, A, B](n: Int)(as: Iterable[A])(fn: A => URIO[R, B]): URIO[R, List[B]] =
@@ -594,6 +611,11 @@ object URIO {
    * @see [[zio.ZIO.traversePar_]]
    */
   final def traversePar_[R, A](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] = ZIO.traversePar_(as)(f)
+
+  /**
+   * @see [[zio.ZIO.traversePar_]]
+   */
+  final def traversePar_[R, A](as: Chunk[A])(f: A => URIO[R, Any]): URIO[R, Unit] = ZIO.traversePar_(as)(f)
 
   /**
    * @see [[zio.ZIO.traverseParN_]]

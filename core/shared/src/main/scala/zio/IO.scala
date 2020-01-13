@@ -275,6 +275,12 @@ object IO {
     ZIO.foreachPar(as)(fn)
 
   /**
+   * @see See [[zio.ZIO.foreachPar]]
+   */
+  final def foreachPar[E, A, B](as: Chunk[A])(fn: A => IO[E, B]): IO[E, Chunk[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
    * @see See [[zio.ZIO.foreachParN]]
    */
   final def foreachParN[E, A, B](n: Int)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
@@ -296,6 +302,12 @@ object IO {
    * @see See [[zio.ZIO.foreachPar_]]
    */
   final def foreachPar_[E, A, B](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+    ZIO.foreachPar_(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.foreachPar_]]
+   */
+  final def foreachPar_[E, A, B](as: Chunk[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -592,6 +604,12 @@ object IO {
     ZIO.traversePar(as)(fn)
 
   /**
+   * @see See [[zio.ZIO.traversePar]]
+   */
+  final def traversePar[E, A, B](as: Chunk[A])(fn: A => IO[E, B]): IO[E, Chunk[B]] =
+    ZIO.traversePar(as)(fn)
+
+  /**
    * Alias for [[ZIO.foreachParN]]
    */
   final def traverseParN[E, A, B](
@@ -615,6 +633,12 @@ object IO {
    * @see See [[zio.ZIO.traversePar_]]
    */
   final def traversePar_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+    ZIO.traversePar_(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.traversePar_]]
+   */
+  final def traversePar_[E, A](as: Chunk[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traversePar_(as)(f)
 
   /**

@@ -270,9 +270,21 @@ object UIO {
     ZIO.foreachPar(as)(fn)
 
   /**
+   * @see See [[zio.ZIO.foreachPar]]
+   */
+  final def foreachPar[A, B](as: Chunk[A])(fn: A => UIO[B]): UIO[Chunk[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
    * @see See [[zio.ZIO.foreachPar_]]
    */
   final def foreachPar_[A](as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
+    ZIO.foreachPar_(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.foreachPar_]]
+   */
+  final def foreachPar_[A](as: Chunk[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
@@ -544,9 +556,21 @@ object UIO {
     ZIO.traversePar(in)(f)
 
   /**
+   * @see See [[zio.ZIO.traversePar]]
+   */
+  final def traversePar[A, B](in: Chunk[A])(f: A => UIO[B]): UIO[Chunk[B]] =
+    ZIO.traversePar(in)(f)
+
+  /**
    * @see See [[zio.ZIO.traversePar_]]
    */
   final def traversePar_[A](as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
+    ZIO.traversePar_(as)(f)
+
+  /**
+   * @see See [[zio.ZIO.traversePar_]]
+   */
+  final def traversePar_[A](as: Chunk[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.traversePar_(as)(f)
 
   /**
