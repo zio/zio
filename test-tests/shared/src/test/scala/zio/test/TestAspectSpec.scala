@@ -51,6 +51,17 @@ object TestAspectSpec extends ZIOBaseSpec {
         assert(after)(equalTo(-1))
       }
     },
+    suite("doesNotTerminate")(
+      testM("makes a test pass if it does not terminate within the specified time") {
+        assertM(ZIO.never)(anything)
+      } @@ doesNotTerminate(10.milliseconds),
+      testM("makes a test fail if it succeeds within the specified time") {
+        assertM(ZIO.unit)(anything)
+      } @@ doesNotTerminate(1.minute) @@ failure,
+      testM("makes a test fail if it fails within the specified time") {
+        assertM(ZIO.fail("fail"))(anything)
+      } @@ doesNotTerminate(1.minute) @@ failure
+    ),
     testM("dotty applies test aspect only on Dotty") {
       for {
         ref    <- Ref.make(false)
