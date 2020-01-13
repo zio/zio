@@ -742,17 +742,6 @@ object ZIOSpec extends ZIOBaseSpec {
         val effects = List(UIO.unit, ZIO.fail(1))
         val merged  = ZIO.mergeAllPar(effects)(zero = ())((_, _) => ())
         assertM(merged.run)(fails(equalTo(1)))
-      },
-      testM("run given f exactly once for each element") {
-        val callCount = new AtomicInteger(0)
-        def f(a: Int, b: Int) = {
-          callCount.incrementAndGet()
-          a + b
-        }
-        val effects = (1 to 100).map(ZIO.succeed)
-        UIO
-          .mergeAllPar(effects)(zero = 0)(f)
-          .as(assert(callCount.get)(equalTo(100)))
       }
     ),
     suite("none")(

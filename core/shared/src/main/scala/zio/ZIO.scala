@@ -2602,16 +2602,16 @@ object ZIO {
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
    *
-   * It's possible to execute side effects inside `f`, as `f` is guaranteed to
-   * be executed at most once for each `in` element.
+   * It's unsafe to execute side effects inside `f`, as `f` may be executed
+   * more than once for some of `in` elements during effect execution.
    */
   def mergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    RefM.make(zero) >>= { acc =>
+    Ref.make(zero) >>= { acc =>
       foreachPar_(in) {
         Predef.identity(_) >>= { a =>
-          acc.update(b => ZIO.effectTotal(f(b, a)))
+          acc.update(f(_, a))
         }
       } *> acc.get
     }
