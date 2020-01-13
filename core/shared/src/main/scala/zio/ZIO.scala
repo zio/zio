@@ -2253,27 +2253,28 @@ object ZIO {
    *
    * Additionally, interrupts all effects on any failure.
    */
-  def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
-    val size = as.size
-    for {
-      parentId <- ZIO.fiberId
-      result   <- Promise.make[E, Unit]
-      _        <- ZIO.when(as.isEmpty)(result.succeed(()))
-      succeed  <- Ref.make(0)
-      _ <- ZIO.traverse_(as) {
-            f(_)
-              .foldCauseM(result.halt, _ => {
-                succeed.update(_ + 1) >>= { succeed =>
-                  ZIO.when(succeed == size)(result.succeed(()))
-                }
-              })
-              .fork >>= { fiber =>
-              result.await.catchAllCause(_ => fiber.interruptAs(parentId)).fork
+  def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    if (as.isEmpty) ZIO.unit
+    else {
+      val size = as.size
+      for {
+        parentId <- ZIO.fiberId
+        result   <- Promise.make[E, Unit]
+        succeed  <- Ref.make(0)
+        _ <- ZIO.traverse_(as) {
+              f(_)
+                .foldCauseM(result.halt, _ => {
+                  succeed.update(_ + 1) >>= { succeed =>
+                    ZIO.when(succeed == size)(result.succeed(()))
+                  }
+                })
+                .fork >>= { fiber =>
+                result.await.catchAllCause(_ => fiber.interruptAs(parentId)).fork
+              }
             }
-          }
-      _ <- result.await
-    } yield ()
-  }
+        _ <- result.await
+      } yield ()
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
