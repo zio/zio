@@ -69,7 +69,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   /**
    * View the last element inserted into the queue. retries if the queue is empty
    */
-  def back: STM[Nothing, A] =
+  def last: STM[Nothing, A] =
     ref.get.flatMap(
       _.lastOption match {
         case Some(a) => STM.succeed(a)
@@ -104,25 +104,21 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   }
 
   /**
-   * Splits the queue into a prefix/suffix pair according to a predicate.
+   * Compares two Queues with the same element type and returns the longest one. If equal it returns the left side.
    */
-  def span(f: A => Boolean): STM[Nothing, (TQueue[A], TQueue[A])] =
-    for {
-      q      <- ref.get
-      (a, b) = q.span(f)
-      aa     <- TRef.make(a)
-      bb     <- TRef.make(b)
-    } yield (new TQueue(capacity, aa), new TQueue(capacity, bb))
+  def longest(t: TQueue[A]): STM[Nothing, TQueue[A]] =
+    (size <*> t.size).map { case (a, b) => if (a >= b) this else t }
 
-  //other possible additions
-  def groupBy[K](f: A => K): TMap[K, TQueue[A]] = ???
-  //size comparators
-  def longerThan[B](t: TQueue[B]): Boolean = ???
+  /**
+   * Returns the underlying queue
+   */
+  def underlying: STM[Nothing, TRef[ScalaQueue[A]]] = STM.succeed(ref)
+
 }
 
 object TQueue {
   def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
     TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 
-  def makeUnbounded[A]: STM[Nothing, TQueue[A]] = make(Int.MaxValue)
+  def unbounded[A]: STM[Nothing, TQueue[A]] = make(Int.MaxValue)
 }
