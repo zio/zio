@@ -2601,11 +2601,20 @@ object ZIO {
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
+   *
+   * It's possible to execute side effects inside `f`, as `f` is guaranteed to
+   * be executed at most once for each `in` element.
    */
   def mergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
+    RefM.make(zero) >>= { acc =>
+      foreachPar_(in) {
+        Predef.identity(_) >>= { a =>
+          acc.update(b => ZIO.effectTotal(f(b, a)))
+        }
+      } *> acc.get
+    }
 
   /**
    * Makes the effect non-daemon, but passes it a restore function that
