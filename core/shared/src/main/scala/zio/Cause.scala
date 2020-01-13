@@ -341,7 +341,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
   /**
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the
    * "most important" `Throwable`.
-   * In addition, appends a new element the `Throwable`s "caused by" chain,
+   * In addition, appends a new element the to `Throwable`s "caused by" chain,
    * with this `Cause` "pretty printed" (in stackless mode) as the message.
    */
   final def squashWithTrace(f: E => Throwable): Throwable =

@@ -59,7 +59,7 @@ trait Runtime[+R] {
   /**
    * Executes the Task/RIO effect synchronously, failing
    * with the original `Throwable` on both [[Cause.Fail]] and [[Cause.Die]].
-   * In addition, appends a new element the `Throwable`s "caused by" chain,
+   * In addition, appends a new element to the `Throwable`s "caused by" chain,
    * with this `Cause` "pretty printed" (in stackless mode) as the message.
    * May fail on Scala.js if the effect cannot be entirely run synchronously.
    *
