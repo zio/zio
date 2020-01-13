@@ -2146,32 +2146,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  final def foreachPar[R, E, A, B](as: Chunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
-    val len                        = as.length
-    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
-    var i                          = 0
-
-    while (i < len) {
-      val j = i
-      array = array.zipWithPar(fn(as(j))) { (array, b) =>
-        val array2 = if (array == null) {
-          implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-          Array.ofDim[B](len)
-        } else array
-
-        array2(j) = b
-        array2
-      }
-
-      i += 1
-    }
-
-    array.map(
-      array =>
-        if (array == null) Chunk.empty
-        else Chunk.fromArray(array)
-    )
-  }
+  final def foreachPar[R, E, A, B](as: Chunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+    as.mapMPar(fn)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -2190,6 +2166,15 @@ private[zio] trait ZIOFunctions extends Serializable {
         else ZIO.unit
       }
       .refailWithTrace
+
+    /**
+    * Applies the function `f` to each element of the `Iterable[A]` and runs
+    * produced effects in parallel, discarding the results.
+    *
+    * For a sequential version of this method, see `foreach_`.
+    */
+  final def foreachPar_[R, E, A](as: Chunk[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    as.mapMPar_(f)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
