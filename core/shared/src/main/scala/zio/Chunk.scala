@@ -616,10 +616,8 @@ sealed trait Chunk[+A] { self =>
   /**
     * Effectfully maps the elements of this chunk in parallel purely for the effects.
     */
-  final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
-    val ioUnit = IO.unit
-    foldM(ioUnit)((io, a) => io.zipWithPar(f(a))((_, _) => ioUnit)).flatten
-  }
+  final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
+    fold[ZIO[R, E, Unit]](IO.unit)((io, a) => io.zipParLeft(f(a)))
 
   /**
    * Zips this chunk with the specified chunk using the specified combiner.
