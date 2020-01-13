@@ -86,9 +86,43 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * Checks if the Queue is at capacity
    */
   def isFull: STM[Nothing, Boolean] = ref.get.map(_.size == capacity)
+
+  /**
+   * Drops elements from the queue while they dont satisfy the predicate until it does and takes it.
+   */
+  def seek(f: A => Boolean): STM[Nothing, A] = {
+    @annotation.tailrec
+    def go(q: ScalaQueue[A]): STM[Nothing, A] =
+      q.dequeueOption match {
+        case Some((a, as)) =>
+          if (f(a)) ref.set(as) *> STM.succeed(a)
+          else go(as)
+        case None => STM.retry
+      }
+
+    ref.get.flatMap(go)
+  }
+
+  /**
+   * Splits the queue into a prefix/suffix pair according to a predicate.
+   */
+  def span(f: A => Boolean): STM[Nothing, (TQueue[A], TQueue[A])] =
+    for {
+      q      <- ref.get
+      (a, b) = q.span(f)
+      aa     <- TRef.make(a)
+      bb     <- TRef.make(b)
+    } yield (new TQueue(capacity, aa), new TQueue(capacity, bb))
+
+  //other possible additions
+  def groupBy[K](f: A => K): TMap[K, TQueue[A]] = ???
+  //size comparators
+  def longerThan[B](t: TQueue[B]): Boolean = ???
 }
 
 object TQueue {
   def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
     TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
+
+  def makeUnbounded[A]: STM[Nothing, TQueue[A]] = make(Int.MaxValue)
 }
