@@ -132,6 +132,16 @@ object STM {
     ZSTM.suspend(stm)
 
   /**
+   * The moral equivalent of `if (p) exp`
+   */
+  def when[E](b: Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+
+  /**
+   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   */
+  def whenM[E](b: STM[E, Boolean])(stm: STM[E, Any]): STM[E, Unit] = ZSTM.whenM(b)(stm)
+
+  /**
    * Returns an `STM` effect that succeeds with `Unit`.
    */
   val unit: STM[Nothing, Unit] =
