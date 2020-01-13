@@ -101,7 +101,7 @@ private[internal] trait PlatformSpecific {
 
   /**
    * calling `initCause()` on [[java.lang.Throwable]] may fail on the JVM if `newCause != this`,
-   * which may happen if the cause is setto null.
+   * which may happen if the cause is set to null.
    * This works around this with reflection.
    */
   def forceThrowableCause(throwable: Throwable, newCause: Throwable): Unit = {
