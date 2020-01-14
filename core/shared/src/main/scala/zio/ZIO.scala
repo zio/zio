@@ -2234,47 +2234,17 @@ object ZIO {
    * For a sequential version of this method, see `foreach`.
    */
   final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
-    val n         = as.size
-    val resultArr = new AtomicReferenceArray[B](n)
-    val resultList: ZIO[R, E, List[B]] = for {
-      parentId <- ZIO.fiberId
-      latch    <- CountdownLatch.make(n)
-      failed   <- Promise.make[Nothing, Unit]
-      cause    <- Ref.make[Cause[E]](Cause.empty)
-      fibers <- as
-                 .foldLeft[(Int, URIO[R, List[Fiber[E, _]]])]((0, URIO.succeed(Nil))) {
-                   case ((i, acc), a) =>
-                     val task = ZIOFn(fn)(
-                       (x: A) =>
-                         fn(x).traced
-                           .foldCauseM(
-                             c => cause.update(cs => cs && c) *> failed.succeed(()).unit,
-                             b => ZIO.effectTotal(resultArr.set(i, b))
-                           )
-                           .ensuring(latch.countDown)
-                           .untraced
-                     )
+    val size = as.size
+    val resultArr = new AtomicReferenceArray[B](size)
 
-                     val appended = for {
-                       fs <- acc
-                       f  <- task(a).fork
-                     } yield f :: fs
+    val wrappedFn: ZIOFn1[(A, Int), ZIO[R, E, Any]] = ZIOFn(fn) {
+      case (a, i) => fn(a).tap(b => ZIO.effectTotal(resultArr.set(i, b)))
+    }
 
-                     (i + 1, appended)
-                 }
-                 ._2
-      interrupter = (failed.await *>
-        ZIO.foreach(fibers)(_.interruptAs(parentId))) // The failed fiber can be safely interrupted.
-      .toManaged_.fork
-      _             <- interrupter.use_(latch.await)
-      combinedCause <- cause.get
-      results <- if (combinedCause.isEmpty) {
-                  ZIO.succeed((0 until n).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
-                    resultArr.get(i) :: acc
-                  })
-                } else ZIO.halt(combinedCause)
-    } yield results
-    resultList.refailWithTrace
+    foreachPar_(as.toStream.zipWithIndex)(wrappedFn) *>
+      ZIO.succeed((0 until size).reverse.foldLeft[List[B]](Nil) {
+        (acc, i) => resultArr.get(i) :: acc
+      })
   }
 
   /**

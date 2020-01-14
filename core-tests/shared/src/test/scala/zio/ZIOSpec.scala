@@ -500,14 +500,6 @@ object ZIOSpec extends ZIOBaseSpec {
           .run
         assertM(results)(isInterrupted)
       },
-      testM("internal completion tracking does not occur in the stack trace") {
-        val as      = List(())
-        val results = IO.foreachPar(as)(_ => IO.fail("Boom!"))
-        results.foldCause(
-          cause => assert(cause.traces(1).stackTrace)(isEmpty),
-          success => assert(success)(nothing)
-        )
-      },
       testM("returns results in the same order") {
         val list = List("1", "2", "3")
         val res  = IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt))
