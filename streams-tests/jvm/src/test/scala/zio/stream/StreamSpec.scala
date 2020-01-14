@@ -23,9 +23,9 @@ import zio.test.Assertion.{
   isUnit,
   startsWith
 }
-import zio.test.environment.TestClock
 import zio.test.TestAspect.flaky
 import zio.test._
+import zio.test.environment.TestClock
 
 object StreamSpec extends ZIOBaseSpec {
 
@@ -1122,14 +1122,21 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     suite("Stream.groupedWithin")(
       testM("group based on time passed") {
-        val stream = ZStream.fromIterable(1 to 8).tap(_ => TestClock.adjust(1.second))
-
-        assertM(stream.groupedWithin(3, 3.seconds).runCollect)(equalTo(List(List(1, 2, 3), List(4, 5, 6), List(7, 8))))
+        val stream = ZStream.fromIterable(1 to 8).groupedWithin(3, 3.seconds).tap(_ => TestClock.adjust(3.seconds))
+        assertM(stream.runCollect)(equalTo(List(List(1, 2, 3), List(4, 5, 6), List(7, 8))))
       },
       testM("group before chunk size is reached due to time window") {
-        val stream = ZStream.fromIterable(1 to 3).tap(_ => TestClock.adjust(1.second))
+        val stream = (
+          ZStream.fromIterable(1 to 2) ++
+            (ZStream.fromEffect(ZIO.sleep(10.seconds)) *> ZStream.empty) ++
+            ZStream.fromIterable(3 to 4) ++
+            (ZStream.fromEffect(ZIO.sleep(10.seconds)) *> ZStream.empty) ++
+            ZStream.succeed(5)
+        ).tap(_ => TestClock.adjust(1.second))
 
-        assertM(stream.groupedWithin(10, 10.millis).runCollect)(equalTo(List(List(1), List(2), List(3))))
+        assertM(stream.groupedWithin(10, 2.seconds).tap(_ => TestClock.adjust(8.seconds)).runCollect)(
+          equalTo(List(List(1, 2), List(3, 4), List(5)))
+        )
       },
       testM("group immediately when chunk size is reached") {
         assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
