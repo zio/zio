@@ -70,11 +70,30 @@ object Blocking extends Serializable {
 
     /**
      * Imports a synchronous effect that does blocking IO into a pure value.
-     *
-     * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
-     * will be interrupted via `Thread.interrupt`.
      */
     def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
+      blocking(ZIO.effect(effect))
+
+    /**
+     * Imports a synchronous effect that does blocking IO into a pure value,
+     * with a custom cancel effect.
+     *
+     * If the returned `ZIO` is interrupted, the blocked thread running the
+     * synchronous effect will be interrupted via the cancel effect.
+     */
+    def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[R, Throwable, A] =
+      blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
+
+    /**
+     * Imports a synchronous effect that does blocking IO into a pure value.
+     *
+     * If the returned `ZIO` is interrupted, the blocked thread running the
+     * synchronous effect will be interrupted via `Thread.interrupt`.
+     *
+     * Note that this adds significant overhead. For performance sensitive
+     * applications consider using `effectBlocking` or `effectBlockingCancel`.
+     */
+    def effectBlockingInterrupt[A](effect: => A): ZIO[R, Throwable, A] =
       // Reference user's lambda for the tracer
       ZIOFn.recordTrace(() => effect) {
         ZIO.effectSuspendTotal {
@@ -139,15 +158,6 @@ object Blocking extends Serializable {
           } yield a)
         }
       }
-
-    /**
-     * Imports a synchronous effect that does blocking IO into a pure value, with a custom cancel effect.
-     *
-     * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
-     * will be interrupted via the cancel effect.
-     */
-    def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[R, Throwable, A] =
-      blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
   }
 
   trait Live extends Blocking {

@@ -31,4 +31,7 @@ package object blocking {
 
   def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
     ZIO.accessM(_.blocking.effectBlockingCancelable(effect)(cancel))
+
+  def effectBlockingInterrupt[A](effect: => A): ZIO[Blocking, Throwable, A] =
+    ZIO.accessM(_.blocking.effectBlockingInterrupt(effect)(cancel))
 }

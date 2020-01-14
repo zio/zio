@@ -18,8 +18,11 @@ object BlockingSpec extends ZIOBaseSpec {
       testM("effectBlockingCancelable completes successfully") {
         assertM(effectBlockingCancelable(())(UIO.unit))(isUnit)
       },
-      testM("effectBlocking can be interrupted") {
-        assertM(effectBlocking(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
+      testM("effectBlockingInterrupt completes successfully") {
+        assertM(effectBlockingInterrupt(()))(isUnit)
+      },
+      testM("effectBlockingInterrupt can be interrupted") {
+        assertM(effectBlockingInterrupt(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
       } @@ ignore,
       testM("effectBlockingCancelable can be interrupted") {
         val release = new AtomicBoolean(false)
