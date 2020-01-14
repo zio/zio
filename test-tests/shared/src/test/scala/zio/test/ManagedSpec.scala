@@ -11,19 +11,19 @@ object ManagedSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
           result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result, equalTo(2))
+        } yield assert(result)(equalTo(2))
       },
       testM("second test") {
         for {
           _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
           result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result, equalTo(3))
+        } yield assert(result)(equalTo(3))
       },
       testM("third test") {
         for {
           _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
           result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result, equalTo(4))
+        } yield assert(result)(equalTo(4))
       }
     ).provideManagedShared(Ref.make(1).toManaged(_.set(-10))),
     suite("managed per test")(
@@ -31,13 +31,13 @@ object ManagedSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
           result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result, equalTo(2))
+        } yield assert(result)(equalTo(2))
       },
       testM("second test") {
         for {
           _      <- ZIO.accessM[Ref[Int]](_.update(_ + 1))
           result <- ZIO.accessM[Ref[Int]](_.get)
-        } yield assert(result, equalTo(2))
+        } yield assert(result)(equalTo(2))
       }
     ).provideManaged(Ref.make(1).toManaged(_.set(-10)))
   )

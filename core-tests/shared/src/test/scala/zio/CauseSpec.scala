@@ -2,8 +2,8 @@ package zio
 
 import zio.Cause.{ Both, Then }
 import zio.random.Random
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 object CauseSpec extends ZIOBaseSpec {
 
@@ -11,105 +11,105 @@ object CauseSpec extends ZIOBaseSpec {
     suite("Cause")(
       testM("`Cause#died` and `Cause#stripFailures` are consistent") {
         check(causes) { c =>
-          assert(c.stripFailures, if (c.died) isSome(anything) else isNone)
+          assert(c.stripFailures)(if (c.died) isSome(anything) else isNone)
         }
       },
       testM("`Cause.equals` is symmetric") {
         check(causes, causes) { (a, b) =>
-          assert(a == b, equalTo(b == a))
+          assert(a == b)(equalTo(b == a))
         }
       },
       testM("`Cause.equals` and `Cause.hashCode` satisfy the contract") {
         check(equalCauses) {
           case (a, b) =>
-            assert(a.hashCode, equalTo(b.hashCode))
+            assert(a.hashCode)(equalTo(b.hashCode))
         }
       },
       testM("`Cause#untraced` removes all traces") {
         check(causes) { c =>
-          assert(c.untraced.traces.headOption, isNone)
+          assert(c.untraced.traces.headOption)(isNone)
         }
       },
       zio.test.test("`Cause.failures is stack safe") {
         val n     = 100000
         val cause = List.fill(n)(Cause.fail("fail")).reduce(_ && _)
-        assert(cause.failures.length, equalTo(n))
+        assert(cause.failures.length)(equalTo(n))
       }
     ),
     suite("Then")(
       testM("`Then.equals` satisfies associativity") {
         check(causes, causes, causes) { (a, b, c) =>
-          assert(Then(Then(a, b), c), equalTo(Then(a, Then(b, c)))) &&
-          assert(Then(a, Then(b, c)), equalTo(Then(Then(a, b), c)))
+          assert(Then(Then(a, b), c))(equalTo(Then(a, Then(b, c)))) &&
+          assert(Then(a, Then(b, c)))(equalTo(Then(Then(a, b), c)))
         }
       },
       testM("`Then.equals` satisfies distributivity") {
         check(causes, causes, causes) { (a, b, c) =>
-          assert(Then(a, Both(b, c)), equalTo(Both(Then(a, b), Then(a, c)))) &&
-          assert(Then(Both(a, b), c), equalTo(Both(Then(a, c), Then(b, c))))
+          assert(Then(a, Both(b, c)))(equalTo(Both(Then(a, b), Then(a, c)))) &&
+          assert(Then(Both(a, b), c))(equalTo(Both(Then(a, c), Then(b, c))))
         }
       }
     ),
     suite("Both")(
       testM("`Both.equals` satisfies associativity") {
         check(causes, causes, causes) { (a, b, c) =>
-          assert(Both(Both(a, b), c), equalTo(Both(a, Both(b, c)))) &&
-          assert(Both(a, Both(b, c)), equalTo(Both(Both(a, b), c)))
+          assert(Both(Both(a, b), c))(equalTo(Both(a, Both(b, c)))) &&
+          assert(Both(a, Both(b, c)))(equalTo(Both(Both(a, b), c)))
         }
       },
       testM("`Both.equals` satisfies distributivity") {
         check(causes, causes, causes) { (a, b, c) =>
-          assert(Both(Then(a, b), Then(a, c)), equalTo(Then(a, Both(b, c)))) &&
-          assert(Both(Then(a, c), Then(b, c)), equalTo(Then(Both(a, b), c)))
+          assert(Both(Then(a, b), Then(a, c)))(equalTo(Then(a, Both(b, c)))) &&
+          assert(Both(Then(a, c), Then(b, c)))(equalTo(Then(Both(a, b), c)))
         }
       },
       testM("`Both.equals` satisfies commutativity") {
         check(causes, causes) { (a, b) =>
-          assert(Both(a, b), equalTo(Both(b, a)))
+          assert(Both(a, b))(equalTo(Both(b, a)))
         }
       }
     ),
     suite("Meta")(
       testM("`Meta` is excluded from equals") {
         check(causes) { c =>
-          assert(Cause.stackless(c), equalTo(c)) &&
-          assert(c, equalTo(Cause.stackless(c)))
+          assert(Cause.stackless(c))(equalTo(c)) &&
+          assert(c)(equalTo(Cause.stackless(c)))
         }
       },
       testM("`Meta` is excluded from hashCode") {
         check(causes) { c =>
-          assert(Cause.stackless(c).hashCode, equalTo(c.hashCode))
+          assert(Cause.stackless(c).hashCode)(equalTo(c.hashCode))
         }
       }
     ),
     suite("Empty")(
       testM("`Empty` is empty element for `Then`") {
         check(causes) { c =>
-          assert(Then(c, Cause.empty), equalTo(c)) &&
-          assert(Then(Cause.empty, c), equalTo(c))
+          assert(Then(c, Cause.empty))(equalTo(c)) &&
+          assert(Then(Cause.empty, c))(equalTo(c))
         }
       },
       testM("`Empty` is empty element for `Both`") {
         check(causes) { c =>
-          assert(Both(c, Cause.empty), equalTo(c)) &&
-          assert(Both(Cause.empty, c), equalTo(c))
+          assert(Both(c, Cause.empty))(equalTo(c)) &&
+          assert(Both(Cause.empty, c))(equalTo(c))
         }
       }
     ),
     suite("Monad Laws:")(
       testM("Left identity") {
         check(causes) { c =>
-          assert(c.flatMap(Cause.fail), equalTo(c))
+          assert(c.flatMap(Cause.fail))(equalTo(c))
         }
       },
       testM("Right identity") {
         check(errors, errorCauseFunctions) { (e, f) =>
-          assert(Cause.fail(e).flatMap(f), equalTo(f(e)))
+          assert(Cause.fail(e).flatMap(f))(equalTo(f(e)))
         }
       },
       testM("Associativity") {
         check(causes, errorCauseFunctions, errorCauseFunctions) { (c, f, g) =>
-          assert(c.flatMap(f).flatMap(g), equalTo(c.flatMap(e => f(e).flatMap(g))))
+          assert(c.flatMap(f).flatMap(g))(equalTo(c.flatMap(e => f(e).flatMap(g))))
         }
       }
     ),
@@ -120,7 +120,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Fail(e2) => e1 == e2
             case _              => false
           }
-          assert(result, isTrue)
+          assert(result)(isTrue)
         }
       },
       testM("Die") {
@@ -129,7 +129,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Die(t2) => t1 == t2
             case _             => false
           }
-          assert(result, isTrue)
+          assert(result)(isTrue)
         }
       },
       testM("Interrupt") {
@@ -138,7 +138,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Interrupt(fiberId2) => fiberId1 == fiberId2
             case _                         => false
           }
-          assert(result, isTrue)
+          assert(result)(isTrue)
         }
       },
       testM("Traced") {
@@ -148,7 +148,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Traced(cause2, trace2) => cause1 == cause2 && trace1 == trace2
             case _                            => false
           }
-          assert(result, isTrue)
+          assert(result)(isTrue)
         }
       },
       testM("Meta") {
@@ -164,7 +164,7 @@ object CauseSpec extends ZIOBaseSpec {
               case (Cause.Both(left1, right1), Cause.Both(left2, right2))       => left1 == left2 && right1 == right2
               case _                                                            => false
             }
-            assert(result, isTrue)
+            assert(result)(isTrue)
         }
       },
       testM("Then") {
@@ -177,7 +177,7 @@ object CauseSpec extends ZIOBaseSpec {
               println("WARNING!!!")
               false
           }
-          assert(result, isTrue)
+          assert(result)(isTrue)
         }
       },
       testM("Both") {
@@ -186,7 +186,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Both(left2, right2) => left1 == left2 && right1 == right2
             case _                         => false
           }
-          assert(result, isTrue)
+          assert(result)(isTrue)
         }
       }
     )

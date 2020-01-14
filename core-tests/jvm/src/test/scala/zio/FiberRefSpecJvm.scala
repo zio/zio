@@ -33,7 +33,7 @@ object FiberRefSpecJvm extends ZIOBaseSpec {
         value0                   <- fiberRef.get
         values                   <- UIO(resRef.get())
         (value1, value2, value3) = values
-      } yield assert((value0, value1, value2, value3), equalTo((update1, initial, update2, initial)))
+      } yield assert((value0, value1, value2, value3))(equalTo((update1, initial, update2, initial)))
     }
   )
 }

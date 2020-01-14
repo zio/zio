@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,20 +19,20 @@ package zio.test
 import zio.{ Managed, ZIO }
 
 object TestExecutor {
-  def managed[R, E, L, S](
+  def managed[R <: Annotations, E, L, S](
     environment: Managed[Nothing, R]
   ): TestExecutor[R, E, L, S, S] =
     (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
-      spec
+      spec.annotated
         .provideManaged(environment)
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(
-              failure => ZIO.succeed(Left(failure)),
-              cause => ZIO.succeed(Left(TestFailure.Runtime(cause)))
-            ),
-          s => ZIO.succeed(Right(s))
+              { case (failure, annotations) => ZIO.succeed((Left(failure), annotations)) },
+              cause => ZIO.succeed((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
+            ), {
+            case (success, annotations) => ZIO.succeed((Right(success), annotations))
+          }
         )
-
     }
 }

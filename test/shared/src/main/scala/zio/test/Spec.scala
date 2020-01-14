@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package zio.test
 
-import zio._
-
 import Spec._
+
+import zio._
 
 /**
  * A `Spec[R, E, L, T]` is the backbone of _ZIO Test_. Every spec is either a
@@ -38,6 +38,17 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     aspect: TestAspect[R0, R1, E0, E1, S0, S1]
   )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess[S]): ZSpec[R1, E2, L, S] =
     aspect(self.asInstanceOf[ZSpec[R1, E2, L, S]])
+
+  /**
+   * Returns a new spec with the annotation map at each node.
+   */
+  final def annotated: Spec[R with Annotations, Annotated[E], L, Annotated[T]] =
+    transform[R with Annotations, Annotated[E], L, Annotated[T]] {
+      case Spec.SuiteCase(label, specs, exec) =>
+        Spec.SuiteCase(label, specs.mapError((_, TestAnnotationMap.empty)), exec)
+      case Spec.TestCase(label, test) =>
+        Spec.TestCase(label, Annotations.withAnnotation(test))
+    }
 
   /**
    * Returns a new spec with remapped errors and tests.
@@ -378,6 +389,40 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       .asInstanceOf[ZSpec[R, E1, String, S]]
       .filterLabels(_.contains(s))
       .getOrElse(Spec.test("only", ignored))
+
+  /**
+   * Runs the spec only if the specified predicate is satisfied.
+   */
+  final def when[S](b: Boolean)(implicit ev: T <:< TestSuccess[S]): Spec[R with Annotations, E, L, TestSuccess[S]] =
+    whenM(ZIO.succeed(b))
+
+  /**
+   * Runs the spec only if the specified effectual predicate is satisfied.
+   */
+  final def whenM[R1 <: R, E1 >: E, S](
+    b: ZIO[R1, E1, Boolean]
+  )(implicit ev: T <:< TestSuccess[S]): Spec[R1 with Annotations, E1, L, TestSuccess[S]] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Spec.suite(
+          label,
+          b.flatMap(
+            b =>
+              if (b) specs.asInstanceOf[ZIO[R1, E1, Vector[Spec[R1, E1, L, TestSuccess[S]]]]]
+              else ZIO.succeed(Vector.empty)
+          ),
+          exec
+        )
+      case TestCase(label, test) =>
+        Spec.test(
+          label,
+          b.flatMap(
+            b =>
+              if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess[S]]]
+              else Annotations.annotate(TestAnnotation.ignored, 1).as(TestSuccess.Ignored)
+          )
+        )
+    }
 }
 
 object Spec {
