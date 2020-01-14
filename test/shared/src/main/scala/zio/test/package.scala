@@ -18,6 +18,7 @@ package zio
 
 import scala.deprecated
 
+import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
 import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem }
@@ -392,6 +393,101 @@ package object test extends CompileVariants {
     if (TestVersion.isDotty) f(dotty)
     else if (TestVersion.isScala2) f(scala2)
     else ignored
+
+  /**
+   * The `Annotations` trait provides access to an annotation map that tests
+   * can add arbitrary annotations to. Each annotation consists of a string
+   * identifier, an initial value, and a function for combining two values.
+   * Annotations form monoids and you can think of `Annotations` as a more
+   * structured logging service or as a super polymorphic version of the writer
+   * monad effect.
+   */
+  object Annotations {
+
+    trait Service extends Serializable {
+      def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit]
+      def get[V](key: TestAnnotation[V]): UIO[V]
+      def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]]
+    }
+
+    /**
+     * Accesses an `Annotations` instance in the environment and appends the
+     * specified annotation to the annotation map.
+     */
+    def annotate[V](key: TestAnnotation[V], value: V): ZIO[Annotations, Nothing, Unit] =
+      ZIO.accessM(_.get.annotate(key, value))
+
+    /**
+     * Accesses an `Annotations` instance in the environment and retrieves the
+     * annotation of the specified type, or its default value if there is none.
+     */
+    def get[V](key: TestAnnotation[V]): ZIO[Annotations, Nothing, V] =
+      ZIO.accessM(_.get.get(key))
+
+    /**
+     * Constructs a new `Annotations` service.
+     */
+    def live: ZLayer.NoDeps[Nothing, Annotations] =
+      ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
+        Has(new Annotations.Service {
+          def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
+            fiberRef.update(_.annotate(key, value)).unit
+          def get[V](key: TestAnnotation[V]): UIO[V] =
+            fiberRef.get.map(_.get(key))
+          def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
+            fiberRef.locally(TestAnnotationMap.empty) {
+              zio.foldM(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
+            }
+        })
+      })
+
+    /**
+     * Accesses an `Annotations` instance in the environment and executes the
+     * specified effect with an empty annotation map, returning the annotation
+     * map along with the result of execution.
+     */
+    def withAnnotation[R <: Annotations, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
+      ZIO.accessM(_.get.withAnnotation(zio))
+  }
+
+  object Sized {
+    trait Service extends Serializable {
+      def size: UIO[Int]
+      def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
+    }
+
+    def live(size: Int): ZLayer.NoDeps[Nothing, Sized] =
+      ZLayer.fromEffect(FiberRef.make(size).map { fiberRef =>
+        Has(new Sized.Service {
+          val size: UIO[Int] =
+            fiberRef.get
+          def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+            fiberRef.locally(size)(zio)
+        })
+      })
+
+    def size: ZIO[Sized, Nothing, Int] =
+      ZIO.accessM[Sized](_.get.size)
+
+    def withSize[R <: Sized, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      ZIO.accessM[R](_.get.withSize(size)(zio))
+  }
+
+  object TestLogger {
+    trait Service extends Serializable {
+      def logLine(line: String): UIO[Unit]
+    }
+
+    def fromConsole: ZLayer[Console, Nothing, TestLogger] =
+      ZLayer.fromService { (console: Console.Service) =>
+        Has(new Service {
+          def logLine(line: String): UIO[Unit] = console.putStrLn(line)
+        })
+      }
+
+    def logLine(line: String): URIO[TestLogger, Unit] =
+      ZIO.accessM(_.get.logLine(line))
+  }
 
   object CheckVariants {
 

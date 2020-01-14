@@ -13,13 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package zio
 
-import zio.clock.Clock
-import zio.console.Console
-import zio.system.System
-import zio.random.Random
+@annotation.implicitNotFound(
+  "The environment ${A} already contains service ${B}, are you sure you want to overwrite it? Use Has#update to update a service already inside the environment."
+)
+trait NotExtends[A, B] extends Serializable
 
-trait ZEnvDefinition {
-  type ZEnv = Clock with Console with System with Random
+object NotExtends {
+  implicit def notExtends0[A, B]: A NotExtends B      = new NotExtends[A, B] {}
+  implicit def notExtends1[A <: B, B]: A NotExtends B = ???
+  implicit def notExtends2[A <: B, B]: A NotExtends B = ???
 }

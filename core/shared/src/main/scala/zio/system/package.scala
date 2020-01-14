@@ -16,9 +16,34 @@
 
 package zio
 
+import java.lang.{ System => JSystem }
+
 package object system {
 
   type System = Has[System.Service]
+
+  object System extends Serializable {
+    trait Service extends Serializable {
+      def env(variable: String): IO[SecurityException, Option[String]]
+
+      def property(prop: String): IO[Throwable, Option[String]]
+
+      val lineSeparator: UIO[String]
+    }
+
+    val live: ZLayer.NoDeps[Nothing, System] = ZLayer.succeed(
+      new Service {
+
+        def env(variable: String): IO[SecurityException, Option[String]] =
+          IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
+
+        def property(prop: String): IO[Throwable, Option[String]] =
+          IO.effect(Option(JSystem.getProperty(prop)))
+
+        val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
+      }
+    )
+  }
 
   /** Retrieve the value of an environment variable **/
   def env(variable: String): ZIO[System, SecurityException, Option[String]] =

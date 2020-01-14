@@ -14,9 +14,22 @@
  * limitations under the License.
  */
 
-package zio 
+package zio
 
-private[zio] object ScalaSpecific {
+import zio.clock.Clock
+import zio.console.Console
+import zio.random.Random
+import zio.scheduler.Scheduler
+import zio.system.System
+
+private[zio] trait PlatformSpecific {
+  type ZEnv = Clock with Console with System with Random with Scheduler
+
+  object ZEnv {
+    val live: ZLayer.NoDeps[Nothing, ZEnv] =
+      (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live
+  }
+
   type Tagged[A] = scala.reflect.ClassTag[A]
   type TagType   = scala.reflect.ClassTag[_]
 

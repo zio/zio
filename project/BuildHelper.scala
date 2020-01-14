@@ -56,7 +56,7 @@ object BuildHelper {
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.21.0-RC1",
+    crossScalaVersions += "0.22.0-bin-20200107-21a5608-NIGHTLY",
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")
@@ -68,6 +68,14 @@ object BuildHelper {
       val old = (Compile / doc / sources).value
       if (isDotty.value) {
         Nil
+      } else {
+        old
+      }
+    },
+    parallelExecution in Test := {
+      val old = (Test / parallelExecution).value
+      if (isDotty.value) {
+        false
       } else {
         old
       }
