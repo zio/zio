@@ -2269,20 +2269,21 @@ object ZIO {
       val size = as.size
       for {
         parentId <- ZIO.fiberId
-        result   <- Promise.make[E, Unit]
-        succeed  <- Ref.make(0)
+        causes <- Ref.make[Cause[E]](Cause.empty)
+        result <- Promise.make[Unit, Unit]
+        succeed <- Ref.make(0)
         _ <- ZIO.traverse_(as) {
-              f(_)
-                .foldCauseM(result.halt, _ => {
-                  succeed.update(_ + 1) >>= { succeed =>
-                    ZIO.when(succeed == size)(result.succeed(()))
-                  }
-                })
-                .fork >>= { fiber =>
-                result.await.catchAllCause(_ => fiber.interruptAs(parentId)).fork
-              }
-            }
-        _ <- result.await
+          f(_)
+            .foldCauseM(c => causes.update(_ && c) *> result.fail(()), _ => {
+              (succeed.update(_ + 1) >>= { succeed =>
+                ZIO.when(succeed == size)(result.succeed(()))
+              }).uninterruptible
+            })
+            .fork >>= { fiber =>
+            result.await.catchAll(_ => fiber.interruptAs(parentId)).fork
+          }
+        }
+        _ <- result.await.foldM(_ => causes.get >>= ZIO.halt, _ => ZIO.unit)
       } yield ()
     }
 
