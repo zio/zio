@@ -103,17 +103,7 @@ lint: &lint
     - <<: *load_cache
     - run:
         name: Lint code
-        command: ./sbt ++${SCALA_VERSION}! fmtCheck
-    - <<: *clean_cache
-    - <<: *save_cache
-
-fix: &fix
-  steps:
-    - checkout
-    - <<: *load_cache
-    - run:
-        name: Fix check code
-        command: ./sbt ++${SCALA_VERSION}! fixCheck
+        command: ./sbt ++${SCALA_VERSION}! fmtCheck fixCheck
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -245,13 +235,6 @@ jobs:
       - <<: *scala_212
       - <<: *jdk_8
 
-  fix:
-    <<: *fix
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_212
-      - <<: *jdk_8
-
   mdoc:
     <<: *mdoc
     <<: *machine_ubuntu
@@ -348,70 +331,54 @@ workflows:
       - lint:
           filters:
             <<: *filter_tags
-      - fix:
-          requires:
-            - lint
-          filters:
-            <<: *filter_tags
-
       - mdoc:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_211_jdk8_jvm:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_212_jdk8_jvm:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_213_jdk8_jvm:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_dotty_jdk8_jvm:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_212_jdk11_jvm:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_211_jdk8_js:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_212_jdk8_js:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_213_jdk8_js:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - test_211_jdk8_native:
           requires:
             - lint
-            - fix
           filters:
             <<: *filter_tags
       - release:
