@@ -117,13 +117,16 @@ object BuildHelper {
     initialCommands in Compile in console := initialCommandsStr
   )
 
-  def crossVersionFiles(conf: String, baseDirectory: File, crossProjectPlatform: Platform)(versions: String*) =
-    versions.toSeq.flatMap { version =>
-      CrossType.Full.sharedSrcDir(baseDirectory, conf).toList.map(f => file(f.getPath + s"-${version}")).toSet ++
-        Set(
-          baseDirectory.getParentFile / crossProjectPlatform.identifier.toLowerCase / "src" / conf / s"scala-${version}"
-        )
-    }
+  def crossVersionFiles(conf: String, baseDirectory: File, crossProjectPlatform: Platform)(
+    versions: String*
+  ): Seq[File] =
+    (CrossType.Full.sharedSrcDir(baseDirectory, conf).toList.map(f => file(f.getPath)).toSet ++
+      versions.toSet.flatMap { (version: String) =>
+        CrossType.Full.sharedSrcDir(baseDirectory, conf).toList.map(f => file(f.getPath + s"-${version}")).toSet ++
+          Set(
+            baseDirectory.getParentFile / crossProjectPlatform.identifier.toLowerCase / "src" / conf / s"scala-${version}"
+          )
+      }).toSeq
 
   def crossSourceFiles(
     conf: String,
