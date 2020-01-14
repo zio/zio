@@ -2234,7 +2234,7 @@ object ZIO {
    * For a sequential version of this method, see `foreach`.
    */
   final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
-    val size = as.size
+    val size      = as.size
     val resultArr = new AtomicReferenceArray[B](size)
 
     val wrappedFn: ZIOFn1[(A, Int), ZIO[R, E, Any]] = ZIOFn(fn) {
@@ -2242,8 +2242,8 @@ object ZIO {
     }
 
     foreachPar_(as.toStream.zipWithIndex)(wrappedFn) *>
-      ZIO.succeed((0 until size).reverse.foldLeft[List[B]](Nil) {
-        (acc, i) => resultArr.get(i) :: acc
+      ZIO.succeed((0 until size).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
+        resultArr.get(i) :: acc
       })
   }
 
@@ -2269,21 +2269,20 @@ object ZIO {
       val size = as.size
       for {
         parentId <- ZIO.fiberId
-        causes <- Ref.make[Cause[E]](Cause.empty)
-        result <- Promise.make[Unit, Unit]
-        succeed <- Ref.make(0)
-        _ <- ZIO.traverse_(as) {
-          f(_)
-            .foldCauseM(c => causes.update(_ && c) *> result.fail(()), _ => {
-              (succeed.update(_ + 1) >>= { succeed =>
-                ZIO.when(succeed == size)(result.succeed(()))
-              }).uninterruptible
-            })
-            .fork >>= { fiber =>
-            result.await.catchAll(_ => fiber.interruptAs(parentId)).fork
-          }
-        }
-        _ <- result.await.foldM(_ => causes.get >>= ZIO.halt, _ => ZIO.unit)
+        causes   <- Ref.make[Cause[E]](Cause.empty)
+        result   <- Promise.make[Unit, Unit]
+        succeed  <- Ref.make(0)
+        fibers <- ZIO.traverse(as) {
+                   f(_)
+                     .foldCauseM(c => causes.update(_ && c) *> result.fail(()), _ => {
+                       (succeed.update(_ + 1) >>= { succeed =>
+                         ZIO.when(succeed == size)(result.succeed(()))
+                       }).uninterruptible
+                     })
+                     .fork
+                 }
+        interrupter = result.await.catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId))).toManaged_.fork
+        _           <- interrupter.use_(result.await.foldM(_ => causes.get >>= ZIO.halt, _ => ZIO.unit).refailWithTrace)
       } yield ()
     }
 
