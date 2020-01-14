@@ -165,6 +165,19 @@ testJVMDotty: &testJVMDotty
     - <<: *clean_cache
     - <<: *save_cache
 
+testJVM211: &testJVM211
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM211
+    - <<: *clean_cache
+    - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
+
 testJS: &testJS
   steps:
     - checkout
@@ -174,6 +187,20 @@ testJS: &testJS
     - run:
         name: Run tests
         command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
+    - <<: *clean_cache
+    - <<: *save_cache
+    - store_test_results:
+        path: core-tests/js/target/test-reports
+
+testJS211: &testJS211
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - <<: *install_nodejs
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS211
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -260,7 +287,7 @@ jobs:
       - <<: *jdk_8
 
   test_211_jdk8_jvm:
-    <<: *testJVM
+    <<: *testJVM211
     <<: *machine_ubuntu
     <<: *machine_resource
     environment:
@@ -300,7 +327,7 @@ jobs:
       - <<: *jdk_11
 
   test_211_jdk8_js:
-    <<: *testJS
+    <<: *testJS211
     <<: *machine_ubuntu
     environment:
       - <<: *scala_211

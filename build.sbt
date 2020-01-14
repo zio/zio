@@ -56,8 +56,16 @@ addCommandAlias(
   ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
+  "testJVM211",
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
+)
+addCommandAlias(
   "testJS",
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;examplesJS/test:compile"
+)
+addCommandAlias(
+  "testJS211",
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile"
 )
 
 lazy val root = project
@@ -205,6 +213,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(test)
   .settings(stdSettings("zio-test-magnolia"))
   .settings(
+    crossScalaVersions -= "2.11.12",
     scalacOptions += "-language:experimental.macros",
     libraryDependencies += "com.propensive" %%% "magnolia" % "0.12.6"
   )
