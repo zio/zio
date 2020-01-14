@@ -40,16 +40,16 @@ addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagotestRunnerJVM/test:compile;examplesJVM/test:compile"
 )
 addCommandAlias("compileNative", ";coreNative/compile")
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJVMDotty",
@@ -57,7 +57,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;examplesJS/test:compile"
 )
 
 lazy val root = project
@@ -197,6 +197,34 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
 lazy val testTestsJS = testTests.js.settings(
+  libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3"
+)
+
+lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
+  .in(file("test-magnolia"))
+  .dependsOn(test)
+  .settings(stdSettings("zio-test-magnolia"))
+  .settings(
+    scalacOptions += "-language:experimental.macros",
+    libraryDependencies += "com.propensive" %%% "magnolia" % "0.12.6"
+  )
+
+lazy val testMagnoliaJVM = testMagnolia.jvm
+lazy val testMagnoliaJS  = testMagnolia.js
+
+lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
+  .in(file("test-magnolia-tests"))
+  .dependsOn(testMagnolia)
+  .dependsOn(testTests % "test->test;compile->compile")
+  .settings(stdSettings("test-magnolia-tests"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner)
+  .settings(buildInfoSettings("zio.test"))
+  .settings(skip in publish := true)
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
+lazy val testMagnoliaTestsJS = testMagnoliaTests.js.settings(
   libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3"
 )
 
