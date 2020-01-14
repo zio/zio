@@ -484,6 +484,9 @@ object ZIOSpec extends ZIOBaseSpec {
           rs  <- ref.get
         } yield assert(rs)(hasSize(equalTo(as.length))) &&
           assert(rs.toSet)(equalTo(as.toSet))
+      },
+      testM("completes on empty input") {
+        ZIO.foreachPar_(Nil)(_ => ZIO.unit).as(assertCompletes)
       }
     ),
     suite("foreachParN")(
@@ -723,6 +726,26 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- zio.merge
           b <- zio.flip.merge
         } yield assert(a)(equalTo(b))
+      }
+    ),
+    suite("mergeAllPar")(
+      testM("return zero element on empty input") {
+        val zeroElement = 42
+        val nonZero     = 43
+        UIO.mergeAllPar(Nil)(zeroElement)((_, _) => nonZero).map {
+          assert(_)(equalTo(zeroElement))
+        }
+      },
+      testM("merge list using function") {
+        val effects = List(3, 5, 7).map(UIO.succeed)
+        UIO.mergeAllPar(effects)(zero = 1)(_ + _).map {
+          assert(_)(equalTo(1 + 3 + 5 + 7))
+        }
+      },
+      testM("return error if it exists in list") {
+        val effects = List(UIO.unit, ZIO.fail(1))
+        val merged  = ZIO.mergeAllPar(effects)(zero = ())((_, _) => ())
+        assertM(merged.run)(fails(equalTo(1)))
       }
     ),
     suite("none")(

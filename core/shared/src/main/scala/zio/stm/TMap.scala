@@ -159,6 +159,12 @@ final class TMap[K, V] private (
     fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
 
   /**
+   * Collects all bindings into a map.
+   */
+  def toMap: STM[Nothing, Map[K, V]] =
+    fold(Map.empty[K, V])(_ + _)
+
+  /**
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
