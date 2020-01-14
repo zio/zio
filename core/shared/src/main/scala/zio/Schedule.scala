@@ -864,7 +864,7 @@ object Schedule {
    * A schedule that recurs forever, returning each input as the output.
    */
   def identity[A]: Schedule[Any, A, A] =
-    Schedule[Any, Unit, A, A](ZIO.succeed(()), (_, _) => ZIO.succeed(()), (a, _) => a)
+    Schedule[Any, Unit, A, A](ZIO.unit, (_, _) => ZIO.unit, (a, _) => a)
 
   /**
    * A schedule that always recurs, but will repeat on a linear time
@@ -924,8 +924,8 @@ object Schedule {
    * A schedule that recurs the specified number of times. Returns the number
    * of repetitions so far.
    *
-   * If 0 or negative numbers are given, the operation is not done at all so
-   * that in `(op: IO[E, A]).repeat(Schedule.recurs(0)) `, op is not done at all.
+   * If 0 or negative numbers are given, the operation is not repeated at all so
+   * that in `(op: IO[E, A]).repeat(Schedule.recurs(0)) `, op is only done once and repeated 0 times.
    */
   def recurs(n: Int): Schedule[Any, Any, Int] =
     forever.whileOutput(_ < n)

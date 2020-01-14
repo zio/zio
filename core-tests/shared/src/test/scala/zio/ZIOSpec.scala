@@ -551,6 +551,9 @@ object ZIOSpec extends ZIOBaseSpec {
           rs  <- ref.get
         } yield assert(rs)(hasSize(equalTo(as.length))) &&
           assert(rs.toSet)(equalTo(as.toSet))
+      },
+      testM("completes on empty input") {
+        ZIO.foreachPar_(Nil)(_ => ZIO.unit).as(assertCompletes)
       }
     ),
     suite("foreachParN")(
@@ -792,6 +795,26 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(a)(equalTo(b))
       }
     ),
+    suite("mergeAllPar")(
+      testM("return zero element on empty input") {
+        val zeroElement = 42
+        val nonZero     = 43
+        UIO.mergeAllPar(Nil)(zeroElement)((_, _) => nonZero).map {
+          assert(_)(equalTo(zeroElement))
+        }
+      },
+      testM("merge list using function") {
+        val effects = List(3, 5, 7).map(UIO.succeed)
+        UIO.mergeAllPar(effects)(zero = 1)(_ + _).map {
+          assert(_)(equalTo(1 + 3 + 5 + 7))
+        }
+      },
+      testM("return error if it exists in list") {
+        val effects = List(UIO.unit, ZIO.fail(1))
+        val merged  = ZIO.mergeAllPar(effects)(zero = ())((_, _) => ())
+        assertM(merged.run)(fails(equalTo(1)))
+      }
+    ),
     suite("none")(
       testM("on Some fails with None") {
         val task: IO[Option[Throwable], Unit] = Task(Some(1)).none
@@ -981,6 +1004,40 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("positive") {
         val lst: Iterable[UIO[Int]] = ZIO.replicate(2)(ZIO.succeed(12))
         assertM(ZIO.sequence(lst))(equalTo(List(12, 12)))
+      }
+    ),
+    suite("retryUntil")(
+      testM("retryUntil retries until condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.update(_ - 1) <* out.update(_ + 1)).flipWith(_.retryUntil(_ == 0))
+          result <- out.get
+        } yield assert(result)(equalTo(10))
+      },
+      testM("retryUntil doesn't retry when condition is true") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).flipWith(_.doUntil(_ => true))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
+      }
+    ),
+    suite("retryWhile")(
+      testM("retryWhile retries while condition is true") {
+        for {
+          in     <- Ref.make(10)
+          out    <- Ref.make(0)
+          _      <- (in.update(_ - 1) <* out.update(_ + 1)).flipWith(_.retryWhile(_ >= 0))
+          result <- out.get
+        } yield assert(result)(equalTo(11))
+      },
+      testM("retryWhile doesn't retry when condition is false") {
+        for {
+          ref    <- Ref.make(0)
+          _      <- ref.update(_ + 1).flipWith(_.retryWhile(_ => false))
+          result <- ref.get
+        } yield assert(result)(equalTo(1))
       }
     ),
     suite("right")(
@@ -2626,7 +2683,7 @@ object ZIOSpec extends ZIOBaseSpec {
         _ <- if (count != 1) {
               ZIO.fail("Accessed more than once")
             } else {
-              ZIO.succeed(())
+              ZIO.unit
             }
       } yield res
     }

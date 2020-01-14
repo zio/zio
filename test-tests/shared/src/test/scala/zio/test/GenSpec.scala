@@ -1,16 +1,18 @@
 package zio.test
 
-import scala.math.Numeric.DoubleIsFractional
+import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
 
+import zio.ZIO
+import zio.duration._
 import zio.random.Random
-import zio.stream.ZStream
 import zio.test.Assertion._
+import zio.test.GenUtils._
 import zio.test.TestAspect.scala2Only
-import zio.test.environment.TestRandom
 import zio.test.{ check => Check, checkN => CheckN }
-import zio.{ Managed, UIO, ZIO }
 
 object GenSpec extends ZIOBaseSpec {
+  implicit val localDateTimeOrdering: Ordering[LocalDateTime] = _ compareTo _
+
   def spec = suite("GenSpec")(
     suite("integration tests")(
       testM("with bogus even property") {
@@ -113,6 +115,24 @@ object GenSpec extends ZIOBaseSpec {
       testM("alphaNumericChar generates numbers and letters") {
         checkSample(Gen.alphaNumericChar)(forall(isTrue), _.map(_.isLetterOrDigit))
       },
+      testM("alphaNumericString generates numbers and letters") {
+        checkSample(Gen.alphaNumericString)(forall(isTrue), _.map(_.forall(_.isLetterOrDigit)))
+      },
+      testM("alphaNumericStringBounded generates strings whose size is in bounds") {
+        checkSample(Gen.alphaNumericStringBounded(2, 10))(forall(hasSizeString(isWithin(2, 10))))
+      },
+      testM("anyFiniteDuration generates Duration values") {
+        checkSample(Gen.anyFiniteDuration)(isNonEmpty)
+      },
+      testM("anyInstant generates Instant values") {
+        checkSample(Gen.anyInstant)(isNonEmpty)
+      },
+      testM("anyLocalDateTime generates LocalDateTime values") {
+        checkSample(Gen.anyLocalDateTime)(isNonEmpty)
+      },
+      testM("anyOffsetDateTime generates OffsetDateTime values") {
+        checkSample(Gen.anyOffsetDateTime)(isNonEmpty)
+      },
       testM("boolean generates true and false") {
         checkSample(Gen.boolean)(contains(true) && contains(false))
       },
@@ -137,6 +157,11 @@ object GenSpec extends ZIOBaseSpec {
       testM("filter filters values according to predicate") {
         checkSample(smallInt.filter(_ % 2 == 0))(forall(equalTo(0)), _.map(_ % 2))
       },
+      testM("finiteDuration generates values in range") {
+        val min = 42.minutes + 23222.nanos
+        val max = 3.hours + 30.seconds + 887999.nanos
+        checkSample(Gen.finiteDuration(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
       testM("function generates different functions") {
         val gen = for {
           f <- genStringIntFn
@@ -160,6 +185,11 @@ object GenSpec extends ZIOBaseSpec {
         } yield f(s) == f(s)
         checkSample(gen)(isTrue, _.forall(identity))
       },
+      testM("instant generates values in range") {
+        val min = Instant.ofEpochSecond(-38457693893669L, 435345)
+        val max = Instant.ofEpochSecond(74576982873324L, 345345345)
+        checkSample(Gen.instant(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
       testM("int generates values in range") {
         checkSample(smallInt)(forall(isGreaterThanEqualTo(-10) && isLessThanEqualTo(10)))
       },
@@ -180,8 +210,16 @@ object GenSpec extends ZIOBaseSpec {
       testM("listOf1 generates nonempty lists") {
         checkSample(Gen.listOf1(smallInt), size = 0)(forall(isNonEmpty))
       },
+      testM("listOfBounded generates lists whose size is in bounds") {
+        checkSample(Gen.listOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
+      },
       testM("listOfN generates lists of correct size") {
         checkSample(Gen.listOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
+      },
+      testM("localDateTime generates values in range") {
+        val min = LocalDateTime.ofEpochSecond(-238756L, 987435, ZoneOffset.ofHours(12))
+        val max = LocalDateTime.ofEpochSecond(3987384759834L, 4736, ZoneOffset.ofHours(-2))
+        checkSample(Gen.localDateTime(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
       testM("long generates values in range") {
         val min = -775050485969923566L
@@ -198,6 +236,11 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("none generates the constant empty value") {
         checkSample(Gen.none)(forall(isNone))
+      },
+      testM("offsetDateTime generates values in range") {
+        val min = OffsetDateTime.ofInstant(Instant.ofEpochSecond(-98345983298736L, 34334), ZoneOffset.ofHours(7))
+        val max = OffsetDateTime.ofInstant(Instant.ofEpochSecond(39847530948982L, 4875384), ZoneOffset.ofHours(3))
+        checkSample(Gen.offsetDateTime(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
       testM("optionOf generates optional values") {
         checkSample(Gen.option(smallInt))(exists(isNone) && exists(isSome(anything)))
@@ -234,6 +277,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("string1 generates nonempty strings") {
         checkSample(Gen.string1(Gen.printableChar), size = 0)(forall(isFalse), _.map(_.isEmpty))
       },
+      testM("stringBounded generates strings whose size is in bounds") {
+        checkSample(Gen.stringBounded(2, 10)(Gen.printableChar))(forall(hasSizeString(isWithin(2, 10))))
+      },
       testM("stringN generates strings of correct size") {
         checkSample(Gen.stringN(10)(Gen.printableChar))(forall(equalTo(10)), _.map(_.length))
       },
@@ -243,11 +289,17 @@ object GenSpec extends ZIOBaseSpec {
       testM("unit generates the constant unit value") {
         checkSample(Gen.unit)(forall(equalTo(())))
       },
+      testM("UUID generates random UUIDs") {
+        checkSample(Gen.anyUUID)(forall(equalTo(2)), _.map(_.variant))
+      },
       testM("vectorOf generates sizes in range") {
         checkSample(Gen.vectorOf(smallInt))(
           forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
           _.map(_.length)
         )
+      },
+      testM("vectorOfBounded generates vectors whose size is in bounds") {
+        checkSample(Gen.vectorOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
       },
       testM("vectorOf1 generates nonempty vectors") {
         checkSample(Gen.vectorOf1(smallInt), size = 0)(forall(isNonEmpty))
@@ -264,20 +316,40 @@ object GenSpec extends ZIOBaseSpec {
       testM("alphaNumericChar shrinks to zero") {
         checkShrink(Gen.alphaNumericChar)('0')
       },
+      testM("alphaNumericString shrinks to empty string") {
+        checkShrink(Gen.alphaNumericString)("")
+      },
+      testM("alphaNumericStringBounded shrinks to bottom of range") {
+        checkShrink(Gen.alphaNumericStringBounded(2, 10))("00")
+      },
       testM("anyByte shrinks to zero") {
         checkShrink(Gen.anyByte)(0)
       },
       testM("anyChar shrinks to zero") {
         checkShrink(Gen.anyChar)(0)
       },
+      testM("anyFiniteDuration shrinks to Duration.Zero") {
+        checkShrink(Gen.anyFiniteDuration)(Duration.Zero)
+      },
       testM("anyFloat shrinks to zero") {
         checkShrink(Gen.anyFloat)(0)
+      },
+      testM("anyInstant shrinks to Instant.MIN") {
+        val min = Instant.ofEpochSecond(-93487534873L, 2387642L)
+        val max = Instant.ofEpochSecond(394876L, 376542888L)
+        checkShrink(Gen.instant(min, max))(min)
+      },
+      testM("anyLocalDateTime shrinks to LocalDateTime.MIN") {
+        checkShrink(Gen.anyLocalDateTime)(LocalDateTime.MIN)
       },
       testM("anyInt shrinks to zero") {
         checkShrink(Gen.anyInt)(0)
       },
       testM("anyLong shrinks to zero") {
         checkShrink(Gen.anyLong)(0)
+      },
+      testM("anyOffsetDateTime shrinks to OffsetDateTime.MIN") {
+        checkShrink(Gen.anyOffsetDateTime)(OffsetDateTime.MIN)
       },
       testM("anyShort shrinks to zero") {
         checkShrink(Gen.anyShort)(0)
@@ -309,6 +381,16 @@ object GenSpec extends ZIOBaseSpec {
       testM("filter filters shrinks according to predicate") {
         checkShrink(Gen.int(1, 10).filter(_ % 2 == 0))(2)
       },
+      testM("finiteDuration shrinks to min") {
+        val min = 97.minutes + 13.seconds + 32.nanos
+        val max = 3.hours + 2.minutes + 45.seconds + 23453.nanos
+        checkShrink(Gen.finiteDuration(min, max))(min)
+      },
+      testM("instant shrinks to min") {
+        val min = Instant.ofEpochSecond(-93487534873L, 2387642L)
+        val max = Instant.ofEpochSecond(394876L, 376542888L)
+        checkShrink(Gen.instant(min, max))(min)
+      },
       testM("int shrinks to bottom of range") {
         checkShrink(smallInt)(-10)
       },
@@ -318,13 +400,29 @@ object GenSpec extends ZIOBaseSpec {
       testM("listOf1 shrinks to singleton list") {
         checkShrink(Gen.listOf1(smallInt))(List(-10))
       },
+      testM("listOfBounded shrinks to bottom of range") {
+        checkShrink(Gen.listOfBounded(2, 10)(smallInt))(List(-10, -10))
+      },
       testM("listOfN shrinks elements") {
         checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-10))
+      },
+      testM("localDateTime shrinks to min") {
+        val min = LocalDateTime.ofEpochSecond(-349875349L, 38743843, ZoneOffset.ofHours(-13))
+        val max = LocalDateTime.ofEpochSecond(-234234L, 34985434, ZoneOffset.ofHours(-1))
+        checkShrink(Gen.localDateTime(min, max))(min)
       },
       testM("long shrinks to bottom of range") {
         val min = -8649088475068069159L
         val max = 7907688119669724678L
         checkShrink(Gen.long(min, max))(min)
+      },
+      testM("noShrink discards the shrinker for this generator") {
+        assertM(shrinks(Gen.anyInt.noShrink))(hasSize(equalTo(1)))
+      },
+      testM("offsetDateTime shrinks to min") {
+        val min = OffsetDateTime.ofInstant(Instant.ofEpochSecond(8345983298736L, 345), ZoneOffset.ofHours(-4))
+        val max = OffsetDateTime.ofInstant(Instant.ofEpochSecond(348975394875348L, 56456456), ZoneOffset.ofHours(0))
+        checkShrink(Gen.offsetDateTime(min, max))(min)
       },
       testM("optionOf shrinks to None") {
         checkShrink(Gen.option(smallInt))(None)
@@ -332,7 +430,7 @@ object GenSpec extends ZIOBaseSpec {
       testM("printableChar shrinks to bottom of range") {
         checkShrink(Gen.printableChar)('!')
       },
-      testM("reShrink applies new shrinking logic") {
+      testM("reshrink applies new shrinking logic") {
         val gen = Gen.int(0, 10).reshrink(Sample.shrinkIntegral(10))
         checkShrink(gen)(10)
       },
@@ -348,6 +446,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("string1 shrinks to single character") {
         checkShrink(Gen.string1(Gen.printableChar))("!")
       },
+      testM("stringBounded shrinks to bottom of range") {
+        checkShrink(Gen.stringBounded(2, 10)(Gen.printableChar))("!!")
+      },
       testM("stringN shrinks characters") {
         checkShrink(Gen.stringN(10)(Gen.printableChar))("!!!!!!!!!!")
       },
@@ -359,6 +460,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("vectorOf1 shrinks to singleton vector") {
         checkShrink(Gen.vectorOf1(smallInt))(Vector(-10))
+      },
+      testM("vectorOfBounded shrinks to bottom of range") {
+        checkShrink(Gen.vectorOfBounded(2, 10)(smallInt))(Vector(-10, -10))
       },
       testM("vectorOfN shrinks elements") {
         checkShrink(Gen.vectorOfN(10)(smallInt))(Vector.fill(10)(-10))
@@ -481,96 +585,4 @@ object GenSpec extends ZIOBaseSpec {
       )
     }
   )
-
-  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): ZIO[R, Nothing, TestResult] = {
-    val shrinks = if (TestPlatform.isJS) 1 else 100
-    ZIO.collectAll(List.fill(shrinks)(shrinksTo(gen))).map(assert(_)(forall(equalTo(a))))
-  }
-
-  def checkFinite[A, B](
-    gen: Gen[Random, A]
-  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): ZIO[Random, Nothing, TestResult] =
-    assertM(gen.sample.map(_.value).runCollect.map(f))(assertion)
-
-  def checkSample[A, B](
-    gen: Gen[Random with Sized, A],
-    size: Int = 100
-  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): ZIO[Random, Nothing, TestResult] =
-    assertM(provideSize(sample100(gen).map(f))(size))(assertion)
-
-  def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): ZIO[Random, Nothing, TestResult] =
-    provideSize(alwaysShrinksTo(gen)(a: A))(100)
-
-  val deterministic: Gen[Random with Sized, Gen[Any, Int]] =
-    Gen.listOf1(Gen.int(-10, 10)).map(as => Gen.fromIterable(as))
-
-  def equal[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
-    equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
-
-  def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = Managed.fromEffect(TestRandom.make(TestRandom.DefaultData))
-    for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideManaged(testRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideManaged(testRandom)
-    } yield leftShrinks == rightShrinks
-  }
-
-  def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
-    val testRandom = Managed.fromEffect(TestRandom.make(TestRandom.DefaultData))
-    for {
-      leftSample  <- sample100(left).provideManaged(testRandom)
-      rightSample <- sample100(right).provideManaged(testRandom)
-    } yield leftSample == rightSample
-  }
-
-  val genIntList: Gen[Random, List[Int]] = Gen.oneOf(
-    Gen.const(List.empty),
-    for {
-      tail <- Gen.suspend(genIntList)
-      head <- Gen.int(-10, 10)
-    } yield head :: tail
-  )
-
-  val genStringIntFn: Gen[Random, String => Int] = Gen.function(Gen.int(-10, 10))
-
-  def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    Sized.makeService(n).flatMap { service =>
-      zio.provideSome[Random] { r =>
-        new Random with Sized {
-          val random = r.random
-          val sized  = service
-        }
-      }
-    }
-
-  val random: Gen[Any, Gen[Random, Int]] =
-    Gen.const(Gen.int(-10, 10))
-
-  def shrinks[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.forever.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runCollect
-
-  def shrinksTo[R, A](gen: Gen[R, A]): ZIO[R, Nothing, A] =
-    shrinks(gen).map(_.reverse.head)
-
-  val smallInt = Gen.int(-10, 10)
-
-  def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.map(_.value).runCollect
-
-  def sample100[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.map(_.value).forever.take(100).runCollect
-
-  def shrink[R, A](gen: Gen[R, A]): ZIO[R, Nothing, A] =
-    gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runLast.map(_.get)
-
-  val shrinkable: Gen[Random, Int] =
-    Gen.fromRandomSample(_.nextInt(90).map(_ + 10).map(Sample.shrinkIntegral(0)))
-
-  def shrinkWith[R, A](gen: Gen[R, A])(f: A => Boolean): ZIO[R, Nothing, List[A]] =
-    gen.sample.take(1).flatMap(_.shrinkSearch(!f(_))).take(1000).filter(!f(_)).runCollect
-
-  val three = Gen(ZStream(Sample.unfold[Any, Int, Int](3) { n =>
-    if (n == 0) (n, ZStream.empty)
-    else (n, ZStream(n - 1))
-  }))
 }

@@ -1246,6 +1246,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Retries this effect until its error satisfies the specified predicate.
+   */
+  final def retryUntil(f: E => Boolean): ZIO[R, E, A] =
+    retry(Schedule.doUntil(f))
+
+  /**
+   * Retries this effect while its error satisfies the specified predicate.
+   */
+  final def retryWhile(f: E => Boolean): ZIO[R, E, A] =
+    retry(Schedule.doWhile(f))
+
+  /**
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
    */
@@ -2270,18 +2282,39 @@ object ZIO {
    * produced effects in parallel, discarding the results.
    *
    * For a sequential version of this method, see `foreach_`.
+   *
+   * Optimized to avoid keeping full tree of effects, so that method could be
+   * able to handle large input sequences.
+   * Behaves almost like this code:
+   *
+   * {{{
+   * as.foldLeft(ZIO.unit) { (acc, a) => acc.zipParLeft(f(a)) }
+   * }}}
+   *
+   * Additionally, interrupts all effects on any failure.
    */
   def foreachPar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    ZIO
-      .effectTotal(as.iterator)
-      .flatMap { i =>
-        def loop(a: A): ZIO[R, E, Unit] =
-          if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
-          else f(a).unit
-        if (i.hasNext) loop(i.next)
-        else ZIO.unit
-      }
-      .refailWithTrace
+    if (as.isEmpty) ZIO.unit
+    else {
+      val size = as.size
+      for {
+        parentId <- ZIO.fiberId
+        result   <- Promise.make[E, Unit]
+        succeed  <- Ref.make(0)
+        _ <- ZIO.traverse_(as) {
+              f(_)
+                .foldCauseM(result.halt, _ => {
+                  succeed.update(_ + 1) >>= { succeed =>
+                    ZIO.when(succeed == size)(result.succeed(()))
+                  }
+                })
+                .fork >>= { fiber =>
+                result.await.catchAllCause(_ => fiber.interruptAs(parentId)).fork
+              }
+            }
+        _ <- result.await
+      } yield ()
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
@@ -2610,11 +2643,20 @@ object ZIO {
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
+   *
+   * It's unsafe to execute side effects inside `f`, as `f` may be executed
+   * more than once for some of `in` elements during effect execution.
    */
   def mergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
+    Ref.make(zero) >>= { acc =>
+      foreachPar_(in) {
+        Predef.identity(_) >>= { a =>
+          acc.update(f(_, a))
+        }
+      } *> acc.get
+    }
 
   /**
    * Makes the effect non-daemon, but passes it a restore function that
@@ -2848,7 +2890,7 @@ object ZIO {
   /**
    * Strictly-evaluated unit lifted into the `ZIO` monad.
    */
-  val unit: URIO[Any, Unit] = succeed(())
+  val unit: UIO[Unit] = succeed(())
 
   /**
    * Prefix form of `ZIO#uninterruptible`.

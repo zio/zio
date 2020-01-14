@@ -100,7 +100,7 @@ object StreamEffectAsyncSpec extends ZIOBaseSpec {
                        inParallel {
                          k(IO.fail(None))
                        }(global)
-                       UIO.succeed(())
+                       UIO.unit
                      }
                      .runCollect
         } yield assert(result)(equalTo(Nil))

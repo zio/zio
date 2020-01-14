@@ -55,7 +55,7 @@ object BuildHelper {
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.21.0-RC1",
+    crossScalaVersions += "0.22.0-bin-20200107-21a5608-NIGHTLY",
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")
@@ -67,6 +67,14 @@ object BuildHelper {
       val old = (Compile / doc / sources).value
       if (isDotty.value) {
         Nil
+      } else {
+        old
+      }
+    },
+    parallelExecution in Test := {
+      val old = (Test / parallelExecution).value
+      if (isDotty.value) {
+        false
       } else {
         old
       }
@@ -256,7 +264,8 @@ object BuildHelper {
 
     def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
 
-    def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
+    def item(text: String): String    = s"${Console.GREEN}> ${Console.CYAN}$text${Console.RESET}"
+    def subItem(text: String): String = s"  ${Console.YELLOW}> ${Console.CYAN}$text${Console.RESET}"
 
     s"""|${header(" ________ ___")}
         |${header("|__  /_ _/ _ \\")}
@@ -272,9 +281,8 @@ object BuildHelper {
         |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
         |${item("testJVM")} - Runs all JVM tests
         |${item("testJS")} - Runs all ScalaJS tests
-        |${item("testOnly *.YourSpec -- -t \"YourLabel\"")} - Only runs tests with matching term e.g. ${item(
-         "coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\""
-       )}
+        |${item("testOnly *.YourSpec -- -t \"YourLabel\"")} - Only runs tests with matching term e.g.
+        |${subItem("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")}
         |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
       """.stripMargin
   }

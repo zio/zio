@@ -434,6 +434,15 @@ object Assertion extends AssertionVariants {
     }
 
   /**
+   * Makes a new assertion that requires the size of a string be satisfied by
+   * the specified assertion.
+   */
+  def hasSizeString(assertion: Assertion[Int]): Assertion[String] =
+    Assertion.assertionM("hasSizeString")(param(assertion)) { actual =>
+      assertion.test(actual.size)
+    }
+
+  /**
    * Makes a new assertion that requires the sum type be a specified term.
    *
    * {{{

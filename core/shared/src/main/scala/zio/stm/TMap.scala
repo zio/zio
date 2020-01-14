@@ -159,6 +159,12 @@ final class TMap[K, V] private (
     fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
 
   /**
+   * Collects all bindings into a map.
+   */
+  def toMap: STM[Nothing, Map[K, V]] =
+    fold(Map.empty[K, V])(_ + _)
+
+  /**
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
@@ -180,7 +186,7 @@ final class TMap[K, V] private (
       val overwrite =
         STM
           .foreach(original)(_.get.map(_.view.map(g)))
-          .flatMap { xs =>
+          .flatMap[Any, Nothing, Unit] { xs =>
             STM.foreach_(xs.view.flatten.toMap) { kv =>
               newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _)
             }
@@ -212,7 +218,7 @@ final class TMap[K, V] private (
         STM
           .foreach(original)(_.get.map(_.view.map(g)))
           .flatMap { xs =>
-            STM.collectAll(xs.view.flatten.toIterable).flatMap { items =>
+            STM.collectAll(xs.view.flatten.toIterable).flatMap[Any, E, Unit] { items =>
               val distinct = items.toMap
               STM.foreach_(distinct)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
             }
