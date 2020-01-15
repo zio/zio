@@ -18,7 +18,7 @@ package zio.test
 
 import zio.duration._
 import zio.system
-import zio.test.Assertion.{ hasMessage, isCase, isSubtype }
+import zio.test.Assertion.{ equalTo, hasMessage, isCase, isSubtype }
 import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
 import zio.{ Cause, Schedule, ZIO, ZManaged }
 
@@ -405,7 +405,7 @@ object TestAspect extends TimeoutVariants {
             case TestFailure.Runtime(cause) => cause.dieOption
             case _                          => None
           },
-          isSubtype[TestTimeoutException](hasMessage(s"Timeout of ${duration.render} exceeded."))
+          isSubtype[TestTimeoutException](hasMessage(equalTo(s"Timeout of ${duration.render} exceeded.")))
         )
       )
 
