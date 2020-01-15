@@ -93,5 +93,5 @@ private[internal] trait PlatformSpecific {
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
 
   @silent("is never used")
-  final def forThrowableCause(throwable: => Throwable, newCause: => Throwable): Unit = ()
+  final def forceThrowableCause(throwable: => Throwable, newCause: => Throwable): Unit = ()
 }
