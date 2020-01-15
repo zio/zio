@@ -588,22 +588,33 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def fork: URIO[R, Fiber[E, A]] = new ZIO.Fork(self)
 
   /**
-   * Like [[fork]] but handles an error with the provided handler.
-   */
-  final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber[E, A]] =
-    onError(new ZIO.FoldCauseMFailureFn(handler)).run.fork.map(_.mapM(IO.done))
-
-  /**
    * Forks the effect into a new independent fiber, with the specified name.
    */
   final def forkAs(name: String): URIO[R, Fiber[E, A]] =
     (Fiber.fiberName.set(Some(name)) *> self).fork
 
   /**
+   * Forks the effect into a new daemon fiber, but immediately restores the
+   * fiber's daemon status to the inherited status from whatever region the
+   * effect is composed into. This means that the forked fiber will not be
+   * interrupted if its parent fiber is interrupted, but fibers forked by the
+   * forked fiber will be interrupted if the forked fiber is interrupted,
+   * assuming the effect is in a non-daemon region (the default).
+   */
+  final def forkDaemon: URIO[R, Fiber[E, A]] =
+    ZIO.daemonMask(restore => restore(self).fork)
+
+  /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
   final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber[E, A]] =
     self.on(ec).fork
+
+  /**
+   * Like [[fork]] but handles an error with the provided handler.
+   */
+  final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber[E, A]] =
+    onError(new ZIO.FoldCauseMFailureFn(handler)).run.fork.map(_.mapM(IO.done))
 
   final def flattenErrorOption[E1, E2 <: E1](default: E2)(implicit ev: E <:< Option[E1]): ZIO[R, E1, A] =
     self.mapError(e => ev(e).getOrElse(default))
