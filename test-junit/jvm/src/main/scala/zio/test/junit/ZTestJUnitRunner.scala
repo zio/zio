@@ -7,7 +7,6 @@ import org.junit.runner.{ Description, RunWith, Runner }
 
 import zio.ZIO.effectTotal
 import zio._
-import zio.clock.Clock
 import zio.test.FailureRenderer.FailureMessage.Message
 import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
 import zio.test.TestFailure.{ Assertion, Runtime }
@@ -60,18 +59,11 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
     description
   }
 
-  override def run(notifier: RunNotifier): Unit = {
-    val env = new TestLogger with Clock {
-      override def testLogger: TestLogger.Service = spec.runner.defaultTestLogger.testLogger
-      override val clock: Clock.Service[Any]      = Clock.Live.clock
+  override def run(notifier: RunNotifier): Unit =
+    zio.Runtime((), spec.runner.platform).unsafeRun {
+      val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
+      spec.runner.run(instrumented).unit.provideManaged(spec.runner.bootstrap)
     }
-    zio
-      .Runtime(env, spec.runner.platform)
-      .unsafeRun {
-        val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
-        spec.runner.run(instrumented).unit
-      }
-  }
 
   private def reportRuntimeFailure[S, R, L](notifier: JUnitNotifier, path: Vector[String], label: R, cause: Cause[L]) =
     for {
