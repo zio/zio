@@ -105,7 +105,7 @@ object RefMSpec extends ZIOBaseSpec {
       for {
         refM  <- RefM.make[State](Active)
         value <- refM.modifySome("State doesn't change") { case Active => IO.dieMessage(fatalError) }.run
-      } yield assert(value)(dies(hasMessageEqualTo(fatalError)))
+      } yield assert(value)(dies(hasMessage(equalTo(fatalError))))
     },
     testM("interrupt parent fiber and update") {
       for {
