@@ -1118,7 +1118,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           ohNoes   = ";-0"
           managed  = Managed.make(ZIO.dieMessage(ohNoes))(_ => released.set(true))
           res1 <- managed.memoize.use { memoized =>
-                   assertM(memoized.use_(ZIO.unit).run)(dies(hasMessage(ohNoes)))
+                   assertM(memoized.use_(ZIO.unit).run)(dies(hasMessageEqualTo(ohNoes)))
                  }
           res2 <- assertM(released.get)(isFalse)
         } yield res1 && res2
@@ -1131,7 +1131,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           memoized.use_(ZIO.unit)
         }
 
-        assertM(program.run)(dies(hasMessage(myBad)))
+        assertM(program.run)(dies(hasMessageEqualTo(myBad)))
       },
       testM("behaves properly if use dies") {
         val darn = "darn"
@@ -1143,7 +1143,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                  memoized.use_(ZIO.dieMessage(darn))
                }.run
           v2 <- released.get
-        } yield assert(v1)(dies(hasMessage(darn))) && assert(v2)(isTrue)
+        } yield assert(v1)(dies(hasMessageEqualTo(darn))) && assert(v2)(isTrue)
       },
       testM("behaves properly if use is interrupted") {
         for {
