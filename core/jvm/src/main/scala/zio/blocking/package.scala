@@ -47,11 +47,31 @@ package object blocking {
 
       /**
        * Imports a synchronous effect that does blocking IO into a pure value.
-       *
-       * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
-       * will be interrupted via `Thread.interrupt`.
        */
       def effectBlocking[A](effect: => A): Task[A] =
+        blocking(ZIO.effect(effect))
+
+      /**
+       * Imports a synchronous effect that does blocking IO into a pure value,
+       * with a custom cancel effect.
+       *
+       * If the returned `ZIO` is interrupted, the blocked thread running the
+       * synchronous effect will be interrupted via the cancel effect.
+       */
+      def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+        blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
+
+      /**
+       * Imports a synchronous effect that does blocking IO into a pure value.
+       *
+       * If the returned `ZIO` is interrupted, the blocked thread running the
+       * synchronous effect will be interrupted via `Thread.interrupt`.
+       *
+       * Note that this adds significant overhead. For performance sensitive
+       * applications consider using `effectBlocking` or
+       * `effectBlockingCancel`.
+       */
+      def effectBlockingInterrupt[A](effect: => A): Task[A] =
         // Reference user's lambda for the tracer
         ZIOFn.recordTrace(() => effect) {
           ZIO.effectSuspendTotal {
@@ -116,15 +136,6 @@ package object blocking {
             } yield a)
           }
         }
-
-      /**
-       * Imports a synchronous effect that does blocking IO into a pure value, with a custom cancel effect.
-       *
-       * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
-       * will be interrupted via the cancel effect.
-       */
-      def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
-        blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
     }
 
     val live: ZLayer.NoDeps[Nothing, Blocking] = ZLayer.succeed {
@@ -140,11 +151,14 @@ package object blocking {
   def effectBlocking[A](effect: => A): ZIO[Blocking, Throwable, A] =
     ZIO.accessM[Blocking](_.get.effectBlocking(effect))
 
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
+    ZIO.accessM[Blocking](_.get.effectBlockingCancelable(effect)(cancel))
+
   def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
     effectBlocking(effect).refineToOrDie[IOException]
 
-  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
-    ZIO.accessM[Blocking](_.get.effectBlockingCancelable(effect)(cancel))
+  def effectBlockingInterrupt[A](effect: => A): ZIO[Blocking, Throwable, A] =
+    ZIO.accessM(_.get.effectBlockingInterrupt(effect))
 
   private[blocking] object internal {
     private[blocking] val blockingExecutor0 =
