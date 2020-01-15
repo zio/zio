@@ -332,7 +332,7 @@ private[stream] object StreamEffect extends Serializable {
     override def fillInStackTrace() = this
   }
 
-  final case object End extends Throwable("stream end", null, true, false) {
+  case object End extends Throwable("stream end", null, true, false) {
     override def fillInStackTrace() = this
   }
 

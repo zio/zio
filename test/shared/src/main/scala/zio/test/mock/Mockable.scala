@@ -16,6 +16,8 @@
 
 package zio.test.mock
 
+import zio.Has
+
 /**
  * The `Mockable[A]` represents a mock service builder used by the mock
  * framework to construct a mock implementation from a mock.
@@ -25,5 +27,5 @@ trait Mockable[A] {
   /**
    * Provided a mock constructs a mock implementation of service `A`.
    */
-  def environment(mock: Mock): A
+  def environment(mock: Mock): Has[A]
 }

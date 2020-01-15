@@ -2,9 +2,11 @@ package zio.test.sbt
 
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 
+import zio.UIO
 import zio.clock.Clock
+import zio.scheduler.Scheduler
 import zio.test.{ AbstractRunnableSpec, SummaryBuilder, TestArgs, TestLogger }
-import zio.{ Runtime, ZIO }
+import zio.{ Runtime, ZIO, ZLayer }
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -23,9 +25,9 @@ abstract class BaseTestTask(
       .asInstanceOf[AbstractRunnableSpec]
   }
 
-  protected def run(eventHandler: EventHandler, loggers: Array[Logger]) =
+  protected def run(eventHandler: EventHandler) =
     for {
-      spec <- (args.testSearchTerms match {
+      spec <- args.testSearchTerms match {
                case Nil => spec.run
                case searchTerms =>
                  spec.runner.run {
@@ -33,25 +35,30 @@ abstract class BaseTestTask(
                      searchTerms.exists(term => label.toString.contains(term))
                    }.getOrElse(spec.spec)
                  }
-             }).provide(new SbtTestLogger(loggers) with Clock.Live)
+             }
       summary <- SummaryBuilder.buildSummary(spec)
       _       <- sendSummary.run(summary)
       events  <- ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
       _       <- ZIO.foreach[Any, Throwable, ZTestEvent, Unit](events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
+  protected def sbtTestLayer(loggers: Array[Logger]): ZLayer.NoDeps[Nothing, TestLogger with Clock] =
+    ZLayer.succeed[TestLogger.Service](new TestLogger.Service {
+      def logLine(line: String): UIO[Unit] =
+        ZIO
+          .effect(loggers.foreach(_.info(colored(line))))
+          .catchAll(_ => ZIO.unit)
+    }) ++ (Scheduler.live >>> Clock.live)
+
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    Runtime((), spec.platform).unsafeRun(run(eventHandler, loggers))
+    Runtime((), spec.platform).unsafeRun(
+      (sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_)
+        .use_(ZIO.unit)
+        .onError(e => UIO(println(e.prettyPrint)))
+    )
     Array()
   }
 
   override def tags(): Array[String] = Array.empty
-}
 
-class SbtTestLogger(loggers: Array[Logger]) extends TestLogger {
-  override def testLogger: TestLogger.Service = (line: String) => {
-    ZIO
-      .effect(loggers.foreach(_.info(colored(line))))
-      .catchAll(_ => ZIO.unit)
-  }
 }
