@@ -1633,6 +1633,13 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
     aggregate(ZSink.collectAllN[A](chunkSize))
 
   /**
+   * Partitions the stream with the specified chunkSize or until the specified
+   * duration has passed, whichever is satisfied first.
+   */
+  def groupedWithin(chunkSize: Long, within: Duration): ZStream[R with Clock, E, List[A]] =
+    aggregateAsyncWithin(Sink.collectAllN[A](chunkSize), Schedule.spaced(within))
+
+  /**
    * Halts the evaluation of this stream when the provided promise resolves.
    *
    * If the promise completes with a failure, the stream will emit that failure.
