@@ -285,7 +285,8 @@ trait Fiber[+E, +A] { self =>
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]], translating
-   * any errors to [[java.lang.Throwable]] with the specified conversion function.
+   * any errors to [[java.lang.Throwable]] with the specified conversion function,
+   * using [[Cause.squashWithTrace]]
    *
    * @param f function to the error into a Throwable
    * @return `UIO[Future[A]]`
@@ -294,7 +295,7 @@ trait Fiber[+E, +A] { self =>
     UIO.effectTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
-      def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
+      def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWithTrace(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
 
       ZIO.runtime[Any].map { runtime =>
