@@ -507,13 +507,12 @@ object SinkSpec extends ZIOBaseSpec {
         testM("step error") {
           val s = new ZSink[Any, String, Nothing, Any, Nothing] {
             type State = Unit
-            val initial                    = UIO.succeed(())
+            val initial                    = UIO.unit
             def step(state: State, a: Any) = IO.fail("Ouch")
             def extract(state: State)      = IO.fail("Ouch")
             def cont(state: State)         = true
           }
-          val sink = s.optional
-          assertM(sinkIteration(sink, 1))(equalTo((None, Chunk.single(1))))
+          assertM(sinkIteration(s.optional, 1))(equalTo((None, Chunk.single(1))))
         },
         testM("extract error") {
           val sink = extractErrorSink.optional

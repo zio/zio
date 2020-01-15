@@ -20,15 +20,31 @@ class GenBenchmarks {
   var elementSize: Int = _
   @Benchmark
   def zioDouble: List[Double] =
-    unsafeRun(Gen.listOfN(listSize)(Gen.uniform).sample.map(_.value).runHead.get)
+    unsafeRun(Gen.listOfN(listSize)(Gen.uniform).sample.map(_.value).runHead.get.provideLayer(ZEnv.live))
 
   @Benchmark
   def zioIntListsOfSizeN: List[List[Int]] =
-    unsafeRun(Gen.listOfN(listSize)(Gen.listOfN(elementSize)(Gen.anyInt)).sample.map(_.value).runHead.get)
+    unsafeRun(
+      Gen
+        .listOfN(listSize)(Gen.listOfN(elementSize)(Gen.anyInt))
+        .sample
+        .map(_.value)
+        .runHead
+        .get
+        .provideLayer(ZEnv.live)
+    )
 
   @Benchmark
   def zioStringsOfSizeN: List[String] =
-    unsafeRun(Gen.listOfN(listSize)(Gen.stringN(elementSize)(Gen.anyChar)).sample.map(_.value).runHead.get)
+    unsafeRun(
+      Gen
+        .listOfN(listSize)(Gen.stringN(elementSize)(Gen.anyChar))
+        .sample
+        .map(_.value)
+        .runHead
+        .get
+        .provideLayer(ZEnv.live)
+    )
 
   @Benchmark
   def scalaCheckDoubles: List[Double] =

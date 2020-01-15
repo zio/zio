@@ -1,7 +1,8 @@
 import sbt._
 import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
-import sbtcrossproject.CrossPlugin.autoImport.CrossType
+import sbtcrossproject.Platform
+import sbtcrossproject.CrossPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
@@ -55,7 +56,7 @@ object BuildHelper {
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.21.0-RC1",
+    crossScalaVersions += "0.22.0-bin-20200107-21a5608-NIGHTLY",
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")
@@ -70,16 +71,29 @@ object BuildHelper {
       } else {
         old
       }
+    },
+    parallelExecution in Test := {
+      val old = (Test / parallelExecution).value
+      if (isDotty.value) {
+        false
+      } else {
+        old
+      }
     }
+  )
+
+  val scalaReflectSettings = Seq(
+    libraryDependencies ++=
+      (if (isDotty.value) Seq()
+       else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value))
   )
 
   val replSettings = makeReplSettings {
     """|import zio._
        |import zio.console._
        |import zio.duration._
-       |object replRTS extends DefaultRuntime {}
-       |import replRTS._
-       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |import zio.Runtime.default._
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = unsafeRun(io.provideLayer(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -88,9 +102,8 @@ object BuildHelper {
        |import zio.console._
        |import zio.duration._
        |import zio.stream._
-       |object replRTS extends DefaultRuntime {}
-       |import replRTS._
-       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |import zio.Runtime.default._
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = unsafeRun(io.provideLayer(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -159,6 +172,42 @@ object BuildHelper {
       case _ => Seq.empty
     }
 
+  def platformSpecificSources(platform: String, conf: String, baseDirectory: File)(versions: String*) =
+    List("scala" :: versions.toList.map("scala-" + _): _*).map { version =>
+      baseDirectory.getParentFile / platform.toLowerCase / "src" / conf / version
+    }.filter(_.exists)
+
+  def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File, isDotty: Boolean) =
+    CrossVersion.partialVersion(scalaVer) match {
+      case Some((2, x)) if x <= 11 =>
+        platformSpecificSources(platform, conf, baseDir)("2.11", "2.x")
+      case Some((2, x)) if x >= 12 =>
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x")
+      case _ if isDotty =>
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "dotty")
+      case _ =>
+        Nil
+    }
+
+  lazy val crossProjectSettings = Seq(
+    Compile / unmanagedSourceDirectories ++= {
+      val platform = crossProjectPlatform.value.identifier
+      val baseDir  = baseDirectory.value
+      val scalaVer = scalaVersion.value
+      val isDot    = isDotty.value
+
+      crossPlatformSources(scalaVer, platform, "main", baseDir, isDot)
+    },
+    Test / unmanagedSourceDirectories ++= {
+      val platform = crossProjectPlatform.value.identifier
+      val baseDir  = baseDirectory.value
+      val scalaVer = scalaVersion.value
+      val isDot    = isDotty.value
+
+      crossPlatformSources(scalaVer, platform, "test", baseDir, isDot)
+    }
+  )
+
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
@@ -184,6 +233,7 @@ object BuildHelper {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
           Seq(
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
@@ -232,6 +282,7 @@ object BuildHelper {
           else
             Nil
       }
+
     }
   )
 
@@ -256,7 +307,8 @@ object BuildHelper {
 
     def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
 
-    def item(text: String): String = s"${Console.GREEN}▶ ${Console.CYAN}$text${Console.RESET}"
+    def item(text: String): String    = s"${Console.GREEN}> ${Console.CYAN}$text${Console.RESET}"
+    def subItem(text: String): String = s"  ${Console.YELLOW}> ${Console.CYAN}$text${Console.RESET}"
 
     s"""|${header(" ________ ___")}
         |${header("|__  /_ _/ _ \\")}
@@ -272,9 +324,8 @@ object BuildHelper {
         |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
         |${item("testJVM")} - Runs all JVM tests
         |${item("testJS")} - Runs all ScalaJS tests
-        |${item("testOnly *.YourSpec -- -t \"YourLabel\"")} - Only runs tests with matching term e.g. ${item(
-         "coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\""
-       )}
+        |${item("testOnly *.YourSpec -- -t \"YourLabel\"")} - Only runs tests with matching term e.g.
+        |${subItem("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")}
         |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
       """.stripMargin
   }

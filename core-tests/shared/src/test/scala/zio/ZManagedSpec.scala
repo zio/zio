@@ -778,6 +778,86 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("tap")(
+      testM("Doesn't change the managed resource") {
+        ZManaged
+          .succeed(1)
+          .tap(n => ZManaged.succeed(n + 1))
+          .map(actual => assert(1)(equalTo(actual)))
+          .use(ZIO.succeed)
+      },
+      testM("Runs given effect") {
+        Ref
+          .make(0)
+          .toManaged_
+          .tap(_.update(_ + 1).toManaged_)
+          .mapM(_.get)
+          .map(i => assert(i)(equalTo(1)))
+          .use(ZIO.succeed)
+      }
+    ),
+    suite("tapBoth")(
+      testM("Doesn't change the managed resource") {
+        ZManaged
+          .fromEither(Right[String, Int](1))
+          .tapBoth(_ => ZManaged.unit, n => ZManaged.succeed(n + 1))
+          .map(actual => assert(1)(equalTo(actual)))
+          .use(ZIO.succeed)
+      },
+      testM("Runs given effect on failure") {
+        (
+          for {
+            ref <- Ref.make(0).toManaged_
+            _ <- ZManaged
+                  .fromEither(Left(1))
+                  .tapBoth(e => ref.update(_ + e).toManaged_, (_: Any) => ZManaged.unit)
+            actual <- ref.get.toManaged_
+          } yield assert(actual)(equalTo(2))
+        ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed)
+      },
+      testM("Runs given effect on success") {
+        (
+          for {
+            ref <- Ref.make(1).toManaged_
+            _ <- ZManaged
+                  .fromEither(Right[String, Int](2))
+                  .tapBoth(_ => ZManaged.unit, n => ref.update(_ + n).toManaged_)
+            actual <- ref.get.toManaged_
+          } yield assert(actual)(equalTo(3))
+        ).use(ZIO.succeed)
+      }
+    ),
+    suite("tapError")(
+      testM("Doesn't change the managed resource") {
+        ZManaged
+          .fromEither(Right[String, Int](1))
+          .tapError(str => ZManaged.succeed(str.length))
+          .map(actual => assert(1)(equalTo(actual)))
+          .use(ZIO.succeed)
+      },
+      testM("Runs given effect on failure") {
+        (
+          for {
+            ref <- Ref.make(0).toManaged_
+            _ <- ZManaged
+                  .fromEither(Left(1))
+                  .tapError(e => ref.update(_ + e).toManaged_)
+            actual <- ref.get.toManaged_
+          } yield assert(actual)(equalTo(2))
+        ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed)
+      },
+      testM("Doesn't run given effect on success") {
+        (
+          for {
+            ref <- Ref.make(1).toManaged_
+            _ <- ZManaged
+                  .fromEither(Right[Int, Int](2))
+                  .tapError(n => ref.update(_ + n).toManaged_)
+            actual <- ref.get.toManaged_
+          } yield assert(actual)(equalTo(1))
+        ).use(ZIO.succeed)
+      }
+    ),
     suite("timed")(
       testM("Should time both the reservation and the acquisition") {
         val managed = ZManaged(
@@ -787,10 +867,10 @@ object ZManagedSpec extends ZIOBaseSpec {
           case (duration, _) =>
             ZIO.succeed(assert(duration.toNanos)(isGreaterThanEqualTo(40.milliseconds.toNanos)))
         }
-        def awaitSleeps(n: Int): ZIO[TestClock, Nothing, Unit] =
+        def awaitSleeps(n: Int): ZIO[TestClock with Live, Nothing, Unit] =
           TestClock.sleeps.flatMap {
             case x if x.length >= n => ZIO.unit
-            case _                  => ZIO.sleep(20.milliseconds).provide(zio.clock.Clock.Live) *> awaitSleeps(n)
+            case _                  => Live.live(ZIO.sleep(20.milliseconds)) *> awaitSleeps(n)
           }
         for {
           f      <- test.fork
@@ -1159,12 +1239,12 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   val ZManagedExampleDie: ZManaged[Any, Throwable, Int] = ZManaged.effectTotal(throw ExampleError)
 
-  def countDownLatch(n: Int): UIO[UIO[Unit]] =
+  def countDownLatch(n: Int): UIO[URIO[Live, Unit]] =
     Ref.make(n).map { counter =>
       counter.update(_ - 1) *> {
-        def await: UIO[Unit] = counter.get.flatMap { n =>
+        def await: URIO[Live, Unit] = counter.get.flatMap { n =>
           if (n <= 0) ZIO.unit
-          else ZIO.sleep(10.milliseconds).provide(zio.clock.Clock.Live) *> await
+          else Live.live(ZIO.sleep(10.milliseconds)) *> await
         }
         await
       }
@@ -1180,7 +1260,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interruptAs(fiberId).timeout(5.seconds).provide(zio.clock.Clock.Live)
+      interruption       <- Live.live(managedFiber.interruptAs(fiberId).timeout(5.seconds))
     } yield assert(interruption.map(_.untraced))(equalTo(expected(fiberId)))
 
   def testFinalizersPar[R, E](
@@ -1197,7 +1277,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def testAcquirePar[R, E](
     n: Int,
-    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, Any]
+    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, Any]
   ) =
     for {
       effects      <- Ref.make(0)
@@ -1214,7 +1294,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def testReservePar[R, E, A](
     n: Int,
-    f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, A]
+    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, A]
   ) =
     for {
       effects      <- Ref.make(0)

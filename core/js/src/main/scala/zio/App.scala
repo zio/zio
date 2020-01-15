@@ -28,5 +28,5 @@ trait App extends DefaultRuntime {
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList))(_ => ())
+    unsafeRunAsync(run(args0.toList).provideLayer(ZEnv.live))(_ => ())
 }

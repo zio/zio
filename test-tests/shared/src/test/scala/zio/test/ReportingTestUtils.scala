@@ -2,7 +2,6 @@ package zio.test
 
 import scala.{ Console => SConsole }
 
-import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
 import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
 import zio.{ Cause, Managed, ZIO }
@@ -44,14 +43,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironmentManaged)
             .run(spec)
-            .provideSomeManaged(for {
-              logSvc   <- TestLogger.fromConsoleM.toManaged_
-              clockSvc <- TestClock.make(TestClock.DefaultData)
-            } yield new TestLogger with Clock {
-              override def testLogger: TestLogger.Service = logSvc.testLogger
-
-              override val clock: Clock.Service[Any] = clockSvc.clock
-            })
+            .provideLayer(TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
@@ -59,13 +51,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironmentManaged)
                   .run(spec)
-                  .provideSomeManaged(for {
-                    logSvc   <- TestLogger.fromConsoleM.toManaged_
-                    clockSvc <- TestClock.make(TestClock.DefaultData)
-                  } yield new TestLogger with Clock {
-                    override def testLogger: TestLogger.Service = logSvc.testLogger
-                    override val clock: Clock.Service[Any]      = clockSvc.clock
-                  })
+                  .provideLayer(TestLogger.fromConsole ++ TestClock.default)
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
