@@ -20,6 +20,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.system
 import zio.system.System
+import zio.test.Assertion.{ hasMessage, isCase, isSubtype }
 import zio.test.environment.{ Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem }
 import zio.{ Cause, Schedule, ZIO, ZManaged }
 
@@ -393,6 +394,22 @@ object TestAspect extends TimeoutVariants {
 
     restoreTestEnvironment >>> nonFlaky
   }
+
+  /**
+   * Constructs an aspect that requires a test to not terminate within the
+   * specified time.
+   */
+  def nonTermination(duration: Duration): TestAspect[Nothing, Live[Clock], Nothing, Any, Unit, Unit] =
+    timeout(duration) >>>
+      failure(
+        isCase[TestFailure[Any], Throwable](
+          "Runtime", {
+            case TestFailure.Runtime(cause) => cause.dieOption
+            case _                          => None
+          },
+          isSubtype[TestTimeoutException](hasMessage(s"Timeout of ${duration.render} exceeded."))
+        )
+      )
 
   /**
    * An aspect that executes the members of a suite in parallel.
