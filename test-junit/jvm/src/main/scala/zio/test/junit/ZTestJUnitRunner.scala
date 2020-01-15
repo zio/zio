@@ -14,6 +14,16 @@ import zio.test.TestFailure.{ Assertion, Runtime }
 import zio.test.TestSuccess.{ Ignored, Succeeded }
 import zio.test._
 
+/**
+ * Custom JUnit 4 runner for ZIO Test Specs.<br/>
+ * Any instance of [[zio.test.AbstractRunnableSpec]], that is a class (JUnit won't run objects),
+ * if annotated with `@RunWith(classOf[ZTestJUnitRunner])` can be run by IDEs and build tools that support JUnit.<br/>
+ * Your spec can also extend [[JUnitRunnableSpec]] to inherit the annotation.
+ * In order to expose the structure of the test to JUnit (and the external tools), `getDescription` has to execute Suite level effects.
+ * This means that these effects will be executed twice (first in `getDescription` and then in `run`).
+ * <br/><br/>
+ * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS doesn't support custom runners.
+ */
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with DefaultRuntime {
   private val className = klass.getName.stripSuffix("$")
 
