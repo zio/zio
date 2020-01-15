@@ -172,10 +172,41 @@ object BuildHelper {
       case _ => Seq.empty
     }
 
-  def platformSpecificSources(platform: String, baseDirectory: File)(versions: String*) =
+  def platformSpecificSources(platform: String, conf: String, baseDirectory: File)(versions: String*) =
     List(versions: _*).map { version =>
-      baseDirectory.getParentFile / platform.toLowerCase / "src" / "main" / s"scala-${version}"
+      baseDirectory.getParentFile / platform.toLowerCase / "src" / conf / s"scala-${version}"
+    }.filter(_.exists)
+
+  def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File, isDotty: Boolean) =
+    CrossVersion.partialVersion(scalaVer) match {
+      case Some((2, x)) if x <= 11 =>
+        platformSpecificSources(platform, "main", baseDir)("2.11", "2.x")
+      case Some((2, x)) if x >= 12 =>
+        platformSpecificSources(platform, "main", baseDir)("2.12+", "2.12", "2.x")
+      case _ if isDotty =>
+        platformSpecificSources(platform, "main", baseDir)("2.12+", "2.12", "dotty")
+      case _ =>
+        Nil
     }
+
+  lazy val crossProjectSettings = Seq(
+    Compile / unmanagedSourceDirectories ++= {
+      val platform = crossProjectPlatform.value.identifier
+      val baseDir  = baseDirectory.value
+      val scalaVer = scalaVersion.value
+      val isDot    = isDotty.value
+
+      crossPlatformSources(scalaVer, platform, "main", baseDir, isDot)
+    },
+    Test / unmanagedSourceDirectories ++= {
+      val platform = crossProjectPlatform.value.identifier
+      val baseDir  = baseDirectory.value
+      val scalaVer = scalaVersion.value
+      val isDot    = isDotty.value
+
+      crossPlatformSources(scalaVer, platform, "test", baseDir, isDot)
+    }
+  )
 
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
@@ -199,19 +230,15 @@ object BuildHelper {
     autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
     Compile / unmanagedSourceDirectories ++= {
-      val dirs = CrossVersion.partialVersion(scalaVersion.value) match {
+      CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
           Seq(
-            platformSpecificSources(crossProjectPlatform.value.identifier, baseDirectory.value)("2.11", "2.x"),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
           ).flatten
         case Some((2, x)) if x >= 12 =>
           Seq(
-            platformSpecificSources(crossProjectPlatform.value.identifier, baseDirectory.value)("2.12+", "2.12", "2.x"),
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
@@ -219,13 +246,6 @@ object BuildHelper {
         case _ =>
           if (isDotty.value)
             Seq(
-              platformSpecificSources(crossProjectPlatform.value.identifier, baseDirectory.value)(
-                "2.12+",
-                "2.12",
-                "dotty"
-              ),
-              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
-              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-dotty"))
@@ -233,9 +253,6 @@ object BuildHelper {
           else
             Nil
       }
-      println(dirs.sorted.mkString("\n"))
-
-      dirs
     },
     Test / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {

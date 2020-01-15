@@ -5,8 +5,6 @@ import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 name := "zio"
 
-crossProjectPlatform in Global := sbtcrossproject.JVMPlatform
-
 inThisBuild(
   List(
     organization := "dev.zio",
@@ -96,6 +94,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
   .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
+  .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
   .settings(scalaReflectSettings)
   .enablePlugins(BuildInfoPlugin)
@@ -123,6 +122,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core)
   .dependsOn(test)
   .settings(stdSettings("core-tests"))
+  .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
@@ -144,6 +144,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
   .dependsOn(core)
   .settings(stdSettings("zio-streams"))
+  .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
@@ -156,6 +157,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(streams)
   .dependsOn(coreTests % "test->test;compile->compile")
   .settings(stdSettings("core-tests"))
+  .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.stream"))
@@ -176,6 +178,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
+  .settings(crossProjectSettings)
   .settings(
     scalacOptions += "-language:experimental.macros",
     libraryDependencies ++=
@@ -192,6 +195,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
   .dependsOn(test)
   .settings(stdSettings("test-tests"))
+  .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
@@ -206,6 +210,7 @@ lazy val testTestsJS = testTests.js.settings(
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
+  .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
 
 lazy val stacktracerJS = stacktracer.js
@@ -220,6 +225,7 @@ lazy val stacktracerNative = stacktracer.native
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
+  .settings(crossProjectSettings)
   .settings(
     libraryDependencies ++= Seq(
       "org.portable-scala" %%% "portable-scala-reflect" % "0.1.1"
@@ -245,6 +251,7 @@ lazy val testRunnerJS = testRunner.js
 lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
+  .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .jsSettings(libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3" % Test)
   .dependsOn(testRunner)
