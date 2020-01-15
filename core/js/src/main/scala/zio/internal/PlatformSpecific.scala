@@ -21,6 +21,7 @@ import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 import scala.concurrent.ExecutionContext
 
 import com.github.ghik.silencer.silent
+
 import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
