@@ -347,7 +347,6 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       (if (interrupted) Some(new InterruptedException) else None) orElse
       defects.headOption getOrElse (new InterruptedException)
 
-
   /**
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the
    * "most important" `Throwable`.
@@ -365,7 +364,6 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def squashWithTrace(f: E => Throwable): Throwable =
     attachTrace(squashWith(f))
-
 
   /**
    * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
