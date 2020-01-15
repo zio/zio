@@ -17,9 +17,7 @@
 package zio.test
 
 import zio.ZIO
-import zio.clock.Clock
 import zio.console
-import zio.console.Console
 import zio.duration._
 import zio.test.environment.Live
 
@@ -31,13 +29,13 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect[Nothing, Live[Clock] with Live[Console], Nothing, Any, Nothing, Any] =
-    new TestAspect[Nothing, Live[Clock] with Live[Console], Nothing, Any, Nothing, Any] {
-      def some[R <: Live[Clock] with Live[Console], E, S, L](
+  ): TestAspect[Nothing, Live, Nothing, Any, Nothing, Any] =
+    new TestAspect[Nothing, Live, Nothing, Any, Nothing, Any] {
+      def some[R <: Live, E, S, L](
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] = {
-        def loop(labels: List[L], spec: ZSpec[R, E, L, S]): ZSpec[R with Live[Clock] with Live[Console], E, L, S] =
+        def loop(labels: List[L], spec: ZSpec[R, E, L, S]): ZSpec[R with Live, E, L, S] =
           spec.caseValue match {
             case Spec.SuiteCase(label, specs, exec) =>
               Spec.suite(label, specs.map(_.map(loop(label :: labels, _))), exec)
@@ -54,7 +52,7 @@ trait TimeoutVariants {
     testLabel: L,
     test: ZTest[R, E, S],
     duration: Duration
-  ): ZTest[R with Live[Clock] with Live[Console], E, S] =
+  ): ZTest[R with Live, E, S] =
     test.raceWith(Live.withLive(showWarning(suiteLabels, testLabel, duration))(_.delay(duration)))(
       (result, fiber) => fiber.interrupt *> ZIO.done(result),
       (_, fiber) => fiber.join
@@ -64,7 +62,7 @@ trait TimeoutVariants {
     suiteLabels: List[L],
     testLabel: L,
     duration: Duration
-  ): ZIO[Live[Console], Nothing, Unit] =
+  ): ZIO[Live, Nothing, Unit] =
     Live.live(console.putStrLn(renderWarning(suiteLabels, testLabel, duration)))
 
   private def renderWarning[L](suiteLabels: List[L], testLabel: L, duration: Duration): String =

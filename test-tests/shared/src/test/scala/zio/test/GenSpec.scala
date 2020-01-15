@@ -1,13 +1,15 @@
 package zio.test
 
-import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
+import java.time._
+
+import scala.math.Numeric.DoubleIsFractional
 
 import zio.ZIO
-import zio.duration._
+import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestAspect.scala2Only
+import zio.test.TestAspect.{ nonFlaky, scala2Only }
 import zio.test.{ check => Check, checkN => CheckN }
 
 object GenSpec extends ZIOBaseSpec {
@@ -263,7 +265,7 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("sized accesses size in environment") {
         checkSample(Gen.sized(Gen.const(_)), size = 50)(forall(equalTo(50)))
-      },
+      } @@ nonFlaky,
       testM("small generates sizes in range") {
         val gen = Gen.small(Gen.listOfN(_)(Gen.int(-10, 10)))
         checkSample(gen)(forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)), _.map(_.length))

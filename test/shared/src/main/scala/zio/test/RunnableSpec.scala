@@ -43,12 +43,12 @@ trait RunnableSpec[R, E, L, T, S] extends AbstractRunnableSpec {
    * TODO: Parse command line options.
    */
   final def main(args: Array[String]): Unit = {
-    val runtime = runner.buildRuntime()
+    val runtime = runner.runtime
     if (TestPlatform.isJVM) {
-      val exitCode = runtime.unsafeRun(runSpec)
+      val exitCode = runtime.unsafeRun(runSpec.provideManaged(runner.bootstrap))
       doExit(exitCode)
     } else if (TestPlatform.isJS) {
-      runtime.unsafeRunAsync[Nothing, Int](runSpec) { exit =>
+      runtime.unsafeRunAsync[Nothing, Int](runSpec.provideManaged(runner.bootstrap)) { exit =>
         val exitCode = exit.getOrElse(_ => 1)
         doExit(exitCode)
       }

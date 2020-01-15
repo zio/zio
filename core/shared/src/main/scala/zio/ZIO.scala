@@ -883,6 +883,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def provide(r: R)(implicit ev: NeedsEnv[R]): IO[E, A] = ZIO.provide(r)(self)
 
   /**
+   * Provides a layer to the ZIO effect, which translates it to another level.
+   */
+  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZIO[R0, E1, A] =
+    (for {
+      r0 <- ZManaged.environment[R0]
+      r1 <- layer.value.provide(r0)
+    } yield ev(r1)).use(self.provide(_))
+
+  /**
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
@@ -3027,6 +3036,16 @@ object ZIO {
      */
     def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZIO[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
+  }
+
+  /**
+   * TODO: Document and pull out to top-level.
+   */
+  def provideOne[R1](r1: R1): ProvideOne[R1] = new ProvideOne[R1](r1)
+
+  class ProvideOne[R1](r1: R1) {
+    def apply[R2 <: Has[_], E, A](zio: ZIO[Has[R1] with R2, E, A])(implicit R1: Tagged[R1]): ZIO[R2, E, A] =
+      zio.provideSome[R2](r2 => r2.add(r1))
   }
 
   implicit final class ZIOWithFilterOps[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
