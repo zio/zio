@@ -2616,6 +2616,14 @@ object ZIOSpec extends ZIOBaseSpec {
         val interrupted = io.sandbox.either.map(_.left.map(_.interrupted))
         assertM(interrupted)(isLeft(isTrue))
       }
+    ),
+    suite("toFuture")(
+      testM("should fail with ZTrace attached") {
+        for {
+          future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
+          result <- ZIO.fromFuture(_ => future).either
+        } yield assert(result)(isLeft(hasThrowableCause(hasThrowableCause(hasMessage(containsString("Fiber:Id("))))))
+      }
     )
   )
 
