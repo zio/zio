@@ -173,18 +173,18 @@ object BuildHelper {
     }
 
   def platformSpecificSources(platform: String, conf: String, baseDirectory: File)(versions: String*) =
-    List(versions: _*).map { version =>
-      baseDirectory.getParentFile / platform.toLowerCase / "src" / conf / s"scala-${version}"
+    List("scala" :: versions.toList.map("scala-" + _): _*).map { version =>
+      baseDirectory.getParentFile / platform.toLowerCase / "src" / conf / version
     }.filter(_.exists)
 
   def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File, isDotty: Boolean) =
     CrossVersion.partialVersion(scalaVer) match {
       case Some((2, x)) if x <= 11 =>
-        platformSpecificSources(platform, "main", baseDir)("2.11", "2.x")
+        platformSpecificSources(platform, conf, baseDir)("2.11", "2.x")
       case Some((2, x)) if x >= 12 =>
-        platformSpecificSources(platform, "main", baseDir)("2.12+", "2.12", "2.x")
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x")
       case _ if isDotty =>
-        platformSpecificSources(platform, "main", baseDir)("2.12+", "2.12", "dotty")
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "dotty")
       case _ =>
         Nil
     }
@@ -233,12 +233,15 @@ object BuildHelper {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
           Seq(
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
           ).flatten
         case Some((2, x)) if x >= 12 =>
           Seq(
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
@@ -246,6 +249,8 @@ object BuildHelper {
         case _ =>
           if (isDotty.value)
             Seq(
+              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
+              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-dotty"))
