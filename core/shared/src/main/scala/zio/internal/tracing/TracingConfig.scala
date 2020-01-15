@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ final case class TracingConfig(
 )
 
 object TracingConfig {
-  final def enabled   = TracingConfig(true, true, true, 100, 100, 10, 10, 10)
-  final def stackOnly = TracingConfig(false, false, true, 100, 100, 10, 10, 10)
-  final def disabled  = TracingConfig(false, false, false, 0, 0, 0, 0, 10)
+  def enabled   = TracingConfig(true, true, true, 100, 100, 10, 10, 10)
+  def stackOnly = TracingConfig(false, false, true, 100, 100, 10, 10, 10)
+  def disabled  = TracingConfig(false, false, false, 0, 0, 0, 0, 10)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package zio.system
 import zio.{ UIO, ZIO }
 
 trait System extends Serializable {
-  val system: System.Service[Any]
+  def system: System.Service[Any]
 }
 object System extends Serializable {
   trait Service[R] extends Serializable {

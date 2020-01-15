@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,14 @@
 
 package zio.test
 
+import scala.collection.immutable.Map
+
 /**
  * An annotation map keeps track of annotations of different types.
  */
-class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRef]) { self =>
-  final def ++(that: TestAnnotationMap): TestAnnotationMap =
+final class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRef]) { self =>
+
+  def ++(that: TestAnnotationMap): TestAnnotationMap =
     new TestAnnotationMap((self.map.toVector ++ that.map.toVector).foldLeft[Map[TestAnnotation[Any], AnyRef]](Map()) {
       case (acc, (key, value)) =>
         acc + (key -> acc.get(key).fold(value)(key.combine(_, value).asInstanceOf[AnyRef]))
@@ -29,24 +32,26 @@ class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRe
   /**
    * Appends the specified annotation to the annotation map.
    */
-  final def annotate[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
+  def annotate[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
     update[V](key, key.combine(_, value))
 
   /**
    * Retrieves the annotation of the specified type, or its default value if there is none.
    */
-  final def get[V](key: TestAnnotation[V]): V =
+  def get[V](key: TestAnnotation[V]): V =
     map.get(key.asInstanceOf[TestAnnotation[Any]]).fold(key.initial)(_.asInstanceOf[V])
 
-  private final def overwrite[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
+  private def overwrite[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
     new TestAnnotationMap(map + (key.asInstanceOf[TestAnnotation[Any]] -> value.asInstanceOf[AnyRef]))
 
-  private final def update[V](key: TestAnnotation[V], f: V => V): TestAnnotationMap = overwrite(key, f(get(key)))
+  private def update[V](key: TestAnnotation[V], f: V => V): TestAnnotationMap =
+    overwrite(key, f(get(key)))
 }
+
 object TestAnnotationMap {
 
   /**
    * An empty annotation map.
    */
-  val empty = new TestAnnotationMap(Map())
+  val empty: TestAnnotationMap = new TestAnnotationMap(Map())
 }

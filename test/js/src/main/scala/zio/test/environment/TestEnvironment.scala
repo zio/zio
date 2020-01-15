@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,22 +24,17 @@ import zio._
 import zio.duration._
 import zio.internal.{ Scheduler => IScheduler }
 import zio.scheduler.{ Scheduler, SchedulerLive }
+import zio.test.Annotations
 import zio.test.Sized
 
-case class TestEnvironment(
-  clock: TestClock.Service[Any],
-  console: TestConsole.Service[Any],
-  live: Live.Service[ZEnv],
-  random: TestRandom.Service[Any],
-  sized: Sized.Service[Any],
-  system: TestSystem.Service[Any]
-) extends Live[ZEnv]
+trait TestEnvironment
+    extends Annotations
+    with Live[ZEnv]
+    with Sized
     with TestClock
     with TestConsole
     with TestRandom
-    with TestSystem
-    with Scheduler
-    with Sized {
+    with TestSystem {
 
   /**
    * Maps all test implementations in the test environment individually.
@@ -51,6 +46,7 @@ case class TestEnvironment(
     mapTestSystem: TestSystem.Service[Any] => TestSystem.Service[Any] = identity
   ): TestEnvironment =
     TestEnvironment(
+      annotations,
       mapTestClock(clock),
       mapTestConsole(console),
       live,
@@ -191,20 +187,40 @@ case class TestEnvironment(
       }
     }
 
-  val scheduler = clock
+  override final lazy val scheduler: Scheduler.Service[Any] = clock
 }
 
 object TestEnvironment extends Serializable {
 
+  def apply(
+    annotationsService: Annotations.Service[Any],
+    clockService: TestClock.Service[Any],
+    consoleService: TestConsole.Service[Any],
+    liveService: Live.Service[ZEnv],
+    randomService: TestRandom.Service[Any],
+    sizedService: Sized.Service[Any],
+    systemService: TestSystem.Service[Any]
+  ): TestEnvironment =
+    new TestEnvironment {
+      override val annotations = annotationsService
+      override val clock       = clockService
+      override val console     = consoleService
+      override val live        = liveService
+      override val random      = randomService
+      override val sized       = sizedService
+      override val system      = systemService
+    }
+
   val Value: Managed[Nothing, TestEnvironment] =
     for {
-      live    <- Live.makeService(LiveEnvironment).toManaged_
-      clock   <- TestClock.makeTest(TestClock.DefaultData, Some(live))
-      console <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
-      random  <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
-      size    <- Sized.makeService(100).toManaged_
-      system  <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
-      time    <- live.provide(zio.clock.nanoTime).toManaged_
-      _       <- random.setSeed(time).toManaged_
-    } yield new TestEnvironment(clock, console, live, random, size, system)
+      live        <- Live.makeService(LiveEnvironment).toManaged_
+      annotations <- Annotations.makeService.toManaged_
+      clock       <- TestClock.makeTest(TestClock.DefaultData, Some(live))
+      console     <- TestConsole.makeTest(TestConsole.DefaultData).toManaged_
+      random      <- TestRandom.makeTest(TestRandom.DefaultData).toManaged_
+      sized       <- Sized.makeService(100).toManaged_
+      system      <- TestSystem.makeTest(TestSystem.DefaultData).toManaged_
+      time        <- live.provide(zio.clock.nanoTime).toManaged_
+      _           <- random.setSeed(time).toManaged_
+    } yield TestEnvironment(annotations, clock, console, live, random, sized, system)
 }

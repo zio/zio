@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package zio.test.sbt
 import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing._
+
 import zio.ZIO
 import zio.test.{ Summary, TestArgs }
 
@@ -54,5 +55,5 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
 }
 
-class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
+final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
     extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)

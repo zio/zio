@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package zio.scheduler
 
+import scala.scalajs.js
+
 import zio.ZIO
 import zio.duration.Duration
 import zio.internal.{ Scheduler => IScheduler }
-
-import scala.scalajs.js
 
 private[scheduler] object internal {
   private[scheduler] val GlobalScheduler = new IScheduler {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -425,19 +425,19 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
 }
 
 object Cause extends Serializable {
-  final val empty: Cause[Nothing]                               = Internal.Empty
-  final def die(defect: Throwable): Cause[Nothing]              = Internal.Die(defect)
-  final def fail[E](error: E): Cause[E]                         = Internal.Fail(error)
-  final def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Internal.Interrupt(fiberId)
-  final def stack[E](cause: Cause[E]): Cause[E]                 = Internal.Meta(cause, Internal.Data(false))
-  final def stackless[E](cause: Cause[E]): Cause[E]             = Internal.Meta(cause, Internal.Data(true))
-  final def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Internal.Traced(cause, trace)
+  val empty: Cause[Nothing]                               = Internal.Empty
+  def die(defect: Throwable): Cause[Nothing]              = Internal.Die(defect)
+  def fail[E](error: E): Cause[E]                         = Internal.Fail(error)
+  def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Internal.Interrupt(fiberId)
+  def stack[E](cause: Cause[E]): Cause[E]                 = Internal.Meta(cause, Internal.Data(false))
+  def stackless[E](cause: Cause[E]): Cause[E]             = Internal.Meta(cause, Internal.Data(true))
+  def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Internal.Traced(cause, trace)
 
   /**
    * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by
    * recursively stripping out any failures with the error `None`.
    */
-  final def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
+  def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
     c match {
       case Internal.Empty                => Some(Internal.Empty)
       case Internal.Traced(cause, trace) => sequenceCauseOption(cause).map(Internal.Traced(_, trace))
@@ -454,7 +454,7 @@ object Cause extends Serializable {
           case (None, None)         => None
         }
 
-      case Both(left, right) =>
+      case Internal.Both(left, right) =>
         (sequenceCauseOption(left), sequenceCauseOption(right)) match {
           case (Some(cl), Some(cr)) => Some(Internal.Both(cl, cr))
           case (None, Some(cr))     => Some(cr)
@@ -492,7 +492,7 @@ object Cause extends Serializable {
   }
 
   object Die {
-    final def apply(value: Throwable): Cause[Nothing] =
+    def apply(value: Throwable): Cause[Nothing] =
       new Internal.Die(value)
     def unapply[E](cause: Cause[E]): Option[Throwable] =
       cause.find {
@@ -568,8 +568,8 @@ object Cause extends Serializable {
 
   private object Internal {
 
-    final case object Empty extends Cause[Nothing] {
-      override final def equals(that: Any): Boolean = that match {
+    case object Empty extends Cause[Nothing] {
+      override def equals(that: Any): Boolean = that match {
         case _: Empty.type     => true
         case Then(left, right) => this == left && this == right
         case Both(left, right) => this == left && this == right
@@ -579,8 +579,8 @@ object Cause extends Serializable {
       }
     }
 
-    final case class Fail[E](value: E) extends Cause[E] {
-      override final def equals(that: Any): Boolean = that match {
+    final case class Fail[+E](value: E) extends Cause[E] {
+      override def equals(that: Any): Boolean = that match {
         case fail: Fail[_]     => value == fail.value
         case c @ Then(_, _)    => sym(empty)(this, c)
         case c @ Both(_, _)    => sym(empty)(this, c)
@@ -591,7 +591,7 @@ object Cause extends Serializable {
     }
 
     final case class Die(value: Throwable) extends Cause[Nothing] {
-      override final def equals(that: Any): Boolean = that match {
+      override def equals(that: Any): Boolean = that match {
         case die: Die          => value == die.value
         case c @ Then(_, _)    => sym(empty)(this, c)
         case c @ Both(_, _)    => sym(empty)(this, c)
@@ -602,7 +602,7 @@ object Cause extends Serializable {
     }
 
     final case class Interrupt(fiberId: Fiber.Id) extends Cause[Nothing] {
-      override final def equals(that: Any): Boolean =
+      override def equals(that: Any): Boolean =
         (this eq that.asInstanceOf[AnyRef]) || (that match {
           case interrupt: Interrupt => fiberId == interrupt.fiberId
           case c @ Then(_, _)       => sym(empty)(this, c)
@@ -614,9 +614,9 @@ object Cause extends Serializable {
     }
 
     // Traced is excluded completely from equals & hashCode
-    final case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
-      override final def hashCode: Int = cause.hashCode()
-      override final def equals(obj: Any): Boolean = obj match {
+    final case class Traced[+E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
+      override def hashCode: Int = cause.hashCode()
+      override def equals(obj: Any): Boolean = obj match {
         case traced: Traced[_] => cause == traced.cause
         case meta: Meta[_]     => cause == meta.cause
         case _                 => cause == obj
@@ -624,24 +624,24 @@ object Cause extends Serializable {
     }
 
     // Meta is excluded completely from equals & hashCode
-    final case class Meta[E](cause: Cause[E], data: Data) extends Cause[E] {
-      override final def hashCode: Int = cause.hashCode
-      override final def equals(obj: Any): Boolean = obj match {
+    final case class Meta[+E](cause: Cause[E], data: Data) extends Cause[E] {
+      override def hashCode: Int = cause.hashCode
+      override def equals(obj: Any): Boolean = obj match {
         case traced: Traced[_] => cause == traced.cause
         case meta: Meta[_]     => cause == meta.cause
         case _                 => cause == obj
       }
     }
 
-    final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-      override final def equals(that: Any): Boolean = that match {
+    final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+      override def equals(that: Any): Boolean = that match {
         case traced: Traced[_] => self.equals(traced.cause)
         case meta: Meta[_]     => self.equals(meta.cause)
         case other: Cause[_] =>
           eq(other) || sym(assoc)(other, self) || sym(dist)(self, other) || sym(empty)(self, other)
         case _ => false
       }
-      override final def hashCode: Int = Internal.hashCode(self)
+      override def hashCode: Int = Internal.hashCode(self)
 
       private def eq(that: Cause[Any]): Boolean = (self, that) match {
         case (tl: Then[_], tr: Then[_]) => tl.left == tr.left && tl.right == tr.right
@@ -664,15 +664,15 @@ object Cause extends Serializable {
       }
     }
 
-    final case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-      override final def equals(that: Any): Boolean = that match {
+    final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+      override def equals(that: Any): Boolean = that match {
         case traced: Traced[_] => self.equals(traced.cause)
         case meta: Meta[_]     => self.equals(meta.cause)
         case other: Cause[_] =>
           eq(other) || sym(assoc)(self, other) || sym(dist)(self, other) || comm(other) || sym(empty)(self, other)
         case _ => false
       }
-      override final def hashCode: Int = Internal.hashCode(self)
+      override def hashCode: Int = Internal.hashCode(self)
 
       private def eq(that: Cause[Any]) = (self, that) match {
         case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right

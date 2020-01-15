@@ -13,31 +13,31 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       val app     = clock.nanoTime
       val mockEnv = MockClock.nanoTime returns value(1000L)
       val result  = app.provideManaged(mockEnv)
-      assertM(result, equalTo(1000L))
+      assertM(result)(equalTo(1000L))
     },
     testM("expect call with input satisfying assertion") {
       val app     = console.putStrLn("foo")
       val mockEnv = MockConsole.putStrLn(equalTo("foo")) returns unit
       val result  = app.provideManaged(mockEnv)
-      assertM(result, isUnit)
+      assertM(result)(isUnit)
     },
     testM("expect call with input satisfying assertion and transforming it into output") {
       val app     = random.nextInt(1)
       val mockEnv = MockRandom.nextInt._0(equalTo(1)) returns valueF(_ + 41)
       val result  = app.provideManaged(mockEnv)
-      assertM(result, equalTo(42))
+      assertM(result)(equalTo(42))
     },
     testM("expect call with input satisfying assertion and returning output") {
       val app     = random.nextInt(1)
       val mockEnv = MockRandom.nextInt._0(equalTo(1)) returns value(42)
       val result  = app.provideManaged(mockEnv)
-      assertM(result, equalTo(42))
+      assertM(result)(equalTo(42))
     },
     testM("expect call for overloaded method") {
       val app     = random.nextInt
       val mockEnv = MockRandom.nextInt._1 returns value(42)
       val result  = app.provideManaged(mockEnv)
-      assertM(result, equalTo(42))
+      assertM(result)(equalTo(42))
     },
     testM("expect calls from multiple modules") {
       val app        = random.nextInt.map(_.toString) >>= console.putStrLn
@@ -53,19 +53,19 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       }
 
       val result = app.provideManaged(mockEnv)
-      assertM(result, isUnit)
+      assertM(result)(isUnit)
     },
     testM("failure if invalid method") {
       val app     = random.nextInt
       val mockEnv = MockRandom.nextLong._0 returns value(42)
       val result  = app.provideManaged(mockEnv)
-      assertM(result, equalTo(42))
+      assertM(result)(equalTo(42))
     },
     testM("failure if invalid arguments") {
       val app     = console.putStrLn("foo")
       val mockEnv = MockConsole.putStrLn(equalTo("bar")) returns unit
       val result  = app.provideManaged(mockEnv)
-      assertM(result, isUnit)
+      assertM(result)(isUnit)
     },
     testM("failure if unmet expectations") {
       val app = random.nextInt
@@ -74,7 +74,7 @@ object MockingExampleSpec extends DefaultRunnableSpec {
           (MockRandom.nextInt._1 returns value(42))
 
       val result = app.provideManaged(mockEnv)
-      assertM(result, equalTo(42))
+      assertM(result)(equalTo(42))
     }
   )
 }

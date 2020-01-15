@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,18 @@
 
 package zio.test
 
-import zio.test.environment._
+import zio.test.Assertion.Render._
 
-/**
- * A `Runner` that provides a default testable environment.
- */
-object DefaultTestRunner
-    extends TestRunner[TestEnvironment, Any, String, Any, Any](
-      TestExecutor.managed(testEnvironmentManaged)
-    ) {}
+trait AssertionVariants {
+
+  /**
+   * Makes a new assertion that requires a value equal the specified value.
+   */
+  final def equalTo[A](expected: A): Assertion[A] =
+    Assertion.assertion("equalTo")(param(expected)) { actual =>
+      (actual, expected) match {
+        case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
+        case (left, right)                     => left == right
+      }
+    }
+}

@@ -10,7 +10,7 @@ scala_213: &scala_213
   SCALA_VERSION: 2.13.1
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.20.0-RC1
+  SCALA_VERSION: 0.22.0-bin-20200107-21a5608-NIGHTLY
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -103,7 +103,7 @@ lint: &lint
     - <<: *load_cache
     - run:
         name: Lint code
-        command: ./sbt ++${SCALA_VERSION}! check
+        command: ./sbt ++${SCALA_VERSION}! fmtCheck fixCheck
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -114,7 +114,7 @@ mdoc: &mdoc
     - run:
         name: Generate documentation
         command: |
-          ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
+          ./sbt -Dfatal.warnings=true coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
           ./sbt ++${SCALA_VERSION}! mdoc
     - <<: *clean_cache
     - <<: *save_cache

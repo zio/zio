@@ -15,14 +15,14 @@ object SemaphoreSpec extends ZIOBaseSpec {
         for {
           semaphore <- Semaphore.make(n)
           available <- IO.foreach((0L until n).toList)(_ => semaphore.withPermit(semaphore.available))
-        } yield assert(available, forall(equalTo(19L)))
+        } yield assert(available)(forall(equalTo(19L)))
       },
       testM("`acquire` permits in parallel") {
         val n = 20L
         for {
           semaphore <- Semaphore.make(n)
           available <- IO.foreachPar((0L until n).toList)(_ => semaphore.withPermit(semaphore.available))
-        } yield assert(available, forall(isLessThan(20L)))
+        } yield assert(available)(forall(isLessThan(20L)))
       },
       testM("`acquireN`s can be parallel with `releaseN`s") {
         offsettingWithPermits(
@@ -48,7 +48,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
           s       <- Semaphore.make(n)
           _       <- s.withPermit(IO.fail("fail")).either
           permits <- s.available
-        } yield assert(permits, equalTo(1L))
+        } yield assert(permits)(equalTo(1L))
       },
       testM("`withPermit` does not leak fibers or permits upon cancellation") {
         val n = 1L
@@ -57,7 +57,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
           fiber   <- s.withPermit(IO.never).fork
           _       <- fiber.interrupt
           permits <- s.available
-        } yield assert(permits, equalTo(1L))
+        } yield assert(permits)(equalTo(1L))
       },
       testM("`withPermitManaged` does not leak fibers or permits upon cancellation") {
         for {
@@ -65,7 +65,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
           fiber   <- s.withPermitManaged.use(_ => IO.never).fork
           _       <- fiber.interrupt
           permits <- s.available
-        } yield assert(permits, equalTo(1L))
+        } yield assert(permits)(equalTo(1L))
       }
     )
   )
@@ -78,6 +78,6 @@ object SemaphoreSpec extends ZIOBaseSpec {
       fiber     <- withPermits(semaphore, permits).fork
       _         <- fiber.join
       count     <- semaphore.available
-    } yield assert(count, equalTo(20L))
+    } yield assert(count)(equalTo(20L))
   }
 }
