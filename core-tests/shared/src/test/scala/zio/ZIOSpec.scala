@@ -562,6 +562,25 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(Cause.die(boom)))
       } @@ flaky
     ),
+    suite("forkDaemon")(
+      testM("child is unsupervised by parent") {
+        for {
+          p        <- Promise.make[Nothing, Unit]
+          _        <- (p.succeed(()) *> ZIO.never).forkDaemon
+          _        <- p.await
+          children <- ZIO.children
+        } yield assert(children)(isEmpty)
+      },
+      testM("grandchild is supervised by child") {
+        val effect = for {
+          p        <- Promise.make[Nothing, Unit]
+          _        <- (p.succeed(()) *> ZIO.never).fork
+          _        <- p.await
+          children <- ZIO.children
+        } yield children
+        assertM(effect.forkDaemon.flatMap(_.join))(hasSize(equalTo(1)))
+      }
+    ),
     suite("forkWithErrorHandler")(
       testM("calls provided function when task fails") {
         for {
