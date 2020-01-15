@@ -2241,10 +2241,11 @@ object ZIO {
       case (a, i) => fn(a).tap(b => ZIO.effectTotal(resultArr.set(i, b)))
     }
 
-    foreachPar_(as.toStream.zipWithIndex)(wrappedFn) *>
-      ZIO.succeed((0 until size).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
+    foreachPar_(as.toStream.zipWithIndex)(wrappedFn).as(
+      (0 until size).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
         resultArr.get(i) :: acc
-      })
+      }
+    )
   }
 
   /**
@@ -2281,8 +2282,11 @@ object ZIO {
                      })
                      .fork
                  }
-        interrupter = result.await.catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId))).toManaged_.fork
-        _           <- interrupter.use_(result.await.foldM(_ => causes.get >>= ZIO.halt, _ => ZIO.unit).refailWithTrace)
+        interrupter = result.await
+          .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
+          .toManaged_
+          .fork
+        _ <- interrupter.use_(result.await.foldM(_ => causes.get >>= ZIO.halt, _ => ZIO.unit).refailWithTrace)
       } yield ()
     }
 
