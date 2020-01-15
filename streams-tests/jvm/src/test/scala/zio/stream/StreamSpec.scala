@@ -1137,7 +1137,7 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(stream.groupedWithin(10, 2.seconds).tap(_ => TestClock.adjust(8.seconds)).runCollect)(
           equalTo(List(List(1, 2), List(3, 4), List(5)))
         )
-      },
+      } @@ flaky,
       testM("group immediately when chunk size is reached") {
         assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
       }
