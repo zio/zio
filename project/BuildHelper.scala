@@ -125,38 +125,6 @@ object BuildHelper {
     initialCommands in Compile in console := initialCommandsStr
   )
 
-  def crossVersionFiles(conf: String, baseDirectory: File, crossProjectPlatform: Platform)(
-    versions: String*
-  ): Seq[File] = {
-    val seq =
-      (Set(conf, "test").flatMap { conf =>
-        Set(baseDirectory.getParentFile / crossProjectPlatform.identifier.toLowerCase / "src" / conf / "scala") ++
-          versions.toSet.flatMap { (version: String) =>
-            CrossType.Full.sharedSrcDir(baseDirectory, conf).toList.map(f => file(f.getPath + s"-${version}")).toSet ++
-              Set(
-                baseDirectory.getParentFile / crossProjectPlatform.identifier.toLowerCase / "src" / conf / s"scala-${version}"
-              )
-          }
-      }).toSeq.sorted
-    println(seq.mkString("\n"))
-    seq
-  }
-
-  def crossSourceFiles(
-    conf: String,
-    isDotty: Boolean,
-    scalaVersion: String,
-    baseDirectory: File,
-    crossProjectPlatform: Platform
-  ) =
-    CrossVersion.partialVersion(scalaVersion) match {
-      case Some((2, x)) if x <= 11 => crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.11", "2.x")
-      case Some((2, x)) if x >= 12 =>
-        crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.12", "2.12+", "2.x")
-      case _ if (isDotty) => crossVersionFiles(conf, baseDirectory, crossProjectPlatform)("2.12+", "dotty")
-      case _              => Nil
-    }
-
   def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((0, _)) =>
@@ -204,22 +172,10 @@ object BuildHelper {
       case _ => Seq.empty
     }
 
-  def crossProjectSettings(prjName: String) = Seq(
-    Compile / unmanagedSourceDirectories ++= crossSourceFiles(
-      "main",
-      isDotty.value,
-      scalaVersion.value,
-      baseDirectory.value,
-      crossProjectPlatform.value
-    ),
-    Test / unmanagedSourceDirectories ++= crossSourceFiles(
-      "test",
-      isDotty.value,
-      scalaVersion.value,
-      baseDirectory.value,
-      crossProjectPlatform.value
-    )
-  )
+  def platformSpecificSources(platform: String, baseDirectory: File)(versions: String*) =
+    List(versions: _*).map { version =>
+      baseDirectory.getParentFile / platform.toLowerCase / "src" / "main" / s"scala-${version}"
+    }
 
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
@@ -241,7 +197,71 @@ object BuildHelper {
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    Compile / unmanagedSourceDirectories ++= {
+      val dirs = CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 11 =>
+          Seq(
+            platformSpecificSources(crossProjectPlatform.value.identifier, baseDirectory.value)("2.11", "2.x"),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
+          ).flatten
+        case Some((2, x)) if x >= 12 =>
+          Seq(
+            platformSpecificSources(crossProjectPlatform.value.identifier, baseDirectory.value)("2.12+", "2.12", "2.x"),
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
+          ).flatten
+        case _ =>
+          if (isDotty.value)
+            Seq(
+              platformSpecificSources(crossProjectPlatform.value.identifier, baseDirectory.value)(
+                "2.12+",
+                "2.12",
+                "dotty"
+              ),
+              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
+              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-dotty"))
+            ).flatten
+          else
+            Nil
+      }
+      println(dirs.sorted.mkString("\n"))
+
+      dirs
+    },
+    Test / unmanagedSourceDirectories ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 11 =>
+          Seq(
+            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.11")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
+          ).flatten
+        case Some((2, x)) if x >= 12 =>
+          Seq(
+            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12")),
+            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
+          ).flatten
+        case _ =>
+          if (isDotty.value)
+            Seq(
+              Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-dotty"))
+            ).flatten
+          else
+            Nil
+      }
+
+    }
   )
 
   def macroSettings = Seq(
