@@ -1,7 +1,7 @@
 package zio.examples.test
 
 import zio.{clock, console, random}
-import zio.test.{DefaultRunnableSpec, assertM, suite, testM}
+import zio.test.{assertM, suite, testM}
 import zio.test.Assertion._
 import zio.test.junit.JUnitRunnableSpec
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
