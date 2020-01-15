@@ -7,73 +7,85 @@ import zio.test.mock.{ MockClock, MockConsole, MockRandom }
 import zio.test.mock.Expectation.{ unit, value, valueF }
 
 object MockingExampleSpec extends DefaultRunnableSpec {
+  
 
   def spec = suite("suite with mocks")(
     testM("expect call returning output") {
+      import MockClock._
+
       val app     = clock.nanoTime
-      val mockEnv = MockClock.nanoTime returns value(1000L)
-      val result  = app.provideManaged(mockEnv)
+      val mockEnv = nanoTime returns value(1000L)
+      val result  = app.provideLayer(mockEnv)
       assertM(result)(equalTo(1000L))
     },
     testM("expect call with input satisfying assertion") {
+      import MockConsole._
+
       val app     = console.putStrLn("foo")
-      val mockEnv = MockConsole.putStrLn(equalTo("foo")) returns unit
-      val result  = app.provideManaged(mockEnv)
+      val mockEnv = putStrLn(equalTo("foo")) returns unit
+      val result  = app.provideLayer(mockEnv)
       assertM(result)(isUnit)
     },
     testM("expect call with input satisfying assertion and transforming it into output") {
+      import MockRandom._ 
+
       val app     = random.nextInt(1)
-      val mockEnv = MockRandom.nextInt._0(equalTo(1)) returns valueF(_ + 41)
-      val result  = app.provideManaged(mockEnv)
+      val mockEnv = nextInt._0(equalTo(1)) returns valueF(_ + 41)
+      val result  = app.provideLayer(mockEnv)
       assertM(result)(equalTo(42))
     },
     testM("expect call with input satisfying assertion and returning output") {
+      import MockRandom._ 
+
       val app     = random.nextInt(1)
-      val mockEnv = MockRandom.nextInt._0(equalTo(1)) returns value(42)
-      val result  = app.provideManaged(mockEnv)
+      val mockEnv = nextInt._0(equalTo(1)) returns value(42)
+      val result  = app.provideLayer(mockEnv)
       assertM(result)(equalTo(42))
     },
     testM("expect call for overloaded method") {
+      import MockRandom._ 
+
       val app     = random.nextInt
-      val mockEnv = MockRandom.nextInt._1 returns value(42)
-      val result  = app.provideManaged(mockEnv)
+      val mockEnv = nextInt._1 returns value(42)
+      val result  = app.provideLayer(mockEnv)
       assertM(result)(equalTo(42))
     },
     testM("expect calls from multiple modules") {
+      import MockRandom._ 
+      import MockConsole._
+      
       val app        = random.nextInt.map(_.toString) >>= console.putStrLn
-      val randomEnv  = MockRandom.nextInt._1 returns value(42)
-      val consoleEnv = MockConsole.putStrLn(equalTo("42")) returns unit
+      val randomEnv  = nextInt._1 returns value(42)
+      val consoleEnv = putStrLn(equalTo("42")) returns unit
 
-      val mockEnv = (randomEnv &&& consoleEnv).map {
-        case (r, c) =>
-          new MockRandom with MockConsole {
-            val random  = r.random
-            val console = c.console
-          }
-      }
-
-      val result = app.provideManaged(mockEnv)
+      val result = app.provideLayer(randomEnv ++ consoleEnv)
       assertM(result)(isUnit)
     },
     testM("failure if invalid method") {
+      import MockRandom._
+
       val app     = random.nextInt
-      val mockEnv = MockRandom.nextLong._0 returns value(42)
-      val result  = app.provideManaged(mockEnv)
+      val mockEnv = nextLong._0 returns value(42)
+      val result  = app.provideLayer(mockEnv)
       assertM(result)(equalTo(42))
     },
     testM("failure if invalid arguments") {
+      import MockConsole._
+
       val app     = console.putStrLn("foo")
-      val mockEnv = MockConsole.putStrLn(equalTo("bar")) returns unit
-      val result  = app.provideManaged(mockEnv)
+      val mockEnv = putStrLn(equalTo("bar")) returns unit
+      val result  = app.provideLayer(mockEnv)
       assertM(result)(isUnit)
     },
     testM("failure if unmet expectations") {
+      import MockRandom._ 
+
       val app = random.nextInt
       val mockEnv =
-        (MockRandom.nextInt._1 returns value(42)) *>
-          (MockRandom.nextInt._1 returns value(42))
+        (nextInt._1 returns value(42)) *>
+          (nextInt._1 returns value(42))
 
-      val result = app.provideManaged(mockEnv)
+      val result = app.provideLayer(mockEnv)
       assertM(result)(equalTo(42))
     }
   )

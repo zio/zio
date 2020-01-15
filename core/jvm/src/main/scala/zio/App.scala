@@ -52,7 +52,7 @@ trait App extends DefaultRuntime {
   final def main(args0: Array[String]): Unit =
     try sys.exit(
       unsafeRun(
-        for {
+        (for {
           fiber <- run(args0.toList).fork
           _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
                 override def run() = {
@@ -61,7 +61,7 @@ trait App extends DefaultRuntime {
               }))
           result <- fiber.join
           _      <- fiber.interrupt
-        } yield result
+        } yield result).provideLayer(ZEnv.live)
       )
     )
     catch { case _: SecurityException => }

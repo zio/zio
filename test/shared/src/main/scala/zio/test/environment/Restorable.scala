@@ -2,6 +2,6 @@ package zio.test.environment
 
 import zio.UIO
 
-trait Restorable {
+trait Restorable extends Serializable {
   val save: UIO[UIO[Unit]]
 }

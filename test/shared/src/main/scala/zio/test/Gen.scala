@@ -383,15 +383,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a generator from a function that uses randomness. The returned
    * generator will not have any shrinking.
    */
-  def fromRandom[A](f: Random.Service[Any] => UIO[A]): Gen[Random, A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random)).map(Sample.noShrink)))
+  final def fromRandom[A](f: Random.Service => UIO[A]): Gen[Random, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get)).map(Sample.noShrink)))
 
   /**
    * Constructs a generator from a function that uses randomness to produce a
    * sample.
    */
-  def fromRandomSample[R <: Random, A](f: Random.Service[Any] => UIO[Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.random))))
+  final def fromRandomSample[R <: Random, A](f: Random.Service => UIO[Sample[R, A]]): Gen[R, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get))))
 
   /**
    * A generator of integers inside the specified range: [start, end].

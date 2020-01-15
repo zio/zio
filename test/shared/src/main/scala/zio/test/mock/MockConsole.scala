@@ -19,27 +19,19 @@ package zio.test.mock
 import java.io.IOException
 
 import zio.console.Console
+import zio.{ Has, IO, UIO }
 import zio.{ IO, UIO }
-
-trait MockConsole extends Console {
-
-  def console: MockConsole.Service[Any]
-}
 
 object MockConsole {
 
-  trait Service[R] extends Console.Service[R]
+  object putStr   extends Method[Console.Service, String, Unit]
+  object putStrLn extends Method[Console.Service, String, Unit]
+  object getStrLn extends Method[Console.Service, Unit, String]
 
-  object putStr   extends Method[MockConsole, String, Unit]
-  object putStrLn extends Method[MockConsole, String, Unit]
-  object getStrLn extends Method[MockConsole, Unit, String]
-
-  implicit val mockable: Mockable[MockConsole] = (mock: Mock) =>
-    new MockConsole {
-      val console = new Service[Any] {
-        def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
-        def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
-        val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
-      }
-    }
+  implicit val mockableConsole: Mockable[Console.Service] = (mock: Mock) =>
+    Has(new Console.Service {
+      def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
+      def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
+      val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
+    })
 }
