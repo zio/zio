@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package zio.test.mock
 
-import zio.{ IO, UIO }
 import zio.system.System
+import zio.{ IO, UIO }
 
 trait MockSystem extends System {
 
-  val system: MockSystem.Service[Any]
+  def system: MockSystem.Service[Any]
 }
 
 object MockSystem {

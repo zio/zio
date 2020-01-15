@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package zio.test.mock
 
-import zio.{ IO, Promise, Ref, ZIO }
 import zio.test.mock.Expectation.Call
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException }
+import zio.{ IO, Promise, Ref, ZIO }
 
 trait Mock {
 
@@ -397,8 +397,11 @@ object Mock {
                       ZIO.die(
                         InvalidMethodException(invokedMethod.asInstanceOf[Method[Any, Any, Any]], method, assertion)
                       )
-                    else if (!assertion.test(args)) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
-                    else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
+                    else
+                      assertion.test(args).flatMap { p =>
+                        if (!p) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
+                        else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
+                      }
                   case None => ZIO.die(new IllegalStateException)
                 }
           output <- promise.await

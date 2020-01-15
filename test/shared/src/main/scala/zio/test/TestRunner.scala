@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,18 +27,18 @@ import zio.internal.{ Platform, PlatformLive }
  * fail with an error `E` or succeed with an `S`, using labels of type `L`.
  * Test runners require a test executor, a platform, and a reporter.
  */
-case class TestRunner[R, E, L, -T, S](
+final case class TestRunner[R, E, L, -T, S](
   executor: TestExecutor[R, E, L, T, S],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[E, L, S] = DefaultTestReporter()
+  reporter: TestReporter[E, L, S] = DefaultTestReporter(TestAnnotationRenderer.default)
 ) { self =>
 
-  final val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
+  val defaultTestLogger: TestLogger = TestLogger.fromConsole(Console.Live)
 
   /**
    * Runs the spec, producing the execution results.
    */
-  final def run(spec: ZSpec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[E, L, S]] =
+  def run(spec: ZSpec[R, E, L, T]): URIO[TestLogger with Clock, ExecutedSpec[E, L, S]] =
     executor(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
       case (duration, results) => reporter(duration, results).as(results)
     }
@@ -46,7 +46,7 @@ case class TestRunner[R, E, L, -T, S](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRun(
+  def unsafeRun(
     spec: ZSpec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
@@ -56,7 +56,7 @@ case class TestRunner[R, E, L, -T, S](
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
-  final def unsafeRunAsync(
+  def unsafeRunAsync(
     spec: ZSpec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
@@ -71,7 +71,7 @@ case class TestRunner[R, E, L, -T, S](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  final def unsafeRunSync(
+  def unsafeRunSync(
     spec: ZSpec[R, E, L, T],
     testLogger: TestLogger = defaultTestLogger,
     clock: Clock = Clock.Live
@@ -81,13 +81,13 @@ case class TestRunner[R, E, L, -T, S](
   /**
    * Creates a copy of this runner replacing the reporter.
    */
-  final def withReporter[E1 >: E, L1 >: L, S1 >: S](reporter: TestReporter[E1, L1, S1]) =
+  def withReporter[E1 >: E, L1 >: L, S1 >: S](reporter: TestReporter[E1, L1, S1]) =
     copy(reporter = reporter)
 
   /**
    * Creates a copy of this runner replacing the platform
    */
-  final def withPlatform(f: Platform => Platform): TestRunner[R, E, L, T, S] =
+  def withPlatform(f: Platform => Platform): TestRunner[R, E, L, T, S] =
     copy(platform = f(platform))
 
   private[test] def buildRuntime(

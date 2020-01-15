@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package zio.test.sbt
 
-import sbt.testing._
-import zio.test.TestArgs
-import zio.{ Exit, Runtime }
-
 import scala.collection.mutable
+
+import sbt.testing._
+
+import zio.test.{ Summary, TestArgs }
+import zio.{ Exit, Runtime }
 
 sealed abstract class ZTestRunner(
   val args: Array[String],
@@ -30,15 +31,26 @@ sealed abstract class ZTestRunner(
 ) extends Runner {
   def sendSummary: SendSummary
 
-  val summaries: mutable.Buffer[String] = mutable.Buffer.empty
+  val summaries: mutable.Buffer[Summary] = mutable.Buffer.empty
 
-  def done(): String = summaries.filter(_.nonEmpty).flatMap(s => s :: "\n" :: Nil).mkString("", "", "Done")
+  def done(): String = {
+    val total  = summaries.map(_.total).sum
+    val ignore = summaries.map(_.ignore).sum
+
+    if (summaries.isEmpty || total == ignore)
+      s"${Console.YELLOW}No tests were executed${Console.RESET}"
+    else
+      summaries.map(_.summary).filter(_.nonEmpty).flatMap(s => colored(s) :: "\n" :: Nil).mkString("", "", "Done")
+  }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
 
   override def receiveMessage(summary: String): Option[String] = {
-    summaries += summary
+    SummaryProtocol.deserialize(summary).foreach { s =>
+      summaries += s
+    }
+
     None
   }
 
@@ -67,7 +79,7 @@ final class ZSlaveTestRunner(
   val sendSummary: SendSummary
 ) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
 
-class ZTestTask(
+final class ZTestTask(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,
   runnerType: String,

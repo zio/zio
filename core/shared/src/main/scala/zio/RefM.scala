@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    *
    * @return `UIO[A]` value from the `Ref`
    */
-  final def get: UIO[A] = value.get
+  def get: UIO[A] = value.get
 
   /**
    * Atomically modifies the `RefM` with the specified function, which computes
@@ -52,7 +52,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * @tparam B type of the `RefM`
    * @return `ZIO[R, E, B]` modified value of the `RefM`
    */
-  final def modify[R, E, B](f: A => ZIO[R, E, (B, A)]): ZIO[R, E, B] =
+  def modify[R, E, B](f: A => ZIO[R, E, (B, A)]): ZIO[R, E, B] =
     for {
       promise <- Promise.make[E, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
@@ -77,7 +77,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * @tparam B type of the `RefM`
    * @return `ZIO[R, E, B]` modified value of the `RefM`
    */
-  final def modifySome[R, E, B](default: B)(pf: PartialFunction[A, ZIO[R, E, (B, A)]]): ZIO[R, E, B] =
+  def modifySome[R, E, B](default: B)(pf: PartialFunction[A, ZIO[R, E, (B, A)]]): ZIO[R, E, B] =
     for {
       promise <- Promise.make[E, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
@@ -100,7 +100,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * @param a value to be written to the `RefM`
    * @return `UIO[Unit]`
    */
-  final def set(a: A): UIO[Unit] = value.set(a)
+  def set(a: A): UIO[Unit] = value.set(a)
 
   /**
    * Writes a new value to the `Ref` without providing a guarantee of
@@ -109,7 +109,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * @param a value to be written to the `RefM`
    * @return `UIO[Unit]`
    */
-  final def setAsync(a: A): UIO[Unit] = value.setAsync(a)
+  def setAsync(a: A): UIO[Unit] = value.setAsync(a)
 
   /**
    * Atomically modifies the `RefM` with the specified function, returning the
@@ -120,7 +120,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * @tparam E error type
    * @return `ZIO[R, E, A]` modified value of the `RefM`
    */
-  final def update[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
+  def update[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
     modify(a => f(a).map(a => (a, a)))
 
   /**
@@ -132,7 +132,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * @tparam E error type
    * @return `ZIO[R, E, A]` modified value of the `RefM`
    */
-  final def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
+  def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
     modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
 }
 
@@ -142,7 +142,7 @@ object RefM extends Serializable {
     update: A => IO[E, (B, A)],
     promise: Promise[E, B]
   ) {
-    final def run(a: A, ref: Ref[A], onDefect: Cause[E] => UIO[Unit]): UIO[Unit] =
+    def run(a: A, ref: Ref[A], onDefect: Cause[E] => UIO[Unit]): UIO[Unit] =
       interrupted.get.flatMap {
         case Some(cause) => onDefect(cause)
         case None =>
@@ -161,7 +161,7 @@ object RefM extends Serializable {
    * @tparam A type of the value
    * @return `UIO[RefM[A]]`
    */
-  final def make[A](
+  def make[A](
     a: A,
     n: Int = 1000,
     onDefect: Cause[Any] => UIO[Unit] = _ => IO.unit

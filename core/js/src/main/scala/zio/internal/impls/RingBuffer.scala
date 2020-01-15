@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import zio.internal.MutableConcurrentQueue
 object RingBuffer {
 
   /**
-   * @note mimimum supported capacity is 2
+   * @note minimum supported capacity is 2
    */
   def apply[A](capacity: Int): MutableConcurrentQueue[A] = {
     assert(capacity >= 2)
@@ -34,7 +34,7 @@ object RingBuffer {
  * See [[zio.internal.impls.RingBuffer]] for details
  * on design, tradeoffs, etc.
  */
-class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQueue[A] {
+final class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQueue[A] {
   private[this] val buf: Array[AnyRef] = new Array[AnyRef](capacity)
   private[this] val seq: Array[Long]   = 0.until(capacity).map(_.toLong).toArray
 
@@ -46,13 +46,13 @@ class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQ
   private[this] final val STATE_FULL     = -2
   private[this] final val STATE_RESERVED = 1
 
-  override final def size(): Int = (tail - head).toInt
+  override def size(): Int = (tail - head).toInt
 
-  override final def enqueuedCount(): Long = tail
+  override def enqueuedCount(): Long = tail
 
-  override final def dequeuedCount(): Long = head
+  override def dequeuedCount(): Long = head
 
-  override final def offer(a: A): Boolean = {
+  override def offer(a: A): Boolean = {
     var curSeq  = 0L
     var curHead = 0L
     var curTail = tail
@@ -84,7 +84,7 @@ class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQ
         // We're at the right spot. At this point we can try to
         // reserve the place for enqueue by doing CAS on tail.
         if (tail == curTail) {
-          // We successfuly reserved a place to enqueue.
+          // We successfully reserved a place to enqueue.
           tail = curTail + 1
           state = STATE_RESERVED
         } else {
@@ -111,7 +111,7 @@ class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQ
     }
   }
 
-  override final def poll(default: A): A = {
+  override def poll(default: A): A = {
     var curSeq  = 0L
     var curHead = head
     var curIdx  = 0
@@ -186,9 +186,9 @@ class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQ
     }
   }
 
-  override final def isEmpty(): Boolean = tail == head
+  override def isEmpty(): Boolean = tail == head
 
-  override final def isFull(): Boolean = tail == head + capacity
+  override def isFull(): Boolean = tail == head + capacity
 
   private def posToIdx(pos: Long, capacity: Int): Int = (pos % capacity.toLong).toInt
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package zio.test
+
+import zio.ZIO
 
 /**
  * A `BoolAlgebra[A]` is a description of logical operations on values of type
@@ -98,6 +100,13 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
     fold(f)(and, or, not)
 
   /**
+   * Returns a new result, with all values mapped to new results using the
+   * specified effectual function.
+   */
+  final def flatMapM[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]]): ZIO[R, E, BoolAlgebra[B]] =
+    fold(a => f(a))(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
+
+  /**
    * Folds over the result bottom up, first converting values to `B`
    * values, and then combining the `B` values, using the specified functions.
    */
@@ -149,6 +158,13 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
     flatMap(f andThen success)
 
   /**
+   * Returns a new result, with all values mapped by the specified effectual
+   * function.
+   */
+  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, BoolAlgebra[B]] =
+    flatMapM(a => f(a).map(success))
+
+  /**
    * Negates this result, converting all successes into failures and failures
    * into successes.
    */
@@ -159,7 +175,7 @@ sealed trait BoolAlgebra[+A] extends Product with Serializable { self =>
 object BoolAlgebra {
 
   final case class Value[+A](value: A) extends BoolAlgebra[A] { self =>
-    override final def equals(that: Any): Boolean = that match {
+    override def equals(that: Any): Boolean = that match {
       case other: BoolAlgebra[Any] =>
         equal(other) ||
           doubleNegative(self, other)
@@ -172,7 +188,7 @@ object BoolAlgebra {
   }
 
   final case class And[+A](left: BoolAlgebra[A], right: BoolAlgebra[A]) extends BoolAlgebra[A] { self =>
-    override final def equals(that: Any): Boolean = that match {
+    override def equals(that: Any): Boolean = that match {
       case other: BoolAlgebra[Any] =>
         equal(other) ||
           commutative(other) ||
@@ -212,7 +228,7 @@ object BoolAlgebra {
   }
 
   final case class Or[+A](left: BoolAlgebra[A], right: BoolAlgebra[A]) extends BoolAlgebra[A] { self =>
-    override final def equals(that: Any): Boolean = that match {
+    override def equals(that: Any): Boolean = that match {
       case other: BoolAlgebra[Any] =>
         equal(other) ||
           commutative(other) ||
@@ -251,7 +267,7 @@ object BoolAlgebra {
   }
 
   final case class Not[+A](result: BoolAlgebra[A]) extends BoolAlgebra[A] { self =>
-    override final def equals(that: Any): Boolean = that match {
+    override def equals(that: Any): Boolean = that match {
       case other: BoolAlgebra[Any] =>
         equal(other) ||
           doubleNegative(other, self) ||
@@ -275,33 +291,33 @@ object BoolAlgebra {
    * Returns a result that is the logical conjunction of all of the results in
    * the specified collection.
    */
-  final def all[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
+  def all[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
     if (as.isEmpty) None else Some(as.reduce(_ && _))
 
   /**
    * Constructs a result that is the logical conjunction of two results.
    */
-  final def and[A](left: BoolAlgebra[A], right: BoolAlgebra[A]): BoolAlgebra[A] =
+  def and[A](left: BoolAlgebra[A], right: BoolAlgebra[A]): BoolAlgebra[A] =
     And(left, right)
 
   /**
    * Returns a result that is the logical disjunction of all of the results in
    * the specified collection.
    */
-  final def any[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
+  def any[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
     if (as.isEmpty) None else Some(as.reduce(_ || _))
 
   /**
    * Combines a collection of results to create a single result that succeeds
    * if all of the results succeed.
    */
-  final def collectAll[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
+  def collectAll[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
     foreach(as)(identity)
 
   /**
    * Constructs a failed result with the specified value.
    */
-  final def failure[A](a: A): BoolAlgebra[A] =
+  def failure[A](a: A): BoolAlgebra[A] =
     not(success(a))
 
   /**
@@ -309,25 +325,25 @@ object BoolAlgebra {
    * a collection of results, then combines all of those results to create a
    * single result that is the logical conjunction of all of the results.
    */
-  final def foreach[A, B](as: Iterable[A])(f: A => BoolAlgebra[B]): Option[BoolAlgebra[B]] =
+  def foreach[A, B](as: Iterable[A])(f: A => BoolAlgebra[B]): Option[BoolAlgebra[B]] =
     if (as.isEmpty) None else Some(as.map(f).reduce(_ && _))
 
   /**
-   * Constructs a result that is the logical negation ofthe specified result.
+   * Constructs a result that is the logical negation of the specified result.
    */
-  final def not[A](result: BoolAlgebra[A]): BoolAlgebra[A] =
+  def not[A](result: BoolAlgebra[A]): BoolAlgebra[A] =
     Not(result)
 
   /**
    * Constructs a result a that is the logical disjunction of two results.
    */
-  final def or[A](left: BoolAlgebra[A], right: BoolAlgebra[A]): BoolAlgebra[A] =
+  def or[A](left: BoolAlgebra[A], right: BoolAlgebra[A]): BoolAlgebra[A] =
     Or(left, right)
 
   /**
    * Constructs a successful result with the specified value.
    */
-  final def success[A](a: A): BoolAlgebra[A] =
+  def success[A](a: A): BoolAlgebra[A] =
     Value(a)
 
   /**

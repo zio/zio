@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 
 package zio.test.environment
 
-import java.io.IOException
 import java.io.EOFException
+import java.io.IOException
 
-import zio.console._
 import zio._
+import zio.console._
 
 /**
  * `TestConsole` provides a testable interface for programs interacting with
  * the console by modeling input and output as reading from and writing to
- * intput and output buffers maintained by `TestConsole` and backed by a `Ref`.
+ * input and output buffers maintained by `TestConsole` and backed by a `Ref`.
  *
  * All calls to `putStr` and `putStrLn` using the `TestConsole` will write the
  * string to the output buffer and all calls to `getStrLn` will take a string
@@ -57,36 +57,40 @@ import zio._
  * }}}
  */
 trait TestConsole extends Console {
-  val console: TestConsole.Service[Any]
+  def console: TestConsole.Service[Any]
 }
 
 object TestConsole extends Serializable {
 
-  trait Service[R] extends Console.Service[R] {
+  trait Service[R] extends Console.Service[R] with Restorable {
     def feedLines(lines: String*): UIO[Unit]
     def output: UIO[Vector[String]]
     def clearInput: UIO[Unit]
     def clearOutput: UIO[Unit]
   }
 
-  case class Test(consoleState: Ref[TestConsole.Data]) extends TestConsole.Service[Any] {
+  final case class Test(consoleState: Ref[TestConsole.Data]) extends TestConsole.Service[Any] {
 
     /**
-     * Writes the specified string to the output buffer.
+     * Clears the contents of the input buffer.
      */
-    override def putStr(line: String): UIO[Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output :+ line)
-      }.unit
+    val clearInput: UIO[Unit] =
+      consoleState.update(data => data.copy(input = List.empty)).unit
 
     /**
-     * Writes the specified string to the output buffer followed by a newline
-     * character.
+     * Clears the contents of the output buffer.
      */
-    override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output :+ s"$line\n")
-      }.unit
+    val clearOutput: UIO[Unit] =
+      consoleState.update(data => data.copy(output = Vector.empty)).unit
+
+    /**
+     * Writes the specified sequence of strings to the input buffer. The
+     * first string in the sequence will be the first to be taken. These
+     * strings will be taken before any strings that were previously in the
+     * input buffer.
+     */
+    def feedLines(lines: String*): UIO[Unit] =
+      consoleState.update(data => data.copy(input = lines.toList ::: data.input)).unit
 
     /**
      * Takes the first value from the input buffer, if one exists, or else
@@ -106,15 +110,6 @@ object TestConsole extends Serializable {
     }
 
     /**
-     * Writes the specified sequence of strings to the input buffer. The
-     * first string in the sequence will be the first to be taken. These
-     * strings will be taken before any strings that were previously in the
-     * input buffer.
-     */
-    def feedLines(lines: String*): UIO[Unit] =
-      consoleState.update(data => data.copy(input = lines.toList ::: data.input)).unit
-
-    /**
      * Returns the contents of the output buffer. The first value written to
      * the output buffer will be the first in the sequence.
      */
@@ -122,16 +117,30 @@ object TestConsole extends Serializable {
       consoleState.get.map(_.output)
 
     /**
-     * Clears the contents of the input buffer.
+     * Writes the specified string to the output buffer.
      */
-    val clearInput: UIO[Unit] =
-      consoleState.update(data => data.copy(input = List.empty)).unit
+    override def putStr(line: String): UIO[Unit] =
+      consoleState.update { data =>
+        Data(data.input, data.output :+ line)
+      }.unit
 
     /**
-     * Clears the contents of the output buffer.
+     * Writes the specified string to the output buffer followed by a newline
+     * character.
      */
-    val clearOutput: UIO[Unit] =
-      consoleState.update(data => data.copy(output = Vector.empty)).unit
+    override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
+      consoleState.update { data =>
+        Data(data.input, data.output :+ s"$line\n")
+      }.unit
+
+    /**
+     * Saves the `TestConsole`'s current state in an effect which, when run, will restore the `TestConsole`
+     * state to the saved state
+     */
+    val save: UIO[UIO[Unit]] =
+      for {
+        cState <- consoleState.get
+      } yield consoleState.set(cState)
   }
 
   /**
@@ -189,7 +198,13 @@ object TestConsole extends Serializable {
   val DefaultData: Data = Data(Nil, Vector())
 
   /**
+   * Accesses a `TestConsole` instance in the environment and saves the console state in an effect which, when run,
+   * will restore the `TestConsole` to the saved state
+   */
+  val save: ZIO[TestConsole, Nothing, UIO[Unit]] = ZIO.accessM[TestConsole](_.console.save)
+
+  /**
    * The state of the `TestConsole`.
    */
-  case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
+  final case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
 }

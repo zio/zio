@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package zio.stream
 
 import com.github.ghik.silencer.silent
+
 import zio._
 
 /**
@@ -92,7 +93,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     ZStreamChunk(chunks.catchAllCause(c => f(c).chunks))
 
   /**
-   * Chunks the stream with specifed chunkSize
+   * Chunks the stream with specified chunkSize
    *
    * @param chunkSize size of the chunk
    */
@@ -511,7 +512,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     provideSomeManaged(m)
 
   /**
-   * Provides some of the environment reuqired to run this effect,
+   * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
    */
   final def provideSome[R0](env: R0 => R)(implicit ev: NeedsEnv[R]): ZStreamChunk[R0, E, A] =
@@ -665,40 +666,45 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     toQueue[E1, A1](capacity).use(f)
 
   /**
+   * Threads the stream through the transformation function `f`.
+   */
+  final def via[R2, E2, B](f: ZStreamChunk[R, E, A] => ZStreamChunk[R2, E2, B]): ZStreamChunk[R2, E2, B] = f(self)
+
+  /**
    * Zips this stream together with the index of elements of the stream across chunks.
    */
-  final def zipWithIndex: ZStreamChunk[R, E, (A, Int)] =
-    self.mapAccum(0)((index, a) => (index + 1, (a, index)))
+  final def zipWithIndex: ZStreamChunk[R, E, (A, Long)] =
+    self.mapAccum(0L)((index, a) => (index + 1, (a, index)))
 }
 
-object ZStreamChunk extends Serializable {
+object ZStreamChunk {
 
   /**
    * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].
    */
-  final val DefaultChunkSize: Int = 4096
+  final val DefaultChunkSize = 4096
 
   /**
    * The empty stream of chunks
    */
-  final val empty: StreamChunk[Nothing, Nothing] =
+  val empty: StreamChunk[Nothing, Nothing] =
     new StreamEffectChunk(StreamEffect.empty)
 
   /**
    * Creates a `ZStreamChunk` from a stream of chunks
    */
-  final def apply[R, E, A](chunkStream: ZStream[R, E, Chunk[A]]): ZStreamChunk[R, E, A] =
+  def apply[R, E, A](chunkStream: ZStream[R, E, Chunk[A]]): ZStreamChunk[R, E, A] =
     new ZStreamChunk[R, E, A](chunkStream)
 
   /**
    * Creates a `ZStreamChunk` from a variable list of chunks
    */
-  final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
+  def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
     new StreamEffectChunk(StreamEffect.fromIterable(as))
 
   /**
    * Creates a `ZStreamChunk` from a chunk
    */
-  final def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
+  def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
     new StreamEffectChunk(StreamEffect.succeed(as))
 }

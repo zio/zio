@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package zio.internal
 
+import scala.concurrent.ExecutionContext
+
 import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-
-import scala.concurrent.ExecutionContext
 
 object PlatformLive {
   lazy val Default = makeDefault()
@@ -38,10 +38,10 @@ object PlatformLive {
    * */
   lazy val Benchmark = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
 
-  final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
+  def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
     fromExecutor(Executor.makeDefault(yieldOpCount))
 
-  final def fromExecutor(executor0: Executor) =
+  def fromExecutor(executor0: Executor) =
     new Platform {
       val executor = executor0
 
@@ -59,12 +59,12 @@ object PlatformLive {
       }
 
       def reportFailure(cause: Cause[Any]): Unit =
-        if (!cause.interrupted)
+        if (cause.died)
           System.err.println(cause.prettyPrint)
 
     }
 
-  final def fromExecutionContext(ec: ExecutionContext): Platform =
+  def fromExecutionContext(ec: ExecutionContext): Platform =
     fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
 
   final val defaultYieldOpCount = 2048

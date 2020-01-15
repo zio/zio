@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import zio._
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
-import zio.internal.{ Scheduler => IScheduler }
 import zio.internal.Scheduler.CancelToken
+import zio.internal.{ Scheduler => IScheduler }
 import zio.scheduler.Scheduler
 
 /**
@@ -96,13 +96,13 @@ import zio.scheduler.Scheduler
  * exactly one more value is placed in the queue.
  */
 trait TestClock extends Clock with Scheduler {
-  val clock: TestClock.Service[Any]
-  val scheduler: TestClock.Service[Any]
+  def clock: TestClock.Service[Any]
+  def scheduler: Scheduler.Service[Any]
 }
 
 object TestClock extends Serializable {
 
-  trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] {
+  trait Service[R] extends Clock.Service[R] with Scheduler.Service[R] with Restorable {
     def adjust(duration: Duration): UIO[Unit]
     def fiberTime: UIO[Duration]
     def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
@@ -112,7 +112,7 @@ object TestClock extends Serializable {
     def timeZone: UIO[ZoneId]
   }
 
-  case class Test(
+  final case class Test(
     clockState: Ref[TestClock.Data],
     fiberState: FiberRef[TestClock.FiberData],
     live: Live.Service[Clock with Console],
@@ -124,7 +124,7 @@ object TestClock extends Serializable {
      * that were scheduled to occur on or before the new time will immediately
      * be run.
      */
-    final def adjust(duration: Duration): UIO[Unit] =
+    def adjust(duration: Duration): UIO[Unit] =
       warningDone *> clockState.modify { data =>
         val nanoTime          = data.nanoTime + duration.toNanos
         val currentTimeMillis = data.currentTimeMillis + duration.toMillis
@@ -140,13 +140,13 @@ object TestClock extends Serializable {
     /**
      * Returns the current clock time as an `OffsetDateTime`.
      */
-    final def currentDateTime: UIO[OffsetDateTime] =
+    def currentDateTime: UIO[OffsetDateTime] =
       clockState.get.map(data => toDateTime(data.currentTimeMillis, data.timeZone))
 
     /**
      * Returns the current clock time in the specified time unit.
      */
-    final def currentTime(unit: TimeUnit): UIO[Long] =
+    def currentTime(unit: TimeUnit): UIO[Long] =
       clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
     /**
@@ -165,46 +165,29 @@ object TestClock extends Serializable {
      * } yield result.toNanos == 2000000L
      * }}}
      */
-    final val fiberTime: UIO[Duration] =
+    val fiberTime: UIO[Duration] =
       fiberState.get.map(_.nanoTime.nanos)
 
     /**
      * Returns the current clock time in nanoseconds.
      */
-    final val nanoTime: UIO[Long] =
+    val nanoTime: UIO[Long] =
       clockState.get.map(_.nanoTime)
 
     /**
-     * Sets the current clock time to the specified `OffsetDateTime`. Any
-     * effets that were scheduled to occur on or before the new time will
-     * immediately be run.
+     * Saves the `TestClock`'s current state in an effect which, when run, will restore the `TestClock`
+     * state to the saved state
      */
-    final def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
-      setTime(fromDateTime(dateTime))
-
-    /**
-     * Sets the current clock time to the specified time in terms of duration
-     * since the epoch. Any effects that were scheduled to occur on or before
-     * the new time will immediately be run.
-     */
-    final def setTime(duration: Duration): UIO[Unit] =
-      warningDone *> clockState.modify { data =>
-        val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
-        val updated = data.copy(
-          nanoTime = duration.toNanos,
-          currentTimeMillis = duration.toMillis,
-          sleeps = sleeps
-        )
-        (wakes, updated)
-      }.flatMap(run)
-
-    /**
-     * Sets the time zone to the specified time zone. The clock time in terms
-     * of nanoseconds since the epoch will not be adjusted and no scheduled
-     * effects will be run as a result of this method.
-     */
-    final def setTimeZone(zone: ZoneId): UIO[Unit] =
-      clockState.update(_.copy(timeZone = zone)).unit
+    val save: UIO[UIO[Unit]] =
+      for {
+        fState <- fiberState.get
+        cState <- clockState.get
+        wState <- warningState.get
+      } yield {
+        fiberState.set(fState) *>
+          clockState.set(cState) *>
+          warningState.set(wState)
+      }
 
     /**
      * Returns an effect that creates a new `Scheduler` backed by this
@@ -255,11 +238,43 @@ object TestClock extends Serializable {
       }
 
     /**
+     * Sets the current clock time to the specified `OffsetDateTime`. Any
+     * effects that were scheduled to occur on or before the new time will
+     * immediately be run.
+     */
+    def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
+      setTime(fromDateTime(dateTime))
+
+    /**
+     * Sets the current clock time to the specified time in terms of duration
+     * since the epoch. Any effects that were scheduled to occur on or before
+     * the new time will immediately be run.
+     */
+    def setTime(duration: Duration): UIO[Unit] =
+      warningDone *> clockState.modify { data =>
+        val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
+        val updated = data.copy(
+          nanoTime = duration.toNanos,
+          currentTimeMillis = duration.toMillis,
+          sleeps = sleeps
+        )
+        (wakes, updated)
+      }.flatMap(run)
+
+    /**
+     * Sets the time zone to the specified time zone. The clock time in terms
+     * of nanoseconds since the epoch will not be adjusted and no scheduled
+     * effects will be run as a result of this method.
+     */
+    def setTimeZone(zone: ZoneId): UIO[Unit] =
+      clockState.update(_.copy(timeZone = zone)).unit
+
+    /**
      * Semantically blocks the current fiber until the clock time is equal to
      * or greater than the specified duration. Once the clock time is adjusted
      * to on or after the duration, the fiber will automatically be resumed.
      */
-    final def sleep(duration: Duration): UIO[Unit] =
+    def sleep(duration: Duration): UIO[Unit] =
       for {
         latch <- Promise.make[Nothing, Unit]
         start <- fiberState.modify { data =>
@@ -357,6 +372,12 @@ object TestClock extends Serializable {
     }(_.warningDone)
 
   /**
+   * Accesses a `TestClock` instance in the environment and saves the clock state in an effect which, when run,
+   * will restore the `TestClock` to the saved state
+   */
+  val save: ZIO[TestClock, Nothing, UIO[Unit]] = ZIO.accessM[TestClock](_.clock.save)
+
+  /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
    * to the specified `OffsetDateTime`, running any actions scheduled for on or
    * before the new time.
@@ -389,7 +410,7 @@ object TestClock extends Serializable {
     ZIO.accessM(_.clock.sleeps)
 
   /**
-   * Accesses a `TestClock` instance in the environemtn and returns the current
+   * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
   val timeZone: ZIO[TestClock, Nothing, ZoneId] =
@@ -404,14 +425,14 @@ object TestClock extends Serializable {
   /**
    * The state of the `TestClock`.
    */
-  case class Data(
+  final case class Data(
     nanoTime: Long,
     currentTimeMillis: Long,
     sleeps: List[(Duration, Promise[Nothing, Unit])],
     timeZone: ZoneId
   )
 
-  case class FiberData(nanoTime: Long)
+  final case class FiberData(nanoTime: Long)
 
   object FiberData {
     def combine(first: FiberData, last: FiberData): FiberData =

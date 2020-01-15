@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package zio.test.environment
 
-import zio.{ Ref, UIO, ZIO }
 import zio.system.System
+import zio.{ Ref, UIO, ZIO }
 
 /**
  * `TestSystem` supports deterministic testing of effects involving system
@@ -38,12 +38,12 @@ import zio.system.System
 
  */
 trait TestSystem extends System {
-  val system: TestSystem.Service[Any]
+  def system: TestSystem.Service[Any]
 }
 
 object TestSystem extends Serializable {
 
-  trait Service[R] extends System.Service[R] {
+  trait Service[R] extends System.Service[R] with Restorable {
     def putEnv(name: String, value: String): UIO[Unit]
     def putProperty(name: String, value: String): UIO[Unit]
     def setLineSeparator(lineSep: String): UIO[Unit]
@@ -51,7 +51,7 @@ object TestSystem extends Serializable {
     def clearProperty(prop: String): UIO[Unit]
   }
 
-  case class Test(systemState: Ref[TestSystem.Data]) extends TestSystem.Service[Any] {
+  final case class Test(systemState: Ref[TestSystem.Data]) extends TestSystem.Service[Any] {
 
     /**
      * Returns the specified environment variable if it exists.
@@ -103,6 +103,15 @@ object TestSystem extends Serializable {
      */
     def clearProperty(prop: String): UIO[Unit] =
       systemState.update(data => data.copy(properties = data.properties - prop)).unit
+
+    /**
+     * Saves the `TestSystem``'s current state in an effect which, when run, will restore the `TestSystem`
+     * state to the saved state.
+     */
+    val save: UIO[UIO[Unit]] =
+      for {
+        sState <- systemState.get
+      } yield systemState.set(sState)
   }
 
   /**
@@ -139,6 +148,12 @@ object TestSystem extends Serializable {
     ZIO.accessM(_.system.putProperty(name, value))
 
   /**
+   * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
+   * will restore the `TestSystem` to the saved state
+   */
+  val save: ZIO[TestSystem, Nothing, UIO[Unit]] = ZIO.accessM[TestSystem](_.system.save)
+
+  /**
    * Accesses a `TestSystem` instance in the environment and sets the line
    * separator to the specified value.
    */
@@ -169,7 +184,7 @@ object TestSystem extends Serializable {
   /**
    * The state of the `TestSystem`.
    */
-  case class Data(
+  final case class Data(
     properties: Map[String, String] = Map.empty,
     envs: Map[String, String] = Map.empty,
     lineSeparator: String = "\n"

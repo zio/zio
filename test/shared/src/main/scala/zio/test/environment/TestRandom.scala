@@ -1,6 +1,6 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
- * Copyright 2014-2019 EPFL
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2014-2020 EPFL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ package zio.test.environment
 import scala.collection.immutable.Queue
 import scala.math.{ log, sqrt }
 
-import zio.{ Chunk, Ref, UIO, ZIO }
 import zio.random.Random
+import zio.{ Chunk, Ref, UIO, ZIO }
 
 /**
  * `TestRandom` allows for deterministically testing effects involving
@@ -62,16 +62,16 @@ import zio.random.Random
  * Just generate random values as you normally would to get pseudo-random
  * values, or feed in values of your own to get those values back. You can also
  * use methods like `clearInts` to clear the buffer of values of a given type
- * so you can fill the buffer with new values or go back to pseuedo-random
+ * so you can fill the buffer with new values or go back to pseudo-random
  * number generation.
  */
 trait TestRandom extends Random {
-  val random: TestRandom.Service[Any]
+  def random: TestRandom.Service[Any]
 }
 
 object TestRandom extends Serializable {
 
-  trait Service[R] extends Random.Service[R] {
+  trait Service[R] extends Random.Service[R] with Restorable {
     def clearBooleans: UIO[Unit]
     def clearBytes: UIO[Unit]
     def clearChars: UIO[Unit]
@@ -94,7 +94,7 @@ object TestRandom extends Serializable {
   /**
    * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
    */
-  case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends TestRandom.Service[Any] {
+  final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends TestRandom.Service[Any] {
 
     /**
      * Clears the buffer of booleans.
@@ -212,7 +212,7 @@ object TestRandom extends Serializable {
       randomBits(1).map(_ != 0)
 
     private def randomBytes(length: Int): UIO[Chunk[Byte]] = {
-      //  Our RNG generates 32 bit integers so to maximize efficieny we want to
+      //  Our RNG generates 32 bit integers so to maximize efficiency we want to
       //  pull 8 bit bytes from the current integer until it is exhausted
       //  before generating another random integer
       def loop(i: Int, rnd: UIO[Int], n: Int, acc: UIO[List[Byte]]): UIO[List[Byte]] =
@@ -379,6 +379,19 @@ object TestRandom extends Serializable {
      */
     def nextString(length: Int): UIO[String] =
       getOrElse(bufferedString)(randomString(length))
+
+    /**
+     * Saves the `TestRandom`'s current state in an effect which, when run, will restore the `TestRandom`
+     * state to the saved state
+     */
+    val save: UIO[UIO[Unit]] =
+      for {
+        rState <- randomState.get
+        bState <- bufferState.get
+      } yield {
+        randomState.set(rState) *>
+          bufferState.set(bState)
+      }
 
     /**
      * Sets the seed of this `TestRandom` to the specified value.
@@ -607,6 +620,12 @@ object TestRandom extends Serializable {
       data   <- Ref.make(data)
       buffer <- Ref.make(Buffer())
     } yield Test(data, buffer)
+
+  /**
+   * Accesses a `TestRandom` instance in the environment and saves the random state in an effect which, when run,
+   * will restore the `TestRandom` to the saved state
+   */
+  val save: ZIO[TestRandom, Nothing, UIO[Unit]] = ZIO.accessM[TestRandom](_.random.save)
 
   /**
    * Accesses a `TestRandom` instance in the environment and sets the seed to

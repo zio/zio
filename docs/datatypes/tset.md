@@ -1,9 +1,9 @@
 ---
 id: datatypes_tset
-title: "TSet"
+title:  "TSet"
 ---
 
-A `TSet[A]` is a mutable set which can participate in transactions in STM.
+A `TSet[A]` is a mutable set that can participate in transactions in STM.
 
 ## Create a TSet
 
@@ -34,11 +34,11 @@ import zio.stm._
 val iterableTSet: STM[Nothing, TSet[Int]] = TSet.fromIterable(List(1, 2, 3))
 ```
 
-In case there are duplicates provided, last one is taken.
+In case there are duplicates provided, the last one is taken.
 
-## Put an element to a `TSet`
+## Put an element to a TSet
 
-New element can be added to the set in the following way:
+The new element can be added to the set in the following way:
 
 ```scala mdoc:silent
 import zio._
@@ -52,7 +52,7 @@ val putElem: UIO[TSet[Int]] = (for {
 
 In case the set already contains the element, no modification will happen.
 
-## Remove an element from a `TSet`
+## Remove an element from a TSet
 
 The simplest way to remove an element from `TSet` is using `delete` method:
 
@@ -78,7 +78,7 @@ val removedEvenElems: UIO[TSet[Int]] = (for {
 } yield tSet).commit
 ```
 
-Or you can keep all elements that match predicate function:
+Or you can keep all the elements that match predicate function:
 
 ```scala mdoc:silent
 import zio._
@@ -90,7 +90,9 @@ val retainedEvenElems: UIO[TSet[Int]] = (for {
 } yield tSet).commit
 ```
 
-## Union of a `TSet`
+Note that `retainIf` and `removeIf` serve the same purpose as `filter` and `filterNot`. The reason for naming them differently was to emphasize a distinction in their nature. Namely, both `retainIf` and `removeIf` are destructive - calling them can modify the collection.
+
+## Union of a TSet
 
 Union of the sets A and B represents the set of elements belonging to set A or set B, or both.
 Using `A union B` method modifies set `A`.
@@ -107,9 +109,9 @@ val unionTSet: UIO[TSet[Int]] = (for {
 } yield tSetA).commit
 ```
 
-## Intersection of a `TSet`
+## Intersection of a TSet
 
-Intersection of the sets A and B is the set of elements belonging to both A and B.
+The intersection of the sets A and B is the set of elements belonging to both A and B.
 Using `A intersect B` method modifies set `A`.
 
 ```scala mdoc:silent
@@ -124,9 +126,9 @@ val intersectionTSet: UIO[TSet[Int]] = (for {
 } yield tSetA).commit
 ```
 
-## Difference of a `TSet`
+## Difference of a TSet
 
-Difference between sets A and B is the set containing elements of set A but not in B.
+The difference between sets A and B is the set containing elements of set A but not in B.
 Using `A diff B` method modifies set `A`.
 
 ```scala mdoc:silent
@@ -141,7 +143,7 @@ val diffTSet: UIO[TSet[Int]] = (for {
 } yield tSetA).commit
 ```
 
-## Transform elements of a `TSet`
+## Transform elements of a TSet
 
 The transform function `A => A` allows computing a new value for every element in the set: 
 
@@ -167,6 +169,8 @@ val shrinkTSet: UIO[TSet[Int]] = (for {
 } yield tSet).commit
 ```
 Resulting set in example above has only one element.
+
+Note that `transform` serves the same purpose as `map`. The reason for naming it differently was to emphasize a distinction in its nature. Namely, `transform` is destructive - calling it can modify the collection.
 
 The elements can be mapped effectfully via `transformM`:
 
@@ -204,7 +208,7 @@ val foldMTSet: UIO[Int] = (for {
 } yield sum).commit
 ```
 
-## Perform side-effect for `TSet` elements
+## Perform side-effect for TSet elements
 
 `foreach` is used for performing side-effect for each element in set:
 
@@ -218,9 +222,9 @@ val foreachTSet = (for {
 } yield tSet).commit
 ```
 
-## Check `TSet` membership 
+## Check TSet membership 
 
-Checking whether element is present in a `TSet`:
+Checking whether the element is present in a `TSet`:
 
 ```scala mdoc:silent
 import zio._
@@ -232,7 +236,7 @@ val tSetContainsElem: UIO[Boolean] = (for {
 } yield res).commit
 ```
 
-## Convert `TSet` to a `List`
+## Convert TSet to a List
 
 List of set elements can be obtained as follows:
 
@@ -246,7 +250,7 @@ val tSetToList: UIO[List[Int]] = (for {
 } yield list).commit
 ```
 
-## Size of a `TSet`
+## Size of a TSet
 
 Set's size can be obtained as follows:
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package zio
+
+import java.nio._
 
 import scala.collection.mutable.Builder
 import scala.reflect.{ classTag, ClassTag }
@@ -676,22 +678,99 @@ object Chunk {
   /**
    * Returns the empty chunk.
    */
-  final val empty: Chunk[Nothing] = Empty
+  val empty: Chunk[Nothing] = Empty
 
   /**
    * Returns a chunk from a number of values.
    */
-  final def apply[A](as: A*): Chunk[A] = fromIterable(as)
+  def apply[A](as: A*): Chunk[A] = fromIterable(as)
 
   /**
    * Returns a chunk backed by an array.
    */
-  final def fromArray[A](array: Array[A]): Chunk[A] = Arr(array)
+  def fromArray[A](array: Array[A]): Chunk[A] = Arr(array)
+
+  /**
+   * Returns a chunk backed by a [[java.nio.ByteBuffer]].
+   */
+  def fromByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
+    val dest = Array.ofDim[Byte](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.CharBuffer]].
+   */
+  def fromCharBuffer(buffer: CharBuffer): Chunk[Char] = {
+    val dest = Array.ofDim[Char](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.DoubleBuffer]].
+   */
+  def fromDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] = {
+    val dest = Array.ofDim[Double](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.FloatBuffer]].
+   */
+  def fromFloatBuffer(buffer: FloatBuffer): Chunk[Float] = {
+    val dest = Array.ofDim[Float](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.IntBuffer]].
+   */
+  def fromIntBuffer(buffer: IntBuffer): Chunk[Int] = {
+    val dest = Array.ofDim[Int](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.LongBuffer]].
+   */
+  def fromLongBuffer(buffer: LongBuffer): Chunk[Long] = {
+    val dest = Array.ofDim[Long](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
+
+  /**
+   * Returns a chunk backed by a [[java.nio.ShortBuffer]].
+   */
+  def fromShortBuffer(buffer: ShortBuffer): Chunk[Short] = {
+    val dest = Array.ofDim[Short](buffer.remaining())
+    val pos  = buffer.position()
+    buffer.get(dest)
+    buffer.position(pos)
+    Chunk.fromArray(dest)
+  }
 
   /**
    * Returns a chunk backed by an iterable.
    */
-  final def fromIterable[A](it: Iterable[A]): Chunk[A] =
+  def fromIterable[A](it: Iterable[A]): Chunk[A] =
     if (it.size <= 0) Empty
     else if (it.size == 1) Singleton(it.head)
     else {
@@ -709,17 +788,17 @@ object Chunk {
   /**
    * Returns a singleton chunk, eagerly evaluated.
    */
-  final def single[A](a: A): Chunk[A] = Singleton(a)
+  def single[A](a: A): Chunk[A] = Singleton(a)
 
   /**
    * Alias for [[Chunk.single]].
    */
-  final def succeed[A](a: A): Chunk[A] = single(a)
+  def succeed[A](a: A): Chunk[A] = single(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
    */
-  private final def classTagOf[A](chunk: Chunk[A]): ClassTag[A] = chunk match {
+  private def classTagOf[A](chunk: Chunk[A]): ClassTag[A] = chunk match {
     case x: Arr[A]         => x.classTag
     case x: Concat[A]      => x.classTag
     case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
@@ -1118,10 +1197,10 @@ object Chunk {
   }
 
   private[zio] object Tags {
-    final def fromValue[A](a: A): ClassTag[A] =
+    def fromValue[A](a: A): ClassTag[A] =
       unbox(ClassTag(a.getClass))
 
-    private final def unbox[A](c: ClassTag[A]): ClassTag[A] =
+    private def unbox[A](c: ClassTag[A]): ClassTag[A] =
       if (isBoolean(c)) BooleanClass.asInstanceOf[ClassTag[A]]
       else if (isByte(c)) ByteClass.asInstanceOf[ClassTag[A]]
       else if (isShort(c)) ShortClass.asInstanceOf[ClassTag[A]]
@@ -1132,21 +1211,21 @@ object Chunk {
       else if (isChar(c)) CharClass.asInstanceOf[ClassTag[A]]
       else classTag[AnyRef].asInstanceOf[ClassTag[A]] // TODO: Find a better way
 
-    private final def isBoolean(c: ClassTag[_]): Boolean =
+    private def isBoolean(c: ClassTag[_]): Boolean =
       c == BooleanClass || c == BooleanClassBox
-    private final def isByte(c: ClassTag[_]): Boolean =
+    private def isByte(c: ClassTag[_]): Boolean =
       c == ByteClass || c == ByteClassBox
-    private final def isShort(c: ClassTag[_]): Boolean =
+    private def isShort(c: ClassTag[_]): Boolean =
       c == ShortClass || c == ShortClassBox
-    private final def isInt(c: ClassTag[_]): Boolean =
+    private def isInt(c: ClassTag[_]): Boolean =
       c == IntClass || c == IntClassBox
-    private final def isLong(c: ClassTag[_]): Boolean =
+    private def isLong(c: ClassTag[_]): Boolean =
       c == LongClass || c == LongClassBox
-    private final def isFloat(c: ClassTag[_]): Boolean =
+    private def isFloat(c: ClassTag[_]): Boolean =
       c == FloatClass || c == FloatClassBox
-    private final def isDouble(c: ClassTag[_]): Boolean =
+    private def isDouble(c: ClassTag[_]): Boolean =
       c == DoubleClass || c == DoubleClassBox
-    private final def isChar(c: ClassTag[_]): Boolean =
+    private def isChar(c: ClassTag[_]): Boolean =
       c == CharClass || c == CharClassBox
 
     private val BooleanClass    = classTag[Boolean]

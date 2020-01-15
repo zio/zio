@@ -2,10 +2,10 @@ package zio.test.sbt
 
 import sbt.testing._
 
-import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
 import zio.UIO
+import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
 
-case class ZTestEvent(
+final case class ZTestEvent(
   fullyQualifiedName: String,
   selector: Selector,
   status: Status,
@@ -17,8 +17,8 @@ case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def from[L, E, S](
-    executedSpec: ExecutedSpec[L, E, S],
+  def from[E, L, S](
+    executedSpec: ExecutedSpec[E, L, S],
     fullyQualifiedName: String,
     fingerprint: Fingerprint
   ): UIO[Seq[ZTestEvent]] =
@@ -27,11 +27,11 @@ object ZTestEvent {
         results.flatMap(UIO.collectAll(_).map(_.flatten))
       case zio.test.Spec.TestCase(label, result) =>
         result.map { result =>
-          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
+          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result._1), None, 0, fingerprint))
         }
     }
 
-  private def toStatus[L, E, S](result: Either[TestFailure[E], TestSuccess[S]]) = result match {
+  private def toStatus[E, L, S](result: Either[TestFailure[E], TestSuccess[S]]) = result match {
     case Left(_)                         => Status.Failure
     case Right(TestSuccess.Succeeded(_)) => Status.Success
     case Right(TestSuccess.Ignored)      => Status.Ignored
