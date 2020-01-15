@@ -596,7 +596,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Forks the effect into a new daemon fiber, but immediately restores the
    * fiber's daemon status to the inherited status from whatever region the
-   * effect is composed into. This means that the forked fiber will not
+   * effect is composed into. This means that the forked fiber will not be
    * interrupted if its parent fiber is interrupted, but fibers forked by the
    * forked fiber will be interrupted if the forked fiber is interrupted,
    * assuming the effect is in a non-daemon region (the default).
