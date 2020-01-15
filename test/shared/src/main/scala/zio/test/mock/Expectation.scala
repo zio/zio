@@ -24,6 +24,7 @@ import zio.test.Assertion
 import zio.test.mock.Expectation.{ AnyCall, Call, Empty, FlatMap, Next, State }
 import zio.test.mock.MockException.UnmetExpectationsException
 import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
+import zio.{ Has, IO, Managed, Ref, UIO, ZIO, ZLayer }
 import zio.{ IO, Managed, Ref, UIO, ZIO }
 
 /**
@@ -40,8 +41,8 @@ import zio.{ IO, Managed, Ref, UIO, ZIO }
  *  - `FlatMap` models sequential composition of expectations
  *
  * The whole structure is not supposed to be consumed directly by the end user,
- * instead it should be converted into a mocked environment (wrapped in Managed)
- * either explicitly via `managedEnv` method or via implicit conversion.
+ * instead it should be converted into a mocked environment (wrapped in layer)
+ * either explicitly via `toLayer` method or via implicit conversion.
  */
 sealed trait Expectation[-M, +E, +A] { self =>
 
@@ -65,7 +66,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
   /**
    * Converts this Expectation to ZManaged mock environment.
    */
-  final def managedEnv[M1 <: M](implicit mockable: Mockable[M1]): Managed[Nothing, M1] = {
+  final def toLayer[M1 <: M](implicit mockable: Mockable[M1]): ZLayer.NoDeps[Nothing, Has[M1]] = {
 
     def extract(
       state: State[M, E],
@@ -122,10 +123,10 @@ sealed trait Expectation[-M, +E, +A] { self =>
           mock = Mock.make(state.callsRef)
         } yield mockable.environment(mock)
 
-    for {
+    ZLayer.fromManaged(for {
       state <- Managed.make(makeState)(checkUnmetExpectations)
       env   <- Managed.fromEffect(makeEnvironment(state))
-    } yield env
+    } yield env)
   }
 
   /**
@@ -193,10 +194,9 @@ object Expectation {
   /**
    * Implicitly converts Expectation to ZManaged mock environment.
    */
-  implicit def toManagedEnv[M, E, A](
+  implicit def toLayer[M: Mockable, E, A](
     expectation: Expectation[M, E, A]
-  )(implicit mockable: Mockable[M]): Managed[Nothing, M] =
-    expectation.managedEnv(mockable)
+  ): ZLayer.NoDeps[Nothing, Has[M]] = expectation.toLayer
 
   private[Expectation] type AnyCall      = Call[Any, Any, Any, Any]
   private[Expectation] type Next[-M, +E] = Any => Expectation[M, E, Any]

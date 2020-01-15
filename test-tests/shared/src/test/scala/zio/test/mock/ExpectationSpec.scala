@@ -10,6 +10,7 @@ import zio.test.{ suite, ZIOBaseSpec }
 import zio.{ IO, UIO }
 
 object ExpectationSpec extends ZIOBaseSpec {
+  import Module.mockableModule
 
   def spec = suite("ExpectationSpec")(
     suite("static")(

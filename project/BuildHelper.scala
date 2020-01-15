@@ -1,7 +1,8 @@
 import sbt._
 import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
-import sbtcrossproject.CrossPlugin.autoImport.CrossType
+import sbtcrossproject.Platform
+import sbtcrossproject.CrossPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
@@ -81,13 +82,18 @@ object BuildHelper {
     }
   )
 
+  val scalaReflectSettings = Seq(
+    libraryDependencies ++=
+      (if (isDotty.value) Seq()
+       else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value))
+  )
+
   val replSettings = makeReplSettings {
     """|import zio._
        |import zio.console._
        |import zio.duration._
-       |object replRTS extends DefaultRuntime {}
-       |import replRTS._
-       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |import zio.Runtime.default._
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = unsafeRun(io.provideLayer(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -96,9 +102,8 @@ object BuildHelper {
        |import zio.console._
        |import zio.duration._
        |import zio.stream._
-       |object replRTS extends DefaultRuntime {}
-       |import replRTS._
-       |implicit class RunSyntax[R >: ZEnv, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+       |import zio.Runtime.default._
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = unsafeRun(io.provideLayer(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -167,6 +172,42 @@ object BuildHelper {
       case _ => Seq.empty
     }
 
+  def platformSpecificSources(platform: String, conf: String, baseDirectory: File)(versions: String*) =
+    List("scala" :: versions.toList.map("scala-" + _): _*).map { version =>
+      baseDirectory.getParentFile / platform.toLowerCase / "src" / conf / version
+    }.filter(_.exists)
+
+  def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File, isDotty: Boolean) =
+    CrossVersion.partialVersion(scalaVer) match {
+      case Some((2, x)) if x <= 11 =>
+        platformSpecificSources(platform, conf, baseDir)("2.11", "2.x")
+      case Some((2, x)) if x >= 12 =>
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x")
+      case _ if isDotty =>
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "dotty")
+      case _ =>
+        Nil
+    }
+
+  lazy val crossProjectSettings = Seq(
+    Compile / unmanagedSourceDirectories ++= {
+      val platform = crossProjectPlatform.value.identifier
+      val baseDir  = baseDirectory.value
+      val scalaVer = scalaVersion.value
+      val isDot    = isDotty.value
+
+      crossPlatformSources(scalaVer, platform, "main", baseDir, isDot)
+    },
+    Test / unmanagedSourceDirectories ++= {
+      val platform = crossProjectPlatform.value.identifier
+      val baseDir  = baseDirectory.value
+      val scalaVer = scalaVersion.value
+      val isDot    = isDotty.value
+
+      crossPlatformSources(scalaVer, platform, "test", baseDir, isDot)
+    }
+  )
+
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
@@ -192,6 +233,7 @@ object BuildHelper {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
           Seq(
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x"))
@@ -240,6 +282,7 @@ object BuildHelper {
           else
             Nil
       }
+
     }
   )
 

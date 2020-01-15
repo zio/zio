@@ -153,6 +153,7 @@ trait Runtime[+R] {
 }
 
 object Runtime {
+  lazy val default = Runtime((), Platform.default)
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].

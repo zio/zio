@@ -38,8 +38,7 @@ also an unreliable return type, as when Scala expects the return type to be `Uni
 [Section 6.26.1][link-sls-6.26.1] of the Scala Language Specification), which may shadow the fact that the final value produced (and discarded) was
 not the one you expected.
 
-Inside the future there may be happening any side effects. It may open a file, print to console, connect to databases. We simply don't know. Let's
-have a look how this problem would be solved using ZIO's effect system:
+Inside the future there may be happening any side effects. It may open a file, print to console, connect to databases. We simply don't know. Let's have a look how this problem would be solved using ZIO's effect system:
 
 ```scala mdoc:invisible:reset
 trait Event
@@ -47,26 +46,22 @@ trait Event
 
 ```scala mdoc:silent
 import zio._
-import zio.test.environment.TestConsole
+import zio.console.Console
 
-def processEvent(event: Event): ZIO[TestConsole, Nothing, Unit] =
-  for {
-    console <- ZIO.environment[TestConsole].map(_.console)
-    _       <- console.putStrLn(s"Got $event")
-  } yield ()
+def processEvent(event: Event): ZIO[Console, Nothing, Unit] =
+  console.putStrLn(s"Got $event")
 ```
 
-With ZIO we've regained to ability to reason about the effects called. We know that `processEvent` can only call on _capabilities_ of `TestConsole`,
-so even though we still have `Unit` as the result, we have narrowed the possible effects space to a few.
+With ZIO, we've regained to ability to reason about the effects called. We know that `processEvent` can only call on _capabilities_ of `Console`, so even though we still have `Unit` as the result, we have narrowed the possible effects space to a few.
 
-> **Note:** this is true assuming the programmer disciplines himself to only perform effects expressed in the type signature.
+> **Note:** this is true assuming the programmer disciplines themselves to only perform effects expressed in the type signature.
 > There is no way (at the moment) to enforce this by the compiler. There is some research done in this space, perhaps future programming languages
 > will enable us to further constrain side effects.
 
 However, the same method could be implemented as:
 
 ```scala mdoc:silent
-def processEvent2(event: Event): ZIO[TestConsole, Nothing, Unit] =
+def processEvent2(event: Event): ZIO[Console, Nothing, Unit] =
   ZIO.unit
 ```
 
@@ -93,22 +88,20 @@ trait AccountEvent
 ```scala mdoc:silent
 import zio.test.mock._
 
-trait AccountObserver {
-  def accountObserver: AccountObserver.Service[Any]
-}
+type AccountObserver = Has[AccountObserver.Service]
 
 object AccountObserver {
-  trait Service[R] {
-    def processEvent(event: AccountEvent): ZIO[R, Nothing, Unit]
+  trait Service {
+    def processEvent(event: AccountEvent): IO[Nothing, Unit]
   }
 
   object Service {
-    object processEvent extends Method[AccountObserver, AccountEvent, Unit]
+    object processEvent extends Method[Service, AccountEvent, Unit]
   }
 
-  object > extends Service[AccountObserver] {
+  object > {
     def processEvent(event: AccountEvent) =
-      ZIO.accessM(_.accountObserver.processEvent(event))
+      ZIO.accessM[AccountObserver](_.get.processEvent(event))
   }
 }
 ```
@@ -123,33 +116,30 @@ We model input arguments according to following scheme:
 - for one or more arguments, regardless in how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
 
 ```scala mdoc:silent
-trait ExampleService {
-  def exampleService: ExampleService.Service[Any]
-}
-
+type ExampleService = Has[ExampleService.Service]
 object ExampleService {
-  trait Service[R] {
-    val static                                 : ZIO[R, Nothing, String]
-    def zeroArgs                               : ZIO[R, Nothing, Int]
-    def zeroArgsWithParens()                   : ZIO[R, Nothing, Long]
-    def singleArg(arg1: Int)                   : ZIO[R, Nothing, String]
-    def multiArgs(arg1: Int, arg2: Long)       : ZIO[R, Nothing, String]
-    def multiParamLists(arg1: Int)(arg2: Long) : ZIO[R, Nothing, String]
-    def command(arg1: Int)                     : ZIO[R, Nothing, Unit]
-    def overloaded(arg1: Int)                  : ZIO[R, Nothing, String]
-    def overloaded(arg1: Long)                 : ZIO[R, Nothing, String]
+  trait Service {
+    val static                                 : UIO[String]
+    def zeroArgs                               : UIO[Int]
+    def zeroArgsWithParens()                   : UIO[Long]
+    def singleArg(arg1: Int)                   : UIO[String]
+    def multiArgs(arg1: Int, arg2: Long)       : UIO[String]
+    def multiParamLists(arg1: Int)(arg2: Long) : UIO[String]
+    def command(arg1: Int)                     : UIO[Unit]
+    def overloaded(arg1: Int)                  : UIO[String]
+    def overloaded(arg1: Long)                 : UIO[String]
   }
 
-  object static             extends Method[ExampleService, Unit, String]
-  object zeroArgs           extends Method[ExampleService, Unit, Int]
-  object zeroArgsWithParens extends Method[ExampleService, Unit, Long]
-  object singleArg          extends Method[ExampleService, Int, String]
-  object multiArgs          extends Method[ExampleService, (Int, Long), String]
-  object multiParamLists    extends Method[ExampleService, (Int, Long), String]
-  object command            extends Method[ExampleService, Int, Unit]
+  object static             extends Method[Service, Unit, String]
+  object zeroArgs           extends Method[Service, Unit, Int]
+  object zeroArgsWithParens extends Method[Service, Unit, Long]
+  object singleArg          extends Method[Service, Int, String]
+  object multiArgs          extends Method[Service, (Int, Long), String]
+  object multiParamLists    extends Method[Service, (Int, Long), String]
+  object command            extends Method[Service, Int, Unit]
   object overloaded {
-    object _1 extends Method[ExampleService, Int, String]
-    object _2 extends Method[ExampleService, Long, String]
+    object _1 extends Method[Service, Int, String]
+    object _2 extends Method[Service, Long, String]
   }
 }
 ```
@@ -161,12 +151,10 @@ For overloaded methods we simply nest a list of numbered objects, each represent
 Next, we create the mockable implementation of the service:
 
 ```scala mdoc:silent
-implicit val mockable: Mockable[AccountObserver] = (mock: Mock) =>
-  new AccountObserver {
-    val accountObserver = new AccountObserver.Service[Any] {
-      def processEvent(event: AccountEvent): UIO[Unit] = mock(AccountObserver.Service.processEvent, event)
-    }
-  }
+implicit val mockableAccountObserver: Mockable[AccountObserver.Service] = (mock: Mock) =>
+  Has(new AccountObserver.Service {
+    def processEvent(event: AccountEvent): UIO[Unit] = mock(AccountObserver.Service.processEvent, event)
+  })
 ```
 
 > **Note:** To make our mockable implementation automatically discovered, we need to place it inside `AccountObserver` module's companion object.
@@ -197,23 +185,22 @@ object AccountObserver {
 }
 ```
 
-Next we create the live version of the service with the implementation of the capabilities
+Next we create the live version of the service with the implementation of the capabilities:
+
 ``` scala mdoc
 import zio.console.Console
 
-trait AccountObserverLive extends AccountObserver {
-  // dependency on Console module
-  val console: Console.Service[Any]
-
-  val accountObserver = new AccountObserver.Service[Any] {
-    def processEvent(event: AccountEvent): UIO[Unit] =
-      for {
-       _    <- console.putStrLn(s"Got $event")
-       line <- console.getStrLn.orDie
-       _    <- console.putStrLn(s"You entered: $line")
-      } yield ()
+val accountObserverLive: ZLayer[Console, Nothing, Has[AccountObserver.Service]] = 
+  ZLayer.fromService[Console.Service, Nothing, Has[AccountObserver.Service]] { console =>
+    Has(new AccountObserver.Service {
+      def processEvent(event: AccountEvent): UIO[Unit] =
+        for {
+        _    <- console.putStrLn(s"Got $event")
+        line <- console.getStrLn.orDie
+        _    <- console.putStrLn(s"You entered: $line")
+        } yield ()
+    })
   }
-}
 ```
 
 ## Provided ZIO services
@@ -233,12 +220,14 @@ import zio.test._
 import zio.test.Assertion._
 import zio.test.mock.Expectation._
 
+import MockConsole._
+
 val event = new AccountEvent {}
 val app: ZIO[AccountObserver, Nothing, Unit] = AccountObserver.>.processEvent(event)
-val mockEnv: Managed[Nothing, MockConsole] = (
-  (MockConsole.putStrLn(equalTo(s"Got $event")) returns unit) *>
-  (MockConsole.getStrLn returns value("42")) *>
-  (MockConsole.putStrLn(equalTo("You entered: 42")) returns unit)
+val mockEnv: ZLayer[Any, Nothing, Console] = (
+  (putStrLn(equalTo(s"Got $event")) returns unit) *>
+  (getStrLn returns value("42")) *>
+  (putStrLn(equalTo("You entered: 42")) returns unit)
 )
 ```
 
@@ -248,11 +237,7 @@ val mockEnv: Managed[Nothing, MockConsole] = (
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
-      val result = app.provideManaged(mockEnv.map { mockConsole =>
-        new AccountObserverLive with Console {
-          val console = mockConsole.console
-        }
-      })
+      val result = app.provideLayer(mockEnv >>> accountObserverLive)
       assertM(result)(isUnit)
     }
   )
@@ -267,24 +252,20 @@ service and then combine them into single environment:
 ```scala mdoc:silent
 import zio.console.Console
 import zio.random.Random
+import MockConsole._
+import MockRandom._
 
-val mockConsole: Managed[Nothing, MockConsole] = (
-  (MockConsole.putStrLn(equalTo("What is your name?")) returns unit) *>
-  (MockConsole.getStrLn returns value("Mike")) *>
-  (MockConsole.putStrLn(equalTo("Mike, your lucky number today is 42!")) returns unit)
+val mockConsole: ZLayer.NoDeps[Nothing, Console] = (
+  (putStrLn(equalTo("What is your name?")) returns unit) *>
+  (getStrLn returns value("Mike")) *>
+  (putStrLn(equalTo("Mike, your lucky number today is 42!")) returns unit)
 )
 
-val mockRandom: Managed[Nothing, MockRandom] =
-  MockRandom.nextInt._1 returns value(42)
+val mockRandom: ZLayer.NoDeps[Nothing, Random] =
+  nextInt._1 returns value(42)
 
-val combinedEnv: Managed[Nothing, Console with Random] =
-  (mockConsole &&& mockRandom)
-    .map {
-      case (c, r) => new Console with Random {
-       val console = c.console
-       val random = r.random
-      }
-    }
+val combinedEnv: ZLayer.NoDeps[Nothing, Console with Random] =
+  mockConsole ++ mockRandom
 
 val combinedApp =
   for {
@@ -294,7 +275,7 @@ val combinedApp =
     _    <- console.putStrLn(s"$name, your lucky number today is $num!")
   } yield ()
 
-val result = combinedApp.provideManaged(combinedEnv)
+val result = combinedApp.provideLayer(combinedEnv)
 assertM(result)(isUnit)
 ```
 

@@ -269,59 +269,29 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the specified pure modification
    * applied to each delay produced by this schedule.
    */
-  final def delayed(
+  final def delayed[R1 <: R](
     f: Duration => Duration
-  )(
-    implicit ev: ZEnv <:< R
-  ): Schedule[ZEnv, A, B] = delayedEnv(f)(env => ZEnv.mapClock(env) andThen ev.apply)
-
-  /**
-   * Returns a new schedule with the specified pure modification
-   * applied to each delay produced by this schedule.
-   *
-   * This version supports arbitrary environments.
-   */
-  final def delayedEnv[R1 <: Clock](
-    f: Duration => Duration
-  )(
-    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
-  ): Schedule[R1, A, B] =
-    delayedMEnv[R1](d => ZIO.succeed(f(d)))(g)
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = delayedM[R1](d => ZIO.succeed(f(d)))
 
   /**
    * Returns a new schedule with the specified effectful modification
    * applied to each delay produced by this schedule.
    */
-  final def delayedM(
-    f: Duration => ZIO[ZEnv, Nothing, Duration]
-  )(
-    implicit ev: ZEnv <:< R
-  ): Schedule[ZEnv, A, B] =
-    delayedMEnv(f)(env => ZEnv.mapClock(env) andThen ev.apply)
-
-  /**
-   * Returns a new schedule with the specified effectful modification
-   * applied to each delay produced by this schedule.
-   *
-   * This version supports arbitrary environments.
-   */
-  final def delayedMEnv[R1 <: Clock](
+  final def delayedM[R1 <: R](
     f: Duration => ZIO[R1, Nothing, Duration]
-  )(
-    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
-  ): Schedule[R1, A, B] = {
-    def proxy(clock0: Clock.Service[Any], env: R1): Clock.Service[Any] = new Clock.Service[Any] {
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = {
+    def proxy(clock0: Clock.Service, r1: R1): Clock.Service = new Clock.Service {
       def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
       def currentDateTime             = clock0.currentDateTime
       val nanoTime                    = clock0.nanoTime
-      def sleep(duration: Duration)   = f(duration).flatMap(clock0.sleep).provide(env)
+      def sleep(duration: Duration)   = f(duration).flatMap(clock0.sleep).provide(r1)
     }
     new Schedule[R1, A, B] {
       type State = (self.State, R)
       val initial =
         for {
           oldEnv <- ZIO.environment[R1]
-          env    = g(proxy(_, oldEnv))(oldEnv)
+          env    = ev1.update[R1, Clock.Service](oldEnv, proxy(_, oldEnv))
           init   <- self.initial.provide(env)
         } yield (init, env)
       val extract = (a: A, s: State) => self.extract(a, s._1)
@@ -413,26 +383,23 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
       val update  = self.update
     }
 
-  /**
-   * Applies random jitter to all sleeps executed by the schedule.
-   */
-  final def jittered(min: Double = 0.0, max: Double = 1.0)(implicit ev: ZEnv <:< R): Schedule[ZEnv, A, B] =
-    jitteredEnv(min, max)(f => ZEnv.mapClock(f) andThen ev.apply)
+  def jittered[R1 <: R](implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1 with Random, A, B] =
+    jittered(0.0, 1.0)
 
   /**
    * Applies random jitter to all sleeps executed by the schedule.
-   * This version supports arbitrary environments.
    */
-  final def jitteredEnv[R1](min: Double, max: Double)(
-    f: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
-  ): Schedule[R1 with Clock with Random, A, B] =
-    delayedMEnv[R1 with Clock with Random] { duration =>
+  final def jittered[R1 <: R](
+    min: Double,
+    max: Double
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1 with Random, A, B] =
+    delayedM[R1 with Random] { duration =>
       random.nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random
         Duration.fromNanos(jittered.toLong)
       }
-    }(f)
+    }
 
   /**
    * Puts this schedule into the first element of a either, and passes along
@@ -459,39 +426,21 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * All effects executed while calculating the modified duration will run with the old
    * environment.
    */
-  final def modifyDelay(
-    f: (B, Duration) => ZIO[ZEnv, Nothing, Duration]
-  )(
-    implicit ev: ZEnv <:< R
-  ): Schedule[ZEnv, A, B] = modifyDelayEnv(f)(g => ZEnv.mapClock(g) andThen ev.apply)
-
-  /**
-   * Returns a new schedule with the specified effectful modification
-   * applied to each sleep performed by this schedule.
-   *
-   * This version supports arbitrary environments.
-   *
-   * Note that this does not apply to sleeps performed in Schedule#initial.
-   * All effects executed while calculating the modified duration will run with the old
-   * environment.
-   */
-  final def modifyDelayEnv[R1](
+  final def modifyDelay[R1 <: R](
     f: (B, Duration) => ZIO[R1, Nothing, Duration]
-  )(
-    g: (Clock.Service[Any] => Clock.Service[Any]) => R1 => R
-  ): Schedule[R1 with Clock, A, B] = {
-    def proxy(clock0: Clock.Service[Any], env: R1, current: B): Clock.Service[Any] = new Clock.Service[Any] {
+  )(implicit ev1: Has.IsHas[R1], ev2: R1 <:< Clock): Schedule[R1, A, B] = {
+    def proxy(clock0: Clock.Service, env: R1, current: B): Clock.Service = new Clock.Service {
       def currentTime(unit: TimeUnit) = clock0.currentTime(unit)
       def currentDateTime             = clock0.currentDateTime
       val nanoTime                    = clock0.nanoTime
       def sleep(duration: Duration)   = f(current, duration).provide(env).flatMap(clock0.sleep)
     }
-    new Schedule[R1 with Clock, A, B] {
+    new Schedule[R1, A, B] {
       type State = self.State
-      val initial = self.initial.provideSome[R1](g(identity))
+      val initial = self.initial
       val extract = (a: A, s: self.State) => self.extract(a, s)
       val update = (a: A, s: self.State) =>
-        self.update(a, s).provideSome[R1](env => g(proxy(_, env, self.extract(a, s)))(env))
+        self.update(a, s).provideSome[R1](env => ev1.update[R1, Clock.Service](env, proxy(_, env, self.extract(a, s))))
     }
   }
 
