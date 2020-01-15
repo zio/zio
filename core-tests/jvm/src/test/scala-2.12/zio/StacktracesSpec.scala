@@ -458,7 +458,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   def blockingTrace =
     for {
-      _ <- blocking.effectBlocking {
+      _ <- blocking.effectBlockingInterrupt {
             throw new Exception()
           }
     } yield ()
