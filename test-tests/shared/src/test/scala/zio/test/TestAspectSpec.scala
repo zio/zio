@@ -184,6 +184,17 @@ object TestAspectSpec extends ZIOBaseSpec {
       val result = if (TestPlatform.isJVM) isSuccess(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
+    suite("nonTermination")(
+      testM("makes a test pass if it does not terminate within the specified time") {
+        assertM(ZIO.never)(anything)
+      } @@ nonTermination(10.milliseconds),
+      testM("makes a test fail if it succeeds within the specified time") {
+        assertM(ZIO.unit)(anything)
+      } @@ nonTermination(1.minute) @@ failure,
+      testM("makes a test fail if it fails within the specified time") {
+        assertM(ZIO.fail("fail"))(anything)
+      } @@ nonTermination(1.minute) @@ failure
+    ),
     testM("retry retries failed tests according to a schedule") {
       for {
         ref <- Ref.make(0)
