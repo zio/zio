@@ -2730,10 +2730,30 @@ object ZIO {
    */
   def reduceAllPar[R, R1 <: R, E, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
-  ): ZIO[R1, E, A] =
-    as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
-      l.zipPar(r).map(f.tupled)
-    }
+  ): ZIO[R1, E, A] = {
+    def prepend(a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]]): Iterable[ZIO[R1, E, A]] =
+      new Iterable[ZIO[R1, E, A]] {
+        override def iterator: Iterator[ZIO[R1, E, A]] = new Iterator[ZIO[R1, E, A]] {
+          private var started    = false
+          private val asIterator = as.iterator
+
+          override def hasNext: Boolean = !started || asIterator.hasNext
+
+          override def next(): ZIO[R1, E, A] =
+            if (!started) {
+              started = true
+              a
+            } else {
+              asIterator.next()
+            }
+        }
+      }
+
+    val all = prepend(a, as)
+    mergeAllPar(all)(Option.empty[A]) { (acc, elem) =>
+      Some(acc.fold(elem)(f(_, elem)))
+    }.map(_.get)
+  }
 
   /**
    * Replicates the given effect n times.

@@ -944,6 +944,34 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* Live.live(ZIO.sleep(100.millis)))))(equalTo(24))
       }
     ),
+    suite("reduceAllPar")(
+      testM("return zero element on empty input") {
+        val zeroElement = 42
+        val nonZero     = 43
+        UIO.reduceAllPar(UIO.succeed(zeroElement), Nil)((_, _) => nonZero).map {
+          assert(_)(equalTo(zeroElement))
+        }
+      },
+      testM("reduce list using function") {
+        val zeroElement  = UIO.succeed(1)
+        val otherEffects = List(3, 5, 7).map(UIO.succeed)
+        UIO.reduceAllPar(zeroElement, otherEffects)(_ + _).map {
+          assert(_)(equalTo(1 + 3 + 5 + 7))
+        }
+      },
+      testM("return error if zero is an error") {
+        val zeroElement  = ZIO.fail(1)
+        val otherEffects = List(UIO.unit, UIO.unit)
+        val reduced      = ZIO.reduceAllPar(zeroElement, otherEffects)((_, _) => ())
+        assertM(reduced.run)(fails(equalTo(1)))
+      },
+      testM("return error if it exists in list") {
+        val zeroElement = UIO.unit
+        val effects     = List(UIO.unit, ZIO.fail(1))
+        val reduced     = ZIO.reduceAllPar(zeroElement, effects)((_, _) => ())
+        assertM(reduced.run)(fails(equalTo(1)))
+      }
+    ),
     suite("replicate")(
       testM("zero") {
         val lst: Iterable[UIO[Int]] = ZIO.replicate(0)(ZIO.succeed(12))
