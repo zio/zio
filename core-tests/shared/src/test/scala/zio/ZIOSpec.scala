@@ -491,7 +491,7 @@ object ZIOSpec extends ZIOBaseSpec {
             case a => IO.succeed(2 * a)
           }
           .run
-        assertM(results)(dies(hasMessage("Boom!")))
+        assertM(results)(dies(hasMessage(equalTo("Boom!"))))
       },
       testM("runs a task that is interrupted") {
         val as = (1 to 10)
