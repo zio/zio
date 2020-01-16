@@ -2744,10 +2744,17 @@ object ZIO {
    */
   def reduceAllPar[R, R1 <: R, E, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
-  ): ZIO[R1, E, A] =
-    as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
-      l.zipPar(r).map(f.tupled)
-    }
+  ): ZIO[R1, E, A] = {
+    def prepend[Z](z: Z, zs: Iterable[Z]): Iterable[Z] =
+      new Iterable[Z] {
+        override def iterator: Iterator[Z] = Iterator(z) ++ zs.iterator
+      }
+
+    val all = prepend(a, as)
+    mergeAllPar(all)(Option.empty[A]) { (acc, elem) =>
+      Some(acc.fold(elem)(f(_, elem)))
+    }.map(_.get)
+  }
 
   /**
    * Replicates the given effect n times.
