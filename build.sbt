@@ -378,7 +378,8 @@ lazy val docs = project.module
   .dependsOn(
     coreJVM,
     streamsJVM,
-    coreTestsJVM
+    testJVM,
+    testMagnoliaJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
 

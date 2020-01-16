@@ -16,7 +16,7 @@ testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
 From there the fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
 
-```scala
+```scala mdoc:silent
 import zio._
 import zio.console._
 import zio.test._
@@ -36,7 +36,7 @@ object HelloWorldSpec extends DefaultRunnableSpec {
       for {
         _      <- sayHello
         output <- TestConsole.output
-      } yield assert(output, equalTo(Vector("Hello, World!\n")))
+      } yield assert(output)(equalTo(Vector("Hello, World!\n")))
     }
   )
 }
@@ -52,10 +52,10 @@ The library also includes built-in test versions of all the standard ZIO environ
 
 Support for property based testing is included out of the box through the `check` method and its variants and the `Gen` and `Sample` classes. For example, here is how we could write a property to test that integer addition is associative.
 
-```scala
+```scala mdoc:silent
 val associativity =
   check(Gen.anyInt, Gen.anyInt, Gen.anyInt) { (x, y, z) =>
-    assert((x + y) + z, equalTo(x + (y + z)))
+    assert((x + y) + z)(equalTo(x + (y + z)))
   }
 ```
 
@@ -63,7 +63,8 @@ If a property fails, the failure will be automatically shrunk to the smallest fa
 
 ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
 
-```scala
+```scala mdoc:silent
+import zio.random.Random
 import zio.test.magnolia._
 
 final case class Point(x: Double, y: Double)
