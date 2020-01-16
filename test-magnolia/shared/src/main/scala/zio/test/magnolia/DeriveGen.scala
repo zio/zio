@@ -73,7 +73,6 @@ object DeriveGen {
   implicit val genFloat: DeriveGen[Float]     = instance(Gen.anyFloat)
   implicit val genInt: DeriveGen[Int]         = instance(Gen.anyInt)
   implicit val genLong: DeriveGen[Long]       = instance(Gen.anyLong)
-  implicit val genNothing: DeriveGen[Nothing] = instance(Gen.empty)
   implicit val genShort: DeriveGen[Short]     = instance(Gen.anyShort)
   implicit val genString: DeriveGen[String]   = instance(Gen.anyString)
   implicit val genUnit: DeriveGen[Unit]       = instance(Gen.unit)
