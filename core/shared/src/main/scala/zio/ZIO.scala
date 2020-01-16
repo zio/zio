@@ -16,6 +16,8 @@
 
 package zio
 
+import java.util.concurrent.atomic.AtomicReferenceArray
+
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
@@ -2251,11 +2253,20 @@ object ZIO {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    as.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil)) { (a, io) =>
-        fn(a).zipWithPar(io)((b, bs) => b :: bs)
+  final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
+    val size      = as.size
+    val resultArr = new AtomicReferenceArray[B](size)
+
+    val wrappedFn: ZIOFn1[(A, Int), ZIO[R, E, Any]] = ZIOFn(fn) {
+      case (a, i) => fn(a).tap(b => ZIO.effectTotal(resultArr.set(i, b)))
+    }
+
+    foreachPar_(as.toStream.zipWithIndex)(wrappedFn).as(
+      (0 until size).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
+        resultArr.get(i) :: acc
       }
-      .refailWithTrace
+    )
+  }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -2279,20 +2290,23 @@ object ZIO {
       val size = as.size
       for {
         parentId <- ZIO.fiberId
-        result   <- Promise.make[E, Unit]
+        causes   <- Ref.make[Cause[E]](Cause.empty)
+        result   <- Promise.make[Unit, Unit]
         succeed  <- Ref.make(0)
-        _ <- ZIO.traverse_(as) {
-              f(_)
-                .foldCauseM(result.halt, _ => {
-                  succeed.update(_ + 1) >>= { succeed =>
-                    ZIO.when(succeed == size)(result.succeed(()))
-                  }
-                })
-                .fork >>= { fiber =>
-                result.await.catchAllCause(_ => fiber.interruptAs(parentId)).fork
-              }
-            }
-        _ <- result.await
+        fibers <- ZIO.traverse(as) {
+                   f(_)
+                     .foldCauseM(c => causes.update(_ && c) *> result.fail(()), _ => {
+                       (succeed.update(_ + 1) >>= { succeed =>
+                         ZIO.when(succeed == size)(result.succeed(()))
+                       }).uninterruptible
+                     })
+                     .fork
+                 }
+        interrupter = result.await
+          .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
+          .toManaged_
+          .fork
+        _ <- interrupter.use_(result.await.foldM(_ => causes.get >>= ZIO.halt, _ => ZIO.unit).refailWithTrace)
       } yield ()
     }
 
