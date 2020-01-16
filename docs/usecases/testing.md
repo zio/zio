@@ -7,8 +7,9 @@ title:  "Testing"
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-test"     % zioVersion % "test",
-  "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+  "dev.zio" %% "zio-test"          % zioVersion % "test",
+  "dev.zio" %% "zio-test-sbt"      % zioVersion % "test"
+  "dev.zio" %% "zio-test-magnolia" % zioVersion % "test" // optional
 )
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ```
@@ -59,6 +60,23 @@ val associativity =
 ```
 
 If a property fails, the failure will be automatically shrunk to the smallest failing cases to make it easier for you to diagnose the problem. And shrinking is integrated with the generation of random variables, so you are guaranteed that any shrunk counterexample will meet the conditions of your original generator.
+
+ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
+
+```scala
+import zio.test.magnolia._
+
+final case class Point(x: Double, y: Double)
+
+val genPoint: Gen[Random with Sized, Point] = DeriveGen[Point]
+ 
+sealed trait Color
+case object Red   extends Color
+case object Green extends Color
+case object Blue  extends Color
+ 
+val genColor: Gen[Random with Sized, Color] = DeriveGen[Color]
+```
 
 **Results Reporting**
 
