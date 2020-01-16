@@ -220,7 +220,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(test)
   .settings(stdSettings("zio-test-magnolia"))
   .settings(
-    crossScalaVersions -= "2.11.12",
+    crossScalaVersions --= Seq("2.11.12", dottyVersion),
     scalacOptions += "-language:experimental.macros",
     libraryDependencies += "com.propensive" %%% "magnolia" % "0.12.6"
   )
