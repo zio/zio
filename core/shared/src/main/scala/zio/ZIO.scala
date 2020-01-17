@@ -607,6 +607,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.daemonMask(restore => restore(self).fork)
 
   /**
+   * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
+   * execute the effect in the fiber, while ensuring its interruption when
+   * the effect supplied to [[ZManaged#use]] completes.
+   */
+  final def forkManaged: ZManaged[R, Nothing, Fiber[E, A]] =
+    toManaged_.fork
+
+  /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
   final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber[E, A]] =
@@ -618,6 +626,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber[E, A]] =
     onError(new ZIO.FoldCauseMFailureFn(handler)).run.fork.map(_.mapM(IO.done))
 
+  /**
+   * Unwraps the optional error, defaulting to the provided value.
+   */
   final def flattenErrorOption[E1, E2 <: E1](default: E2)(implicit ev: E <:< Option[E1]): ZIO[R, E1, A] =
     self.mapError(e => ev(e).getOrElse(default))
 
