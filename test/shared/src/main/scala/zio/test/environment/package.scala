@@ -23,13 +23,13 @@ import java.util.concurrent.TimeUnit
 import scala.collection.immutable.Queue
 import scala.math.{ log, sqrt }
 
-import zio._
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.scheduler.Scheduler
 import zio.system.System
+import zio.{ PlatformSpecific => _, _ }
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
@@ -89,6 +89,9 @@ package object environment extends PlatformSpecific {
   type TestSystem  = Has[TestSystem.Service]
 
   val liveEnvironment: ZLayer.NoDeps[Nothing, ZEnv] = ZEnv.live
+
+  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
+    (ZEnv.live >>> TestEnvironment.live).build
 
   /**
    * Provides an effect with the "real" environment as opposed to the test
