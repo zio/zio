@@ -23,13 +23,13 @@ import java.util.concurrent.TimeUnit
 import scala.collection.immutable.Queue
 import scala.math.{ log, sqrt }
 
-import zio.{ PlatformSpecific => _, _ }
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.scheduler.Scheduler
 import zio.system.System
+import zio.{ PlatformSpecific => _, _ }
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
