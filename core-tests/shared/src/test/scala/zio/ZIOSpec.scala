@@ -441,6 +441,68 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("foreachPar")(
+      testM("runs single task") {
+        val as = List(2)
+        val results = IO.foreachPar(as) { a =>
+          IO.succeed(2 * a)
+        }
+        assertM(results)(equalTo(List(4)))
+      },
+      testM("runs two tasks") {
+        val as = List(2, 3)
+        val results = IO.foreachPar(as) { a =>
+          IO.succeed(2 * a)
+        }
+        assertM(results)(equalTo(List(4, 6)))
+      },
+      testM("runs many tasks") {
+        val as = (1 to 1000)
+        val results = IO.foreachPar(as) { a =>
+          IO.succeed(2 * a)
+        }
+        assertM(results)(equalTo(as.toList.map(2 * _)))
+      },
+      testM("runs a task that fails") {
+        val as = (1 to 10)
+        val results = IO
+          .foreachPar(as) {
+            case 5 => IO.fail("Boom!")
+            case a => IO.succeed(2 * a)
+          }
+          .flip
+        assertM(results)(equalTo("Boom!"))
+      },
+      testM("runs two failed tasks") {
+        val as = (1 to 10)
+        val results = IO
+          .foreachPar(as) {
+            case 5 => IO.fail("Boom1!")
+            case 8 => IO.fail("Boom2!")
+            case a => IO.succeed(2 * a)
+          }
+          .flip
+        assertM(results)(equalTo("Boom1!") || equalTo("Boom2!"))
+      },
+      testM("runs a task that dies") {
+        val as = (1 to 10)
+        val results = IO
+          .foreachPar(as) {
+            case 5 => IO.dieMessage("Boom!")
+            case a => IO.succeed(2 * a)
+          }
+          .run
+        assertM(results)(dies(hasMessage(equalTo("Boom!"))))
+      },
+      testM("runs a task that is interrupted") {
+        val as = (1 to 10)
+        val results = IO
+          .foreachPar(as) {
+            case 5 => IO.interrupt
+            case a => IO.succeed(2 * a)
+          }
+          .run
+        assertM(results)(isInterrupted)
+      },
       testM("returns results in the same order") {
         val list = List("1", "2", "3")
         val res  = IO.foreachPar(list)(x => IO.effectTotal[Int](x.toInt))
@@ -476,6 +538,12 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("foreachPar_")(
+      testM("accumulates errors") {
+        val failures = ZIO
+          .foreachPar_(1 to 3)(IO.fail(_).uninterruptible)
+          .foldCause(_.failures.toSet, _ => Set.empty)
+        assertM(failures)(equalTo(Set(1, 2, 3)))
+      } @@ flaky,
       testM("runs all effects") {
         val as = Seq(1, 2, 3, 4, 5)
         for {
@@ -942,6 +1010,34 @@ object ZIOSpec extends ZIOBaseSpec {
       } @@ flaky,
       testM("returns success when it happens after failure") {
         assertM(ZIO.fail(42).raceAll(List(IO.succeed(24) <* Live.live(ZIO.sleep(100.millis)))))(equalTo(24))
+      }
+    ),
+    suite("reduceAllPar")(
+      testM("return zero element on empty input") {
+        val zeroElement = 42
+        val nonZero     = 43
+        UIO.reduceAllPar(UIO.succeed(zeroElement), Nil)((_, _) => nonZero).map {
+          assert(_)(equalTo(zeroElement))
+        }
+      },
+      testM("reduce list using function") {
+        val zeroElement  = UIO.succeed(1)
+        val otherEffects = List(3, 5, 7).map(UIO.succeed)
+        UIO.reduceAllPar(zeroElement, otherEffects)(_ + _).map {
+          assert(_)(equalTo(1 + 3 + 5 + 7))
+        }
+      },
+      testM("return error if zero is an error") {
+        val zeroElement  = ZIO.fail(1)
+        val otherEffects = List(UIO.unit, UIO.unit)
+        val reduced      = ZIO.reduceAllPar(zeroElement, otherEffects)((_, _) => ())
+        assertM(reduced.run)(fails(equalTo(1)))
+      },
+      testM("return error if it exists in list") {
+        val zeroElement = UIO.unit
+        val effects     = List(UIO.unit, ZIO.fail(1))
+        val reduced     = ZIO.reduceAllPar(zeroElement, effects)((_, _) => ())
+        assertM(reduced.run)(fails(equalTo(1)))
       }
     ),
     suite("replicate")(
@@ -2615,6 +2711,14 @@ object ZIOSpec extends ZIOBaseSpec {
         val io          = ZIO.interrupt.zipPar(IO.succeed(1))
         val interrupted = io.sandbox.either.map(_.left.map(_.interrupted))
         assertM(interrupted)(isLeft(isTrue))
+      }
+    ),
+    suite("toFuture")(
+      testM("should fail with ZTrace attached") {
+        for {
+          future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
+          result <- ZIO.fromFuture(_ => future).either
+        } yield assert(result)(isLeft(hasThrowableCause(hasThrowableCause(hasMessage(containsString("Fiber:Id("))))))
       }
     )
   )

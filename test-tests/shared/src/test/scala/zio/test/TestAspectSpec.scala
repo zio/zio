@@ -91,7 +91,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       @@ failure,
     test("failure does not make a test pass if the specified failure does not match") {
       assert(throw new RuntimeException())(isFalse)
-    } @@ failure(diesWith(hasMessage("boom")))
+    } @@ failure(diesWith(hasMessage(equalTo("boom"))))
       @@ failure,
     test("failure makes tests pass on any assertion failure") {
       assert(true)(equalTo(false))

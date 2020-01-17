@@ -54,9 +54,11 @@ object BuildHelper {
       buildInfoObject := "BuildInfo"
     )
 
+  val dottyVersion = "0.22.0-bin-20200107-21a5608-NIGHTLY"
+
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.22.0-bin-20200107-21a5608-NIGHTLY",
+    crossScalaVersions += dottyVersion,
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")

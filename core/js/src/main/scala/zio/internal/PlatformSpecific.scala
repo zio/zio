@@ -20,6 +20,8 @@ import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
 
 import scala.concurrent.ExecutionContext
 
+import com.github.ghik.silencer.silent
+
 import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
@@ -90,4 +92,7 @@ private[internal] trait PlatformSpecific {
   final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
 
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
+
+  @silent("is never used")
+  final def forceThrowableCause(throwable: => Throwable, newCause: => Throwable): Unit = ()
 }

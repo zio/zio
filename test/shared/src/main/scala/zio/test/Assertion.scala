@@ -296,8 +296,14 @@ object Assertion extends AssertionVariants {
   /**
    * Makes a new assertion that requires an exception to have a certain message.
    */
-  def hasMessage(message: String): Assertion[Throwable] =
-    assertion[Throwable]("hasMessage")(param(message))(th => th.getMessage == message)
+  def hasMessage(message: Assertion[String]): Assertion[Throwable] =
+    Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage))
+
+  /**
+   * Makes a new assertion that requires an exception to have a certain cause.
+   */
+  def hasThrowableCause(cause: Assertion[Throwable]): Assertion[Throwable] =
+    Assertion.assertionRec("hasThrowableCause")(param(cause))(cause)(th => Some(th.getCause))
 
   /**
    * Makes a new assertion that requires a given string to end with the specified suffix.

@@ -189,6 +189,40 @@ object CauseSpec extends ZIOBaseSpec {
           assert(result)(isTrue)
         }
       }
+    ),
+    suite("squashWithTrace")(
+      testM("converts Cause to original exception with ZTraces in root cause") {
+        val throwable = (Gen.alphaNumericString <*> Gen.alphaNumericString).flatMap {
+          case (msg1, msg2) =>
+            Gen
+              .elements(
+                new IllegalArgumentException(msg2),
+                // null cause can't be replaced using Throwable.initCause() on the JVM
+                new IllegalArgumentException(msg2, null)
+              )
+              .map(new Throwable(msg1, _))
+        }
+        val failOrDie = Gen.elements[Throwable => Cause[Throwable]](Cause.fail, Cause.die)
+        check(throwable, failOrDie) { (e, makeCause) =>
+          val rootCause        = makeCause(e)
+          val cause            = Cause.traced(rootCause, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))
+          val causeMessage     = e.getCause.getMessage
+          val throwableMessage = e.getMessage
+          val renderedCause    = Cause.stackless(cause).prettyPrint
+          val squashed         = cause.squashWithTrace(identity)
+
+          assert(squashed)(
+            equalTo(e) &&
+              hasMessage(equalTo(throwableMessage)) &&
+              hasThrowableCause(
+                isSubtype[IllegalArgumentException](
+                  hasMessage(equalTo(causeMessage)) &&
+                    hasThrowableCause(hasMessage(equalTo(renderedCause)))
+                )
+              )
+          )
+        }
+      }
     )
   )
 

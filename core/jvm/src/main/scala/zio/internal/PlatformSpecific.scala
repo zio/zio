@@ -98,4 +98,18 @@ private[internal] trait PlatformSpecific {
     Collections.synchronizedMap(new WeakHashMap[A, B]())
 
   final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
+
+  /**
+   * calling `initCause()` on [[java.lang.Throwable]] may fail on the JVM if `newCause != this`,
+   * which may happen if the cause is set to null.
+   * This works around this with reflection.
+   */
+  def forceThrowableCause(throwable: Throwable, newCause: Throwable): Unit = {
+    import scala.util.control.Exception._
+    ignoring(classOf[Throwable]) {
+      val causeField = classOf[Throwable].getDeclaredField("cause")
+      causeField.setAccessible(true)
+      causeField.set(throwable, newCause)
+    }
+  }
 }

@@ -16,13 +16,23 @@
 
 package zio.test
 
-import zio.{ Managed, ZIO }
+import zio.{ Managed, UIO, ZIO }
+
+/**
+ * A `TestExecutor[R, E, L, T, S]` is capable of executing specs containing
+ * tests of type `T`, annotated with labels of type `L`, that require an
+ * environment `R` and may fail with an `E` or succeed with a `S`.
+ */
+trait TestExecutor[+R, E, L, -T, +S] {
+  def run(spec: ZSpec[R, E, L, T], defExec: ExecutionStrategy): UIO[ExecutedSpec[E, L, S]]
+  def environment: Managed[Nothing, R]
+}
 
 object TestExecutor {
   def managed[R <: Annotations, E, L, S](
-    environment: Managed[Nothing, R]
-  ): TestExecutor[R, E, L, S, S] =
-    (spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy) => {
+    env: Managed[Nothing, R]
+  ): TestExecutor[R, E, L, S, S] = new TestExecutor[R, E, L, S, S] {
+    def run(spec: ZSpec[R, E, L, S], defExec: ExecutionStrategy): UIO[ExecutedSpec[E, L, S]] =
       spec.annotated
         .provideManaged(environment)
         .foreachExec(defExec)(
@@ -34,5 +44,6 @@ object TestExecutor {
             case (success, annotations) => ZIO.succeed((Right(success), annotations))
           }
         )
-    }
+    val environment = env
+  }
 }
