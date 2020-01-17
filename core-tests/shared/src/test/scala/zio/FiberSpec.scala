@@ -114,17 +114,17 @@ object FiberSpec extends ZIOBaseSpec {
     } @@ nonFlaky,
     suite("stack safety")(
       testM("awaitAll") {
-        assertM(sequence.flatMap(Fiber.awaitAll))(anything)
+        assertM(Fiber.awaitAll(fibers))(anything)
       },
       testM("joinAll") {
-        assertM(sequence.flatMap(Fiber.joinAll))(anything)
+        assertM(Fiber.joinAll(fibers))(anything)
       },
       testM("collectAll") {
-        assertM(sequence.map(Fiber.collectAll).flatMap(_.join))(anything)
+        assertM(Fiber.collectAll(fibers).join)(anything)
       }
     )
   )
 
   val (initial, update) = ("initial", "update")
-  val sequence          = ZIO.sequence(List.fill(100000)(ZIO.unit.fork))
+  val fibers            = List.fill(100000)(Fiber.unit)
 }
