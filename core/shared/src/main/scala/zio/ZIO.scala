@@ -2300,24 +2300,34 @@ object ZIO {
     else {
       val size = as.size
       for {
-        parentId <- ZIO.fiberId
-        causes   <- Ref.make[Cause[E]](Cause.empty)
-        result   <- Promise.make[Unit, Unit]
-        succeed  <- Ref.make(0)
+        parentId       <- ZIO.fiberId
+        causes         <- Ref.make[Cause[E]](Cause.empty)
+        result         <- Promise.make[Nothing, Boolean]
+        failureTrigger <- Promise.make[Unit, Unit]
+        count          <- Ref.make(0)
         fibers <- ZIO.traverse(as) {
                    f(_)
-                     .foldCauseM(c => causes.update(_ && c) *> result.fail(()), _ => {
-                       (succeed.update(_ + 1) >>= { succeed =>
-                         ZIO.when(succeed == size)(result.succeed(()))
+                     .foldCauseM(c => causes.update(_ && c) *> failureTrigger.fail(()), _ => ZIO.unit)
+                     .ensuring {
+                       (count.update(_ + 1) >>= { done =>
+                         ZIO.when(done == size) {
+                           result.complete(failureTrigger.succeed(()))
+                         }
                        }).uninterruptible
-                     })
+                     }
                      .fork
                  }
-        interrupter = result.await
+        interrupter = failureTrigger.await
           .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
           .toManaged_
           .fork
-        _ <- interrupter.use_(result.await.foldM(_ => causes.get >>= ZIO.halt, _ => ZIO.unit).refailWithTrace)
+        _ <- interrupter.use_ {
+              ZIO
+                .whenM(result.await.map(!_)) {
+                  causes.get >>= ZIO.halt
+                }
+                .refailWithTrace
+            }
       } yield ()
     }
 
