@@ -19,14 +19,21 @@ package zio.test.environment
 import zio.blocking.Blocking
 import zio.test.Annotations
 import zio.test.Sized
-import zio.{ Managed, ZEnv }
+import zio.{ ZEnv, ZLayer }
 
 trait PlatformSpecific {
   type TestEnvironment =
     ZEnv with Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
 
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] =
-    (ZEnv.live >>>
-      (Annotations.live ++ Blocking.live ++ (Live.default >>> TestClock.default) ++ TestConsole.default ++ Live.default ++ TestRandom.random ++ Sized
-        .live(100) ++ TestSystem.default)).build
+  object TestEnvironment {
+    def live: ZLayer[ZEnv, Nothing, TestEnvironment] =
+      Annotations.live ++
+        Blocking.live ++
+        (Live.default >>> TestClock.default) ++
+        TestConsole.default ++
+        Live.default ++
+        TestRandom.random ++
+        Sized.live(100) ++
+        TestSystem.default
+  }
 }

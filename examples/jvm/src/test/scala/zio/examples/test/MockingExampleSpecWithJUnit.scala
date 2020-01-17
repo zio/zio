@@ -1,11 +1,14 @@
 package zio.examples.test
 
-import zio.{clock, console, random}
-import zio.test.{assertM, suite, testM}
+import zio.console.Console
+import zio.random.Random
 import zio.test.Assertion._
+import zio.test.environment.TestEnvironment
 import zio.test.junit.JUnitRunnableSpec
-import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.mock.Expectation.{unit, value, valueF}
+import zio.test.mock.{MockClock, MockConsole, MockRandom}
+import zio.test.{assertM, suite, testM}
+import zio.{clock, console, random}
 
 class MockingExampleSpecWithJUnit extends JUnitRunnableSpec {
 
@@ -51,14 +54,14 @@ class MockingExampleSpecWithJUnit extends JUnitRunnableSpec {
       assertM(result)(equalTo(42))
     },
     testM("expect calls from multiple modules") {
-      import MockRandom._
       import MockConsole._
+      import MockRandom._
 
       val app        = random.nextInt.map(_.toString) >>= console.putStrLn
       val randomEnv  = nextInt._1 returns value(42)
       val consoleEnv = putStrLn(equalTo("42")) returns unit
 
-      val result = app.provideLayer(randomEnv ++ consoleEnv)
+      val result = app.provideLayer[Nothing, TestEnvironment, Random with Console](randomEnv ++ consoleEnv)
       assertM(result)(isUnit)
     },
     testM("failure if invalid method") {

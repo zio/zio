@@ -54,7 +54,7 @@ object BuildHelper {
       buildInfoObject := "BuildInfo"
     )
 
-  val dottyVersion = "0.22.0-bin-20200107-21a5608-NIGHTLY"
+  val dottyVersion = "0.22.0-bin-20200116-9ab1842-NIGHTLY"
 
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
@@ -186,7 +186,7 @@ object BuildHelper {
       case Some((2, x)) if x >= 12 =>
         platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x")
       case _ if isDotty =>
-        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "dotty")
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "dotty")
       case _ =>
         Nil
     }
