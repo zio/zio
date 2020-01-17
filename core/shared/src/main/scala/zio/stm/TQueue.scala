@@ -102,18 +102,6 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 
     ref.get.flatMap(go)
   }
-
-  /**
-   * Compares two Queues with the same element type and returns the longest one. If equal it returns the left side.
-   */
-  def longest(t: TQueue[A]): STM[Nothing, TQueue[A]] =
-    (size <*> t.size).map { case (a, b) => if (a >= b) this else t }
-
-  /**
-   * Returns the underlying queue
-   */
-  def underlying: STM[Nothing, TRef[ScalaQueue[A]]] = STM.succeed(ref)
-
 }
 
 object TQueue {
