@@ -111,8 +111,20 @@ object FiberSpec extends ZIOBaseSpec {
         _      <- fiber.interrupt
         _      <- latch2.await
       } yield assertCompletes
-    } @@ nonFlaky
+    } @@ nonFlaky,
+    suite("stack safety")(
+      testM("awaitAll") {
+        assertM(sequence.flatMap(Fiber.awaitAll))(anything)
+      },
+      testM("joinAll") {
+        assertM(sequence.flatMap(Fiber.joinAll))(anything)
+      },
+      testM("collectAll") {
+        assertM(sequence.map(Fiber.collectAll).flatMap(_.join))(anything)
+      }
+    )
   )
 
   val (initial, update) = ("initial", "update")
+  val sequence          = ZIO.sequence(List.fill(100000)(ZIO.unit.fork))
 }

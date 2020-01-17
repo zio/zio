@@ -2261,7 +2261,7 @@ object ZIO {
       case (a, i) => fn(a).tap(b => ZIO.effectTotal(resultArr.set(i, b)))
     }
 
-    foreachPar_(as.toStream.zipWithIndex)(wrappedFn).as(
+    foreachPar_(as.zipWithIndex)(wrappedFn).as(
       (0 until size).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
         resultArr.get(i) :: acc
       }
