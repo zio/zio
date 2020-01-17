@@ -122,7 +122,7 @@ object FiberSpec extends ZIOBaseSpec {
       testM("collectAll") {
         assertM(Fiber.collectAll(fibers).join)(anything)
       }
-    )
+    ) @@ sequential
   )
 
   val (initial, update) = ("initial", "update")
