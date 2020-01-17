@@ -121,78 +121,78 @@ sealed trait Chunk[+A] { self =>
    * Returns the element that satisfies the predicate.
    */
   def find(f: A => Boolean): Option[A] = {
-    val len  = self.length
+    val len               = self.length
     var result: Option[A] = None
-    var i = 0
+    var i                 = 0
     while (i < len && result.isEmpty) {
       val elem = self(i)
-      if(f(elem)) result = Some(elem)
+      if (f(elem)) result = Some(elem)
       i += 1
     }
     result
   }
-  
+
   /**
    * Returns the first element of this chunk if it exists.
    */
   def headOption: Option[A] =
-    if(isEmpty) None else Some(self(0))
+    if (isEmpty) None else Some(self(0))
 
   /**
    * Returns the last element of this chunk if it exists.
    */
-  def lastOption: Option[A] = 
-    if(isEmpty) None else Some(self(self.length - 1))
-  
+  def lastOption: Option[A] =
+    if (isEmpty) None else Some(self(self.length - 1))
 
   /**
    * Returns the index for which the given predicate is satisfied.
    */
-  def indexWhere(f: A => Boolean): Option[Int] = 
-   indexWhere(f, 0)
-   
+  def indexWhere(f: A => Boolean): Option[Int] =
+    indexWhere(f, 0)
+
   /**
    * Returns the index for which the given predicate is satisfied after or at some given index.
    */
   def indexWhere(f: A => Boolean, from: Int): Option[Int] = {
-    val len = self.length
-    var i = math.max(from, 0)
+    val len    = self.length
+    var i      = math.max(from, 0)
     var result = -1
-    while(result < 0 && i < len) {
-      if(f(self(i))) result = i
-      else i += 1
-   }
 
-    if(result == -1) None else Some(result)
+    while (result < 0 && i < len) {
+      if (f(self(i))) result = i
+      else i += 1
+    }
+
+    if (result == -1) None else Some(result)
   }
 
   /**
    * Determines whether a predicate is satisfied for at least one element of this chunk.
    */
   def exists(f: A => Boolean): Boolean = {
-    val len  = self.length
+    val len    = self.length
     var exists = false
-    var i = 0
+    var i      = 0
     while (i < len) {
-      if(f(self(i))) exists = true
+      if (f(self(i))) exists = true
       i += 1
     }
     exists
-}
+  }
 
   /**
    * Determines whether a predicate is satisfied for all elements of this chunk.
    */
   def forall(f: A => Boolean): Boolean = {
-    val len  = self.length
+    val len    = self.length
     var exists = true
-    var i = 0
+    var i      = 0
     while (exists && i < len) {
-     exists = f(self(i))
-     i += 1
+      exists = f(self(i))
+      i += 1
     }
     exists
-}
+  }
 
   /**
    * Returns a filtered subset of this chunk.
