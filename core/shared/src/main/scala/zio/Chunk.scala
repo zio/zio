@@ -144,17 +144,26 @@ sealed trait Chunk[+A] { self =>
   def lastOption: Option[A] = 
     if(isEmpty) None else Some(self(self.length - 1))
   
+
   /**
    * Returns the index for which the given predicate is satisfied.
    */
-  def indexWhere(f: A => Boolean): Option[Int] = {
-    var i = 0
+  def indexWhere(f: A => Boolean): Option[Int] = 
+   indexWhere(f, 0)
+   
+  /**
+   * Returns the index for which the given predicate is satisfied after or at some given index.
+   */
+  def indexWhere(f: A => Boolean, from: Int): Option[Int] = {
+    val len = self.length
+    var i = math.max(from, 0)
     var result = -1
-    while (result < 0 && i < size) {
-      if (f(apply(i))) result = i
-      i += 1
-    }
-    if (result == -1) None else Some(result)
+    while(result < 0 && i < len) {
+      if(f(self(i))) result = i
+      else i += 1
+   }
+
+    if(result == -1) None else Some(result)
   }
 
   /**
