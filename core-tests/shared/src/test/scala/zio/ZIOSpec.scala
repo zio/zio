@@ -543,7 +543,7 @@ object ZIOSpec extends ZIOBaseSpec {
           .foreachPar_(1 to 3)(IO.fail(_).uninterruptible)
           .foldCause(_.failures.toSet, _ => Set.empty)
         assertM(failures)(equalTo(Set(1, 2, 3)))
-      },
+      } @@ flaky,
       testM("runs all effects") {
         val as = Seq(1, 2, 3, 4, 5)
         for {
