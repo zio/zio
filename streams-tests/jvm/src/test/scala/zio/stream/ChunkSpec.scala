@@ -4,6 +4,7 @@ import ChunkUtils._
 
 import zio.random.Random
 import zio.test.Assertion.{ equalTo, isLeft }
+import zio.test.TestAspect.exceptScala211
 import zio.test._
 import zio.{ Chunk, IO, UIO, ZIOBaseSpec }
 
@@ -84,10 +85,10 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     testM("indexWhere") {
       val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
-      check(mediumChunks(stringGen), fn, Gen.int(0, Int.MaxValue)) { (chunk, p, from) => // TODO should test for all ints once it can be excluded from running against 2.11
+      check(mediumChunks(stringGen), fn, intGen) { (chunk, p, from) =>
         assert(chunk.indexWhere(p, from).getOrElse(-1))(equalTo(chunk.toSeq.indexWhere(p, from)))
       }
-    },
+    } @@ exceptScala211, // TODO remove me when scala/bug#11852 is fixed
     testM("exists") {
       val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
       check(mediumChunks(stringGen), fn) { (chunk, p) =>
