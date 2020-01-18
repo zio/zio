@@ -118,7 +118,7 @@ sealed trait Chunk[+A] { self =>
   }
 
   /**
-   * Returns the element that satisfies the predicate.
+   * Returns the first element that satisfies the predicate.
    */
   def find(f: A => Boolean): Option[A] = {
     val len               = self.length
@@ -145,13 +145,13 @@ sealed trait Chunk[+A] { self =>
     if (isEmpty) None else Some(self(self.length - 1))
 
   /**
-   * Returns the index for which the given predicate is satisfied.
+   * Returns the first index for which the given predicate is satisfied.
    */
   def indexWhere(f: A => Boolean): Option[Int] =
     indexWhere(f, 0)
 
   /**
-   * Returns the index for which the given predicate is satisfied after or at some given index.
+   * Returns the first index for which the given predicate is satisfied after or at some given index.
    */
   def indexWhere(f: A => Boolean, from: Int): Option[Int] = {
     val len    = self.length
