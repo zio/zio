@@ -72,6 +72,40 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.flatMap(f).toSeq)(equalTo(c.toSeq.flatMap(f.andThen(_.toSeq))))
       }
     },
+    testM("headOption") {
+      check(mediumChunks(intGen)) { c =>
+        assert(c.headOption)(equalTo(c.toSeq.headOption))
+      }
+    },
+    testM("lastOption") {
+      check(mediumChunks(intGen)) { c =>
+        assert(c.lastOption)(equalTo(c.toSeq.lastOption))
+      }
+    },
+    testM("indexWhere") {
+      val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+      check(mediumChunks(stringGen), fn, Gen.int(0, Int.MaxValue)) { (chunk, p, from) => // TODO should test for all ints once it can be excluded from running against 2.11
+        assert(chunk.indexWhere(p, from).getOrElse(-1))(equalTo(chunk.toSeq.indexWhere(p, from)))
+      }
+    },
+    testM("exists") {
+      val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+      check(mediumChunks(stringGen), fn) { (chunk, p) =>
+        assert(chunk.exists(p))(equalTo(chunk.toSeq.exists(p)))
+      }
+    },
+    testM("forall") {
+      val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+      check(mediumChunks(stringGen), fn) { (chunk, p) =>
+        assert(chunk.forall(p))(equalTo(chunk.toSeq.forall(p)))
+      }
+    },
+    testM("find") {
+      val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+      check(mediumChunks(stringGen), fn) { (chunk, p) =>
+        assert(chunk.find(p))(equalTo(chunk.toSeq.find(p)))
+      }
+    },
     testM("filter") {
       val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
       check(mediumChunks(stringGen), fn) { (chunk, p) =>
