@@ -110,6 +110,27 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
       }
     ),
+    testM("Stream.buffer is safe to pull again") {
+      assertM(
+        Stream(1, 2, 3, 4, 5)
+          .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+          .buffer(2)
+          .process
+          .use(nPulls(_, 7))
+      )(
+        equalTo(
+          List(
+            Right(1),
+            Left(Some("Ouch 2")),
+            Right(3),
+            Left(Some("Ouch 4")),
+            Right(5),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
     testM("Stream.drop is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5, 6, 7)

@@ -749,9 +749,19 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def buffer(capacity: Int): ZStream[R, E, A] =
-    ZStream.managed(self.toQueue(capacity)).flatMap { queue =>
-      ZStream.fromQueue(queue).unTake
-    }
+    ZStream.managed {
+      for {
+        done  <- Ref.make(false).toManaged_
+        queue <- self.toQueue(capacity)
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else
+            queue.take.flatMap(Pull.fromTake).catchSome {
+              case None => done.set(true) *> Pull.end
+            }
+        }
+      } yield pull
+    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Creates a stream that passes its elements through a queue that drops elements
@@ -1753,7 +1763,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
    * signalled.
    */
-  final def into[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, Nothing, Any, Take[E1, A1], Any]): ZIO[R1, E1, Unit] =
+  final def into[R1 <: R, E1 >: E, A1 >: A](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A1], Any]
+  ): ZIO[R1, E1, Unit] =
     intoManaged(queue).use_(UIO.unit)
 
   /**
@@ -1761,14 +1773,23 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * composition.
    */
   final def intoManaged[R1 <: R, E1 >: E, A1 >: A](
-    queue: ZQueue[R1, E1, Nothing, Any, Take[E1, A1], Any]
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A1], Any]
   ): ZManaged[R1, E1, Unit] =
-    self
-      .foreachManaged(a => queue.offer(Take.Value(a)).unit)
-      .foldCauseM(
-        cause => queue.offer(Take.Fail(cause)).unit.toManaged_,
-        _ => queue.offer(Take.End).unit.toManaged_
-      )
+    for {
+      as <- self.process
+      pull = {
+        def go: ZIO[R1, Nothing, Unit] =
+          as.foldCauseM(
+            Cause
+              .sequenceCauseOption(_)
+              .fold[ZIO[R1, Nothing, Unit]](queue.offer(Take.End).unit)(c => queue.offer(Take.Fail(c)) *> go),
+            a => queue.offer(Take.Value(a)) *> go
+          )
+
+        go
+      }
+      _ <- pull.toManaged_
+    } yield ()
 
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
@@ -2442,7 +2463,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    */
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, Nothing, Queue[Take[E1, A1]]] =
     for {
-      queue <- ZManaged.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
+      queue <- Queue.bounded[Take[E1, A1]](capacity).toManaged(_.shutdown)
       _     <- self.intoManaged(queue).fork
     } yield queue
 
