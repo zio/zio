@@ -88,7 +88,7 @@ object ChunkSpec extends ZIOBaseSpec {
       check(mediumChunks(stringGen), fn, intGen) { (chunk, p, from) =>
         assert(chunk.indexWhere(p, from).getOrElse(-1))(equalTo(chunk.toSeq.indexWhere(p, from)))
       }
-    } @@ exceptScala211, // TODO remove me when scala/bug#11852 is fixed
+    } @@ exceptScala211,
     testM("exists") {
       val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
       check(mediumChunks(stringGen), fn) { (chunk, p) =>
