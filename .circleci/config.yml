@@ -9,8 +9,8 @@ scala_212: &scala_212
 scala_213: &scala_213
   SCALA_VERSION: 2.13.1
 
-# scala_dotty: &scala_dotty
-#   SCALA_VERSION: 0.22.0-bin-20200107-21a5608-NIGHTLY
+scala_dotty: &scala_dotty
+  SCALA_VERSION: 0.22.0-bin-20200116-9ab1842-NIGHTLY
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -293,13 +293,13 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
-  # test_dotty_jdk8_jvm:
-  #   <<: *testJVMDotty
-  #   <<: *machine_ubuntu
-  #   <<: *machine_resource
-  #   environment:
-  #     - <<: *scala_dotty
-  #     - <<: *jdk_8
+  test_dotty_jdk8_jvm:
+    <<: *testJVMDotty
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_dotty
+      - <<: *jdk_8
 
   test_212_jdk11_jvm:
     <<: *testJVM
@@ -378,11 +378,11 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
-      # - test_dotty_jdk8_jvm:
-      #     requires:
-      #       - lint
-      #     filters:
-      #       <<: *filter_tags
+      - test_dotty_jdk8_jvm:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
       - test_212_jdk11_jvm:
           requires:
             - lint

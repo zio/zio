@@ -2,6 +2,7 @@ package zio.test
 
 import scala.{ Console => SConsole }
 
+import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
 import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
 import zio.{ Cause, Managed, ZIO }
@@ -43,7 +44,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironmentManaged)
             .run(spec)
-            .provideLayer(TestLogger.fromConsole ++ TestClock.default)
+            .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
@@ -51,7 +52,9 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironmentManaged)
                   .run(spec)
-                  .provideLayer(TestLogger.fromConsole ++ TestClock.default)
+                  .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+                    TestLogger.fromConsole ++ TestClock.default
+                  )
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
