@@ -229,10 +229,28 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) ignore else identity
 
   /**
-   * An aspect that runs tests on all versions except Scala2.
+   * An aspect that runs tests on all versions except Scala 2.
    */
   val exceptScala2: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala2) ignore else identity
+
+  /**
+   * An aspect that runs tests on all versions except Scala 2.11.
+   */
+  val exceptScala211: TestAspectAtLeastR[Annotations] =
+    if (TestVersion.isScala211) ignore else identity
+
+  /**
+   * An aspect that runs tests on all versions except Scala 2.12.
+   */
+  val exceptScala212: TestAspectAtLeastR[Annotations] =
+    if (TestVersion.isScala212) ignore else identity
+
+  /**
+   * An aspect that runs tests on all versions except Scala 2.13.
+   */
+  val exceptScala213: TestAspectAtLeastR[Annotations] =
+    if (TestVersion.isScala213) ignore else identity
 
   /**
    * An aspect that sets suites to the specified execution strategy, but only
@@ -495,10 +513,52 @@ object TestAspect extends TimeoutVariants {
     if (TestVersion.isScala2) that else identity
 
   /**
+   * An aspect that applies the specified aspect on Scala 2.11.
+   */
+  def scala211[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
+    if (TestVersion.isScala211) that else identity
+
+  /**
+   * An aspect that applies the specified aspect on Scala 2.12.
+   */
+  def scala212[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
+    if (TestVersion.isScala212) that else identity
+
+  /**
+   * An aspect that applies the specified aspect on Scala 2.13.
+   */
+  def scala213[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE, LowerS, UpperS] =
+    if (TestVersion.isScala213) that else identity
+
+  /**
    * An aspect that only runs tests on Scala 2.
    */
   val scala2Only: TestAspectAtLeastR[Annotations] =
     if (TestVersion.isScala2) identity else ignore
+
+  /**
+   * An aspect that only runs tests on Scala 2.11.
+   */
+  val scala211Only: TestAspectAtLeastR[Annotations] =
+    if (TestVersion.isScala211) identity else ignore
+
+  /**
+   * An aspect that only runs tests on Scala 2.12.
+   */
+  val scala212Only: TestAspectAtLeastR[Annotations] =
+    if (TestVersion.isScala212) identity else ignore
+
+  /**
+   * An aspect that only runs tests on Scala 2.13.
+   */
+  val scala213Only: TestAspectAtLeastR[Annotations] =
+    if (TestVersion.isScala213) identity else ignore
 
   /**
    * An aspect that converts ignored tests into test failures.
