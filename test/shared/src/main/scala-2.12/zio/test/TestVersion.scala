@@ -25,12 +25,12 @@ object TestVersion {
   /**
    * Returns whether the current Scala version is Dotty.
    */
-  val isDotty: Boolean = true
+  val isDotty: Boolean = false
 
   /**
    * Returns whether the current Scala version is Scala 2.
    */
-  val isScala2: Boolean = false
+  val isScala2: Boolean = true
 
   /**
    * Returns whether the current Scala version is Scala 2.11.
@@ -40,7 +40,7 @@ object TestVersion {
   /**
    * Returns whether the current Scala version is Scala 2.12.
    */
-  val isScala212: Boolean = false
+  val isScala212: Boolean = true
 
   /**
    * Returns whether the current Scala version is Scala 2.13.
