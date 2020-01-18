@@ -84,7 +84,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     testM("indexWhere") {
       val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
-      check(mediumChunks(stringGen), fn, intGen) { (chunk, p, from) =>
+      check(mediumChunks(stringGen), fn, Gen.int(0, Int.MaxValue)) { (chunk, p, from) => // TODO should test for all ints once it can be excluded from running against 2.11
         assert(chunk.indexWhere(p, from).getOrElse(-1))(equalTo(chunk.toSeq.indexWhere(p, from)))
       }
     },
