@@ -761,42 +761,70 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * queue, until it has been exhausted, at which point it finishes with the signal
    * from the promise.
    */
-  private final def bufferSignal[A1 >: A](queue: Queue[A1]): ZStream[R, E, A1] =
+  private final def bufferSignal[E1 >: E, A1 >: A](queue: Queue[(Take[E1, A1], Promise[Nothing, Unit])]): ZStream[R, E1, A1] =
     ZStream.managed {
       for {
-        // Signal stream error or end through the result type of the promise
-        // for better composability with other effects.
-        signal <- Promise.make[Option[E], Nothing].toManaged_
-        _ <- self
-              .foreachManaged(a => queue.offer(a).unit)
-              .foldM(
-                e => signal.fail(Some(e)).unit.toManaged_,
-                _ => signal.fail(None).unit.toManaged_
-              )
-              .fork
-      } yield (queue, signal)
-    }.flatMap {
-      case (queue, signal) =>
-        def takeFirst(exit: Exit[Nothing, A1], fiber: Fiber[Option[E], Nothing]): Pull[Any, Nothing, A1] =
-          fiber.interrupt *> exit.fold(Pull.halt, Pull.emit)
+        as <- self.process
+        start <- Promise.make[Nothing, Unit].toManaged_
+        _ <- start.succeed(()).toManaged_
+        drain <- Ref.make[(Take[E1, A1], Promise[Nothing, Unit])]((Take.End, start)).toManaged_
+        done <- Ref.make(false).toManaged_
+        upstream = {
+          def offer(take: Take[E1, A1]): UIO[Unit] = take match {
+            case Take.Value(_) =>
+              for {
+                p <- Promise.make[Nothing, Unit]
+                t = (take, p)
+                _ <- UIO.effectTotal(println(s"offering $t"))
+                added <- queue.offer(t)
+                _ <- UIO.effectTotal(println(s"offer accepted: $added"))
+                _ <- drain.set(t).when(added)
+                nt <- drain.get
+                _ <- UIO.effectTotal(println(s"current state: $nt"))
+              } yield ()
 
-        def finishStream(exit: Exit[Option[E], Nothing], fiber: Fiber[Nothing, A1]): Pull[Any, E, Nothing] =
-          fiber.interrupt *> exit.fold(
-            c => Cause.sequenceCauseOption(c).fold[Pull[Any, E, Nothing]](Pull.end)(Pull.halt),
-            identity
-          )
-
-        def signalFirst(exit: Exit[Option[E], Nothing], fiber: Fiber[Nothing, A1]): Pull[Any, E, A1] =
-          queue.size.flatMap { size =>
-            if (size > 0) fiber.join
-            else fiber.poll.flatMap(_.fold[Pull[Any, E, A1]](finishStream(exit, fiber))(_.fold(Pull.halt, Pull.emit)))
+            case _ =>
+              for {
+                t <- drain.get
+                _ <- UIO.effectTotal(println(s"waiting for $t"))
+                _ <- t._2.await
+                p <- Promise.make[Nothing, Unit]
+                nt = (take, p)
+                _ <- UIO.effectTotal(println(s"offering $nt"))
+                added <- queue.offer(nt)
+                _ <- UIO.effectTotal(println(s"offer accepted: $added"))
+                _ <- drain.set(nt).when(added)
+                ntt <- drain.get
+                _ <- UIO.effectTotal(println(s"current state: $ntt"))
+              } yield ()
           }
 
-        val pull: Pull[Any, E, A1] =
-          queue.take.raceWith(signal.await)(takeFirst, signalFirst)
+          def go: ZIO[R, Nothing, Unit] =
+            Take.fromPull(as).flatMap { take =>
+              offer(take) *> (take match {
+                case Take.End => UIO.unit
+                case _ => go
+              })
+            }
 
-        ZStream.repeatEffectOption(pull)
-    }
+          go
+        }
+        _ <- upstream.toManaged_.fork
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else {
+            queue.take.flatMap { case (take, p) =>
+              UIO.effectTotal(println(s"took ${(take, p)}")) *>
+              p.succeed(()) *> UIO.effectTotal(s"unblocked $p") *>
+              (take match {
+                case Take.End => done.set(true)
+                case _ => UIO.unit
+              }) *> Pull.fromTake(take)
+            }
+          }
+        }
+      } yield pull
+    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
@@ -805,7 +833,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferDropping(capacity: Int): ZStream[R, E, A] =
-    ZStream.managed(ZManaged.make(Queue.dropping[A](capacity))(_.shutdown)).flatMap(bufferSignal)
+    ZStream
+      .managed(Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown))
+      .flatMap(bufferSignal)
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
@@ -814,7 +844,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferSliding(capacity: Int): ZStream[R, E, A] =
-    ZStream.managed(ZManaged.make(Queue.sliding[A](capacity))(_.shutdown)).flatMap(bufferSignal)
+    ZStream
+      .managed(Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown))
+      .flatMap(bufferSignal)
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
