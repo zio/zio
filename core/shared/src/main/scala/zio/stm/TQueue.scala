@@ -60,10 +60,24 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
    * the collection.
    */
   def offerAll(as: Iterable[A]): STM[Nothing, Unit] =
-    ref.get.flatMap { q =>
-      if (as.size <= capacity - q.length) ref.update(_.enqueue(as.toList)).unit
-      else STM.retry
-    }
+    if (as.size > capacity)
+      STM.dieMessage("collection size greater than queue capacity")
+    else
+      ref.get.flatMap { q =>
+        if (as.size <= capacity - q.length) ref.update(_.enqueue(as.toList)).unit
+        else STM.retry
+      }
+
+  /**
+   * Offers each of the elements in the specified collection to the queue up to
+   * the maximum capacity of the queue, retrying if there is not capacity in
+   * the queue for all of these elements. Returns any remaining elements in the
+   * specified collection.
+   */
+  def offerMax(as: Iterable[A]): STM[Nothing, Iterable[A]] = {
+    val (forQueue, remaining) = as.splitAt(capacity)
+    offerAll(forQueue) *> STM.succeed(remaining)
+  }
 
   /**
    * Views the next element in the queue without removing it, retrying if the

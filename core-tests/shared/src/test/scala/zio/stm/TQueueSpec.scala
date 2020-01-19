@@ -64,6 +64,14 @@ object TQueueSpec extends ZIOBaseSpec {
         } yield ans
         assertM(tx.commit)(equalTo(List(1, 2, 3, 4, 5)))
       },
+      testM("offerMax") {
+        val tx = for {
+          tq        <- TQueue.bounded[Int](3)
+          remaining <- tq.offerMax(List(1, 2, 3, 4, 5))
+          ans       <- tq.takeAll
+        } yield (ans, remaining)
+        assertM(tx.commit)(equalTo((List(1, 2, 3), List(4, 5))))
+      },
       testM("takeUpTo") {
         val tx = for {
           tq   <- TQueue.bounded[Int](5)
