@@ -1,15 +1,16 @@
 package zio.test.mock
 
-import zio.{ IO, UIO }
+import ExpectationSpecUtils._
+
 import zio.duration._
-import zio.test.{ suite, ZIOBaseSpec }
 import zio.test.Assertion.{ equalTo, isNone, isUnit, isWithin }
 import zio.test.mock.Expectation.{ failure, failureF, failureM, never, unit, value, valueF, valueM }
 import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
-
-import ExpectationSpecUtils._
+import zio.test.{ suite, ZIOBaseSpec }
+import zio.{ IO, UIO }
 
 object ExpectationSpec extends ZIOBaseSpec {
+  import Module.mockableModule
 
   def spec = suite("ExpectationSpec")(
     suite("static")(
@@ -301,8 +302,8 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo(
           UnmetExpectationsException(
             List(
-              Module.command -> equalTo(2),
-              Module.command -> equalTo(3)
+              Module.command -> (equalTo(2)),
+              Module.command -> (equalTo(3))
             )
           )
         )

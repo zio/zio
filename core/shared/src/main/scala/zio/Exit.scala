@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,17 +26,17 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ && _)
 
   /**
    * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ ++ _)
 
   /**
    * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ && _)
 
   /**
    * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
@@ -46,7 +46,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ ++ _)
 
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
@@ -234,12 +234,12 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
 
 object Exit extends Serializable {
 
-  final case class Success[A](value: A)                   extends Exit[Nothing, A]
-  final case class Failure[E](cause: _root_.zio.Cause[E]) extends Exit[E, Nothing]
+  final case class Success[+A](value: A)        extends Exit[Nothing, A]
+  final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
 
-  final def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] = halt(_root_.zio.Cause.interrupt(id))
+  def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] = halt(Cause.interrupt(id))
 
-  final def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+  def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
       exits
         .drop(1)
@@ -250,10 +250,10 @@ object Exit extends Serializable {
   /**
    *  Alias for [[Exit.collectAll]]
    */
-  final def sequence[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+  def sequence[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAll[E, A](exits)
 
-  final def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+  def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
       exits
         .drop(1)
@@ -264,31 +264,31 @@ object Exit extends Serializable {
   /**
    *  Alias for [[Exit.collectAllPar]]
    */
-  final def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+  def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAllPar[E, A](exits)
 
-  final def die(t: Throwable): Exit[Nothing, Nothing] = halt(_root_.zio.Cause.die(t))
+  def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
 
-  final def fail[E](error: E): Exit[E, Nothing] = halt(_root_.zio.Cause.fail(error))
+  def fail[E](error: E): Exit[E, Nothing] = halt(Cause.fail(error))
 
-  final def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
+  def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
     exit.flatMap(identity)
 
-  final def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
+  def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
     e.fold(fail, succeed)
 
-  final def fromOption[A](o: Option[A]): Exit[Unit, A] =
+  def fromOption[A](o: Option[A]): Exit[Unit, A] =
     o.fold[Exit[Unit, A]](fail(()))(succeed)
 
-  final def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
+  def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
     t match {
       case scala.util.Success(a) => succeed(a)
       case scala.util.Failure(t) => fail(t)
     }
 
-  final def halt[E](cause: _root_.zio.Cause[E]): Exit[E, Nothing] = Failure(cause)
+  def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
 
-  final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
+  def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
-  final def unit: Exit[Nothing, Unit] = succeed(())
+  def unit: Exit[Nothing, Unit] = succeed(())
 }
