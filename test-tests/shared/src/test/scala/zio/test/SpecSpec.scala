@@ -3,7 +3,7 @@ package zio.test
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
-import zio.{ Ref, ZIO, ZManaged }
+import zio.{ Ref, UIO, ZIO, ZManaged }
 
 object SpecSpec extends ZIOBaseSpec {
 
@@ -38,6 +38,24 @@ object SpecSpec extends ZIOBaseSpec {
               }
           result <- ref.get
         } yield assert(result)(isTrue)
+      },
+      testM("is not interfered with by test level failures") {
+        val spec = suite("some suite")(
+          test("failing test") {
+            assert(1)(Assertion.equalTo(2))
+          },
+          test("passing test") {
+            assert(1)(Assertion.equalTo(1))
+          },
+          testM("test requires env") {
+            assertM(ZIO.environment[Int])(Assertion.equalTo(42))
+          }
+        ).provideManagedShared(UIO(43).toManaged_)
+        for {
+          executedSpec <- execute(spec)
+          successes    <- executedSpec.countTests(_._1.isRight)
+          failures     <- executedSpec.countTests(_._1.isLeft)
+        } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),
     suite("only")(
