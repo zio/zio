@@ -60,6 +60,16 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
     }
 
   /**
+   * Returns the number of tests in the spec that satisfy the specified
+   * predicate.
+   */
+  final def countTests(f: T => Boolean): ZIO[R, E, Int] =
+    fold[ZIO[R, E, Int]] {
+      case SuiteCase(_, specs, _) => specs.flatMap(ZIO.collectAll(_).map(_.sum))
+      case TestCase(_, test)      => test.map(t => if (f(t)) 1 else 0)
+    }
+
+  /**
    * Returns a new spec with the suite labels distinguished by `Left`, and the
    * test labels distinguished by `Right`.
    */
@@ -338,7 +348,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
         case SuiteCase(label, specs, exec) =>
           specs.flatMap(ZIO.foreach(_)(loop(r))).map(z => Spec.suite(label, ZIO.succeed(z.toVector), exec))
         case TestCase(label, test) =>
-          test.map(t => Spec.test(label, ZIO.succeed(t)))
+          test.run.map(exit => Spec.test(label, ZIO.done(exit)))
       }
     caseValue match {
       case SuiteCase(label, specs, exec) =>
