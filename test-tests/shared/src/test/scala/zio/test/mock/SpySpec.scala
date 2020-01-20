@@ -1,7 +1,7 @@
-package zio.test
+package zio.test.mock
 
 import zio.test.Assertion._
-import zio.test.mock._
+import zio.test._
 import zio.{ Has, Ref, UIO, ZIO, ZLayer }
 
 object SpySpec extends DefaultRunnableSpec {
@@ -28,7 +28,7 @@ object SpySpec extends DefaultRunnableSpec {
       ZLayer.fromEffect(Ref.make(0).map(ref => Has(Live(ref))))
   }
 
-  sealed trait Command[+A] extends Method[Counter.Service, Unit, A]
+  sealed trait Command[+A] extends Method[Counter.Service, Any, A]
 
   object Command {
     case object Increment extends Command[Unit]
@@ -39,22 +39,41 @@ object SpySpec extends DefaultRunnableSpec {
     val commands = Gen.elements(Increment, Decrement, Get, Reset)
   }
 
-  val spy: ZLayer[Counter, Nothing, Counter with Spy] =
-    Spy.live[Int, Counter.Service](0) { (counter, state, result) =>
-      new Counter.Service {
-        def increment: UIO[Unit] =
-          counter.increment *> state.update(_ + 1).unit
-        def decrement: UIO[Unit] =
-          counter.decrement *> state.update(_ - 1).unit
-        def get: UIO[Int] =
-          counter.get.flatMap { actual =>
-            state.get.flatMap { expected =>
-              result.set(assert(actual)(equalTo(expected))).as(actual)
-            }
+  implicit val spyableCounter: Spyable[Counter.Service] =
+    new Spyable[Counter.Service] {
+      def environment(mock: Mock): Has[Counter.Service] =
+        Has {
+          new Counter.Service {
+            def increment: UIO[Unit] = mock(Command.Increment)
+            def decrement: UIO[Unit] = mock(Command.Decrement)
+            def get: UIO[Int]        = mock(Command.Get)
+            def reset: UIO[Unit]     = mock(Command.Reset)
           }
-        def reset: UIO[Unit] =
-          counter.reset *> state.set(0)
-      }
+        }
+      def mock(environment: Has[Counter.Service]): Mock =
+        new Mock {
+          def invoke[R0, E0, A0, M0, I0](method: Method[M0, I0, A0], input: I0): ZIO[R0, E0, A0] =
+            method match {
+              case Command.Increment => environment.get.increment
+              case Command.Decrement => environment.get.decrement
+              case Command.Get       => environment.get.get
+              case Command.Reset     => environment.get.reset
+            }
+        }
+    }
+
+  val spy: ZLayer[Counter, Nothing, Counter with Spy] =
+    Spy.live[Int, Counter.Service](0) {
+      case (state, result, Invocation(method, _, output)) =>
+        method match {
+          case Command.Increment => state.update(_ + 1).unit
+          case Command.Decrement => state.update(_ - 1).unit
+          case Command.Get =>
+            state.get.flatMap { expected =>
+              result.update(_ && assert(output)(equalTo(expected))).unit
+            }
+          case Command.Reset => state.set(0)
+        }
     }
 
   def spec = suite("SpySpec") {

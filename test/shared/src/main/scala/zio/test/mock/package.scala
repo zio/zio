@@ -40,15 +40,15 @@ package object mock {
      * internal spy state and a `Ref` to hold the result of assertions made
      * about the internal state and values returned.
      */
-    def live[S, A: Tagged](z: S)(f: (A, Ref[S], Ref[TestResult]) => A): ZLayer[Has[A], Nothing, Has[A] with Spy] =
+    def live[S, A: Tagged](z: S)(
+      f: PartialFunction[(Ref[S], Ref[TestResult], Invocation[A, _, _]), UIO[Unit]]
+    )(implicit spyable: Spyable[A]): ZLayer[Has[A], Nothing, Has[A] with Spy] =
       ZLayer.fromServiceM { a =>
         Ref.make(z).flatMap { s =>
           Ref.make(assertCompletes).map { result =>
-            val updated = f(a, s, result)
-            val spy = new Spy.Service {
-              val spy = result.get
-            }
-            Has.allOf[A, Spy.Service](updated, spy)
+            val service = spyable.spy(Has(a)) { case invocation => f((s, result, invocation)) }.get
+            val spy     = new Spy.Service { val spy = result.get }
+            Has.allOf[A, Spy.Service](service, spy)
           }
         }
       }
