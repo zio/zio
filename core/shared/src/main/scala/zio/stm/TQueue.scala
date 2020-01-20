@@ -18,56 +18,23 @@ package zio.stm
 
 import scala.collection.immutable.{ Queue => ScalaQueue }
 
-import com.github.ghik.silencer.silent
-
 final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
-  def offer(a: A): STM[Nothing, Unit] =
-    for {
-      q <- ref.get
-      _ <- STM.check(q.length < capacity)
-      _ <- ref.update(_.enqueue(a))
-    } yield ()
-
-  // TODO: Scala doesn't allow Iterable???
-  @silent("enqueueAll")
-  def offerAll(as: List[A]): STM[Nothing, Unit] =
-    ref.update(_.enqueue(as)).unit
-
-  def poll: STM[Nothing, Option[A]] = takeUpTo(1).map(_.headOption)
-
-  def size: STM[Nothing, Int] = ref.get.map(_.length)
-
-  def take: STM[Nothing, A] =
-    ref.get.flatMap { q =>
-      q.dequeueOption match {
-        case Some((a, as)) =>
-          ref.set(as) *> STM.succeed(a)
-        case _ => STM.retry
-      }
-    }
-
-  def takeAll: STM[Nothing, List[A]] =
-    ref.modify(q => (q.toList, ScalaQueue.empty[A]))
-
-  def takeUpTo(max: Int): STM[Nothing, List[A]] =
-    ref.get
-      .map(_.splitAt(max))
-      .flatMap(split => ref.set(split._2) *> STM.succeed(split._1))
-      .map(_.toList)
 
   /**
-   * View the next element in the queue without removing it. retries if the queue is empty.
+   * Checks if the queue is empty.
    */
-  def peek: STM[Nothing, A] =
-    ref.get.flatMap(
-      _.headOption match {
-        case Some(a) => STM.succeed(a)
-        case None    => STM.retry
-      }
-    )
+  def isEmpty: STM[Nothing, Boolean] =
+    ref.get.map(_.isEmpty)
 
   /**
-   * View the last element inserted into the queue. retries if the queue is empty
+   * Checks if the queue is at capacity.
+   */
+  def isFull: STM[Nothing, Boolean] =
+    ref.get.map(_.size == capacity)
+
+  /**
+   * Views the last element inserted into the queue, retrying if the queue is
+   * empty.
    */
   def last: STM[Nothing, A] =
     ref.get.flatMap(
@@ -78,17 +45,59 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     )
 
   /**
-   * Checks if the Queue is empty
+   * Offers the specified value to the queue, retrying if the queue is at
+   * capacity.
    */
-  def isEmpty: STM[Nothing, Boolean] = ref.get.map(_.isEmpty)
+  def offer(a: A): STM[Nothing, Unit] =
+    ref.get.flatMap { q =>
+      if (q.length < capacity) ref.update(_.enqueue(a)).unit
+      else STM.retry
+    }
 
   /**
-   * Checks if the Queue is at capacity
+   * Offers each of the elements in the specified collection to the queue up to
+   * the maximum capacity of the queue, retrying if there is not capacity in
+   * the queue for all of these elements. Returns any remaining elements in the
+   * specified collection.
    */
-  def isFull: STM[Nothing, Boolean] = ref.get.map(_.size == capacity)
+  def offerAll(as: Iterable[A]): STM[Nothing, Iterable[A]] = {
+    val (forQueue, remaining) = as.splitAt(capacity)
+    ref.get.flatMap { q =>
+      if (forQueue.size <= capacity - q.length) ref.update(_.enqueue(forQueue.toList))
+      else STM.retry
+    } *> STM.succeed(remaining)
+  }
 
   /**
-   * Drops elements from the queue while they dont satisfy the predicate until it does and takes it.
+   * Views the next element in the queue without removing it, retrying if the
+   * queue is empty.
+   */
+  def peek: STM[Nothing, A] =
+    ref.get.flatMap(
+      _.headOption match {
+        case Some(a) => STM.succeed(a)
+        case None    => STM.retry
+      }
+    )
+
+  /**
+   * Views the next element in the queue without removing it, returning `None`
+   * if the queue is empty.
+   */
+  def peekOption: STM[Nothing, Option[A]] =
+    ref.get.map(_.headOption)
+
+  /**
+   * Takes a single element from the queue, returning `None` if the queue is
+   * empty.
+   */
+  def poll: STM[Nothing, Option[A]] =
+    takeUpTo(1).map(_.headOption)
+
+  /**
+   * Drops elements from the queue while they do not satisfy the predicate,
+   * taking and returning the first element that does satisfy the predicate.
+   * Retries if no elements satisfy the predicate.
    */
   def seek(f: A => Boolean): STM[Nothing, A] = {
     @annotation.tailrec
@@ -102,11 +111,52 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 
     ref.get.flatMap(go)
   }
+
+  /**
+   * Returns the number of elements currently in the queue.
+   */
+  def size: STM[Nothing, Int] =
+    ref.get.map(_.length)
+
+  /**
+   * Takes a single element from the queue, retrying if the queue is empty.
+   */
+  def take: STM[Nothing, A] =
+    ref.get.flatMap { q =>
+      q.dequeueOption match {
+        case Some((a, as)) =>
+          ref.set(as) *> STM.succeed(a)
+        case _ => STM.retry
+      }
+    }
+
+  /**
+   * Takes all elements from the queue.
+   */
+  def takeAll: STM[Nothing, List[A]] =
+    ref.modify(q => (q.toList, ScalaQueue.empty[A]))
+
+  /**
+   * Takes up to the specified maximum number of elements from the queue.
+   */
+  def takeUpTo(max: Int): STM[Nothing, List[A]] =
+    ref.get
+      .map(_.splitAt(max))
+      .flatMap(split => ref.set(split._2) *> STM.succeed(split._1))
+      .map(_.toList)
 }
 
 object TQueue {
-  def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
+
+  /**
+   * Constructs a new bounded queue with the specified capacity.
+   */
+  def bounded[A](capacity: Int): STM[Nothing, TQueue[A]] =
     TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 
-  def unbounded[A]: STM[Nothing, TQueue[A]] = make(Int.MaxValue)
+  /**
+   * Constructs a new unbounded queue.
+   */
+  def unbounded[A]: STM[Nothing, TQueue[A]] =
+    bounded(Int.MaxValue)
 }
