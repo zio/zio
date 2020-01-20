@@ -519,7 +519,17 @@ object ZSTMSpec extends ZIOBaseSpec {
             assertM(env.ref.get.commit)(equalTo(1))
         }
       }
-    )
+    ),
+    testM("STM collectAll ordering") {
+      val tx = for {
+        tq  <- TQueue.bounded[Int](3)
+        _   <- tq.offer(1)
+        _   <- tq.offer(2)
+        _   <- tq.offer(3)
+        ans <- ZSTM.collectAll(List(tq.take, tq.take, tq.take))
+      } yield ans
+      assertM(tx.commit)(equalTo(List(1, 2, 3)))
+    }
   )
 
   trait STMEnv {

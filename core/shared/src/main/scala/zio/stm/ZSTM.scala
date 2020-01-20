@@ -845,10 +845,7 @@ object ZSTM {
    * transactional effect that produces a list of values.
    */
   def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
-    i.foldRight[STM[E, List[A]]](STM.succeed(Nil)) {
-      case (stm, acc) =>
-        acc.zipWith(stm)((xs, x) => x :: xs)
-    }
+    i.foldRight[STM[E, List[A]]](STM.succeed(Nil))(_.zipWith(_)(_ :: _))
 
   /**
    * Kills the fiber running the effect.

@@ -31,7 +31,4 @@ private[test] object ConsoleUtils {
 
   def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
-
-  def yellowThenCyan(s: String): String =
-    SConsole.YELLOW + s + SConsole.CYAN
 }

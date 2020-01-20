@@ -16,6 +16,8 @@
 
 package zio
 
+import java.util.concurrent.atomic.AtomicReferenceArray
+
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.{ Failure, Success }
@@ -605,6 +607,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.daemonMask(restore => restore(self).fork)
 
   /**
+   * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
+   * execute the effect in the fiber, while ensuring its interruption when
+   * the effect supplied to [[ZManaged#use]] completes.
+   */
+  final def forkManaged: ZManaged[R, Nothing, Fiber[E, A]] =
+    toManaged_.fork
+
+  /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
   final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber[E, A]] =
@@ -616,6 +626,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber[E, A]] =
     onError(new ZIO.FoldCauseMFailureFn(handler)).run.fork.map(_.mapM(IO.done))
 
+  /**
+   * Unwraps the optional error, defaulting to the provided value.
+   */
   final def flattenErrorOption[E1, E2 <: E1](default: E2)(implicit ev: E <:< Option[E1]): ZIO[R, E1, A] =
     self.mapError(e => ev(e).getOrElse(default))
 
@@ -1570,7 +1583,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when[R1 <: R, E1 >: E](b: Boolean): ZIO[R1, E1, Unit] =
+  final def when[R1 <: R, E1 >: E](b: => Boolean): ZIO[R1, E1, Unit] =
     ZIO.when(b)(self)
 
   /**
@@ -2251,11 +2264,20 @@ object ZIO {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    as.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil)) { (a, io) =>
-        fn(a).zipWithPar(io)((b, bs) => b :: bs)
+  final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
+    val size      = as.size
+    val resultArr = new AtomicReferenceArray[B](size)
+
+    val wrappedFn: ZIOFn1[(A, Int), ZIO[R, E, Any]] = ZIOFn(fn) {
+      case (a, i) => fn(a).tap(b => ZIO.effectTotal(resultArr.set(i, b)))
+    }
+
+    foreachPar_(as.zipWithIndex)(wrappedFn).as(
+      (0 until size).reverse.foldLeft[List[B]](Nil) { (acc, i) =>
+        resultArr.get(i) :: acc
       }
-      .refailWithTrace
+    )
+  }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -2279,20 +2301,23 @@ object ZIO {
       val size = as.size
       for {
         parentId <- ZIO.fiberId
-        result   <- Promise.make[E, Unit]
+        causes   <- Ref.make[Cause[E]](Cause.empty)
+        result   <- Promise.make[Unit, Unit]
         succeed  <- Ref.make(0)
-        _ <- ZIO.traverse_(as) {
-              f(_)
-                .foldCauseM(result.halt, _ => {
-                  succeed.update(_ + 1) >>= { succeed =>
-                    ZIO.when(succeed == size)(result.succeed(()))
-                  }
-                })
-                .fork >>= { fiber =>
-                result.await.catchAllCause(_ => fiber.interruptAs(parentId)).fork
-              }
-            }
-        _ <- result.await
+        fibers <- ZIO.traverse(as) {
+                   f(_)
+                     .foldCauseM(c => causes.update(_ && c) *> result.fail(()), _ => {
+                       (succeed.update(_ + 1) >>= { succeed =>
+                         ZIO.when(succeed == size)(result.succeed(()))
+                       }).uninterruptible
+                     })
+                     .fork
+                 }
+        interrupter = result.await
+          .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
+          .toManaged_
+          .fork
+        _ <- interrupter.use_(result.await.foldM(_ => causes.get >>= ZIO.halt, _ => ZIO.unit).refailWithTrace)
       } yield ()
     }
 
@@ -2730,10 +2755,17 @@ object ZIO {
    */
   def reduceAllPar[R, R1 <: R, E, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
-  ): ZIO[R1, E, A] =
-    as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
-      l.zipPar(r).map(f.tupled)
-    }
+  ): ZIO[R1, E, A] = {
+    def prepend[Z](z: Z, zs: Iterable[Z]): Iterable[Z] =
+      new Iterable[Z] {
+        override def iterator: Iterator[Z] = Iterator(z) ++ zs.iterator
+      }
+
+    val all = prepend(a, as)
+    mergeAllPar(all)(Option.empty[A]) { (acc, elem) =>
+      Some(acc.fold(elem)(f(_, elem)))
+    }.map(_.get)
+  }
 
   /**
    * Replicates the given effect n times.
@@ -2958,7 +2990,7 @@ object ZIO {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: Boolean)(zio: ZIO[R, E, Any]): ZIO[R, E, Unit] =
+  def when[R, E](b: => Boolean)(zio: ZIO[R, E, Any]): ZIO[R, E, Unit] =
     if (b) zio.unit else unit
 
   /**

@@ -2,6 +2,7 @@ package zio.test
 
 import scala.{ Console => SConsole }
 
+import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
 import zio.test.environment.{ testEnvironmentManaged, TestClock, TestConsole, TestEnvironment }
 import zio.{ Cause, Managed, ZIO }
@@ -29,8 +30,8 @@ object ReportingTestUtils {
   def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
 
-  def yellowThenCyan(s: String): String =
-    SConsole.YELLOW + s + SConsole.CYAN
+  def yellow(s: String): String =
+    SConsole.YELLOW + s + SConsole.RESET
 
   def reportStats(success: Int, ignore: Int, failure: Int) = {
     val total = success + ignore + failure
@@ -43,7 +44,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironmentManaged)
             .run(spec)
-            .provideLayer(TestLogger.fromConsole ++ TestClock.default)
+            .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
@@ -51,7 +52,9 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironmentManaged)
                   .run(spec)
-                  .provideLayer(TestLogger.fromConsole ++ TestClock.default)
+                  .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+                    TestLogger.fromConsole ++ TestClock.default
+                  )
       actualSummary <- SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
@@ -72,11 +75,11 @@ object ReportingTestUtils {
     expectedFailure("Value falls within range"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
     withOffset(2)(
-      s"${blue("52")} did not satisfy ${cyan("(" + yellowThenCyan("equalTo(42)") + " || (isGreaterThan(5) && isLessThan(10)))")}\n"
+      s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
     ),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
     withOffset(2)(
-      s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && " + yellowThenCyan("isLessThan(10)") + "))")}\n"
+      s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
     )
   )
 
@@ -100,10 +103,10 @@ object ReportingTestUtils {
     expectedFailure("Multiple nested failures"),
     withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n"),
     withOffset(2)(
-      s"${blue("Some(3)")} did not satisfy ${cyan("isSome(" + yellowThenCyan("isGreaterThan(4)") + ")")}\n"
+      s"${blue("Some(3)")} did not satisfy ${cyan("isSome(") + yellow("isGreaterThan(4)") + cyan(")")}\n"
     ),
     withOffset(2)(
-      s"${blue("Right(Some(3))")} did not satisfy ${cyan("isRight(" + yellowThenCyan("isSome(isGreaterThan(4))") + ")")}\n"
+      s"${blue("Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
     )
   )
 
@@ -122,7 +125,7 @@ object ReportingTestUtils {
     expectedFailure("labeled failures"),
     withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
     withOffset(2)(
-      s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(" + yellowThenCyan("equalTo(1)") + ") ?? \"third\")")}\n"
+      s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
     )
   )
 
@@ -133,7 +136,7 @@ object ReportingTestUtils {
     expectedFailure("Not combinator"),
     withOffset(2)(s"${blue("100")} satisfied ${cyan("equalTo(100)")}\n"),
     withOffset(2)(
-      s"${blue("100")} did not satisfy ${cyan("not(" + yellowThenCyan("equalTo(100)") + ")")}\n"
+      s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
     )
   )
 

@@ -203,6 +203,8 @@ val sleeping =
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
 
+Blocking side-effects can be interrupted by invoking `Thread.interrupt` using the `effectBlockingInterrupt` method.
+
 Some blocking side-effects can only be interrupted by invoking a cancellation effect. You can convert these side-effects using the `effectBlockingCancelable` method:
 
 ```scala mdoc:silent

@@ -82,13 +82,6 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `TestExecutor[R, E, L, T, S]` is capable of executing specs containing
-   * tests of type `T`, annotated with labels of type `L`, that require an
-   * environment `R` and may fail with an `E` or succeed with a `S`.
-   */
-  type TestExecutor[+R, E, L, -T, +S] = (ZSpec[R, E, L, T], ExecutionStrategy) => UIO[ExecutedSpec[E, L, S]]
-
-  /**
    * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable Restorable]]
    * [[zio.test.environment.TestEnvironment TestEnvironment]] objects
    */

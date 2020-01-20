@@ -54,9 +54,11 @@ object BuildHelper {
       buildInfoObject := "BuildInfo"
     )
 
+  val dottyVersion = "0.22.0-bin-20200116-9ab1842-NIGHTLY"
+
   val dottySettings = Seq(
     // Keep this consistent with the version in .circleci/config.yml
-    crossScalaVersions += "0.22.0-bin-20200107-21a5608-NIGHTLY",
+    crossScalaVersions += dottyVersion,
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")
@@ -88,22 +90,24 @@ object BuildHelper {
        else Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value))
   )
 
+  // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
   val replSettings = makeReplSettings {
     """|import zio._
        |import zio.console._
        |import zio.duration._
        |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = unsafeRun(io.provideLayer(ZEnv.live)) }
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provideLayer(ZEnv.live)) }
     """.stripMargin
   }
 
+  // Keep this consistent with the version in .streams-tests/shared/src/test/scala/StreamREPLSpec.scala
   val streamReplSettings = makeReplSettings {
     """|import zio._
        |import zio.console._
        |import zio.duration._
        |import zio.stream._
        |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = unsafeRun(io.provideLayer(ZEnv.live)) }
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provideLayer(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -184,7 +188,7 @@ object BuildHelper {
       case Some((2, x)) if x >= 12 =>
         platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x")
       case _ if isDotty =>
-        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "dotty")
+        platformSpecificSources(platform, conf, baseDir)("2.12+", "dotty")
       case _ =>
         Nil
     }
