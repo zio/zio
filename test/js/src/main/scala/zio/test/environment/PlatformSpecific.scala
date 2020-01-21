@@ -20,7 +20,7 @@ import zio._
 import zio.test.Annotations
 import zio.test.Sized
 
-trait PlatformSpecific {
+private[environment] trait PlatformSpecific {
   type TestEnvironment =
     ZEnv with Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
 

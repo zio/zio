@@ -1583,7 +1583,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when[R1 <: R, E1 >: E](b: Boolean): ZIO[R1, E1, Unit] =
+  final def when[R1 <: R, E1 >: E](b: => Boolean): ZIO[R1, E1, Unit] =
     ZIO.when(b)(self)
 
   /**
@@ -2990,7 +2990,7 @@ object ZIO {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: Boolean)(zio: ZIO[R, E, Any]): ZIO[R, E, Unit] =
+  def when[R, E](b: => Boolean)(zio: ZIO[R, E, Any]): ZIO[R, E, Unit] =
     if (b) zio.unit else unit
 
   /**

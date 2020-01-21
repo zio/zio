@@ -1120,22 +1120,31 @@ object StreamSpec extends ZIOBaseSpec {
       assertM(Stream(1, 2, 3, 4).grouped(2).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
     ),
     suite("Stream.groupedWithin")(
-      testM("group based on time passed") {
-        val stream = ZStream.fromIterable(1 to 8).groupedWithin(3, 3.seconds).tap(_ => TestClock.adjust(3.seconds))
-        assertM(stream.runCollect)(equalTo(List(List(1, 2, 3), List(4, 5, 6), List(7, 8))))
-      },
       testM("group before chunk size is reached due to time window") {
-        val stream = (
-          ZStream.fromIterable(1 to 2) ++
-            (ZStream.fromEffect(ZIO.sleep(10.seconds)) *> ZStream.empty) ++
-            ZStream.fromIterable(3 to 4) ++
-            (ZStream.fromEffect(ZIO.sleep(10.seconds)) *> ZStream.empty) ++
-            ZStream.succeed(5)
-        ).tap(_ => TestClock.adjust(1.second))
-
-        assertM(stream.groupedWithin(10, 2.seconds).tap(_ => TestClock.adjust(8.seconds)).runCollect)(
-          equalTo(List(List(1, 2), List(3, 4), List(5)))
-        )
+        Queue.bounded[Take[Nothing, Int]](8).flatMap {
+          queue =>
+            Ref
+              .make[List[List[Take[Nothing, Int]]]](
+                List(
+                  List(Take.Value(1), Take.Value(2)),
+                  List(Take.Value(3), Take.Value(4)),
+                  List(Take.Value(5), Take.End)
+                )
+              )
+              .flatMap { ref =>
+                val offer = ref.modify {
+                  case x :: xs => (x, xs)
+                  case Nil     => (Nil, Nil)
+                }.flatMap(queue.offerAll)
+                val stream = ZStream.fromEffect(offer) *> ZStream
+                  .fromQueue(queue)
+                  .unTake
+                  .tap(_ => TestClock.adjust(1.second))
+                  .groupedWithin(10, 2.seconds)
+                  .tap(_ => offer)
+                assertM(stream.runCollect)(equalTo(List(List(1, 2), List(3, 4), List(5))))
+              }
+        }
       } @@ flaky,
       testM("group immediately when chunk size is reached") {
         assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(equalTo(List(List(1, 2), List(3, 4))))
