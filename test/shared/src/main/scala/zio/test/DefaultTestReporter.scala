@@ -26,7 +26,12 @@ import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
+import zio.test.mock.MockException.{
+  InvalidArgumentsException,
+  InvalidMethodException,
+  UnexpectedCallExpection,
+  UnmetExpectationsException
+}
 import zio.test.mock.{ Method, MockException }
 import zio.{ Cause, UIO, URIO }
 
@@ -375,6 +380,16 @@ object FailureRenderer {
         UIO.succeed(Message(red(s"- unmet expectations").toLine +: expectations.map {
           case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
         }))
+
+      case UnexpectedCallExpection(method, args) =>
+        UIO.succeed(
+          Message(
+            Seq(
+              red(s"- unexpected call to $method with arguments").toLine,
+              withOffset(tabSize)(cyan(args.toString).toLine)
+            )
+          )
+        )
     }
 
   private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[I], offset: Int): Line =

@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.test.mock.Expectation.Call
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException }
+import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnexpectedCallExpection }
 import zio.{ IO, Promise, Ref, ZIO }
 
 trait Mock {
@@ -402,7 +402,7 @@ object Mock {
                         if (!p) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
                         else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
                       }
-                  case None => ZIO.die(new IllegalStateException)
+                  case None => ZIO.die(UnexpectedCallExpection(invokedMethod, args))
                 }
           output <- promise.await
         } yield output
