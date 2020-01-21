@@ -67,6 +67,8 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [A ZIO + http4s + Circe + Quill + Tapir giter8 template](https://github.com/pandaforme/ultron.g8) by [pandaforme](https://github.com/pandaforme)
 - [More ZIO/http4s: with http4s authentication, encoding/decoding + zio tests](https://github.com/TimPigden/zio-http4s-examples) by [Tim Pigden](https://github.com/TimPigden)
 - [GitHub Release Pager with ZIO](https://github.com/psisoyev/release-pager) by [Pavels Sisojevs](https://github.com/psisoyev)
+- [Full Scala Stack, a sample project that uses akka-http, slick, zio, scalajs, react, ScalablyTyped and semantic ui](https://github.com/rleibman/full-scala-stack) by Roberto Leibman
+- [A minimal ZIO giter8 template](https://github.com/jchoffmann/zio-seed.g8) by [jchoffmann](https://github.com/jchoffmann)
 
 ## Projects using ZIO
 

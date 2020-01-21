@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,11 @@ object MutableConcurrentQueue {
    * which is a power of 2 throughout your system. This will allow to
    * use a more performant ring buffer implementation.
    */
-  final def bounded[A](capacity: Int): MutableConcurrentQueue[A] =
+  def bounded[A](capacity: Int): MutableConcurrentQueue[A] =
     if (capacity == 1) new OneElementConcurrentQueue()
     else RingBuffer[A](capacity)
 
-  final def unbounded[A]: MutableConcurrentQueue[A] = new LinkedQueue[A]
+  def unbounded[A]: MutableConcurrentQueue[A] = new LinkedQueue[A]
 }
 
 /**

@@ -1,10 +1,12 @@
 package zio.stream
 
-import zio.test.{ Gen, GenZIO, Sized }
-import zio.random.Random
-import zio._
-import ZStream.Pull
 import scala.concurrent.ExecutionContext
+
+import ZStream.Pull
+
+import zio._
+import zio.random.Random
+import zio.test.{ Gen, GenZIO, Sized }
 
 trait StreamUtils extends ChunkUtils with GenZIO {
   def streamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, Stream[String, A]] =
