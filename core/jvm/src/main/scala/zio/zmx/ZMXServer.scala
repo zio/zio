@@ -18,13 +18,12 @@ package zio.zmx
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.{ SelectionKey, Selector, ServerSocketChannel, SocketChannel }
+import java.nio.channels.{SelectionKey, Selector, ServerSocketChannel, SocketChannel}
 import java.util.Iterator
 
 import scala.collection.mutable.Set
 import scala.jdk.CollectionConverters._
-
-import zio.{ Fiber, UIO, URIO, ZIO }
+import zio.{Fiber, IO, UIO, URIO, ZIO}
 
 object ZMXServer {
   val BUFFER_SIZE = 256
@@ -52,43 +51,24 @@ object ZMXServer {
       case _                => ZIO.succeed(ZMXMessage("Unknown Command"))
     }
 
-  private def processCommand(received: String): Option[ZMXCommands] = {
+  private def processCommand(received: String): IO[Unit, ZMXCommands] = {
     val request: Option[ZMXServerRequest] = ZMXProtocol.serverReceived(received)
-    request.map(getCommand(_))
+    ZIO.fromOption(request.map(getCommand(_)))
   }
 
-  private def responseReceived(buffer: ByteBuffer, key: SelectionKey, debug: Boolean): Boolean = {
-    val client: SocketChannel = key.channel().asInstanceOf[SocketChannel]
-    client.read(buffer)
+  private def responseReceived(buffer: ByteBuffer, key: SelectionKey, debug: Boolean): ZIO[Any, Unit, Boolean] = {
     val received: String = ZMXProtocol.ByteBufferToString(buffer)
     if (debug)
-      println(s"Server received: $received")
-    val receivedCommand = processCommand(received)
-    buffer.flip
-    receivedCommand match {
-      case Some(comm) if comm == ZMXCommands.Stop =>
-        ZMXProtocol.writeToClient(
-          ZMXProtocol.StringToByteBuffer(
-            ZMXProtocol.generateReply(ZIO.succeed(ZMXMessage("Stopping Server")), Success)
-          ),
-          client
-        )
-        client.close()
-        return false
-      case Some(comm) =>
-        val responseToSend: UIO[ZMXMessage] = handleCommand(comm)
-        ZMXProtocol.writeToClient(
-          ZMXProtocol.StringToByteBuffer(ZMXProtocol.generateReply(responseToSend, Success)),
-          client
-        )
-      case None =>
-        ZMXProtocol.writeToClient(
-          ZMXProtocol.StringToByteBuffer(ZMXProtocol.generateReply(ZIO.succeed(ZMXMessage("No Response")), Fail)),
-          client
-        )
+      println(s"Server received: [*****\n${received}\n*****]")
+    for {
+      input   <- ZIO.fromOption(Option(received))
+      command <- processCommand(input)
+      message <- handleCommand(command)
+      reply <- ZMXProtocol.generateReply(message, Success)
+    } yield {
+      ZMXProtocol.writeToClient(buffer, key, reply)
+      true
     }
-    buffer.clear
-    true
   }
 
   def apply(config: ZMXConfig): Unit = {
@@ -112,7 +92,7 @@ object ZMXServer {
           register(selector, zmxSocket)
         }
         if (currentKey.isReadable) {
-          state = responseReceived(buffer, currentKey, config.debug)
+          responseReceived(buffer, currentKey, config.debug)
           if (!state) {
             zmxSocket.close()
             selector.close()

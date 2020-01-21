@@ -17,13 +17,13 @@
 package zio.zmx
 
 import java.nio.ByteBuffer
-import java.nio.channels.SocketChannel
+import java.nio.channels.{SelectionKey, SocketChannel}
 import java.nio.charset.StandardCharsets
 import java.nio.charset.StandardCharsets._
 
-import scala.annotation.tailrec
-
 import zio.UIO
+
+import scala.annotation.tailrec
 
 object ZMXProtocol {
 
@@ -60,15 +60,14 @@ object ZMXProtocol {
    *
    *
    */
-  def generateReply(message: UIO[ZMXMessage], replyType: ZMXServerResponse): UIO[String] =
-    for {
-      messageText <- message
-    } yield {
-      replyType match {
-        case Success => s"+${messageText}"
-        case Fail    => s"-${messageText}"
-      }
+  def generateReply(message: ZMXMessage, replyType: ZMXServerResponse): UIO[ByteBuffer] = {
+    val reply: String = replyType match {
+      case Success => s"+${message}"
+      case Fail => s"-${message}"
     }
+    println(s"reply: ${reply}")
+    UIO.succeed(ByteBuffer.wrap(reply.getBytes(StandardCharsets.UTF_8)))
+  }
 
   final val getSuccessfulResponse: PartialFunction[String, String] = {
     case s: String if s startsWith PASS => s.slice(1, s.length)
@@ -111,11 +110,8 @@ object ZMXProtocol {
    */
   def serverReceived(received: String): Option[ZMXServerRequest] = {
     val receivedList: List[String] = received.split("\r\n").toList
-    val receivedCount: Int         = numberOfBulkStrings(receivedList.head)
-    if (receivedList.size < 1 || receivedCount < 1)
-      return None
     val command: String = getBulkString((receivedList.slice(1, 3), sizeOfBulkString(receivedList(1))))
-    if (receivedList.size < 4)
+    if (receivedList.length < 4)
       Some(
         ZMXServerRequest(
           command = command,
@@ -148,10 +144,12 @@ object ZMXProtocol {
   def ByteBufferToString(bytes: ByteBuffer): String =
     new String(bytes.array()).trim()
 
-  def writeToClient(message: UIO[ByteBuffer], client: SocketChannel): UIO[Int] =
-    for {
-      content <- message
-    } yield {
-      client.write(content)
-    }
+  def writeToClient(buffer: ByteBuffer, key: SelectionKey, message: ByteBuffer): ByteBuffer = {
+    val client: SocketChannel = key.channel().asInstanceOf[SocketChannel]
+    client.read(buffer)
+    buffer.flip
+    client.write(message)
+    buffer.clear
+    message
+  }
 }

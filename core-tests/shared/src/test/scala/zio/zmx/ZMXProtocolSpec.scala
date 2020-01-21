@@ -16,9 +16,11 @@
 
 package zio.zmx
 
+import java.nio.ByteBuffer
+
 import zio.test.Assertion._
 import zio.test._
-import zio.{ UIO, ZIO, ZIOBaseSpec }
+import zio.{UIO, ZIOBaseSpec}
 
 object ZMXProtocolSpec extends ZIOBaseSpec {
   def spec =
@@ -37,16 +39,16 @@ object ZMXProtocolSpec extends ZIOBaseSpec {
           assert(p)(equalTo("*0\r\n"))
         },
         testM("zmx test generating a success reply") {
-          val p: UIO[String] = ZMXProtocol.generateReply(ZIO.succeed(ZMXMessage("foobar")), Success)
+          val p: UIO[ByteBuffer] = ZMXProtocol.generateReply(ZMXMessage("foobar"), Success)
           for {
             content <- p
-          } yield assert(content)(equalTo("+foobar"))
+          } yield assert(ZMXProtocol.ByteBufferToString(content))(equalTo("+foobar"))
         },
         testM("zmx test generating a fail reply") {
-          val p: UIO[String] = ZMXProtocol.generateReply(ZIO.succeed(ZMXMessage("foobar")), Fail)
+          val p: UIO[ByteBuffer] = ZMXProtocol.generateReply(ZMXMessage("foobar"), Fail)
           for {
             content <- p
-          } yield assert(content)(equalTo("-foobar"))
+          } yield assert(ZMXProtocol.ByteBufferToString(content))(equalTo("-foobar"))
         },
         test("zmx get size of bulk string") {
           assert(ZMXProtocol.sizeOfBulkString("$6"))(equalTo(6))

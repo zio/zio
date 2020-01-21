@@ -19,10 +19,7 @@ package zio.zmx
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
-
-import ZMXProtocol._
-
-import zio.ZIO
+import java.nio.charset.StandardCharsets
 
 class ZMXClient(config: ZMXConfig) {
   val buffer: ByteBuffer = ByteBuffer.allocate(256)
@@ -34,9 +31,10 @@ class ZMXClient(config: ZMXConfig) {
 
   def sendMessage(message: String): String = {
     val client: SocketChannel = SocketChannel.open(new InetSocketAddress(config.host, config.port))
-    writeToClient(StringToByteBuffer(ZIO.succeed(message)), client)
+    client.write(ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8)))
     client.read(buffer)
     val response: String = ZMXProtocol.ByteBufferToString(buffer)
+    println(s"Response: ${response}")
     buffer.clear()
     response
   }
