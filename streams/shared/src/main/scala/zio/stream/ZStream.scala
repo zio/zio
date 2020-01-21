@@ -2991,13 +2991,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
                           try {
                             runtime.unsafeRun {
                               k.foldCauseM(
-                                  Cause
-                                    .sequenceCauseOption(_)
-                                    .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
-                                  a => output.offer(Pull.emit(a))
-                                )
-                                .unit
+                                Cause
+                                  .sequenceCauseOption(_)
+                                  .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
+                                a => output.offer(Pull.emit(a))
+                              )
                             }
+                            ()
                           } catch {
                             case FiberFailure(Cause.Interrupt(_)) =>
                           }
@@ -3040,13 +3040,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
                 try {
                   runtime.unsafeRun {
                     k.foldCauseM(
-                        Cause
-                          .sequenceCauseOption(_)
-                          .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
-                        a => output.offer(Pull.emit(a))
-                      )
-                      .unit
+                      Cause
+                        .sequenceCauseOption(_)
+                        .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
+                      a => output.offer(Pull.emit(a))
+                    )
                   }
+                  ()
                 } catch {
                   case FiberFailure(Cause.Interrupt(_)) =>
                 }
@@ -3084,13 +3084,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
                              try {
                                runtime.unsafeRun {
                                  k.foldCauseM(
-                                     Cause
-                                       .sequenceCauseOption(_)
-                                       .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
-                                     a => output.offer(Pull.emit(a))
-                                   )
-                                   .unit
+                                   Cause
+                                     .sequenceCauseOption(_)
+                                     .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
+                                   a => output.offer(Pull.emit(a))
+                                 )
                                }
+                               ()
                              } catch {
                                case FiberFailure(Cause.Interrupt(_)) =>
                              }
