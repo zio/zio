@@ -775,9 +775,14 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           def offer(take: Take[E1, A1]): UIO[Unit] = take match {
             case Take.Value(_) =>
               for {
+                _     <- UIO.effectTotal(println("in offer value"))
+                _     <- UIO.effectTotal(println("is this line printed?"))
                 p     <- Promise.make[Nothing, Unit]
+                _     <- UIO.effectTotal(println("how about this one?"))
                 down  <- queue.isShutdown
                 _     <- UIO.effectTotal(println(s"queue shutdown: $down"))
+                size  <- queue.size
+                _     <- UIO.effectTotal(println(s"there are $size elements in the queue"))
                 added <- queue.offer((take, p))
                 _     <- UIO.effectTotal(println("blah"))
                 _     <- ref.set(p).when(added)
@@ -790,6 +795,9 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
                 _     <- UIO.effectTotal(println("after latch"))
                 down  <- queue.isShutdown
                 _     <- UIO.effectTotal(println(s"queue shutdown: $down"))
+                _     <- UIO.effectTotal(println(s"waiting for $latch"))
+                isDone <- latch.isDone
+                _     <- UIO.effectTotal(println(s"status of latch done: $isDone"))
                 _     <- latch.await
                 _     <- UIO.effectTotal(println("done waiting"))
                 p     <- Promise.make[Nothing, Unit]
@@ -801,7 +809,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
           def go: ZIO[R, Nothing, Unit] =
             UIO.effectTotal(println("going")) *> Take.fromPull(as).flatMap { take =>
-              UIO.effectTotal(println(s"pulled: $take")) *> offer(take) *> go.when(take != Take.End)
+              UIO.effectTotal(println(s"pulled: $take")) *> offer(take) *>
+                UIO.effectTotal(println("offer done")) *> go.when(take != Take.End)
             }
 
           go
@@ -811,7 +820,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           if (_) Pull.end
           else {
             queue.take.flatMap { case (take, p) =>
-              p.succeed(()) *> done.set(true).when(take == Take.End) *> Pull.fromTake(take)
+              p.succeed(()) *> UIO.effectTotal(println(s"unblocked $p")) *>
+                done.set(true).when(take == Take.End) *> Pull.fromTake(take)
             }
           }
         }
