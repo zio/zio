@@ -1,10 +1,10 @@
 package zio.stream
 
+import scala.{ Stream => _ }
+
 import zio._
 import zio.test.Assertion.equalTo
 import zio.test._
-
-import scala.{ Stream => _ }
 
 object SinkUtilsSpec extends ZIOBaseSpec {
 
