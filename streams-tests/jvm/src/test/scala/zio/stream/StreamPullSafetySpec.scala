@@ -131,6 +131,13 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )
       )
     },
+    testM("Stream.bufferDropping is safe to pull again") {
+      (Stream.fail("Ouch") ++ Stream.succeed(1))
+        .bufferSliding(5)
+        .process
+        .use(nPulls(_, 7))
+        .map(assert(_)(equalTo(Nil)))
+    },
     testM("Stream.bufferUnbounded is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)

@@ -61,7 +61,10 @@ object Take {
   case object End                            extends Take[Nothing, Nothing]
 
   def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
-    pull.fold(_.fold[Take[E, A]](Take.End)(e => Take.Fail(Cause.fail(e))), Take.Value(_))
+    pull.foldCause(
+      Cause.sequenceCauseOption(_).fold[Take[E, A]](Take.End)(Take.Fail(_)),
+      Take.Value(_)
+    )
 
   def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
     io.flatMap {
