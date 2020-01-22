@@ -635,7 +635,6 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
     ZManaged(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), e => r.release(e).provideSome(f))))
 
-
   /**
    * An effectful version of `provideSome`, useful when the act of partial
    * provision requires an effect.
@@ -648,8 +647,12 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * effect.provideSomeM(r0)
    * }}}
    */
-  def provideSomeM[R0, E1 >: E](f: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    ZManaged(reserve.provideSomeM(f).map(r => Reservation(r.acquire.provideSomeM(f), e => r.release(e).provideSomeM(f))))
+  def provideSomeM[R0, E1 >: E](
+    f: ZIO[R0, E1, R]
+  )(implicit ev1: NeedsEnv[R], ev2: E1 <:< Throwable): ZManaged[R0, E1, A] =
+    ZManaged(
+      reserve.provideSomeM(f).map(r => Reservation(r.acquire.provideSomeM(f), e => r.release(e).provideSomeM(f.orDie)))
+    )
 
   /**
    * Gives access to wrapped [[Reservation]].
