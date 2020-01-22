@@ -1220,6 +1220,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
 
   /**
    * Executes the provided finalizer after this stream's finalizers run.
+   *
+   * For use cases that need access to the stream's result, see [[ZStream#onExit]].
    */
   final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
     ZStream(self.process.ensuring(fin))
@@ -1984,6 +1986,21 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         }
     }
   }
+
+  /**
+   * Ensures that the cleanup function runs, whether this stream succeeds, fails,
+   * or is interrupted, after this stream's finalizers run.
+   */
+  final def onExit[R1 <: R](cleanup: Exit[E, Any] => ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
+    ZStream.managed {
+      for {
+        _ <- ZManaged.finalizerRef[R1] {
+              case success @ Exit.Success(_) => cleanup(success)
+              case failure @ Exit.Failure(_) => cleanup(failure.asInstanceOf[Exit.Failure[E]])
+            }
+        pull <- self.process
+      } yield pull
+    }.flatMap(ZStream.repeatEffectOption)
 
   /**
    * Switches to the provided stream in case this one fails with a typed error.

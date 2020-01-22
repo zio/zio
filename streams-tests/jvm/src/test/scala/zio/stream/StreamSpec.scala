@@ -1452,6 +1452,63 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
       }
     ),
+    suite("Stream.onExit")(
+      testM("ensures that the cleanup function runs when the stream succeeds") {
+        for {
+          ref <- Ref.make(false)
+          _ <- Stream.empty.onExit {
+                case Exit.Success(_) => ref.set(true)
+                case _               => UIO.unit
+              }.runDrain
+          fin <- ref.get
+        } yield assert(fin)(isTrue)
+      },
+      testM("ensures that the cleanup function runs when the stream fails") {
+        for {
+          ref <- Ref.make(false)
+          _ <- Stream
+                .fail("Ouch")
+                .onExit {
+                  case Exit.Failure(c) =>
+                    c.failureOrCause.fold(e => ref.set(e == "Ouch"), _ => UIO.unit)
+                  case _ => UIO.unit
+                }
+                .runDrain
+                .either
+                .unit
+          fin <- ref.get
+        } yield assert(fin)(isTrue)
+      },
+      testM("ensures that the cleanup function runs when the stream is interrupted") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- Stream
+                    .fromEffect(latch1.succeed(()) *> UIO.never)
+                    .onExit {
+                      case Exit.Failure(c) if c.interrupted => latch2.succeed(())
+                      case _                                => UIO.unit
+                    }
+                    .runDrain
+                    .fork
+          _ <- latch1.await
+          _ <- fiber.interrupt
+          _ <- latch2.await
+        } yield assertCompletes
+      },
+      testM("ensures that the cleanup function runs after all finalizers") {
+        for {
+          ref <- Ref.make(List.empty[String])
+          _ <- Stream.empty
+                .ensuring(ref.update("inner" :: _))
+                .onExit {
+                  case _ => ref.update("outer" :: _)
+                }
+                .runDrain
+          fin <- ref.get
+        } yield assert(fin)(equalTo(List("outer", "inner")))
+      }
+    ),
     testM("Stream.orElse") {
       val s1 = Stream(1, 2, 3) ++ Stream.fail("Boom")
       val s2 = Stream(4, 5, 6)
