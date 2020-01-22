@@ -618,9 +618,38 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
+   *
+   * {{{
+   * val effect: ZManaged[Console with Logging, Nothing, Unit] = ???
+   *
+   * effect.provideSome[Console](env =>
+   *   new Console with Logging {
+   *     val console = env.console
+   *     val logging = new Logging.Service[Any] {
+   *       def log(line: String) = console.putStrLn(line)
+   *     }
+   *   }
+   * )
+   * }}}
    */
   def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
     ZManaged(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), e => r.release(e).provideSome(f))))
+
+
+  /**
+   * An effectful version of `provideSome`, useful when the act of partial
+   * provision requires an effect.
+   *
+   * {{{
+   * val effect: ZManaged[Console with Logging, Nothing, Unit] = ???
+   *
+   * val r0: URIO[Console, Console with Logging] = ???
+   *
+   * effect.provideSomeM(r0)
+   * }}}
+   */
+  def provideSomeM[R0, E1 >: E](f: ZIO[R0, E1, R])(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
+    ZManaged(reserve.provideSomeM(f).map(r => Reservation(r.acquire.provideSomeM(f), e => r.release(e).provideSomeM(f))))
 
   /**
    * Gives access to wrapped [[Reservation]].
