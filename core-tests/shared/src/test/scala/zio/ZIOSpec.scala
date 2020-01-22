@@ -297,6 +297,45 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(test)(equalTo(10))
       }
     ),
+    suite("ensuringExit")(
+      testM("executes finalizer on success") {
+        for {
+          ref <- Ref.make(false)
+          _ <- ZIO.unit.ensuringExit {
+                case Exit.Success(_) => ref.set(true)
+                case _               => UIO.unit
+              }
+          p <- ref.get
+        } yield assert(p)(isTrue)
+      },
+      testM("executes finalizer on failure") {
+        for {
+          ref <- Ref.make(false)
+          _ <- ZIO
+                .die(new RuntimeException)
+                .ensuringExit {
+                  case Exit.Failure(c) if c.died => ref.set(true)
+                  case _                         => UIO.unit
+                }
+                .sandbox
+                .ignore
+          p <- ref.get
+        } yield assert(p)(isTrue)
+      },
+      testM("executes finalizer on interruption") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- (latch1.succeed(()) *> ZIO.never).ensuringExit {
+                    case Exit.Failure(c) if c.interrupted => latch2.succeed(())
+                    case _                                => UIO.unit
+                  }.fork
+          _ <- latch1.await
+          _ <- fiber.interrupt
+          _ <- latch2.await
+        } yield assertCompletes
+      }
+    ),
     suite("fallback")(
       testM("executes an effect and returns its value if it succeeds") {
         import zio.CanFail.canFail
