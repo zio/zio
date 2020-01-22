@@ -95,7 +95,7 @@ object ClockSpec extends ZIOBaseSpec {
       for {
         expected <- UIO.effectTotal(OffsetDateTime.now(ZoneId.of("UTC+9")))
         _        <- setDateTime(expected)
-        _        <- sleep(Duration(expected.toInstant.toEpochMilli, TimeUnit.MILLISECONDS))
+        _        <- sleep(Duration.fromInstant(expected.toInstant))
         actual   <- clock.currentDateTime
       } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toInstant.toEpochMilli))
     },
