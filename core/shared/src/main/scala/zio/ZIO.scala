@@ -417,7 +417,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * based on the result of the effect.
    */
   final def ensuringExit[R1 <: R](finalizer: Exit[E, A] => URIO[R1, Any]): ZIO[R1, E, A] =
-    ZIO.bracketExit(ZIO.unit)((_, exit) => finalizer(exit))(_ => self)
+    ZIO.bracketExit(ZIO.unit)((_, exit: Exit[E, A]) => finalizer(exit))(_ => self)
 
   /**
    * Acts on the children of this fiber (collected into a single fiber),
