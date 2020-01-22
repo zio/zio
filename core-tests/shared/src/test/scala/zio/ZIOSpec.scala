@@ -128,10 +128,13 @@ object ZIOSpec extends ZIOBaseSpec {
           cache <- incrementAndGet(ref).cached(60.minutes)
           a     <- cache
           _     <- TestClock.adjust(59.minutes)
+          _     <- clock.sleep(59.minutes)
           b     <- cache
           _     <- TestClock.adjust(1.minute)
+          _     <- clock.sleep(1.minutes)
           c     <- cache
           _     <- TestClock.adjust(59.minutes)
+          _     <- clock.sleep(1.minute)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       }
