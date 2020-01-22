@@ -77,10 +77,20 @@ final case class ZLayer[-RIn, +E, +ROut <: Has[_]](value: ZManaged[RIn, E, ROut]
     build.map(Runtime(_, p))
 
   /**
+   * I am not sure if this makes sense...
+   */
+  def translate[ROut1 <: Has[_]](implicit ev: ROut <:< ROut1): ZLayer[RIn, E, ROut1] =
+    ZLayer(for {
+      rin  <- ZManaged.environment[RIn]
+      rout <- value.provide(rin)
+    } yield ev(rout))
+
+  /**
    * Updates one of the services output by this layer.
    */
   def update[A: Tagged](f: A => A)(implicit ev: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
     ZLayer(value.map(env => env.update[A](f)))
+
 }
 object ZLayer {
   type NoDeps[+E, +B <: Has[_]] = ZLayer[Any, E, B]

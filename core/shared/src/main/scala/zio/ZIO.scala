@@ -908,10 +908,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZIO[R0, E1, A] =
-    (for {
-      r0 <- ZManaged.environment[R0]
-      r1 <- layer.value.provide(r0)
-    } yield ev(r1)).use(self.provide(_))
+    layer.translate.value.use(self.provide(_))
 
   /**
    * An effectual version of `provide`, useful when the act of provision
