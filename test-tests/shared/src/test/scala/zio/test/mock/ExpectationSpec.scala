@@ -314,7 +314,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         )
       ),
       testSpecDied("unexpected call")(
-        Module.singleParam(equalTo(1)) returns unit,
+        Module.singleParam(equalTo(1)) returns value("foo"),
         Module.>.singleParam(1) *> Module.>.manyParams(2, "3", 4L),
         equalTo(UnexpectedCallExpection(Module.manyParams, (2, "3", 4L)))
       )
