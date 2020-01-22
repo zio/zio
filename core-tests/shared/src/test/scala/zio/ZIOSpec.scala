@@ -324,13 +324,15 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("executes finalizer on interruption") {
         for {
-          latch <- Promise.make[Nothing, Unit]
-          fiber <- ZIO.never.ensuringExit {
-                    case Exit.Failure(c) if c.interrupted => latch.succeed(())
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- (latch1.succeed(()) *> ZIO.never).ensuringExit {
+                    case Exit.Failure(c) if c.interrupted => latch2.succeed(())
                     case _                                => UIO.unit
                   }.fork
+          _ <- latch1.await
           _ <- fiber.interrupt
-          _ <- latch.await
+          _ <- latch2.await
         } yield assertCompletes
       }
     ),
