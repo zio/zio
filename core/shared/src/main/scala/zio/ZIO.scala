@@ -390,6 +390,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * specified `finalizer` is guaranteed to begin execution, whether this effect
    * succeeds, fails, or is interrupted.
    *
+   * For use cases that need access to the effect's result, see [[ZIO#onExit]].
+   *
    * Finalizers offer very powerful guarantees, but they are low-level, and
    * should generally not be used for releasing resources. For higher-level
    * logic built on `ensuring`, see `ZIO#bracket`.
@@ -411,13 +413,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               )
           )
     )
-
-  /**
-   * A version of `ensuring` that allows creating the finalizer dynamically
-   * based on the result of the effect.
-   */
-  final def ensuringExit[R1 <: R](finalizer: Exit[E, A] => URIO[R1, Any]): ZIO[R1, E, A] =
-    ZIO.bracketExit(ZIO.unit)((_, exit: Exit[E, A]) => finalizer(exit))(_ => self)
 
   /**
    * Acts on the children of this fiber (collected into a single fiber),
@@ -795,6 +790,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           case Exit.Failure(cause) => cleanup(cause)
         }
     )(_ => self)
+
+  /**
+   * Ensures that a clean functions runs, whether this effect succeeds, fails,
+   * or is interrupted.
+   */
+  final def onExit[R1 <: R](cleanup: Exit[E, A] => URIO[R1, Any]): ZIO[R1, E, A] =
+    ZIO.bracketExit(ZIO.unit)((_, exit: Exit[E, A]) => cleanup(exit))(_ => self)
 
   /**
    * Propagates the success value to the first element of a tuple, but
