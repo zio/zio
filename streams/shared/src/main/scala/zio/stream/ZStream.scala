@@ -1289,7 +1289,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       as: Pull[R1, E1, A],
       finalizer: Ref[Exit[_, _] => URIO[R1, _]],
       currPull: Ref[Pull[R1, E1, B]]
-    ): ZIO[R1, Option[E1], B] = {
+    ): Pull[R1, E1, B] = {
       val pullOuter = ZIO.uninterruptibleMask { restore =>
         restore(as).flatMap { a =>
           (for {
@@ -1301,20 +1301,19 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
         }
       }
 
-      currPull.get.flatten.catchAll {
-        case e @ Some(e1) =>
-          (finalizer.get.flatMap(_(Exit.fail(e1))) *> finalizer.set(_ => UIO.unit)).uninterruptible *> ZIO.fail(
-            e
-          )
-        case None =>
-          (finalizer.get.flatMap(_(Exit.succeed(()))) *>
-            finalizer.set(_ => UIO.unit)).uninterruptible *>
-            pullOuter *>
-            go(as, finalizer, currPull)
+      currPull.get.flatten.catchAllCause { c =>
+        Cause.sequenceCauseOption(c) match {
+          case Some(e) => Pull.halt(e)
+          case None =>
+            (finalizer.get.flatMap(_(Exit.succeed(()))) *>
+              finalizer.set(_ => UIO.unit)).uninterruptible *>
+              pullOuter *>
+              go(as, finalizer, currPull)
+        }
       }
     }
 
-    ZStream[R1, E1, B] {
+    ZStream {
       for {
         currPull  <- Ref.make[Pull[R1, E1, B]](Pull.end).toManaged_
         as        <- self.process
