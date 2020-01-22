@@ -715,6 +715,22 @@ object StreamSpec extends ZIOBaseSpec {
           _      <- stream.runDrain
           result <- effects.get
         } yield assert(result)(equalTo(List(1, 2, 3, 4, 4, 4, 3, 2, 3, 4, 4, 4, 3, 2, 1).reverse))
+      },
+      testM("exit signal") {
+        for {
+          ref <- Ref.make(false)
+          inner = Stream
+            .bracketExit(UIO.unit)(
+              (_, e) =>
+                e match {
+                  case Exit.Failure(_) => ref.set(true)
+                  case Exit.Success(_) => UIO.unit
+                }
+            )
+            .flatMap(_ => Stream.fail("Ouch"))
+          _   <- Stream.succeed(()).flatMap(_ => inner).runDrain.either.unit
+          fin <- ref.get
+        } yield assert(fin)(isTrue)
       }
     ),
     suite("Stream.flatMapPar / flattenPar / mergeAll")(
