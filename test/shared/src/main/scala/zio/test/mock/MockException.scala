@@ -41,4 +41,9 @@ object MockException {
   final case class UnmetExpectationsException[M, I >: Nothing, A >: Nothing](
     expectations: List[(Method[M, I, A], Assertion[I])]
   ) extends MockException
+
+  final case class UnexpectedCallExpection[M, I >: Nothing, A >: Nothing](
+    method: Method[M, I, A],
+    args: Any
+  ) extends MockException
 }

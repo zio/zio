@@ -38,6 +38,18 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
     },
     testM("correctly reports negated failures") {
       assertM(runLog(test8))(equalTo(test8Expected.mkString + reportStats(0, 0, 1)))
+    },
+    testM("correctly reports mock failure of invalid argument") {
+      assertM(runLog(mock1))(equalTo(mock1Expected.mkString + reportStats(0, 0, 1)))
+    },
+    testM("correctly reports mock failure of invalid method") {
+      assertM(runLog(mock2))(equalTo(mock2Expected.mkString + reportStats(0, 0, 1)))
+    },
+    testM("correctly reports mock failure of unmet expectations") {
+      assertM(runLog(mock3))(equalTo(mock3Expected.mkString + reportStats(0, 0, 1)))
+    },
+    testM("correctly reports mock failure of unexpected call") {
+      assertM(runLog(mock4))(equalTo(mock4Expected.mkString + reportStats(0, 0, 1)))
     }
   )
 }
