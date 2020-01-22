@@ -1589,18 +1589,21 @@ object ZManaged {
   /**
    *  Alias for [[ZManaged.collectAll]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[R, E, A1, A2](ms: Iterable[ZManaged[R, E, A2]]): ZManaged[R, E, List[A2]] =
     collectAll[R, E, A1, A2](ms)
 
   /**
    *  Alias for [[ZManaged.collectAllPar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[R, E, A](as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
     collectAllPar[R, E, A](as)
 
   /**
    *  Alias for [[ZManaged.collectAllParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
     collectAllParN[R, E, A](n)(as)
 
@@ -1673,18 +1676,21 @@ object ZManaged {
   /**
    * Alias for [[ZManaged.foreach]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
     foreach[R, E, A1, A2](as)(f)
 
   /**
    * Alias for [[ZManaged.foreach_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     foreach_[R, E, A](as)(f)
 
   /**
    * Alias for [[ZManaged.foreachPar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, E, A1, A2](
     as: Iterable[A1]
   )(
@@ -1695,12 +1701,14 @@ object ZManaged {
   /**
    * Alias for [[ZManaged.foreachPar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     foreachPar_[R, E, A](as)(f)
 
   /**
    * Alias for [[ZManaged.foreachParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[R, E, A1, A2](
     n: Int
   )(
@@ -1713,6 +1721,7 @@ object ZManaged {
   /**
    * Alias for [[ZManaged.foreachParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[R, E, A](
     n: Int
   )(

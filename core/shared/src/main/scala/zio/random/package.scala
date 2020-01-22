@@ -58,7 +58,7 @@ package object random {
               buffer(i2) = tmp
               buffer
           }
-        _ <- ZIO.traverse(list.length to 2 by -1) { (n: Int) =>
+        _ <- ZIO.foreach(list.length to 2 by -1) { (n: Int) =>
               nextInt(n).flatMap { k =>
                 swap(n - 1, k)
               }

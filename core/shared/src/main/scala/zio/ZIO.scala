@@ -2313,7 +2313,7 @@ object ZIO {
         causes   <- Ref.make[Cause[E]](Cause.empty)
         result   <- Promise.make[Unit, Unit]
         succeed  <- Ref.make(0)
-        fibers <- ZIO.traverse(as) {
+        fibers <- ZIO.foreach(as) {
                    f(_)
                      .foldCauseM(c => causes.update(_ && c) *> result.fail(()), _ => {
                        (succeed.update(_ + 1) >>= { succeed =>
@@ -2818,18 +2818,21 @@ object ZIO {
   /**
    *  Alias for [[ZIO.collectAll]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[R, E, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     collectAll[R, E, A](in)
 
   /**
    *  Alias for [[ZIO.collectAllPar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     collectAllPar[R, E, A](as)
 
   /**
    *  Alias for [[ZIO.collectAllParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[R, E, A](n: Int)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     collectAllParN[R, E, A](n)(as)
 
@@ -2871,30 +2874,35 @@ object ZIO {
   /**
    * Alias for [[ZIO.foreach]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreach[R, E, A, B](in)(f)
 
   /**
    * Alias for [[ZIO.foreach_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreach_[R, E, A](as)(f)
 
   /**
    * Alias for [[ZIO.foreachPar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreachPar[R, E, A, B](as)(fn)
 
   /**
    * Alias for [[ZIO.foreachPar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreachPar_[R, E, A](as)(f)
 
   /**
    * Alias for [[ZIO.foreachParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[R, E, A, B](
     n: Int
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
@@ -2903,6 +2911,7 @@ object ZIO {
   /**
    * Alias for [[ZIO.foreachParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[R, E, A](
     n: Int
   )(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
