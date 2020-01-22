@@ -318,6 +318,22 @@ object ExpectationSpec extends ZIOBaseSpec {
         Module.>.singleParam(1) *> Module.>.manyParams(2, "3", 4L),
         equalTo(UnexpectedCallExpection(Module.manyParams, (2, "3", 4L)))
       )
-    )
+    ), {
+      val e1 = Module.command(equalTo(1)) returns unit
+      val e2 = Module.singleParam(equalTo(2)) returns value("foo")
+      val e3 = Module.command(equalTo(3)) returns unit
+      val app: zio.ZIO[zio.Has[Module], Any, String] =
+        for {
+          _ <- Module.>.command(1)
+          v <- Module.>.singleParam(2)
+          _ <- Module.>.command(3)
+        } yield v
+
+      suite("expectation building")(
+        testSpec("flatMap")(e1.flatMap(_ => e2).flatMap(_ => e3), app, equalTo("foo")),
+        testSpec("zipRight")(e1.zipRight(e2).zipRight(e3), app, equalTo("foo")),
+        testSpec("*>")(e1 *> e2 *> e3, app, equalTo("foo"))
+      )
+    }
   )
 }
