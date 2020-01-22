@@ -10,7 +10,6 @@ import zio.test.{ assertM, suite, testM, DefaultRunnableSpec }
 import zio.{ clock, console, random }
 
 object MockingExampleSpec extends DefaultRunnableSpec {
-  
 
   def spec = suite("suite with mocks")(
     testM("expect call returning output") {
@@ -30,7 +29,7 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       assertM(result)(isUnit)
     },
     testM("expect call with input satisfying assertion and transforming it into output") {
-      import MockRandom._ 
+      import MockRandom._
 
       val app     = random.nextInt(1)
       val mockEnv = nextInt._0(equalTo(1)) returns valueF(_ + 41)
@@ -38,7 +37,7 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       assertM(result)(equalTo(42))
     },
     testM("expect call with input satisfying assertion and returning output") {
-      import MockRandom._ 
+      import MockRandom._
 
       val app     = random.nextInt(1)
       val mockEnv = nextInt._0(equalTo(1)) returns value(42)
@@ -46,7 +45,7 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       assertM(result)(equalTo(42))
     },
     testM("expect call for overloaded method") {
-      import MockRandom._ 
+      import MockRandom._
 
       val app     = random.nextInt
       val mockEnv = nextInt._1 returns value(42)
@@ -55,8 +54,8 @@ object MockingExampleSpec extends DefaultRunnableSpec {
     },
     testM("expect calls from multiple modules") {
       import MockConsole._
-       import MockRandom._
-      
+      import MockRandom._
+
       val app        = random.nextInt.map(_.toString) >>= console.putStrLn
       val randomEnv  = nextInt._1 returns value(42)
       val consoleEnv = putStrLn(equalTo("42")) returns unit
@@ -81,7 +80,7 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       assertM(result)(isUnit)
     },
     testM("failure if unmet expectations") {
-      import MockRandom._ 
+      import MockRandom._
 
       val app = random.nextInt
       val mockEnv =
