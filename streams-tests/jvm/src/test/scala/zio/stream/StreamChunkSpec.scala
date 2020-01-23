@@ -452,8 +452,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           fiber <- StreamChunk(Stream.fromEffect(latch1.succeed(()) *> UIO.never)).onExit {
                     case Exit.Failure(c) if c.interrupted => latch2.succeed(())
                     case _                                => UIO.unit
-                  }.run(Sink.drain)
-                    .fork
+                  }.run(Sink.drain).fork
           _ <- latch1.await
           _ <- fiber.interrupt
           _ <- latch2.await
@@ -490,9 +489,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
                 case Exit.Failure(c) =>
                   c.failureOrCause.fold(e => ref.set(e == "Ouch"), _ => UIO.unit)
                 case _ => UIO.unit
-              }.run(Sink.drain)
-                .either
-                .unit
+              }.run(Sink.drain).either.unit
           fin <- ref.get
         } yield assert(fin)(isTrue)
       },
@@ -503,8 +500,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
           fiber <- StreamChunk(Stream.fromEffect(latch1.succeed(()) *> UIO.never)).onExitFirst {
                     case Exit.Failure(c) if c.interrupted => latch2.succeed(())
                     case _                                => UIO.unit
-                  }.run(Sink.drain)
-                    .fork
+                  }.run(Sink.drain).fork
           _ <- latch1.await
           _ <- fiber.interrupt
           _ <- latch2.await
