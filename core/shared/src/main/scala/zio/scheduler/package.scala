@@ -30,6 +30,9 @@ package object scheduler {
       def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A]
     }
 
+    val any: ZLayer[Scheduler, Nothing, Scheduler] =
+      ZLayer.requires[Scheduler]
+
     val defaultScheduler: Scheduler.Service =
       fromIScheduler(globalScheduler)
 

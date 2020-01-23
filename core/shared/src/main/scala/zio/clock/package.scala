@@ -33,6 +33,9 @@ package object clock {
       def sleep(duration: Duration): UIO[Unit]
     }
 
+    val any: ZLayer[Clock, Nothing, Clock] =
+      ZLayer.requires[Clock]
+
     val live: ZLayer[Scheduler, Nothing, Clock] = ZLayer.fromService { (scheduler: Scheduler.Service) =>
       Has(new Service {
         def currentTime(unit: TimeUnit): UIO[Long] =
