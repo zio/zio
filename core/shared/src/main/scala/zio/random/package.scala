@@ -20,6 +20,9 @@ package object random {
       def shuffle[A](list: List[A]): UIO[List[A]]
     }
 
+    val any: ZLayer[Random, Nothing, Random] =
+      ZLayer.environment[Random]
+
     val live: ZLayer.NoDeps[Nothing, Random] = ZLayer.succeed {
       new Service {
         import scala.util.{ Random => SRandom }

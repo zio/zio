@@ -26,6 +26,8 @@ private[zio] trait PlatformSpecific {
   type ZEnv = Clock with Console with System with Random with Scheduler
 
   object ZEnv {
+    val any: ZLayer[ZEnv, Nothing, ZEnv] =
+      ZLayer.environment[ZEnv]
     val live: ZLayer.NoDeps[Nothing, ZEnv] =
       (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live
   }

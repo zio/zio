@@ -138,6 +138,9 @@ package object blocking {
         }
     }
 
+    val any: ZLayer[Blocking, Nothing, Blocking] =
+      ZLayer.environment[Blocking]
+
     val live: ZLayer.NoDeps[Nothing, Blocking] = ZLayer.succeed {
       new Service {
         override val blockingExecutor: Executor = internal.blockingExecutor0
