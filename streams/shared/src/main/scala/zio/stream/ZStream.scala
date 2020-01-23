@@ -1994,30 +1994,24 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * or is interrupted, after this stream's finalizers run.
    */
   final def onExit[R1 <: R](cleanup: Exit[E, Any] => ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
-    ZStream.managed {
-      for {
-        _ <- ZManaged.finalizerRef {
-              case success @ Exit.Success(_) => cleanup(success)
-              case failure @ Exit.Failure(_) => cleanup(failure.asInstanceOf[Exit.Failure[E]])
-            }
-        pull <- self.process
-      } yield pull
-    }.flatMap(ZStream.repeatEffectOption)
+    ZStream {
+      ZManaged.finalizerRef {
+        case success @ Exit.Success(_) => cleanup(success)
+        case failure @ Exit.Failure(_) => cleanup(failure.asInstanceOf[Exit.Failure[E]])
+      } *> self.process
+    }
 
   /**
    * Ensures that the cleanup function runs, whether this stream succeeds, fails,
    * or is interrupted, before this stream's finalizers run.
    */
   final def onExitFirst[R1 <: R](cleanup: Exit[E, Any] => ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
-    ZStream.managed {
-      for {
-        pull <- self.process
-        _ <- ZManaged.finalizerRef {
-              case success @ Exit.Success(_) => cleanup(success)
-              case failure @ Exit.Failure(_) => cleanup(failure.asInstanceOf[Exit.Failure[E]])
-            }
-      } yield pull
-    }.flatMap(ZStream.repeatEffectOption)
+    ZStream {
+      self.process <* ZManaged.finalizerRef {
+        case success @ Exit.Success(_) => cleanup(success)
+        case failure @ Exit.Failure(_) => cleanup(failure.asInstanceOf[Exit.Failure[E]])
+      }
+    }
 
   /**
    * Switches to the provided stream in case this one fails with a typed error.

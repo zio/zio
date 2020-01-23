@@ -22,7 +22,7 @@ import zio.test.Assertion.{
   isUnit,
   startsWith
 }
-import zio.test.TestAspect.{ flaky, ignore }
+import zio.test.TestAspect.flaky
 import zio.test._
 import zio.test.environment.{ Live, TestClock }
 
@@ -390,7 +390,7 @@ object StreamSpec extends ZIOBaseSpec {
           case _ =>
             UIO(assert(())(Assertion.nothing))
         }
-      } @@ ignore
+      }
     ),
     suite("Stream.catchAllCause")(
       testM("recovery from errors") {
