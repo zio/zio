@@ -612,15 +612,79 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Provides the `ZManaged` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
-  def provide(r: R)(implicit ev: NeedsEnv[R]): ZManaged[Any, E, A] =
+  def provide(r: R)(implicit ev: NeedsEnv[R]): Managed[E, A] =
     provideSome(_ => r)
+
+  /**
+   * Provides a layer to the `ZManaged`, which translates it to another level.
+   */
+  def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZManaged[R0, E1, A] =
+    provideSomeManaged(layer.value.map(ev))
+
+  /**
+   * An effectual version of `provide`, useful when the act of provision
+   * requires an effect.
+   */
+  def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] =
+    provideManaged(r.toManaged_)
+
+  /**
+   * Uses the given Managed[E1, R] to the environment required to run this managed effect,
+   * leaving no outstanding environments and returning Managed[E1, A]
+   */
+  def provideManaged[E1 >: E](r: Managed[E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] = provideSomeManaged(r)
 
   /**
    * Provides some of the environment required to run this effect,
    * leaving the remainder `R0`.
+   *
+   * {{{
+   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
+   *
+   * managed.provideSome[Console](env =>
+   *   new Console with Logging {
+   *     val console = env.console
+   *     val logging = new Logging.Service[Any] {
+   *       def log(line: String) = console.putStrLn(line)
+   *     }
+   *   }
+   * )
+   * }}}
    */
   def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
     ZManaged(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), e => r.release(e).provideSome(f))))
+
+  /**
+   * An effectful version of `provideSome`, useful when the act of partial
+   * provision requires an effect.
+   *
+   * {{{
+   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
+   *
+   * val r0: URIO[Console, Console with Logging] = ???
+   *
+   * managed.provideSomeM(r0)
+   * }}}
+   */
+  def provideSomeM[R0, E1 >: E](
+    r0: ZIO[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
+    provideSomeManaged(r0.toManaged_)
+
+  /**
+   * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
+   * leaving the remainder `R0`.
+   *
+   * {{{
+   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
+   *
+   * val r0: ZManaged[Console, Nothing, Console with Logging] = ???
+   *
+   * managed.provideSomeManaged(r0)
+   * }}}
+   */
+  def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
+    r0.flatMap(self.provide)
 
   /**
    * Gives access to wrapped [[Reservation]].
@@ -724,7 +788,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Returns an effect that effectfully peeks at the failure or success of the acquired resource.
    */
-  final def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(
+  def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(
     implicit ev: CanFail[E]
   ): ZManaged[R1, E1, A] =
     foldM(
@@ -751,7 +815,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
    */
-  final def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
+  def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
     tapBoth(f, ZManaged.succeed)
 
   /**
