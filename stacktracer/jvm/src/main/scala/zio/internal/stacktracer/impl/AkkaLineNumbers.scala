@@ -205,7 +205,7 @@ object AkkaLineNumbers {
           if (debug)
             println(s"LNB:     found Lambda implemented in ${serialized.getImplClass}:${serialized.getImplMethodName}")
           val r = c.getClassLoader.getResourceAsStream(serialized.getImplClass + ".class")
-          if (r ne null) Some(r, serialized.getImplClass, Some(serialized.getImplMethodName)) else None
+          if (r ne null) Some((r, serialized.getImplClass, Some(serialized.getImplMethodName))) else None
         case _ => None
       }
     } catch {
