@@ -397,11 +397,11 @@ private[stream] object StreamEffect extends Serializable {
     }
 
   def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
-    val _ = iterator // Scala 2.13 wrongly warns that iterator is unused
+    val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
     fromIterator(
       new Iterator[A] {
-        def next(): A        = iterator.next()
-        def hasNext: Boolean = iterator.hasNext
+        def next(): A        = it.next()
+        def hasNext: Boolean = it.hasNext
       }
     )
   }

@@ -4,6 +4,7 @@ import ChunkUtils._
 
 import zio.random.Random
 import zio.test.Assertion.{ equalTo, isLeft }
+import zio.test.TestAspect.exceptScala211
 import zio.test._
 import zio.{ Chunk, IO, UIO, ZIOBaseSpec }
 
@@ -70,6 +71,40 @@ object ChunkSpec extends ZIOBaseSpec {
       val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
       check(smallChunks(intGen), fn) { (c, f) =>
         assert(c.flatMap(f).toSeq)(equalTo(c.toSeq.flatMap(f.andThen(_.toSeq))))
+      }
+    },
+    testM("headOption") {
+      check(mediumChunks(intGen)) { c =>
+        assert(c.headOption)(equalTo(c.toSeq.headOption))
+      }
+    },
+    testM("lastOption") {
+      check(mediumChunks(intGen)) { c =>
+        assert(c.lastOption)(equalTo(c.toSeq.lastOption))
+      }
+    },
+    testM("indexWhere") {
+      val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+      check(mediumChunks(stringGen), fn, intGen) { (chunk, p, from) =>
+        assert(chunk.indexWhere(p, from).getOrElse(-1))(equalTo(chunk.toSeq.indexWhere(p, from)))
+      }
+    } @@ exceptScala211,
+    testM("exists") {
+      val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+      check(mediumChunks(stringGen), fn) { (chunk, p) =>
+        assert(chunk.exists(p))(equalTo(chunk.toSeq.exists(p)))
+      }
+    },
+    testM("forall") {
+      val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+      check(mediumChunks(stringGen), fn) { (chunk, p) =>
+        assert(chunk.forall(p))(equalTo(chunk.toSeq.forall(p)))
+      }
+    },
+    testM("find") {
+      val fn = Gen.function[Random with Sized, String, Boolean](Gen.boolean)
+      check(mediumChunks(stringGen), fn) { (chunk, p) =>
+        assert(chunk.find(p))(equalTo(chunk.toSeq.find(p)))
       }
     },
     testM("filter") {

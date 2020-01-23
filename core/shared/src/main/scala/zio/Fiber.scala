@@ -285,7 +285,8 @@ trait Fiber[+E, +A] { self =>
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]], translating
-   * any errors to [[java.lang.Throwable]] with the specified conversion function.
+   * any errors to [[java.lang.Throwable]] with the specified conversion function,
+   * using [[Cause.squashWithTrace]]
    *
    * @param f function to the error into a Throwable
    * @return `UIO[Future[A]]`
@@ -294,7 +295,7 @@ trait Fiber[+E, +A] { self =>
     UIO.effectTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
-      def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
+      def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWithTrace(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
 
       ZIO.runtime[Any].map { runtime =>
@@ -517,15 +518,39 @@ object Fiber {
    * @return `UIO[Unit]`
    */
   def awaitAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
-    fs.foldLeft[Fiber[Any, Any]](Fiber.unit)(_ *> _).await.unit
+    collectAll(fs).await.unit
 
   /**
    * Collects all fibers into a single fiber producing an in-order list of the
    * results.
    */
   def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber[E, List[A]] =
-    fibers.foldRight[Fiber[E, List[A]]](Fiber.succeed(Nil)) {
-      case (fiber, acc) => fiber.zipWith(acc)(_ :: _)
+    new Fiber[E, List[A]] {
+      def await: UIO[Exit[E, List[A]]] =
+        IO.foreachPar(fibers)(_.await.flatMap(IO.done)).run
+      def children: UIO[Iterable[Fiber[Any, Any]]] =
+        UIO.foreach(fibers)(_.children).map(_.foldRight(Iterable.empty[Fiber[Any, Any]])(_ ++ _))
+      def getRef[A](ref: FiberRef[A]): UIO[A] =
+        UIO.foreach(fibers)(_.getRef(ref)).map(_.foldRight(ref.initial)(ref.combine))
+      def id: UIO[Option[Fiber.Id]] =
+        UIO.none
+      def inheritRefs: UIO[Unit] =
+        UIO.foreach_(fibers)(_.inheritRefs)
+      def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, List[A]]] =
+        UIO
+          .foreach(fibers)(_.interruptAs(fiberId))
+          .map(_.foldRight[Exit[E, List[A]]](Exit.succeed(Nil))(_.zipWith(_)(_ :: _, _ && _)))
+      def poll: UIO[Option[Exit[E, List[A]]]] =
+        UIO
+          .foreach(fibers)(_.poll)
+          .map(_.foldRight[Option[Exit[E, List[A]]]](Some(Exit.succeed(Nil))) {
+            case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(_ :: _, _ && _))
+            case _                    => None
+          })
+      def status: UIO[Fiber.Status] =
+        UIO.foreach(fibers)(_.status).map(_.foldRight[Status](Status.Done)(_ <> _))
+      def trace: UIO[Option[ZTrace]] =
+        UIO.none
     }
 
   /**
@@ -673,7 +698,7 @@ object Fiber {
    * @return `UIO[Unit]`
    */
   def joinAll[E](fs: Iterable[Fiber[E, Any]]): IO[E, Unit] =
-    fs.foldLeft[Fiber[E, Any]](Fiber.unit)(_ *> _).join.unit.refailWithTrace
+    collectAll(fs).join.unit.refailWithTrace
 
   /**
    * A fiber that never fails or succeeds.

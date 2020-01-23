@@ -9,8 +9,8 @@ scala_212: &scala_212
 scala_213: &scala_213
   SCALA_VERSION: 2.13.1
 
-# scala_dotty: &scala_dotty
-#   SCALA_VERSION: 0.22.0-bin-20200107-21a5608-NIGHTLY
+scala_dotty: &scala_dotty
+  SCALA_VERSION: 0.22.0-bin-20200116-9ab1842-NIGHTLY
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -155,6 +155,19 @@ testJVMDotty: &testJVMDotty
     - <<: *clean_cache
     - <<: *save_cache
 
+testJVM211: &testJVM211
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM211
+    - <<: *clean_cache
+    - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
+
 testJS: &testJS
   steps:
     - checkout
@@ -164,6 +177,20 @@ testJS: &testJS
     - run:
         name: Run tests
         command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
+    - <<: *clean_cache
+    - <<: *save_cache
+    - store_test_results:
+        path: core-tests/js/target/test-reports
+
+testJS211: &testJS211
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - <<: *install_nodejs
+    - run:
+        name: Run tests
+        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS211
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -243,7 +270,7 @@ jobs:
       - <<: *jdk_8
 
   test_211_jdk8_jvm:
-    <<: *testJVM
+    <<: *testJVM211
     <<: *machine_ubuntu
     <<: *machine_resource
     environment:
@@ -266,13 +293,13 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
-  # test_dotty_jdk8_jvm:
-  #   <<: *testJVMDotty
-  #   <<: *machine_ubuntu
-  #   <<: *machine_resource
-  #   environment:
-  #     - <<: *scala_dotty
-  #     - <<: *jdk_8
+  test_dotty_jdk8_jvm:
+    <<: *testJVMDotty
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_dotty
+      - <<: *jdk_8
 
   test_212_jdk11_jvm:
     <<: *testJVM
@@ -283,7 +310,7 @@ jobs:
       - <<: *jdk_11
 
   test_211_jdk8_js:
-    <<: *testJS
+    <<: *testJS211
     <<: *machine_ubuntu
     environment:
       - <<: *scala_211
@@ -351,11 +378,11 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
-      # - test_dotty_jdk8_jvm:
-      #     requires:
-      #       - lint
-      #     filters:
-      #       <<: *filter_tags
+      - test_dotty_jdk8_jvm:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
       - test_212_jdk11_jvm:
           requires:
             - lint

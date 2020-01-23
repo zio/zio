@@ -67,7 +67,7 @@ object GenUtils {
     }
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    zio.provideLayer(ZLayer.identity[Random] ++ Sized.live(n))
+    zio.provideLayer[Nothing, Random, Random with Sized](ZLayer.identity[Random] ++ Sized.live(n))
 
   val random: Gen[Any, Gen[Random, Int]] =
     Gen.const(Gen.int(-10, 10))

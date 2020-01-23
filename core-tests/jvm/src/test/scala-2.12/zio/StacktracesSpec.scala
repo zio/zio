@@ -58,7 +58,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield trace
 
       io causeMust { cause =>
-        assert(cause.traces.head.stackTrace.size)(equalTo(4)) &&
+        assert(cause.traces.head.stackTrace.size)(equalTo(8)) &&
         assert(cause.traces.head.stackTrace.exists {
           (_: ZTraceElement) match {
             case s: SourceLocation => s.method contains "foreachParFail"
@@ -140,17 +140,15 @@ object StackTracesSpec extends DefaultRunnableSpec {
       fiberAncestryUploadExample
         .uploadUsers(List(new fiberAncestryUploadExample.User)) causeMust {
         cause =>
-          assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
-          assert(cause.traces.head.stackTrace.head.prettyPrint.contains("uploadUsers"))(isTrue) &&
-          assert(cause.traces(1).stackTrace)(isEmpty) &&
+          assert(cause.traces.head.stackTrace.size)(equalTo(7)) &&
+          assert(cause.traces.head.stackTrace(4).prettyPrint.contains("uploadUsers"))(isTrue) &&
+          assert(cause.traces(1).stackTrace.size)(equalTo(2)) &&
           assert(cause.traces(1).executionTrace.size)(equalTo(1)) &&
           assert(cause.traces(1).executionTrace.head.prettyPrint.contains("uploadTo"))(isTrue) &&
           assert(cause.traces(1).parentTrace.isEmpty)(isFalse) &&
           assert(
             cause
               .traces(1)
-              .parentTrace
-              .get
               .parentTrace
               .get
               .stackTrace
@@ -458,7 +456,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   def blockingTrace =
     for {
-      _ <- blocking.effectBlocking {
+      _ <- blocking.effectBlockingInterrupt {
             throw new Exception()
           }
     } yield ()
