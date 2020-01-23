@@ -21,18 +21,16 @@ class ChunkBenchmarks {
   var array: Array[Int] = _
 
   @Setup
-  def createChunk() = {
+  def createChunk() =
     chunk = Chunk.fromArray(Array.fill(0)(chunkSize))
-  }
 
   @Setup
-  def createArray() = {
+  def createArray() =
     array = Array.fill(0)(chunkSize)
-  }
 
   @Benchmark
   def zioRandomAccess(): Int = {
-    var i = 0
+    var i   = 0
     var sum = 0
     while (i < chunkSize) {
       sum += chunk(i)
@@ -43,7 +41,7 @@ class ChunkBenchmarks {
 
   @Benchmark
   def arrayRandomAccess(): Int = {
-    var i = 0
+    var i   = 0
     var sum = 0
     while (i < chunkSize) {
       sum += array(i)
@@ -52,10 +50,4 @@ class ChunkBenchmarks {
     sum
   }
 
-
 }
-
-
-
-
-
