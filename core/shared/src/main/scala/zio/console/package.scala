@@ -32,6 +32,10 @@ package object console {
 
       val getStrLn: IO[IOException, String]
     }
+
+    val any: ZLayer[Console, Nothing, Console] =
+      ZLayer.requires[Console]
+
     val live: ZLayer.NoDeps[Nothing, Console] = ZLayer.succeed {
       new Service {
 
