@@ -619,20 +619,20 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
   def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZManaged[R0, E1, A] =
-    layer.translate.value.flatMap(self.provide(_))
+    provideSomeManaged(layer.value.map(ev))
 
   /**
    * An effectual version of `provide`, useful when the act of provision
    * requires an effect.
    */
-  def provideM[E1 >: E](f: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] =
-    provideManaged(f.toManaged_)
+  def provideM[E1 >: E](r: ZIO[Any, E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] =
+    provideManaged(r.toManaged_)
 
   /**
    * Uses the given Managed[E1, R] to the environment required to run this managed effect,
    * leaving no outstanding environments and returning Managed[E1, A]
    */
-  def provideManaged[E1 >: E](r0: Managed[E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] = provideSomeManaged(r0)
+  def provideManaged[E1 >: E](r: Managed[E1, R])(implicit ev: NeedsEnv[R]): Managed[E1, A] = provideSomeManaged(r)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -667,9 +667,9 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * }}}
    */
   def provideSomeM[R0, E1 >: E](
-    f: ZIO[R0, E1, R]
+    r0: ZIO[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    provideSomeManaged(f.toManaged_)
+    provideSomeManaged(r0.toManaged_)
 
   /**
    * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
@@ -683,7 +683,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * managed.provideSomeManaged(r0)
    * }}}
    */
-  final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
+  def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R])(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
     r0.flatMap(self.provide)
 
   /**
@@ -788,7 +788,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Returns an effect that effectfully peeks at the failure or success of the acquired resource.
    */
-  final def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(
+  def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(
     implicit ev: CanFail[E]
   ): ZManaged[R1, E1, A] =
     foldM(
@@ -799,7 +799,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
    */
-  final def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
+  def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
     tapBoth(f, ZManaged.succeed)
 
   /**

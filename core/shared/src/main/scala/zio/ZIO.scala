@@ -908,7 +908,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
   final def provideLayer[E1 >: E, R0, R1 <: Has[_]](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZIO[R0, E1, A] =
-    layer.translate.value.use(self.provide(_))
+    provideSomeManaged(layer.value.map(ev))
 
   /**
    * An effectual version of `provide`, useful when the act of provision
@@ -2270,7 +2270,7 @@ object ZIO {
    *
    * For a sequential version of this method, see `foreach`.
    */
-  final def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
+  def foreachPar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] = {
     val size      = as.size
     val resultArr = new AtomicReferenceArray[B](size)
 
