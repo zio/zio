@@ -168,11 +168,11 @@ With _module pattern_ specifying dependencies is as simple as:
 ```scala mdoc:silent
 import zio.stream._
 
-trait NewsletterLive extends Newsletter {
-
+trait NewsletterLive
+  extends Newsletter
   // dependencies
-  val emailRenderer: EmailRenderer.Service[Any]
-  val postman: Postman.Service[Any]
+  with EmailRenderer
+  with Postman {
 
   final val newsletter = new Newsletter.Service[Any] {
 
@@ -190,7 +190,7 @@ trait NewsletterLive extends Newsletter {
 }
 ```
 
-In this example the dependency on `EmailRenderer.Service` and `Postman.Service` is expressed as abstract value, forcing the programmer to provide
+In this example the dependency on `EmailRenderer` and `Postman` is expressed using `with`, forcing the programmer to provide
 instances of these services when constructing the environment. Note that `Newsletter` _module_ does not depend on anything. Only `NewsletterLive`
 implementation depends on those. This allows you to create other implementations with different (or zero) dependencies, like a helper object to access
 service effects:
