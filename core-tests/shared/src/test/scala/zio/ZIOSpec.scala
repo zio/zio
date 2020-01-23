@@ -2537,6 +2537,16 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("tapCause")(
+      testM("does not lose infomrmation") {
+        val causes = Gen.causes(Gen.anyString, Gen.throwable)
+        checkM(causes, causes) { (c1, c2) =>
+          for {
+            exit <- ZIO.halt(c1).tapCause(_ => ZIO.halt(c2)).run
+          } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
+        }
+      }
+    ),
     suite("timeoutFork")(
       testM("returns `Right` with the produced value if the effect completes before the timeout elapses") {
         assertM(ZIO.unit.timeoutFork(100.millis))(isRight(isUnit))
