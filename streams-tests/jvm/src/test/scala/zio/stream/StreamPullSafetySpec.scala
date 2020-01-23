@@ -110,6 +110,48 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
       }
     ),
+    testM("Stream.buffer is safe to pull again") {
+      assertM(
+        Stream(1, 2, 3, 4, 5)
+          .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+          .buffer(2)
+          .process
+          .use(nPulls(_, 7))
+      )(
+        equalTo(
+          List(
+            Right(1),
+            Left(Some("Ouch 2")),
+            Right(3),
+            Left(Some("Ouch 4")),
+            Right(5),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
+    testM("Stream.bufferUnbounded is safe to pull again") {
+      assertM(
+        Stream(1, 2, 3, 4, 5)
+          .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
+          .bufferUnbounded
+          .process
+          .use(nPulls(_, 7))
+      )(
+        equalTo(
+          List(
+            Right(1),
+            Left(Some("Ouch 2")),
+            Right(3),
+            Left(Some("Ouch 4")),
+            Right(5),
+            Left(None),
+            Left(None)
+          )
+        )
+      )
+    },
     testM("Stream.drop is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5, 6, 7)
@@ -162,6 +204,35 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )(equalTo(List(Left(Some("Ouch 2")), Right(3), Left(Some("Ouch 4")), Right(5), Left(None), Left(None))))
       }
     ),
+    testM("Stream.flatMap is safe to pull again") {
+      for {
+        ref <- Ref.make(List.empty[String])
+        pulls <- Stream(1, 2, 3, 4).flatMap { n =>
+                  if (n % 2 == 0) {
+                    (Stream.fail(s"Ouch $n") ++ Stream.succeed(n))
+                      .tap(_ => ref.update(s"inner $n" :: _))
+                      .ensuring(ref.update(s"outer $n" :: _))
+                  } else {
+                    Stream.succeed(n)
+                  }
+                }.process
+                  .use(nPulls(_, 8))
+        finalizers <- ref.get
+      } yield assert(pulls)(
+        equalTo(
+          List(
+            Right(1),
+            Left(Some("Ouch 2")),
+            Right(2),
+            Right(3),
+            Left(Some("Ouch 4")),
+            Right(4),
+            Left(None),
+            Left(None)
+          )
+        )
+      ) && assert(finalizers)(equalTo(List("outer 4", "inner 4", "outer 2", "inner 2")))
+    },
     testM("Stream.mapAccumM is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)

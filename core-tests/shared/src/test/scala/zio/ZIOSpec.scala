@@ -128,10 +128,13 @@ object ZIOSpec extends ZIOBaseSpec {
           cache <- incrementAndGet(ref).cached(60.minutes)
           a     <- cache
           _     <- TestClock.adjust(59.minutes)
+          _     <- clock.sleep(59.minutes)
           b     <- cache
           _     <- TestClock.adjust(1.minute)
+          _     <- clock.sleep(1.minutes)
           c     <- cache
           _     <- TestClock.adjust(59.minutes)
+          _     <- clock.sleep(1.minute)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       }
@@ -848,6 +851,45 @@ object ZIOSpec extends ZIOBaseSpec {
         val ex                                = new RuntimeException("Failed Task")
         val task: IO[Option[Throwable], Unit] = Task.fail(ex).none
         assertM(task.run)(fails(isSome(equalTo(ex))))
+      }
+    ),
+    suite("onExit")(
+      testM("executes that a cleanup function runs when effect succeeds") {
+        for {
+          ref <- Ref.make(false)
+          _ <- ZIO.unit.onExit {
+                case Exit.Success(_) => ref.set(true)
+                case _               => UIO.unit
+              }
+          p <- ref.get
+        } yield assert(p)(isTrue)
+      },
+      testM("ensures that a cleanup function runs when an effect fails") {
+        for {
+          ref <- Ref.make(false)
+          _ <- ZIO
+                .die(new RuntimeException)
+                .onExit {
+                  case Exit.Failure(c) if c.died => ref.set(true)
+                  case _                         => UIO.unit
+                }
+                .sandbox
+                .ignore
+          p <- ref.get
+        } yield assert(p)(isTrue)
+      },
+      testM("ensures that a cleanup function runs when an effect is interrupted") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- (latch1.succeed(()) *> ZIO.never).onExit {
+                    case Exit.Failure(c) if c.interrupted => latch2.succeed(())
+                    case _                                => UIO.unit
+                  }.fork
+          _ <- latch1.await
+          _ <- fiber.interrupt
+          _ <- latch2.await
+        } yield assertCompletes
       }
     ),
     suite("option")(
@@ -2492,6 +2534,16 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(start)(equalTo(1)) &&
           assert(value)(equalTo(2)) &&
           assert(end)(equalTo(3))
+        }
+      }
+    ),
+    suite("tapCause")(
+      testM("does not lose infomrmation") {
+        val causes = Gen.causes(Gen.anyString, Gen.throwable)
+        checkM(causes, causes) { (c1, c2) =>
+          for {
+            exit <- ZIO.halt(c1).tapCause(_ => ZIO.halt(c2)).run
+          } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
         }
       }
     ),

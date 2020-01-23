@@ -81,7 +81,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
       UIO.succeed(expectation).flatMap {
         case Empty =>
           popNextExpectation.flatMap {
-            case Some(next) => extract(state, next(()))
+            case Some(next) => extract(state, next(null))
             case None       => UIO.succeed(Right(()))
           }
 
@@ -95,7 +95,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
           for {
             _ <- state.callsRef.update(_ :+ call.asInstanceOf[AnyCall])
             out <- popNextExpectation.flatMap {
-                    case Some(next) => extract(state, next(()))
+                    case Some(next) => extract(state, next(null))
                     case None       => UIO.succeed(Right(()))
                   }
           } yield out

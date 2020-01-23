@@ -390,6 +390,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * specified `finalizer` is guaranteed to begin execution, whether this effect
    * succeeds, fails, or is interrupted.
    *
+   * For use cases that need access to the effect's result, see [[ZIO#onExit]].
+   *
    * Finalizers offer very powerful guarantees, but they are low-level, and
    * should generally not be used for releasing resources. For higher-level
    * logic built on `ensuring`, see `ZIO#bracket`.
@@ -788,6 +790,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           case Exit.Failure(cause) => cleanup(cause)
         }
     )(_ => self)
+
+  /**
+   * Ensures that a cleanup functions runs, whether this effect succeeds,
+   * fails, or is interrupted.
+   */
+  final def onExit[R1 <: R](cleanup: Exit[E, A] => URIO[R1, Any]): ZIO[R1, E, A] =
+    ZIO.bracketExit(ZIO.unit)((_, exit: Exit[E, A]) => cleanup(exit))(_ => self)
 
   /**
    * Propagates the success value to the first element of a tuple, but
@@ -1416,6 +1425,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     implicit ev: CanFail[E]
   ): ZIO[R1, E1, A] =
     self.foldCauseM(new ZIO.TapErrorRefailFn(f), new ZIO.TapFn(g))
+
+  /**
+   * Returns an effect that effectually "peeks" at the cause of the failure of
+   * this effect.
+   * {{{
+   * readFile("data.json").tapCause(logCause(_))
+   * }}}
+   */
+  final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
+    self.foldCauseM(new ZIO.TapCauseRefailFn(f), ZIO.succeed)
 
   /**
    * Returns an effect that effectfully "peeks" at the failure of this effect.
@@ -3268,10 +3287,25 @@ object ZIO {
       c.failureOrCause.fold(underlying, ZIO.halt)
   }
 
+  final class TapCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
+      extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
+    def apply(c1: Cause[E]): ZIO[R, E1, Nothing] =
+      underlying(c1).foldCauseM(
+        c2 => ZIO.halt(Cause.Then(c1, c2)),
+        _ => ZIO.halt(c1)
+      )
+  }
+
   final class TapErrorRefailFn[R, E, E1 >: E, A](override val underlying: E => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
-    def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
-      c.failureOrCause.fold(underlying(_) *> ZIO.halt(c), _ => ZIO.halt(c))
+    def apply(c1: Cause[E]): ZIO[R, E1, Nothing] =
+      c1.failureOrCause.fold(
+        underlying(_).foldCauseM(
+          c2 => ZIO.halt(Cause.Then(c1, c2)),
+          _ => ZIO.halt(c1)
+        ),
+        _ => ZIO.halt(c1)
+      )
   }
 
   private[zio] object Tags {

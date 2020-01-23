@@ -57,7 +57,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJS",
@@ -307,39 +307,32 @@ lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)
 
-lazy val isScala211 = Def.setting {
-  scalaVersion.value.startsWith("2.11")
-}
-
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM, testJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
-    // skip 2.13 benchmarks until twitter-util publishes for 2.13
-    crossScalaVersions -= "2.13.1",
+    // skip 2.11 benchmarks because akka stop supporting scala 2.11 in 2.6.x
+    crossScalaVersions -= "2.11.12",
     //
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                   %% "fs2-core"        % "2.1.0",
-        "com.google.code.findbugs" % "jsr305"           % "3.0.2",
-        "com.twitter"              %% "util-collection" % "19.1.0",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.27",
-        "io.monix"                 %% "monix"           % "3.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.3.1.RELEASE",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.16",
-        "org.ow2.asm"              % "asm"              % "7.2",
-        "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
-        "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.typelevel"            %% "cats-effect"     % "2.0.0",
-        "org.scalacheck"           %% "scalacheck"      % "1.14.3",
-        "hedgehog"                 %% "hedgehog-core"   % "0.1.0"
+        "co.fs2"                    %% "fs2-core"      % "2.2.1",
+        "com.google.code.findbugs"  % "jsr305"         % "3.0.2",
+        "com.twitter"               %% "util-core"     % "19.12.0",
+        "com.typesafe.akka"         %% "akka-stream"   % "2.6.1",
+        "io.monix"                  %% "monix"         % "3.1.0",
+        "io.projectreactor"         % "reactor-core"   % "3.3.2.RELEASE",
+        "io.reactivex.rxjava2"      % "rxjava"         % "2.2.17",
+        "org.ow2.asm"               % "asm"            % "7.2",
+        "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
+        "org.scala-lang"            % "scala-reflect"  % scalaVersion.value,
+        "org.typelevel"             %% "cats-effect"   % "2.0.0",
+        "org.scalacheck"            %% "scalacheck"    % "1.14.3",
+        "hedgehog"                  %% "hedgehog-core" % "0.1.0",
+        "com.github.japgolly.nyaya" %% "nyaya-gen"     % "0.9.0"
       ),
-    libraryDependencies ++= {
-      if (isScala211.value) Nil
-      else Seq("com.github.japgolly.nyaya" %% "nyaya-gen" % "0.9.0-RC1")
-    },
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
       .reduce(_ | _),
