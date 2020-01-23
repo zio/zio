@@ -139,7 +139,7 @@ package object blocking {
     }
 
     val any: ZLayer[Blocking, Nothing, Blocking] =
-      ZLayer.environment[Blocking]
+      ZLayer.requires[Blocking]
 
     val live: ZLayer.NoDeps[Nothing, Blocking] = ZLayer.succeed {
       new Service {

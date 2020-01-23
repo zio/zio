@@ -31,7 +31,7 @@ package object scheduler {
     }
 
     val any: ZLayer[Scheduler, Nothing, Scheduler] =
-      ZLayer.environment[Scheduler]
+      ZLayer.requires[Scheduler]
 
     val defaultScheduler: Scheduler.Service =
       fromIScheduler(globalScheduler)

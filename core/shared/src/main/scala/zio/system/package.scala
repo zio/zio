@@ -32,7 +32,7 @@ package object system {
     }
 
     val any: ZLayer[System, Nothing, System] =
-      ZLayer.environment[System]
+      ZLayer.requires[System]
 
     val live: ZLayer.NoDeps[Nothing, System] = ZLayer.succeed(
       new Service {

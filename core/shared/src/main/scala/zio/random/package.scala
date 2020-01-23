@@ -21,7 +21,7 @@ package object random {
     }
 
     val any: ZLayer[Random, Nothing, Random] =
-      ZLayer.environment[Random]
+      ZLayer.requires[Random]
 
     val live: ZLayer.NoDeps[Nothing, Random] = ZLayer.succeed {
       new Service {

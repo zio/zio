@@ -29,7 +29,7 @@ private[zio] trait PlatformSpecific {
 
   object ZEnv {
     val any: ZLayer[ZEnv, Nothing, ZEnv] =
-      ZLayer.environment[ZEnv]
+      ZLayer.requires[ZEnv]
     val live: ZLayer.NoDeps[Nothing, ZEnv] =
       (Scheduler.live >>> Clock.live) ++ Console.live ++ System.live ++ Random.live ++ Scheduler.live ++ Blocking.live
   }

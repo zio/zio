@@ -25,7 +25,7 @@ private[test] trait PlatformSpecific {
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
-      ZLayer.environment[TestEnvironment]
+      ZLayer.requires[TestEnvironment]
     val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
       Annotations.live ++
         (Live.default >>> TestClock.default) ++

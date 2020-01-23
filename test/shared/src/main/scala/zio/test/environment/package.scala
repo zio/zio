@@ -463,7 +463,7 @@ package object environment extends PlatformSpecific {
       }
 
     val any: ZLayer[Clock with TestClock with Scheduler, Nothing, Clock with TestClock with Scheduler] =
-      ZLayer.environment[Clock with TestClock with Scheduler]
+      ZLayer.requires[Clock with TestClock with Scheduler]
 
     val default: ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
       live(Data(0, Nil))
@@ -682,7 +682,7 @@ package object environment extends PlatformSpecific {
       )
 
     val any: ZLayer[Console with TestConsole, Nothing, Console with TestConsole] =
-      ZLayer.environment[Console with TestConsole]
+      ZLayer.requires[Console with TestConsole]
 
     val default: ZLayer.NoDeps[Nothing, Console with TestConsole] =
       live(Data(Nil, Vector()))
@@ -1328,7 +1328,7 @@ package object environment extends PlatformSpecific {
       } yield Has.allOf[Random.Service, TestRandom.Service](test, test))
 
     val any: ZLayer[Random with TestRandom, Nothing, Random with TestRandom] =
-      ZLayer.environment[Random with TestRandom]
+      ZLayer.requires[Random with TestRandom]
 
     val deterministic: ZLayer.NoDeps[Nothing, Random with TestRandom] =
       make(DefaultData)
@@ -1490,7 +1490,7 @@ package object environment extends PlatformSpecific {
       ZLayer.fromEffect(Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref))))
 
     val any: ZLayer[System with TestSystem, Nothing, System with TestSystem] =
-      ZLayer.environment[System with TestSystem]
+      ZLayer.requires[System with TestSystem]
 
     val default: ZLayer.NoDeps[Nothing, System with TestSystem] =
       live(DefaultData)

@@ -34,7 +34,7 @@ package object clock {
     }
 
     val any: ZLayer[Clock, Nothing, Clock] =
-      ZLayer.environment[Clock]
+      ZLayer.requires[Clock]
 
     val live: ZLayer[Scheduler, Nothing, Clock] = ZLayer.fromService { (scheduler: Scheduler.Service) =>
       Has(new Service {
