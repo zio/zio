@@ -1224,7 +1224,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * For use cases that need access to the stream's result, see [[ZStream#onExit]].
    */
   final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
-    ZStream(self.process.ensuring(fin))
+    onExit(_ => fin)
 
   /**
    * Executes the provided finalizer before this stream's finalizers run.
@@ -1232,7 +1232,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * For use cases that need access to the stream's result, see [[ZStream#onExitFirst]].
    */
   final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
-    ZStream(self.process.ensuringFirst(fin))
+    onExitFirst(_ => fin)
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
