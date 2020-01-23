@@ -231,15 +231,19 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
 
   /**
    * Executes the provided finalizer after this stream's finalizers run.
+   *
+   * For use cases that need access to the stream's result, see [[ZStreamChunk#onExit]].
    */
   final def ensuring[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStreamChunk[R1, E, A] =
-    ZStreamChunk(chunks.ensuring(fin))
+    onExit(_ => fin)
 
   /**
    * Executes the provided finalizer before this stream's finalizers run.
+   *
+   * For use cases that need access to the stream's result, see [[ZStreamChunk#onExitFirst]].
    */
   final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStreamChunk[R1, E, A] =
-    ZStreamChunk(chunks.ensuringFirst(fin))
+    onExitFirst(_ => fin)
 
   /**
    * Returns a stream whose failures and successes have been lifted into an
@@ -458,6 +462,20 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    */
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
     ZStreamChunk(chunks.mapM(_.mapM(f0)))
+
+  /**
+   * Ensures that the cleanup function runs, whether this stream succeeds, fails,
+   * or is interrupted, after this stream's finalizers run.
+   */
+  final def onExit[R1 <: R](cleanup: Exit[E, Any] => ZIO[R1, Nothing, Any]): ZStreamChunk[R1, E, A] =
+    ZStreamChunk(chunks.onExit(cleanup))
+
+  /**
+   * Ensures that the cleanup function runs, whether this stream succeeds, fails,
+   * or is interrupted, before this stream's finalizers run.
+   */
+  final def onExitFirst[R1 <: R](cleanup: Exit[E, Any] => ZIO[R1, Nothing, Any]): ZStreamChunk[R1, E, A] =
+    ZStreamChunk(chunks.onExitFirst(cleanup))
 
   /**
    * Switches to the provided stream in case this one fails with a typed error.

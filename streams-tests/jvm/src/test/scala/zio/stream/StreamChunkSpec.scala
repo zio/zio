@@ -7,7 +7,7 @@ import com.github.ghik.silencer.silent
 import zio._
 import zio.random.Random
 import zio.stream.StreamChunkUtils._
-import zio.test.Assertion.{ equalTo, isFalse, isLeft, succeeds }
+import zio.test.Assertion.{ equalTo, isFalse, isLeft, isTrue, succeeds }
 import zio.test._
 
 object StreamChunkSpec extends ZIOBaseSpec {
@@ -423,6 +423,106 @@ object StreamChunkSpec extends ZIOBaseSpec {
         execution <- log.get
       } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
     },
+    suite("StreamChunk.onExit")(
+      testM("ensures that the cleanup function runs when the stream succeeds") {
+        for {
+          ref <- Ref.make(false)
+          _ <- StreamChunk.empty.onExit {
+                case Exit.Success(_) => ref.set(true)
+                case _               => UIO.unit
+              }.run(Sink.drain)
+          fin <- ref.get
+        } yield assert(fin)(isTrue)
+      },
+      testM("ensures that the cleanup function runs when the stream fails") {
+        for {
+          ref <- Ref.make(false)
+          _ <- StreamChunk(Stream.fail("Ouch")).onExit {
+                case Exit.Failure(c) =>
+                  c.failureOrCause.fold(e => ref.set(e == "Ouch"), _ => UIO.unit)
+                case _ => UIO.unit
+              }.run(Sink.drain).either.unit
+          fin <- ref.get
+        } yield assert(fin)(isTrue)
+      },
+      testM("ensures that the cleanup function runs when the stream is interrupted") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- StreamChunk(Stream.fromEffect(latch1.succeed(()) *> UIO.never)).onExit {
+                    case Exit.Failure(c) if c.interrupted => latch2.succeed(())
+                    case _                                => UIO.unit
+                  }.run(Sink.drain)
+                    .fork
+          _ <- latch1.await
+          _ <- fiber.interrupt
+          _ <- latch2.await
+        } yield assertCompletes
+      },
+      testM("ensures that the cleanup function runs after all finalizers") {
+        for {
+          ref <- Ref.make(List.empty[String])
+          _ <- StreamChunk.empty
+                .ensuring(ref.update("inner" :: _))
+                .onExit {
+                  case _ => ref.update("outer" :: _)
+                }
+                .run(Sink.drain)
+          fin <- ref.get
+        } yield assert(fin)(equalTo(List("outer", "inner")))
+      }
+    ),
+    suite("StreamChunk.onExitFirst")(
+      testM("ensures that the cleanup function runs when the stream succeeds") {
+        for {
+          ref <- Ref.make(false)
+          _ <- StreamChunk.empty.onExitFirst {
+                case Exit.Success(_) => ref.set(true)
+                case _               => UIO.unit
+              }.run(Sink.drain)
+          fin <- ref.get
+        } yield assert(fin)(isTrue)
+      },
+      testM("ensures that the cleanup function runs when the stream fails") {
+        for {
+          ref <- Ref.make(false)
+          _ <- StreamChunk(Stream.fail("Ouch")).onExitFirst {
+                case Exit.Failure(c) =>
+                  c.failureOrCause.fold(e => ref.set(e == "Ouch"), _ => UIO.unit)
+                case _ => UIO.unit
+              }.run(Sink.drain)
+                .either
+                .unit
+          fin <- ref.get
+        } yield assert(fin)(isTrue)
+      },
+      testM("ensures that the cleanup function runs when the stream is interrupted") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- StreamChunk(Stream.fromEffect(latch1.succeed(()) *> UIO.never)).onExitFirst {
+                    case Exit.Failure(c) if c.interrupted => latch2.succeed(())
+                    case _                                => UIO.unit
+                  }.run(Sink.drain)
+                    .fork
+          _ <- latch1.await
+          _ <- fiber.interrupt
+          _ <- latch2.await
+        } yield assertCompletes
+      },
+      testM("ensures that the cleanup function runs before all finalizers") {
+        for {
+          ref <- Ref.make(List.empty[String])
+          _ <- StreamChunk.empty
+                .ensuring(ref.update("inner" :: _))
+                .onExitFirst {
+                  case _ => ref.update("outer" :: _)
+                }
+                .run(Sink.drain)
+          fin <- ref.get
+        } yield assert(fin)(equalTo(List("inner", "outer")))
+      }
+    ),
     testM("StreamChunk.ChunkN") {
       val s1 = StreamChunk(Stream(Chunk(1, 2, 3, 4, 5), Chunk(6, 7), Chunk(8, 9, 10, 11)))
       assertM(s1.chunkN(2).chunks.map(_.toSeq).runCollect)(
