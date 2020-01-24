@@ -118,7 +118,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * Simultaneously filters and maps the value produced by this effect.
    */
   def collect[B](pf: PartialFunction[A, B]): ZSTM[R, E, B] =
-    collectM(pf.andThen(ZSTM.succeed(_)))
+    collectM(pf.andThen(ZSTM.succeedNow(_)))
 
   /**
    * Simultaneously filters and flatMaps the value produced by this effect.
@@ -126,7 +126,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZSTM[R1, E1, B]]): ZSTM[R1, E1, B] =
     self.continueWithM {
-      case TExit.Fail(e)    => ZSTM.fail(e)
+      case TExit.Fail(e)    => ZSTM.failNow(e)
       case TExit.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry
       case TExit.Retry      => ZSTM.retry
     }
@@ -148,7 +148,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
    * if the full transaction fails, everything will be rolled back.
    */
   def ensuring[R1 <: R](finalizer: ZSTM[R1, Nothing, Any]): ZSTM[R1, E, A] =
-    foldM(e => finalizer *> ZSTM.fail(e), a => finalizer *> ZSTM.succeed(a))
+    foldM(e => finalizer *> ZSTM.failNow(e), a => finalizer *> ZSTM.succeedNow(a))
 
   /**
    * Tries this effect first, and if it fails, succeeds with the specified
@@ -173,7 +173,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
     self.continueWithM {
       case TExit.Succeed(a) => f(a)
-      case TExit.Fail(e)    => ZSTM.fail(e)
+      case TExit.Fail(e)    => ZSTM.failNow(e)
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -189,8 +189,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def fold[B](f: E => B, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, Nothing, B] =
     self.continueWithM {
-      case TExit.Fail(e)    => ZSTM.succeed(f(e))
-      case TExit.Succeed(a) => ZSTM.succeed(g(a))
+      case TExit.Fail(e)    => ZSTM.succeedNow(f(e))
+      case TExit.Succeed(a) => ZSTM.succeedNow(g(a))
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -217,8 +217,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def map[B](f: A => B): ZSTM[R, E, B] =
     self.continueWithM {
-      case TExit.Succeed(a) => ZSTM.succeed(f(a))
-      case TExit.Fail(e)    => ZSTM.fail(e)
+      case TExit.Succeed(a) => ZSTM.succeedNow(f(a))
+      case TExit.Fail(e)    => ZSTM.failNow(e)
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -227,8 +227,8 @@ final class ZSTM[-R, +E, +A] private[stm] (
    */
   def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
     self.continueWithM {
-      case TExit.Succeed(a) => ZSTM.succeed(a)
-      case TExit.Fail(e)    => ZSTM.fail(f(e))
+      case TExit.Succeed(a) => ZSTM.succeedNow(a)
+      case TExit.Fail(e)    => ZSTM.failNow(f(e))
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -248,7 +248,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
         val continueM: TExit[E, A] => STM[E1, A1] = {
           case TExit.Fail(_)    => { reset(); that.provide(r) }
-          case TExit.Succeed(a) => ZSTM.succeed(a)
+          case TExit.Succeed(a) => ZSTM.succeedNow(a)
           case TExit.Retry      => { reset(); that.provide(r) }
         }
 
@@ -826,12 +826,12 @@ object ZSTM {
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
-  def check(p: Boolean): STM[Nothing, Unit] = if (p) STM.unit else retry
+  def check(p: => Boolean): STM[Nothing, Unit] = if (p) STM.unit else retry
 
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: Boolean)(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+  def when[R, E](b: => Boolean)(stm: ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     if (b) stm.unit else unit
 
   /**
@@ -845,27 +845,48 @@ object ZSTM {
    * transactional effect that produces a list of values.
    */
   def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
-    i.foldRight[STM[E, List[A]]](STM.succeed(Nil))(_.zipWith(_)(_ :: _))
+    i.foldRight[STM[E, List[A]]](STM.succeedNow(Nil))(_.zipWith(_)(_ :: _))
 
   /**
-   * Kills the fiber running the effect.
+   * Kills the fiber running the effect with the specified lazily evaluated
+   * `Throwable`.
    */
-  def die(t: Throwable): STM[Nothing, Nothing] = succeed(throw t)
+  def die(t: => Throwable): STM[Nothing, Nothing] =
+    succeed(throw t)
+
+  /**
+   * Kills the fiber running the effect with the specified eagerly evaluated
+   * `Throwable`.
+   */
+  def dieNow(t: Throwable): STM[Nothing, Nothing] =
+    succeedNow(throw t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
    * the specified message.
    */
-  def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
+  def dieMessage(m: => String): STM[Nothing, Nothing] = die(new RuntimeException(m))
 
   /**
-   * Returns a value modelled on provided exit status.
+   * Returns a value modelled on provided lazily evaluated exit status.
    */
-  def done[E, A](exit: TExit[E, A]): STM[E, A] =
+  def done[E, A](exit: => TExit[E, A]): STM[E, A] =
     exit match {
       case TExit.Retry      => STM.retry
-      case TExit.Fail(e)    => STM.fail(e)
-      case TExit.Succeed(a) => STM.succeed(a)
+      case TExit.Fail(e)    => STM.failNow(e)
+      case TExit.Succeed(a) => STM.succeedNow(a)
+    }
+
+  /**
+   * Returns a value modelled on provided eagerly evaluated exit status.
+   */
+  def doneNow[E, A](exit: => TExit[E, A]): STM[E, A] =
+    STM.suspend {
+      exit match {
+        case TExit.Retry      => STM.retry
+        case TExit.Fail(e)    => STM.failNow(e)
+        case TExit.Succeed(a) => STM.succeedNow(a)
+      }
     }
 
   /**
@@ -874,9 +895,18 @@ object ZSTM {
   def environment[R]: ZSTM[R, Nothing, R] = new ZSTM((_, _, _, r) => TExit.Succeed(r))
 
   /**
-   * Returns a value that models failure in the transaction.
+   * Returns a value that models failure in the transaction with the specified
+   * lazily evaluated error.
    */
-  def fail[E](e: E): ZSTM[Any, E, Nothing] = new ZSTM((_, _, _, _) => TExit.Fail(e))
+  def fail[E](e: => E): ZSTM[Any, E, Nothing] =
+    new ZSTM((_, _, _, _) => TExit.Fail(e))
+
+  /**
+   * Returns a value that models failure in the transaction with the specified
+   * eagerly evaluated error.
+   */
+  def failNow[E](e: E): ZSTM[Any, E, Nothing] =
+    fail(e)
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
@@ -898,7 +928,7 @@ object ZSTM {
    * the list of results.
    */
   def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    STM.succeed(as.iterator).flatMap { it =>
+    STM.succeedNow(as.iterator).flatMap { it =>
       def loop: STM[E, Unit] =
         if (it.hasNext) f(it.next) *> loop
         else STM.unit
@@ -911,8 +941,8 @@ object ZSTM {
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     STM.suspend {
       e match {
-        case Left(t)  => STM.fail(t)
-        case Right(a) => STM.succeed(a)
+        case Left(t)  => STM.failNow(t)
+        case Right(a) => STM.succeedNow(a)
       }
     }
 
@@ -922,8 +952,8 @@ object ZSTM {
   def fromTry[A](a: => Try[A]): STM[Throwable, A] =
     STM.suspend {
       Try(a).flatten match {
-        case Failure(t) => STM.fail(t)
-        case Success(a) => STM.succeed(a)
+        case Failure(t) => STM.failNow(t)
+        case Success(a) => STM.succeedNow(a)
       }
     }
 
@@ -939,18 +969,27 @@ object ZSTM {
   val retry: ZSTM[Any, Nothing, Nothing] = new ZSTM((_, _, _, _) => TExit.Retry)
 
   /**
-   * Returns an `STM` effect that succeeds with the specified value.
+   * Returns an `STM` effect that succeeds with the specified lazily evaluated
+   * value.
    */
-  def succeed[A](a: A): ZSTM[Any, Nothing, A] = new ZSTM((_, _, _, _) => TExit.Succeed(a))
+  def succeed[A](a: => A): ZSTM[Any, Nothing, A] =
+    new ZSTM((_, _, _, _) => TExit.Succeed(a))
+
+  /**
+   * Returns an `STM` effect that succeeds with the specified eagerly evaluated
+   * value.
+   */
+  def succeedNow[A](a: A): ZSTM[Any, Nothing, A] =
+    succeed(a)
 
   /**
    * Suspends creation of the specified transaction lazily.
    */
   def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
-    STM.succeed(stm).flatten
+    STM.succeedNow(stm).flatten
 
   /**
    * Returns an `STM` effect that succeeds with `Unit`.
    */
-  val unit: STM[Nothing, Unit] = succeed(())
+  val unit: STM[Nothing, Unit] = succeedNow(())
 }

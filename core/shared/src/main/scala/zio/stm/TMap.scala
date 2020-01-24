@@ -38,7 +38,7 @@ final class TMap[K, V] private (
   def delete(k: K): STM[Nothing, Unit] = {
     def removeMatching(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
       val (toRemove, toRetain) = bucket.partition(_._1 == k)
-      if (toRemove.isEmpty) STM.succeed(toRetain) else tSize.update(_ - toRemove.size).as(toRetain)
+      if (toRemove.isEmpty) STM.succeedNow(toRetain) else tSize.update(_ - toRemove.size).as(toRetain)
     }
 
     for {
@@ -60,7 +60,7 @@ final class TMap[K, V] private (
   def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
     def loopM(res: A, remaining: List[(K, V)]): STM[E, A] =
       remaining match {
-        case Nil          => STM.succeed(res)
+        case Nil          => STM.succeedNow(res)
         case head :: tail => op(res, head).flatMap(loopM(_, tail))
       }
 
@@ -115,7 +115,7 @@ final class TMap[K, V] private (
       val exists = bucket.exists(_._1 == k)
 
       if (exists)
-        STM.succeed(bucket.map(kv => if (kv._1 == k) (k, v) else kv))
+        STM.succeedNow(bucket.map(kv => if (kv._1 == k) (k, v) else kv))
       else
         tSize.update(_ + 1).as((k, v) :: bucket)
     }

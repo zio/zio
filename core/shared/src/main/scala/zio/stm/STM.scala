@@ -31,7 +31,7 @@ object STM {
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
-  def check(p: Boolean): STM[Nothing, Unit] = ZSTM.check(p)
+  def check(p: => Boolean): STM[Nothing, Unit] = ZSTM.check(p)
 
   /**
    * Collects all the transactional effects in a list, returning a single
@@ -41,29 +41,51 @@ object STM {
     ZSTM.collectAll(i)
 
   /**
-   * Kills the fiber running the effect.
+   * Kills the fiber running the effect with the specified lazily evaluated
+   * `Throwable`.
    */
-  def die(t: Throwable): STM[Nothing, Nothing] =
+  def die(t: => Throwable): STM[Nothing, Nothing] =
     ZSTM.die(t)
+
+  /**
+   * Kills the fiber running the effect with the specified eagerly evaluated
+   * `Throwable`.
+   */
+  def dieNow(t: Throwable): STM[Nothing, Nothing] =
+    ZSTM.dieNow(t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
    * the specified message.
    */
-  def dieMessage(m: String): STM[Nothing, Nothing] =
+  def dieMessage(m: => String): STM[Nothing, Nothing] =
     ZSTM.dieMessage(m)
 
   /**
-   * Returns a value modelled on provided exit status.
+   * Returns a value modelled on provided lazily evaluated exit status.
    */
-  def done[E, A](exit: ZSTM.internal.TExit[E, A]): STM[E, A] =
+  def done[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
     ZSTM.done(exit)
 
   /**
-   * Returns a value that models failure in the transaction.
+   * Returns a value modelled on provided eagerly evaluated exit status.
    */
-  def fail[E](e: E): STM[E, Nothing] =
+  def doneNow[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
+    ZSTM.doneNow(exit)
+
+  /**
+   * Returns a value that models failure in the transaction with the specified
+   * lazily evaluated error.
+   */
+  def fail[E](e: => E): STM[E, Nothing] =
     ZSTM.fail(e)
+
+  /**
+   * Returns a value that models failure in the transaction with the specified
+   * eagerly evaluated error.
+   */
+  def failNow[E](e: E): STM[E, Nothing] =
+    ZSTM.failNow(e)
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
@@ -86,7 +108,7 @@ object STM {
    * the list of results.
    */
   def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    STM.succeed(as.iterator).flatMap { it =>
+    STM.succeedNow(as.iterator).flatMap { it =>
       def loop: STM[E, Unit] =
         if (it.hasNext) f(it.next) *> loop
         else STM.unit
@@ -120,10 +142,18 @@ object STM {
     ZSTM.retry
 
   /**
-   * Returns an `STM` effect that succeeds with the specified value.
+   * Returns an `STM` effect that succeeds with the specified lazily evaluated
+   * value.
    */
-  def succeed[A](a: A): STM[Nothing, A] =
+  def succeed[A](a: => A): STM[Nothing, A] =
     ZSTM.succeed(a)
+
+  /**
+   * Returns an `STM` effect that succeeds with the specified eagerly evaluated
+   * value.
+   */
+  def succeedNow[A](a: A): STM[Nothing, A] =
+    ZSTM.succeedNow(a)
 
   /**
    * Suspends creation of the specified transaction lazily.
@@ -134,7 +164,7 @@ object STM {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[E](b: Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+  def when[E](b: => Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
