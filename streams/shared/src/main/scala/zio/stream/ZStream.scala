@@ -816,7 +816,53 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferDropping(capacity: Int): ZStream[R, E, A] =
-    ZStream.managed(ZManaged.make(Queue.dropping[A](capacity))(_.shutdown)).flatMap(bufferSignal)
+    ZStream {
+      for {
+        as    <- self.process
+        queue <- Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        start <- Promise.make[Nothing, Unit].toManaged_
+        _     <- start.succeed(()).toManaged_
+        ref   <- Ref.make(start).toManaged_
+        done  <- Ref.make(false).toManaged_
+        upstream = {
+          def offer(take: Take[E, A]): UIO[Unit] = take match {
+            case Take.Value(_) =>
+              for {
+                p     <- Promise.make[Nothing, Unit]
+                added <- queue.offer((take, p))
+                _     <- ref.set(p).when(added)
+              } yield ()
+
+            case _ =>
+              for {
+                latch <- ref.get
+                _     <- latch.await
+                p     <- Promise.make[Nothing, Unit]
+                _     <- queue.offer((take, p))
+                _     <- ref.set(p)
+                _     <- p.await
+              } yield ()
+          }
+
+          def go: ZIO[R, Nothing, Unit] =
+            Take.fromPull(as).flatMap { take =>
+              offer(take) *> go.when(take != Take.End)
+            }
+
+          go
+        }
+        _ <- upstream.toManaged_.fork
+        pull = done.get.flatMap {
+          if (_) Pull.end
+          else {
+            queue.take.flatMap {
+              case (take, p) =>
+                p.succeed(()) *> done.set(true).when(take == Take.End) *> Pull.fromTake(take)
+            }
+          }
+        }
+      } yield pull
+    }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
