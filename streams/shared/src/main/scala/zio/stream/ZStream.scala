@@ -750,7 +750,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def buffer(capacity: Int): ZStream[R, E, A] =
-    ZStream.managed {
+    ZStream {
       for {
         done  <- Ref.make(false).toManaged_
         queue <- self.toQueue(capacity)
@@ -762,7 +762,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             }
         }
       } yield pull
-    }.flatMap(ZStream.repeatEffectOption)
+    }
 
   /**
    * Creates a stream that passes its elements through a queue that drops elements
