@@ -120,7 +120,7 @@ object TestAspect extends TimeoutVariants {
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         test.run
           .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).run)(_ <* _)
-          .flatMap(ZIO.done)
+          .flatMap(ZIO.doneNow)
     }
 
   /**
@@ -616,7 +616,7 @@ object TestAspect extends TimeoutVariants {
                 (_, fiber) => fiber.interrupt *> ZIO.fail(TestFailure.Runtime(Cause.die(timeoutFailure))),
                 (_, _) => ZIO.fail(TestFailure.Runtime(Cause.die(interruptionTimeoutFailure)))
               )
-            case Right(result) => result.fold(ZIO.fail, ZIO.succeed)
+            case Right(result) => result.fold(ZIO.failNow, ZIO.succeedNow)
           })
       }
     }

@@ -64,7 +64,7 @@ object StreamSpec extends ZIOBaseSpec {
     suite("Stream.accessM")(
       testM("accessM") {
         for {
-          result <- ZStream.accessM[String](ZIO.succeed).provide("test").runHead.get
+          result <- ZStream.accessM[String](ZIO.succeedNow).provide("test").runHead.get
         } yield assert(result)(equalTo("test"))
       },
       testM("accessM fails") {
@@ -1013,7 +1013,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("foreachWhile short circuits") {
         for {
           flag    <- Ref.make(true)
-          _       <- (Stream(true, true, false) ++ Stream.fromEffect(flag.set(false)).drain).foreachWhile(ZIO.succeed)
+          _       <- (Stream(true, true, false) ++ Stream.fromEffect(flag.set(false)).drain).foreachWhile(ZIO.succeedNow)
           skipped <- flag.get
         } yield assert(skipped)(isTrue)
       }

@@ -1461,7 +1461,7 @@ object ZIOSpec extends ZIOBaseSpec {
             f <- ZIO.fail("Uh oh!")
           } yield f
 
-        assertM(io.catchAllCause(ZIO.succeed))(equalTo(Cause.fail("Uh oh!")))
+        assertM(io.catchAllCause(ZIO.succeedNow))(equalTo(Cause.fail("Uh oh!")))
       },
       testM("exception in fromFuture does not kill fiber") {
         val io = ZIO.fromFuture(_ => throw ExampleError).either
@@ -2571,7 +2571,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("no information is lost during composition") {
         val causes = Gen.causes(Gen.anyString, Gen.throwable)
         def cause[R, E](zio: ZIO[R, E, Nothing]): ZIO[R, Nothing, Cause[E]] =
-          zio.foldCauseM(ZIO.succeed, ZIO.fail)
+          zio.foldCauseM(ZIO.succeedNow, ZIO.failNow)
         checkM(causes) { c =>
           for {
             result <- cause(ZIO.halt(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)

@@ -249,7 +249,7 @@ package object test extends CompileVariants {
    * possibilities in a given domain.
    */
   def checkAll[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
-    checkAllM(rv)(test andThen ZIO.succeed)
+    checkAllM(rv)(test andThen ZIO.succeedNow)
 
   /**
    * A version of `checkAll` that accepts two random variables.
@@ -368,11 +368,11 @@ package object test extends CompileVariants {
       ZIO
         .effectSuspendTotal(assertion)
         .foldCauseM(
-          cause => ZIO.fail(TestFailure.Runtime(cause)),
+          cause => ZIO.failNow(TestFailure.Runtime(cause)),
           result =>
             result.run.flatMap(_.failures match {
-              case None           => ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
-              case Some(failures) => ZIO.fail(TestFailure.Assertion(BoolAlgebraM(ZIO.succeed(failures))))
+              case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
+              case Some(failures) => ZIO.failNow(TestFailure.Assertion(BoolAlgebraM(ZIO.succeedNow(failures))))
             })
         )
     )
@@ -486,7 +486,7 @@ package object test extends CompileVariants {
 
     final class CheckN(private val n: Int) extends AnyVal {
       def apply[R, A](rv: Gen[R, A])(test: A => TestResult): ZIO[R, Nothing, TestResult] =
-        checkNM(n)(rv)(test andThen ZIO.succeed)
+        checkNM(n)(rv)(test andThen ZIO.succeedNow)
       def apply[R, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): ZIO[R, Nothing, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
       def apply[R, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
