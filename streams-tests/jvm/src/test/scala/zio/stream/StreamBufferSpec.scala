@@ -82,7 +82,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
                       }
         } yield assert(snapshots._1)(equalTo(0)) && assert(snapshots._2)(equalTo(List(8, 7, 6, 5, 4, 3, 2, 1))) &&
           assert(snapshots._3)(equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 8, 7, 6, 5, 4, 3, 2, 1)))
-      } @@ flaky
+      }
     ),
     suite("Stream.bufferSliding")(
       testM("buffer the Stream with Error") {
