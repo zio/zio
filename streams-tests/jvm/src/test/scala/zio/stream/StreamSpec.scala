@@ -8,6 +8,7 @@ import zio.Exit.Success
 import zio.ZQueueSpecUtil.waitForSize
 import zio._
 import zio.duration._
+import zio.stm.TQueue
 import zio.test.Assertion.{
   dies,
   equalTo,
@@ -1060,6 +1061,20 @@ object StreamSpec extends ZIOBaseSpec {
         items <- fiber.join
       } yield assert(items)(equalTo(c.toSeq.toList))
     }),
+    testM("Stream.fromTQueue") {
+      TQueue.bounded[Int](5).commit.flatMap {
+        tqueue =>
+          ZStream.fromTQueue(tqueue).toQueueUnbounded.use { (queue: Queue[Take[Nothing, Int]]) =>
+            for {
+              _      <- tqueue.offerAll(List(1, 2, 3)).commit
+              first  <- ZIO.collectAll(ZIO.replicate(3)(queue.take))
+              _      <- tqueue.offerAll(List(4, 5)).commit
+              second <- ZIO.collectAll(ZIO.replicate(2)(queue.take))
+            } yield assert(first)(equalTo(List(1, 2, 3).map(Take.Value(_)))) &&
+              assert(second)(equalTo(List(4, 5).map(Take.Value(_))))
+          }
+      }
+    },
     suite("Stream.fromEffectOption")(
       testM("emit one element with success") {
         val fa: ZIO[Any, Option[Int], Int] = ZIO.succeed(5)

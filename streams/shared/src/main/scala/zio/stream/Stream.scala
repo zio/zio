@@ -22,6 +22,7 @@ import java.{ util => ju }
 import zio.Cause
 import zio._
 import zio.clock.Clock
+import zio.stm.TQueue
 
 object Stream extends Serializable {
   import ZStream.Pull
@@ -261,6 +262,12 @@ object Stream extends Serializable {
    */
   def fromQueueWithShutdown[E, A](queue: ZQueue[Nothing, Any, Any, E, Nothing, A]): Stream[E, A] =
     ZStream.fromQueueWithShutdown(queue)
+
+  /**
+   * See [[ZStream.fromTQueue]]
+   */
+  def fromTQueue[A](queue: TQueue[A]): Stream[Nothing, A] =
+    ZStream.fromTQueue(queue)
 
   /**
    * See [[ZStream.halt]]
