@@ -278,7 +278,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
 lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
-  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.12"))
+  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13"))
   .dependsOn(test)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
