@@ -25,6 +25,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.UniqueKey
+import zio.stm.TQueue
 import zio.stream.ZStream.Pull
 
 /**
@@ -3241,6 +3242,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    */
   def fromQueueWithShutdown[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
     fromQueue(queue).ensuringFirst(queue.shutdown)
+
+  /**
+   * Creates a stream from a [[zio.stm.TQueue]] of values.
+   */
+  def fromTQueue[A](queue: TQueue[A]): ZStream[Any, Nothing, A] =
+    ZStream.repeatEffect(queue.take.commit)
 
   /**
    * The stream that always halts with `cause`.
