@@ -6,7 +6,6 @@ import ZStream.Pull
 import zio._
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test._
-import zio.test.TestAspect.nonFlaky
 
 object StreamPullSafetySpec extends ZIOBaseSpec {
 
@@ -152,7 +151,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           )
         )
       )
-    } @@ nonFlaky,
+    },
     testM("Stream.bufferUnbounded is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)
