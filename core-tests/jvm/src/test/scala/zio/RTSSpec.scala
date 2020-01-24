@@ -62,10 +62,12 @@ object RTSSpec extends ZIOBaseSpec {
       for {
         promise <- Promise.make[Nothing, Int]
         fiber   <- promise.await.fork
-        dump    <- fiber.dump
-        dumpStr <- dump.fold[URIO[Clock, String]](IO.succeed(""))(_.prettyPrintM)
-        _       <- UIO(println(dumpStr))
-      } yield assert(dump)(anything)
+        dumpStr <- fiber.typeSpecific(
+                    physical => physical.dump.flatMap(_.prettyPrintM),
+                    _ => UIO.dieMessage("synthetic fiber")
+                  )
+        _ <- UIO(println(dumpStr))
+      } yield assert(dumpStr)(anything)
     },
     testM("interruption causes") {
       for {

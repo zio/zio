@@ -103,30 +103,10 @@ trait Fiber[+E, +A] { self =>
   def children: UIO[Iterable[Fiber[Any, Any]]]
 
   /**
-   * Generates a fiber dump, if the fiber is not synthetic.
-   */
-  final def dump: UIO[Option[Fiber.Dump]] =
-    for {
-      name   <- self.getRef(Fiber.fiberName)
-      id     <- self.id
-      status <- self.status
-      trace  <- self.trace
-    } yield for {
-      id    <- id
-      trace <- trace
-    } yield Fiber.Dump(id, name, status, trace)
-
-  /**
    * Gets the value of the fiber ref for this fiber, or the initial value of
    * the fiber ref, if the fiber is not storing the ref.
    */
   def getRef[A](ref: FiberRef[A]): UIO[A]
-
-  /**
-   * The identity of the fiber, if it is a single runtime fiber. Fibers created
-   * from values or composite fibers do not have identities.
-   */
-  def id: UIO[Option[Fiber.Id]]
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
@@ -196,7 +176,6 @@ trait Fiber[+E, +A] { self =>
         self.await.flatMap(_.foreach(f))
       final def children: UIO[Iterable[Fiber[Any, Any]]] = self.children
       final def getRef[A](ref: FiberRef[A]): UIO[A]      = self.getRef(ref)
-      final def id: UIO[Option[Fiber.Id]]                = self.id
       final def inheritRefs: UIO[Unit] =
         self.inheritRefs
       final def interruptAs(id: Fiber.Id): UIO[Exit[E1, B]] =
@@ -204,7 +183,6 @@ trait Fiber[+E, +A] { self =>
       final def poll: UIO[Option[Exit[E1, B]]] =
         self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
       final def status: UIO[Fiber.Status] = self.status
-      def trace: UIO[Option[ZTrace]]      = self.trace
     }
 
   /**
@@ -233,8 +211,6 @@ trait Fiber[+E, +A] { self =>
           second <- self.getRef(ref)
         } yield if (first == ref.initial) second else first
 
-      final def id: UIO[Option[Fiber.Id]] = UIO.none
-
       final def interruptAs(id: Fiber.Id): UIO[Exit[E1, A1]] =
         self.interruptAs(id) *> that.interruptAs(id)
 
@@ -245,8 +221,6 @@ trait Fiber[+E, +A] { self =>
         self.poll.zipWith(that.poll)(_ orElse _)
 
       final def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
-
-      final def trace: UIO[Option[ZTrace]] = UIO.none
     }
 
   /**
@@ -316,9 +290,17 @@ trait Fiber[+E, +A] { self =>
     ZManaged.make(UIO.succeed(self))(_.interrupt)
 
   /**
-   * The trace of the fiber. Currently only single runtime fibers have traces.
+   * Performs an effect depending on whether this is a runtime or synthetic
+   * fiber.
    */
-  def trace: UIO[Option[ZTrace]]
+  final def typeSpecific[R, E1 >: E, B](
+    runtime: Fiber.Runtime[E, A] => ZIO[R, E1, B],
+    synthetic: Fiber.Synthetic[E, A] => ZIO[R, E1, B]
+  ): ZIO[R, E1, B] =
+    self match {
+      case fiber: Fiber.Runtime[E, A]   => runtime(fiber)
+      case fiber: Fiber.Synthetic[E, A] => synthetic(fiber)
+    }
 
   /**
    * Maps the output of this fiber to `()`.
@@ -382,8 +364,6 @@ trait Fiber[+E, +A] { self =>
       final def getRef[A](ref: FiberRef[A]): UIO[A] =
         (self.getRef(ref) zipWith that.getRef(ref))(ref.combine(_, _))
 
-      final def id: UIO[Option[Fiber.Id]] = UIO.none
-
       final def interruptAs(id: Fiber.Id): UIO[Exit[E1, C]] =
         (self interruptAs id).zipWith(that interruptAs id)(_.zipWith(_)(f, _ && _))
 
@@ -396,12 +376,44 @@ trait Fiber[+E, +A] { self =>
         }
 
       final def status: UIO[Fiber.Status] = (self.status zipWith that.status)(_ <> _)
-
-      final def trace: UIO[Option[ZTrace]] = UIO.none
     }
 }
 
 object Fiber {
+
+  /**
+   * A runtime fiber that is executing an effect. Runtime fibers ave an
+   * identity and a trace.
+   */
+  trait Runtime[+E, +A] extends Fiber[E, A] { self =>
+
+    /**
+     * The identity of the fiber.
+     */
+    def id: UIO[Fiber.Id]
+
+    /**
+     * The trace of the fiber.
+     */
+    def trace: UIO[ZTrace]
+
+    /**
+     * Generates a fiber dump.
+     */
+    final def dump: UIO[Fiber.Dump] =
+      for {
+        name   <- self.getRef(Fiber.fiberName)
+        id     <- self.id
+        status <- self.status
+        trace  <- self.trace
+      } yield Fiber.Dump(id, name, status, trace)
+  }
+
+  /**
+   * A synthetic fiber that is created from a pure value or that combines
+   * existing fibers.
+   */
+  trait Synthetic[+E, +A] extends Fiber[E, A] {}
 
   /**
    * A record containing information about a [[Fiber]].
@@ -532,8 +544,6 @@ object Fiber {
         UIO.foreach(fibers)(_.children).map(_.foldRight(Iterable.empty[Fiber[Any, Any]])(_ ++ _))
       def getRef[A](ref: FiberRef[A]): UIO[A] =
         UIO.foreach(fibers)(_.getRef(ref)).map(_.foldRight(ref.initial)(ref.combine))
-      def id: UIO[Option[Fiber.Id]] =
-        UIO.none
       def inheritRefs: UIO[Unit] =
         UIO.foreach_(fibers)(_.inheritRefs)
       def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, List[A]]] =
@@ -549,8 +559,6 @@ object Fiber {
           })
       def status: UIO[Fiber.Status] =
         UIO.foreach(fibers)(_.status).map(_.foldRight[Status](Status.Done)(_ <> _))
-      def trace: UIO[Option[ZTrace]] =
-        UIO.none
     }
 
   /**
@@ -566,12 +574,10 @@ object Fiber {
       final def await: UIO[Exit[E, A]]                     = IO.succeed(exit)
       final def children: UIO[Iterable[Fiber[Any, Any]]]   = UIO(Nil)
       final def getRef[A](ref: FiberRef[A]): UIO[A]        = UIO(ref.initial)
-      final def id: UIO[Option[Fiber.Id]]                  = UIO.none
       final def interruptAs(id: Fiber.Id): UIO[Exit[E, A]] = IO.succeed(exit)
       final def inheritRefs: UIO[Unit]                     = IO.unit
       final def poll: UIO[Option[Exit[E, A]]]              = IO.succeed(Some(exit))
       final def status: UIO[Fiber.Status]                  = UIO(Fiber.Status.Done)
-      final def trace: UIO[Option[ZTrace]]                 = UIO.none
     }
 
   /**
@@ -586,14 +592,13 @@ object Fiber {
       ZIO
         .collectAll(fibers.toIterable.map { context =>
           (context.children zip context.dump).map {
-            case (children, dump) => dump.map(dump => (children, dump))
+            case (children, dump) => (children, dump)
           }
         })
-        .flatMap { (collected: List[Option[(Iterable[Fiber[Any, Any]], Dump)]]) =>
-          val collected1 = collected.collect { case Some(a) => a }
-          val children   = collected1.map(_._1).flatten
-          val dumps      = collected1.map(_._2)
-          val acc2       = acc.map(_ ++ dumps.toVector)
+        .flatMap { (collected: List[(Iterable[Fiber[Any, Any]], Dump)]) =>
+          val children = collected.map(_._1).flatten
+          val dumps    = collected.map(_._2)
+          val acc2     = acc.map(_ ++ dumps.toVector)
 
           if (children.isEmpty) acc2 else loop(children.asInstanceOf[Iterable[FiberContext[Any, Any]]], acc2)
         }
@@ -643,8 +648,6 @@ object Fiber {
 
       def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 
-      def id: UIO[Option[Fiber.Id]] = UIO.none
-
       def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
       def inheritRefs: UIO[Unit] = IO.unit
@@ -654,8 +657,6 @@ object Fiber {
       def status: UIO[Fiber.Status] = UIO {
         if (thunk.isCompleted) Status.Done else Status.Running
       }
-
-      def trace: UIO[Option[ZTrace]] = UIO.none
     }
 
   /**
@@ -708,12 +709,10 @@ object Fiber {
       def await: UIO[Exit[Nothing, Nothing]]                     = IO.never
       def children: UIO[Iterable[Fiber[Any, Any]]]               = UIO(Nil)
       def getRef[A](ref: FiberRef[A]): UIO[A]                    = UIO(ref.initial)
-      def id: UIO[Option[Fiber.Id]]                              = UIO.none
       def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
       def inheritRefs: UIO[Unit]                                 = IO.unit
       def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeed(None)
       def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0, Nil, Nil))
-      def trace: UIO[Option[ZTrace]]                             = UIO.none
     }
 
   /**

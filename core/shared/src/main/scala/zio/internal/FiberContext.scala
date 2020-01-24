@@ -42,7 +42,7 @@ private[zio] final class FiberContext[E, A](
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals
-) extends Fiber[E, A] { self =>
+) extends Fiber.Runtime[E, A] { self =>
 
   import FiberContext._
   import FiberState._
@@ -697,7 +697,7 @@ private[zio] final class FiberContext[E, A](
 
   def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
-  def id: UIO[Option[Fiber.Id]] = UIO(Some(fiberId))
+  def id: UIO[Fiber.Id] = UIO(fiberId)
 
   def inheritRefs: UIO[Unit] = UIO.effectSuspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
@@ -712,7 +712,7 @@ private[zio] final class FiberContext[E, A](
 
   def status: UIO[Fiber.Status] = UIO(state.get.status)
 
-  def trace: UIO[Option[ZTrace]] = UIO(Some(captureTrace(null)))
+  def trace: UIO[ZTrace] = UIO(captureTrace(null))
 
   @tailrec
   private[this] def enterAsync(epoch: Long, register: AnyRef, blockingOn: List[Fiber.Id]): IO[E, Any] = {
