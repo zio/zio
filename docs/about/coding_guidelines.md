@@ -18,51 +18,112 @@ refer to them once in a while when in doubt.
 
 ### Defining classes and traits
 
-1. Value classes must be final and extend AnyVal.
-2. Method extension classes must be final and extend `AnyVal`.
-3. Sealed traits that are ADTs should extend `Product` and `Serializable`.
-4. Regular traits and sealed trait that do not form ADTS should extend `Serializable` but not `Product`.
-5. Multiple parameter classes that are ADT should be case class and not extend AnyVal
-6. Traits should always extends `Serializable`. (i.e. `ZIO`)
+1. Value classes must be final and extend AnyVal;
+
+2. Method extension classes must be final and extend `AnyVal`;
+
+3. Sealed traits that are ADTs should extend `Product` and `Serializable`;
+
+4. Regular traits and sealed trait that do not form ADTS should extend `Serializable` but not `Product`;
+
+5. Traits should always extends `Serializable`. (i.e. `ZIO`).
 
 ### Final and private modifiers 
 
-1. All methods on classes / traits are declared `final`, by default.
-2. No methods on objects declared `final`.
-3. No methods on final classes declared `final`.
-4. All classes inside objects should be defined `final`.
-5. All final classes have private constructors & constructor parameters.
-6. All `vals` declared `final`, either in objects or `final classes`, if they are constant expressions and without type annotations.
-7. Private `methods` and `vals` are not declared `final` since they are already final.
-8. Package-private `vals` and `methods` declared `final`.
+1. All methods on classes / traits are declared `final`, by default;
+
+2. No methods on objects declared `final`, because they are `final` by default;
+
+3. No methods on final classes declared `final`, because they are `final` by default;
+
+4. All classes inside objects should be defined `final`;
+
+5. In general, classes that are not case classes have their constructors & constructor parameters private. 
+   Typically it is not good practice to expose constructors and constructor parameters but exceptions apply (i.e. `Assertion` and `TestAnnotation`);
+
+6. All `vals` declared `final`, even in objects or `final classes`, if they are constant expressions and without type annotations;
+
+7. Private methods and `vals` are not declared `final` since they are already final;
+
+8. Package-private `vals` and methods should be declared `final`.
 
 ### Refactoring
 
-1. If a class has all `final` members, the class should be declared `final` and `final` member annotations should be removed except constant expressions.
-2. All type annotations should use the least powerful type alias. This means, that, let us say, a `ZIO` effect that has no dependencies but throws an arbitrary error, should be defined as `IO`.
+1. If a class has all `final` members, the class should be declared `final` and `final` member annotations should be removed except constant expressions;
 
-### Naming of parameters in methods and classes
+2. All type annotations should use the least powerful type alias. This means, that, let us say, a `ZIO` effect that has 
+   no dependencies but throws an arbitrary error, should be defined as `IO`.
 
-1. Partial functions are called `pf`
-2. Evidences are called `ev`
-3. Promise are called `p` (unless in its own class methods, in that case it is called `that`)
-4. Functions are called `fn`, `fn1`, unless they bear specific meaning: `use`, `release`, ..
-4. Consider _ method having more meaningful names
-5. Iterable are called `in`
-6. When a parameter type equals own (in a method of a trait) call it `that`
-7. Never use by-name parameter unless you really know what you are doing and it makes sense. Mind the `Function[0]` extra allocation and loss of clean syntax when invoking the method.
-8. Folds initial value are called `zero`
+### Understanding naming of parameters or values
 
-### Misc
+ZIO often but does not always uses the following naming conventions. This guide can help you understand where the names come from. 
+Naming expectations can be helpful in understanding the role of certain parameters without even glancing at its type when reading code, class or method signatures.
 
-1. GADTS should always have type annotation.
-2. Type alias should always have type annotation.
-3. Methods that lift pure values to effects are dangerous. Dangerous in the sense that they can potentially have dangerous side-effects. 
-Such methods should have a default lazy variant and an eager variant for advanced users that are aware they absolutely do not have side-effects in their code, 
-having slight gains in performance. The lazy variant should have a normal name (succeed, fail, lift, potato) and the eager variant should have a now suffix 
-(succeedNow, liftNow, potatoNow) which makes it clear of its eager behaviour.      
+1. Partial functions have a shortened name `pf`;
 
-### Code structure
+2. In ZIO implicit parameters are often used as compiler evidences;
+   These evidences help you, as a developer, prove something to the compiler (at compile time) and they have the ability to add constraints to a method;
+   They are typically called `ev` if there is only one. Or `ev1`, `ev2`... if more than one;
+   
+3. Promises are called `p` (unless in its own class methods, in that case it is called `that`, like point 6 defines);
 
-1. Method alphabetization - add lazy `vals` to fix forward references.
-2. Sorting of imports                            
+4. Functions are called `fn`, `fn1`, unless they bear specific meaning: `use`, `release`;
+
+4. ZIO effects are called `f`, unless they bear specific meaning like partially providing environment: `r0`;
+
+4. Consider methods ending with _ having more meaningful names;
+
+5. Iterable are called `in`;
+
+6. When a parameter type equals own (in a method of a trait) call it `that`;
+
+7. Be mindful of using by-name parameters. Mind the `Function[0]` extra allocation and loss of clean syntax when invoking the method.
+   Loss of syntax means that instead of being able to do something like `f.flatMap(ZIO.success)` you require to explicitly do `f.flatMap(ZIO.success(_))`;
+   
+8. Fold or fold variants initial value are called `zero`.
+
+### Understanding naming of methods
+
+ZIO goes to great lengths to define method names that are intuitive to the library user. Naming is hard. 
+This section will attempt to provide some guidelines and examples to document, guide and explain naming of methods in ZIO.
+
+1. Methods that lift pure values to effects are dangerous. Dangerous in the sense that they can potentially have dangerous side-effects. 
+   Such methods should have a default lazy variant and an eager variant for advanced users that are aware they absolutely do not have side-effects in their code, 
+   having slight gains in performance. The lazy variant should have a normal name (succeed, fail, die, lift) and the eager variant should have a now suffix 
+   (succeedNow, failNow, dieNow, liftNow) which makes it clear of its eager behaviour;
+
+2. Methods that have the form of `List#zip` are called `zip`, and have an alias called `<*>`. The parallel version, if applicable, has the name `zipPar`, with an alias called `<&>`;
+
+3. Methods that are intended to capture side-effects, convert them into functional effects, should be prefixed by effect*. For example, `ZIO.effect`;
+
+4. The dual of zip, which is trying either a left or right side, producing an Either of the result, should be called `orElseEither`, with alias `<+>`. 
+   The simplified variant where both left and right have the same type should be called `orElse`, with alias `<>`;
+    
+5. Constructors for a data type `X` that are based on another data type `Y` should be placed in the companion object `X` and named `fromY`. 
+   For example, `ZIO.fromOption`, `ZStream.fromEffect`;
+   
+6. Parallel versions of methods should be named the same, but with a `Par` suffix. Parallel versions with a bound on parallelism should use a `ParN` suffix;
+
+7. `Foreach` should be used as the default traverse operation, with `traverse` retained as an alias for programmers with an FP background. For example, `ZIO.foreach`.
+   
+
+### Type annotations
+
+ZIO goes to great lengths to take advantage of the scala compiler in varied ways. Type variance is one of them. 
+The following rules are good to have in mind when adding new `types`, `traits` or `classes` that have either covariant or contravariant types.
+
+1. Generalized ADTs should always have type annotation. (i.e. `final case class Fail[+E](value: E) extends Cause[E]`);
+   
+2. Type alias should always have type annotation. Much like in Generalized ADTs defining type aliases should have carry the type annotations 
+   (i.e. `type IO[+E, +A] = ZIO[Any, E, A]`).
+  
+
+### Method alphabetization
+
+In general the following rules should be applied regarding method alphabetization. To fix forward references we recommend values to be made lazy (`lazy val`).
+
+1. Public abstract defs / vals listed first, and alphabetized, with operators appearing before names.
+
+2. Public concrete defs / vals listed second, and alphabetized, with operators appearing before names.
+
+3. Private implementation details listed third, and alphabetized, with operators appearing before names.
