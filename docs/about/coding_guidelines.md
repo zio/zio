@@ -15,16 +15,15 @@ make a contribution, by proving a fix to said issue.
 Last, but not least, these rules are continuously evolving and as such, 
 refer to them once in a while when in doubt.
 
-
 ### Defining classes and traits
 
-1. Value classes must be final and extend AnyVal;
+1. Value classes must be final and extend `AnyVal`;
 
 2. Method extension classes must be final and extend `AnyVal`;
 
-3. Sealed traits that are ADTs should extend `Product` and `Serializable`;
+3. Sealed traits that are ADTs (Algebraic data types) should extend `Product` and `Serializable`;
 
-4. Regular traits and sealed trait that do not form ADTS should extend `Serializable` but not `Product`;
+4. Regular traits and sealed trait that do not form ADTs should extend `Serializable` but not `Product`;
 
 5. Traits should always extends `Serializable`. (i.e. `ZIO`).
 
@@ -56,8 +55,8 @@ refer to them once in a while when in doubt.
 
 ### Understanding naming of parameters or values
 
-ZIO often but does not always uses the following naming conventions. This guide can help you understand where the names come from. 
-Naming expectations can be helpful in understanding the role of certain parameters without even glancing at its type when reading code, class or method signatures.
+ZIO code often uses the following naming conventions and you might be asked to change method parameters to follow this conventions. This guide can help you understand where the names come from. 
+Naming expectations can be helpful in understanding the role of certain parameters without even glancing at its type signature when reading code or class/method signatures.
 
 1. Partial functions have a shortened name `pf`;
 
@@ -84,12 +83,12 @@ Naming expectations can be helpful in understanding the role of certain paramete
 
 ### Understanding naming of methods
 
-ZIO goes to great lengths to define method names that are intuitive to the library user. Naming is hard. 
+ZIO goes to great lengths to define method names that are intuitive to the library user. Naming is hard!!! 
 This section will attempt to provide some guidelines and examples to document, guide and explain naming of methods in ZIO.
 
 1. Methods that lift pure values to effects are dangerous. Dangerous in the sense that they can potentially have dangerous side-effects. 
    Such methods should have a default lazy variant and an eager variant for advanced users that are aware they absolutely do not have side-effects in their code, 
-   having slight gains in performance. The lazy variant should have a normal name (succeed, fail, die, lift) and the eager variant should have a now suffix 
+   having slight gains in performance. The lazy variant should have a normal name (succeed, fail, die, lift) and the eager variant should have a `now` suffix 
    (succeedNow, failNow, dieNow, liftNow) which makes it clear of its eager behaviour;
 
 2. Methods that have the form of `List#zip` are called `zip`, and have an alias called `<*>`. The parallel version, if applicable, has the name `zipPar`, with an alias called `<&>`;
@@ -106,7 +105,6 @@ This section will attempt to provide some guidelines and examples to document, g
 
 7. `Foreach` should be used as the default traverse operation, with `traverse` retained as an alias for programmers with an FP background. For example, `ZIO.foreach`.
    
-
 ### Type annotations
 
 ZIO goes to great lengths to take advantage of the scala compiler in varied ways. Type variance is one of them. 
@@ -120,7 +118,8 @@ The following rules are good to have in mind when adding new `types`, `traits` o
 
 ### Method alphabetization
 
-In general the following rules should be applied regarding method alphabetization. To fix forward references we recommend values to be made lazy (`lazy val`).
+In general the following rules should be applied regarding method alphabetization. To fix forward references of values we recommend the programmer to make them lazy (`lazy val`).
+Operators are any methods that only have non-letter characters (i.e. `<*>` , `<>`, `*>`).
 
 1. Public abstract defs / vals listed first, and alphabetized, with operators appearing before names.
 
