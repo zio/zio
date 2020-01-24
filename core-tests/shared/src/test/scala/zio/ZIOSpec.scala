@@ -2012,7 +2012,8 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(b)(equalTo(42))
       },
       testM("par regression") {
-        val io = IO.succeedNow[Int](1).zipPar(IO.succeedNow[Int](2)).flatMap(t => IO.succeedNow(t._1 + t._2)).map(_ == 3)
+        val io =
+          IO.succeedNow[Int](1).zipPar(IO.succeedNow[Int](2)).flatMap(t => IO.succeedNow(t._1 + t._2)).map(_ == 3)
         assertM(io)(isTrue)
       } @@ jvm(nonFlaky),
       testM("par of now values") {
