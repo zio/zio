@@ -832,7 +832,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * elements into an unbounded queue.
    */
   final def bufferUnbounded: ZStream[R, E, A] =
-    ZStream.managed {
+    ZStream {
       for {
         done  <- Ref.make(false).toManaged_
         queue <- self.toQueueUnbounded[E, A]
@@ -844,7 +844,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
             }
         }
       } yield pull
-    }.flatMap(ZStream.repeatEffectOption)
+    }
 
   /**
    * Switches over to the stream produced by the provided function in case this one
