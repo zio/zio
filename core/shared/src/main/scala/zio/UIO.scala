@@ -142,7 +142,12 @@ object UIO {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  def die(t: => Throwable): UIO[Nothing] = ZIO.dieNow(t)
+
+  /**
+   * @see See [[zio.ZIO.dieNow]]
+   */
+  def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
@@ -152,7 +157,12 @@ object UIO {
   /**
    * @see See [[zio.ZIO.done]]
    */
-  def done[A](r: Exit[Nothing, A]): UIO[A] = ZIO.done(r)
+  def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)
+
+  /**
+   * @see See [[zio.ZIO.doneNow]]
+   */
+  def doneNow[A](r: Exit[Nothing, A]): UIO[A] = ZIO.doneNow(r)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -306,7 +316,12 @@ object UIO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt(cause: Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
+  def halt(cause: => Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
+
+  /**
+   * @see See [[zio.ZIO.haltNow]]
+   */
+  def haltNow(cause: Cause[Nothing]): UIO[Nothing] = ZIO.haltNow(cause)
 
   /**
    * @see [[zio.ZIO.haltWith]]
@@ -326,7 +341,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
@@ -343,12 +358,12 @@ object UIO {
   /**
    *  @see See [[zio.ZIO.left]]
    */
-  def left[A](a: A): UIO[Either[A, Nothing]] = ZIO.left(a)
+  def left[A](a: => A): UIO[Either[A, Nothing]] = ZIO.left(a)
 
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  def lock[A](executor: Executor)(uio: UIO[A]): UIO[A] =
+  def lock[A](executor: => Executor)(uio: UIO[A]): UIO[A] =
     ZIO.lock(executor)(uio)
 
   /**
@@ -450,7 +465,7 @@ object UIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[B](b: B): UIO[Either[Nothing, B]] = ZIO.right(b)
+  def right[B](b: => B): UIO[Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -478,12 +493,17 @@ object UIO {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[A](a: A): UIO[Option[A]] = ZIO.some(a)
+  def some[A](a: => A): UIO[Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
+  def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
+
+  /**
+   * @see See [[zio.ZIO.succeedNow]]
+   */
+  def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -565,13 +585,13 @@ object UIO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when(b: Boolean)(uio: UIO[Any]): UIO[Unit] =
+  def when(b: => Boolean)(uio: UIO[Any]): UIO[Unit] =
     ZIO.when(b)(uio)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**

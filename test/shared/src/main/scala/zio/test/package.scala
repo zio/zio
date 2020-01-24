@@ -329,13 +329,13 @@ package object test extends CompileVariants {
    * Creates a failed test result with the specified runtime cause.
    */
   def failed[E](cause: Cause[E]): ZTest[Any, E, Nothing] =
-    ZIO.fail(TestFailure.Runtime(cause))
+    ZIO.failNow(TestFailure.Runtime(cause))
 
   /**
    * Creates an ignored test result.
    */
   val ignored: ZTest[Any, Nothing, Nothing] =
-    ZIO.succeed(TestSuccess.Ignored)
+    ZIO.succeedNow(TestSuccess.Ignored)
 
   /**
    * Passes platform specific information to the specified function, which will
@@ -351,7 +351,7 @@ package object test extends CompileVariants {
    * Builds a suite containing a number of other specs.
    */
   def suite[R, E, L, T](label: L)(specs: Spec[R, E, L, T]*): Spec[R, E, L, T] =
-    Spec.suite(label, ZIO.succeed(specs.toVector), None)
+    Spec.suite(label, ZIO.succeedNow(specs.toVector), None)
 
   /**
    * Builds a spec with a single pure test.
@@ -528,7 +528,7 @@ package object test extends CompileVariants {
               .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
               .either
         )
-    }.mapM(_.traverse(_.fold(e => ZIO.succeed(Left(e)), a => a.run.map(Right(_)))))
+    }.mapM(_.traverse(_.fold(e => ZIO.succeedNow(Left(e)), a => a.run.map(Right(_)))))
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
       .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks.toLong))
@@ -546,7 +546,7 @@ package object test extends CompileVariants {
                 )
               }
             }
-          )(_.fold(e => ZIO.fail(e), a => ZIO.succeed(BoolAlgebraM(ZIO.succeed(a)))))
+          )(_.fold(e => ZIO.failNow(e), a => ZIO.succeedNow(BoolAlgebraM(ZIO.succeedNow(a)))))
       }
       .untraced
 

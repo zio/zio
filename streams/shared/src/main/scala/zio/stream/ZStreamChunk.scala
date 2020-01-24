@@ -114,7 +114,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
                     {
                       case None if chunk0.length == 0 => Pull.end
                       case None                       => Pull.emit(chunk0) <* state.set(true -> Chunk.empty)
-                      case e @ Some(_)                => ZIO.fail(e)
+                      case e @ Some(_)                => ZIO.failNow(e)
                     },
                     xs =>
                       state.modify {
@@ -292,7 +292,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   def fold[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
     chunks
       .foldWhileManagedM[R, E, Chunk[A1], S](s)(_ => true) { (s: S, as: Chunk[A1]) =>
-        as.foldM[Any, Nothing, S](s)((s, a) => ZIO.succeed(f(s, a)))
+        as.foldM[Any, Nothing, S](s)((s, a) => ZIO.succeedNow(f(s, a)))
       }
       .use(ZIO.succeedNow)
 
@@ -315,7 +315,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   final def foldManaged[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
     chunks
       .foldWhileManagedM[R, E, Chunk[A1], S](s)(_ => true) { (s: S, as: Chunk[A1]) =>
-        as.foldM[Any, Nothing, S](s)((s, a) => ZIO.succeed(f(s, a)))
+        as.foldM[Any, Nothing, S](s)((s, a) => ZIO.succeedNow(f(s, a)))
       }
 
   /**
@@ -336,7 +336,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   final def foldWhile[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZIO[R, E, S] =
     chunks
       .foldWhileManagedM[R, E, Chunk[A1], S](s)(cont) { (s: S, as: Chunk[A1]) =>
-        as.foldWhileM(s)(cont)((s, a) => ZIO.succeed(f(s, a)))
+        as.foldWhileM(s)(cont)((s, a) => ZIO.succeedNow(f(s, a)))
       }
       .use(ZIO.succeedNow)
 
@@ -361,7 +361,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    */
   def foldWhileManaged[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): ZManaged[R, E, S] =
     chunks.foldWhileManagedM[R, E, Chunk[A1], S](s)(cont) { (s: S, as: Chunk[A1]) =>
-      as.foldWhileM[Any, Nothing, S](s)(cont)((s, a) => ZIO.succeed(f(s, a)))
+      as.foldWhileM[Any, Nothing, S](s)(cont)((s, a) => ZIO.succeedNow(f(s, a)))
     }
 
   /**
@@ -390,7 +390,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
     chunks.foreachWhile[R1, E1] { as =>
       as.foldWhileM(true)(identity) { (p, a) =>
         if (p) f(a)
-        else IO.succeed(p)
+        else IO.succeedNow(p)
       }
     }
 
@@ -548,7 +548,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   final def runCollect: ZIO[R, E, List[A]] =
     for {
       chunks <- chunks.runCollect
-      list   <- ZIO.succeed(chunks.flatMap(_.toSeq))
+      list   <- ZIO.succeedNow(chunks.flatMap(_.toSeq))
     } yield list
 
   /**

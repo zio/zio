@@ -80,7 +80,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
       })
 
     if (n == 0)
-      IO.succeed(Acquisition(IO.unit, IO.unit))
+      IO.succeedNow(Acquisition(IO.unit, IO.unit))
     else
       Promise.make[Nothing, Unit].flatMap { p =>
         state.modify {
@@ -139,7 +139,7 @@ private object internals {
 
   def assertNonNegative(n: Long): UIO[Unit] =
     if (n < 0)
-      IO.die(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
+      IO.dieNow(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else IO.unit
 
   final class NegativeArgument(message: String) extends IllegalArgumentException(message)

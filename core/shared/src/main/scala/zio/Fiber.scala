@@ -164,7 +164,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `IO[E, A]`
    */
-  final def join: IO[E, A] = await.flatMap(IO.done) <* inheritRefs
+  final def join: IO[E, A] = await.flatMap(IO.doneNow) <* inheritRefs
 
   /**
    * Maps over the value the Fiber computes.
@@ -174,7 +174,7 @@ trait Fiber[+E, +A] { self =>
    * @return `Fiber[E, B]` mapped fiber
    */
   final def map[B](f: A => B): Fiber[E, B] =
-    mapM(f andThen UIO.succeed)
+    mapM(f andThen UIO.succeedNow)
 
   /**
    * Passes the success of this fiber to the specified callback, and continues
@@ -202,7 +202,7 @@ trait Fiber[+E, +A] { self =>
       final def interruptAs(id: Fiber.Id): UIO[Exit[E1, B]] =
         self.interruptAs(id).flatMap(_.foreach(f))
       final def poll: UIO[Option[Exit[E1, B]]] =
-        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeed(None))(_.foreach(f).map(Some(_))))
+        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeedNow(None))(_.foreach(f).map(Some(_))))
       final def status: UIO[Fiber.Status] = self.status
       def trace: UIO[Option[ZTrace]]      = self.trace
     }
@@ -313,7 +313,7 @@ trait Fiber[+E, +A] { self =>
    * @return `ZManaged[Any, Nothing, Fiber[E, A]]`
    */
   final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
-    ZManaged.make(UIO.succeed(self))(_.interrupt)
+    ZManaged.make(UIO.succeedNow(self))(_.interrupt)
 
   /**
    * The trace of the fiber. Currently only single runtime fibers have traces.
@@ -375,7 +375,7 @@ trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       final def await: UIO[Exit[E1, C]] =
-        self.await.flatMap(IO.done).zipWithPar(that.await.flatMap(IO.done))(f).run
+        self.await.flatMap(IO.doneNow).zipWithPar(that.await.flatMap(IO.doneNow))(f).run
 
       final def children: UIO[Iterable[Fiber[Any, Any]]] = (self.children zipWith that.children)(_ ++ _)
 
@@ -527,7 +527,7 @@ object Fiber {
   def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber[E, List[A]] =
     new Fiber[E, List[A]] {
       def await: UIO[Exit[E, List[A]]] =
-        IO.foreachPar(fibers)(_.await.flatMap(IO.done)).run
+        IO.foreachPar(fibers)(_.await.flatMap(IO.doneNow)).run
       def children: UIO[Iterable[Fiber[Any, Any]]] =
         UIO.foreach(fibers)(_.children).map(_.foldRight(Iterable.empty[Fiber[Any, Any]])(_ ++ _))
       def getRef[A](ref: FiberRef[A]): UIO[A] =
@@ -563,13 +563,13 @@ object Fiber {
    */
   def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
-      final def await: UIO[Exit[E, A]]                     = IO.succeed(exit)
+      final def await: UIO[Exit[E, A]]                     = IO.succeedNow(exit)
       final def children: UIO[Iterable[Fiber[Any, Any]]]   = UIO(Nil)
       final def getRef[A](ref: FiberRef[A]): UIO[A]        = UIO(ref.initial)
       final def id: UIO[Option[Fiber.Id]]                  = UIO.none
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E, A]] = IO.succeed(exit)
+      final def interruptAs(id: Fiber.Id): UIO[Exit[E, A]] = IO.succeedNow(exit)
       final def inheritRefs: UIO[Unit]                     = IO.unit
-      final def poll: UIO[Option[Exit[E, A]]]              = IO.succeed(Some(exit))
+      final def poll: UIO[Option[Exit[E, A]]]              = IO.succeedNow(Some(exit))
       final def status: UIO[Fiber.Status]                  = UIO(Fiber.Status.Done)
       final def trace: UIO[Option[ZTrace]]                 = UIO.none
     }
@@ -711,7 +711,7 @@ object Fiber {
       def id: UIO[Option[Fiber.Id]]                              = UIO.none
       def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
       def inheritRefs: UIO[Unit]                                 = IO.unit
-      def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeed(None)
+      def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeedNow(None)
       def status: UIO[Fiber.Status]                              = UIO(Status.Suspended(false, 0, Nil, Nil))
       def trace: UIO[Option[ZTrace]]                             = UIO.none
     }

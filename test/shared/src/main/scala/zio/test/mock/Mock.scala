@@ -394,15 +394,15 @@ object Mock {
                 .flatMap {
                   case Some(Call(method, assertion, returns)) =>
                     if (invokedMethod != method)
-                      ZIO.die(
+                      ZIO.dieNow(
                         InvalidMethodException(invokedMethod.asInstanceOf[Method[Any, Any, Any]], method, assertion)
                       )
                     else
                       assertion.test(args).flatMap { p =>
-                        if (!p) ZIO.die(InvalidArgumentsException(invokedMethod, args, assertion))
+                        if (!p) ZIO.dieNow(InvalidArgumentsException(invokedMethod, args, assertion))
                         else promise.completeWith(returns(args).asInstanceOf[IO[E0, A0]])
                       }
-                  case None => ZIO.die(UnexpectedCallExpection(invokedMethod, args))
+                  case None => ZIO.dieNow(UnexpectedCallExpection(invokedMethod, args))
                 }
           output <- promise.await
         } yield output

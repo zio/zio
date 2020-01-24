@@ -143,7 +143,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
           ref   <- Ref.make(List[Int]())
           latch <- Promise.make[Nothing, Unit]
           s = Stream
-            .fromEffect(UIO.succeed(()))
+            .fromEffect(UIO.succeedNow(()))
             .flatMap(_ => Stream.range(1, 1000).tap(i => ref.update(i :: _)).ensuring(latch.succeed(())))
             .bufferUnbounded
           l <- s.process.use { as =>

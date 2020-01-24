@@ -71,16 +71,16 @@ package object random {
 
     protected[zio] def nextLongWith(nextLong: UIO[Long], n: Long): UIO[Long] =
       if (n <= 0)
-        UIO.die(new IllegalArgumentException("n must be positive"))
+        UIO.dieNow(new IllegalArgumentException("n must be positive"))
       else {
         nextLong.flatMap { r =>
           val m = n - 1
           if ((n & m) == 0L)
-            UIO.succeed(r & m)
+            UIO.succeedNow(r & m)
           else {
             def loop(u: Long): UIO[Long] =
               if (u + m - u % m < 0L) nextLong.flatMap(r => loop(r >>> 1))
-              else UIO.succeed(u % n)
+              else UIO.succeedNow(u % n)
             loop(r >>> 1)
           }
         }

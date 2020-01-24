@@ -688,8 +688,8 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(IO.succeed(a), journal, platform)
-        case TExit.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
+        case TExit.Succeed(a) => completeTodos(IO.succeedNow(a), journal, platform)
+        case TExit.Fail(e)    => completeTodos(IO.failNow(e), journal, platform)
         case TExit.Retry      => TryCommit.Suspend(journal)
       }
     }

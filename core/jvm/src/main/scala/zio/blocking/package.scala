@@ -119,13 +119,13 @@ package object blocking {
 
                                 try {
                                   val a = effect
-                                  ZIO.succeed(a)
+                                  ZIO.succeedNow(a)
                                 } catch {
                                   case _: InterruptedException =>
                                     Thread.interrupted // Clear interrupt status
                                     ZIO.interrupt
                                   case t: Throwable =>
-                                    ZIO.fail(t)
+                                    ZIO.failNow(t)
                                 } finally {
                                   withMutex { thread.set(None); barrier.set(()) }
                                 }

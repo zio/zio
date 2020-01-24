@@ -78,11 +78,11 @@ sealed trait Expectation[-M, +E, +A] { self =>
         case Nil            => None       -> Nil
       }
 
-      UIO.succeed(expectation).flatMap {
+      UIO.succeedNow(expectation).flatMap {
         case Empty =>
           popNextExpectation.flatMap {
             case Some(next) => extract(state, next(null))
-            case None       => UIO.succeed(Right(()))
+            case None       => UIO.succeedNow(Right(()))
           }
 
         case FlatMap(current, next) =>
@@ -96,7 +96,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
             _ <- state.callsRef.update(_ :+ call.asInstanceOf[AnyCall])
             out <- popNextExpectation.flatMap {
                     case Some(next) => extract(state, next(null))
-                    case None       => UIO.succeed(Right(()))
+                    case None       => UIO.succeedNow(Right(()))
                   }
           } yield out
       }
@@ -113,7 +113,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
         state.callsRef.get
           .filterOrElse[Any, Nothing, Any](_.isEmpty) { calls =>
             val expectations = calls.map(call => call.method -> call.assertion)
-            ZIO.die(UnmetExpectationsException(expectations))
+            ZIO.dieNow(UnmetExpectationsException(expectations))
           }
 
     val makeEnvironment =
@@ -149,12 +149,12 @@ object Expectation {
   /**
    * Returns a return expectation to fail with `E`.
    */
-  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
+  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.failNow(failure))
 
   /**
    * Maps the input arguments `I` to a return expectation to fail with `E`.
    */
-  def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
+  def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeedNow(i).map(f).flip)
 
   /**
    * Effectfully maps the input arguments `I` to a return expectation to fail with `E`.
@@ -179,12 +179,12 @@ object Expectation {
   /**
    * Returns a return expectation to succeed with `A`.
    */
-  def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
+  def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeedNow(value))
 
   /**
    * Maps the input arguments `I` to a return expectation to succeed with `A`.
    */
-  def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
+  def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeedNow(i).map(f))
 
   /**
    * Effectfully maps the input arguments `I` to a return expectation to succeed with `A`.

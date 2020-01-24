@@ -52,7 +52,7 @@ object DefaultTestReporter {
             specs <- executedSpecs
             failures <- UIO.foreach(specs)(_.exists {
                          case Spec.TestCase(_, test) => test.map(_._1.isLeft);
-                         case _                      => UIO.succeed(false)
+                         case _                      => UIO.succeedNow(false)
                        })
             annotations <- Spec(c).fold[UIO[TestAnnotationMap]] {
                             case Spec.SuiteCase(_, specs, _) =>
@@ -74,9 +74,9 @@ object DefaultTestReporter {
               val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
               val renderedResult = result match {
                 case Right(TestSuccess.Succeeded(_)) =>
-                  UIO.succeed(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
+                  UIO.succeedNow(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
                 case Right(TestSuccess.Ignored) =>
-                  UIO.succeed(rendered(Test, label, Ignored, depth))
+                  UIO.succeedNow(rendered(Test, label, Ignored, depth))
                 case Left(TestFailure.Assertion(result)) =>
                   result.run.flatMap(
                     result =>
@@ -289,7 +289,7 @@ object FailureRenderer {
         case fragment :: whole :: failureDetails =>
           renderWhole(fragment, whole, offset).flatMap(s => loop(whole :: failureDetails, rendered :+ s))
         case _ =>
-          UIO.succeed(rendered)
+          UIO.succeedNow(rendered)
       }
     for {
       fragment <- renderFragment(failureDetails.head, offset)
@@ -352,11 +352,11 @@ object FailureRenderer {
 
   def renderCause(cause: Cause[Any], offset: Int): UIO[Message] =
     cause.dieOption match {
-      case Some(TestTimeoutException(message)) => UIO.succeed(Message(message))
+      case Some(TestTimeoutException(message)) => UIO.succeedNow(Message(message))
       case Some(exception: MockException) =>
         renderMockException(exception).map(_.map(withOffset(offset + tabSize)))
       case _ =>
-        UIO.succeed(
+        UIO.succeedNow(
           Message(
             cause.prettyPrint
               .split("\n")
@@ -372,17 +372,17 @@ object FailureRenderer {
         renderTestFailure(s"$method called with invalid arguments", assert(args)(assertion))
 
       case InvalidMethodException(method, expectedMethod, assertion) =>
-        UIO.succeed(
+        UIO.succeedNow(
           Message(Seq(red(s"- invalid call to $method").toLine, renderExpectation(expectedMethod, assertion, tabSize)))
         )
 
       case UnmetExpectationsException(expectations) =>
-        UIO.succeed(Message(red(s"- unmet expectations").toLine +: expectations.map {
+        UIO.succeedNow(Message(red(s"- unmet expectations").toLine +: expectations.map {
           case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
         }))
 
       case UnexpectedCallExpection(method, args) =>
-        UIO.succeed(
+        UIO.succeedNow(
           Message(
             Seq(
               red(s"- unexpected call to $method with arguments").toLine,
@@ -397,7 +397,7 @@ object FailureRenderer {
 
   def renderTestFailure(label: String, testResult: TestResult): UIO[Message] =
     testResult.run.flatMap(
-      _.failures.fold(UIO.succeed(Message()))(
+      _.failures.fold(UIO.succeedNow(Message()))(
         _.fold(
           details =>
             renderFailure(label, 0, details)

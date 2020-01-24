@@ -334,7 +334,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       t1 <- ZIO
              .foreach_(1 to 10) { i =>
                if (i == 7)
-                 ZIO.unit *> ZIO.fail("Dummy error!")
+                 ZIO.unit *> ZIO.failNow("Dummy error!")
                else
                  ZIO.unit *> ZIO.trace
              }
@@ -470,7 +470,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       _ <- ZIO.effect(traceThis()).traced.traced.traced
       _ <- ZIO.unit
       _ <- ZIO.unit
-      _ <- ZIO.fail("end")
+      _ <- ZIO.failNow("end")
     } yield ()).untraced
   }
 
@@ -520,7 +520,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
   }
 
   object mapErrorPreservesTraceFixture {
-    val succ     = ZIO.succeed(_: ZTrace)
+    val succ     = ZIO.succeedNow(_: ZTrace)
     val fail     = () => throw new Exception("error!")
     val mapError = (_: Any) => ()
   }
@@ -532,14 +532,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
       t <- Task(fail())
             .flatMap(badMethod)
             .catchSome {
-              case _: ArithmeticException => ZIO.fail("impossible match!")
+              case _: ArithmeticException => ZIO.failNow("impossible match!")
             }
     } yield t
   }
 
   object catchSomeWithOptimizedEffectFixture {
     val fail      = () => throw new Exception("error!")
-    val badMethod = ZIO.succeed(_: ZTrace)
+    val badMethod = ZIO.succeedNow(_: ZTrace)
   }
 
   def catchAllWithOptimizedEffect = {
@@ -553,9 +553,9 @@ object StackTracesSpec extends DefaultRunnableSpec {
   }
 
   object catchAllWithOptimizedEffectFixture {
-    val succ               = ZIO.succeed(_: ZTrace)
+    val succ               = ZIO.succeedNow(_: ZTrace)
     val fail               = () => throw new Exception("error!")
-    val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
+    val refailAndLoseTrace = (_: Any) => ZIO.failNow("bad!")
   }
 
   def foldMWithOptimizedEffect = {
@@ -571,8 +571,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
   object foldMWithOptimizedEffectFixture {
     val mkTrace    = (_: Any) => ZIO.trace
     val fail       = () => throw new Exception("error!")
-    val badMethod1 = ZIO.succeed(_: ZTrace)
-    val badMethod2 = ZIO.succeed(_: ZTrace)
+    val badMethod1 = ZIO.succeedNow(_: ZTrace)
+    val badMethod2 = ZIO.succeedNow(_: ZTrace)
   }
 
   object singleTaskForCompFixture {

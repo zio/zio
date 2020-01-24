@@ -7,13 +7,13 @@ trait GenIO {
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.point` constructor.
    */
-  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.succeed[A](_))
+  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.succeedNow[A](_))
 
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] =
-    Arbitrary.arbitrary[A].map(a => IO.effectAsync[E, A](k => k(IO.succeed(a))))
+    Arbitrary.arbitrary[A].map(a => IO.effectAsync[E, A](k => k(IO.succeedNow(a))))
 
   /**
    * Randomly uses either `genSyncSuccess` or `genAsyncSuccess` with equal probability.
@@ -23,13 +23,13 @@ trait GenIO {
   /**
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.fail` constructor.
    */
-  def genSyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] = Arbitrary.arbitrary[E].map(IO.fail[E])
+  def genSyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] = Arbitrary.arbitrary[E].map(IO.failNow[E])
 
   /**
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] =
-    Arbitrary.arbitrary[E].map(err => IO.effectAsync[E, A](k => k(IO.fail(err))))
+    Arbitrary.arbitrary[E].map(err => IO.effectAsync[E, A](k => k(IO.failNow(err))))
 
   /**
    * Randomly uses either `genSyncFailure` or `genAsyncFailure` with equal probability.
@@ -105,7 +105,7 @@ trait GenIO {
     gen.map(nextIO => io.flatMap(_ => nextIO))
 
   private def genOfIdentityFlatMaps[E, A](io: IO[E, A]): Gen[IO[E, A]] =
-    Gen.const(io.flatMap(a => IO.succeed(a)))
+    Gen.const(io.flatMap(a => IO.succeedNow(a)))
 
   private def genOfRace[E, A](io: IO[E, A]): Gen[IO[E, A]] =
     Gen.const(io.race(IO.never))

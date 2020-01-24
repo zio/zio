@@ -272,7 +272,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.halt]]
    */
-  def halt[E](cause: Cause[E]): Stream[E, Nothing] = fromEffect(ZIO.halt(cause))
+  def halt[E](cause: Cause[E]): Stream[E, Nothing] = fromEffect(ZIO.haltNow(cause))
 
   /**
    * See [[ZStream.iterate]]

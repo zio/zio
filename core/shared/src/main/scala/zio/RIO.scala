@@ -165,7 +165,12 @@ object RIO {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  def die(t: => Throwable): UIO[Nothing] = ZIO.dieNow(t)
+
+  /**
+   * @see See [[zio.ZIO.dieNow]]
+   */
+  def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
@@ -175,7 +180,12 @@ object RIO {
   /**
    * @see See [[zio.ZIO.done]]
    */
-  def done[A](r: Exit[Throwable, A]): Task[A] = ZIO.done(r)
+  def done[A](r: => Exit[Throwable, A]): Task[A] = ZIO.done(r)
+
+  /**
+   * @see See [[zio.ZIO.doneNow]]
+   */
+  def doneNow[A](r: Exit[Throwable, A]): Task[A] = ZIO.doneNow(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
@@ -248,7 +258,12 @@ object RIO {
   /**
    * @see See [[zio.ZIO.fail]]
    */
-  def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
+  def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
+
+  /**
+   * @see See [[zio.ZIO.failNow]]
+   */
+  def failNow(error: Throwable): Task[Nothing] = ZIO.failNow(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -388,7 +403,12 @@ object RIO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt(cause: Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
+  def halt(cause: => Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
+
+  /**
+   * @see See [[zio.ZIO.haltNow]]
+   */
+  def haltNow(cause: Cause[Throwable]): Task[Nothing] = ZIO.haltNow(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -409,7 +429,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
@@ -426,13 +446,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  def lock[R, A](executor: Executor)(taskr: RIO[R, A]): RIO[R, A] =
+  def lock[R, A](executor: => Executor)(taskr: RIO[R, A]): RIO[R, A] =
     ZIO.lock(executor)(taskr)
 
   /**
    *  @see See [[zio.ZIO.left]]
    */
-  def left[R, A](a: A): RIO[R, Either[A, Nothing]] = ZIO.left(a)
+  def left[R, A](a: => A): RIO[R, Either[A, Nothing]] = ZIO.left(a)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
@@ -569,7 +589,7 @@ object RIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[R, B](b: B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
+  def right[R, B](b: => B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -579,18 +599,23 @@ object RIO {
   /**
    * @see See [[zio.ZIO.sleep]]
    */
-  def sleep(duration: Duration): RIO[Clock, Unit] =
+  def sleep(duration: => Duration): RIO[Clock, Unit] =
     ZIO.sleep(duration)
 
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[R, A](a: A): RIO[R, Option[A]] = ZIO.some(a)
+  def some[R, A](a: => A): RIO[R, Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
+  def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
+
+  /**
+   * @see See [[zio.ZIO.succeedNow]]
+   */
+  def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 
   /**
    *  See [[zio.ZIO.sequence]]
@@ -696,13 +721,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when[R](b: Boolean)(rio: RIO[R, Any]): RIO[R, Unit] =
+  def when[R](b: => Boolean)(rio: RIO[R, Any]): RIO[R, Unit] =
     ZIO.when(b)(rio)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**

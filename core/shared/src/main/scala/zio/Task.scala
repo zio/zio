@@ -165,7 +165,12 @@ object Task {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  def die(t: => Throwable): UIO[Nothing] = ZIO.dieNow(t)
+
+  /**
+   * @see See [[zio.ZIO.dieNow]]
+   */
+  def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
@@ -175,7 +180,12 @@ object Task {
   /**
    * @see See [[zio.ZIO.done]]
    */
-  def done[A](r: Exit[Throwable, A]): Task[A] = ZIO.done(r)
+  def done[A](r: => Exit[Throwable, A]): Task[A] = ZIO.done(r)
+
+  /**
+   * @see See [[zio.ZIO.doneNow]]
+   */
+  def doneNow[A](r: Exit[Throwable, A]): Task[A] = ZIO.doneNow(r)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -251,7 +261,12 @@ object Task {
   /**
    * @see See [[zio.ZIO.fail]]
    */
-  def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
+  def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
+
+  /**
+   * @see See [[zio.ZIO.failNow]]
+   */
+  def failNow(error: Throwable): Task[Nothing] = ZIO.failNow(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -388,7 +403,12 @@ object Task {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt(cause: Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
+  def halt(cause: => Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
+
+  /**
+   * @see See [[zio.ZIO.haltNow]]
+   */
+  def haltNow(cause: Cause[Throwable]): Task[Nothing] = ZIO.haltNow(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -409,7 +429,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
@@ -438,12 +458,12 @@ object Task {
   /**
    *  @see See [[zio.ZIO.left]]
    */
-  def left[A](a: A): Task[Either[A, Nothing]] = ZIO.left(a)
+  def left[A](a: => A): Task[Either[A, Nothing]] = ZIO.left(a)
 
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  def lock[A](executor: Executor)(task: Task[A]): Task[A] =
+  def lock[A](executor: => Executor)(task: Task[A]): Task[A] =
     ZIO.lock(executor)(task)
 
   /**
@@ -571,7 +591,7 @@ object Task {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[B](b: B): Task[Either[Nothing, B]] = ZIO.right(b)
+  def right[B](b: => B): Task[Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -581,7 +601,12 @@ object Task {
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
+  def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
+
+  /**
+   * @see See [[zio.ZIO.succeedNow]]
+   */
+  def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 
   /**
    *  See [[zio.ZIO.sequence]]
@@ -604,7 +629,7 @@ object Task {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[A](a: A): Task[Option[A]] = ZIO.some(a)
+  def some[A](a: => A): Task[Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -686,13 +711,13 @@ object Task {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when(b: Boolean)(task: Task[Any]): Task[Unit] =
+  def when(b: => Boolean)(task: Task[Any]): Task[Unit] =
     ZIO.when(b)(task)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**

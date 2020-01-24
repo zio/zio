@@ -119,7 +119,7 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         test.run
-          .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).run)(_ <* _)
+          .zipWith(effect.catchAllCause(cause => ZIO.failNow(TestFailure.Runtime(cause))).run)(_ <* _)
           .flatMap(ZIO.doneNow)
     }
 
@@ -134,7 +134,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R >: Nothing <: R0, E >: E0 <: Any, S >: Nothing <: Any](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
-        before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))).bracket(after)(_ => test)
+        before.catchAllCause(c => ZIO.failNow(TestFailure.Runtime(c))).bracket(after)(_ => test)
     }
 
   /**
@@ -283,16 +283,16 @@ object TestAspect extends TimeoutVariants {
       def perTest[R >: Nothing <: Any, E >: Nothing <: E0, S >: Unit <: Unit](
         test: ZIO[R, TestFailure[E], TestSuccess[S]]
       ): ZIO[R, TestFailure[E], TestSuccess[S]] = {
-        lazy val succeed = ZIO.succeed(TestSuccess.Succeeded(BoolAlgebra.unit))
+        lazy val succeed = ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
         test.foldM(
           {
             case testFailure =>
               p.run(testFailure).run.flatMap { p1 =>
                 if (p1.isSuccess) succeed
-                else ZIO.fail(TestFailure.Assertion(assert(testFailure)(p)))
+                else ZIO.failNow(TestFailure.Assertion(assert(testFailure)(p)))
               }
           },
-          _ => ZIO.fail(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
+          _ => ZIO.failNow(TestFailure.Runtime(zio.Cause.die(new RuntimeException("did not fail as expected"))))
         )
       }
     }
@@ -323,7 +323,7 @@ object TestAspect extends TimeoutVariants {
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] =
-        spec.whenM(Live.live(system.env(env)).orDie.flatMap(_.fold(ZIO.succeed(false))(assertion.test)))
+        spec.whenM(Live.live(system.env(env)).orDie.flatMap(_.fold(ZIO.succeedNow(false))(assertion.test)))
     }
 
   /**
@@ -346,7 +346,7 @@ object TestAspect extends TimeoutVariants {
         predicate: L => Boolean,
         spec: ZSpec[R, E, L, S]
       ): ZSpec[R, E, L, S] =
-        spec.whenM(Live.live(system.property(prop)).orDie.flatMap(_.fold(ZIO.succeed(false))(assertion.test)))
+        spec.whenM(Live.live(system.property(prop)).orDie.flatMap(_.fold(ZIO.succeedNow(false))(assertion.test)))
     }
 
   /**
@@ -570,8 +570,8 @@ object TestAspect extends TimeoutVariants {
       ): ZIO[R, TestFailure[E], TestSuccess[S]] =
         test.flatMap {
           case TestSuccess.Ignored =>
-            ZIO.fail(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
-          case x => ZIO.succeed(x)
+            ZIO.failNow(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
+          case x => ZIO.succeedNow(x)
         }
     }
 
@@ -613,8 +613,8 @@ object TestAspect extends TimeoutVariants {
           .withLive(test)(_.either.timeoutFork(duration).flatMap {
             case Left(fiber) =>
               fiber.join.raceWith(ZIO.sleep(interruptDuration))(
-                (_, fiber) => fiber.interrupt *> ZIO.fail(TestFailure.Runtime(Cause.die(timeoutFailure))),
-                (_, _) => ZIO.fail(TestFailure.Runtime(Cause.die(interruptionTimeoutFailure)))
+                (_, fiber) => fiber.interrupt *> ZIO.failNow(TestFailure.Runtime(Cause.die(timeoutFailure))),
+                (_, _) => ZIO.failNow(TestFailure.Runtime(Cause.die(interruptionTimeoutFailure)))
               )
             case Right(result) => result.fold(ZIO.failNow, ZIO.succeedNow)
           })

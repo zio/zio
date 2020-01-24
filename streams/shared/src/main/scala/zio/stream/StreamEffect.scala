@@ -26,10 +26,10 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
       ZStream.Structure.Iterator(
         processEffect.map { thunk =>
           UIO.effectTotal {
-            try UIO.succeed(thunk())
+            try UIO.succeedNow(thunk())
             catch {
-              case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
-              case StreamEffect.End        => IO.fail(None)
+              case StreamEffect.Failure(e) => IO.failNow(Some(e.asInstanceOf[E]))
+              case StreamEffect.End        => IO.failNow(None)
             }
           }.flatten
         }

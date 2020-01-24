@@ -84,7 +84,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
       env     <- ZIO.environment[R]
       bundle = RefM.Bundle[E, A, B](
         ref,
-        pf.andThen(_.provide(env)).orElse[A, IO[E, (B, A)]] { case a => IO.succeed(default -> a) },
+        pf.andThen(_.provide(env)).orElse[A, IO[E, (B, A)]] { case a => IO.succeedNow(default -> a) },
         promise
       )
       b <- (for {
@@ -133,7 +133,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * @return `ZIO[R, E, A]` modified value of the `RefM`
    */
   def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
-    modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
+    modify(a => pf.applyOrElse(a, (_: A) => IO.succeedNow(a)).map(a => (a, a)))
 }
 
 object RefM extends Serializable {

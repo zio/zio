@@ -81,7 +81,7 @@ object FunctionIOSpec extends ZIOBaseSpec {
         testM(
           "check a pure condition if it is true then computes an effectful function `then0` else computes `else0`"
         ) {
-          val greaterThan0M = fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0))
+          val greaterThan0M = fromFunctionM[Nothing, Int, Boolean](a => IO.succeedNow(a > 0))
           val checker       = ifThenElse(greaterThan0M)(succeed("is positive"))(succeed("is negative"))
 
           for {
@@ -97,7 +97,7 @@ object FunctionIOSpec extends ZIOBaseSpec {
         testM(
           "take a condition and run the body until the condition will be  false with pure function"
         ) {
-          val lestThan10M = fromFunctionM[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10))
+          val lestThan10M = fromFunctionM[Nothing, Int, Boolean](a => IO.succeedNow[Boolean](a < 10))
           val add1M       = fromFunctionM[Nothing, Int, Int](a => IO.effectTotal[Int](a + 1))
 
           assertM(whileDo[Nothing, Int](lestThan10M)(add1M).run(1))(equalTo(10))

@@ -417,7 +417,7 @@ package object environment extends PlatformSpecific {
       private[TestClock] val warningDone: UIO[Unit] =
         warningState
           .updateSome[Any, Nothing] {
-            case WarningData.Start          => ZIO.succeed(WarningData.done)
+            case WarningData.Start          => ZIO.succeedNow(WarningData.done)
             case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
           }
           .unit
@@ -921,11 +921,11 @@ package object environment extends PlatformSpecific {
           if (i == length)
             acc.map(_.reverse)
           else if (n > 0)
-            rnd.flatMap(rnd => loop(i + 1, UIO.succeed(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
+            rnd.flatMap(rnd => loop(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
           else
             loop(i, nextInt, (length - i) min 4, acc)
 
-        loop(0, randomInt, length min 4, UIO.succeed(List.empty[Byte])).map(Chunk.fromIterable)
+        loop(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
       }
 
       private val randomDouble: UIO[Double] =
@@ -947,7 +947,7 @@ package object environment extends PlatformSpecific {
               case (d, queue) => (Some(d), Data(seed1, seed2, queue))
             }
         }.flatMap {
-          case Some(nextNextGaussian) => UIO.succeed(nextNextGaussian)
+          case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
           case None =>
             def loop: UIO[(Double, Double, Double)] =
               randomDouble.zip(randomDouble).flatMap {
@@ -955,7 +955,7 @@ package object environment extends PlatformSpecific {
                   val x      = 2 * d1 - 1
                   val y      = 2 * d2 - 1
                   val radius = x * x + y * y
-                  if (radius >= 1 || radius == 0) loop else UIO.succeed((x, y, radius))
+                  if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
               }
             loop.flatMap {
               case (x, y, radius) =>
@@ -972,7 +972,7 @@ package object environment extends PlatformSpecific {
 
       private def randomInt(n: Int): UIO[Int] =
         if (n <= 0)
-          UIO.die(new IllegalArgumentException("n must be positive"))
+          UIO.dieNow(new IllegalArgumentException("n must be positive"))
         else if ((n & -n) == n)
           randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
         else {
@@ -980,7 +980,7 @@ package object environment extends PlatformSpecific {
             randomBits(31).flatMap { i =>
               val value = i % n
               if (i - value + (n - 1) < 0) loop
-              else UIO.succeed(value)
+              else UIO.succeedNow(value)
             }
           loop
         }
@@ -1161,7 +1161,7 @@ package object environment extends PlatformSpecific {
         )
 
       private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: UIO[A]): UIO[A] =
-        bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeed))
+        bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeedNow))
 
       @inline
       private def leastSignificantBits(x: Double): Int =

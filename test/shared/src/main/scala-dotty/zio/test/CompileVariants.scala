@@ -30,10 +30,10 @@ trait CompileVariants {
    */
   inline final def typeCheck(inline code: String): UIO[Either[String, Unit]] =
     try {
-      if (typeChecks(code)) UIO.succeed(Right(()))
-      else UIO.succeed(Left(errorMessage))
+      if (typeChecks(code)) UIO.succeedNow(Right(()))
+      else UIO.succeedNow(Left(errorMessage))
     } catch {
-      case _: Throwable => UIO.die(new RuntimeException("Compilation failed"))
+      case _: Throwable => UIO.dieNownew RuntimeException("Compilation failed"))
     }
 
   private val errorMessage =

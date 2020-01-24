@@ -68,7 +68,7 @@ object Sink extends Serializable {
    * see [[ZSink.collectAllWhile]]
    */
   def collectAllWhile[A](p: A => Boolean): Sink[Nothing, A, A, List[A]] =
-    collectAllWhileM(a => IO.succeed(p(a)))
+    collectAllWhileM(a => IO.succeedNow(p(a)))
 
   /**
    * see [[ZSink.collectAllWhileM]]

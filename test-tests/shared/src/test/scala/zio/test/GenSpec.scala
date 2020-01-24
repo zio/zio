@@ -229,7 +229,7 @@ object GenSpec extends ZIOBaseSpec {
         checkSample(Gen.long(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
       testM("mapM maps an effectual function over a generator") {
-        val gen = Gen.int(1, 6).mapM(n => ZIO.succeed(n + 6))
+        val gen = Gen.int(1, 6).mapM(n => ZIO.succeedNow(n + 6))
         checkSample(gen)(forall(Assertion.isGreaterThanEqualTo(7) && isLessThanEqualTo(12)))
       },
       testM("medium generates sizes in range") {
