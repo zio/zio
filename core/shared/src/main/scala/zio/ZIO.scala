@@ -2202,7 +2202,7 @@ object ZIO {
   /**
    * Filters the collection using the specified effectual predicate.
    */
-  def filterM[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
+  def filter[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
     as.foldRight[ZIO[R, E, List[A]]](ZIO.succeed(Nil)) { (a, zio) =>
       f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
     }

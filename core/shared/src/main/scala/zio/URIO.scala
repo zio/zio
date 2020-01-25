@@ -228,10 +228,10 @@ object URIO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
-   * @see [[zio.ZIO.filterM]]
+   * @see [[zio.ZIO.filter]]
    */
-  def filterM[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
-    ZIO.filterM(as)(f)
+  def filter[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
+    ZIO.filter(as)(f)
 
   /**
    * @see [[zio.ZIO.firstSuccessOf]]

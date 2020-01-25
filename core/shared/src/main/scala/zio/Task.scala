@@ -259,10 +259,10 @@ object Task {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
-   * @see [[zio.ZIO.filterM]]
+   * @see [[zio.ZIO.filter]]
    */
-  def filterM[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
-    ZIO.filterM(as)(f)
+  def filter[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+    ZIO.filter(as)(f)
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
