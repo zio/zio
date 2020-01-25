@@ -290,10 +290,9 @@ sealed trait Fiber[+E, +A] { self =>
     ZManaged.make(UIO.succeed(self))(_.interrupt)
 
   /**
-   * Performs an effect depending on whether this is a runtime or synthetic
-   * fiber.
+   * Folds over the runtime or synthetic fiber.
    */
-  final def foldM[Z](
+  final def fold[Z](
     runtime: Fiber.Runtime[E, A] => Z,
     synthetic: Fiber.Synthetic[E, A] => Z
   ): Z =
