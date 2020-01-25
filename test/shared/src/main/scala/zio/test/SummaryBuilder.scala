@@ -1,7 +1,7 @@
 package zio.test
 
-import zio.{ UIO, ZIO }
 import zio.test.Spec._
+import zio.{ UIO, ZIO }
 
 object SummaryBuilder {
   def buildSummary[E, L, S](executedSpec: ExecutedSpec[E, L, S]): UIO[Summary] =
@@ -16,7 +16,7 @@ object SummaryBuilder {
                  case _                          => false
                }
       failures <- extractFailures(executedSpec).map(_.map(_.mapLabel(_.toString)))
-      rendered <- ZIO.foreach(failures)(DefaultTestReporter.render(_))
+      rendered <- ZIO.foreach(failures)(DefaultTestReporter.render(_, TestAnnotationRenderer.silent))
     } yield Summary(success, fail, ignore, rendered.flatten.flatMap(_.rendered).mkString("\n"))
 
   private def countTestResults[E, L, S](
@@ -26,7 +26,7 @@ object SummaryBuilder {
       case SuiteCase(_, counts, _) => counts.flatMap(ZIO.collectAll(_).map(_.sum))
       case TestCase(_, test) =>
         test.map { r =>
-          if (pred(r)) 1 else 0
+          if (pred(r._1)) 1 else 0
         }
     }
 
@@ -37,7 +37,7 @@ object SummaryBuilder {
     def append[A](collection: UIO[Seq[A]], item: A): UIO[Seq[A]] = collection.map(_ :+ item)
 
     def hasFailures(spec: ExecutedSpec[E, L, S]): UIO[Boolean] = spec.exists {
-      case Spec.TestCase(_, test) => test.map(_.isLeft)
+      case Spec.TestCase(_, test) => test.map(_._1.isLeft)
       case _                      => UIO.succeed(false)
     }
 

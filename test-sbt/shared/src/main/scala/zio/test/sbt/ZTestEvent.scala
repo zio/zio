@@ -2,10 +2,10 @@ package zio.test.sbt
 
 import sbt.testing._
 
-import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
 import zio.UIO
+import zio.test.{ ExecutedSpec, Spec, TestFailure, TestSuccess }
 
-case class ZTestEvent(
+final case class ZTestEvent(
   fullyQualifiedName: String,
   selector: Selector,
   status: Status,
@@ -27,7 +27,7 @@ object ZTestEvent {
         results.flatMap(UIO.collectAll(_).map(_.flatten))
       case zio.test.Spec.TestCase(label, result) =>
         result.map { result =>
-          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
+          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result._1), None, 0, fingerprint))
         }
     }
 

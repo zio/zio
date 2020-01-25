@@ -8,6 +8,7 @@ project/.sbt
 test-output/
 .bloop
 .metals
+project/metals.sbt
 .idea
 coursier
 .DS_Store

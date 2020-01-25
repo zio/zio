@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 package zio.internal.impls
 
-class RingBufferPow2[A](val requestedCapacity: Int) extends RingBuffer[A](RingBuffer.nextPow2(requestedCapacity)) {
-  protected final def posToIdx(pos: Long, capacity: Int): Int =
+final class RingBufferPow2[A](val requestedCapacity: Int)
+    extends RingBuffer[A](RingBuffer.nextPow2(requestedCapacity)) {
+  protected def posToIdx(pos: Long, capacity: Int): Int =
     (pos & (capacity - 1).toLong).toInt
 }
 
 object RingBufferPow2 {
-  final def apply[A](requestedCapacity: Int): RingBufferPow2[A] = {
+  def apply[A](requestedCapacity: Int): RingBufferPow2[A] = {
     assert(requestedCapacity > 0)
 
     new RingBufferPow2(requestedCapacity)

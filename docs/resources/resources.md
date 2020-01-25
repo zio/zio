@@ -7,6 +7,8 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Effective testing with ZIO Test](https://scala.monster/zio-test/) by Pavels Sisojevs (January 2020)
+- [Implement your future with ZIO](https://scala.monster/welcome-zio/) by Pavels Sisojevs (December 2019)
 - [Decouple the Program from its Implementation with ZIO modules.](https://medium.com/@pascal.mengelt/decouple-the-program-from-its-implementation-with-zio-modules-d9b8713d502e) by Pascal Mengelt (December 2019)
 - [How to write a command line application with ZIO?](https://scalac.io/write-command-line-application-with-zio/) by Piotr Gołębiewski (November 2019)
 - [What can ZIO do for me? A Long Polling example with sttp.](https://medium.com/@pascal.mengelt/what-can-zio-do-for-me-32281e4e8b16) by Pascal Mengelt (November 2019)
@@ -67,6 +69,8 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [A ZIO + http4s + Circe + Quill + Tapir giter8 template](https://github.com/pandaforme/ultron.g8) by [pandaforme](https://github.com/pandaforme)
 - [More ZIO/http4s: with http4s authentication, encoding/decoding + zio tests](https://github.com/TimPigden/zio-http4s-examples) by [Tim Pigden](https://github.com/TimPigden)
 - [GitHub Release Pager with ZIO](https://github.com/psisoyev/release-pager) by [Pavels Sisojevs](https://github.com/psisoyev)
+- [Full Scala Stack, a sample project that uses akka-http, slick, zio, scalajs, react, ScalablyTyped and semantic ui](https://github.com/rleibman/full-scala-stack) by Roberto Leibman
+- [A minimal ZIO giter8 template](https://github.com/jchoffmann/zio-seed.g8) by [jchoffmann](https://github.com/jchoffmann)
 
 ## Projects using ZIO
 

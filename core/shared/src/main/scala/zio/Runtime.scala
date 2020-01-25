@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,6 +55,18 @@ trait Runtime[+R] {
    */
   final def unsafeRun[E, A](zio: => ZIO[R, E, A]): A =
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
+
+  /**
+   * Executes the Task/RIO effect synchronously, failing
+   * with the original `Throwable` on both [[Cause.Fail]] and [[Cause.Die]].
+   * In addition, appends a new element to the `Throwable`s "caused by" chain,
+   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   * May fail on Scala.js if the effect cannot be entirely run synchronously.
+   *
+   * This method is effectful and should only be done at the edges of your program.
+   */
+  final def unsafeRunTask[A](task: => ZIO[R, Throwable, A]): A =
+    unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
    * Executes the effect synchronously. May
@@ -153,11 +165,12 @@ trait Runtime[+R] {
 }
 
 object Runtime {
+  lazy val default = Runtime((), Platform.default)
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
    */
-  final def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
+  def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
     val environment = r
     val platform    = platform0
   }

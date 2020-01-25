@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,13 @@ package zio.test.mock
 import scala.language.implicitConversions
 
 import com.github.ghik.silencer.silent
-import zio.{ IO, Managed, Ref, UIO, ZIO }
+
 import zio.test.Assertion
 import zio.test.mock.Expectation.{ AnyCall, Call, Empty, FlatMap, Next, State }
-import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
 import zio.test.mock.MockException.UnmetExpectationsException
+import zio.test.mock.ReturnExpectation.{ Fail, Succeed }
+import zio.{ Has, IO, Managed, Ref, UIO, ZIO, ZLayer }
+import zio.{ IO, Managed, Ref, UIO, ZIO }
 
 /**
  * An `Expectation[-M, +E, +A]` is an immutable data structure that represents
@@ -39,8 +41,8 @@ import zio.test.mock.MockException.UnmetExpectationsException
  *  - `FlatMap` models sequential composition of expectations
  *
  * The whole structure is not supposed to be consumed directly by the end user,
- * instead it should be converted into a mocked environment (wrapped in Managed)
- * either explicitly via `managedEnv` method or via implicit conversion.
+ * instead it should be converted into a mocked environment (wrapped in layer)
+ * either explicitly via `toLayer` method or via implicit conversion.
  */
 sealed trait Expectation[-M, +E, +A] { self =>
 
@@ -64,7 +66,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
   /**
    * Converts this Expectation to ZManaged mock environment.
    */
-  final def managedEnv[M1 <: M](implicit mockable: Mockable[M1]): Managed[Nothing, M1] = {
+  final def toLayer[M1 <: M](implicit mockable: Mockable[M1]): ZLayer.NoDeps[Nothing, Has[M1]] = {
 
     def extract(
       state: State[M, E],
@@ -79,7 +81,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
       UIO.succeed(expectation).flatMap {
         case Empty =>
           popNextExpectation.flatMap {
-            case Some(next) => extract(state, next(()))
+            case Some(next) => extract(state, next(null))
             case None       => UIO.succeed(Right(()))
           }
 
@@ -93,7 +95,7 @@ sealed trait Expectation[-M, +E, +A] { self =>
           for {
             _ <- state.callsRef.update(_ :+ call.asInstanceOf[AnyCall])
             out <- popNextExpectation.flatMap {
-                    case Some(next) => extract(state, next(()))
+                    case Some(next) => extract(state, next(null))
                     case None       => UIO.succeed(Right(()))
                   }
           } yield out
@@ -121,10 +123,10 @@ sealed trait Expectation[-M, +E, +A] { self =>
           mock = Mock.make(state.callsRef)
         } yield mockable.environment(mock)
 
-    for {
+    ZLayer.fromManaged(for {
       state <- Managed.make(makeState)(checkUnmetExpectations)
       env   <- Managed.fromEffect(makeEnvironment(state))
-    } yield env
+    } yield env)
   }
 
   /**
@@ -147,58 +149,57 @@ object Expectation {
   /**
    * Returns a return expectation to fail with `E`.
    */
-  final def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
+  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
 
   /**
    * Maps the input arguments `I` to a return expectation to fail with `E`.
    */
-  final def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
+  def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
 
   /**
    * Effectfully maps the input arguments `I` to a return expectation to fail with `E`.
    */
-  final def failureM[I, E](f: I => IO[E, Nothing]): Fail[I, E] = Fail(f)
+  def failureM[I, E](f: I => IO[E, Nothing]): Fail[I, E] = Fail(f)
 
   /**
    * Returns a return expectation to compute forever.
    */
-  final def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
+  def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
 
   /**
    * Returns an expectation for no calls on module `M`.
    */
-  final def nothing[M]: Expectation[M, Nothing, Nothing] = Empty
+  def nothing[M]: Expectation[M, Nothing, Nothing] = Empty
 
   /**
    * Returns a return expectation to succeed with `Unit`.
    */
-  final def unit: Succeed[Any, Unit] = value(())
+  def unit: Succeed[Any, Unit] = value(())
 
   /**
    * Returns a return expectation to succeed with `A`.
    */
-  final def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
+  def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
 
   /**
    * Maps the input arguments `I` to a return expectation to succeed with `A`.
    */
-  final def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
+  def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
 
   /**
    * Effectfully maps the input arguments `I` to a return expectation to succeed with `A`.
    */
-  final def valueM[I, A](f: I => IO[Nothing, A]): Succeed[I, A] = Succeed(f)
+  def valueM[I, A](f: I => IO[Nothing, A]): Succeed[I, A] = Succeed(f)
 
   /**
    * Implicitly converts Expectation to ZManaged mock environment.
    */
-  implicit final def toManagedEnv[M, E, A](
+  implicit def toLayer[M: Mockable, E, A](
     expectation: Expectation[M, E, A]
-  )(implicit mockable: Mockable[M]): Managed[Nothing, M] =
-    expectation.managedEnv(mockable)
+  ): ZLayer.NoDeps[Nothing, Has[M]] = expectation.toLayer
 
-  private[Expectation] type AnyCall    = Call[Any, Any, Any, Any]
-  private[Expectation] type Next[M, E] = Any => Expectation[M, E, Any]
+  private[Expectation] type AnyCall      = Call[Any, Any, Any, Any]
+  private[Expectation] type Next[-M, +E] = Any => Expectation[M, E, Any]
 
   private[Expectation] final case class State[M, E](
     callsRef: Ref[List[AnyCall]],
@@ -216,7 +217,7 @@ object Expectation {
    * Models a call on module `M` capability that takes input arguments `I` and returns an effect
    * that may fail with an error `E` or produce a single `A`.
    */
-  private[mock] final case class Call[M, I, E, A](
+  private[mock] final case class Call[-M, I, +E, +A](
     method: Method[M, I, A],
     assertion: Assertion[I],
     returns: I => IO[E, A]
@@ -228,7 +229,7 @@ object Expectation {
    * The `A` value in `next` is not used, it's only required to fit the flatMap signature,
    * which we want to be able to use the for-comprehension syntax.
    */
-  private[mock] final case class FlatMap[M, E, A, B](
+  private[mock] final case class FlatMap[-M, +E, A, +B](
     current: Expectation[M, E, A],
     next: A => Expectation[M, E, B]
   ) extends Expectation[M, E, B]
