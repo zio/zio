@@ -63,9 +63,9 @@ object RTSSpec extends ZIOBaseSpec {
         promise <- Promise.make[Nothing, Int]
         fiber   <- promise.await.fork
         dump    <- fiber.dump
-        dumpStr <- dump.fold[URIO[Clock, String]](IO.succeed(""))(_.prettyPrintM)
+        dumpStr <- dump.prettyPrintM
         _       <- UIO(println(dumpStr))
-      } yield assert(dump)(anything)
+      } yield assert(dumpStr)(anything)
     },
     testM("interruption causes") {
       for {

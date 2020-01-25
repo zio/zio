@@ -324,7 +324,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[A](as: Iterable[Task[A]]): UIO[Fiber[Throwable, List[A]]] =
+  def forkAll[A](as: Iterable[Task[A]]): UIO[Fiber.Synthetic[Throwable, List[A]]] =
     ZIO.forkAll(as)
 
   /**
