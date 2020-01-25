@@ -56,7 +56,7 @@ object MockingExampleSpec extends DefaultRunnableSpec {
       import MockConsole._
       import MockRandom._
 
-      val app        = random.nextInt.map(_.toString) >>= console.putStrLn
+      val app        = random.nextInt.map(_.toString).flatMap(line => console.putStrLn(line))
       val randomEnv  = nextInt._1 returns value(42)
       val consoleEnv = putStrLn(equalTo("42")) returns unit
 
