@@ -18,7 +18,7 @@ trait StreamUtils extends ChunkUtils with GenZIO {
       case n =>
         Gen.oneOf(
           Gen.const(Stream.empty),
-          Gen.int(1, n).flatMap(Gen.listOfN(_)(a)).map(Stream.fromIterable)
+          Gen.int(1, n).flatMap(Gen.listOfN(_)(a)).map(Stream.fromIterable(_))
         )
     }
 
@@ -41,7 +41,7 @@ trait StreamUtils extends ChunkUtils with GenZIO {
     }
 
   def pureStreamEffectGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, StreamEffect[Any, Nothing, A]] =
-    Gen.int(0, max).flatMap(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable)
+    Gen.int(0, max).flatMap(Gen.listOfN(_)(a)).map(StreamEffect.fromIterable(_))
 
   def failingStreamEffectGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, StreamEffect[Any, String, A]] =
     for {

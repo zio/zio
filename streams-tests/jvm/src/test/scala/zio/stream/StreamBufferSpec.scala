@@ -22,7 +22,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
         assertM(
-          (Stream.range(0, 10) ++ Stream.fail(e))
+          (Stream.range(0, 10) ++ Stream.failNow(e))
             .buffer(2)
             .run(Sink.collectAll[Int])
             .run
@@ -47,7 +47,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
         assertM(
-          (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
+          (Stream.range(1, 1000) ++ Stream.failNow(e) ++ Stream.range(1001, 2000))
             .bufferDropping(2)
             .runCollect
             .run
@@ -88,7 +88,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
         assertM(
-          (Stream.range(1, 1000) ++ Stream.fail(e) ++ Stream.range(1001, 2000))
+          (Stream.range(1, 1000) ++ Stream.failNow(e) ++ Stream.range(1001, 2000))
             .bufferSliding(2)
             .runCollect
             .run
@@ -136,7 +136,7 @@ object StreamBufferSpec extends ZIOBaseSpec {
       }),
       testM("buffer the Stream with Error") {
         val e = new RuntimeException("boom")
-        assertM((Stream.range(0, 10) ++ Stream.fail(e)).bufferUnbounded.runCollect.run)(fails(equalTo(e)))
+        assertM((Stream.range(0, 10) ++ Stream.failNow(e)).bufferUnbounded.runCollect.run)(fails(equalTo(e)))
       },
       testM("fast producer progress independently") {
         for {

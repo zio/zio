@@ -1304,16 +1304,22 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     }.map(_._1.reverse)
 
   /**
-   * Creates a sink halting with the specified `Throwable`.
+   * Creates a sink halting with the specified lazily evaluated `Throwable`.
    */
-  def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  def die(e: => Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(e))
+
+  /**
+   * Creates a sink halting with the specified eagerly evaluated `Throwable`.
+   */
+  def dieNow(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+    ZSink.haltNow(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
-  def dieMessage(m: String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  def dieMessage(m: => String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.halt(Cause.die(new RuntimeException(m)))
 
   /**
@@ -1335,9 +1341,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     foldLeft[A, Option[A]](None) { case (_, a) => Some(a) }
 
   /**
-   * Creates a sink failing with a value of type `E`.
+   * Creates a sink failing with a lazily evaluated value of type `E`.
    */
-  def fail[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
+  def fail[E](e: => E): ZSink[Any, E, Nothing, Any, Nothing] =
     new SinkPure[E, Nothing, Any, Nothing] {
       type State = Unit
       val initialPure                    = ()
@@ -1345,6 +1351,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       def extractPure(state: State)      = Left(e)
       def cont(state: State)             = false
     }
+
+  /**
+   * Creates a sink failing with a lazily evaluated value of type `E`.
+   */
+  def failNow[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
+    fail(e)
 
   /**
    * Creates a sink by folding over a structure of type `S`.
@@ -1553,9 +1565,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     identity.mapError(_ => None).mapM(f(_).mapError(Some(_)))
 
   /**
-   * Creates a sink halting with a specified cause.
+   * Creates a sink halting with a specified lazily evaluated cause.
    */
-  def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+  def halt[E](e: => Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
     new Sink[E, Nothing, Any, Nothing] {
       type State = Unit
       val initial                    = UIO.unit
@@ -1563,6 +1575,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       def extract(state: State)      = IO.haltNow(e)
       def cont(state: State)         = false
     }
+
+  /**
+   * Creates a sink halting with a specified eagerly evaluated cause.
+   */
+  def haltNow[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+    halt(e)
 
   /**
    * Creates a sink by that merely passes on incoming values.
@@ -1825,9 +1843,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
     }
 
   /**
-   * Creates a single-value sink from a value.
+   * Creates a single-value sink from a lazily evaluated value.
    */
-  def succeed[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+  def succeed[A, B](b: => B): ZSink[Any, Nothing, A, A, B] =
     new SinkPure[Nothing, A, A, B] {
       type State = Chunk[A]
       val initialPure                  = Chunk.empty
@@ -1835,6 +1853,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       def extractPure(state: State)    = Right((b, state))
       def cont(state: State)           = false
     }
+
+  /**
+   * Creates a single-value sink from an eagerly evaluated value.
+   */
+  def succeedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+    succeed(b)
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters

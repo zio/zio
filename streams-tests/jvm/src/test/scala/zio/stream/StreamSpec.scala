@@ -36,7 +36,7 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(stream.absolve.runCollect)(equalTo(xs))
       }),
       testM("failure")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { xs =>
-        val stream = ZStream.fromIterable(xs.map(Right(_))) ++ ZStream.succeed(Left("Ouch"))
+        val stream = ZStream.fromIterable(xs.map(Right(_))) ++ ZStream.succeedNow(Left("Ouch"))
         assertM(stream.absolve.runCollect.run)(fails(equalTo("Ouch")))
       }),
       testM("round-trip #1")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt)), Gen.anyString) { (xs, s) =>
@@ -49,7 +49,7 @@ object StreamSpec extends ZIOBaseSpec {
       }),
       testM("round-trip #2")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt)), Gen.anyString) { (xs, s) =>
         val xss    = ZStream.fromIterable(xs)
-        val stream = xss ++ ZStream.fail(s)
+        val stream = xss ++ ZStream.failNow(s)
         for {
           res1 <- stream.runCollect.run
           res2 <- stream.either.absolve.runCollect.run
@@ -76,12 +76,12 @@ object StreamSpec extends ZIOBaseSpec {
     suite("Stream.accessStream")(
       testM("accessStream") {
         for {
-          result <- ZStream.accessStream[String](ZStream.succeed).provide("test").runHead.get
+          result <- ZStream.accessStream[String](ZStream.succeedNow).provide("test").runHead.get
         } yield assert(result)(equalTo("test"))
       },
       testM("accessStream fails") {
         for {
-          result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provide(0).runHead.run
+          result <- ZStream.accessStream[Int](_ => ZStream.failNow("fail")).provide(0).runHead.run
         } yield assert(result)(fails(equalTo("fail")))
       }
     ),
@@ -282,7 +282,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("bracket")(
         for {
           done           <- Ref.make(false)
-          iteratorStream = Stream.bracket(UIO(0 to 2))(_ => done.set(true)).flatMap(Stream.fromIterable)
+          iteratorStream = Stream.bracket(UIO(0 to 2))(_ => done.set(true)).flatMap(Stream.fromIterable(_))
           result         <- iteratorStream.run(Sink.collectAll[Int])
           released       <- done.get
         } yield assert(result)(equalTo(List(0, 1, 2))) && assert(released)(isTrue)
@@ -292,7 +292,7 @@ object StreamSpec extends ZIOBaseSpec {
           done <- Ref.make(false)
           iteratorStream = Stream
             .bracket(UIO(0 to 3))(_ => done.set(true))
-            .flatMap(Stream.fromIterable)
+            .flatMap(Stream.fromIterable(_))
             .take(2)
           result   <- iteratorStream.run(Sink.collectAll[Int])
           released <- done.get
@@ -321,12 +321,12 @@ object StreamSpec extends ZIOBaseSpec {
         for {
           leftAssoc <- Stream
                         .bracket(Ref.make(true))(_.set(false))
-                        .flatMap(Stream.succeed)
+                        .flatMap(Stream.succeedNow)
                         .flatMap(r => Stream.fromEffect(r.get))
                         .run(Sink.await[Boolean])
           rightAssoc <- Stream
                          .bracket(Ref.make(true))(_.set(false))
-                         .flatMap(Stream.succeed(_).flatMap(r => Stream.fromEffect(r.get)))
+                         .flatMap(Stream.succeedNow(_).flatMap(r => Stream.fromEffect(r.get)))
                          .run(Sink.await[Boolean])
         } yield assert(leftAssoc -> rightAssoc)(equalTo(true -> true))
       )
@@ -348,7 +348,7 @@ object StreamSpec extends ZIOBaseSpec {
           }
       },
       testM("Errors") {
-        (Stream.range(0, 1) ++ Stream.fail("Boom")).broadcast(2, 12).use {
+        (Stream.range(0, 1) ++ Stream.failNow("Boom")).broadcast(2, 12).use {
           case s1 :: s2 :: Nil =>
             for {
               out1     <- s1.runCollect.either
@@ -395,7 +395,7 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     suite("Stream.catchAllCause")(
       testM("recovery from errors") {
-        val s1 = Stream(1, 2) ++ Stream.fail("Boom")
+        val s1 = Stream(1, 2) ++ Stream.failNow("Boom")
         val s2 = Stream(3, 4)
         s1.catchAllCause(_ => s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4))))
       },
@@ -412,8 +412,8 @@ object StreamSpec extends ZIOBaseSpec {
       testM("executes finalizers") {
         for {
           fins   <- Ref.make(List[String]())
-          s1     = (Stream(1, 2) ++ Stream.fail("Boom")).ensuring(fins.update("s1" :: _))
-          s2     = (Stream(3, 4) ++ Stream.fail("Boom")).ensuring(fins.update("s2" :: _))
+          s1     = (Stream(1, 2) ++ Stream.failNow("Boom")).ensuring(fins.update("s1" :: _))
+          s2     = (Stream(3, 4) ++ Stream.failNow("Boom")).ensuring(fins.update("s2" :: _))
           _      <- s1.catchAllCause(_ => s2).runCollect.run
           result <- fins.get
         } yield assert(result)(equalTo(List("s2", "s1")))
@@ -435,7 +435,7 @@ object StreamSpec extends ZIOBaseSpec {
         assertM(Stream(1, 2, 3, 4, 5).chunkN(2).chunks.runCollect)(equalTo(List(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
       },
       testM("error") {
-        (Stream(1, 2, 3, 4, 5) ++ Stream.fail("broken"))
+        (Stream(1, 2, 3, 4, 5) ++ Stream.failNow("broken"))
           .chunkN(3)
           .catchAll(_ => ZStreamChunk.succeed(Chunk(6)))
           .chunks
@@ -476,7 +476,7 @@ object StreamSpec extends ZIOBaseSpec {
         }.runCollect)(equalTo(List(1, 2, 3)))
       },
       testM("collectWhile short circuits") {
-        assertM((Stream(Option(1)) ++ Stream.fail("Ouch")).collectWhile {
+        assertM((Stream(Option(1)) ++ Stream.failNow("Ouch")).collectWhile {
           case None => 1
         }.runDrain.either)(isRight(isUnit))
       }
@@ -493,7 +493,7 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("collectWhileM short circuits") {
         assertM(
-          (Stream(Option(1)) ++ Stream.fail("Ouch"))
+          (Stream(Option(1)) ++ Stream.failNow("Ouch"))
             .collectWhileM[Any, String, Int] {
               case None => ZIO.succeedNow(1)
             }
@@ -576,7 +576,7 @@ object StreamSpec extends ZIOBaseSpec {
       ),
       testM("short circuits") {
         assertM(
-          (Stream(1) ++ Stream.fail("Ouch"))
+          (Stream(1) ++ Stream.failNow("Ouch"))
             .take(1)
             .dropWhile(_ => true)
             .runDrain
@@ -585,7 +585,7 @@ object StreamSpec extends ZIOBaseSpec {
       }
     ),
     testM("Stream.either") {
-      val s = Stream(1, 2, 3) ++ Stream.fail("Boom")
+      val s = Stream(1, 2, 3) ++ Stream.failNow("Boom")
       s.either.runCollect.map(assert(_)(equalTo(List(Right(1), Right(2), Right(3), Left("Boom")))))
     },
     testM("Stream.ensuring") {
@@ -647,11 +647,11 @@ object StreamSpec extends ZIOBaseSpec {
     suite("Stream.flatMap")(
       testM("deep flatMap stack safety") {
         def fib(n: Int): Stream[Nothing, Int] =
-          if (n <= 1) Stream.succeed(n)
+          if (n <= 1) Stream.succeedNow(n)
           else
             fib(n - 1).flatMap { a =>
               fib(n - 2).flatMap { b =>
-                Stream.succeed(a + b)
+                Stream.succeedNow(a + b)
               }
             }
 
@@ -728,8 +728,8 @@ object StreamSpec extends ZIOBaseSpec {
                   case Exit.Success(_) => UIO.unit
                 }
             )
-            .flatMap(_ => Stream.fail("Ouch"))
-          _   <- Stream.succeed(()).flatMap(_ => inner).runDrain.either.unit
+            .flatMap(_ => Stream.failNow("Ouch"))
+          _   <- Stream.succeedNow(()).flatMap(_ => inner).runDrain.either.unit
           fin <- ref.get
         } yield assert(fin)(isTrue)
       }
@@ -1140,7 +1140,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("outer errors") {
         val words = List("abc", "test", "test", "foo")
         assertM(
-          (Stream.fromIterable(words) ++ Stream.fail("Boom"))
+          (Stream.fromIterable(words) ++ Stream.failNow("Boom"))
             .groupByKey(identity) { case (_, s) => s.drain }
             .runCollect
             .either
@@ -1462,13 +1462,13 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("mergeWith prioritizes failure") {
         val s1 = Stream.never
-        val s2 = Stream.fail("Ouch")
+        val s2 = Stream.failNow("Ouch")
 
         assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
       }
     ),
     testM("Stream.orElse") {
-      val s1 = Stream(1, 2, 3) ++ Stream.fail("Boom")
+      val s1 = Stream(1, 2, 3) ++ Stream.failNow("Boom")
       val s2 = Stream(4, 5, 6)
       s1.orElse(s2).runCollect.map(assert(_)(equalTo(List(1, 2, 3, 4, 5, 6))))
     },
@@ -1520,7 +1520,7 @@ object StreamSpec extends ZIOBaseSpec {
           }
       },
       testM("errors") {
-        (Stream.range(0, 1) ++ Stream.fail("Boom")).partitionEither { i =>
+        (Stream.range(0, 1) ++ Stream.failNow("Boom")).partitionEither { i =>
           if (i % 2 == 0) ZIO.succeedNow(Left(i))
           else ZIO.succeedNow(Right(i))
         }.use {
@@ -1722,7 +1722,7 @@ object StreamSpec extends ZIOBaseSpec {
       }),
       testM("takeWhile short circuits")(
         assertM(
-          (Stream(1) ++ Stream.fail("Ouch"))
+          (Stream(1) ++ Stream.failNow("Ouch"))
             .takeWhile(_ => false)
             .runDrain
             .either
@@ -1896,7 +1896,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("unTake with error") {
         val e = new RuntimeException("boom")
         assertM(
-          (Stream.range(0, 10) ++ Stream.fail(e))
+          (Stream.range(0, 10) ++ Stream.failNow(e))
             .toQueue[Throwable, Int](1)
             .use { q =>
               Stream.fromQueue(q).unTake.run(Sink.collectAll[Int])
@@ -1912,7 +1912,7 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("introduce error") {
         val s = Stream(1, 2, 3)
-        s.via(_ => Stream.fail("Ouch")).runCollect.either.map(assert(_)(equalTo(Left("Ouch"))))
+        s.via(_ => Stream.failNow("Ouch")).runCollect.either.map(assert(_)(equalTo(Left("Ouch"))))
       }
     ),
     suite("Stream zipping")(
@@ -1936,7 +1936,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("zipWith prioritizes failure") {
         assertM(
           Stream.never
-            .zipWith(Stream.fail("Ouch"))((_, _) => None)
+            .zipWith(Stream.failNow("Ouch"))((_, _) => None)
             .runCollect
             .either
         )(isLeft(equalTo("Ouch")))

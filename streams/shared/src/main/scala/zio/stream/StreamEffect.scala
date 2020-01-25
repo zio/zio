@@ -350,7 +350,7 @@ private[stream] object StreamEffect extends Serializable {
   def apply[R, E, A](pull: ZManaged[R, Nothing, () => A]): StreamEffect[R, E, A] =
     new StreamEffect(pull)
 
-  def fail[E](e: E): StreamEffect[Any, E, Nothing] =
+  def fail[E](e: => E): StreamEffect[Any, E, Nothing] =
     StreamEffect {
       Managed.effectTotal {
         var done = false
@@ -363,7 +363,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
+  def fromChunk[A](c: => Chunk[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var index = 0
@@ -380,7 +380,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromIterable[A](as: Iterable[A]): StreamEffect[Any, Nothing, A] =
+  def fromIterable[A](as: => Iterable[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         val thunk = as.iterator
@@ -389,7 +389,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromIterator[A](iterator: Iterator[A]): StreamEffect[Any, Nothing, A] =
+  def fromIterator[A](iterator: => Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal { () =>
         if (iterator.hasNext) iterator.next() else end
@@ -407,7 +407,7 @@ private[stream] object StreamEffect extends Serializable {
   }
 
   def fromInputStream(
-    is: InputStream,
+    is: => InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
   ): StreamEffectChunk[Any, IOException, Byte] =
     StreamEffectChunk {
@@ -483,7 +483,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def succeed[A](a: A): StreamEffect[Any, Nothing, A] =
+  def succeed[A](a: => A): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var done = false

@@ -285,7 +285,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A constant generator of the specified value.
    */
   def const[A](a: => A): Gen[Any, A] =
-    Gen(ZStream.succeed(Sample.noShrink(a)))
+    Gen(ZStream.succeedNow(Sample.noShrink(a)))
 
   /**
    * A constant generator of the specified sample.

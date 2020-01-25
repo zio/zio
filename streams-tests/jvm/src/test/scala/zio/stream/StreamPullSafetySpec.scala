@@ -21,7 +21,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           .map(assert(_)(equalTo(List(Right(3), Right(7), Right(11), Left(None), Left(None)))))
       },
       testM("is safe to pull again after upstream failure") {
-        (Stream(1, 2) ++ Stream.fail("Ouch") ++ Stream(3, 4))
+        (Stream(1, 2) ++ Stream.failNow("Ouch") ++ Stream(3, 4))
           .aggregate(ZSink.collectAllN[Int](2).map(_.sum))
           .process
           .use(nPulls(_, 5))
@@ -209,11 +209,11 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         ref <- Ref.make(List.empty[String])
         pulls <- Stream(1, 2, 3, 4).flatMap { n =>
                   if (n % 2 == 0) {
-                    (Stream.fail(s"Ouch $n") ++ Stream.succeed(n))
+                    (Stream.failNow(s"Ouch $n") ++ Stream.succeedNow(n))
                       .tap(_ => ref.update(s"inner $n" :: _))
                       .ensuring(ref.update(s"outer $n" :: _))
                   } else {
-                    Stream.succeed(n)
+                    Stream.succeedNow(n)
                   }
                 }.process
                   .use(nPulls(_, 8))
@@ -330,7 +330,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           ref <- Ref.make(false)
           pulls <- Stream
                     .bracket(UIO.succeedNow(5))(_ => ref.set(true))
-                    .flatMap(_ => Stream.fail("Ouch"))
+                    .flatMap(_ => Stream.failNow("Ouch"))
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
@@ -357,7 +357,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           ref <- Ref.make(false)
           pulls <- Stream
                     .bracketExit(UIO.succeedNow(5))((_, _) => ref.set(true))
-                    .flatMap(_ => Stream.fail("Ouch"))
+                    .flatMap(_ => Stream.failNow("Ouch"))
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
@@ -374,14 +374,14 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       },
       testM("is safe to pull again after inner failure") {
         Stream
-          .flatten(Stream(Stream.fail("Ouch")))
+          .flatten(Stream(Stream.failNow("Ouch")))
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
       },
       testM("is safe to pull again after outer failure") {
         Stream
-          .flatten(Stream.fail("Ouch"))
+          .flatten(Stream.failNow("Ouch"))
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
@@ -457,7 +457,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         Stream
           .effectAsyncMaybe[String, Int] { k =>
             k(Pull.fail("Ouch async"))
-            Some(Stream.fail("Ouch sync"))
+            Some(Stream.failNow("Ouch sync"))
           }
           .process
           .use(nPulls(_, 3))
@@ -505,7 +505,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         Stream
           .effectAsyncInterrupt[String, Int] { k =>
             k(IO.failNow(Some("Ouch async")))
-            Right(Stream.fail("Ouch sync"))
+            Right(Stream.failNow("Ouch sync"))
           }
           .process
           .use(nPulls(_, 3))
@@ -642,7 +642,10 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           pulls <- Stream
                     .fromIteratorManaged(Managed.make(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)))
                     .flatMap(
-                      n => Stream.succeed((n * 2).toString) ++ Stream.fail("Ouch") ++ Stream.succeed((n * 3).toString)
+                      n =>
+                        Stream.succeedNow((n * 2).toString) ++ Stream.failNow("Ouch") ++ Stream.succeedNow(
+                          (n * 3).toString
+                        )
                     )
                     .process
                     .use(nPulls(_, 8))
@@ -733,7 +736,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           ref <- Ref.make(false)
           pulls <- Stream
                     .managed(Managed.make(UIO.succeedNow(5))(_ => ref.set(true)))
-                    .flatMap(_ => Stream.fail("Ouch"))
+                    .flatMap(_ => Stream.failNow("Ouch"))
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get
@@ -860,7 +863,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       },
       testM("is safe to pull again after inner failure") {
         Stream
-          .unwrap(UIO.succeedNow(Stream.fail("Ouch")))
+          .unwrap(UIO.succeedNow(Stream.failNow("Ouch")))
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
@@ -903,7 +906,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
                     .unwrapManaged(
                       Managed.make(UIO.succeedNow(Stream.fromEffect(UIO.succeedNow(5))))(_ => ref.set(true))
                     )
-                    .flatMap(_ => Stream.fail("Ouch"))
+                    .flatMap(_ => Stream.failNow("Ouch"))
                     .process
                     .use(nPulls(_, 3))
           fin <- ref.get

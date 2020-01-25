@@ -28,7 +28,7 @@ object StreamDrainForkSpec extends ZIOBaseSpec {
       } yield assert(result)(isTrue)
     },
     testM("fails the foreground stream if the background fails with a typed error") {
-      assertM(ZStream.never.drainFork(ZStream.fail("Boom")).runDrain.run)(fails(equalTo("Boom")))
+      assertM(ZStream.never.drainFork(ZStream.failNow("Boom")).runDrain.run)(fails(equalTo("Boom")))
     },
     testM("fails the foreground stream if the background fails with a defect") {
       val ex = new RuntimeException("Boom")

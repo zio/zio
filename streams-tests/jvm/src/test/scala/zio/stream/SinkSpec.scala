@@ -897,9 +897,9 @@ object SinkSpec extends ZIOBaseSpec {
         }),
         testM("short circuits") {
           val empty: Stream[Nothing, Int]     = ZStream.empty
-          val single: Stream[Nothing, Int]    = ZStream.succeed(1)
+          val single: Stream[Nothing, Int]    = ZStream.succeedNow(1)
           val double: Stream[Nothing, Int]    = ZStream(1, 2)
-          val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
+          val failed: Stream[String, Nothing] = ZStream.failNow("Ouch")
 
           def run[E](stream: Stream[E, Int]) =
             for {
@@ -939,9 +939,9 @@ object SinkSpec extends ZIOBaseSpec {
         },
         testM("short circuits") {
           val empty: Stream[Nothing, Int]     = ZStream.empty
-          val single: Stream[Nothing, Int]    = ZStream.succeed(1)
+          val single: Stream[Nothing, Int]    = ZStream.succeedNow(1)
           val double: Stream[Nothing, Int]    = ZStream(1, 2)
-          val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
+          val failed: Stream[String, Nothing] = ZStream.failNow("Ouch")
 
           def run[E](stream: Stream[E, Int]) =
             (for {

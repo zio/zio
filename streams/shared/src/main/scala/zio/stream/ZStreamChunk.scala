@@ -83,7 +83,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   final def catchAll[R1 <: R, E2, A1 >: A](
     f: E => ZStreamChunk[R1, E2, A1]
   )(implicit ev: CanFail[E]): ZStreamChunk[R1, E2, A1] =
-    self.catchAllCause(_.failureOrCause.fold(f, c => ZStreamChunk(ZStream.halt(c))))
+    self.catchAllCause(_.failureOrCause.fold(f, c => ZStreamChunk(ZStream.haltNow(c))))
 
   /**
    * Switches over to the stream produced by the provided function in case this one
@@ -283,7 +283,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
   /**
    * Returns a stream made of the concatenation of all the chunks in this stream
    */
-  def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
+  def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk(_))
 
   /**
    * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
@@ -703,8 +703,14 @@ object ZStreamChunk {
     new StreamEffectChunk(StreamEffect.fromIterable(as))
 
   /**
-   * Creates a `ZStreamChunk` from a chunk
+   * Creates a `ZStreamChunk` from an eagerly evaluated chunk
    */
-  def succeed[A](as: Chunk[A]): StreamChunk[Nothing, A] =
+  def succeed[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
     new StreamEffectChunk(StreamEffect.succeed(as))
+
+  /**
+   * Creates a `ZStreamChunk` from a lazily evaluated chunk
+   */
+  def succeedNow[A](as: Chunk[A]): StreamChunk[Nothing, A] =
+    succeed(as)
 }
