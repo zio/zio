@@ -46,6 +46,54 @@ import zio.internal.stacktracer.ZTraceElement
 sealed trait Fiber[+E, +A] { self =>
 
   /**
+   * Awaits the fiber, which suspends the awaiting fiber until the result of the
+   * fiber has been determined.
+   *
+   * @return `UIO[Exit[E, A]]`
+   */
+  def await: UIO[Exit[E, A]]
+
+  /**
+   * Children of the fiber.
+   */
+  def children: UIO[Iterable[Fiber[Any, Any]]]
+
+  /**
+   * Gets the value of the fiber ref for this fiber, or the initial value of
+   * the fiber ref, if the fiber is not storing the ref.
+   */
+  def getRef[A](ref: FiberRef[A]): UIO[A]
+
+  /**
+   * Inherits values from all [[FiberRef]] instances into current fiber.
+   * This will resume immediately.
+   *
+   * @return `UIO[Unit]`
+   */
+  def inheritRefs: UIO[Unit]
+
+  /**
+   * Interrupts the fiber as if interrupted from the specified fiber. If the
+   * fiber has already exited, the returned effect will resume immediately.
+   * Otherwise, the effect will resume when the fiber exits.
+   *
+   * @return `UIO[Exit, E, A]]`
+   */
+  def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]]
+
+  /**
+   * Tentatively observes the fiber, but returns immediately if it is not already done.
+   *
+   * @return `UIO[Option[Exit, E, A]]]`
+   */
+  def poll: UIO[Option[Exit[E, A]]]
+
+  /**
+   * The status of the fiber.
+   */
+  def status: UIO[Fiber.Status]
+
+  /**
    * Zips this fiber and the specified fiber together, producing a tuple of their
    * output.
    *
@@ -90,31 +138,16 @@ sealed trait Fiber[+E, +A] { self =>
     self map (_ => b)
 
   /**
-   * Awaits the fiber, which suspends the awaiting fiber until the result of the
-   * fiber has been determined.
-   *
-   * @return `UIO[Exit[E, A]]`
+   * Folds over the runtime or synthetic fiber.
    */
-  def await: UIO[Exit[E, A]]
-
-  /**
-   * Children of the fiber.
-   */
-  def children: UIO[Iterable[Fiber[Any, Any]]]
-
-  /**
-   * Gets the value of the fiber ref for this fiber, or the initial value of
-   * the fiber ref, if the fiber is not storing the ref.
-   */
-  def getRef[A](ref: FiberRef[A]): UIO[A]
-
-  /**
-   * Inherits values from all [[FiberRef]] instances into current fiber.
-   * This will resume immediately.
-   *
-   * @return `UIO[Unit]`
-   */
-  def inheritRefs: UIO[Unit]
+  final def fold[Z](
+    runtime: Fiber.Runtime[E, A] => Z,
+    synthetic: Fiber.Synthetic[E, A] => Z
+  ): Z =
+    self match {
+      case fiber: Fiber.Runtime[E, A]   => runtime(fiber)
+      case fiber: Fiber.Synthetic[E, A] => synthetic(fiber)
+    }
 
   /**
    * Interrupts the fiber from whichever fiber is calling this method. If the
@@ -125,15 +158,6 @@ sealed trait Fiber[+E, +A] { self =>
    */
   final def interrupt: UIO[Exit[E, A]] =
     ZIO.fiberId.flatMap(fiberId => self.interruptAs(fiberId))
-
-  /**
-   * Interrupts the fiber as if interrupted from the specified fiber. If the
-   * fiber has already exited, the returned effect will resume immediately.
-   * Otherwise, the effect will resume when the fiber exits.
-   *
-   * @return `UIO[Exit, E, A]]`
-   */
-  def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]]
 
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the
@@ -237,18 +261,6 @@ sealed trait Fiber[+E, +A] { self =>
     (self map (Left(_))) orElse (that map (Right(_)))
 
   /**
-   * Tentatively observes the fiber, but returns immediately if it is not already done.
-   *
-   * @return `UIO[Option[Exit, E, A]]]`
-   */
-  def poll: UIO[Option[Exit[E, A]]]
-
-  /**
-   * The status of the fiber.
-   */
-  def status: UIO[Fiber.Status]
-
-  /**
    * Converts this fiber into a [[scala.concurrent.Future]].
    *
    * @param ev implicit witness that E is a subtype of Throwable
@@ -288,18 +300,6 @@ sealed trait Fiber[+E, +A] { self =>
    */
   final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
     ZManaged.make(UIO.succeed(self))(_.interrupt)
-
-  /**
-   * Folds over the runtime or synthetic fiber.
-   */
-  final def fold[Z](
-    runtime: Fiber.Runtime[E, A] => Z,
-    synthetic: Fiber.Synthetic[E, A] => Z
-  ): Z =
-    self match {
-      case fiber: Fiber.Runtime[E, A]   => runtime(fiber)
-      case fiber: Fiber.Synthetic[E, A] => synthetic(fiber)
-    }
 
   /**
    * Maps the output of this fiber to `()`.
