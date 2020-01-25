@@ -309,6 +309,17 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("fail").fallback(1))(equalTo(1))
       }
     ),
+    suite("filter")(
+      testM("filters a collection using an effectual predicate") {
+        val as = Iterable(2, 4, 6, 3, 5, 6)
+        for {
+          ref     <- Ref.make(List.empty[Int])
+          results <- ZIO.filter(as)(a => ref.update(a :: _).as(a % 2 == 0))
+          effects <- ref.get.map(_.reverse)
+        } yield assert(results)(equalTo(List(2, 4, 6, 6))) &&
+          assert(effects)(equalTo(List(2, 4, 6, 3, 5, 6)))
+      }
+    ),
     suite("filterOrElse")(
       testM("returns checked failure from held value") {
         val goodCase =
