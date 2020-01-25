@@ -320,7 +320,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[R, A](as: Iterable[RIO[R, A]]): ZIO[R, Nothing, Fiber[Throwable, List[A]]] =
+  def forkAll[R, A](as: Iterable[RIO[R, A]]): ZIO[R, Nothing, Fiber.Synthetic[Throwable, List[A]]] =
     ZIO.forkAll(as)
 
   /**

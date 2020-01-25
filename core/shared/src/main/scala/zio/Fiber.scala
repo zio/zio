@@ -43,7 +43,7 @@ import zio.internal.stacktracer.ZTraceElement
  *   } yield (a, b)
  * }}}
  */
-trait Fiber[+E, +A] { self =>
+sealed trait Fiber[+E, +A] { self =>
 
   /**
    * Zips this fiber and the specified fiber together, producing a tuple of their
@@ -54,7 +54,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, (A, B)] =
     (self zipWith that)((a, b) => (a, b))
 
   /**
@@ -65,7 +65,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E1, B]` combined fiber
    */
-  final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+  final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, B] =
     (self zipWith that)((_, b) => b)
 
   /**
@@ -76,7 +76,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E1, A]` combined fiber
    */
-  final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+  final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, A] =
     (self zipWith that)((a, _) => a)
 
   /**
@@ -86,7 +86,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E, B]` fiber mapped to constant
    */
-  final def as[B](b: => B): Fiber[E, B] =
+  final def as[B](b: => B): Fiber.Synthetic[E, B] =
     self map (_ => b)
 
   /**
@@ -153,7 +153,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B result type of f
    * @return `Fiber[E, B]` mapped fiber
    */
-  final def map[B](f: A => B): Fiber[E, B] =
+  final def map[B](f: A => B): Fiber.Synthetic[E, B] =
     mapM(f andThen UIO.succeed)
 
   /**
@@ -170,8 +170,8 @@ trait Fiber[+E, +A] { self =>
   /**
    * Effectually maps over the value the fiber computes.
    */
-  final def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber[E1, B] =
-    new Fiber[E1, B] {
+  final def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber.Synthetic[E1, B] =
+    new Fiber.Synthetic[E1, B] {
       final def await: UIO[Exit[E1, B]] =
         self.await.flatMap(_.foreach(f))
       final def children: UIO[Iterable[Fiber[Any, Any]]] = self.children
@@ -195,8 +195,8 @@ trait Fiber[+E, +A] { self =>
    * @tparam A1 type of the other fiber
    * @return `Fiber[E1, A1]`
    */
-  def orElse[E1 >: E, A1 >: A](that: => Fiber[E1, A1]): Fiber[E1, A1] =
-    new Fiber[E1, A1] {
+  def orElse[E1 >: E, A1 >: A](that: => Fiber[E1, A1]): Fiber.Synthetic[E1, A1] =
+    new Fiber.Synthetic[E1, A1] {
       final def await: UIO[Exit[E1, A1]] =
         self.await.zipWith(that.await) {
           case (Exit.Failure(_), e2) => e2
@@ -233,7 +233,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the other fiber
    * @return `Fiber[E1, B]`
    */
-  def orElseEither[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, Either[A, B]] =
+  def orElseEither[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, Either[A, B]] =
     (self map (Left(_))) orElse (that map (Right(_)))
 
   /**
@@ -293,10 +293,10 @@ trait Fiber[+E, +A] { self =>
    * Performs an effect depending on whether this is a runtime or synthetic
    * fiber.
    */
-  final def typeSpecific[R, E1 >: E, B](
-    runtime: Fiber.Runtime[E, A] => ZIO[R, E1, B],
-    synthetic: Fiber.Synthetic[E, A] => ZIO[R, E1, B]
-  ): ZIO[R, E1, B] =
+  final def foldM[Z](
+    runtime: Fiber.Runtime[E, A] => Z,
+    synthetic: Fiber.Synthetic[E, A] => Z
+  ): Z =
     self match {
       case fiber: Fiber.Runtime[E, A]   => runtime(fiber)
       case fiber: Fiber.Synthetic[E, A] => synthetic(fiber)
@@ -307,7 +307,7 @@ trait Fiber[+E, +A] { self =>
    *
    * @return `Fiber[E, Unit]` fiber mapped to `()`
    */
-  final def unit: Fiber[E, Unit] = as(())
+  final def unit: Fiber.Synthetic[E, Unit] = as(())
 
   /**
    * Named alias for `<*>`.
@@ -317,7 +317,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, (A, B)] =
     self <*> that
 
   /**
@@ -328,7 +328,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E1, A]` combined fiber
    */
-  final def zipLeft[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+  final def zipLeft[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, A] =
     self <* that
 
   /**
@@ -339,7 +339,7 @@ trait Fiber[+E, +A] { self =>
    * @tparam B type of the fiber
    * @return `Fiber[E1, B]` combined fiber
    */
-  final def zipRight[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+  final def zipRight[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, B] =
     self *> that
 
   /**
@@ -354,8 +354,8 @@ trait Fiber[+E, +A] { self =>
    * @tparam C type of the resulting fiber
    * @return `Fiber[E1, C]` combined fiber
    */
-  final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
-    new Fiber[E1, C] {
+  final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber.Synthetic[E1, C] =
+    new Fiber.Synthetic[E1, C] {
       final def await: UIO[Exit[E1, C]] =
         self.await.flatMap(IO.done).zipWithPar(that.await.flatMap(IO.done))(f).run
 
@@ -385,7 +385,7 @@ object Fiber {
    * A runtime fiber that is executing an effect. Runtime fibers ave an
    * identity and a trace.
    */
-  trait Runtime[+E, +A] extends Fiber[E, A] { self =>
+  sealed trait Runtime[+E, +A] extends Fiber[E, A] { self =>
 
     /**
      * The identity of the fiber.
@@ -409,11 +409,15 @@ object Fiber {
       } yield Fiber.Dump(id, name, status, trace)
   }
 
+  private[zio] object Runtime {
+    trait Internal[+E, +A] extends Runtime[E, A]
+  }
+
   /**
    * A synthetic fiber that is created from a pure value or that combines
    * existing fibers.
    */
-  trait Synthetic[+E, +A] extends Fiber[E, A] {}
+  sealed trait Synthetic[+E, +A] extends Fiber[E, A] {}
 
   /**
    * A record containing information about a [[Fiber]].
@@ -536,8 +540,8 @@ object Fiber {
    * Collects all fibers into a single fiber producing an in-order list of the
    * results.
    */
-  def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber[E, List[A]] =
-    new Fiber[E, List[A]] {
+  def collectAll[E, A](fibers: Iterable[Fiber[E, A]]): Fiber.Synthetic[E, List[A]] =
+    new Fiber.Synthetic[E, List[A]] {
       def await: UIO[Exit[E, List[A]]] =
         IO.foreachPar(fibers)(_.await.flatMap(IO.done)).run
       def children: UIO[Iterable[Fiber[Any, Any]]] =
@@ -569,8 +573,8 @@ object Fiber {
    * @tparam A type of the fiber
    * @return `Fiber[E, A]`
    */
-  def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
-    new Fiber[E, A] {
+  def done[E, A](exit: => Exit[E, A]): Fiber.Synthetic[E, A] =
+    new Fiber.Synthetic[E, A] {
       final def await: UIO[Exit[E, A]]                     = IO.succeed(exit)
       final def children: UIO[Iterable[Fiber[Any, Any]]]   = UIO(Nil)
       final def getRef[A](ref: FiberRef[A]): UIO[A]        = UIO(ref.initial)
@@ -613,7 +617,7 @@ object Fiber {
    * @tparam E error type
    * @return `Fiber[E, Nothing]` failed fiber
    */
-  def fail[E](e: E): Fiber[E, Nothing] = done(Exit.fail(e))
+  def fail[E](e: E): Fiber.Synthetic[E, Nothing] = done(Exit.fail(e))
 
   /**
    * A `FiberRef` that stores the name of the fiber, which defaults to `None`.
@@ -628,7 +632,7 @@ object Fiber {
    * @tparam A type of the fiber
    * @return `UIO[Fiber[E, A]]`
    */
-  def fromEffect[E, A](io: IO[E, A]): UIO[Fiber[E, A]] =
+  def fromEffect[E, A](io: IO[E, A]): UIO[Fiber.Synthetic[E, A]] =
     io.run.map(done(_))
 
   /**
@@ -638,8 +642,8 @@ object Fiber {
    * @tparam A type of the `Fiber`
    * @return `Fiber[Throwable, A]`
    */
-  def fromFuture[A](thunk: => Future[A]): Fiber[Throwable, A] =
-    new Fiber[Throwable, A] {
+  def fromFuture[A](thunk: => Future[A]): Fiber.Synthetic[Throwable, A] =
+    new Fiber.Synthetic[Throwable, A] {
       lazy val ftr: Future[A] = thunk
 
       def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
@@ -662,7 +666,7 @@ object Fiber {
   /**
    * Creates a `Fiber` that is halted with the specified cause.
    */
-  def halt[E](cause: Cause[E]): Fiber[E, Nothing] = done(Exit.halt(cause))
+  def halt[E](cause: Cause[E]): Fiber.Synthetic[E, Nothing] = done(Exit.halt(cause))
 
   /**
    * Interrupts all fibers, awaiting their interruption.
@@ -688,7 +692,8 @@ object Fiber {
    *
    * @return `Fiber[Nothing, Nothing]` interrupted fiber
    */
-  def interruptAs(id: Fiber.Id): Fiber[Nothing, Nothing] = done(Exit.interrupt(id))
+  def interruptAs(id: Fiber.Id): Fiber.Synthetic[Nothing, Nothing] =
+    done(Exit.interrupt(id))
 
   /**
    * Joins all fibers, awaiting their _successful_ completion.
@@ -704,8 +709,8 @@ object Fiber {
   /**
    * A fiber that never fails or succeeds.
    */
-  val never: Fiber[Nothing, Nothing] =
-    new Fiber[Nothing, Nothing] {
+  val never: Fiber.Synthetic[Nothing, Nothing] =
+    new Fiber.Synthetic[Nothing, Nothing] {
       def await: UIO[Exit[Nothing, Nothing]]                     = IO.never
       def children: UIO[Iterable[Fiber[Any, Any]]]               = UIO(Nil)
       def getRef[A](ref: FiberRef[A]): UIO[A]                    = UIO(ref.initial)
@@ -730,12 +735,14 @@ object Fiber {
    * @tparam A type of the fiber
    * @return `Fiber[E, A]` succeeded fiber
    */
-  def succeed[A](a: A): Fiber[Nothing, A] = done(Exit.succeed(a))
+  def succeed[A](a: A): Fiber.Synthetic[Nothing, A] =
+    done(Exit.succeed(a))
 
   /**
    * A fiber that has already succeeded with unit.
    */
-  val unit: Fiber[Nothing, Unit] = Fiber.succeed(())
+  val unit: Fiber.Synthetic[Nothing, Unit] =
+    Fiber.succeed(())
 
   /**
    * Retrieves the fiber currently executing on this thread, if any. This will
