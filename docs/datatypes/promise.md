@@ -101,7 +101,7 @@ val program: ZIO[Console with Clock, IOException, Unit] =
   for {
     promise         <-  Promise.make[Nothing, String]
     sendHelloWorld  =   (IO.succeed("hello world") <* sleep(1.second)).flatMap(promise.succeed)
-    getAndPrint     =   promise.await.flatMap(putStrLn(_))
+    getAndPrint     =   promise.await.flatMap(putStrLn)
     fiberA          <-  sendHelloWorld.fork
     fiberB          <-  getAndPrint.fork
     _               <-  (fiberA zip fiberB).join
