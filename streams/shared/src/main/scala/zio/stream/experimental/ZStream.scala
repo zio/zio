@@ -27,18 +27,19 @@ object ZStream {
       for {
         doneRef   <- Ref.make(false).toManaged_
         finalizer <- ZManaged.finalizerRef[R](_ => UIO.unit)
-        pull = (_: Any) => ZIO.uninterruptibleMask { restore =>
-          doneRef.get.flatMap { done =>
-            if (done) IO.fail(Left(()))
-            else
-              (for {
-                _           <- doneRef.set(true)
-                reservation <- managed.reserve
-                _           <- finalizer.set(reservation.release)
-                a           <- restore(reservation.acquire)
-              } yield a).mapError(Right(_))
+        pull = (_: Any) =>
+          ZIO.uninterruptibleMask { restore =>
+            doneRef.get.flatMap { done =>
+              if (done) IO.fail(Left(()))
+              else
+                (for {
+                  _           <- doneRef.set(true)
+                  reservation <- managed.reserve
+                  _           <- finalizer.set(reservation.release)
+                  a           <- restore(reservation.acquire)
+                } yield a).mapError(Right(_))
+            }
           }
-        }
       } yield pull
     }
 }
