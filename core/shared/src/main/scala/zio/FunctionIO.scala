@@ -341,8 +341,8 @@ object FunctionIO extends Serializable {
 
       case _ =>
         lazy val loop: FunctionIO[E, A, A] =
-          FunctionIO.fromFunctionM(
-            (a: A) => check.run(a).flatMap((b: Boolean) => if (b) body.run(a).flatMap(loop.run) else IO.succeed(a))
+          FunctionIO.fromFunctionM((a: A) =>
+            check.run(a).flatMap((b: Boolean) => if (b) body.run(a).flatMap(loop.run) else IO.succeed(a))
           )
 
         loop
@@ -394,12 +394,11 @@ object FunctionIO extends Serializable {
         })
 
       case _ =>
-        FunctionIO.fromFunctionM(
-          (a: A) =>
-            for {
-              b <- l.run(a)
-              c <- r.run(a)
-            } yield f(b, c)
+        FunctionIO.fromFunctionM((a: A) =>
+          for {
+            b <- l.run(a)
+            c <- r.run(a)
+          } yield f(b, c)
         )
     }
 

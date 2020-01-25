@@ -626,10 +626,9 @@ package object environment extends PlatformSpecific {
        */
       val getStrLn: ZIO[Any, IOException, String] = {
         for {
-          input <- consoleState.get.flatMap(
-                    d =>
-                      IO.fromOption(d.input.headOption)
-                        .mapError(_ => new EOFException("There is no more input left to read"))
+          input <- consoleState.get.flatMap(d =>
+                    IO.fromOption(d.input.headOption)
+                      .mapError(_ => new EOFException("There is no more input left to read"))
                   )
           _ <- consoleState.update { data =>
                 Data(data.input.tail, data.output)

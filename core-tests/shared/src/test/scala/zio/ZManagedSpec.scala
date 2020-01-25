@@ -1310,12 +1310,10 @@ object ZManagedSpec extends ZIOBaseSpec {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
       reserveLatch <- Promise.make[Nothing, Unit]
-      baseRes = ZManaged.make(effects.update(_ + 1) *> countDown *> reserveLatch.await)(
-        _ => ZIO.unit
-      )
-      res   = f(baseRes)
-      _     <- res.use_(ZIO.unit).fork *> countDown
-      count <- effects.get
-      _     <- reserveLatch.succeed(())
+      baseRes      = ZManaged.make(effects.update(_ + 1) *> countDown *> reserveLatch.await)(_ => ZIO.unit)
+      res          = f(baseRes)
+      _            <- res.use_(ZIO.unit).fork *> countDown
+      count        <- effects.get
+      _            <- reserveLatch.succeed(())
     } yield assert(count)(equalTo(n))
 }
