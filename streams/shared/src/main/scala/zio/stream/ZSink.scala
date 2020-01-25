@@ -395,12 +395,11 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 case (b, leftover) =>
                   ((Left(b), leftover))
               }
-              .catchAll(
-                _ =>
-                  that.extract(s2).map {
-                    case (c, leftover) =>
-                      ((Right(c), leftover))
-                  }
+              .catchAll(_ =>
+                that.extract(s2).map {
+                  case (c, leftover) =>
+                    ((Right(c), leftover))
+                }
               )
         }
 
@@ -536,12 +535,11 @@ trait ZSink[-R, +E, +A0, -A, +B] extends Serializable { self =>
                 case (b, leftover) =>
                   (Left(b), leftover)
               }
-              .catchAll(
-                _ =>
-                  that.extract(s2).map {
-                    case (c, leftover) =>
-                      (Right(c), leftover)
-                  }
+              .catchAll(_ =>
+                that.extract(s2).map {
+                  case (c, leftover) =>
+                    (Right(c), leftover)
+                }
               )
           case (Side.State(_), Side.Value((c, leftover))) => UIO.succeedNow((Right(c), leftover))
           case (Side.Value((b, leftover)), _)             => UIO.succeedNow((Left(b), leftover))
@@ -865,7 +863,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
           if (state.dirty && state.n < i)
             sink.extract(state.s).map {
               case (b, leftover) => ((b :: state.bs).reverse, leftover ++ state.leftover)
-            } else UIO.succeedNow((state.bs.reverse, state.leftover))
+            }
+          else UIO.succeedNow((state.bs.reverse, state.leftover))
 
         def cont(state: State) = state.n >= i
       }
@@ -1259,10 +1258,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
    *
    */
   def collectAllToMap[K, A](key: A => K)(f: (A, A) => A): Sink[Nothing, Nothing, A, Map[K, A]] =
-    foldLeft[A, Map[K, A]](Map.empty)((curMap, a) => {
+    foldLeft[A, Map[K, A]](Map.empty) { (curMap, a) =>
       val k = key(a)
       curMap.get(k).fold(curMap.updated(k, a))(v => curMap.updated(k, f(v, a)))
-    })
+    }
 
   /**
    * Creates a sink accumulating incoming values into a map of maximum size `n`.

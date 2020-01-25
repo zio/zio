@@ -1569,8 +1569,8 @@ object ZIOSpec extends ZIOBaseSpec {
             log = makeLogger(ref)
             f <- ZIO
                   .bracket(
-                    ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(
-                      _ => ZIO.unit
+                    ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(_ =>
+                      ZIO.unit
                     )
                   )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
                   .fork
@@ -2120,11 +2120,9 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             promise <- Promise.make[Nothing, Unit]
             fiber <- IO
-                      .bracketExit(promise.succeed(()) *> IO.never *> IO.succeedNow(1))(
-                        (_, _: Exit[Any, Any]) => IO.unit
-                      )(
-                        _ => IO.unit: IO[Nothing, Unit]
-                      )
+                      .bracketExit(promise.succeed(()) *> IO.never *> IO.succeedNow(1))((_, _: Exit[Any, Any]) =>
+                        IO.unit
+                      )(_ => IO.unit: IO[Nothing, Unit])
                       .fork
             res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
           } yield res
@@ -2160,10 +2158,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           done <- Promise.make[Nothing, Unit]
           fiber <- withLatch { release =>
-                    IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
-                        _ => release *> IO.never
-                      )
-                      .fork
+                    IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(_ => release *> IO.never).fork
                   }
 
           _ <- fiber.interrupt
@@ -2189,8 +2184,8 @@ object ZIOSpec extends ZIOBaseSpec {
           p2 <- Promise.make[Nothing, Unit]
           p3 <- Promise.make[Nothing, Unit]
           s <- IO
-                .bracketForkExit(p1.succeed(()) *> p2.await)((_, _: Exit[Any, Any]) => p3.await)(
-                  _ => IO.unit: IO[Nothing, Unit]
+                .bracketForkExit(p1.succeed(()) *> p2.await)((_, _: Exit[Any, Any]) => p3.await)(_ =>
+                  IO.unit: IO[Nothing, Unit]
                 )
                 .fork
           _   <- p1.await
@@ -2227,9 +2222,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           done <- Promise.make[Nothing, Unit]
           fiber <- withLatch { release =>
-                    IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
-                        _ => release *> IO.never
-                      )
+                    IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(_ => release *> IO.never)
                       .fork
                   }
 
@@ -2508,8 +2501,8 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             ref  <- Ref.make(Option.empty[internal.Executor])
             exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
-            _ <- withLatch(
-                  release => IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec)
+            _ <- withLatch(release =>
+                  IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec)
                 )
             v <- ref.get
           } yield v.contains(exec)

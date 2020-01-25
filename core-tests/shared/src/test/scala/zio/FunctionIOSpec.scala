@@ -127,7 +127,5 @@ object FunctionIOSpec extends ZIOBaseSpec {
   val greaterThan0 = fromFunction[Int, Boolean](_ > 0)
   val lessThan10   = fromFunction[Int, Boolean](_ < 10)
 
-  val thrower = effect[String, Int, Int] { case _: Throwable => "error" }(
-    _ => throw new Exception
-  )
+  val thrower = effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception)
 }

@@ -297,9 +297,7 @@ object ScheduleSpec extends ZIOBaseSpec {
             ok => ZIO.succeedNow(Right(ScheduleSuccess(ok)))
           )
           .retry(Schedule.spaced(2.seconds) && Schedule.recurs(1))
-          .catchAll(
-            error => ZIO.succeedNow(Left(ScheduleFailure(error.message)))
-          )
+          .catchAll(error => ZIO.succeedNow(Left(ScheduleFailure(error.message))))
 
       val expected = Right(ScheduleSuccess("Ok"))
       assertM(foo("Ok"))(equalTo(expected))

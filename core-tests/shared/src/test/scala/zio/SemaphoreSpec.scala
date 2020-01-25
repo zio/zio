@@ -25,14 +25,10 @@ object SemaphoreSpec extends ZIOBaseSpec {
         } yield assert(available)(forall(isLessThan(20L)))
       },
       testM("`acquireN`s can be parallel with `releaseN`s") {
-        offsettingWithPermits(
-          (s, permits) => IO.foreach(permits)(s.withPermits(_)(IO.unit)).unit
-        )
+        offsettingWithPermits((s, permits) => IO.foreach(permits)(s.withPermits(_)(IO.unit)).unit)
       },
       testM("individual `acquireN`s can be parallel with individual `releaseN`s") {
-        offsettingWithPermits(
-          (s, permits) => IO.foreachPar(permits)(s.withPermits(_)(IO.unit)).unit
-        )
+        offsettingWithPermits((s, permits) => IO.foreachPar(permits)(s.withPermits(_)(IO.unit)).unit)
       },
       testM("semaphores and fibers play ball together") {
         val n = 1L

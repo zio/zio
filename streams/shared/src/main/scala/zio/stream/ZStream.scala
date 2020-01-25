@@ -481,12 +481,11 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
           // When the schedule signals completion, we emit its result into the
           // stream and restart with the schedule's initial state
           case Left(None) =>
-            schedule.initial.map(
-              init =>
-                Some(
-                  Chunk.single(Left(schedule.extract(unfoldState.lastBatch, unfoldState.scheduleState))) -> unfoldState
-                    .copy(scheduleState = init)
-                )
+            schedule.initial.map(init =>
+              Some(
+                Chunk.single(Left(schedule.extract(unfoldState.lastBatch, unfoldState.scheduleState))) -> unfoldState
+                  .copy(scheduleState = init)
+              )
             )
           // When the schedule has completed its wait before the
           // next bath we resume with the next schedule state.
@@ -1729,7 +1728,8 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
               case Take.End =>
                 if (leftDone) ZIO.succeedNow(((leftDone, rightDone, s), Take.End))
                 else loop(leftDone, true, s, left, right)
-            } else loop(leftDone, rightDone, s, left, right)
+            }
+          else loop(leftDone, rightDone, s, left, right)
         case Take.End => ZIO.succeedNow(((leftDone, rightDone, s), Take.End))
       }
 
@@ -3058,21 +3058,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
       for {
         output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
-        _ <- register(
-              k =>
-                try {
-                  runtime.unsafeRun {
-                    k.foldCauseM(
-                      Cause
-                        .sequenceCauseOption(_)
-                        .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
-                      a => output.offer(Pull.emit(a))
-                    )
-                  }
-                  ()
-                } catch {
-                  case FiberFailure(Cause.Interrupt(_)) =>
+        _ <- register(k =>
+              try {
+                runtime.unsafeRun {
+                  k.foldCauseM(
+                    Cause
+                      .sequenceCauseOption(_)
+                      .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
+                    a => output.offer(Pull.emit(a))
+                  )
                 }
+                ()
+              } catch {
+                case FiberFailure(Cause.Interrupt(_)) =>
+              }
             ).toManaged_
         done <- Ref.make(false).toManaged_
       } yield done.get.flatMap {
@@ -3102,21 +3101,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
         output  <- Queue.bounded[Pull[R, E, A]](outputBuffer).toManaged(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged_
         eitherStream <- ZManaged.effectTotal {
-                         register(
-                           k =>
-                             try {
-                               runtime.unsafeRun {
-                                 k.foldCauseM(
-                                   Cause
-                                     .sequenceCauseOption(_)
-                                     .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
-                                   a => output.offer(Pull.emit(a))
-                                 )
-                               }
-                               ()
-                             } catch {
-                               case FiberFailure(Cause.Interrupt(_)) =>
+                         register(k =>
+                           try {
+                             runtime.unsafeRun {
+                               k.foldCauseM(
+                                 Cause
+                                   .sequenceCauseOption(_)
+                                   .fold(output.offer(Pull.end))(c => output.offer(Pull.halt(c))),
+                                 a => output.offer(Pull.emit(a))
+                               )
                              }
+                             ()
+                           } catch {
+                             case FiberFailure(Cause.Interrupt(_)) =>
+                           }
                          )
                        }
         pull <- eitherStream match {
@@ -3256,12 +3254,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   def fromQueue[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
     ZStream {
       ZManaged.succeed {
-        queue.take.catchAllCause(
-          c =>
-            queue.isShutdown.flatMap { down =>
-              if (down && c.interrupted) Pull.end
-              else Pull.halt(c)
-            }
+        queue.take.catchAllCause(c =>
+          queue.isShutdown.flatMap { down =>
+            if (down && c.interrupted) Pull.end
+            else Pull.halt(c)
+          }
         )
       }
     }

@@ -228,13 +228,12 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar <- TRef.makeCommit(0)
           fiber <- IO.forkAll(
-                    (0 to 20).map(
-                      i =>
-                        (for {
-                          v <- tvar.get
-                          _ <- STM.check(v == i)
-                          _ <- tvar.update(_ + 1)
-                        } yield ()).commit
+                    (0 to 20).map(i =>
+                      (for {
+                        v <- tvar.get
+                        _ <- STM.check(v == i)
+                        _ <- tvar.update(_ + 1)
+                      } yield ()).commit
                     )
                   )
           _ <- fiber.join

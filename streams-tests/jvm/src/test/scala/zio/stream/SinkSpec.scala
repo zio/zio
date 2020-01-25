@@ -1041,8 +1041,8 @@ object SinkSpec extends ZIOBaseSpec {
             Stream[Long](1, 5, 2, 3)
               .aggregate(
                 Sink
-                  .foldWeightedM(List[Long]())((a: Long) => UIO.succeedNow(a * 2), 12)(
-                    (acc, el) => UIO.succeedNow(el :: acc)
+                  .foldWeightedM(List[Long]())((a: Long) => UIO.succeedNow(a * 2), 12)((acc, el) =>
+                    UIO.succeedNow(el :: acc)
                   )
                   .map(_.reverse)
               )

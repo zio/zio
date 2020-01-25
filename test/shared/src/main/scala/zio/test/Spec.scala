@@ -440,20 +440,18 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
       case SuiteCase(label, specs, exec) =>
         Spec.suite(
           label,
-          b.flatMap(
-            b =>
-              if (b) specs.asInstanceOf[ZIO[R1, E1, Vector[Spec[R1, E1, L, TestSuccess[S]]]]]
-              else ZIO.succeedNow(Vector.empty)
+          b.flatMap(b =>
+            if (b) specs.asInstanceOf[ZIO[R1, E1, Vector[Spec[R1, E1, L, TestSuccess[S]]]]]
+            else ZIO.succeedNow(Vector.empty)
           ),
           exec
         )
       case TestCase(label, test) =>
         Spec.test(
           label,
-          b.flatMap(
-            b =>
-              if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess[S]]]
-              else Annotations.annotate(TestAnnotation.ignored, 1).as(TestSuccess.Ignored)
+          b.flatMap(b =>
+            if (b) test.asInstanceOf[ZIO[R1, E1, TestSuccess[S]]]
+            else Annotations.annotate(TestAnnotation.ignored, 1).as(TestSuccess.Ignored)
           )
         )
     }

@@ -641,11 +641,10 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           ref <- Ref.make(false)
           pulls <- Stream
                     .fromIteratorManaged(Managed.make(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)))
-                    .flatMap(
-                      n =>
-                        Stream.succeedNow((n * 2).toString) ++ Stream.failNow("Ouch") ++ Stream.succeedNow(
-                          (n * 3).toString
-                        )
+                    .flatMap(n =>
+                      Stream.succeedNow((n * 2).toString) ++ Stream.failNow("Ouch") ++ Stream.succeedNow(
+                        (n * 3).toString
+                      )
                     )
                     .process
                     .use(nPulls(_, 8))

@@ -25,13 +25,13 @@ object GenSpec extends ZIOBaseSpec {
           if (p) assert(())(Assertion.anything) else assert(n)(Assertion.nothing)
         }
 
-        assertM(CheckN(100)(gen)(test).flatMap(result => {
+        assertM(CheckN(100)(gen)(test).flatMap { result =>
           result.run.map(_.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "1"
             case _ => false
           })
-        }))(isTrue)
+        })(isTrue)
       },
       testM("with bogus reverse property") {
         val gen = for {
@@ -81,13 +81,13 @@ object GenSpec extends ZIOBaseSpec {
 
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
-        assertM(CheckN(100)(gen)(test).flatMap(result => {
+        assertM(CheckN(100)(gen)(test).flatMap { result =>
           result.run.map(_.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "List(0)"
             case _ => false
           })
-        }))(isTrue)
+        })(isTrue)
       }
     ),
     suite("monad laws")(

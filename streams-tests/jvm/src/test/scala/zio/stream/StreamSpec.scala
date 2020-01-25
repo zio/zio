@@ -535,17 +535,15 @@ object StreamSpec extends ZIOBaseSpec {
 
         val stream: ZStream[Any, Nothing, Either[Unit, Unit]] = ZStream.empty
         stream.distributedWithDynamic[Nothing, Either[Unit, Unit]](1, _ => UIO.succeedNow(_ => true)).use { add =>
-          {
-            val subscribe = ZStream.unwrap(add.map {
-              case (_, queue) =>
-                ZStream.fromQueue(queue).unTake
-            })
-            Promise.make[Nothing, Unit].flatMap { onEnd =>
-              subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
-                onEnd.await *>
-                subscribe.runDrain *>
-                ZIO.succeedNow(assertCompletes)
-            }
+          val subscribe = ZStream.unwrap(add.map {
+            case (_, queue) =>
+              ZStream.fromQueue(queue).unTake
+          })
+          Promise.make[Nothing, Unit].flatMap { onEnd =>
+            subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
+              onEnd.await *>
+              subscribe.runDrain *>
+              ZIO.succeedNow(assertCompletes)
           }
         }
       }
@@ -667,12 +665,11 @@ object StreamSpec extends ZIOBaseSpec {
         } yield assert(res1)(equalTo(res2))
       }),
       testM("right identity")(
-        checkM(pureStreamOfInts)(
-          m =>
-            for {
-              res1 <- m.flatMap(i => Stream(i)).runCollect
-              res2 <- m.runCollect
-            } yield assert(res1)(equalTo(res2))
+        checkM(pureStreamOfInts)(m =>
+          for {
+            res1 <- m.flatMap(i => Stream(i)).runCollect
+            res2 <- m.runCollect
+          } yield assert(res1)(equalTo(res2))
         )
       ),
       testM("associativity") {
@@ -721,12 +718,11 @@ object StreamSpec extends ZIOBaseSpec {
         for {
           ref <- Ref.make(false)
           inner = Stream
-            .bracketExit(UIO.unit)(
-              (_, e) =>
-                e match {
-                  case Exit.Failure(_) => ref.set(true)
-                  case Exit.Success(_) => UIO.unit
-                }
+            .bracketExit(UIO.unit)((_, e) =>
+              e match {
+                case Exit.Failure(_) => ref.set(true)
+                case Exit.Success(_) => UIO.unit
+              }
             )
             .flatMap(_ => Stream.failNow("Ouch"))
           _   <- Stream.succeedNow(()).flatMap(_ => inner).runDrain.either.unit
@@ -764,11 +760,10 @@ object StreamSpec extends ZIOBaseSpec {
           substreamCancelled <- Ref.make[Boolean](false)
           latch              <- Promise.make[Nothing, Unit]
           fiber <- Stream(())
-                    .flatMapPar(1)(
-                      _ =>
-                        Stream.fromEffect(
-                          (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
-                        )
+                    .flatMapPar(1)(_ =>
+                      Stream.fromEffect(
+                        (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
+                      )
                     )
                     .run(Sink.collectAll[Unit])
                     .fork
@@ -847,9 +842,7 @@ object StreamSpec extends ZIOBaseSpec {
           inner = Stream
             .bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
           _ <- Stream
-                .bracket(execution.update("OuterAcquire" :: _).as(inner))(
-                  _ => execution.update("OuterRelease" :: _)
-                )
+                .bracket(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
                 .flatMapPar(2)(identity)
                 .runDrain
           results <- execution.get
@@ -897,11 +890,10 @@ object StreamSpec extends ZIOBaseSpec {
           substreamCancelled <- Ref.make[Boolean](false)
           latch              <- Promise.make[Nothing, Unit]
           fiber <- Stream(())
-                    .flatMapParSwitch(1)(
-                      _ =>
-                        Stream.fromEffect(
-                          (latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))
-                        )
+                    .flatMapParSwitch(1)(_ =>
+                      Stream.fromEffect(
+                        (latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))
+                      )
                     )
                     .runCollect
                     .fork
@@ -975,13 +967,9 @@ object StreamSpec extends ZIOBaseSpec {
       testM("finalizer ordering") {
         for {
           execution <- Ref.make(List.empty[String])
-          inner = Stream.bracket(execution.update("InnerAcquire" :: _))(
-            _ => execution.update("InnerRelease" :: _)
-          )
+          inner     = Stream.bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
           _ <- Stream
-                .bracket(execution.update("OuterAcquire" :: _).as(inner))(
-                  _ => execution.update("OuterRelease" :: _)
-                )
+                .bracket(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
                 .flatMapParSwitch(2)(identity)
                 .runDrain
           results <- execution.get
@@ -999,13 +987,11 @@ object StreamSpec extends ZIOBaseSpec {
       testM("foreachWhile") {
         for {
           ref <- Ref.make(0)
-          _ <- Stream(1, 1, 1, 1, 1, 1).foreachWhile[Any, Nothing](
-                a =>
-                  ref.modify(
-                    sum =>
-                      if (sum >= 3) (false, sum)
-                      else (true, sum + a)
-                  )
+          _ <- Stream(1, 1, 1, 1, 1, 1).foreachWhile[Any, Nothing](a =>
+                ref.modify(sum =>
+                  if (sum >= 3) (false, sum)
+                  else (true, sum + a)
+                )
               )
           sum <- ref.get
         } yield assert(sum)(equalTo(3))
@@ -1021,8 +1007,8 @@ object StreamSpec extends ZIOBaseSpec {
     testM("Stream.forever") {
       for {
         ref <- Ref.make(0)
-        _ <- Stream(1).forever.foreachWhile[Any, Nothing](
-              _ => ref.modify(sum => (if (sum >= 9) false else true, sum + 1))
+        _ <- Stream(1).forever.foreachWhile[Any, Nothing](_ =>
+              ref.modify(sum => (if (sum >= 9) false else true, sum + 1))
             )
         sum <- ref.get
       } yield assert(sum)(equalTo(10))
@@ -1051,8 +1037,8 @@ object StreamSpec extends ZIOBaseSpec {
         _     <- queue.offerAll(c.toSeq)
         fiber <- Stream
                   .fromQueue(queue)
-                  .foldWhileM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)(
-                    (acc, el) => IO.succeedNow(el :: acc)
+                  .foldWhileM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((acc, el) =>
+                    IO.succeedNow(el :: acc)
                   )
                   .map(_.reverse)
                   .fork
@@ -1205,7 +1191,8 @@ object StreamSpec extends ZIOBaseSpec {
               case _ =>
                 if (s2.isEmpty) List.empty
                 else interleave(b.tail, List.empty, s2)
-            } else
+            }
+            else
               s2 match {
                 case h :: t =>
                   h :: interleave(b.tail, s1, t)

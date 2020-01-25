@@ -33,7 +33,8 @@ class IOShallowAttemptBenchmark {
     import scala.concurrent.duration.Duration.Inf
 
     def throwup(n: Int): Future[BigInt] =
-      if (n == 0) throwup(n + 1) recover { case _ => 0 } else if (n == depth) Future(1)
+      if (n == 0) throwup(n + 1) recover { case _ => 0 }
+      else if (n == depth) Future(1)
       else
         throwup(n + 1).recover { case _ => 0 }
           .flatMap(_ => Future.failed(new Exception("Oh noes!")))
@@ -51,11 +52,11 @@ class IOShallowAttemptBenchmark {
       else
         throwup(n + 1)
           .exceptionally(_ => 0)
-          .thenCompose(_ => {
+          .thenCompose { _ =>
             val f = new CompletableFuture[BigInt]()
             f.completeExceptionally(new Exception("Oh noes!"))
             f
-          })
+          }
 
     throwup(0)
       .get()
@@ -101,7 +102,8 @@ class IOShallowAttemptBenchmark {
     def throwup(n: Int): Future[BigInt] =
       if (n == 0) throwup(n + 1).rescue {
         case _ => Future.value(0)
-      } else if (n == depth) Future(1)
+      }
+      else if (n == depth) Future(1)
       else
         throwup(n + 1).transform {
           case Throw(_)  => Future.value[BigInt](0)

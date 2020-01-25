@@ -82,10 +82,9 @@ object RTSSpec extends ZIOBaseSpec {
           exitLatch  <- Promise.make[Nothing, Int]
           bracketed = IO
             .succeed(21)
-            .bracketExit(
-              (r: Int, exit: Exit[Any, Any]) =>
-                if (exit.interrupted) exitLatch.succeed(r)
-                else IO.dieNow(new Error("Unexpected case"))
+            .bracketExit((r: Int, exit: Exit[Any, Any]) =>
+              if (exit.interrupted) exitLatch.succeed(r)
+              else IO.dieNow(new Error("Unexpected case"))
             )(a => startLatch.succeed(a) *> IO.never *> IO.succeedNow(1))
           fiber      <- bracketed.fork
           startValue <- startLatch.await
