@@ -871,22 +871,16 @@ object ZSTM {
    * Returns a value modelled on provided lazily evaluated exit status.
    */
   def done[E, A](exit: => TExit[E, A]): STM[E, A] =
-    exit match {
-      case TExit.Retry      => STM.retry
-      case TExit.Fail(e)    => STM.failNow(e)
-      case TExit.Succeed(a) => STM.succeedNow(a)
-    }
+    suspend(doneNow(exit))
 
   /**
    * Returns a value modelled on provided eagerly evaluated exit status.
    */
-  def doneNow[E, A](exit: => TExit[E, A]): STM[E, A] =
-    STM.suspend {
-      exit match {
-        case TExit.Retry      => STM.retry
-        case TExit.Fail(e)    => STM.failNow(e)
-        case TExit.Succeed(a) => STM.succeedNow(a)
-      }
+  def doneNow[E, A](exit: TExit[E, A]): STM[E, A] =
+    exit match {
+      case TExit.Retry      => STM.retry
+      case TExit.Fail(e)    => STM.failNow(e)
+      case TExit.Succeed(a) => STM.succeedNow(a)
     }
 
   /**

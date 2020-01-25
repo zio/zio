@@ -86,7 +86,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    * of type `A` into elements of type `B`.
    */
   def aggregate[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, A1, A1, B]): ZStream[R1, E1, B] =
-    aggregateManaged(ZManaged.succeed(sink))
+    aggregateManaged(ZManaged.succeedNow(sink))
 
   /**
    * Aggregates elements of this stream using the provided sink for as long
@@ -2833,7 +2833,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * The stream that never produces any value or fails with any error.
    */
   val never: Stream[Nothing, Nothing] =
-    ZStream(ZManaged.succeed(UIO.never))
+    ZStream(ZManaged.succeedNow(UIO.never))
 
   /**
    * The stream of units
@@ -3339,7 +3339,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    * Creates a stream from an effect producing values of type `A` until it fails with None.
    */
   def repeatEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] =
-    ZStream(ZManaged.succeed(fa))
+    ZStream(ZManaged.succeedNow(fa))
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule

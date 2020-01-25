@@ -51,20 +51,32 @@ object Managed {
   /**
    * See [[zio.ZManaged.die]]
    */
-  def die(t: Throwable): Managed[Nothing, Nothing] =
+  def die(t: => Throwable): Managed[Nothing, Nothing] =
     ZManaged.die(t)
+
+  /**
+   * See [[zio.ZManaged.dieNow]]
+   */
+  def dieNow(t: Throwable): Managed[Nothing, Nothing] =
+    ZManaged.dieNow(t)
 
   /**
    * See [[zio.ZManaged.dieMessage]]
    */
-  def dieMessage(message: String): Managed[Throwable, Nothing] =
+  def dieMessage(message: => String): Managed[Throwable, Nothing] =
     ZManaged.dieMessage(message)
 
   /**
    * See [[zio.ZManaged.done]]
    */
-  def done[E, A](r: Exit[E, A]): Managed[E, A] =
+  def done[E, A](r: => Exit[E, A]): Managed[E, A] =
     ZManaged.done(r)
+
+  /**
+   * See [[zio.ZManaged.doneNow]]
+   */
+  def doneNow[E, A](r: Exit[E, A]): Managed[E, A] =
+    ZManaged.doneNow(r)
 
   /**
    * See [[zio.ZManaged.effectTotal]]
@@ -75,8 +87,14 @@ object Managed {
   /**
    * See [[zio.ZManaged.fail]]
    */
-  def fail[E](error: E): Managed[E, Nothing] =
+  def fail[E](error: => E): Managed[E, Nothing] =
     ZManaged.fail(error)
+
+  /**
+   * See [[zio.ZManaged.fail]]
+   */
+  def failNow[E](error: E): Managed[E, Nothing] =
+    ZManaged.failNow(error)
 
   /**
    * See [[zio.ZManaged.finalizer]]
@@ -147,8 +165,14 @@ object Managed {
   /**
    * See [[zio.ZManaged.halt]]
    */
-  def halt[E](cause: Cause[E]): Managed[E, Nothing] =
+  def halt[E](cause: => Cause[E]): Managed[E, Nothing] =
     ZManaged.halt(cause)
+
+  /**
+   * See [[zio.ZManaged.haltNow]]
+   */
+  def haltNow[E](cause: Cause[E]): Managed[E, Nothing] =
+    ZManaged.haltNow(cause)
 
   /**
    * See [[zio.ZManaged.interrupt]]
@@ -279,7 +303,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.require]]
    */
-  def require[E, A](error: E): Managed[E, Option[A]] => Managed[E, A] =
+  def require[E, A](error: => E): Managed[E, Option[A]] => Managed[E, A] =
     ZManaged.require[Any, E, A](error)
 
   /**
@@ -315,8 +339,14 @@ object Managed {
   /**
    * See [[zio.ZManaged.succeed]]
    */
-  def succeed[A](r: A): Managed[Nothing, A] =
+  def succeed[A](r: => A): Managed[Nothing, A] =
     ZManaged.succeed(r)
+
+  /**
+   * See [[zio.ZManaged.succeedNow]]
+   */
+  def succeedNow[A](r: A): Managed[Nothing, A] =
+    ZManaged.succeedNow(r)
 
   /**
    * See [[zio.ZManaged.suspend]]
@@ -380,13 +410,13 @@ object Managed {
   /**
    * See [[zio.ZManaged.when]]
    */
-  def when[E](b: Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
+  def when[E](b: => Boolean)(managed: Managed[E, Any]): Managed[E, Unit] =
     ZManaged.when(b)(managed)
 
   /**
    * See [[zio.ZManaged.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
     ZManaged.whenCase(a)(pf)
 
   /**

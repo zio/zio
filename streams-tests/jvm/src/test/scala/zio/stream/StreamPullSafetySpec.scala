@@ -97,14 +97,14 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
     suite("Stream.aggregateManaged")(
       testM("is safe to pull again after success") {
         Stream(1, 2, 3, 4, 5, 6)
-          .aggregateManaged(Managed.succeed(ZSink.collectAllN[Int](2).map(_.sum)))
+          .aggregateManaged(Managed.succeedNow(ZSink.collectAllN[Int](2).map(_.sum)))
           .process
           .use(nPulls(_, 5))
           .map(assert(_)(equalTo(List(Right(3), Right(7), Right(11), Left(None), Left(None)))))
       },
       testM("is safe to pull again from a failed Managed") {
         Stream(1, 2, 3, 4, 5, 6)
-          .aggregateManaged(Managed.fail("Ouch"))
+          .aggregateManaged(Managed.failNow("Ouch"))
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
@@ -664,7 +664,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       },
       testM("is safe to pull again from a failed Managed") {
         Stream
-          .fromIteratorManaged(Managed.fail("Ouch"))
+          .fromIteratorManaged(Managed.failNow("Ouch"))
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
@@ -741,7 +741,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       },
       testM("is safe to pull again from a failed Managed") {
         Stream
-          .managed(Managed.fail("Ouch"))
+          .managed(Managed.failNow("Ouch"))
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))
@@ -911,7 +911,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
       },
       testM("is safe to pull again from a failed Managed") {
         Stream
-          .unwrapManaged(Managed.fail("Ouch"))
+          .unwrapManaged(Managed.failNow("Ouch"))
           .process
           .use(nPulls(_, 3))
           .map(assert(_)(equalTo(List(Left(Some("Ouch")), Left(None), Left(None)))))

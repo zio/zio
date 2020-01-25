@@ -1852,7 +1852,7 @@ object StreamSpec extends ZIOBaseSpec {
       },
       testM("propagate managed error") {
         val fail = "I'm such a failure!"
-        val sink = ZManaged.fail(fail)
+        val sink = ZManaged.failNow(fail)
         assertM(ZStream(1, 2, 3).aggregateManaged(sink).runCollect.either)(isLeft(equalTo(fail)))
       }
     ),

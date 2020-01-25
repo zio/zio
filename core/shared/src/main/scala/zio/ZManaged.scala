@@ -153,8 +153,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def absorbWith(f: E => Throwable): ZManaged[R, Throwable, A] =
     self.sandbox
       .foldM(
-        cause => ZManaged.fail(cause.squashWith(f)),
-        ZManaged.succeed
+        cause => ZManaged.failNow(cause.squashWith(f)),
+        ZManaged.succeedNow
       )
 
   /**
@@ -180,7 +180,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def catchAll[R1 <: R, E2, A1 >: A](
     h: E => ZManaged[R1, E2, A1]
   )(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
-    foldM(h, ZManaged.succeed)
+    foldM(h, ZManaged.succeedNow)
 
   /**
    * Recovers from all errors with provided Cause.
@@ -192,7 +192,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * @see [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can recover from defects
    */
   def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
-    self.foldCauseM[R1, E2, A1](h, ZManaged.succeed)
+    self.foldCauseM[R1, E2, A1](h, ZManaged.succeedNow)
 
   /**
    * Recovers from some or all of the error cases.
@@ -200,7 +200,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def catchSome[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[E, ZManaged[R1, E1, A1]]
   )(implicit ev: CanFail[E]): ZManaged[R1, E1, A1] =
-    foldM(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.fail), ZManaged.succeed)
+    foldM(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.failNow), ZManaged.succeedNow)
 
   /**
    * Recovers from some or all of the error Causes.
@@ -208,14 +208,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Cause[E], ZManaged[R1, E1, A1]]
   ): ZManaged[R1, E1, A1] =
-    foldCauseM(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.halt), ZManaged.succeed)
+    foldCauseM(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.haltNow), ZManaged.succeedNow)
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * succeed with the returned value.
    */
   def collect[E1 >: E, B](e: => E1)(pf: PartialFunction[A, B]): ZManaged[R, E1, B] =
-    collectM(e)(pf.andThen(ZManaged.succeed(_)))
+    collectM(e)(pf.andThen(ZManaged.succeedNow(_)))
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
@@ -223,7 +223,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def collectM[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZManaged[R1, E1, B]]): ZManaged[R1, E1, B] =
     self.flatMap { v =>
-      pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.fail(e))
+      pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.failNow(e))
     }
 
   /**
@@ -339,7 +339,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Flip the error and result
     **/
   def flip: ZManaged[R, A, E] =
-    foldM(ZManaged.succeed, ZManaged.fail)
+    foldM(ZManaged.succeedNow, ZManaged.failNow)
 
   /**
    * Flip the error and result, then apply an effectful function to the effect
@@ -353,7 +353,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * function passed to `fold`.
    */
   def fold[B](failure: E => B, success: A => B)(implicit ev: CanFail[E]): ZManaged[R, Nothing, B] =
-    foldM(failure.andThen(ZManaged.succeed), success.andThen(ZManaged.succeed))
+    foldM(failure.andThen(ZManaged.succeedNow), success.andThen(ZManaged.succeedNow))
 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of failure except interruptions.
@@ -507,7 +507,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * success channel to their common combined type.
    */
   def merge[A1 >: A](implicit ev1: E <:< A1, ev2: CanFail[E]): ZManaged[R, Nothing, A1] =
-    self.foldM(e => ZManaged.succeed(ev1(e)), ZManaged.succeed)
+    self.foldM(e => ZManaged.succeedNow(ev1(e)), ZManaged.succeedNow)
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
@@ -559,14 +559,14 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * the specified function to convert the `E` into a `Throwable`.
    */
   def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A] =
-    mapError(f).catchAll(ZManaged.die)
+    mapError(f).catchAll(ZManaged.dieNow)
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise executes the specified effect.
    */
   def orElse[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1])(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
-    foldM(_ => that, ZManaged.succeed)
+    foldM(_ => that, ZManaged.succeedNow)
 
   /**
    * Returns an effect that will produce the value of this effect, unless it
@@ -575,7 +575,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   def orElseEither[R1 <: R, E2, B](
     that: => ZManaged[R1, E2, B]
   )(implicit ev: CanFail[E]): ZManaged[R1, E2, Either[A, B]] =
-    foldM(_ => that.map(Right[A, B]), a => ZManaged.succeed(Left[A, B](a)))
+    foldM(_ => that.map(Right[A, B]), a => ZManaged.succeedNow(Left[A, B](a)))
 
   /**
    * Preallocates the managed resource, resulting in a ZManaged that reserves and acquires immediately and cannot fail.
@@ -713,7 +713,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     pf: PartialFunction[E, E1]
   )(f: E => Throwable)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
     catchAll { e =>
-      pf.lift(e).fold[ZManaged[R, E1, A]](ZManaged.die(f(e)))(ZManaged.fail)
+      pf.lift(e).fold[ZManaged[R, E1, A]](ZManaged.dieNow(f(e)))(ZManaged.failNow)
     }
 
   /**
@@ -750,8 +750,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    */
   def run: ZManaged[R, Nothing, Exit[E, A]] =
     foldCauseM(
-      cause => ZManaged.succeed(Exit.halt(cause)),
-      succ => ZManaged.succeed(Exit.succeed(succ))
+      cause => ZManaged.succeedNow(Exit.halt(cause)),
+      succ => ZManaged.succeedNow(Exit.succeed(succ))
     )
 
   /**
@@ -794,8 +794,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     foldM(
       e =>
         f(e).foldCauseM(
-          c => ZManaged.halt(Cause.Then(Cause.fail(e), c)),
-          _ => ZManaged.fail(e)
+          c => ZManaged.haltNow(Cause.Then(Cause.fail(e), c)),
+          _ => ZManaged.failNow(e)
         ),
       a => g(a).as(a)
     )
@@ -807,8 +807,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
   final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
     catchAllCause { c1 =>
       f(c1).foldCauseM(
-        c2 => ZManaged.halt(Cause.Then(c1, c2)),
-        _ => ZManaged.halt(c1)
+        c2 => ZManaged.haltNow(Cause.Then(c1, c2)),
+        _ => ZManaged.haltNow(c1)
       )
     }
 
@@ -816,7 +816,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
    */
   def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
-    tapBoth(f, ZManaged.succeed)
+    tapBoth(f, ZManaged.succeedNow)
 
   /**
    * Like [[ZManaged#tap]], but uses a function that returns a ZIO value rather than a
@@ -1119,24 +1119,40 @@ object ZManaged {
     foreachParN(n)(as)(scala.Predef.identity)
 
   /**
-   * Returns an effect that dies with the specified `Throwable`.
-   * This method can be used for terminating a fiber because a defect has been
-   * detected in the code.
+   * Returns an effect that dies with the specified lazily evaluated
+   * `Throwable`. This method can be used for terminating a fiber because a
+   * defect has been detected in the code.
    */
-  def die(t: Throwable): ZManaged[Any, Nothing, Nothing] = halt(Cause.die(t))
+  def die(t: => Throwable): ZManaged[Any, Nothing, Nothing] =
+    haltNow(Cause.die(t))
+
+  /**
+   * Returns an effect that dies with the specified eagerly evaluated
+   * `Throwable`. This method can be used for terminating a fiber because a
+   * defect has been detected in the code.
+   */
+  def dieNow(t: Throwable): ZManaged[Any, Nothing, Nothing] =
+    halt(Cause.die(t))
 
   /**
    * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
    * specified text message. This method can be used for terminating a fiber
    * because a defect has been detected in the code.
    */
-  def dieMessage(message: String): ZManaged[Any, Nothing, Nothing] = die(new RuntimeException(message))
+  def dieMessage(message: => String): ZManaged[Any, Nothing, Nothing] =
+    die(new RuntimeException(message))
 
   /**
-   * Returns an effect from a [[zio.Exit]] value.
+   * Returns an effect from a lazily evaluated [[zio.Exit]] value.
    */
-  def done[E, A](r: Exit[E, A]): ZManaged[Any, E, A] =
-    ZManaged.fromEffect(ZIO.doneNow(r))
+  def done[E, A](r: => Exit[E, A]): ZManaged[Any, E, A] =
+    ZManaged.fromEffect(ZIO.done(r))
+
+  /**
+   * Returns an effect from an eagerly evaluated [[zio.Exit]] value.
+   */
+  def doneNow[E, A](r: Exit[E, A]): ZManaged[Any, E, A] =
+    ZManaged.fromEffect(ZIO.done(r))
 
   /**
    * Lifts a by-name, pure value into a Managed.
@@ -1151,11 +1167,18 @@ object ZManaged {
     ZManaged.fromEffect(ZIO.environment)
 
   /**
-   * Returns an effect that models failure with the specified error.
-   * The moral equivalent of `throw` for pure code.
+   * Returns an effect that models failure with the specified lazily evaluated
+   * error. The moral equivalent of `throw` for pure code.
    */
-  def fail[E](error: E): ZManaged[Any, E, Nothing] =
+  def fail[E](error: => E): ZManaged[Any, E, Nothing] =
     halt(Cause.fail(error))
+
+  /**
+   * Returns an effect that models failure with the specified eagerly evaluated
+   * error. The moral equivalent of `throw` for pure code.
+   */
+  def failNow[E](error: E): ZManaged[Any, E, Nothing] =
+    haltNow(Cause.fail(error))
 
   /**
    * Returns an effect that succeeds with the `Fiber.Id` of the caller.
@@ -1210,7 +1233,7 @@ object ZManaged {
    * For a parallel version of this method, see `foreachPar`.
    */
   def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
-    as.foldRight[ZManaged[R, E, List[A2]]](succeed(Nil)) { (a, m) =>
+    as.foldRight[ZManaged[R, E, List[A2]]](succeedNow(Nil)) { (a, m) =>
       f(a).zipWith(m)(_ :: _)
     }
 
@@ -1225,7 +1248,7 @@ object ZManaged {
   )(
     f: A1 => ZManaged[R, E, A2]
   ): ZManaged[R, E, List[A2]] =
-    as.foldRight[ZManaged[R, E, List[A2]]](ZManaged.succeed(List())) {
+    as.foldRight[ZManaged[R, E, List[A2]]](ZManaged.succeedNow(List())) {
       case (a, man) =>
         f(a).zipWithPar(man)(_ :: _)
     }
@@ -1254,7 +1277,7 @@ object ZManaged {
    * the list of results.
    */
   def foreach_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    ZManaged.succeed(as.iterator).flatMap { i =>
+    ZManaged.succeedNow(as.iterator).flatMap { i =>
       def loop: ZManaged[R, E, Unit] =
         if (i.hasNext) f(i.next) *> loop
         else ZManaged.unit
@@ -1315,7 +1338,7 @@ object ZManaged {
    * Lifts an `Either` into a `ZManaged` value.
    */
   def fromEither[E, A](v: => Either[E, A]): ZManaged[Any, E, A] =
-    effectTotal(v).flatMap(_.fold(fail, succeed))
+    effectTotal(v).flatMap(_.fold(failNow, succeedNow))
 
   /**
    * Lifts a function `R => A` into a `ZManaged[R, Nothing, A]`.
@@ -1329,9 +1352,17 @@ object ZManaged {
   def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] = flatten(fromFunction(f))
 
   /**
-   * Returns an effect that models failure with the specified `Cause`.
+   * Returns an effect that models failure with the specified lazily evaluated
+   * `Cause`.
    */
-  def halt[E](cause: Cause[E]): ZManaged[Any, E, Nothing] =
+  def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
+    ZManaged.fromEffect(ZIO.halt(cause))
+
+  /**
+   * Returns an effect that models failure with the specified eagerly evaluated
+   * `Cause`.
+   */
+  def haltNow[E](cause: Cause[E]): ZManaged[Any, E, Nothing] =
     ZManaged.fromEffect(ZIO.haltNow(cause))
 
   /**
@@ -1344,12 +1375,12 @@ object ZManaged {
    * method.
    */
   val interrupt: ZManaged[Any, Nothing, Nothing] =
-    ZManaged.fromEffect(ZIO.descriptor).flatMap(d => halt(Cause.interrupt(d.id)))
+    ZManaged.fromEffect(ZIO.descriptor).flatMap(d => haltNow(Cause.interrupt(d.id)))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
-  def interruptAs(fiberId: Fiber.Id): ZManaged[Any, Nothing, Nothing] =
+  def interruptAs(fiberId: => Fiber.Id): ZManaged[Any, Nothing, Nothing] =
     halt(Cause.interrupt(fiberId))
 
   /**
@@ -1469,13 +1500,13 @@ object ZManaged {
    * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   def mergeAll[R, E, A, B](in: Iterable[ZManaged[R, E, A]])(zero: B)(f: (B, A) => B): ZManaged[R, E, B] =
-    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeed(zero))((acc, a) => acc.zip(a).map(f.tupled))
+    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeedNow(zero))((acc, a) => acc.zip(a).map(f.tupled))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
    */
   def mergeAllPar[R, E, A, B](in: Iterable[ZManaged[R, E, A]])(zero: B)(f: (B, A) => B): ZManaged[R, E, B] =
-    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeed(zero))((acc, a) => acc.zipPar(a).map(f.tupled))
+    in.foldLeft[ZManaged[R, E, B]](ZManaged.succeedNow(zero))((acc, a) => acc.zipPar(a).map(f.tupled))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
@@ -1654,8 +1685,8 @@ object ZManaged {
    * Requires that the given `ZManaged[E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
-  def require[R, E, A](error: E): ZManaged[R, E, Option[A]] => ZManaged[R, E, A] =
-    (zManaged: ZManaged[R, E, Option[A]]) => zManaged.flatMap(_.fold[ZManaged[R, E, A]](fail(error))(succeed))
+  def require[R, E, A](error: => E): ZManaged[R, E, Option[A]] => ZManaged[R, E, A] =
+    (zManaged: ZManaged[R, E, Option[A]]) => zManaged.flatMap(_.fold[ZManaged[R, E, A]](failNow(error))(succeedNow))
 
   /**
    * Lifts a pure `Reservation[R, E, A]` into `ZManaged[R, E, A]`
@@ -1685,9 +1716,15 @@ object ZManaged {
     collectAllParN[R, E, A](n)(as)
 
   /**
+   * Lifts a lazy, pure value into a Managed.
+   */
+  def succeed[R, A](r: => A): ZManaged[R, Nothing, A] =
+    ZManaged(IO.succeedNow(Reservation(IO.succeed(r), _ => IO.unit)))
+
+  /**
    * Lifts a strict, pure value into a Managed.
    */
-  def succeed[R, A](r: A): ZManaged[R, Nothing, A] =
+  def succeedNow[R, A](r: A): ZManaged[R, Nothing, A] =
     ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
 
   /**
@@ -1805,7 +1842,7 @@ object ZManaged {
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
-  val unit: ZManaged[Any, Nothing, Unit] = ZManaged.succeed(())
+  val unit: ZManaged[Any, Nothing, Unit] = ZManaged.succeedNow(())
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -1822,14 +1859,14 @@ object ZManaged {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: Boolean)(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  def when[R, E](b: => Boolean)(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     if (b) zManaged.unit else unit
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
-    pf.applyOrElse(a, (_: A) => unit).unit
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+    ZManaged.suspend(pf.applyOrElse(a, (_: A) => unit).unit)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
