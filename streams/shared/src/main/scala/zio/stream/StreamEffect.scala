@@ -40,15 +40,13 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
     StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
-          {
-            var b = null.asInstanceOf[B]
+          var b = null.asInstanceOf[B]
 
-            while (b == null) {
-              b = pf.applyOrElse(thunk(), (_: A) => null.asInstanceOf[B])
-            }
-
-            b
+          while (b == null) {
+            b = pf.applyOrElse(thunk(), (_: A) => null.asInstanceOf[B])
           }
+
+          b
         }
       }
     }
@@ -222,11 +220,9 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
     StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
-          {
-            val a = thunk()
-            if (pred(a)) a
-            else StreamEffect.end
-          }
+          val a = thunk()
+          if (pred(a)) a
+          else StreamEffect.end
         }
       }
     }

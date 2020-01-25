@@ -45,11 +45,11 @@ object RandomSpec extends ZIOBaseSpec {
       val test = TestRandom.makeTest(DefaultData)
       ZIO
         .runtime[Any]
-        .map(rt => {
+        .map { rt =>
           val x = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
           val y = rt.unsafeRun(test.flatMap[Any, Nothing, Int](_.nextInt))
           assert(x)(equalTo(y))
-        })
+        }
     },
     testM("check fed ints do not survive repeating tests") {
       for {
