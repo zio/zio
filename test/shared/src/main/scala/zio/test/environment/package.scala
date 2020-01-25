@@ -437,7 +437,7 @@ package object environment extends PlatformSpecific {
      * wall clock time by the specified duration, running any actions scheduled
      * for on or before the new time.
      */
-    def adjust(duration: Duration): ZIO[TestClock, Nothing, Unit] =
+    def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
 
     /**
@@ -480,7 +480,7 @@ package object environment extends PlatformSpecific {
      * clock time to the specified `OffsetDateTime`, running any actions
      * scheduled for on or before the new time.
      */
-    def setDateTime(dateTime: OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
+    def setDateTime(dateTime: => OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setDateTime(dateTime))
 
     /**
@@ -488,7 +488,7 @@ package object environment extends PlatformSpecific {
      * clock time to the specified time in terms of duration since the epoch,
      * running any actions scheduled for on or before the new time.
      */
-    def setTime(duration: Duration): ZIO[TestClock, Nothing, Unit] =
+    def setTime(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTime(duration))
 
     /**
@@ -497,7 +497,7 @@ package object environment extends PlatformSpecific {
      * since the epoch will not be altered and no scheduled actions will be run
      * as a result of this effect.
      */
-    def setTimeZone(zone: ZoneId): ZIO[TestClock, Nothing, Unit] =
+    def setTimeZone(zone: => ZoneId): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTimeZone(zone))
 
     /**
@@ -1365,7 +1365,7 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestRandom` instance in the environment and sets the seed to
      * the specified value.
      */
-    def setSeed(seed: Long): ZIO[TestRandom, Nothing, Unit] =
+    def setSeed(seed: => Long): ZIO[TestRandom, Nothing, Unit] =
       ZIO.accessM(_.get.setSeed(seed))
 
     /**
@@ -1499,14 +1499,14 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of environment variables.
      */
-    def putEnv(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
+    def putEnv(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.putEnv(name, value))
 
     /**
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of system properties.
      */
-    def putProperty(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
+    def putProperty(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.putProperty(name, value))
 
     /**
@@ -1519,21 +1519,21 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and sets the line
      * separator to the specified value.
      */
-    def setLineSeparator(lineSep: String): ZIO[TestSystem, Nothing, Unit] =
+    def setLineSeparator(lineSep: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.setLineSeparator(lineSep))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of environment variables.
      */
-    def clearEnv(variable: String): ZIO[TestSystem, Nothing, Unit] =
+    def clearEnv(variable: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.clearEnv(variable))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of system properties.
      */
-    def clearProperty(prop: String): ZIO[TestSystem, Nothing, Unit] =
+    def clearProperty(prop: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.clearProperty(prop))
 
     /**
