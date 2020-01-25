@@ -313,7 +313,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("filters a collection using an effectual predicate") {
         val as = Iterable(2, 4, 6, 3, 5, 6)
         for {
-          ref <- Ref.make(List.empty[Int])
+          ref     <- Ref.make(List.empty[Int])
           results <- ZIO.filterM(as)(a => ref.update(a :: _).as(a % 2 == 0))
           effects <- ref.get.map(_.reverse)
         } yield assert(results)(equalTo(List(2, 4, 6, 6))) &&
