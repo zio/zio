@@ -2200,6 +2200,14 @@ object ZIO {
   val fiberId: UIO[Fiber.Id] = ZIO.descriptor.map(_.id)
 
   /**
+   * Filters the collection using the specified effectual predicate.
+   */
+  def filterM[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
+    as.foldRight[ZIO[R, E, List[A]]](ZIO.succeed(Nil)) { (a, zio) =>
+      f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
+    }
+
+  /**
    * Returns an effect that races this effect with all the specified effects,
    * yielding the value of the first effect to succeed with a value.
    * Losers of the race will be interrupted immediately

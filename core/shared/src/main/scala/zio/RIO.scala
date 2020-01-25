@@ -256,6 +256,12 @@ object RIO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
+   * @see [[zio.ZIO.filterM]]
+   */
+  def filterM[R, A](as: Iterable[A])(f: A => RIO[R, Boolean]): RIO[R, List[A]] =
+    ZIO.filterM(as)(f)
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[R, A](
