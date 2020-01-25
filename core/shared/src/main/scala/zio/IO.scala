@@ -520,28 +520,28 @@ object IO {
   val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
-   * @see See [[zio.ZIO.partitionM]]
+   * @see See [[zio.ZIO.partition]]
    */
-  def partitionM[E, A, B](
+  def partition[E, A, B](
     in: Iterable[A]
   )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
-    ZIO.partitionM(in)(f)
+    ZIO.partition(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMPar]]
+   * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionMPar[E, A, B](
+  def partitionPar[E, A, B](
     in: Iterable[A]
   )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
-    ZIO.partitionMPar(in)(f)
+    ZIO.partitionPar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMParN]]
+   * @see See [[zio.ZIO.partitionParN]]
    */
-  def partitionMParN[E, A, B](n: Int)(
+  def partitionParN[E, A, B](n: Int)(
     in: Iterable[A]
   )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
-    ZIO.partitionMParN(n)(in)(f)
+    ZIO.partitionParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -694,28 +694,28 @@ object IO {
   def untraced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.untraced(zio)
 
   /**
-   * @see See [[zio.ZIO.validateM]]
+   * @see See [[zio.ZIO.validate]]
    */
-  def validateM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
-    ZIO.validateM(in)(f)
+  def validate[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
+    ZIO.validate(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validateMPar]]
+   * @see See [[zio.ZIO.validatePar]]
    */
-  def validateMPar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
-    ZIO.validateMPar(in)(f)
+  def validatePar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
+    ZIO.validatePar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validateFirstM]]
+   * @see See [[zio.ZIO.validateFirst]]
    */
-  def validateFirstM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
-    ZIO.validateFirstM(in)(f)
+  def validateFirst[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+    ZIO.validateFirst(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validateFirstMPar]]
+   * @see See [[zio.ZIO.validateFirstPar]]
    */
-  def validateFirstMPar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
-    ZIO.validateFirstMPar(in)(f)
+  def validateFirstPar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+    ZIO.validateFirstPar(in)(f)
 
   /**
    * @see See [[zio.ZIO.when]]

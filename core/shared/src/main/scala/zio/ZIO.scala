@@ -2689,23 +2689,17 @@ object ZIO {
    *
    * Collects all successes and failures in a tupled fashion.
    */
-  def partitionM[R, E, A, B](
+  def partition[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
-    ZIO.foldRight(in)(List.empty[E] -> List.empty[B]) {
-      case (a, (es, bs)) =>
-        f(a).fold(
-          e => (e :: es, bs),
-          b => (es, b :: bs)
-        )
-    }
+    ZIO.foreach(in)(f(_).either).map(partitionMap(_)(ZIO.identityFn))
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
    * Collects all successes and failures in parallel and returns the result as a tuple.
    *
    */
-  def partitionMPar[R, E, A, B](
+  def partitionPar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
     ZIO.foreachPar(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
@@ -2716,7 +2710,7 @@ object ZIO {
    *
    * Unlike `partitionMPar`, this method will use at most up to `n` fibers.
    */
-  def partitionMParN[R, E, A, B](n: Int)(
+  def partitionParN[R, E, A, B](n: Int)(
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
     ZIO.foreachParN(n)(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
@@ -2949,10 +2943,10 @@ object ZIO {
    * This combinator is lossy meaning that if there are errors all successes will be lost.
    * To retain all information please use ZIO#partitionM
    */
-  def validateM[R, E, A, B](
+  def validate[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, ::[E], List[B]] =
-    partitionM(in)(f).flatMap {
+    partition(in)(f).flatMap {
       case (e :: es, _) => ZIO.fail(::(e, es))
       case (_, bs)      => ZIO.succeed(bs)
     }
@@ -2964,10 +2958,10 @@ object ZIO {
    * This combinator is lossy meaning that if there are errors all successes will be lost.
    * To retain all information please use ZIO#partitionMPar
    */
-  def validateMPar[R, E, A, B](
+  def validatePar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, ::[E], List[B]] =
-    partitionMPar(in)(f).flatMap {
+    partitionPar(in)(f).flatMap {
       case (e :: es, _) => ZIO.fail(::(e, es))
       case (_, bs)      => ZIO.succeed(bs)
     }
@@ -2975,22 +2969,17 @@ object ZIO {
   /**
    * Feeds elements of type A to f until it succeeds. Returns first success or the accumulation of all errors.
    */
-  def validateFirstM[R, E, A, B](
+  def validateFirst[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], B] =
-    ZIO
-      .foldLeft(in)(List.empty[E]) {
-        case (es, a) =>
-          f(a).foldM(e => ZIO.succeed(e :: es), b => ZIO.fail(b))
-      }
-      .flip
+    ZIO.foreach(in)(f(_).flip).flip
 
   /**
    * Feeds elements of type A to f, in parallel, until it succeeds. Returns first success or the accumulation of all errors.
    *
    * In case of success all other running fibers are terminated.
    */
-  def validateFirstMPar[R, E, A, B](
+  def validateFirstPar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], B] =
     ZIO.foreachPar(in)(f(_).flip).flip
