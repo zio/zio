@@ -31,6 +31,9 @@ package object system {
       val lineSeparator: UIO[String]
     }
 
+    val any: ZLayer[System, Nothing, System] =
+      ZLayer.requires[System]
+
     val live: ZLayer.NoDeps[Nothing, System] = ZLayer.succeed(
       new Service {
 

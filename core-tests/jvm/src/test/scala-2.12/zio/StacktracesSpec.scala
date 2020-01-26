@@ -393,10 +393,9 @@ object StackTracesSpec extends DefaultRunnableSpec {
         _ <- ZIO.unit
         _ <- ZIO.unit
       } yield t)
-        .flatMap(
-          t =>
-            IO.trace
-              .map(tuple(t))
+        .flatMap(t =>
+          IO.trace
+            .map(tuple(t))
         )
   }
 

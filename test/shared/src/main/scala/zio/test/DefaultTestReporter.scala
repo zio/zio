@@ -26,7 +26,12 @@ import zio.test.FailureRenderer.FailureMessage.{ Fragment, Message }
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
 import zio.test.RenderedResult.{ CaseType, Status }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
+import zio.test.mock.MockException.{
+  InvalidArgumentsException,
+  InvalidMethodException,
+  UnexpectedCallExpection,
+  UnmetExpectationsException
+}
 import zio.test.mock.{ Method, MockException }
 import zio.{ Cause, UIO, URIO }
 
@@ -73,14 +78,12 @@ object DefaultTestReporter {
                 case Right(TestSuccess.Ignored) =>
                   UIO.succeed(rendered(Test, label, Ignored, depth))
                 case Left(TestFailure.Assertion(result)) =>
-                  result.run.flatMap(
-                    result =>
-                      result
-                        .fold(
-                          details =>
-                            renderFailure(label, depth, details)
-                              .map(failures => rendered(Test, label, Failed, depth, failures: _*))
-                        )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
+                  result.run.flatMap(result =>
+                    result
+                      .fold(details =>
+                        renderFailure(label, depth, details)
+                          .map(failures => rendered(Test, label, Failed, depth, failures: _*))
+                      )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
                   )
                 case Left(TestFailure.Runtime(cause)) =>
                   renderCause(cause, depth).map { string =>
@@ -375,6 +378,16 @@ object FailureRenderer {
         UIO.succeed(Message(red(s"- unmet expectations").toLine +: expectations.map {
           case (expectedMethod, assertion) => renderExpectation(expectedMethod, assertion, tabSize)
         }))
+
+      case UnexpectedCallExpection(method, args) =>
+        UIO.succeed(
+          Message(
+            Seq(
+              red(s"- unexpected call to $method with arguments").toLine,
+              withOffset(tabSize)(cyan(args.toString).toLine)
+            )
+          )
+        )
     }
 
   private def renderExpectation[M, I, A](method: Method[M, I, A], assertion: Assertion[I], offset: Int): Line =
@@ -383,10 +396,9 @@ object FailureRenderer {
   def renderTestFailure(label: String, testResult: TestResult): UIO[Message] =
     testResult.run.flatMap(
       _.failures.fold(UIO.succeed(Message()))(
-        _.fold(
-          details =>
-            renderFailure(label, 0, details)
-              .map(failures => rendered(Test, label, Failed, 0, failures.lines: _*))
+        _.fold(details =>
+          renderFailure(label, 0, details)
+            .map(failures => rendered(Test, label, Failed, 0, failures.lines: _*))
         )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
           .map(_.rendered)
           .map(Message.apply)

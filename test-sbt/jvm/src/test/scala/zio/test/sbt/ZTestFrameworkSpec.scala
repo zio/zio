@@ -122,7 +122,7 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => {
+      .map { task =>
         val zTestTask = task.asInstanceOf[BaseTestTask]
         new ZTestTask(
           zTestTask.taskDef,
@@ -130,7 +130,7 @@ object ZTestFrameworkSpec {
           FunctionIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty
         )
-      })
+      }
       .head
 
     task.execute(_ => (), Array.empty)
@@ -143,7 +143,7 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => {
+      .map { task =>
         val zTestTask = task.asInstanceOf[BaseTestTask]
         new ZTestTask(
           zTestTask.taskDef,
@@ -151,7 +151,7 @@ object ZTestFrameworkSpec {
           FunctionIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty
         )
-      })
+      }
       .head
 
     task.execute(_ => (), Array.empty)

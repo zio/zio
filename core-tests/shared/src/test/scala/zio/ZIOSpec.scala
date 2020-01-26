@@ -128,10 +128,13 @@ object ZIOSpec extends ZIOBaseSpec {
           cache <- incrementAndGet(ref).cached(60.minutes)
           a     <- cache
           _     <- TestClock.adjust(59.minutes)
+          _     <- clock.sleep(59.minutes)
           b     <- cache
           _     <- TestClock.adjust(1.minute)
+          _     <- clock.sleep(1.minutes)
           c     <- cache
           _     <- TestClock.adjust(59.minutes)
+          _     <- clock.sleep(1.minute)
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       }
@@ -304,6 +307,17 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("returns the specified value if the effect fails") {
         assertM(ZIO.fail("fail").fallback(1))(equalTo(1))
+      }
+    ),
+    suite("filter")(
+      testM("filters a collection using an effectual predicate") {
+        val as = Iterable(2, 4, 6, 3, 5, 6)
+        for {
+          ref     <- Ref.make(List.empty[Int])
+          results <- ZIO.filter(as)(a => ref.update(a :: _).as(a % 2 == 0))
+          effects <- ref.get.map(_.reverse)
+        } yield assert(results)(equalTo(List(2, 4, 6, 6))) &&
+          assert(effects)(equalTo(List(2, 4, 6, 3, 5, 6)))
       }
     ),
     suite("filterOrElse")(
@@ -860,6 +874,45 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(task.run)(fails(isSome(equalTo(ex))))
       }
     ),
+    suite("onExit")(
+      testM("executes that a cleanup function runs when effect succeeds") {
+        for {
+          ref <- Ref.make(false)
+          _ <- ZIO.unit.onExit {
+                case Exit.Success(_) => ref.set(true)
+                case _               => UIO.unit
+              }
+          p <- ref.get
+        } yield assert(p)(isTrue)
+      },
+      testM("ensures that a cleanup function runs when an effect fails") {
+        for {
+          ref <- Ref.make(false)
+          _ <- ZIO
+                .die(new RuntimeException)
+                .onExit {
+                  case Exit.Failure(c) if c.died => ref.set(true)
+                  case _                         => UIO.unit
+                }
+                .sandbox
+                .ignore
+          p <- ref.get
+        } yield assert(p)(isTrue)
+      },
+      testM("ensures that a cleanup function runs when an effect is interrupted") {
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fiber <- (latch1.succeed(()) *> ZIO.never).onExit {
+                    case Exit.Failure(c) if c.interrupted => latch2.succeed(())
+                    case _                                => UIO.unit
+                  }.fork
+          _ <- latch1.await
+          _ <- fiber.interrupt
+          _ <- latch2.await
+        } yield assertCompletes
+      }
+    ),
     suite("option")(
       testM("return success in Some") {
         import zio.CanFail.canFail
@@ -948,66 +1001,75 @@ object ZIOSpec extends ZIOBaseSpec {
         )
       } @@ nonFlaky
     ),
-    suite("partitionM")(
+    suite("partition")(
       testM("collects only successes") {
         import zio.CanFail.canFail
         val in = List.range(0, 10)
         for {
-          res <- ZIO.partitionM(in)(a => ZIO.succeed(a))
+          res <- ZIO.partition(in)(a => ZIO.succeed(a))
         } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
       },
       testM("collects only failures") {
         val in = List.fill(10)(0)
         for {
-          res <- ZIO.partitionM(in)(a => ZIO.fail(a))
+          res <- ZIO.partition(in)(a => ZIO.fail(a))
         } yield assert(res._1)(equalTo(in)) && assert(res._2)(isEmpty)
       },
       testM("collects failures and successes") {
         val in = List.range(0, 10)
         for {
-          res <- ZIO.partitionM(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
+          res <- ZIO.partition(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
+      },
+      testM("evaluates effects in correct order") {
+        import zio.CanFail.canFail
+        val as = List(2, 4, 6, 3, 5, 6)
+        for {
+          ref     <- Ref.make(List.empty[Int])
+          _       <- ZIO.partition(as)(a => ref.update(a :: _))
+          effects <- ref.get.map(_.reverse)
+        } yield assert(effects)(equalTo(List(2, 4, 6, 3, 5, 6)))
       }
     ),
-    suite("partitionMPar")(
+    suite("partitionPar")(
       testM("collects a lot of successes") {
         import zio.CanFail.canFail
         val in = List.range(0, 1000)
         for {
-          res <- ZIO.partitionMPar(in)(a => ZIO.succeed(a))
+          res <- ZIO.partitionPar(in)(a => ZIO.succeed(a))
         } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
       },
       testM("collects failures") {
         val in = List.fill(10)(0)
         for {
-          res <- ZIO.partitionMPar(in)(a => ZIO.fail(a))
+          res <- ZIO.partitionPar(in)(a => ZIO.fail(a))
         } yield assert(res._1)(equalTo(in)) && assert(res._2)(isEmpty)
       },
       testM("collects failures and successes") {
         val in = List.range(0, 10)
         for {
-          res <- ZIO.partitionMPar(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
+          res <- ZIO.partitionPar(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
-    suite("partitionMParN")(
+    suite("partitionParN")(
       testM("collects a lot of successes") {
         import zio.CanFail.canFail
         val in = List.range(0, 1000)
         for {
-          res <- ZIO.partitionMParN(3)(in)(a => ZIO.succeed(a))
+          res <- ZIO.partitionParN(3)(in)(a => ZIO.succeed(a))
         } yield assert(res._1)(isEmpty) && assert(res._2)(equalTo(in))
       },
       testM("collects failures") {
         val in = List.fill(10)(0)
         for {
-          res <- ZIO.partitionMParN(3)(in)(a => ZIO.fail(a))
+          res <- ZIO.partitionParN(3)(in)(a => ZIO.fail(a))
         } yield assert(res._1)(equalTo(in)) && assert(res._2)(isEmpty)
       },
       testM("collects failures and successes") {
         val in = List.range(0, 10)
         for {
-          res <- ZIO.partitionMParN(3)(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
+          res <- ZIO.partitionParN(3)(in)(a => if (a % 2 == 0) ZIO.fail(a) else ZIO.succeed(a))
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
@@ -1534,8 +1596,8 @@ object ZIOSpec extends ZIOBaseSpec {
             log = makeLogger(ref)
             f <- ZIO
                   .bracket(
-                    ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(
-                      _ => ZIO.unit
+                    ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(_ =>
+                      ZIO.unit
                     )
                   )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
                   .fork
@@ -2084,9 +2146,7 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             promise <- Promise.make[Nothing, Unit]
             fiber <- IO
-                      .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))(
-                        (_, _: Exit[Any, Any]) => IO.unit
-                      )(
+                      .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[Any, Any]) => IO.unit)(
                         _ => IO.unit: IO[Nothing, Unit]
                       )
                       .fork
@@ -2124,10 +2184,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           done <- Promise.make[Nothing, Unit]
           fiber <- withLatch { release =>
-                    IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
-                        _ => release *> IO.never
-                      )
-                      .fork
+                    IO.bracketExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(_ => release *> IO.never).fork
                   }
 
           _ <- fiber.interrupt
@@ -2153,8 +2210,8 @@ object ZIOSpec extends ZIOBaseSpec {
           p2 <- Promise.make[Nothing, Unit]
           p3 <- Promise.make[Nothing, Unit]
           s <- IO
-                .bracketForkExit(p1.succeed(()) *> p2.await)((_, _: Exit[Any, Any]) => p3.await)(
-                  _ => IO.unit: IO[Nothing, Unit]
+                .bracketForkExit(p1.succeed(()) *> p2.await)((_, _: Exit[Any, Any]) => p3.await)(_ =>
+                  IO.unit: IO[Nothing, Unit]
                 )
                 .fork
           _   <- p1.await
@@ -2191,9 +2248,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           done <- Promise.make[Nothing, Unit]
           fiber <- withLatch { release =>
-                    IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(
-                        _ => release *> IO.never
-                      )
+                    IO.bracketForkExit(IO.unit)((_, _: Exit[Any, Any]) => done.succeed(()))(_ => release *> IO.never)
                       .fork
                   }
 
@@ -2472,8 +2527,8 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             ref  <- Ref.make(Option.empty[internal.Executor])
             exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
-            _ <- withLatch(
-                  release => IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec)
+            _ <- withLatch(release =>
+                  IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec)
                 )
             v <- ref.get
           } yield v.contains(exec)
@@ -2502,6 +2557,16 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(start)(equalTo(1)) &&
           assert(value)(equalTo(2)) &&
           assert(end)(equalTo(3))
+        }
+      }
+    ),
+    suite("tapCause")(
+      testM("does not lose infomrmation") {
+        val causes = Gen.causes(Gen.anyString, Gen.throwable)
+        checkM(causes, causes) { (c1, c2) =>
+          for {
+            exit <- ZIO.halt(c1).tapCause(_ => ZIO.halt(c2)).run
+          } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
         }
       }
     ),
@@ -2538,48 +2603,48 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("validateM")(
+    suite("validate")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)
-        val res = IO.validateM(in)(a => ZIO.fail(a)).flip
+        val res = IO.validate(in)(a => ZIO.fail(a)).flip
         assertM(res)(equalTo(in))
       },
       testM("accumulate errors and ignore successes") {
         import zio.CanFail.canFail
         val in  = List.range(0, 10)
-        val res = ZIO.validateM(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
+        val res = ZIO.validate(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
         assertM(res.flip)(equalTo(List(1, 3, 5, 7, 9)))
       },
       testM("accumulate successes") {
         import zio.CanFail.canFail
         val in  = List.range(0, 10)
-        val res = IO.validateM(in)(a => ZIO.succeed(a))
+        val res = IO.validate(in)(a => ZIO.succeed(a))
         assertM(res)(equalTo(in))
       }
     ),
-    suite("validateMPar")(
+    suite("validatePar")(
       testM("returns all errors if never valid") {
         val in  = List.fill(1000)(0)
-        val res = IO.validateMPar(in)(a => ZIO.fail(a)).flip
+        val res = IO.validatePar(in)(a => ZIO.fail(a)).flip
         assertM(res)(equalTo(in))
       },
       testM("accumulate errors and ignore successes") {
         import zio.CanFail.canFail
         val in  = List.range(0, 10)
-        val res = ZIO.validateMPar(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
+        val res = ZIO.validatePar(in)(a => if (a % 2 == 0) ZIO.succeed(a) else ZIO.fail(a))
         assertM(res.flip)(equalTo(List(1, 3, 5, 7, 9)))
       },
       testM("accumulate successes") {
         import zio.CanFail.canFail
         val in  = List.range(0, 10)
-        val res = IO.validateMPar(in)(a => ZIO.succeed(a))
+        val res = IO.validatePar(in)(a => ZIO.succeed(a))
         assertM(res)(equalTo(in))
       }
     ),
-    suite("validateFirstM")(
+    suite("validateFirst")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)
-        val res = IO.validateFirstM(in)(a => ZIO.fail(a)).flip
+        val res = IO.validateFirst(in)(a => ZIO.fail(a)).flip
         assertM(res)(equalTo(in))
       },
       testM("runs sequentially and short circuits on first success validation") {
@@ -2589,22 +2654,28 @@ object ZIOSpec extends ZIOBaseSpec {
 
         for {
           counter    <- Ref.make(0)
-          res        <- ZIO.validateFirstM(in)(a => counter.update(_ + 1) *> f(a))
+          res        <- ZIO.validateFirst(in)(a => counter.update(_ + 1) *> f(a))
           assertions <- assertM(ZIO.succeed(res))(equalTo(6)) && assertM(counter.get)(equalTo(6))
         } yield assertions
+      },
+      testM("returns errors in correct order") {
+        val as = List(2, 4, 6, 3, 5, 6)
+        for {
+          results <- ZIO.validateFirst(as)(ZIO.fail).flip
+        } yield assert(results)(equalTo(List(2, 4, 6, 3, 5, 6)))
       }
     ),
-    suite("validateFirstMPar")(
+    suite("validateFirstPar")(
       testM("returns all errors if never valid") {
         val in  = List.fill(1000)(0)
-        val res = IO.validateFirstMPar(in)(a => ZIO.fail(a)).flip
+        val res = IO.validateFirstPar(in)(a => ZIO.fail(a)).flip
         assertM(res)(equalTo(in))
       },
       testM("returns success if valid") {
         import zio.CanFail.canFail
         val in  = List.range(1, 10)
         val f   = (a: Int) => if (a == 6) ZIO.succeed(a) else ZIO.fail(a)
-        val res = ZIO.validateFirstMPar(in)(f(_))
+        val res = ZIO.validateFirstPar(in)(f(_))
         assertM(res)(equalTo(6))
       }
     ),

@@ -63,9 +63,9 @@ object RTSSpec extends ZIOBaseSpec {
         promise <- Promise.make[Nothing, Int]
         fiber   <- promise.await.fork
         dump    <- fiber.dump
-        dumpStr <- dump.fold[URIO[Clock, String]](IO.succeed(""))(_.prettyPrintM)
+        dumpStr <- dump.prettyPrintM
         _       <- UIO(println(dumpStr))
-      } yield assert(dump)(anything)
+      } yield assert(dumpStr)(anything)
     },
     testM("interruption causes") {
       for {
@@ -82,10 +82,9 @@ object RTSSpec extends ZIOBaseSpec {
           exitLatch  <- Promise.make[Nothing, Int]
           bracketed = IO
             .succeed(21)
-            .bracketExit(
-              (r: Int, exit: Exit[Any, Any]) =>
-                if (exit.interrupted) exitLatch.succeed(r)
-                else IO.die(new Error("Unexpected case"))
+            .bracketExit((r: Int, exit: Exit[Any, Any]) =>
+              if (exit.interrupted) exitLatch.succeed(r)
+              else IO.die(new Error("Unexpected case"))
             )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
           fiber      <- bracketed.fork
           startValue <- startLatch.await

@@ -827,6 +827,16 @@ object ZManagedSpec extends ZIOBaseSpec {
         ).use(ZIO.succeed)
       }
     ),
+    suite("tapCause")(
+      testM("does not lose infomrmation") {
+        val causes = Gen.causes(Gen.anyString, Gen.throwable)
+        checkM(causes, causes) { (c1, c2) =>
+          for {
+            exit <- ZManaged.halt(c1).tapCause(_ => ZManaged.halt(c2)).use(ZIO.succeed).run
+          } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
+        }
+      }
+    ),
     suite("tapError")(
       testM("Doesn't change the managed resource") {
         ZManaged
@@ -1300,12 +1310,10 @@ object ZManagedSpec extends ZIOBaseSpec {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
       reserveLatch <- Promise.make[Nothing, Unit]
-      baseRes = ZManaged.make(effects.update(_ + 1) *> countDown *> reserveLatch.await)(
-        _ => ZIO.unit
-      )
-      res   = f(baseRes)
-      _     <- res.use_(ZIO.unit).fork *> countDown
-      count <- effects.get
-      _     <- reserveLatch.succeed(())
+      baseRes      = ZManaged.make(effects.update(_ + 1) *> countDown *> reserveLatch.await)(_ => ZIO.unit)
+      res          = f(baseRes)
+      _            <- res.use_(ZIO.unit).fork *> countDown
+      count        <- effects.get
+      _            <- reserveLatch.succeed(())
     } yield assert(count)(equalTo(n))
 }

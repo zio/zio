@@ -42,7 +42,7 @@ private[zio] final class FiberContext[E, A](
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   val fiberRefLocals: FiberRefLocals
-) extends Fiber[E, A] { self =>
+) extends Fiber.Runtime.Internal[E, A] { self =>
 
   import FiberContext._
   import FiberState._
@@ -346,11 +346,12 @@ private[zio] final class FiberContext[E, A](
                         val kTrace = fastPathTrace(k, effect)
 
                         var failIO = null.asInstanceOf[IO[E, Any]]
-                        val value = try effect()
-                        catch {
-                          case t: Throwable if !platform.fatal(t) =>
-                            failIO = ZIO.fail(t.asInstanceOf[E])
-                        }
+                        val value =
+                          try effect()
+                          catch {
+                            case t: Throwable if !platform.fatal(t) =>
+                              failIO = ZIO.fail(t.asInstanceOf[E])
+                          }
 
                         if (failIO eq null) {
                           // delete continuation as it was "popped" after success
@@ -455,11 +456,12 @@ private[zio] final class FiberContext[E, A](
                     if (traceEffects && inTracingRegion) addTrace(effect)
 
                     var nextIo = null.asInstanceOf[IO[E, Any]]
-                    val value = try effect()
-                    catch {
-                      case t: Throwable if !platform.fatal(t) =>
-                        nextIo = ZIO.fail(t.asInstanceOf[E])
-                    }
+                    val value =
+                      try effect()
+                      catch {
+                        case t: Throwable if !platform.fatal(t) =>
+                          nextIo = ZIO.fail(t.asInstanceOf[E])
+                      }
                     if (nextIo eq null) curZio = nextInstr(value)
                     else curZio = nextIo
 
@@ -545,10 +547,11 @@ private[zio] final class FiberContext[E, A](
                     val k = zio.f
                     if (traceExec && inTracingRegion) addTrace(k)
 
-                    curZio = try k(platform, fiberId).asInstanceOf[ZIO[Any, E, Any]]
-                    catch {
-                      case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
-                    }
+                    curZio =
+                      try k(platform, fiberId).asInstanceOf[ZIO[Any, E, Any]]
+                      catch {
+                        case t: Throwable if !platform.fatal(t) => ZIO.fail(t.asInstanceOf[E])
+                      }
 
                   case ZIO.Tags.EffectSuspendTotalWith =>
                     val zio = curZio.asInstanceOf[ZIO.EffectSuspendTotalWith[Any, E, Any]]
@@ -697,7 +700,7 @@ private[zio] final class FiberContext[E, A](
 
   def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
-  def id: UIO[Option[Fiber.Id]] = UIO(Some(fiberId))
+  def id: UIO[Fiber.Id] = UIO(fiberId)
 
   def inheritRefs: UIO[Unit] = UIO.effectSuspendTotal {
     val locals = fiberRefLocals.asScala: @silent("JavaConverters")
@@ -712,7 +715,7 @@ private[zio] final class FiberContext[E, A](
 
   def status: UIO[Fiber.Status] = UIO(state.get.status)
 
-  def trace: UIO[Option[ZTrace]] = UIO(Some(captureTrace(null)))
+  def trace: UIO[ZTrace] = UIO(captureTrace(null))
 
   @tailrec
   private[this] def enterAsync(epoch: Long, register: AnyRef, blockingOn: List[Fiber.Id]): IO[E, Any] = {

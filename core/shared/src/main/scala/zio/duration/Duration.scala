@@ -16,7 +16,7 @@
 
 package zio.duration
 
-import java.time.{ Duration => JavaDuration }
+import java.time.{ Duration => JavaDuration, Instant }
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
@@ -160,6 +160,9 @@ object Duration {
   }
 
   def apply(amount: Long, unit: TimeUnit): Finite = fromNanos(unit.toNanos(amount))
+
+  def fromInstant(instant: Instant): Finite =
+    Duration(instant.toEpochMilli, TimeUnit.MILLISECONDS)
 
   def fromNanos(nanos: Long): Finite = Finite(nanos)
 

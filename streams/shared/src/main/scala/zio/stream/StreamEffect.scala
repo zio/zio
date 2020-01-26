@@ -40,15 +40,13 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
     StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
-          {
-            var b = null.asInstanceOf[B]
+          var b = null.asInstanceOf[B]
 
-            while (b == null) {
-              b = pf.applyOrElse(thunk(), (_: A) => null.asInstanceOf[B])
-            }
-
-            b
+          while (b == null) {
+            b = pf.applyOrElse(thunk(), (_: A) => null.asInstanceOf[B])
           }
+
+          b
         }
       }
     }
@@ -222,11 +220,9 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
     StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
-          {
-            val a = thunk()
-            if (pred(a)) a
-            else StreamEffect.end
-          }
+          val a = thunk()
+          if (pred(a)) a
+          else StreamEffect.end
         }
       }
     }
@@ -397,11 +393,11 @@ private[stream] object StreamEffect extends Serializable {
     }
 
   def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
-    val _ = iterator // Scala 2.13 wrongly warns that iterator is unused
+    val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
     fromIterator(
       new Iterator[A] {
-        def next(): A        = iterator.next()
-        def hasNext: Boolean = iterator.hasNext
+        def next(): A        = it.next()
+        def hasNext: Boolean = it.hasNext
       }
     )
   }
