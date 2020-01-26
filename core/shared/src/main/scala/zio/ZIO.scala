@@ -2685,8 +2685,7 @@ object ZIO {
   val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
-   * Feeds elements of type `A` to a function f that returns an effect.
-   *
+   * Feeds elements of type `A` to a function `f` that returns an effect.
    * Collects all successes and failures in a tupled fashion.
    */
   def partition[R, E, A, B](
@@ -2696,8 +2695,8 @@ object ZIO {
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
-   * Collects all successes and failures in parallel and returns the result as a tuple.
-   *
+   * Collects all successes and failures in parallel and returns the result as
+   * a tuple.
    */
   def partitionPar[R, E, A, B](
     in: Iterable[A]
@@ -2706,9 +2705,10 @@ object ZIO {
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
-   * Collects all successes and failures in parallel and returns the result as a tuple.
+   * Collects all successes and failures in parallel and returns the result as
+   * a tuple.
    *
-   * Unlike `partitionMPar`, this method will use at most up to `n` fibers.
+   * Unlike [[partitionPar]], this method will use at most up to `n` fibers.
    */
   def partitionParN[R, E, A, B](n: Int)(
     in: Iterable[A]
@@ -2938,10 +2938,11 @@ object ZIO {
     zio.untraced
 
   /**
-   * Feeds elements of type A to f and accumulates all errors in error channel or successes in success channel.
+   * Feeds elements of type `A` to `f` and accumulates all errors in error
+   * channel or successes in success channel.
    *
-   * This combinator is lossy meaning that if there are errors all successes will be lost.
-   * To retain all information please use ZIO#partitionM
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partition]].
    */
   def validate[R, E, A, B](
     in: Iterable[A]
@@ -2952,11 +2953,11 @@ object ZIO {
     }
 
   /**
-   * Feeds elements of type A to f and accumulates, in parallel,
-   * all errors in error channel or successes in success channel.
+   * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
+   * in error channel or successes in success channel.
    *
-   * This combinator is lossy meaning that if there are errors all successes will be lost.
-   * To retain all information please use ZIO#partitionMPar
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partitionPar]].
    */
   def validatePar[R, E, A, B](
     in: Iterable[A]
@@ -2967,7 +2968,8 @@ object ZIO {
     }
 
   /**
-   * Feeds elements of type A to f until it succeeds. Returns first success or the accumulation of all errors.
+   * Feeds elements of type `A` to `f` until it succeeds. Returns first success
+   * or the accumulation of all errors.
    */
   def validateFirst[R, E, A, B](
     in: Iterable[A]
@@ -2975,7 +2977,8 @@ object ZIO {
     ZIO.foreach(in)(f(_).flip).flip
 
   /**
-   * Feeds elements of type A to f, in parallel, until it succeeds. Returns first success or the accumulation of all errors.
+   * Feeds elements of type `A` to `f`, in parallel, until it succeeds. Returns
+   * first success or the accumulation of all errors.
    *
    * In case of success all other running fibers are terminated.
    */
