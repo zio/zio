@@ -2,18 +2,40 @@ package zio.stream.experimental
 
 import zio._
 
-class ZStream[-R, +E, -I, +O, +A](val process: ZManaged[R, Nothing, ZStream.Pull[R, E, I, O, A]]) { self =>
-  def map[B](f: A => B): ZStream[R, E, I, O, B] =
-    ZStream(self.process.map(pull => i => pull(i).map(f)))
+class ZStream[-R, +E, -I, +B, +A](val process: ZManaged[R, Nothing, ZStream.Control[R, E, I, B, A]]) { self =>
+  import ZStream.Control
+
+  def map[C](f: A => C): ZStream[R, E, I, B, C] =
+    ZStream {
+      self.process.map { control =>
+        Control(
+          control.pull.map(f),
+          control.command
+        )
+      }
+    }
 }
 
 object ZStream {
-  type Pull[-R, +E, -I, +O, +A] = I => ZIO[R, Either[O, E], A]
-  object Pull {
-    val end: Pull[Any, Nothing, Any, Unit, Nothing] = _ => IO.fail(Left(()))
+
+  final case class Control[-R, +E, -I, +B, +A](
+    pull: Pull[R, E, B, A],
+    command: Command[R, E, I]
+  )
+
+  type Pull[-R, +E, +B, +A] = ZIO[R, Either[E, B], A]
+
+  type Command[-R, +E, -I] = I => ZIO[R, E, Any]
+
+  object Command {
+    val unit: Command[Any, Nothing, Any] = _ => UIO.succeed(())
   }
 
-  def apply[R, E, I, O, A](process: ZManaged[R, Nothing, Pull[R, E, I, O, A]]): ZStream[R, E, I, O, A] =
+  object Pull {
+    val end: Pull[Any, Nothing, Unit, Nothing] = IO.fail(Right(()))
+  }
+
+  def apply[R, E, I, B, A](process: ZManaged[R, Nothing, Control[R, E, I, B, A]]): ZStream[R, E, I, B, A] =
     new ZStream(process)
 
   def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZStream[R, E, Any, Unit, A] =
@@ -27,19 +49,18 @@ object ZStream {
       for {
         doneRef   <- Ref.make(false).toManaged_
         finalizer <- ZManaged.finalizerRef[R](_ => UIO.unit)
-        pull = (_: Any) =>
-          ZIO.uninterruptibleMask { restore =>
-            doneRef.get.flatMap { done =>
-              if (done) IO.fail(Left(()))
-              else
-                (for {
-                  _           <- doneRef.set(true)
-                  reservation <- managed.reserve
-                  _           <- finalizer.set(reservation.release)
-                  a           <- restore(reservation.acquire)
-                } yield a).mapError(Right(_))
-            }
+        pull = ZIO.uninterruptibleMask { restore =>
+          doneRef.get.flatMap { done =>
+            if (done) IO.fail(Right(()))
+            else
+              (for {
+                _           <- doneRef.set(true)
+                reservation <- managed.reserve
+                _           <- finalizer.set(reservation.release)
+                a           <- restore(reservation.acquire)
+              } yield a).mapError(Left(_))
           }
-      } yield pull
+        }
+      } yield Control(pull, Command.unit)
     }
 }
