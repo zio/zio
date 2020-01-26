@@ -553,11 +553,21 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("foreachPar_")(
       testM("accumulates errors") {
-        val failures = ZIO
-          .foreachPar_(1 to 3)(IO.fail(_).uninterruptible)
-          .foldCause(_.failures.toSet, _ => Set.empty)
-        assertM(failures)(equalTo(Set(1, 2, 3)))
-      } @@ flaky,
+        def task(started: Ref[Int], trigger: Promise[Nothing, Unit])(i: Int): IO[Int, Unit] =
+          started.update(_ + 1) >>= { count =>
+            IO.when(count == 3)(trigger.succeed(())) *> trigger.await *> IO.fail(i)
+          }
+
+        for {
+          started <- Ref.make(0)
+          trigger <- Promise.make[Nothing, Unit]
+
+          errors <- IO
+                     .foreachPar_(1 to 3)(i => task(started, trigger)(i))
+                     .uninterruptible
+                     .foldCause(cause => cause.failures.toSet, _ => Set.empty[Int])
+        } yield assert(errors)(equalTo(Set(1, 2, 3)))
+      },
       testM("runs all effects") {
         val as = Seq(1, 2, 3, 4, 5)
         for {
