@@ -89,6 +89,16 @@ object MockingExampleSpec extends DefaultRunnableSpec {
 
       val result = app.provideLayer(mockEnv)
       assertM(result)(equalTo(42))
+    },
+    testM("failure if unexpected calls") {
+      import MockRandom._
+
+      val app = random.nextInt *> random.nextLong
+      val mockEnv =
+        (nextInt._1 returns value(42))
+
+      val result = app.provideLayer(mockEnv)
+      assertM(result)(equalTo(42L))
     }
   )
 }
