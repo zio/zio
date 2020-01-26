@@ -2321,20 +2321,19 @@ object ZIO {
         count          <- Ref.make(0)
         fibers <- ZIO.traverse(as) {
                    f(_)
-                     .foldCauseM(c => causes.update(_ && c) *> failureTrigger.fail(()), _ => ZIO.unit)
+                     .tapCause(c => causes.update(_ && c) *> failureTrigger.fail(()))
                      .ensuring {
-                       (count.update(_ + 1) >>= { done =>
+                       count.update(_ + 1) >>= { done =>
                          ZIO.when(done == size) {
                            result.complete(failureTrigger.succeed(()))
                          }
-                       }).uninterruptible
+                       }
                      }
                      .fork
                  }
         interrupter = failureTrigger.await
           .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
-          .toManaged_
-          .fork
+          .forkManaged
         _ <- interrupter.use_ {
               ZIO
                 .whenM(result.await.map(!_)) {
