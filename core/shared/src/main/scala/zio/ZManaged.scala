@@ -1051,6 +1051,10 @@ object ZManaged {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
+  trait ScopeIO {
+    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (A, UIO[Any])]
+  }
+
   /**
    * Returns an effectful function that extracts out the first element of a
    * tuple.
@@ -1539,12 +1543,26 @@ object ZManaged {
    * Creates a scope in which resources can be safely preallocated.
    */
   def scope[R]: ZManaged[R, Nothing, Scope] =
+    scopeIO.map { scopeIO =>
+      new Scope {
+        def apply[R, E, A](managed: ZManaged[R, E, A]) =
+          scopeIO(managed).map {
+            case (res, release) =>
+              ZManaged.make(ZIO.succeed(res))(_ => release)
+          }
+      }
+    }
+
+  /**
+   * Creates a scope in which resources can be safely allocated into together with a release action.
+   */
+  def scopeIO[R]: ZManaged[R, Nothing, ScopeIO] =
     ZManaged {
       // we abuse the fact that Function1 will use reference equality
-      Ref.make(Set.empty[Exit[Any, Any] => ZIO[R, Nothing, Any]]).map { finalizers =>
+      Ref.make(Set.empty[Exit[Any, Any] => ZIO[Any, Nothing, Any]]).map { finalizers =>
         Reservation(
           acquire = ZIO.succeed {
-            new Scope {
+            new ScopeIO {
               override def apply[R, E, A](managed: ZManaged[R, E, A]) =
                 ZIO.uninterruptibleMask { restore =>
                   for {
@@ -1553,10 +1571,10 @@ object ZManaged {
                     resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
                     release  = res.release.andThen(_.provide(env))
                     _        <- finalizers.update(_ + release)
-                  } yield ZManaged
-                    .make(ZIO.succeed(resource))(_ =>
-                      release(Exit.Success(resource)).ensuring(finalizers.update(_ - release))
-                    )
+                    done <- Ref
+                             .make(release(Exit.Success(resource)).ensuring(finalizers.update(_ - release)))
+                             .map(_.modify(old => (old, ZIO.unit)).flatten)
+                  } yield (resource, done)
                 }
             }
           },
