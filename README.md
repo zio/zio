@@ -77,7 +77,7 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
-[Badge-SonatypeSnapshots]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Snapshots"
+[Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/dev.zio/zio_2.12?server=https%3A%2F%2Foss.sonatype.org "Sonatype Snapshots"
 [Badge-Circle]: https://circleci.com/gh/zio/zio.svg?style=svg "circleci"
 [Badge-Discord]: https://img.shields.io/discord/629491597070827530?logo=discord "chat on discord"
 [Badge-Twitter]: https://img.shields.io/twitter/follow/zioscala.svg?style=plastic&label=follow&logo=twitter
