@@ -563,8 +563,7 @@ object ZIOSpec extends ZIOBaseSpec {
           trigger <- Promise.make[Nothing, Unit]
 
           errors <- IO
-                     .foreachPar_(1 to 3)(i => task(started, trigger)(i))
-                     .uninterruptible
+                     .foreachPar_(1 to 3)(i => task(started, trigger)(i).uninterruptible)
                      .foldCause(cause => cause.failures.toSet, _ => Set.empty[Int])
         } yield assert(errors)(equalTo(Set(1, 2, 3)))
       },
