@@ -59,7 +59,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def scalazChunkFilterMapSum = {
+  def zioChunkFilterMapSum = {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val stream = ZStreamChunk
       .fromChunks(chunks: _*)
@@ -73,7 +73,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def scalazChunkChunkFilterMapSum = {
+  def zioChunkChunkFilterMapSum = {
     val chunks = Chunk.fromArray((1 to chunkCount).toArray).flatMap(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     chunks
       .filter(_ % 2 == 0)
@@ -168,7 +168,7 @@ class CSVStreamBenchmarks {
   }
 
   @Benchmark
-  def scalazCsvTokenize() = {
+  def zioCsvTokenize() = {
     val chunks = genCsvChunks.map(Chunk.fromArray)
     val stream = ZStreamChunk
       .fromChunks(chunks.toIndexedSeq: _*)
