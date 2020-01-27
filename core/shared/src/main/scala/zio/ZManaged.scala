@@ -1559,7 +1559,7 @@ object ZManaged {
   def scopeIO[R]: ZManaged[R, Nothing, ScopeIO] =
     ZManaged {
       // we abuse the fact that Function1 will use reference equality
-      Ref.make(Set.empty[Exit[Any, Any] => ZIO[Any, Nothing, Any]]).map { finalizers =>
+      Ref.make(Set.empty[Exit[Any, Any] => UIO[Any]]).map { finalizers =>
         Reservation(
           acquire = ZIO.succeed {
             new ScopeIO {
