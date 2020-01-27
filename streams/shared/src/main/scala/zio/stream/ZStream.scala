@@ -2694,20 +2694,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   type Pull[-R, +E, +A] = ZIO[R, Option[E], A]
 
   object Pull {
-    val end: Pull[Any, Nothing, Nothing]                            = IO.failNow(None)
-    def emit[A](a: => A): Pull[Any, Nothing, A]                     = UIO.succeed(a)
-    def emitNow[A](a: A): Pull[Any, Nothing, A]                     = UIO.succeedNow(a)
-    def fail[E](e: => E): Pull[Any, E, Nothing]                     = IO.fail(Some(e))
-    private[zio] def failNow[E](e: E): Pull[Any, E, Nothing]        = IO.failNow(Some(e))
-    def halt[E](c: => Cause[E]): Pull[Any, E, Nothing]              = IO.halt(c.map(Some(_)))
-    private[zio] def haltNow[E](c: Cause[E]): Pull[Any, E, Nothing] = IO.haltNow(c.map(Some(_)))
-    def die(t: => Throwable): Pull[Any, Nothing, Nothing]           = UIO.die(t)
-    def die(t: Throwable): Pull[Any, Nothing, Nothing]              = UIO.dieNow(t)
-    def dieMessage(m: => String): Pull[Any, Nothing, Nothing]       = UIO.dieMessage(m)
-    def done[E, A](e: => Exit[E, A]): Pull[Any, E, A]               = IO.done(e.mapError(Some(_)))
-    private[zio] def doneNow[E, A](e: Exit[E, A]): Pull[Any, E, A]  = IO.doneNow(e.mapError(Some(_)))
-    def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A]        = p.await.mapError(Some(_))
-    def fromEffect[R, E, A](effect: ZIO[R, E, A]): Pull[R, E, A]    = effect.mapError(Some(_))
+    val end: Pull[Any, Nothing, Nothing]                         = IO.failNow(None)
+    def emit[A](a: => A): Pull[Any, Nothing, A]                  = UIO.succeed(a)
+    def fail[E](e: => E): Pull[Any, E, Nothing]                  = IO.fail(Some(e))
+    def halt[E](c: => Cause[E]): Pull[Any, E, Nothing]           = IO.halt(c.map(Some(_)))
+    def die(t: => Throwable): Pull[Any, Nothing, Nothing]        = UIO.die(t)
+    def dieMessage(m: => String): Pull[Any, Nothing, Nothing]    = UIO.dieMessage(m)
+    def done[E, A](e: => Exit[E, A]): Pull[Any, E, A]            = IO.done(e.mapError(Some(_)))
+    def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A]     = p.await.mapError(Some(_))
+    def fromEffect[R, E, A](effect: ZIO[R, E, A]): Pull[R, E, A] = effect.mapError(Some(_))
 
     def fromTake[E, A](take: => Take[E, A]): Pull[Any, E, A] =
       IO.effectSuspendTotal {
@@ -2717,6 +2712,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
           case Take.End      => end
         }
       }
+
+    private[zio] def emitNow[A](a: A): Pull[Any, Nothing, A]           = UIO.succeedNow(a)
+    private[zio] def failNow[E](e: E): Pull[Any, E, Nothing]           = IO.failNow(Some(e))
+    private[zio] def haltNow[E](c: Cause[E]): Pull[Any, E, Nothing]    = IO.haltNow(c.map(Some(_)))
+    private[zio] def dieNow(t: Throwable): Pull[Any, Nothing, Nothing] = UIO.dieNow(t)
+    private[zio] def doneNow[E, A](e: Exit[E, A]): Pull[Any, E, A]     = IO.doneNow(e.mapError(Some(_)))
 
     def fromTakeNow[E, A](take: Take[E, A]): Pull[Any, E, A] =
       take match {
@@ -2964,16 +2965,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     } yield f(a, b, c, d)
 
   /**
-   * The stream that always dies with the lazily evaluated `ex`.
+   * The stream that always dies with the `ex`.
    */
   def die(ex: => Throwable): Stream[Nothing, Nothing] =
     halt(Cause.die(ex))
-
-  /**
-   * The stream that always dies with the eagerly evaluated `ex`.
-   */
-  private[zio] def dieNow(ex: Throwable): Stream[Nothing, Nothing] =
-    haltNow(Cause.die(ex))
 
   /**
    * The stream that always dies with an exception described by `msg`.
@@ -3143,16 +3138,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     ZStream.fromEffect(ZIO.environment[R])
 
   /**
-   * The stream that always fails with the lazily evaluated `error`
+   * The stream that always fails with the `error`
    */
   def fail[E](error: => E): Stream[E, Nothing] =
     StreamEffect.fail[E](error)
-
-  /**
-   * The stream that always fails with the eagerly evaluated `error`
-   */
-  private[zio] def failNow[E](error: E): Stream[E, Nothing] =
-    fail(error)
 
   /**
    * Creates an empty stream that never fails and executes the finalizer when it ends.
@@ -3276,16 +3265,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     ZStream.repeatEffect(queue.take.commit)
 
   /**
-   * The stream that always halts with the lazily evaluated `cause`.
+   * The stream that always halts with `cause`.
    */
   def halt[E](cause: => Cause[E]): ZStream[Any, E, Nothing] =
     fromEffect(ZIO.halt(cause))
-
-  /**
-   * The stream that always halts with the eagerly evaluated `cause`.
-   */
-  private[zio] def haltNow[E](cause: Cause[E]): ZStream[Any, E, Nothing] =
-    fromEffect(ZIO.haltNow(cause))
 
   /**
    * The infinite stream of iterative function application: a, f(a), f(f(a)), f(f(f(a))), ...
@@ -3384,16 +3367,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     fromEffect(fa).repeat(schedule)
 
   /**
-   * Creates a single-valued pure stream from a lazy value
+   * Creates a single-valued pure stream
    */
   def succeed[A](a: => A): Stream[Nothing, A] =
     StreamEffect.succeed(a)
-
-  /**
-   * Creates a single-valued pure stream from an eager value
-   */
-  private[zio] def succeedNow[A](a: A): Stream[Nothing, A] =
-    succeed(a)
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`
@@ -3485,6 +3462,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
       ZStream.environment[R].flatMap(f)
   }
+
+  private[zio] def dieNow(ex: Throwable): Stream[Nothing, Nothing] =
+    haltNow(Cause.die(ex))
+
+  private[zio] def failNow[E](error: E): Stream[E, Nothing] =
+    fail(error)
+
+  private[zio] def haltNow[E](cause: Cause[E]): ZStream[Any, E, Nothing] =
+    fromEffect(ZIO.haltNow(cause))
+
+  private[zio] def succeedNow[A](a: A): Stream[Nothing, A] =
+    succeed(a)
 
   private[stream] def exitToInputStreamRead(exit: Exit[Option[Throwable], Byte]): Int = exit match {
     case Exit.Success(value) => value.toInt

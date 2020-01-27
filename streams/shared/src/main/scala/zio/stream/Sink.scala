@@ -83,15 +83,9 @@ object Sink extends Serializable {
     ZSink.die(e)
 
   /**
-   * see [[ZSink.dieNow]]
-   */
-  private[zio] def dieNow(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
-    ZSink.dieNow(e)
-
-  /**
    * see [[ZSink.dieMessage]]
    */
-  def dieMessage(m: String): Sink[Nothing, Nothing, Any, Nothing] =
+  def dieMessage(m: => String): Sink[Nothing, Nothing, Any, Nothing] =
     ZSink.dieMessage(m)
 
   /**
@@ -117,12 +111,6 @@ object Sink extends Serializable {
    */
   def fail[E](e: => E): Sink[E, Nothing, Any, Nothing] =
     ZSink.fail(e)
-
-  /**
-   * see [[ZSink.failNow]]
-   */
-  private[zio] def failNow[E](e: E): Sink[E, Nothing, Any, Nothing] =
-    ZSink.failNow(e)
 
   /**
    * see [[ZSink.fold]]
@@ -228,12 +216,6 @@ object Sink extends Serializable {
     ZSink.halt(e)
 
   /**
-   * see [[ZSink.haltNow]]
-   */
-  private[zio] def haltNow[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
-    ZSink.haltNow(e)
-
-  /**
    * see [[ZSink.identity]]
    */
   def identity[A]: Sink[Unit, Nothing, A, A] =
@@ -282,12 +264,6 @@ object Sink extends Serializable {
     ZSink.succeed(b)
 
   /**
-   * see [[ZSink.succeedNow]]
-   */
-  private[zio] def succeedNow[A, B](b: B): Sink[Nothing, A, A, B] =
-    ZSink.succeedNow(b)
-
-  /**
    * see [[ZSink.throttleEnforce]]
    */
   def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
@@ -324,4 +300,16 @@ object Sink extends Serializable {
    */
   val utf8DecodeChunk: Sink[Nothing, Chunk[Byte], Chunk[Byte], String] =
     ZSink.utf8DecodeChunk
+
+  private[zio] def dieNow(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
+    ZSink.dieNow(e)
+
+  private[zio] def failNow[E](e: E): Sink[E, Nothing, Any, Nothing] =
+    ZSink.failNow(e)
+
+  private[zio] def haltNow[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
+    ZSink.haltNow(e)
+
+  private[zio] def succeedNow[A, B](b: B): Sink[Nothing, A, A, B] =
+    ZSink.succeedNow(b)
 }
