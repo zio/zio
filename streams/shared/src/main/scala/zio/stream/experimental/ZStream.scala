@@ -19,20 +19,18 @@ class ZStream[-R, +E, -I, +B, +A](val process: ZManaged[R, Nothing, ZStream.Cont
 object ZStream {
 
   final case class Control[-R, +E, -I, +B, +A](
-    pull: Pull[R, E, B, A],
-    command: Command[R, E, I]
+    pull: ZIO[R, Either[E, B], A],
+    command: I => ZIO[R, E, Any]
   )
 
-  type Pull[-R, +E, +B, +A] = ZIO[R, Either[E, B], A]
+  object Pull {
+    def end[B](b: => B): IO[Either[Nothing, B], Nothing] = IO.fail(Right(b))
 
-  type Command[-R, +E, -I] = I => ZIO[R, E, Any]
-
-  object Command {
-    val unit: Command[Any, Nothing, Any] = _ => UIO.succeed(())
+    val endUnit: IO[Either[Nothing, Unit], Nothing] = end(())
   }
 
-  object Pull {
-    val end: Pull[Any, Nothing, Unit, Nothing] = IO.fail(Right(()))
+  object Command {
+    val noop: Any => UIO[Unit] = _ => UIO.unit
   }
 
   def apply[R, E, I, B, A](process: ZManaged[R, Nothing, Control[R, E, I, B, A]]): ZStream[R, E, I, B, A] =
@@ -61,6 +59,6 @@ object ZStream {
               } yield a).mapError(Left(_))
           }
         }
-      } yield Control(pull, Command.unit)
+      } yield Control(pull, Command.noop)
     }
 }

@@ -19,11 +19,9 @@ class ZSink[-R, +E, +I, -A, +B](val process: ZManaged[R, E, ZSink.Control[R, E, 
 object ZSink {
 
   final case class Control[-R, +E, +I, -A, +B](
-    push: Push[R, E, A, B],
+    push: A => ZIO[R, Either[E, B], Any],
     query: ZIO[R, E, I]
   )
-
-  type Push[-R, +E, -A, +B] = A => ZIO[R, Either[E, B], Any]
 
   def apply[R, E, I, A, B](process: ZManaged[R, E, ZSink.Control[R, E, I, A, B]]): ZSink[R, E, I, A, B] =
     new ZSink(process)
