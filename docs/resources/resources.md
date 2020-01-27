@@ -7,6 +7,8 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Effective testing with ZIO Test](https://scala.monster/zio-test/) by Pavels Sisojevs (January 2020)
+- [Implement your future with ZIO](https://scala.monster/welcome-zio/) by Pavels Sisojevs (December 2019)
 - [Decouple the Program from its Implementation with ZIO modules.](https://medium.com/@pascal.mengelt/decouple-the-program-from-its-implementation-with-zio-modules-d9b8713d502e) by Pascal Mengelt (December 2019)
 - [How to write a command line application with ZIO?](https://scalac.io/write-command-line-application-with-zio/) by Piotr Gołębiewski (November 2019)
 - [What can ZIO do for me? A Long Polling example with sttp.](https://medium.com/@pascal.mengelt/what-can-zio-do-for-me-32281e4e8b16) by Pascal Mengelt (November 2019)

@@ -27,8 +27,6 @@ inThisBuild(
   )
 )
 
-ThisBuild / publishTo := sonatypePublishToBundle.value
-
 addCommandAlias("build", "prepare; testJVM")
 addCommandAlias("prepare", "fix; fmt")
 addCommandAlias("fix", "all compile:scalafix test:scalafix")
@@ -270,7 +268,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
     ),
     mainClass in (Test, run) := Some("zio.test.sbt.TestMain")
   )
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.31"))
+  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % "0.6.32"))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .dependsOn(core)
   .dependsOn(test)
@@ -278,7 +276,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
 lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
-  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.12"))
+  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13"))
   .dependsOn(test)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
@@ -325,7 +323,7 @@ lazy val benchmarks = project.module
         "io.monix"                  %% "monix"         % "3.1.0",
         "io.projectreactor"         % "reactor-core"   % "3.3.2.RELEASE",
         "io.reactivex.rxjava2"      % "rxjava"         % "2.2.17",
-        "org.ow2.asm"               % "asm"            % "7.2",
+        "org.ow2.asm"               % "asm"            % "7.3.1",
         "org.scala-lang"            % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"            % "scala-reflect"  % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"   % "2.0.0",
@@ -374,7 +372,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC6",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.3.5-RC2",
       "dev.zio"             %% "zio-interop-twitter"         % "19.7.0.0-RC2",
-      "dev.zio"             %% "zio-macros-core"             % "0.6.0",
+      "dev.zio"             %% "zio-macros-core"             % "0.6.2",
       "dev.zio"             %% "zio-macros-test"             % "0.6.0"
     )
   )

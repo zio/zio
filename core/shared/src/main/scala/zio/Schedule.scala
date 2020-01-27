@@ -176,14 +176,13 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the effectfully calculated delay added to every update.
    */
   final def addDelayM[R1 <: R](f: B => ZIO[R1, Nothing, Duration]): Schedule[R1 with Clock, A, B] =
-    updated(
-      update =>
-        (a, s) =>
-          for {
-            delay <- f(extract(a, s))
-            s1    <- update(a, s)
-            _     <- ZIO.sleep(delay)
-          } yield s1
+    updated(update =>
+      (a, s) =>
+        for {
+          delay <- f(extract(a, s))
+          s1    <- update(a, s)
+          _     <- ZIO.sleep(delay)
+        } yield s1
     )
 
   /**
@@ -233,13 +232,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * then continues the schedule or not based on the specified state predicate.
    */
   final def check[A1 <: A](test: (A1, B) => UIO[Boolean]): Schedule[R, A1, B] =
-    updated(
-      update =>
-        (a, s) =>
-          test(a, self.extract(a, s)).flatMap {
-            case false => ZIO.fail(())
-            case true  => update(a, s)
-          }
+    updated(update =>
+      (a, s) =>
+        test(a, self.extract(a, s)).flatMap {
+          case false => ZIO.fail(())
+          case true  => update(a, s)
+        }
     )
 
   /**
@@ -450,13 +448,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * that log failures, decisions, or computed values.
    */
   final def onDecision[A1 <: A, R1 <: R](f: (A1, Option[self.State]) => URIO[R1, Any]): Schedule[R1, A1, B] =
-    updated(
-      update =>
-        (a, s) =>
-          update(a, s).tapBoth(
-            _ => f(a, None),
-            state => f(a, Some(state))
-          )
+    updated(update =>
+      (a, s) =>
+        update(a, s).tapBoth(
+          _ => f(a, None),
+          state => f(a, Some(state))
+        )
     )
 
   /**
@@ -485,13 +482,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   final def reconsider[R1 <: R, A1 <: A](
     f: (A1, Either[State, State]) => ZIO[R1, Unit, State]
   ): Schedule[R1, A1, B] =
-    updated(
-      update =>
-        (a: A1, s: State) =>
-          update(a, s).foldM(
-            _ => f(a, Left(s)),
-            s1 => f(a, Right(s1))
-          )
+    updated(update =>
+      (a: A1, s: State) =>
+        update(a, s).foldM(
+          _ => f(a, Left(s)),
+          s1 => f(a, Right(s1))
+        )
     )
 
   /**
@@ -554,13 +550,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * is satisfied on the input of the schedule.
    */
   final def untilInputM[A1 <: A](f: A1 => UIO[Boolean]): Schedule[R, A1, B] =
-    updated(
-      update =>
-        (a, s) =>
-          f(a).flatMap {
-            case true  => ZIO.fail(())
-            case false => update(a, s)
-          }
+    updated(update =>
+      (a, s) =>
+        f(a).flatMap {
+          case true  => ZIO.fail(())
+          case false => update(a, s)
+        }
     )
 
   /**
@@ -574,13 +569,12 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * is satisfied on the output value of the schedule.
    */
   final def untilOutputM(f: B => UIO[Boolean]): Schedule[R, A, B] =
-    updated(
-      update =>
-        (a, s) =>
-          f(self.extract(a, s)).flatMap {
-            case true  => ZIO.fail(())
-            case false => update(a, s)
-          }
+    updated(update =>
+      (a, s) =>
+        f(self.extract(a, s)).flatMap {
+          case true  => ZIO.fail(())
+          case false => update(a, s)
+        }
     )
 
   /**

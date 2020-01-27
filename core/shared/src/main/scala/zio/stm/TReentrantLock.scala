@@ -106,19 +106,18 @@ final class TReentrantLock private (data: TRef[Either[ReadLock, WriteLock]]) {
    * number of write locks held by this fiber.
    */
   lazy val releaseWrite: STM[Nothing, Int] =
-    STM.fiberId.flatMap(
-      fiberId =>
-        data.modify {
-          case Right(WriteLock(1, m, `fiberId`)) =>
-            0 -> Left(ReadLock(fiberId, m))
+    STM.fiberId.flatMap(fiberId =>
+      data.modify {
+        case Right(WriteLock(1, m, `fiberId`)) =>
+          0 -> Left(ReadLock(fiberId, m))
 
-          case Right(WriteLock(n, m, `fiberId`)) if n > 1 =>
-            val newCount = n - 1
+        case Right(WriteLock(n, m, `fiberId`)) if n > 1 =>
+          val newCount = n - 1
 
-            newCount -> Right(WriteLock(newCount, m, fiberId))
+          newCount -> Right(WriteLock(newCount, m, fiberId))
 
-          case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
-        }
+        case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
+      }
     )
 
   /**

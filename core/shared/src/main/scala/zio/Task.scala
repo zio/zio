@@ -259,6 +259,12 @@ object Task {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
+   * @see [[zio.ZIO.filter]]
+   */
+  def filter[A](as: Iterable[A])(f: A => Task[Boolean]): Task[List[A]] =
+    ZIO.filter(as)(f)
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[A](
@@ -324,7 +330,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[A](as: Iterable[Task[A]]): UIO[Fiber[Throwable, List[A]]] =
+  def forkAll[A](as: Iterable[Task[A]]): UIO[Fiber.Synthetic[Throwable, List[A]]] =
     ZIO.forkAll(as)
 
   /**
@@ -515,22 +521,22 @@ object Task {
   val none: Task[Option[Nothing]] = ZIO.none
 
   /**
-   * @see See [[zio.ZIO.partitionM]]
+   * @see See [[zio.ZIO.partition]]
    */
-  def partitionM[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
-    ZIO.partitionM(in)(f)
+  def partition[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partition(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMPar]]
+   * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionMPar[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
-    ZIO.partitionMPar(in)(f)
+  def partitionPar[A, B](in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionPar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMParN]]
+   * @see See [[zio.ZIO.partitionParN]]
    */
-  def partitionMParN[A, B](n: Int)(in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
-    ZIO.partitionMParN(n)(in)(f)
+  def partitionParN[A, B](n: Int)(in: Iterable[A])(f: A => Task[B]): Task[(List[Throwable], List[B])] =
+    ZIO.partitionParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]

@@ -228,6 +228,12 @@ object URIO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
+   * @see [[zio.ZIO.filter]]
+   */
+  def filter[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
+    ZIO.filter(as)(f)
+
+  /**
    * @see [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[R, A](
@@ -292,7 +298,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.forkAll]]
    */
-  def forkAll[R, A](as: Iterable[URIO[R, A]]): ZIO[R, Nothing, Fiber[Nothing, List[A]]] =
+  def forkAll[R, A](as: Iterable[URIO[R, A]]): ZIO[R, Nothing, Fiber.Synthetic[Nothing, List[A]]] =
     ZIO.forkAll(as)
 
   /**

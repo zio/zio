@@ -522,11 +522,10 @@ package object test extends CompileVariants {
   ): ZIO[R1, E, TestResult] =
     stream.zipWithIndex.mapM {
       case (initial, index) =>
-        initial.foreach(
-          input =>
-            test(input).traced
-              .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
-              .either
+        initial.foreach(input =>
+          test(input).traced
+            .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+            .either
         )
     }.mapM(_.foreach(_.fold(e => ZIO.succeed(Left(e)), a => a.run.map(Right(_)))))
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure

@@ -5,7 +5,12 @@ import ExpectationSpecUtils._
 import zio.duration._
 import zio.test.Assertion.{ equalTo, isNone, isUnit, isWithin }
 import zio.test.mock.Expectation.{ failure, failureF, failureM, never, unit, value, valueF, valueM }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
+import zio.test.mock.MockException.{
+  InvalidArgumentsException,
+  InvalidMethodException,
+  UnexpectedCallExpection,
+  UnmetExpectationsException
+}
 import zio.test.{ suite, ZIOBaseSpec }
 import zio.{ IO, UIO }
 
@@ -277,6 +282,14 @@ object ExpectationSpec extends ZIOBaseSpec {
         ),
         Module.>.singleParam(1) *> Module.>.static,
         equalTo("bar")
+      ),
+      testSpec("zipRight")(
+        (
+          (Module.singleParam(equalTo(1)) returns value("foo")) zipRight
+            (Module.static returns value("bar"))
+        ),
+        Module.>.singleParam(1) *> Module.>.static,
+        equalTo("bar")
       )
     ),
     suite("expectations failure")(
@@ -307,6 +320,11 @@ object ExpectationSpec extends ZIOBaseSpec {
             )
           )
         )
+      ),
+      testSpecDied("unexpected call")(
+        Module.singleParam(equalTo(1)) returns value("foo"),
+        Module.>.singleParam(1) *> Module.>.manyParams(2, "3", 4L),
+        equalTo(UnexpectedCallExpection(Module.manyParams, (2, "3", 4L)))
       )
     )
   )

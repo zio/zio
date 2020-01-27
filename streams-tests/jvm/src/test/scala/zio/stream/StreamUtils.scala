@@ -28,15 +28,14 @@ trait StreamUtils extends ChunkUtils with GenZIO {
       case _ =>
         Gen
           .int(1, max)
-          .flatMap(
-            n =>
-              for {
-                i  <- Gen.int(0, n - 1)
-                it <- Gen.listOfN(n)(a)
-              } yield ZStream.unfoldM((i, it)) {
-                case (_, Nil) | (0, _) => IO.fail("fail-case")
-                case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
-              }
+          .flatMap(n =>
+            for {
+              i  <- Gen.int(0, n - 1)
+              it <- Gen.listOfN(n)(a)
+            } yield ZStream.unfoldM((i, it)) {
+              case (_, Nil) | (0, _) => IO.fail("fail-case")
+              case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
+            }
           )
     }
 

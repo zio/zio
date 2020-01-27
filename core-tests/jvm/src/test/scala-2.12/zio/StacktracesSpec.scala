@@ -142,7 +142,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         cause =>
           assert(cause.traces.head.stackTrace.size)(equalTo(7)) &&
           assert(cause.traces.head.stackTrace(4).prettyPrint.contains("uploadUsers"))(isTrue) &&
-          assert(cause.traces(1).stackTrace.size)(equalTo(2)) &&
+          assert(cause.traces(1).stackTrace.size)(equalTo(3)) &&
           assert(cause.traces(1).executionTrace.size)(equalTo(1)) &&
           assert(cause.traces(1).executionTrace.head.prettyPrint.contains("uploadTo"))(isTrue) &&
           assert(cause.traces(1).parentTrace.isEmpty)(isFalse) &&
@@ -393,10 +393,9 @@ object StackTracesSpec extends DefaultRunnableSpec {
         _ <- ZIO.unit
         _ <- ZIO.unit
       } yield t)
-        .flatMap(
-          t =>
-            IO.trace
-              .map(tuple(t))
+        .flatMap(t =>
+          IO.trace
+            .map(tuple(t))
         )
   }
 

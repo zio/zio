@@ -190,7 +190,7 @@ Next we create the live version of the service with the implementation of the ca
 ``` scala mdoc
 import zio.console.Console
 
-val accountObserverLive: ZLayer[Console, Nothing, Has[AccountObserver.Service]] = 
+val accountObserverLive: ZLayer[Console, Nothing, Has[AccountObserver.Service]] =
   ZLayer.fromService[Console.Service, Nothing, Has[AccountObserver.Service]] { console =>
     Has(new AccountObserver.Service {
       def processEvent(event: AccountEvent): UIO[Unit] =

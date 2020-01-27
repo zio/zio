@@ -565,12 +565,11 @@ object ZQueue {
     val size: UIO[Int] = checkShutdownState.map(_ => queue.size() - takers.size() + strategy.surplusSize)
 
     val shutdown: UIO[Unit] =
-      ZIO.fiberId.flatMap(
-        fiberId =>
-          IO.whenM(shutdownHook.succeed(()))(
-              IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interruptAs(fiberId)) *> strategy.shutdown)
-            )
-            .uninterruptible
+      ZIO.fiberId.flatMap(fiberId =>
+        IO.whenM(shutdownHook.succeed(()))(
+            IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interruptAs(fiberId)) *> strategy.shutdown)
+          )
+          .uninterruptible
       )
 
     val isShutdown: UIO[Boolean] = shutdownHook.poll.map(_.isDefined)
