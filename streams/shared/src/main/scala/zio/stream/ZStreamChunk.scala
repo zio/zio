@@ -107,13 +107,13 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
                 case (true, _) => Pull.end
 
                 case (false, chunk) if chunk.length >= chunkSize =>
-                  Pull.emit(chunk.take(chunkSize)) <* state.set(false -> chunk.drop(chunkSize))
+                  Pull.emitNow(chunk.take(chunkSize)) <* state.set(false -> chunk.drop(chunkSize))
 
                 case (false, chunk0) =>
                   xss.foldM(
                     {
                       case None if chunk0.length == 0 => Pull.end
-                      case None                       => Pull.emit(chunk0) <* state.set(true -> Chunk.empty)
+                      case None                       => Pull.emitNow(chunk0) <* state.set(true -> Chunk.empty)
                       case e @ Some(_)                => ZIO.failNow(e)
                     },
                     xs =>
@@ -121,7 +121,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
                         case (_, chunk) =>
                           if (chunk.length + xs.length >= chunkSize) {
                             val m = chunkSize - chunk.length
-                            Pull.emit(chunk ++ xs.take(m)) -> (false -> xs.drop(m))
+                            Pull.emitNow(chunk ++ xs.take(m)) -> (false -> xs.drop(m))
                           } else
                             pull -> (false -> (chunk ++ xs))
                       }.flatten
@@ -175,12 +175,12 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
             def go: Pull[R, E, Chunk[A]] =
               chunks.flatMap { chunk =>
                 counterRef.get.flatMap { cnt =>
-                  if (cnt <= 0) Pull.emit(chunk)
+                  if (cnt <= 0) Pull.emitNow(chunk)
                   else {
                     val remaining = chunk.drop(cnt)
                     val dropped   = chunk.length - remaining.length
                     counterRef.set(cnt - dropped) *>
-                      (if (remaining.isEmpty) go else Pull.emit(remaining))
+                      (if (remaining.isEmpty) go else Pull.emitNow(remaining))
                   }
                 }
               }
@@ -212,7 +212,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
             def go: Pull[R, E, Chunk[A]] =
               chunks.flatMap { chunk =>
                 keepDroppingRef.get.flatMap { keepDropping =>
-                  if (!keepDropping) Pull.emit(chunk)
+                  if (!keepDropping) Pull.emitNow(chunk)
                   else {
                     val remaining = chunk.dropWhile(pred)
                     val empty     = remaining.length <= 0
@@ -249,7 +249,7 @@ class ZStreamChunk[-R, +E, +A](val chunks: ZStream[R, E, Chunk[A]]) extends Seri
    * @note the stream will end as soon as the first error occurs.
    */
   final def either(implicit ev: CanFail[E]): ZStreamChunk[R, Nothing, Either[E, A]] =
-    self.map(Right(_)).catchAll(e => ZStreamChunk.succeed(Chunk.single(Left(e))))
+    self.map(Right(_)).catchAll(e => ZStreamChunk.succeedNow(Chunk.single(Left(e))))
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for

@@ -111,7 +111,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       },
       testM("mapConcatM error") {
         StreamChunk
-          .succeed(Chunk.single(1))
+          .succeedNow(Chunk.single(1))
           .mapConcatChunkM(_ => IO.failNow("Ouch"))
           .run(Sink.drain)
           .either
@@ -130,7 +130,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       },
       testM("mapConcatM error") {
         StreamChunk
-          .succeed(Chunk.single(1))
+          .succeedNow(Chunk.single(1))
           .mapConcatM(_ => IO.failNow("Ouch"))
           .run(Sink.drain)
           .either
@@ -276,7 +276,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
       val fn = Gen.function[Random with Sized, Int, StreamChunk[Nothing, Int]](chunksOfInts)
       checkM(intGen, fn) { (x, f) =>
         for {
-          res1 <- slurp(ZStreamChunk.succeed(Chunk(x)).flatMap(f))
+          res1 <- slurp(ZStreamChunk.succeedNow(Chunk(x)).flatMap(f))
           res2 <- slurp(f(x))
         } yield assert(res1)(equalTo(res2))
       }
@@ -284,7 +284,7 @@ object StreamChunkSpec extends ZIOBaseSpec {
     testM("StreamChunk.monadLaw2") {
       checkM(chunksOfInts) { m =>
         for {
-          res1 <- slurp(m.flatMap(i => ZStreamChunk.succeed(Chunk(i))))
+          res1 <- slurp(m.flatMap(i => ZStreamChunk.succeedNow(Chunk(i))))
           res2 <- slurp(m)
         } yield assert(res1)(equalTo(res2))
       }

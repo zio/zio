@@ -99,7 +99,7 @@ object StreamSpec extends ZIOBaseSpec {
         val e = new RuntimeException("Boom")
         assertM(
           Stream(1, 1, 1, 1)
-            .aggregateAsync(ZSink.die(e))
+            .aggregateAsync(ZSink.dieNow(e))
             .runCollect
             .run
         )(dies(equalTo(e)))
@@ -184,7 +184,7 @@ object StreamSpec extends ZIOBaseSpec {
         val e = new RuntimeException("Boom")
         assertM(
           Stream(1, 1, 1, 1)
-            .aggregateAsyncWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
+            .aggregateAsyncWithinEither(ZSink.dieNow(e), Schedule.spaced(30.minutes))
             .runCollect
             .run
         )(dies(equalTo(e)))
@@ -437,7 +437,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("error") {
         (Stream(1, 2, 3, 4, 5) ++ Stream.failNow("broken"))
           .chunkN(3)
-          .catchAll(_ => ZStreamChunk.succeed(Chunk(6)))
+          .catchAll(_ => ZStreamChunk.succeedNow(Chunk(6)))
           .chunks
           .runCollect
           .map(assert(_)(equalTo(List(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6)))))
@@ -1303,7 +1303,7 @@ object StreamSpec extends ZIOBaseSpec {
     ),
     testM("Stream.mapError") {
       Stream
-        .fail("123")
+        .failNow("123")
         .mapError(_.toInt)
         .runCollect
         .either
@@ -1311,7 +1311,7 @@ object StreamSpec extends ZIOBaseSpec {
     },
     testM("Stream.mapErrorCause") {
       Stream
-        .halt(Cause.fail("123"))
+        .haltNow(Cause.fail("123"))
         .mapErrorCause(_.map(_.toInt))
         .runCollect
         .either
@@ -1444,7 +1444,7 @@ object StreamSpec extends ZIOBaseSpec {
 
         assertM(
           s1.mergeWith(s2)(_.toString, _.toString)
-            .run(Sink.succeed[String, String]("done"))
+            .run(Sink.succeedNow[String, String]("done"))
         )(equalTo("done"))
       },
       testM("mergeWith prioritizes failure") {
@@ -1727,7 +1727,7 @@ object StreamSpec extends ZIOBaseSpec {
       testM("succeed") {
         assertM(
           Stream
-            .succeed(1)
+            .succeedNow(1)
             .timeout(Duration.Infinity)
             .runCollect
         )(equalTo(List(1)))

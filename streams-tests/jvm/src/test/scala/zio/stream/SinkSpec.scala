@@ -525,11 +525,11 @@ object SinkSpec extends ZIOBaseSpec {
       ),
       suite("orElse")(
         testM("left") {
-          val sink = ZSink.identity[Int] orElse ZSink.fail("Ouch")
+          val sink = ZSink.identity[Int] orElse ZSink.failNow("Ouch")
           assertM(sinkIteration(sink, 1))(equalTo((Left(1), Chunk.empty)))
         },
         testM("right") {
-          val sink = ZSink.fail("Ouch") orElse ZSink.identity[Int]
+          val sink = ZSink.failNow("Ouch") orElse ZSink.identity[Int]
           assertM(sinkIteration(sink, 1))(equalTo((Right(1), Chunk.empty)))
         },
         testM("init error left") {
@@ -589,7 +589,7 @@ object SinkSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo((Left(List(1, 2, 3, 4)), Chunk.empty)))
         },
         testM("left long fail right short") {
-          val sink = (ZSink.collectAll[Int] <* ZSink.fail("Ouch")) orElse ZSink.collectAllN[Int](2)
+          val sink = (ZSink.collectAll[Int] <* ZSink.failNow("Ouch")) orElse ZSink.collectAllN[Int](2)
           for {
             init   <- sink.initial
             step1  <- sink.step(init, 1)
@@ -1108,7 +1108,7 @@ object SinkSpec extends ZIOBaseSpec {
       },
       testM("pull1") {
         val stream = Stream.fromIterable(List(1))
-        val sink   = Sink.pull1(IO.succeedNow(Option.empty[Int]))((i: Int) => Sink.succeed[Int, Option[Int]](Some(i)))
+        val sink   = Sink.pull1(IO.succeedNow(Option.empty[Int]))((i: Int) => Sink.succeedNow[Int, Option[Int]](Some(i)))
 
         assertM(stream.run(sink))(isSome(equalTo(1)))
       },
@@ -1453,8 +1453,8 @@ object SinkSpec extends ZIOBaseSpec {
             .map(_._2)
             .chunked
 
-        val src1         = ZStreamChunk.succeed(Chunk.fromArray(Array('[', '1', '2')))
-        val src2         = ZStreamChunk.succeed(Chunk.fromArray(Array('3', ',', '4', ']')))
+        val src1         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('[', '1', '2')))
+        val src2         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('3', ',', '4', ']')))
         val partialParse = src1.run(numArrayParser).run
         val fullParse    = (src1 ++ src2).run(numArrayParser).run
 
@@ -1476,11 +1476,11 @@ object SinkSpec extends ZIOBaseSpec {
           ZSink.pull1(IO.failNow("Input was empty")) {
             case a if a.isWhitespace => start
             case '['                 => elements
-            case _                   => ZSink.fail("Expected '['")
+            case _                   => ZSink.failNow("Expected '['")
           }
 
-        val src1         = ZStreamChunk.succeed(Chunk.fromArray(Array('[', '1', '2')))
-        val src2         = ZStreamChunk.succeed(Chunk.fromArray(Array('3', ',', '4', ']')))
+        val src1         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('[', '1', '2')))
+        val src2         = ZStreamChunk.succeedNow(Chunk.fromArray(Array('3', ',', '4', ']')))
         val partialParse = src1.run(start.chunked).run
         val fullParse    = (src1 ++ src2).run(start.chunked).run
 
