@@ -3208,6 +3208,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
     fromEffect(iterator).flatMap(StreamEffect.fromJavaIterator)
 
   /**
+   * Creates a stream from from an effect producing a value of type 'Iterable[A]'
+   */
+  def fromIterableEffect[R, E, A](zio: ZIO[R, E, Iterable[A]]): ZStream[R, E, A] = 
+    ZStream.unwrap {
+      zio.fold(ZStream.fail(_), StreamEffect.fromIterable(_))
+    }
+
+  /**
    * Creates a stream from a managed iterator
    */
   def fromIteratorManaged[R, E, A](iterator: ZManaged[R, E, Iterator[A]]): ZStream[R, E, A] =
