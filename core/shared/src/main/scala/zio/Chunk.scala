@@ -637,10 +637,9 @@ sealed trait Chunk[+A] { self =>
       i += 1
     }
 
-    array.map(
-      array =>
-        if (array == null) Chunk.empty
-        else Chunk.fromArray(array)
+    array.map(array =>
+      if (array == null) Chunk.empty
+      else Chunk.fromArray(array)
     )
   }
 
@@ -942,10 +941,9 @@ object Chunk {
         i += 1
       }
 
-      dest.map(
-        array =>
-          if (array == null) Chunk.empty
-          else Chunk.Slice(Chunk.Arr(array), 0, j)
+      dest.map(array =>
+        if (array == null) Chunk.empty
+        else Chunk.Slice(Chunk.Arr(array), 0, j)
       )
     }
 
@@ -1012,10 +1010,9 @@ object Chunk {
         i += 1
       }
 
-      dest.map(
-        array =>
-          if (array == null) Chunk.empty
-          else Chunk.Slice(Chunk.Arr(array), 0, j)
+      dest.map(array =>
+        if (array == null) Chunk.empty
+        else Chunk.Slice(Chunk.Arr(array), 0, j)
       )
     }
 

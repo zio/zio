@@ -167,12 +167,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def bracketOnError[R1 <: R, E1 >: E, B](
     release: A => URIO[R1, Any]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracketExit(self)(
-      (a: A, eb: Exit[E1, B]) =>
-        eb match {
-          case Exit.Failure(_) => release(a)
-          case _               => ZIO.unit
-        }
+    ZIO.bracketExit(self)((a: A, eb: Exit[E1, B]) =>
+      eb match {
+        case Exit.Failure(_) => release(a)
+        case _               => ZIO.unit
+      }
     )(use)
 
   /**
@@ -226,12 +225,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def bracketForkOnError[R1 <: R, E1 >: E, B](
     release: A => URIO[R1, Any]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracketForkExit(self)(
-      (a: A, eb: Exit[E1, B]) =>
-        eb match {
-          case Exit.Failure(_) => release(a)
-          case _               => ZIO.unit
-        }
+    ZIO.bracketForkExit(self)((a: A, eb: Exit[E1, B]) =>
+      eb match {
+        case Exit.Failure(_) => release(a)
+        case _               => ZIO.unit
+      }
     )(use)
 
   /**
@@ -397,21 +395,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * logic built on `ensuring`, see `ZIO#bracket`.
    */
   final def ensuring[R1 <: R](finalizer: URIO[R1, Any]): ZIO[R1, E, A] =
-    ZIO.uninterruptibleMask(
-      restore =>
-        restore(self)
-          .foldCauseM(
-            cause1 =>
-              finalizer.foldCauseM[R1, E, Nothing](
-                cause2 => ZIO.halt(cause1 ++ cause2),
-                _ => ZIO.halt(cause1)
-              ),
-            value =>
-              finalizer.foldCauseM[R1, E, A](
-                cause1 => ZIO.halt(cause1),
-                _ => ZIO.succeed(value)
-              )
-          )
+    ZIO.uninterruptibleMask(restore =>
+      restore(self)
+        .foldCauseM(
+          cause1 =>
+            finalizer.foldCauseM[R1, E, Nothing](
+              cause2 => ZIO.halt(cause1 ++ cause2),
+              _ => ZIO.halt(cause1)
+            ),
+          value =>
+            finalizer.foldCauseM[R1, E, A](
+              cause1 => ZIO.halt(cause1),
+              _ => ZIO.succeed(value)
+            )
+        )
     )
 
   /**
@@ -589,12 +586,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * } yield a
    * }}}
    */
-  final def fork: URIO[R, Fiber[E, A]] = new ZIO.Fork(self)
+  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self)
 
   /**
    * Forks the effect into a new independent fiber, with the specified name.
    */
-  final def forkAs(name: String): URIO[R, Fiber[E, A]] =
+  final def forkAs(name: String): URIO[R, Fiber.Runtime[E, A]] =
     (Fiber.fiberName.set(Some(name)) *> self).fork
 
   /**
@@ -605,7 +602,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * forked fiber will be interrupted if the forked fiber is interrupted,
    * assuming the effect is in a non-daemon region (the default).
    */
-  final def forkDaemon: URIO[R, Fiber[E, A]] =
+  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] =
     ZIO.daemonMask(restore => restore(self).fork)
 
   /**
@@ -613,20 +610,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * execute the effect in the fiber, while ensuring its interruption when
    * the effect supplied to [[ZManaged#use]] completes.
    */
-  final def forkManaged: ZManaged[R, Nothing, Fiber[E, A]] =
+  final def forkManaged: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
     toManaged_.fork
 
   /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
-  final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber[E, A]] =
+  final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber.Runtime[E, A]] =
     self.on(ec).fork
 
   /**
    * Like [[fork]] but handles an error with the provided handler.
    */
-  final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber[E, A]] =
-    onError(new ZIO.FoldCauseMFailureFn(handler)).run.fork.map(_.mapM(IO.done))
+  final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber.Runtime[E, A]] =
+    onError(new ZIO.FoldCauseMFailureFn(handler)).fork
 
   /**
    * Unwraps the optional error, defaulting to the provided value.
@@ -783,12 +780,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * effect if it exists. The provided effect will not be interrupted.
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any]): ZIO[R1, E, A] =
-    ZIO.bracketExit(ZIO.unit)(
-      (_, eb: Exit[E, A]) =>
-        eb match {
-          case Exit.Success(_)     => ZIO.unit
-          case Exit.Failure(cause) => cleanup(cause)
-        }
+    ZIO.bracketExit(ZIO.unit)((_, eb: Exit[E, A]) =>
+      eb match {
+        case Exit.Success(_)     => ZIO.unit
+        case Exit.Failure(cause) => cleanup(cause)
+      }
     )(_ => self)
 
   /**
@@ -833,12 +829,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * a defect or because of interruption.
    */
   final def onTermination[R1 <: R](cleanup: Cause[Nothing] => URIO[R1, Any]): ZIO[R1, E, A] =
-    ZIO.bracketExit(ZIO.unit)(
-      (_, eb: Exit[E, A]) =>
-        eb match {
-          case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
-          case _                   => ZIO.unit
-        }
+    ZIO.bracketExit(ZIO.unit)((_, eb: Exit[E, A]) =>
+      eb match {
+        case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
+        case _                   => ZIO.unit
+      }
     )(_ => self)
 
   /**
@@ -1060,10 +1055,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         a =>
           promise
             .succeed(a -> winner)
-            .flatMap(
-              set =>
-                if (set) fibers.foldLeft(IO.unit)((io, f) => if (f eq winner) io else io <* f.interrupt)
-                else ZIO.unit
+            .flatMap(set =>
+              if (set) fibers.foldLeft(IO.unit)((io, f) => if (f eq winner) io else io <* f.interrupt)
+              else ZIO.unit
             )
       )
 
@@ -1110,20 +1104,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
     ZIO.descriptor
       .map(_.id)
-      .flatMap(
-        parentFiberId =>
-          raceWith(that)(
-            (exit, right) =>
-              exit.foldM[Any, E1, Either[A, B]](
-                _ => right.join.map(Right(_)),
-                a => ZIO.succeedLeft(a) <* right.interruptAs(parentFiberId)
-              ),
-            (exit, left) =>
-              exit.foldM[Any, E1, Either[A, B]](
-                _ => left.join.map(Left(_)),
-                b => ZIO.succeedRight(b) <* left.interruptAs(parentFiberId)
-              )
-          )
+      .flatMap(parentFiberId =>
+        raceWith(that)(
+          (exit, right) =>
+            exit.foldM[Any, E1, Either[A, B]](
+              _ => right.join.map(Right(_)),
+              a => ZIO.succeedLeft(a) <* right.interruptAs(parentFiberId)
+            ),
+          (exit, left) =>
+            exit.foldM[Any, E1, Either[A, B]](
+              _ => left.join.map(Left(_)),
+              b => ZIO.succeedRight(b) <* left.interruptAs(parentFiberId)
+            )
+        )
       )
       .refailWithTrace
 
@@ -1478,7 +1471,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * completes before the timeout or `Left` with the interrupting fiber
    * otherwise.
    */
-  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber[E, A], A]] =
+  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber.Runtime[E, A], A]] =
     raceWith(ZIO.sleep(d))(
       (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
       (_, fiber) => fiber.interrupt.flatMap(ZIO.done).fork.map(Left(_))
@@ -1678,15 +1671,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       }
 
     val g = (b: B, a: A) => f(a, b)
-    ZIO.fiberId.flatMap(
-      parentFiberId =>
-        (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).fork.flatMap {
-          f =>
-            f.await.flatMap { exit =>
-              if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
-              else ZIO.done(exit)
-            }
+    ZIO.fiberId.flatMap(parentFiberId =>
+      (self raceWith that)(coordinate(parentFiberId, f, true), coordinate(parentFiberId, g, false)).fork.flatMap { f =>
+        f.await.flatMap { exit =>
+          if (exit.succeeded) f.inheritRefs *> ZIO.done(exit)
+          else ZIO.done(exit)
         }
+      }
     )
   }
 
@@ -1859,16 +1850,15 @@ object ZIO {
     release: (A, Exit[E, B]) => URIO[R, Any],
     use: A => ZIO[R, E, B]
   ): ZIO[R, E, B] =
-    ZIO.uninterruptibleMask[R, E, B](
-      restore =>
-        acquire.flatMap(ZIOFn(traceAs = use) { a =>
-          restore(use(a)).run.flatMap(ZIOFn(traceAs = release) { e =>
-            release(a, e).foldCauseM(
-              cause2 => ZIO.halt(e.fold(_ ++ cause2, _ => cause2)),
-              _ => ZIO.done(e)
-            )
-          })
+    ZIO.uninterruptibleMask[R, E, B](restore =>
+      acquire.flatMap(ZIOFn(traceAs = use) { a =>
+        restore(use(a)).run.flatMap(ZIOFn(traceAs = release) { e =>
+          release(a, e).foldCauseM(
+            cause2 => ZIO.halt(e.fold(_ ++ cause2, _ => cause2)),
+            _ => ZIO.done(e)
+          )
         })
+      })
     )
 
   /**
@@ -2077,11 +2067,11 @@ object ZIO {
     register: (ZIO[R, E, A] => Unit) => Unit,
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] =
-    effectAsyncMaybe(ZIOFn(register)((callback: ZIO[R, E, A] => Unit) => {
+    effectAsyncMaybe(ZIOFn(register) { (callback: ZIO[R, E, A] => Unit) =>
       register(callback)
 
       None
-    }), blockingOn)
+    }, blockingOn)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -2107,7 +2097,7 @@ object ZIO {
       case (started, cancel) =>
         flatten {
           effectAsyncMaybe(
-            ZIOFn(register)((k: UIO[ZIO[R, E, A]] => Unit) => {
+            ZIOFn(register) { (k: UIO[ZIO[R, E, A]] => Unit) =>
               started.set(true)
 
               try register(io => k(ZIO.succeed(io))) match {
@@ -2116,7 +2106,7 @@ object ZIO {
                   None
                 case Right(io) => Some(ZIO.succeed(io))
               } finally if (!cancel.isSet) cancel.set(ZIO.unit)
-            }),
+            },
             blockingOn
           )
         }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
@@ -2322,11 +2312,13 @@ object ZIO {
         succeed  <- Ref.make(0)
         fibers <- ZIO.traverse(as) {
                    f(_)
-                     .foldCauseM(c => causes.update(_ && c) *> result.fail(()), _ => {
-                       (succeed.update(_ + 1) >>= { succeed =>
-                         ZIO.when(succeed == size)(result.succeed(()))
-                       }).uninterruptible
-                     })
+                     .foldCauseM(
+                       c => causes.update(_ && c) *> result.fail(()),
+                       _ =>
+                         (succeed.update(_ + 1) >>= { succeed =>
+                           ZIO.when(succeed == size)(result.succeed(()))
+                         }).uninterruptible
+                     )
                      .fork
                  }
         interrupter = result.await
@@ -2382,8 +2374,8 @@ object ZIO {
    * Returns an effect that forks all of the specified values, and returns a
    * composite fiber that produces a list of their results, in order.
    */
-  def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber[E, List[A]]] =
-    as.foldRight[URIO[R, Fiber[E, List[A]]]](succeed(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
+  def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber.Synthetic[E, List[A]]] =
+    as.foldRight[URIO[R, Fiber.Synthetic[E, List[A]]]](succeed(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
       asFiberIO.zip(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
@@ -3128,9 +3120,7 @@ object ZIO {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
       self
         .map(f)
-        .sandboxWith[R with Clock, E, B1](
-          io => ZIO.absolve(io.either race ZIO.succeedRight(b).delay(duration))
-        )
+        .sandboxWith[R with Clock, E, B1](io => ZIO.absolve(io.either race ZIO.succeedRight(b).delay(duration)))
   }
 
   final class BracketAcquire_[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {
@@ -3371,7 +3361,7 @@ object ZIO {
     def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
-  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A]) extends URIO[R, Fiber[E, A]] {
+  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A]) extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }
 

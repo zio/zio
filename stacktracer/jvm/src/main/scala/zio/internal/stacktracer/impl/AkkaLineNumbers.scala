@@ -294,7 +294,8 @@ object AkkaLineNumbers {
         } match {
         case (Int.MaxValue, 0) => None
         case other             => Some(other)
-      } else {
+      }
+    else {
       if (debug) println(s"LNB:   (skipped)")
       var i = 1
       while (i <= count) {

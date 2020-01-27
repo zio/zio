@@ -27,12 +27,11 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
-  val sendSummary: SendSummary = SendSummary.fromSendM(
-    summary =>
-      ZIO.effectTotal {
-        summaries.updateAndGet(_ :+ summary)
-        ()
-      }
+  val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
+    ZIO.effectTotal {
+      summaries.updateAndGet(_ :+ summary)
+      ()
+    }
   )
 
   def done(): String = {

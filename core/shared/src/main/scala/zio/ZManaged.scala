@@ -417,7 +417,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * and provides that fiber. The finalizer for this value will interrupt the fiber
    * and run the original finalizer.
    */
-  def fork: ZManaged[R, Nothing, Fiber[E, A]] =
+  def fork: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
     ZManaged {
       for {
         finalizer <- Ref.make[Exit[Any, Any] => ZIO[R, Nothing, Any]](_ => UIO.unit)
@@ -517,8 +517,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged {
       Ref.make[Exit[Any, Any] => ZIO[R1, Nothing, Any]](_ => UIO.unit).map { finalizer =>
         Reservation(
-          acquire = ZIO.bracketExit(self.reserve)(
-            (res, exitA: Exit[E, A]) => finalizer.set(exitU => res.release(exitU).ensuring(cleanup(exitA)))
+          acquire = ZIO.bracketExit(self.reserve)((res, exitA: Exit[E, A]) =>
+            finalizer.set(exitU => res.release(exitU).ensuring(cleanup(exitA)))
           )(_.acquire),
           release = e => finalizer.get.flatMap(f => f(e))
         )
@@ -533,8 +533,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
     ZManaged {
       Ref.make[Exit[Any, Any] => ZIO[R1, Nothing, Any]](_ => UIO.unit).map { finalizer =>
         Reservation(
-          acquire = ZIO.bracketExit(self.reserve)(
-            (res, exitA: Exit[E, A]) => finalizer.set(exitU => cleanup(exitA).ensuring(res.release(exitU)))
+          acquire = ZIO.bracketExit(self.reserve)((res, exitA: Exit[E, A]) =>
+            finalizer.set(exitU => cleanup(exitA).ensuring(res.release(exitU)))
           )(_.acquire),
           release = e => finalizer.get.flatMap(f => f(e))
         )
@@ -602,8 +602,8 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
           res      <- reserve
           _        <- finalizer.set(res.release)
           resource <- restore(res.acquire)
-        } yield ZManaged.make(ZIO.succeed(resource))(
-          _ => res.release(Exit.Success(resource)).provide(env) *> finalizer.set(_ => ZIO.unit)
+        } yield ZManaged.make(ZIO.succeed(resource))(_ =>
+          res.release(Exit.Success(resource)).provide(env) *> finalizer.set(_ => ZIO.unit)
         )
       }
     }
@@ -854,12 +854,11 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
           .raceWith(ZIO.sleep(d))(
             {
               case (leftDone, rightFiber) =>
-                rightFiber.interrupt.flatMap(
-                  _ =>
-                    leftDone.foldM(
-                      ZIO.halt,
-                      succ => clock.nanoTime.map(end => Some((Duration.fromNanos(end - start), succ)))
-                    )
+                rightFiber.interrupt.flatMap(_ =>
+                  leftDone.foldM(
+                    ZIO.halt,
+                    succ => clock.nanoTime.map(end => Some((Duration.fromNanos(end - start), succ)))
+                  )
                 )
             }, {
               case (exit, leftFiber) =>
@@ -1555,8 +1554,8 @@ object ZManaged {
                     release  = res.release.andThen(_.provide(env))
                     _        <- finalizers.update(_ + release)
                   } yield ZManaged
-                    .make(ZIO.succeed(resource))(
-                      _ => release(Exit.Success(resource)).ensuring(finalizers.update(_ - release))
+                    .make(ZIO.succeed(resource))(_ =>
+                      release(Exit.Success(resource)).ensuring(finalizers.update(_ - release))
                     )
                 }
             }
