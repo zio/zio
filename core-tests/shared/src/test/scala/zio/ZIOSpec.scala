@@ -2665,7 +2665,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("returns errors in correct order") {
         val as = List(2, 4, 6, 3, 5, 6)
         for {
-          results <- ZIO.validateFirst(as)(ZIO.fail).flip
+          results <- ZIO.validateFirst(as)(ZIO.failNow).flip
         } yield assert(results)(equalTo(List(2, 4, 6, 3, 5, 6)))
       }
     ),
