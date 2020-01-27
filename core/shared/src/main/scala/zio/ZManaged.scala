@@ -1542,7 +1542,7 @@ object ZManaged {
   /**
    * Creates a scope in which resources can be safely preallocated.
    */
-  def preallocationScope[R]: ZManaged[R, Nothing, PreallocationScope] =
+  val preallocationScope: ZManaged[Any, Nothing, PreallocationScope] =
     scope.map { allocate =>
       new PreallocationScope {
         def apply[R, E, A](managed: ZManaged[R, E, A]) =
