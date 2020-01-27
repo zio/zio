@@ -174,6 +174,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Alias for [[Exit.foreach]]
    */
+  @deprecated("use foreach", "1.0.0")
   final def traverse[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
     foreach(f)
 
@@ -250,6 +251,7 @@ object Exit extends Serializable {
   /**
    *  Alias for [[Exit.collectAll]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAll[E, A](exits)
 
@@ -264,6 +266,7 @@ object Exit extends Serializable {
   /**
    *  Alias for [[Exit.collectAllPar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAllPar[E, A](exits)
 

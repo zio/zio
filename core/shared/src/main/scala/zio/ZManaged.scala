@@ -417,7 +417,7 @@ final class ZManaged[-R, +E, +A] private (reservation: ZIO[R, E, Reservation[R, 
    * and provides that fiber. The finalizer for this value will interrupt the fiber
    * and run the original finalizer.
    */
-  def fork: ZManaged[R, Nothing, Fiber[E, A]] =
+  def fork: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
     ZManaged {
       for {
         finalizer <- Ref.make[Exit[Any, Any] => ZIO[R, Nothing, Any]](_ => UIO.unit)
@@ -1047,8 +1047,12 @@ object ZManaged {
       ZManaged.environment.flatMap(f)
   }
 
-  trait Scope {
+  trait PreallocationScope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
+  }
+
+  trait Scope {
+    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (A, UIO[Any])]
   }
 
   /**
@@ -1569,35 +1573,14 @@ object ZManaged {
   /**
    * Creates a scope in which resources can be safely preallocated.
    */
-  def scope[R]: ZManaged[R, Nothing, Scope] =
-    ZManaged {
-      // we abuse the fact that Function1 will use reference equality
-      Ref.make(Set.empty[Exit[Any, Any] => ZIO[R, Nothing, Any]]).map { finalizers =>
-        Reservation(
-          acquire = ZIO.succeed {
-            new Scope {
-              override def apply[R, E, A](managed: ZManaged[R, E, A]) =
-                ZIO.uninterruptibleMask { restore =>
-                  for {
-                    env      <- ZIO.environment[R]
-                    res      <- managed.reserve
-                    resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
-                    release  = res.release.andThen(_.provide(env))
-                    _        <- finalizers.update(_ + release)
-                  } yield ZManaged
-                    .make(ZIO.succeedNow(resource))(_ =>
-                      release(Exit.Success(resource)).ensuring(finalizers.update(_ - release))
-                    )
-                }
-            }
-          },
-          release = exitU =>
-            for {
-              fs    <- finalizers.get
-              exits <- ZIO.foreachPar(fs)(_(exitU).run)
-              _     <- ZIO.doneNow(Exit.collectAllPar(exits).getOrElse(Exit.unit))
-            } yield ()
-        )
+  val preallocationScope: Managed[Nothing, PreallocationScope] =
+    scope.map { allocate =>
+      new PreallocationScope {
+        def apply[R, E, A](managed: ZManaged[R, E, A]) =
+          allocate(managed).map {
+            case (res, release) =>
+              ZManaged.make(ZIO.succeedNow(res))(_ => release)
+          }
       }
     }
 
@@ -1697,20 +1680,58 @@ object ZManaged {
     v.sandbox
 
   /**
+   * Creates a scope in which resources can be safely allocated into together with a release action.
+   */
+  def scope: Managed[Nothing, Scope] =
+    ZManaged {
+      // we abuse the fact that Function1 will use reference equality
+      Ref.make(Set.empty[Exit[Any, Any] => UIO[Any]]).map { finalizers =>
+        Reservation(
+          acquire = ZIO.succeed {
+            new Scope {
+              override def apply[R, E, A](managed: ZManaged[R, E, A]) =
+                ZIO.uninterruptibleMask { restore =>
+                  for {
+                    env      <- ZIO.environment[R]
+                    res      <- managed.reserve
+                    resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
+                    release  = res.release.andThen(_.provide(env))
+                    _        <- finalizers.update(_ + release)
+                    done <- Ref
+                             .make(release(Exit.Success(resource)).ensuring(finalizers.update(_ - release)))
+                             .map(_.modify((_, ZIO.unit)).flatten)
+                  } yield (resource, done)
+                }
+            }
+          },
+          release = exitU =>
+            for {
+              fs    <- finalizers.get
+              exits <- ZIO.foreachPar(fs)(_(exitU).run)
+              _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+            } yield ()
+        )
+      }
+    }
+
+  /**
    *  Alias for [[ZManaged.collectAll]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[R, E, A1, A2](ms: Iterable[ZManaged[R, E, A2]]): ZManaged[R, E, List[A2]] =
     collectAll[R, E, A1, A2](ms)
 
   /**
    *  Alias for [[ZManaged.collectAllPar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[R, E, A](as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
     collectAllPar[R, E, A](as)
 
   /**
    *  Alias for [[ZManaged.collectAllParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
     collectAllParN[R, E, A](n)(as)
 
@@ -1789,18 +1810,21 @@ object ZManaged {
   /**
    * Alias for [[ZManaged.foreach]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
     foreach[R, E, A1, A2](as)(f)
 
   /**
    * Alias for [[ZManaged.foreach_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     foreach_[R, E, A](as)(f)
 
   /**
    * Alias for [[ZManaged.foreachPar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, E, A1, A2](
     as: Iterable[A1]
   )(
@@ -1811,12 +1835,14 @@ object ZManaged {
   /**
    * Alias for [[ZManaged.foreachPar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     foreachPar_[R, E, A](as)(f)
 
   /**
    * Alias for [[ZManaged.foreachParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[R, E, A1, A2](
     n: Int
   )(
@@ -1829,6 +1855,7 @@ object ZManaged {
   /**
    * Alias for [[ZManaged.foreachParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[R, E, A](
     n: Int
   )(

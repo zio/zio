@@ -238,6 +238,12 @@ object URIO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
+   * @see [[zio.ZIO.filter]]
+   */
+  def filter[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, List[A]] =
+    ZIO.filter(as)(f)
+
+  /**
    * @see [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[R, A](
@@ -302,7 +308,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.forkAll]]
    */
-  def forkAll[R, A](as: Iterable[URIO[R, A]]): ZIO[R, Nothing, Fiber[Nothing, List[A]]] =
+  def forkAll[R, A](as: Iterable[URIO[R, A]]): ZIO[R, Nothing, Fiber.Synthetic[Nothing, List[A]]] =
     ZIO.forkAll(as)
 
   /**
@@ -536,16 +542,19 @@ object URIO {
   /**
    *  [[zio.ZIO.sequence]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[R, A](in: Iterable[URIO[R, A]]): URIO[R, List[A]] = ZIO.sequence(in)
 
   /**
    *  [[zio.ZIO.sequencePar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[R, A](as: Iterable[URIO[R, A]]): URIO[R, List[A]] = ZIO.sequencePar(as)
 
   /**
    *  [[zio.ZIO.sequenceParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[R, A](n: Int)(as: Iterable[URIO[R, A]]): URIO[R, List[A]] = ZIO.sequenceParN(n)(as)
 
   /**
@@ -566,32 +575,38 @@ object URIO {
   /**
    * @see [[zio.ZIO.traverse]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[R, A, B](in: Iterable[A])(f: A => URIO[R, B]): URIO[R, List[B]] = ZIO.traverse(in)(f)
 
   /**
    * @see [[zio.ZIO.traversePar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, A, B](as: Iterable[A])(fn: A => URIO[R, B]): URIO[R, List[B]] = ZIO.traversePar(as)(fn)
 
   /**
    * Alias for [[ZIO.foreachParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[R, A, B](n: Int)(as: Iterable[A])(fn: A => URIO[R, B]): URIO[R, List[B]] =
     ZIO.traverseParN(n)(as)(fn)
 
   /**
    * @see [[zio.ZIO.traverse_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[R, A](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] = ZIO.traverse_(as)(f)
 
   /**
    * @see [[zio.ZIO.traversePar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, A](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] = ZIO.traversePar_(as)(f)
 
   /**
    * @see [[zio.ZIO.traverseParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[R, A](n: Int)(as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.traverseParN_(n)(as)(f)
 

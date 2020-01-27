@@ -30,8 +30,8 @@ object SampleSpec extends ZIOBaseSpec {
       def f(n: Int): UIO[Int] = ZIO.succeedNow(n + 2)
       def g(n: Int): UIO[Int] = ZIO.succeedNow(n * 3)
       val result = equalEffects(
-        sample.traverse(a => f(a).flatMap(g)),
-        sample.traverse(f).flatMap(_.traverse(g))
+        sample.foreach(a => f(a).flatMap(g)),
+        sample.foreach(f).flatMap(_.foreach(g))
       )
       assertM(result)(isTrue)
     }

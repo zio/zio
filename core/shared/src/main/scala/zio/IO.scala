@@ -275,6 +275,12 @@ object IO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
+   * @see [[zio.ZIO.filter]]
+   */
+  def filter[E, A](as: Iterable[A])(f: A => IO[E, Boolean]): IO[E, List[A]] =
+    ZIO.filter(as)(f)
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[E, A](
@@ -339,7 +345,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[E, A](as: Iterable[IO[E, A]]): UIO[Fiber[E, List[A]]] =
+  def forkAll[E, A](as: Iterable[IO[E, A]]): UIO[Fiber.Synthetic[E, List[A]]] =
     ZIO.forkAll(as)
 
   /**
@@ -540,28 +546,28 @@ object IO {
   val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
-   * @see See [[zio.ZIO.partitionM]]
+   * @see See [[zio.ZIO.partition]]
    */
-  def partitionM[E, A, B](
+  def partition[E, A, B](
     in: Iterable[A]
   )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
-    ZIO.partitionM(in)(f)
+    ZIO.partition(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMPar]]
+   * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionMPar[E, A, B](
+  def partitionPar[E, A, B](
     in: Iterable[A]
   )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
-    ZIO.partitionMPar(in)(f)
+    ZIO.partitionPar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMParN]]
+   * @see See [[zio.ZIO.partitionParN]]
    */
-  def partitionMParN[E, A, B](n: Int)(
+  def partitionParN[E, A, B](n: Int)(
     in: Iterable[A]
   )(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[Nothing, (List[E], List[B])] =
-    ZIO.partitionMParN(n)(in)(f)
+    ZIO.partitionParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -611,18 +617,21 @@ object IO {
   /**
    *  See [[zio.ZIO.sequence]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.sequence(in)
 
   /**
    *  See [[zio.ZIO.sequencePar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.sequencePar(as)
 
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     ZIO.sequenceParN(n)(as)
 
@@ -654,18 +663,21 @@ object IO {
   /**
    * @see See [[zio.ZIO.traverse]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
     ZIO.traverse(in)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     ZIO.traversePar(as)(fn)
 
   /**
    * Alias for [[ZIO.foreachParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[E, A, B](
     n: Int
   )(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
@@ -674,18 +686,21 @@ object IO {
   /**
    * @see See [[zio.ZIO.traverse_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traverse_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.traversePar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traverseParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[E, A](
     n: Int
   )(as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
@@ -719,28 +734,28 @@ object IO {
   def untraced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.untraced(zio)
 
   /**
-   * @see See [[zio.ZIO.validateM]]
+   * @see See [[zio.ZIO.validate]]
    */
-  def validateM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
-    ZIO.validateM(in)(f)
+  def validate[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
+    ZIO.validate(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validateMPar]]
+   * @see See [[zio.ZIO.validatePar]]
    */
-  def validateMPar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
-    ZIO.validateMPar(in)(f)
+  def validatePar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[::[E], List[B]] =
+    ZIO.validatePar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validateFirstM]]
+   * @see See [[zio.ZIO.validateFirst]]
    */
-  def validateFirstM[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
-    ZIO.validateFirstM(in)(f)
+  def validateFirst[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+    ZIO.validateFirst(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validateFirstMPar]]
+   * @see See [[zio.ZIO.validateFirstPar]]
    */
-  def validateFirstMPar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
-    ZIO.validateFirstMPar(in)(f)
+  def validateFirstPar[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): IO[List[E], B] =
+    ZIO.validateFirstPar(in)(f)
 
   /**
    * @see See [[zio.ZIO.when]]

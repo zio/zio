@@ -271,6 +271,12 @@ object RIO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
+   * @see [[zio.ZIO.filter]]
+   */
+  def filter[R, A](as: Iterable[A])(f: A => RIO[R, Boolean]): RIO[R, List[A]] =
+    ZIO.filter(as)(f)
+
+  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[R, A](
@@ -335,7 +341,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[R, A](as: Iterable[RIO[R, A]]): ZIO[R, Nothing, Fiber[Throwable, List[A]]] =
+  def forkAll[R, A](as: Iterable[RIO[R, A]]): ZIO[R, Nothing, Fiber.Synthetic[Throwable, List[A]]] =
     ZIO.forkAll(as)
 
   /**
@@ -525,24 +531,24 @@ object RIO {
   val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
-   * @see See [[zio.ZIO.partitionM]]
+   * @see See [[zio.ZIO.partition]]
    */
-  def partitionM[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
-    ZIO.partitionM(in)(f)
+  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+    ZIO.partition(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMPar]]
+   * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionMPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
-    ZIO.partitionMPar(in)(f)
+  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+    ZIO.partitionPar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMParN]]
+   * @see See [[zio.ZIO.partitionParN]]
    */
-  def partitionMParN[R, A, B](n: Int)(
+  def partitionParN[R, A, B](n: Int)(
     in: Iterable[A]
   )(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
-    ZIO.partitionMParN(n)(in)(f)
+    ZIO.partitionParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.provide]]
@@ -620,18 +626,21 @@ object RIO {
   /**
    *  See [[zio.ZIO.sequence]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[R, A](in: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequence(in)
 
   /**
    *  See [[zio.ZIO.sequencePar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[R, A](as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequencePar(as)
 
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequenceParN(n)(as)
 
@@ -654,18 +663,21 @@ object RIO {
   /**
    * @see See [[zio.ZIO.traverse]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.traverse(in)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, A, B](as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.traversePar(as)(fn)
 
   /**
    * Alias for [[ZIO.foreachParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[R, A, B](
     n: Int
   )(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
@@ -674,18 +686,21 @@ object RIO {
   /**
    * @see See [[zio.ZIO.traverse_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.traverse_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.traversePar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traverseParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[R, A](
     n: Int
   )(as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =

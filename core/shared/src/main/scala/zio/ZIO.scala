@@ -586,12 +586,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * } yield a
    * }}}
    */
-  final def fork: URIO[R, Fiber[E, A]] = new ZIO.Fork(self)
+  final def fork: URIO[R, Fiber.Runtime[E, A]] = new ZIO.Fork(self)
 
   /**
    * Forks the effect into a new independent fiber, with the specified name.
    */
-  final def forkAs(name: String): URIO[R, Fiber[E, A]] =
+  final def forkAs(name: String): URIO[R, Fiber.Runtime[E, A]] =
     (Fiber.fiberName.set(Some(name)) *> self).fork
 
   /**
@@ -602,7 +602,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * forked fiber will be interrupted if the forked fiber is interrupted,
    * assuming the effect is in a non-daemon region (the default).
    */
-  final def forkDaemon: URIO[R, Fiber[E, A]] =
+  final def forkDaemon: URIO[R, Fiber.Runtime[E, A]] =
     ZIO.daemonMask(restore => restore(self).fork)
 
   /**
@@ -610,20 +610,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * execute the effect in the fiber, while ensuring its interruption when
    * the effect supplied to [[ZManaged#use]] completes.
    */
-  final def forkManaged: ZManaged[R, Nothing, Fiber[E, A]] =
+  final def forkManaged: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
     toManaged_.fork
 
   /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
-  final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber[E, A]] =
+  final def forkOn(ec: ExecutionContext): ZIO[R, E, Fiber.Runtime[E, A]] =
     self.on(ec).fork
 
   /**
    * Like [[fork]] but handles an error with the provided handler.
    */
-  final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber[E, A]] =
-    onError(new ZIO.FoldCauseMFailureFn(handler)).run.fork.map(_.mapM(IO.doneNow))
+  final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber.Runtime[E, A]] =
+    onError(new ZIO.FoldCauseMFailureFn(handler)).fork
 
   /**
    * Unwraps the optional error, defaulting to the provided value.
@@ -1471,7 +1471,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * completes before the timeout or `Left` with the interrupting fiber
    * otherwise.
    */
-  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber[E, A], A]] =
+  final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber.Runtime[E, A], A]] =
     raceWith(ZIO.sleep(d))(
       (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
       (_, fiber) => fiber.interrupt.flatMap(ZIO.doneNow).fork.map(Left(_))
@@ -2224,6 +2224,14 @@ object ZIO {
   val fiberId: UIO[Fiber.Id] = ZIO.descriptor.map(_.id)
 
   /**
+   * Filters the collection using the specified effectual predicate.
+   */
+  def filter[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
+    as.foldRight[ZIO[R, E, List[A]]](ZIO.succeed(Nil)) { (a, zio) =>
+      f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
+    }
+
+  /**
    * Returns an effect that races this effect with all the specified effects,
    * yielding the value of the first effect to succeed with a value.
    * Losers of the race will be interrupted immediately
@@ -2330,26 +2338,33 @@ object ZIO {
     else {
       val size = as.size
       for {
-        parentId <- ZIO.fiberId
-        causes   <- Ref.make[Cause[E]](Cause.empty)
-        result   <- Promise.make[Unit, Unit]
-        succeed  <- Ref.make(0)
-        fibers <- ZIO.traverse(as) {
+        parentId       <- ZIO.fiberId
+        causes         <- Ref.make[Cause[E]](Cause.empty)
+        result         <- Promise.make[Nothing, Boolean]
+        failureTrigger <- Promise.make[Unit, Unit]
+        count          <- Ref.make(0)
+        fibers <- ZIO.foreach(as) {
                    f(_)
-                     .foldCauseM(
-                       c => causes.update(_ && c) *> result.fail(()),
-                       _ =>
-                         (succeed.update(_ + 1) >>= { succeed =>
-                           ZIO.when(succeed == size)(result.succeed(()))
-                         }).uninterruptible
-                     )
+                     .tapCause(c => causes.update(_ && c) *> failureTrigger.fail(()))
+                     .ensuring {
+                       count.update(_ + 1) >>= { done =>
+                         ZIO.when(done == size) {
+                           result.complete(failureTrigger.succeed(()))
+                         }
+                       }
+                     }
                      .fork
                  }
-        interrupter = result.await
+        interrupter = failureTrigger.await
           .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
-          .toManaged_
-          .fork
-        _ <- interrupter.use_(result.await.foldM(_ => causes.get >>= ZIO.haltNow, _ => ZIO.unit).refailWithTrace)
+          .forkManaged
+        _ <- interrupter.use_ {
+              ZIO
+                .whenM(result.await.map(!_)) {
+                  causes.get >>= ZIO.haltNow
+                }
+                .refailWithTrace
+            }
       } yield ()
     }
 
@@ -2398,8 +2413,8 @@ object ZIO {
    * Returns an effect that forks all of the specified values, and returns a
    * composite fiber that produces a list of their results, in order.
    */
-  def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber[E, List[A]]] =
-    as.foldRight[URIO[R, Fiber[E, List[A]]]](succeed(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
+  def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber.Synthetic[E, List[A]]] =
+    as.foldRight[URIO[R, Fiber.Synthetic[E, List[A]]]](succeed(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
       asFiberIO.zip(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
@@ -2719,38 +2734,32 @@ object ZIO {
   val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
-   * Feeds elements of type `A` to a function f that returns an effect.
-   *
+   * Feeds elements of type `A` to a function `f` that returns an effect.
    * Collects all successes and failures in a tupled fashion.
    */
-  def partitionM[R, E, A, B](
+  def partition[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
-    ZIO.foldRight(in)(List.empty[E] -> List.empty[B]) {
-      case (a, (es, bs)) =>
-        f(a).fold(
-          e => (e :: es, bs),
-          b => (es, b :: bs)
-        )
-    }
+    ZIO.foreach(in)(f(_).either).map(partitionMap(_)(ZIO.identityFn))
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
-   * Collects all successes and failures in parallel and returns the result as a tuple.
-   *
+   * Collects all successes and failures in parallel and returns the result as
+   * a tuple.
    */
-  def partitionMPar[R, E, A, B](
+  def partitionPar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
     ZIO.foreachPar(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
-   * Collects all successes and failures in parallel and returns the result as a tuple.
+   * Collects all successes and failures in parallel and returns the result as
+   * a tuple.
    *
-   * Unlike `partitionMPar`, this method will use at most up to `n` fibers.
+   * Unlike [[partitionPar]], this method will use at most up to `n` fibers.
    */
-  def partitionMParN[R, E, A, B](n: Int)(
+  def partitionParN[R, E, A, B](n: Int)(
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, Nothing, (List[E], List[B])] =
     ZIO.foreachParN(n)(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
@@ -2857,18 +2866,21 @@ object ZIO {
   /**
    *  Alias for [[ZIO.collectAll]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[R, E, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     collectAll[R, E, A](in)
 
   /**
    *  Alias for [[ZIO.collectAllPar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     collectAllPar[R, E, A](as)
 
   /**
    *  Alias for [[ZIO.collectAllParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[R, E, A](n: Int)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     collectAllParN[R, E, A](n)(as)
 
@@ -2919,30 +2931,35 @@ object ZIO {
   /**
    * Alias for [[ZIO.foreach]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreach[R, E, A, B](in)(f)
 
   /**
    * Alias for [[ZIO.foreach_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreach_[R, E, A](as)(f)
 
   /**
    * Alias for [[ZIO.foreachPar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, E, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     foreachPar[R, E, A, B](as)(fn)
 
   /**
    * Alias for [[ZIO.foreachPar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     foreachPar_[R, E, A](as)(f)
 
   /**
    * Alias for [[ZIO.foreachParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[R, E, A, B](
     n: Int
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
@@ -2951,6 +2968,7 @@ object ZIO {
   /**
    * Alias for [[ZIO.foreachParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[R, E, A](
     n: Int
   )(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
@@ -2993,53 +3011,51 @@ object ZIO {
     zio.untraced
 
   /**
-   * Feeds elements of type A to f and accumulates all errors in error channel or successes in success channel.
+   * Feeds elements of type `A` to `f` and accumulates all errors in error
+   * channel or successes in success channel.
    *
-   * This combinator is lossy meaning that if there are errors all successes will be lost.
-   * To retain all information please use ZIO#partitionM
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partition]].
    */
-  def validateM[R, E, A, B](
+  def validate[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, ::[E], List[B]] =
-    partitionM(in)(f).flatMap {
+    partition(in)(f).flatMap {
       case (e :: es, _) => ZIO.failNow(::(e, es))
       case (_, bs)      => ZIO.succeedNow(bs)
     }
 
   /**
-   * Feeds elements of type A to f and accumulates, in parallel,
-   * all errors in error channel or successes in success channel.
+   * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
+   * in error channel or successes in success channel.
    *
-   * This combinator is lossy meaning that if there are errors all successes will be lost.
-   * To retain all information please use ZIO#partitionMPar
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partitionPar]].
    */
-  def validateMPar[R, E, A, B](
+  def validatePar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, ::[E], List[B]] =
-    partitionMPar(in)(f).flatMap {
+    partitionPar(in)(f).flatMap {
       case (e :: es, _) => ZIO.failNow(::(e, es))
       case (_, bs)      => ZIO.succeedNow(bs)
     }
 
   /**
-   * Feeds elements of type A to f until it succeeds. Returns first success or the accumulation of all errors.
+   * Feeds elements of type `A` to `f` until it succeeds. Returns first success
+   * or the accumulation of all errors.
    */
-  def validateFirstM[R, E, A, B](
+  def validateFirst[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], B] =
-    ZIO
-      .foldLeft(in)(List.empty[E]) {
-        case (es, a) =>
-          f(a).foldM(e => ZIO.succeedNow(e :: es), b => ZIO.failNow(b))
-      }
-      .flip
+    ZIO.foreach(in)(f(_).flip).flip
 
   /**
-   * Feeds elements of type A to f, in parallel, until it succeeds. Returns first success or the accumulation of all errors.
+   * Feeds elements of type `A` to `f`, in parallel, until it succeeds. Returns
+   * first success or the accumulation of all errors.
    *
    * In case of success all other running fibers are terminated.
    */
-  def validateFirstMPar[R, E, A, B](
+  def validateFirstPar[R, E, A, B](
     in: Iterable[A]
   )(f: A => ZIO[R, E, B])(implicit ev: CanFail[E]): ZIO[R, List[E], B] =
     ZIO.foreachPar(in)(f(_).flip).flip
@@ -3410,7 +3426,7 @@ object ZIO {
     def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
-  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A]) extends URIO[R, Fiber[E, A]] {
+  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A]) extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }
 
