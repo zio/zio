@@ -466,18 +466,21 @@ object UIO {
   /**
    *  See [[zio.ZIO.sequence]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[A](in: Iterable[UIO[A]]): UIO[List[A]] =
     ZIO.sequence(in)
 
   /**
    * @see See [[zio.ZIO.sequencePar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[A](as: Iterable[UIO[A]]): UIO[List[A]] =
     ZIO.sequencePar(as)
 
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[A](n: Int)(as: Iterable[UIO[A]]): UIO[List[A]] =
     ZIO.sequenceParN(n)(as)
 
@@ -504,30 +507,35 @@ object UIO {
   /**
    * @see See [[zio.ZIO.traverse]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[A, B](in: Iterable[A])(f: A => UIO[B]): UIO[List[B]] =
     ZIO.traverse(in)(f)
 
   /**
    * @see See [[zio.ZIO.traverse_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[A](as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.traverse_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[A, B](in: Iterable[A])(f: A => UIO[B]): UIO[List[B]] =
     ZIO.traversePar(in)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[A](as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.traversePar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traverseParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[A, B](
     n: Int
   )(as: Iterable[A])(fn: A => UIO[B]): UIO[List[B]] =
@@ -536,6 +544,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.traverseParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[A](
     n: Int
   )(as: Iterable[A])(f: A => UIO[Any]): UIO[Unit] =

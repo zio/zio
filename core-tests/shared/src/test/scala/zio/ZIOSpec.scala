@@ -1115,15 +1115,15 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("replicate")(
       testM("zero") {
         val lst: Iterable[UIO[Int]] = ZIO.replicate(0)(ZIO.succeed(12))
-        assertM(ZIO.sequence(lst))(equalTo(List.empty))
+        assertM(ZIO.collectAll(lst))(equalTo(List.empty))
       },
       testM("negative") {
         val anotherList: Iterable[UIO[Int]] = ZIO.replicate(-2)(ZIO.succeed(12))
-        assertM(ZIO.sequence(anotherList))(equalTo(List.empty))
+        assertM(ZIO.collectAll(anotherList))(equalTo(List.empty))
       },
       testM("positive") {
         val lst: Iterable[UIO[Int]] = ZIO.replicate(2)(ZIO.succeed(12))
-        assertM(ZIO.sequence(lst))(equalTo(List(12, 12)))
+        assertM(ZIO.collectAll(lst))(equalTo(List(12, 12)))
       }
     ),
     suite("retryUntil")(
@@ -1882,7 +1882,7 @@ object ZIOSpec extends ZIOBaseSpec {
           children1   <- ZIO.children
           latchEnds <- ZIO.daemonMask { restore =>
                         for {
-                          latches1 <- ZIO.sequence(
+                          latches1 <- ZIO.collectAll(
                                        List(
                                          forkAwait.flatMap(handleLatch),
                                          forkAwait.flatMap(handleLatch),
@@ -1890,7 +1890,7 @@ object ZIOSpec extends ZIOBaseSpec {
                                        )
                                      )
                           latches2 <- restore(
-                                       ZIO.sequence(
+                                       ZIO.collectAll(
                                          List(
                                            forkAwait.flatMap(handleLatch),
                                            forkAwait.flatMap(handleLatch)
@@ -1901,7 +1901,7 @@ object ZIOSpec extends ZIOBaseSpec {
                       }
           children2 <- ZIO.children
           _         <- l1End.succeed(())
-          _         <- ZIO.traverse_(latchEnds)(_.succeed(()))
+          _         <- ZIO.foreach_(latchEnds)(_.succeed(()))
         } yield assert(children1.size)(equalTo(1)) && assert(children2.size)(equalTo(3))
 
         io.nonDaemon
@@ -1925,7 +1925,7 @@ object ZIOSpec extends ZIOBaseSpec {
             children1   <- ZIO.children
             childrenWithLatches <- ZIO.nonDaemonMask { restore =>
                                     for {
-                                      latches1 <- ZIO.sequence(
+                                      latches1 <- ZIO.collectAll(
                                                    List(
                                                      forkAwait.flatMap(handleLatch),
                                                      forkAwait.flatMap(handleLatch),
@@ -1933,7 +1933,7 @@ object ZIOSpec extends ZIOBaseSpec {
                                                    )
                                                  )
                                       latches2 <- restore(
-                                                   ZIO.sequence(
+                                                   ZIO.collectAll(
                                                      List(
                                                        forkAwait.flatMap(handleLatch),
                                                        forkAwait.flatMap(handleLatch)
@@ -1950,7 +1950,7 @@ object ZIOSpec extends ZIOBaseSpec {
             children3              <- ZIO.children
             _                      <- l1End.succeed(())
             _                      <- l2End.succeed(())
-            _                      <- ZIO.traverse_(latchEnds)(_.succeed(()))
+            _                      <- ZIO.foreach_(latchEnds)(_.succeed(()))
           } yield assert(children1.size)(equalTo(0)) && assert(children2.size)(equalTo(3)) && assert(children3.size)(
             equalTo(3)
           )
