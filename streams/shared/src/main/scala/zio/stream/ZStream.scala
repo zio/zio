@@ -3210,7 +3210,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a stream from from an effect producing a value of type 'Iterable[A]'
    */
-  def fromIterableEffect[R, E, A](zio: ZIO[R, E, Iterable[A]]): ZStream[R, E, A] = 
+  def fromIterableEffect[R, E, A](zio: ZIO[R, E, Iterable[A]]): ZStream[R, E, A] =
     ZStream.unwrap {
       zio.fold(ZStream.fail(_), StreamEffect.fromIterable(_))
     }
