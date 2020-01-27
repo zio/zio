@@ -1047,11 +1047,11 @@ object ZManaged {
       ZManaged.environment.flatMap(f)
   }
 
-  trait Scope {
+  trait PreallocationScope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
-  trait ScopeIO {
+  trait Scope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (A, UIO[Any])]
   }
 
@@ -1542,49 +1542,14 @@ object ZManaged {
   /**
    * Creates a scope in which resources can be safely preallocated.
    */
-  def scope[R]: ZManaged[R, Nothing, Scope] =
-    scopeIO.map { scopeIO =>
-      new Scope {
+  def preallocationScope[R]: ZManaged[R, Nothing, PreallocationScope] =
+    scope.map { allocate =>
+      new PreallocationScope {
         def apply[R, E, A](managed: ZManaged[R, E, A]) =
-          scopeIO(managed).map {
+          allocate(managed).map {
             case (res, release) =>
               ZManaged.make(ZIO.succeed(res))(_ => release)
           }
-      }
-    }
-
-  /**
-   * Creates a scope in which resources can be safely allocated into together with a release action.
-   */
-  def scopeIO[R]: ZManaged[R, Nothing, ScopeIO] =
-    ZManaged {
-      // we abuse the fact that Function1 will use reference equality
-      Ref.make(Set.empty[Exit[Any, Any] => UIO[Any]]).map { finalizers =>
-        Reservation(
-          acquire = ZIO.succeed {
-            new ScopeIO {
-              override def apply[R, E, A](managed: ZManaged[R, E, A]) =
-                ZIO.uninterruptibleMask { restore =>
-                  for {
-                    env      <- ZIO.environment[R]
-                    res      <- managed.reserve
-                    resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
-                    release  = res.release.andThen(_.provide(env))
-                    _        <- finalizers.update(_ + release)
-                    done <- Ref
-                             .make(release(Exit.Success(resource)).ensuring(finalizers.update(_ - release)))
-                             .map(_.modify(old => (old, ZIO.unit)).flatten)
-                  } yield (resource, done)
-                }
-            }
-          },
-          release = exitU =>
-            for {
-              fs    <- finalizers.get
-              exits <- ZIO.foreachPar(fs)(_(exitU).run)
-              _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
-            } yield ()
-        )
       }
     }
 
@@ -1682,6 +1647,41 @@ object ZManaged {
 
   def sandbox[R, E, A](v: ZManaged[R, E, A]): ZManaged[R, Cause[E], A] =
     v.sandbox
+
+  /**
+   * Creates a scope in which resources can be safely allocated into together with a release action.
+   */
+  def scope[R]: ZManaged[R, Nothing, Scope] =
+    ZManaged {
+      // we abuse the fact that Function1 will use reference equality
+      Ref.make(Set.empty[Exit[Any, Any] => UIO[Any]]).map { finalizers =>
+        Reservation(
+          acquire = ZIO.succeed {
+            new Scope {
+              override def apply[R, E, A](managed: ZManaged[R, E, A]) =
+                ZIO.uninterruptibleMask { restore =>
+                  for {
+                    env      <- ZIO.environment[R]
+                    res      <- managed.reserve
+                    resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
+                    release  = res.release.andThen(_.provide(env))
+                    _        <- finalizers.update(_ + release)
+                    done <- Ref
+                             .make(release(Exit.Success(resource)).ensuring(finalizers.update(_ - release)))
+                             .map(_.modify((_, ZIO.unit)).flatten)
+                  } yield (resource, done)
+                }
+            }
+          },
+          release = exitU =>
+            for {
+              fs    <- finalizers.get
+              exits <- ZIO.foreachPar(fs)(_(exitU).run)
+              _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+            } yield ()
+        )
+      }
+    }
 
   /**
    *  Alias for [[ZManaged.collectAll]]
