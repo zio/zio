@@ -39,7 +39,19 @@ object ZStream {
     new ZStream(process)
 
   def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZStream[R, E, Any, Unit, A] =
-    managed(zio.toManaged_)
+    ZStream {
+      for {
+        done <- Ref.make(false).toManaged_
+        pull = done.get.flatMap {
+          if (_) Pull.endUnit
+          else
+            (for {
+              _ <- done.set(false)
+              a <- zio
+            } yield a).mapError(Left(_))
+        }
+      } yield Control(pull, Command.noop)
+    }
 
   /**
    * Creates a single-valued stream from a managed resource
