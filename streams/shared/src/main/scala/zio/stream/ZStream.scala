@@ -2694,20 +2694,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   type Pull[-R, +E, +A] = ZIO[R, Option[E], A]
 
   object Pull {
-    val end: Pull[Any, Nothing, Nothing]                         = IO.failNow(None)
-    def emit[A](a: => A): Pull[Any, Nothing, A]                  = UIO.succeed(a)
-    def emitNow[A](a: A): Pull[Any, Nothing, A]                  = UIO.succeedNow(a)
-    def fail[E](e: => E): Pull[Any, E, Nothing]                  = IO.fail(Some(e))
-    def failNow[E](e: E): Pull[Any, E, Nothing]                  = IO.failNow(Some(e))
-    def halt[E](c: => Cause[E]): Pull[Any, E, Nothing]           = IO.halt(c.map(Some(_)))
-    def haltNow[E](c: Cause[E]): Pull[Any, E, Nothing]           = IO.haltNow(c.map(Some(_)))
-    def die(t: => Throwable): Pull[Any, Nothing, Nothing]        = UIO.die(t)
-    def die(t: Throwable): Pull[Any, Nothing, Nothing]           = UIO.dieNow(t)
-    def dieMessage(m: => String): Pull[Any, Nothing, Nothing]    = UIO.dieMessage(m)
-    def done[E, A](e: => Exit[E, A]): Pull[Any, E, A]            = IO.done(e.mapError(Some(_)))
-    def doneNow[E, A](e: Exit[E, A]): Pull[Any, E, A]            = IO.doneNow(e.mapError(Some(_)))
-    def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A]     = p.await.mapError(Some(_))
-    def fromEffect[R, E, A](effect: ZIO[R, E, A]): Pull[R, E, A] = effect.mapError(Some(_))
+    val end: Pull[Any, Nothing, Nothing]                            = IO.failNow(None)
+    def emit[A](a: => A): Pull[Any, Nothing, A]                     = UIO.succeed(a)
+    def emitNow[A](a: A): Pull[Any, Nothing, A]                     = UIO.succeedNow(a)
+    def fail[E](e: => E): Pull[Any, E, Nothing]                     = IO.fail(Some(e))
+    private[zio] def failNow[E](e: E): Pull[Any, E, Nothing]        = IO.failNow(Some(e))
+    def halt[E](c: => Cause[E]): Pull[Any, E, Nothing]              = IO.halt(c.map(Some(_)))
+    private[zio] def haltNow[E](c: Cause[E]): Pull[Any, E, Nothing] = IO.haltNow(c.map(Some(_)))
+    def die(t: => Throwable): Pull[Any, Nothing, Nothing]           = UIO.die(t)
+    def die(t: Throwable): Pull[Any, Nothing, Nothing]              = UIO.dieNow(t)
+    def dieMessage(m: => String): Pull[Any, Nothing, Nothing]       = UIO.dieMessage(m)
+    def done[E, A](e: => Exit[E, A]): Pull[Any, E, A]               = IO.done(e.mapError(Some(_)))
+    private[zio] def doneNow[E, A](e: Exit[E, A]): Pull[Any, E, A]  = IO.doneNow(e.mapError(Some(_)))
+    def fromPromise[E, A](p: Promise[E, A]): Pull[Any, E, A]        = p.await.mapError(Some(_))
+    def fromEffect[R, E, A](effect: ZIO[R, E, A]): Pull[R, E, A]    = effect.mapError(Some(_))
 
     def fromTake[E, A](take: => Take[E, A]): Pull[Any, E, A] =
       IO.effectSuspendTotal {
@@ -2972,7 +2972,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * The stream that always dies with the eagerly evaluated `ex`.
    */
-  def dieNow(ex: Throwable): Stream[Nothing, Nothing] =
+  private[zio] def dieNow(ex: Throwable): Stream[Nothing, Nothing] =
     haltNow(Cause.die(ex))
 
   /**
@@ -3151,7 +3151,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * The stream that always fails with the eagerly evaluated `error`
    */
-  def failNow[E](error: E): Stream[E, Nothing] =
+  private[zio] def failNow[E](error: E): Stream[E, Nothing] =
     fail(error)
 
   /**
@@ -3284,7 +3284,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * The stream that always halts with the eagerly evaluated `cause`.
    */
-  def haltNow[E](cause: Cause[E]): ZStream[Any, E, Nothing] =
+  private[zio] def haltNow[E](cause: Cause[E]): ZStream[Any, E, Nothing] =
     fromEffect(ZIO.haltNow(cause))
 
   /**
@@ -3392,7 +3392,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a single-valued pure stream from an eager value
    */
-  def succeedNow[A](a: A): Stream[Nothing, A] =
+  private[zio] def succeedNow[A](a: A): Stream[Nothing, A] =
     succeed(a)
 
   /**

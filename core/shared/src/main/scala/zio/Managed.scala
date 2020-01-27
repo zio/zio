@@ -57,7 +57,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.dieNow]]
    */
-  def dieNow(t: Throwable): Managed[Nothing, Nothing] =
+  private[zio] def dieNow(t: Throwable): Managed[Nothing, Nothing] =
     ZManaged.dieNow(t)
 
   /**
@@ -75,7 +75,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.doneNow]]
    */
-  def doneNow[E, A](r: Exit[E, A]): Managed[E, A] =
+  private[zio] def doneNow[E, A](r: Exit[E, A]): Managed[E, A] =
     ZManaged.doneNow(r)
 
   /**
@@ -93,7 +93,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.fail]]
    */
-  def failNow[E](error: E): Managed[E, Nothing] =
+  private[zio] def failNow[E](error: E): Managed[E, Nothing] =
     ZManaged.failNow(error)
 
   /**
@@ -171,7 +171,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.haltNow]]
    */
-  def haltNow[E](cause: Cause[E]): Managed[E, Nothing] =
+  private[zio] def haltNow[E](cause: Cause[E]): Managed[E, Nothing] =
     ZManaged.haltNow(cause)
 
   /**
@@ -348,7 +348,7 @@ object Managed {
   /**
    * See [[zio.ZManaged.succeedNow]]
    */
-  def succeedNow[A](r: A): Managed[Nothing, A] =
+  private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =
     ZManaged.succeedNow(r)
 
   /**

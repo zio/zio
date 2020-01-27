@@ -1311,7 +1311,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink halting with the specified eagerly evaluated `Throwable`.
    */
-  def dieNow(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+  private[zio] def dieNow(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
     ZSink.haltNow(Cause.die(e))
 
   /**
@@ -1354,7 +1354,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink failing with a lazily evaluated value of type `E`.
    */
-  def failNow[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
+  private[zio] def failNow[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
     fail(e)
 
   /**
@@ -1578,7 +1578,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a sink halting with a specified eagerly evaluated cause.
    */
-  def haltNow[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+  private[zio] def haltNow[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
     halt(e)
 
   /**
@@ -1856,7 +1856,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
   /**
    * Creates a single-value sink from an eagerly evaluated value.
    */
-  def succeedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
+  private[zio] def succeedNow[A, B](b: B): ZSink[Any, Nothing, A, A, B] =
     succeed(b)
 
   /**

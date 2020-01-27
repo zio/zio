@@ -1134,7 +1134,7 @@ object ZManaged {
    * `Throwable`. This method can be used for terminating a fiber because a
    * defect has been detected in the code.
    */
-  def dieNow(t: Throwable): ZManaged[Any, Nothing, Nothing] =
+  private[zio] def dieNow(t: Throwable): ZManaged[Any, Nothing, Nothing] =
     halt(Cause.die(t))
 
   /**
@@ -1154,7 +1154,7 @@ object ZManaged {
   /**
    * Returns an effect from an eagerly evaluated [[zio.Exit]] value.
    */
-  def doneNow[E, A](r: Exit[E, A]): ZManaged[Any, E, A] =
+  private[zio] def doneNow[E, A](r: Exit[E, A]): ZManaged[Any, E, A] =
     ZManaged.fromEffect(ZIO.done(r))
 
   /**
@@ -1180,7 +1180,7 @@ object ZManaged {
    * Returns an effect that models failure with the specified eagerly evaluated
    * error. The moral equivalent of `throw` for pure code.
    */
-  def failNow[E](error: E): ZManaged[Any, E, Nothing] =
+  private[zio] def failNow[E](error: E): ZManaged[Any, E, Nothing] =
     haltNow(Cause.fail(error))
 
   /**
@@ -1365,7 +1365,7 @@ object ZManaged {
    * Returns an effect that models failure with the specified eagerly evaluated
    * `Cause`.
    */
-  def haltNow[E](cause: Cause[E]): ZManaged[Any, E, Nothing] =
+  private[zio] def haltNow[E](cause: Cause[E]): ZManaged[Any, E, Nothing] =
     ZManaged.fromEffect(ZIO.haltNow(cause))
 
   /**
@@ -1744,7 +1744,7 @@ object ZManaged {
   /**
    * Lifts a strict, pure value into a Managed.
    */
-  def succeedNow[R, A](r: A): ZManaged[R, Nothing, A] =
+  private[zio] def succeedNow[R, A](r: A): ZManaged[R, Nothing, A] =
     ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
 
   /**

@@ -181,12 +181,12 @@ object IO {
   /**
    * @see See [[zio.ZIO.dieNow]]
    */
-  def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
    */
-  def dieMessage(message: String): UIO[Nothing] = ZIO.dieMessage(message)
+  def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
    * @see See [[zio.ZIO.done]]
@@ -196,7 +196,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.doneNow]]
    */
-  def doneNow[E, A](r: Exit[E, A]): IO[E, A] = ZIO.doneNow(r)
+  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = ZIO.doneNow(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
@@ -267,7 +267,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.failNow]]
    */
-  def failNow[E](error: E): IO[E, Nothing] = ZIO.failNow(error)
+  private[zio] def failNow[E](error: E): IO[E, Nothing] = ZIO.failNow(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -419,7 +419,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.haltNow]]
    */
-  def haltNow[E](cause: Cause[E]): IO[E, Nothing] = ZIO.haltNow(cause)
+  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = ZIO.haltNow(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -648,7 +648,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.succeedNow]]
    */
-  def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
+  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 
   /**
    * @see See [[zio.ZIO.trace]]

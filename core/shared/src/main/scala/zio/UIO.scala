@@ -147,7 +147,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.dieNow]]
    */
-  def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
@@ -162,7 +162,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.doneNow]]
    */
-  def doneNow[A](r: Exit[Nothing, A]): UIO[A] = ZIO.doneNow(r)
+  private[zio] def doneNow[A](r: Exit[Nothing, A]): UIO[A] = ZIO.doneNow(r)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -327,7 +327,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.haltNow]]
    */
-  def haltNow(cause: Cause[Nothing]): UIO[Nothing] = ZIO.haltNow(cause)
+  private[zio] def haltNow(cause: Cause[Nothing]): UIO[Nothing] = ZIO.haltNow(cause)
 
   /**
    * @see [[zio.ZIO.haltWith]]
@@ -512,7 +512,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.succeedNow]]
    */
-  def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
+  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 
   /**
    * @see See [[zio.ZIO.trace]]

@@ -51,7 +51,7 @@ object STM {
    * Kills the fiber running the effect with the specified eagerly evaluated
    * `Throwable`.
    */
-  def dieNow(t: Throwable): STM[Nothing, Nothing] =
+  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     ZSTM.dieNow(t)
 
   /**
@@ -70,7 +70,7 @@ object STM {
   /**
    * Returns a value modelled on provided eagerly evaluated exit status.
    */
-  def doneNow[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
+  private[zio] def doneNow[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
     ZSTM.doneNow(exit)
 
   /**
@@ -84,7 +84,7 @@ object STM {
    * Returns a value that models failure in the transaction with the specified
    * eagerly evaluated error.
    */
-  def failNow[E](e: E): STM[E, Nothing] =
+  private[zio] def failNow[E](e: E): STM[E, Nothing] =
     ZSTM.failNow(e)
 
   /**
@@ -152,7 +152,7 @@ object STM {
    * Returns an `STM` effect that succeeds with the specified eagerly evaluated
    * value.
    */
-  def succeedNow[A](a: A): STM[Nothing, A] =
+  private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
     ZSTM.succeedNow(a)
 
   /**

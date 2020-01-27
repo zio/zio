@@ -711,6 +711,6 @@ object ZStreamChunk {
   /**
    * Creates a `ZStreamChunk` from a lazily evaluated chunk
    */
-  def succeedNow[A](as: Chunk[A]): StreamChunk[Nothing, A] =
+  private[zio] def succeedNow[A](as: Chunk[A]): StreamChunk[Nothing, A] =
     succeed(as)
 }

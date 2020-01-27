@@ -170,7 +170,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.dieNow]]
    */
-  def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
@@ -185,7 +185,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.doneNow]]
    */
-  def doneNow[A](r: Exit[Throwable, A]): Task[A] = ZIO.doneNow(r)
+  private[zio] def doneNow[A](r: Exit[Throwable, A]): Task[A] = ZIO.doneNow(r)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -266,7 +266,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.failNow]]
    */
-  def failNow(error: Throwable): Task[Nothing] = ZIO.failNow(error)
+  private[zio] def failNow(error: Throwable): Task[Nothing] = ZIO.failNow(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -414,7 +414,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.haltNow]]
    */
-  def haltNow(cause: Cause[Throwable]): Task[Nothing] = ZIO.haltNow(cause)
+  private[zio] def haltNow(cause: Cause[Throwable]): Task[Nothing] = ZIO.haltNow(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -612,7 +612,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.succeedNow]]
    */
-  def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
+  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 
   /**
    *  See [[zio.ZIO.sequence]]

@@ -858,7 +858,7 @@ object ZSTM {
    * Kills the fiber running the effect with the specified eagerly evaluated
    * `Throwable`.
    */
-  def dieNow(t: Throwable): STM[Nothing, Nothing] =
+  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
     succeedNow(throw t)
 
   /**
@@ -876,7 +876,7 @@ object ZSTM {
   /**
    * Returns a value modelled on provided eagerly evaluated exit status.
    */
-  def doneNow[E, A](exit: TExit[E, A]): STM[E, A] =
+  private[zio] def doneNow[E, A](exit: TExit[E, A]): STM[E, A] =
     exit match {
       case TExit.Retry      => STM.retry
       case TExit.Fail(e)    => STM.failNow(e)
@@ -899,7 +899,7 @@ object ZSTM {
    * Returns a value that models failure in the transaction with the specified
    * eagerly evaluated error.
    */
-  def failNow[E](e: E): ZSTM[Any, E, Nothing] =
+  private[zio] def failNow[E](e: E): ZSTM[Any, E, Nothing] =
     fail(e)
 
   /**
@@ -973,7 +973,7 @@ object ZSTM {
    * Returns an `STM` effect that succeeds with the specified eagerly evaluated
    * value.
    */
-  def succeedNow[A](a: A): ZSTM[Any, Nothing, A] =
+  private[zio] def succeedNow[A](a: A): ZSTM[Any, Nothing, A] =
     succeed(a)
 
   /**

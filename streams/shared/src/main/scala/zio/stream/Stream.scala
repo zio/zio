@@ -151,7 +151,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.failNow]]
    */
-  def failNow[E](error: E): Stream[E, Nothing] =
+  private[zio] def failNow[E](error: E): Stream[E, Nothing] =
     ZStream.failNow(error)
 
   /**
@@ -290,7 +290,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.haltNow]]
    */
-  def haltNow[E](cause: Cause[E]): Stream[E, Nothing] =
+  private[zio] def haltNow[E](cause: Cause[E]): Stream[E, Nothing] =
     ZStream.haltNow(cause)
 
   /**
@@ -327,7 +327,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.succeedNow]]
    */
-  def succeedNow[A](a: A): Stream[Nothing, A] =
+  private[zio] def succeedNow[A](a: A): Stream[Nothing, A] =
     ZStream.succeedNow(a)
 
   /**

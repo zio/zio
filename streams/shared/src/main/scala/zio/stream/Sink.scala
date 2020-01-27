@@ -85,7 +85,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.dieNow]]
    */
-  def dieNow(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
+  private[zio] def dieNow(e: Throwable): Sink[Nothing, Nothing, Any, Nothing] =
     ZSink.dieNow(e)
 
   /**
@@ -121,7 +121,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.failNow]]
    */
-  def failNow[E](e: E): Sink[E, Nothing, Any, Nothing] =
+  private[zio] def failNow[E](e: E): Sink[E, Nothing, Any, Nothing] =
     ZSink.failNow(e)
 
   /**
@@ -230,7 +230,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.haltNow]]
    */
-  def haltNow[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
+  private[zio] def haltNow[E](e: Cause[E]): Sink[E, Nothing, Any, Nothing] =
     ZSink.haltNow(e)
 
   /**
@@ -284,7 +284,7 @@ object Sink extends Serializable {
   /**
    * see [[ZSink.succeedNow]]
    */
-  def succeedNow[A, B](b: B): Sink[Nothing, A, A, B] =
+  private[zio] def succeedNow[A, B](b: B): Sink[Nothing, A, A, B] =
     ZSink.succeedNow(b)
 
   /**

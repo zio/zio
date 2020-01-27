@@ -2031,7 +2031,7 @@ object ZIO {
    * `Throwable`. This method can be used for terminating a fiber because a
    * defect has been detected in the code.
    */
-  def dieNow(t: Throwable): UIO[Nothing] =
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] =
     die(t)
 
   /**
@@ -2056,7 +2056,7 @@ object ZIO {
   /**
    * Returns an effect from an eagerly evaluated [[zio.Exit]] value.
    */
-  def doneNow[E, A](r: Exit[E, A]): IO[E, A] = r match {
+  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = r match {
     case Exit.Success(b)     => succeed(b)
     case Exit.Failure(cause) => halt(cause)
   }
@@ -2215,7 +2215,7 @@ object ZIO {
    * Returns an effect that models failure with the specified eagerly evaluated
    * error. The moral equivalent of `throw` for pure code.
    */
-  def failNow[E](error: E): IO[E, Nothing] =
+  private[zio] def failNow[E](error: E): IO[E, Nothing] =
     fail(error)
 
   /**
@@ -2552,7 +2552,7 @@ object ZIO {
    * Returns an effect that models failure with the specified lazily evaluated
    * `Cause`.
    */
-  def haltNow[E](cause: Cause[E]): IO[E, Nothing] =
+  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] =
     new ZIO.Fail(_ => cause)
 
   /**
@@ -2908,7 +2908,7 @@ object ZIO {
    * Returns an effect that models success with the specified eagerly evaluated
    * value.
    */
-  def succeedNow[A](a: A): UIO[A] =
+  private[zio] def succeedNow[A](a: A): UIO[A] =
     new ZIO.Succeed(a)
 
   /**
