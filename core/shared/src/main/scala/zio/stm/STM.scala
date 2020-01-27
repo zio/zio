@@ -41,18 +41,10 @@ object STM {
     ZSTM.collectAll(i)
 
   /**
-   * Kills the fiber running the effect with the specified lazily evaluated
-   * `Throwable`.
+   * Kills the fiber running the effect.
    */
   def die(t: => Throwable): STM[Nothing, Nothing] =
     ZSTM.die(t)
-
-  /**
-   * Kills the fiber running the effect with the specified eagerly evaluated
-   * `Throwable`.
-   */
-  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
-    ZSTM.dieNow(t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
@@ -62,30 +54,16 @@ object STM {
     ZSTM.dieMessage(m)
 
   /**
-   * Returns a value modelled on provided lazily evaluated exit status.
+   * Returns a value modelled on provided exit status.
    */
   def done[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
     ZSTM.done(exit)
 
   /**
-   * Returns a value modelled on provided eagerly evaluated exit status.
-   */
-  private[zio] def doneNow[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
-    ZSTM.doneNow(exit)
-
-  /**
-   * Returns a value that models failure in the transaction with the specified
-   * lazily evaluated error.
+   * Returns a value that models failure in the transaction.
    */
   def fail[E](e: => E): STM[E, Nothing] =
     ZSTM.fail(e)
-
-  /**
-   * Returns a value that models failure in the transaction with the specified
-   * eagerly evaluated error.
-   */
-  private[zio] def failNow[E](e: E): STM[E, Nothing] =
-    ZSTM.failNow(e)
 
   /**
    * Returns the fiber id of the fiber committing the transaction.
@@ -142,18 +120,10 @@ object STM {
     ZSTM.retry
 
   /**
-   * Returns an `STM` effect that succeeds with the specified lazily evaluated
-   * value.
+   * Returns an `STM` effect that succeeds with the specified value.
    */
   def succeed[A](a: => A): STM[Nothing, A] =
     ZSTM.succeed(a)
-
-  /**
-   * Returns an `STM` effect that succeeds with the specified eagerly evaluated
-   * value.
-   */
-  private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
-    ZSTM.succeedNow(a)
 
   /**
    * Suspends creation of the specified transaction lazily.
@@ -176,4 +146,16 @@ object STM {
    */
   val unit: STM[Nothing, Unit] =
     ZSTM.unit
+
+  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
+    ZSTM.dieNow(t)
+
+  private[zio] def doneNow[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
+    ZSTM.doneNow(exit)
+
+  private[zio] def failNow[E](e: E): STM[E, Nothing] =
+    ZSTM.failNow(e)
+
+  private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
+    ZSTM.succeedNow(a)
 }

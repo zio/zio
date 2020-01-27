@@ -4,14 +4,14 @@ import zio.ZIOBaseSpec
 import zio.stream.ZStream.Pull
 import zio.test._
 
-object LazinessSpec extends ZIOBaseSpec {
+object StreamLazinessSpec extends ZIOBaseSpec {
 
   def assertLazy[A, B](f: (=> A) => B): TestResult = {
     val _ = f(throw new RuntimeException("not lazy"))
     assertCompletes
   }
 
-  def spec = suite("LazinessSpec")(
+  def spec = suite("StreamLazinessSpec")(
     suite("Pull")(
       test("die")(assertLazy(Pull.die)),
       test("done")(assertLazy(Pull.done)),
