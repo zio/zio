@@ -709,9 +709,9 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(r1)(equalTo(3)) && assert(r2)(equalTo(3))
       }
     ),
-    suite("scope")(
+    suite("preallocationScope")(
       testM("runs finalizer on interruption") {
-        ZManaged.scope.use { preallocate =>
+        ZManaged.preallocationScope.use { preallocate =>
           for {
             ref    <- Ref.make(0)
             res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
@@ -721,7 +721,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
       },
       testM("runs finalizer when resource closes") {
-        ZManaged.scope.use { preallocate =>
+        ZManaged.preallocationScope.use { preallocate =>
           for {
             ref    <- Ref.make(0)
             res    = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
@@ -731,21 +731,21 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
       },
       testM("propagates failures in acquire") {
-        ZManaged.scope.use { preallocate =>
+        ZManaged.preallocationScope.use { preallocate =>
           for {
             exit <- preallocate(ZManaged.fromEffect(ZIO.fail("boom"))).either
           } yield assert(exit)(isLeft(equalTo("boom")))
         }
       },
       testM("propagates failures in reserve") {
-        ZManaged.scope.use { preallocate =>
+        ZManaged.preallocationScope.use { preallocate =>
           for {
             exit <- preallocate(ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit)).either
           } yield assert(exit)(isLeft(equalTo("boom")))
         }
       },
       testM("eagerly run acquisition when preallocate is invoked") {
-        ZManaged.scope.use { preallocate =>
+        ZManaged.preallocationScope.use { preallocate =>
           for {
             ref <- Ref.make(0)
             res <- preallocate(ZManaged.reserve(Reservation(ref.update(_ + 1), _ => ZIO.unit)))
@@ -757,23 +757,87 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       testM("run release on scope exit") {
         Ref.make(0).flatMap { ref =>
-          ZManaged.scope.use { preallocate =>
+          ZManaged.preallocationScope.use { preallocate =>
             preallocate(ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1))))
           } *> assertM(ref.get)(equalTo(1))
         }
       },
       testM("don't run release twice") {
         Ref.make(0).flatMap { ref =>
-          ZManaged.scope.use { preallocate =>
+          ZManaged.preallocationScope.use { preallocate =>
             preallocate(ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))).flatMap(_.use_(ZIO.unit))
           } *> assertM(ref.get)(equalTo(1))
         }
       },
-      testM("allow preallocate to be called multiple times") {
+      testM("can be used multiple times") {
         Ref.make(0).flatMap { ref =>
-          ZManaged.scope.use { preallocate =>
+          ZManaged.preallocationScope.use { preallocate =>
             val res = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
             preallocate(res) *> preallocate(res)
+          } *> assertM(ref.get)(equalTo(2))
+        }
+      }
+    ),
+    suite("scope")(
+      testM("runs finalizer on interruption") {
+        ZManaged.scope.use { scope =>
+          for {
+            ref    <- Ref.make(0)
+            res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+            _      <- scope(res).run.ignore
+            result <- assertM(ref.get)(equalTo(1))
+          } yield result
+        }
+      },
+      testM("runs finalizer when close is called") {
+        ZManaged.scope.use { scope =>
+          for {
+            ref <- Ref.make(0)
+            res = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+            result <- scope(res).flatMap {
+                       case (_, close) =>
+                         for {
+                           res1 <- ref.get
+                           _    <- close
+                           res2 <- ref.get
+                         } yield (res1, res2)
+                     }
+          } yield assert(result)(equalTo((0, 1)))
+        }
+      },
+      testM("propagates failures in acquire") {
+        ZManaged.scope.use { scope =>
+          for {
+            exit <- scope(ZManaged.fromEffect(ZIO.fail("boom"))).either
+          } yield assert(exit)(isLeft(equalTo("boom")))
+        }
+      },
+      testM("propagates failures in reserve") {
+        ZManaged.scope.use { scope =>
+          for {
+            exit <- scope(ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit)).either
+          } yield assert(exit)(isLeft(equalTo("boom")))
+        }
+      },
+      testM("run release on scope exit") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.scope.use { scope =>
+            scope(ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1))))
+          } *> assertM(ref.get)(equalTo(1))
+        }
+      },
+      testM("don't run release twice") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.scope.use { scope =>
+            scope(ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))).flatMap(_._2)
+          } *> assertM(ref.get)(equalTo(1))
+        }
+      },
+      testM("can be used multiple times") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.scope.use { scope =>
+            val res = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+            scope(res) *> scope(res)
           } *> assertM(ref.get)(equalTo(2))
         }
       }
