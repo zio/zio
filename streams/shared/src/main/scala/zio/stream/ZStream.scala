@@ -1152,7 +1152,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
    *
    * {{{
    * (Stream(1, 2, 3).tap(i => ZIO(println(i))) ++
-   *   Stream.lift(ZIO(println("Done!"))).drain ++
+   *   Stream.fromEffect(ZIO(println("Done!"))).drain ++
    *   Stream(4, 5, 6).tap(i => ZIO(println(i)))).run(Sink.drain)
    * }}}
    */
