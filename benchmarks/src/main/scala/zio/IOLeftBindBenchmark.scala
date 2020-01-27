@@ -114,10 +114,10 @@ class IOLeftBindBenchmark {
   }
 
   @Benchmark
-  def scalazLeftBindBenchmark: Int = zioLeftBindBenchmark(IOBenchmarks)
+  def zioLeftBindBenchmark: Int = zioLeftBindBenchmark(IOBenchmarks)
 
   @Benchmark
-  def scalazTracedLeftBindBenchmark(): Int = zioLeftBindBenchmark(TracedRuntime)
+  def zioTracedLeftBindBenchmark(): Int = zioLeftBindBenchmark(TracedRuntime)
 
   private[this] def zioLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =

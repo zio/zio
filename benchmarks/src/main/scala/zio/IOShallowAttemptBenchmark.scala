@@ -12,7 +12,7 @@ import zio.IOBenchmarks._
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class IOShallowAttemptBenchmark {
-  case class ScalazError(message: String)
+  case class ZIOError(message: String)
 
   @Param(Array("1000"))
   var depth: Int = _
@@ -130,17 +130,17 @@ class IOShallowAttemptBenchmark {
   }
 
   @Benchmark
-  def scalazShallowAttempt(): BigInt = {
-    def throwup(n: Int): IO[ScalazError, BigInt] =
+  def zioShallowAttempt(): BigInt = {
+    def throwup(n: Int): IO[ZIOError, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) IO.effectTotal(1)
-      else throwup(n + 1).foldM[Any, ScalazError, BigInt](_ => IO.succeed(0), _ => IO.fail(ScalazError("Oh noes!")))
+      else throwup(n + 1).foldM[Any, ZIOError, BigInt](_ => IO.succeed(0), _ => IO.fail(ZIOError("Oh noes!")))
 
     unsafeRun(throwup(0))
   }
 
   @Benchmark
-  def scalazShallowAttemptBaseline(): BigInt = {
+  def zioShallowAttemptBaseline(): BigInt = {
     def throwup(n: Int): IO[Error, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) IO.effectTotal(1)

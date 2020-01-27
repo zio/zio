@@ -116,10 +116,10 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
-  def scalazDeepFlatMap(): BigInt = zioDeepFlatMap(IOBenchmarks)
+  def zioDeepFlatMap(): BigInt = zioDeepFlatMap(IOBenchmarks)
 
   @Benchmark
-  def scalazTracedDeepFlatMap(): BigInt = zioDeepFlatMap(TracedRuntime)
+  def zioTracedDeepFlatMap(): BigInt = zioDeepFlatMap(TracedRuntime)
 
   private[this] def zioDeepFlatMap(runtime: Runtime[Any]): BigInt = {
     def fib(n: Int): UIO[BigInt] =
