@@ -1047,8 +1047,12 @@ object ZManaged {
       ZManaged.environment.flatMap(f)
   }
 
-  trait Scope {
+  trait PreallocationScope {
     def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
+  }
+
+  trait Scope {
+    def apply[R, E, A](managed: ZManaged[R, E, A]): ZIO[R, E, (A, UIO[Any])]
   }
 
   /**
@@ -1538,35 +1542,14 @@ object ZManaged {
   /**
    * Creates a scope in which resources can be safely preallocated.
    */
-  def scope[R]: ZManaged[R, Nothing, Scope] =
-    ZManaged {
-      // we abuse the fact that Function1 will use reference equality
-      Ref.make(Set.empty[Exit[Any, Any] => ZIO[R, Nothing, Any]]).map { finalizers =>
-        Reservation(
-          acquire = ZIO.succeed {
-            new Scope {
-              override def apply[R, E, A](managed: ZManaged[R, E, A]) =
-                ZIO.uninterruptibleMask { restore =>
-                  for {
-                    env      <- ZIO.environment[R]
-                    res      <- managed.reserve
-                    resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
-                    release  = res.release.andThen(_.provide(env))
-                    _        <- finalizers.update(_ + release)
-                  } yield ZManaged
-                    .make(ZIO.succeed(resource))(_ =>
-                      release(Exit.Success(resource)).ensuring(finalizers.update(_ - release))
-                    )
-                }
-            }
-          },
-          release = exitU =>
-            for {
-              fs    <- finalizers.get
-              exits <- ZIO.foreachPar(fs)(_(exitU).run)
-              _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
-            } yield ()
-        )
+  val preallocationScope: Managed[Nothing, PreallocationScope] =
+    scope.map { allocate =>
+      new PreallocationScope {
+        def apply[R, E, A](managed: ZManaged[R, E, A]) =
+          allocate(managed).map {
+            case (res, release) =>
+              ZManaged.make(ZIO.succeed(res))(_ => release)
+          }
       }
     }
 
@@ -1664,6 +1647,41 @@ object ZManaged {
 
   def sandbox[R, E, A](v: ZManaged[R, E, A]): ZManaged[R, Cause[E], A] =
     v.sandbox
+
+  /**
+   * Creates a scope in which resources can be safely allocated into together with a release action.
+   */
+  def scope: Managed[Nothing, Scope] =
+    ZManaged {
+      // we abuse the fact that Function1 will use reference equality
+      Ref.make(Set.empty[Exit[Any, Any] => UIO[Any]]).map { finalizers =>
+        Reservation(
+          acquire = ZIO.succeed {
+            new Scope {
+              override def apply[R, E, A](managed: ZManaged[R, E, A]) =
+                ZIO.uninterruptibleMask { restore =>
+                  for {
+                    env      <- ZIO.environment[R]
+                    res      <- managed.reserve
+                    resource <- restore(res.acquire).onError(err => res.release(Exit.Failure(err)))
+                    release  = res.release.andThen(_.provide(env))
+                    _        <- finalizers.update(_ + release)
+                    done <- Ref
+                             .make(release(Exit.Success(resource)).ensuring(finalizers.update(_ - release)))
+                             .map(_.modify((_, ZIO.unit)).flatten)
+                  } yield (resource, done)
+                }
+            }
+          },
+          release = exitU =>
+            for {
+              fs    <- finalizers.get
+              exits <- ZIO.foreachPar(fs)(_(exitU).run)
+              _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+            } yield ()
+        )
+      }
+    }
 
   /**
    *  Alias for [[ZManaged.collectAll]]
