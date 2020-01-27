@@ -1542,7 +1542,7 @@ object ZManaged {
   /**
    * Creates a scope in which resources can be safely preallocated.
    */
-  val preallocationScope: ZManaged[Any, Nothing, PreallocationScope] =
+  val preallocationScope: Managed[Nothing, PreallocationScope] =
     scope.map { allocate =>
       new PreallocationScope {
         def apply[R, E, A](managed: ZManaged[R, E, A]) =
@@ -1651,7 +1651,7 @@ object ZManaged {
   /**
    * Creates a scope in which resources can be safely allocated into together with a release action.
    */
-  def scope[R]: ZManaged[R, Nothing, Scope] =
+  def scope: Managed[Nothing, Scope] =
     ZManaged {
       // we abuse the fact that Function1 will use reference equality
       Ref.make(Set.empty[Exit[Any, Any] => UIO[Any]]).map { finalizers =>
