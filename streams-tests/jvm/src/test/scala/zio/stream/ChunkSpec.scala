@@ -193,7 +193,7 @@ object ChunkSpec extends ZIOBaseSpec {
         checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
             result   <- c.collectM(pf).map(_.toList)
-            expected <- UIO.sequence(c.toList.collect(pf))
+            expected <- UIO.collectAll(c.toList.collect(pf))
           } yield assert(result)(equalTo(expected))
         }
       },
@@ -221,7 +221,7 @@ object ChunkSpec extends ZIOBaseSpec {
         checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
             result   <- c.collectWhileM(pf).map(_.toList)
-            expected <- UIO.sequence(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply))
+            expected <- UIO.collectAll(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply))
           } yield assert(result)(equalTo(expected))
         }
       },

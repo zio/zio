@@ -94,7 +94,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Maps an effectual function over a generator.
    */
   def mapM[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
-    Gen(sample.mapM(_.traverse(f)))
+    Gen(sample.mapM(_.foreach(f)))
 
   /**
    * Discards the shrinker for this generator.
