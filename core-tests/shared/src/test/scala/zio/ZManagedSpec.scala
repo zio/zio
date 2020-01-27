@@ -769,11 +769,75 @@ object ZManagedSpec extends ZIOBaseSpec {
           } *> assertM(ref.get)(equalTo(1))
         }
       },
-      testM("allow preallocate to be called multiple times") {
+      testM("can be used multiple times") {
         Ref.make(0).flatMap { ref =>
           ZManaged.scope.use { preallocate =>
             val res = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
             preallocate(res) *> preallocate(res)
+          } *> assertM(ref.get)(equalTo(2))
+        }
+      }
+    ),
+    suite("scopeIO")(
+      testM("runs finalizer on interruption") {
+        ZManaged.scopeIO.use { scopeIO =>
+          for {
+            ref    <- Ref.make(0)
+            res    = ZManaged.reserve(Reservation(ZIO.interrupt, _ => ref.update(_ + 1)))
+            _      <- scopeIO(res).run.ignore
+            result <- assertM(ref.get)(equalTo(1))
+          } yield result
+        }
+      },
+      testM("runs finalizer when close is called") {
+        ZManaged.scopeIO.use { scopeIO =>
+          for {
+            ref <- Ref.make(0)
+            res = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+            result <- scopeIO(res).flatMap {
+                       case (_, close) =>
+                         for {
+                           res1 <- ref.get
+                           _    <- close
+                           res2 <- ref.get
+                         } yield (res1, res2)
+                     }
+          } yield assert(result)(equalTo((0, 1)))
+        }
+      },
+      testM("propagates failures in acquire") {
+        ZManaged.scopeIO.use { scopeIO =>
+          for {
+            exit <- scopeIO(ZManaged.fromEffect(ZIO.fail("boom"))).either
+          } yield assert(exit)(isLeft(equalTo("boom")))
+        }
+      },
+      testM("propagates failures in reserve") {
+        ZManaged.scopeIO.use { scopeIO =>
+          for {
+            exit <- scopeIO(ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit)).either
+          } yield assert(exit)(isLeft(equalTo("boom")))
+        }
+      },
+      testM("run release on scope exit") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.scopeIO.use { scopeIO =>
+            scopeIO(ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1))))
+          } *> assertM(ref.get)(equalTo(1))
+        }
+      },
+      testM("don't run release twice") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.scopeIO.use { scopeIO =>
+            scopeIO(ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))).flatMap(_._2)
+          } *> assertM(ref.get)(equalTo(1))
+        }
+      },
+      testM("can be used multiple times") {
+        Ref.make(0).flatMap { ref =>
+          ZManaged.scopeIO.use { scopeIO =>
+            val res = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
+            scopeIO(res) *> scopeIO(res)
           } *> assertM(ref.get)(equalTo(2))
         }
       }
