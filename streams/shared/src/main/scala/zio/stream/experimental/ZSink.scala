@@ -2,7 +2,9 @@ package zio.stream.experimental
 
 import zio._
 
-class ZSink[-R, +E, +I, -A, +B](val process: ZManaged[R, E, ZSink.Control[R, E, I, A, B]]) { self =>
+class ZSink[-R, +E, +I, -A, +B](
+  val process: ZManaged[R, E, ZSink.Control[R, E, I, A, B]]
+) extends AnyVal { self =>
   import ZSink.Control
 
   def map[C](f: B => C): ZSink[R, E, I, A, C] =

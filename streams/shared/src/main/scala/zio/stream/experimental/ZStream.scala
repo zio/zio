@@ -2,7 +2,9 @@ package zio.stream.experimental
 
 import zio._
 
-class ZStream[-R, +E, -I, +B, +A](val process: ZManaged[R, Nothing, ZStream.Control[R, E, I, B, A]]) { self =>
+class ZStream[-R, +E, -I, +B, +A](
+  val process: ZManaged[R, Nothing, ZStream.Control[R, E, I, B, A]]
+) extends AnyVal { self =>
   import ZStream.Control
 
   def map[C](f: A => C): ZStream[R, E, I, B, C] =
