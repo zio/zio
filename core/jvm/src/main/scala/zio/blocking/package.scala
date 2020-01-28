@@ -168,7 +168,7 @@ package object blocking {
       Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
         val corePoolSize  = 0
         val maxPoolSize   = Int.MaxValue
-        val keepAliveTime = 1000L
+        val keepAliveTime = 60000L
         val timeUnit      = TimeUnit.MILLISECONDS
         val workQueue     = new SynchronousQueue[Runnable]()
         val threadFactory = new NamedThreadFactory("zio-default-blocking", true)
