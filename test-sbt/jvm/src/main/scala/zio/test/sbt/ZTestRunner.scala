@@ -51,8 +51,15 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] = {
-    val tasks = defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
-    Array(new ZTestRootTask(tasks))
+    val testArgs        = TestArgs.parse(args)
+    val tasks           = defs.map(new ZTestTask(_, testClassLoader, sendSummary, testArgs))
+    val entrypointClass = testArgs.rootTask.getOrElse(classOf[ZTestRootTask].getName)
+    val rootTask = getClass.getClassLoader
+      .loadClass(entrypointClass)
+      .getConstructor(classOf[Array[ZTestTask]])
+      .newInstance(tasks)
+      .asInstanceOf[Task]
+    Array(rootTask)
   }
 }
 
