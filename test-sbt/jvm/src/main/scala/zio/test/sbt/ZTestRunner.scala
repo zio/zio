@@ -62,9 +62,8 @@ final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummar
 class ZTestRootTask(val zioTasks: Array[ZTestTask]) extends Task {
   override def tags(): Array[String] = Array.empty
 
-  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     zioTasks.toArray
-  }
 
   override def taskDef(): TaskDef = new TaskDef("zio core", new Fingerprint {}, true, Array())
 }
