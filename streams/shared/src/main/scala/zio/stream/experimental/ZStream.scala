@@ -4,7 +4,8 @@ import zio._
 
 class ZStream[-R, +E, -I, +B, +A](
   val process: ZManaged[R, Nothing, ZStream.Control[R, E, I, B, A]]
-) extends AnyVal { self =>
+) extends AnyVal
+    with Serializable { self =>
   import ZStream.Control
 
   def map[C](f: A => C): ZStream[R, E, I, B, C] =
@@ -18,20 +19,20 @@ class ZStream[-R, +E, -I, +B, +A](
     }
 }
 
-object ZStream {
+object ZStream extends Serializable {
 
   final case class Control[-R, +E, -I, +B, +A](
     pull: ZIO[R, Either[E, B], A],
     command: I => ZIO[R, E, Any]
   )
 
-  object Pull {
+  object Pull extends Serializable {
     def end[B](b: => B): IO[Either[Nothing, B], Nothing] = IO.fail(Right(b))
 
     val endUnit: IO[Either[Nothing, Unit], Nothing] = end(())
   }
 
-  object Command {
+  object Command extends Serializable {
     val noop: Any => UIO[Unit] = _ => UIO.unit
   }
 

@@ -4,7 +4,8 @@ import zio._
 
 class ZSink[-R, +E, +I, -A, +B](
   val process: ZManaged[R, E, ZSink.Control[R, E, I, A, B]]
-) extends AnyVal { self =>
+) extends AnyVal
+    with Serializable { self =>
   import ZSink.Control
 
   def map[C](f: B => C): ZSink[R, E, I, A, C] =
@@ -18,7 +19,7 @@ class ZSink[-R, +E, +I, -A, +B](
     }
 }
 
-object ZSink {
+object ZSink extends Serializable {
 
   final case class Control[-R, +E, +I, -A, +B](
     push: A => ZIO[R, Either[E, B], Any],
