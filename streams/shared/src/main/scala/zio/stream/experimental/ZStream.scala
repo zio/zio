@@ -2,8 +2,8 @@ package zio.stream.experimental
 
 import zio._
 
-class ZStream[-R, +E, -I, +B, +A](
-  val process: ZManaged[R, Nothing, ZStream.Control[R, E, I, B, A]]
+class ZStream[-R, +E, -M, +B, +A](
+  val process: ZManaged[R, Nothing, ZStream.Control[R, E, M, B, A]]
 ) extends AnyVal
     with Serializable { self =>
   import ZStream.Control
@@ -15,7 +15,7 @@ class ZStream[-R, +E, -I, +B, +A](
    * @param f the ''pure'' transformation function
    * @return a stream of transformed values
    */
-  def map[C](f: A => C): ZStream[R, E, I, B, C] =
+  def map[C](f: A => C): ZStream[R, E, M, B, C] =
     ZStream {
       self.process.map { control =>
         Control(
@@ -28,9 +28,9 @@ class ZStream[-R, +E, -I, +B, +A](
 
 object ZStream extends Serializable {
 
-  final case class Control[-R, +E, -I, +B, +A](
+  final case class Control[-R, +E, -M, +B, +A](
     pull: ZIO[R, Either[E, B], A],
-    command: I => ZIO[R, E, Any]
+    command: M => ZIO[R, E, Any]
   )
 
   object Pull extends Serializable {
@@ -48,13 +48,13 @@ object ZStream extends Serializable {
    *
    * @tparam R the stream environment type
    * @tparam E the stream error type
-   * @tparam I the stream command input element type
+   * @tparam M the stream input message type
    * @tparam B the stream exit value type
    * @tparam A the stream value type
    * @param process the scoped control
    * @return a new stream wrapping the scoped control
    */
-  def apply[R, E, I, B, A](process: ZManaged[R, Nothing, Control[R, E, I, B, A]]): ZStream[R, E, I, B, A] =
+  def apply[R, E, M, B, A](process: ZManaged[R, Nothing, Control[R, E, M, B, A]]): ZStream[R, E, M, B, A] =
     new ZStream(process)
 
   /**
