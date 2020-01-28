@@ -167,7 +167,7 @@ package object blocking {
     private[blocking] val blockingExecutor0 =
       Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
         val corePoolSize  = 0
-        val maxPoolSize   = Int.MaxValue
+        val maxPoolSize   = 1000
         val keepAliveTime = 60000L
         val timeUnit      = TimeUnit.MILLISECONDS
         val workQueue     = new SynchronousQueue[Runnable]()
