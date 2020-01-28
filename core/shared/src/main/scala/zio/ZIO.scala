@@ -2319,19 +2319,41 @@ object ZIO {
         causes         <- Ref.make[Cause[E]](Cause.empty)
         result         <- Promise.make[Nothing, Boolean]
         failureTrigger <- Promise.make[Unit, Unit]
-        count          <- Ref.make(0)
-        fibers <- ZIO.foreach(as) {
-                   f(_)
-                     .tapCause(c => causes.update(_ && c) *> failureTrigger.fail(()))
-                     .ensuring {
-                       count.update(_ + 1) >>= { done =>
-                         ZIO.when(done == size) {
-                           result.complete(failureTrigger.succeed(()))
-                         }
-                       }
-                     }
-                     .fork
-                 }
+        status         <- Ref.make((0, 0, false))
+
+        startTask = status.modify {
+          case (started, done, failing) =>
+            if (failing) {
+              (false, (started, done, failing))
+            } else {
+              (true, (started + 1, done, failing))
+            }
+        }
+
+        startFailure = status.update {
+          case (started, done, _) => (started, done, true)
+        } *> failureTrigger.fail(())
+
+        task = ZIOFn(f)((a: A) =>
+          ZIO
+            .whenM[R, E](startTask) {
+              f(a).interruptible
+                .tapCause(c => causes.update(_ && c) *> startFailure)
+                .ensuring {
+                  val isComplete = status.modify {
+                    case (started, done, failing) =>
+                      val newDone = done + 1
+                      ((if (failing) started else size) == newDone, (started, newDone, failing))
+                  }
+                  ZIO.whenM(isComplete) {
+                    result.complete(failureTrigger.succeed(()))
+                  }
+                }
+            }
+            .uninterruptible
+        )
+
+        fibers <- ZIO.foreach(as)(a => task(a).fork)
         interrupter = failureTrigger.await
           .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
           .forkManaged
