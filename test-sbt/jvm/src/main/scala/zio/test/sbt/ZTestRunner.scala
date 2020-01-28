@@ -53,24 +53,23 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   def tasks(defs: Array[TaskDef]): Array[Task] = {
     val testArgs        = TestArgs.parse(args)
     val tasks           = defs.map(new ZTestTask(_, testClassLoader, sendSummary, testArgs))
-    val entrypointClass = testArgs.rootTask.getOrElse(classOf[ZTestRootTask].getName)
-    val rootTask = getClass.getClassLoader
+    val entrypointClass = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)
+    val taskPolicy = getClass.getClassLoader
       .loadClass(entrypointClass)
-      .getConstructor(classOf[Array[ZTestTask]])
-      .newInstance(tasks)
-      .asInstanceOf[Task]
-    Array(rootTask)
+      .getConstructor()
+      .newInstance()
+      .asInstanceOf[ZTestTaskPolicy]
+    taskPolicy.merge(tasks)
   }
 }
 
 final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
     extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)
 
-class ZTestRootTask(val zioTasks: Array[ZTestTask]) extends Task {
-  override def tags(): Array[String] = Array.empty
+trait ZTestTaskPolicy {
+  def merge(zioTasks: Array[ZTestTask]): Array[Task]
+}
 
-  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
-    zioTasks.toArray
-
-  override def taskDef(): TaskDef = new TaskDef("zio core", new Fingerprint {}, true, Array())
+class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
+  override def merge(zioTasks: Array[ZTestTask]): Array[Task] = zioTasks.toArray
 }

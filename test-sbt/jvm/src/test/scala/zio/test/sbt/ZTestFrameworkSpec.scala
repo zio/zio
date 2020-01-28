@@ -122,7 +122,7 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .flatMap(task => task.asInstanceOf[ZTestRootTask].zioTasks)
+      .map(task => task.asInstanceOf[ZTestTask])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
@@ -143,7 +143,7 @@ object ZTestFrameworkSpec {
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .flatMap(task => task.asInstanceOf[ZTestRootTask].zioTasks)
+      .map(task => task.asInstanceOf[ZTestTask])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
