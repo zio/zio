@@ -6,7 +6,6 @@ import ZStream.Pull
 import zio._
 import zio.test.Assertion.{ equalTo, isFalse, isTrue }
 import zio.test._
-import zio.test.TestAspect.nonFlaky
 
 object StreamPullSafetySpec extends ZIOBaseSpec {
 
@@ -153,27 +152,6 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
         )
       )
     },
-    testM("Stream.bufferDropping is safe to pull again") {
-      assertM(
-        Stream(1, 2, 3, 4, 5)
-          .mapM(n => if (n % 2 == 0) IO.fail(s"Ouch $n") else UIO.succeed(n))
-          .bufferDropping(2)
-          .process
-          .use(nPulls(_, 7))
-      )(
-        equalTo(
-          List(
-            Right(1),
-            Left(Some("Ouch 2")),
-            Right(3),
-            Left(Some("Ouch 4")),
-            Right(5),
-            Left(None),
-            Left(None)
-          )
-        )
-      )
-    } @@ nonFlaky,
     testM("Stream.bufferSliding is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)
@@ -194,7 +172,7 @@ object StreamPullSafetySpec extends ZIOBaseSpec {
           )
         )
       )
-    } @@ nonFlaky,
+    },
     testM("Stream.bufferUnbounded is safe to pull again") {
       assertM(
         Stream(1, 2, 3, 4, 5)
