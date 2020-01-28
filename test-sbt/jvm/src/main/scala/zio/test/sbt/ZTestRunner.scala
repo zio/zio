@@ -50,9 +50,21 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
         .mkString("", "", "Done")
   }
 
-  def tasks(defs: Array[TaskDef]): Array[Task] =
-    defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
+  def tasks(defs: Array[TaskDef]): Array[Task] = {
+    val tasks = defs.map(new ZTestTask(_, testClassLoader, sendSummary, TestArgs.parse(args)))
+    Array(new ZTestRootTask(tasks))
+  }
 }
 
 final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
     extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)
+
+class ZTestRootTask(val zioTasks: Array[ZTestTask]) extends Task {
+  override def tags(): Array[String] = Array.empty
+
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
+    zioTasks.toArray
+  }
+
+  override def taskDef(): TaskDef = new TaskDef("zio core", new Fingerprint {}, true, Array())
+}
