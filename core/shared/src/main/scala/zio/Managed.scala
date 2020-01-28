@@ -55,12 +55,6 @@ object Managed {
     ZManaged.die(t)
 
   /**
-   * See [[zio.ZManaged.dieNow]]
-   */
-  private[zio] def dieNow(t: Throwable): Managed[Nothing, Nothing] =
-    ZManaged.dieNow(t)
-
-  /**
    * See [[zio.ZManaged.dieMessage]]
    */
   def dieMessage(message: => String): Managed[Throwable, Nothing] =
@@ -73,12 +67,6 @@ object Managed {
     ZManaged.done(r)
 
   /**
-   * See [[zio.ZManaged.doneNow]]
-   */
-  private[zio] def doneNow[E, A](r: Exit[E, A]): Managed[E, A] =
-    ZManaged.doneNow(r)
-
-  /**
    * See [[zio.ZManaged.effectTotal]]
    */
   def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
@@ -89,12 +77,6 @@ object Managed {
    */
   def fail[E](error: => E): Managed[E, Nothing] =
     ZManaged.fail(error)
-
-  /**
-   * See [[zio.ZManaged.fail]]
-   */
-  private[zio] def failNow[E](error: E): Managed[E, Nothing] =
-    ZManaged.failNow(error)
 
   /**
    * See [[zio.ZManaged.finalizer]]
@@ -167,12 +149,6 @@ object Managed {
    */
   def halt[E](cause: => Cause[E]): Managed[E, Nothing] =
     ZManaged.halt(cause)
-
-  /**
-   * See [[zio.ZManaged.haltNow]]
-   */
-  private[zio] def haltNow[E](cause: Cause[E]): Managed[E, Nothing] =
-    ZManaged.haltNow(cause)
 
   /**
    * See [[zio.ZManaged.interrupt]]
@@ -346,12 +322,6 @@ object Managed {
     ZManaged.succeed(r)
 
   /**
-   * See [[zio.ZManaged.succeedNow]]
-   */
-  private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =
-    ZManaged.succeedNow(r)
-
-  /**
    * See [[zio.ZManaged.suspend]]
    */
   def suspend[E, A](managed: => Managed[E, A]): Managed[E, A] =
@@ -442,4 +412,18 @@ object Managed {
   def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, Any]): Managed[E, Unit] =
     ZManaged.whenM(b)(managed)
 
+  private[zio] def dieNow(t: Throwable): Managed[Nothing, Nothing] =
+    ZManaged.dieNow(t)
+
+  private[zio] def failNow[E](error: E): Managed[E, Nothing] =
+    ZManaged.failNow(error)
+
+  private[zio] def haltNow[E](cause: Cause[E]): Managed[E, Nothing] =
+    ZManaged.haltNow(cause)
+
+  private[zio] def doneNow[E, A](r: Exit[E, A]): Managed[E, A] =
+    ZManaged.doneNow(r)
+
+  private[zio] def succeedNow[A](r: A): Managed[Nothing, A] =
+    ZManaged.succeedNow(r)
 }

@@ -1122,19 +1122,11 @@ object ZManaged {
     foreachParN(n)(as)(scala.Predef.identity)
 
   /**
-   * Returns an effect that dies with the specified lazily evaluated
-   * `Throwable`. This method can be used for terminating a fiber because a
-   * defect has been detected in the code.
+   * Returns an effect that dies with the specified `Throwable`.
+   * This method can be used for terminating a fiber because a defect has been
+   * detected in the code.
    */
   def die(t: => Throwable): ZManaged[Any, Nothing, Nothing] =
-    haltNow(Cause.die(t))
-
-  /**
-   * Returns an effect that dies with the specified eagerly evaluated
-   * `Throwable`. This method can be used for terminating a fiber because a
-   * defect has been detected in the code.
-   */
-  private[zio] def dieNow(t: Throwable): ZManaged[Any, Nothing, Nothing] =
     halt(Cause.die(t))
 
   /**
@@ -1152,12 +1144,6 @@ object ZManaged {
     ZManaged.fromEffect(ZIO.done(r))
 
   /**
-   * Returns an effect from an eagerly evaluated [[zio.Exit]] value.
-   */
-  private[zio] def doneNow[E, A](r: Exit[E, A]): ZManaged[Any, E, A] =
-    ZManaged.fromEffect(ZIO.done(r))
-
-  /**
    * Lifts a by-name, pure value into a Managed.
    */
   def effectTotal[R, A](r: => A): ZManaged[R, Nothing, A] =
@@ -1170,18 +1156,11 @@ object ZManaged {
     ZManaged.fromEffect(ZIO.environment)
 
   /**
-   * Returns an effect that models failure with the specified lazily evaluated
-   * error. The moral equivalent of `throw` for pure code.
+   * Returns an effect that models failure with the specified  error.
+   * The moral equivalent of `throw` for pure code.
    */
   def fail[E](error: => E): ZManaged[Any, E, Nothing] =
     halt(Cause.fail(error))
-
-  /**
-   * Returns an effect that models failure with the specified eagerly evaluated
-   * error. The moral equivalent of `throw` for pure code.
-   */
-  private[zio] def failNow[E](error: E): ZManaged[Any, E, Nothing] =
-    haltNow(Cause.fail(error))
 
   /**
    * Returns an effect that succeeds with the `Fiber.Id` of the caller.
@@ -1355,18 +1334,10 @@ object ZManaged {
   def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] = flatten(fromFunction(f))
 
   /**
-   * Returns an effect that models failure with the specified lazily evaluated
-   * `Cause`.
+   * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
     ZManaged.fromEffect(ZIO.halt(cause))
-
-  /**
-   * Returns an effect that models failure with the specified eagerly evaluated
-   * `Cause`.
-   */
-  private[zio] def haltNow[E](cause: Cause[E]): ZManaged[Any, E, Nothing] =
-    ZManaged.fromEffect(ZIO.haltNow(cause))
 
   /**
    * Returns the identity effectful function, which performs no effects
@@ -1742,12 +1713,6 @@ object ZManaged {
     ZManaged(IO.succeedNow(Reservation(IO.succeed(r), _ => IO.unit)))
 
   /**
-   * Lifts a strict, pure value into a Managed.
-   */
-  private[zio] def succeedNow[R, A](r: A): ZManaged[R, Nothing, A] =
-    ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
-
-  /**
    * Returns a lazily constructed Managed.
    */
   def suspend[R, E, A](zManaged: => ZManaged[R, E, A]): ZManaged[R, E, A] =
@@ -1908,4 +1873,18 @@ object ZManaged {
   def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     b.flatMap(b => if (b) zManaged.unit else unit)
 
+  private[zio] def dieNow(t: Throwable): ZManaged[Any, Nothing, Nothing] =
+    halt(Cause.die(t))
+
+  private[zio] def doneNow[E, A](r: Exit[E, A]): ZManaged[Any, E, A] =
+    ZManaged.fromEffect(ZIO.done(r))
+
+  private[zio] def failNow[E](error: E): ZManaged[Any, E, Nothing] =
+    haltNow(Cause.fail(error))
+
+  private[zio] def haltNow[E](cause: Cause[E]): ZManaged[Any, E, Nothing] =
+    ZManaged.fromEffect(ZIO.haltNow(cause))
+
+  private[zio] def succeedNow[R, A](r: A): ZManaged[R, Nothing, A] =
+    ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
 }

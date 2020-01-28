@@ -2021,7 +2021,7 @@ class ZStream[-R, +E, +A] private[stream] (private[stream] val structure: ZStrea
       })
       .flatMap {
         case q1 :: q2 :: Nil =>
-          ZManaged.succeed {
+          ZManaged.succeedNow {
             (
               ZStream.fromQueueWithShutdown(q1).unTake.collect { case Left(x)  => x },
               ZStream.fromQueueWithShutdown(q2).unTake.collect { case Right(x) => x }
@@ -3243,7 +3243,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
    */
   def fromQueue[R, E, A](queue: ZQueue[Nothing, Any, R, E, Nothing, A]): ZStream[R, E, A] =
     ZStream {
-      ZManaged.succeed {
+      ZManaged.succeedNow {
         queue.take.catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
             if (down && c.interrupted) Pull.end

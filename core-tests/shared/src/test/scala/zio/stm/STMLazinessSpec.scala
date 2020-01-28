@@ -1,35 +1,36 @@
 package zio.stm
 
-import zio.ZIOBaseSpec
 import zio.test._
+import zio.{ UIO, ZIOBaseSpec }
 
 object STMLazinessSpec extends ZIOBaseSpec {
 
-  def assertLazy[A, B](f: (=> A) => B): TestResult = {
-    val _ = f(throw new RuntimeException("not lazy"))
-    assertCompletes
-  }
+  def assertLazy[A, B](f: (=> A) => B): UIO[TestResult] =
+    UIO.effectTotal {
+      val _ = f(throw new RuntimeException("not lazy"))
+      assertCompletes
+    }
 
   def spec = suite("STMLazinessSpec")(
     suite("STM")(
-      test("check")(assertLazy(STM.check)),
-      test("die")(assertLazy(STM.die)),
-      test("dieMessage")(assertLazy(STM.dieMessage)),
-      test("done")(assertLazy(STM.done)),
-      test("fail")(assertLazy(STM.fail)),
-      test("fromEither")(assertLazy(STM.fromEither)),
-      test("fromTry")(assertLazy(STM.fromTry)),
-      test("succeed")(assertLazy(STM.succeed))
+      testM("check")(assertLazy(STM.check)),
+      testM("die")(assertLazy(STM.die)),
+      testM("dieMessage")(assertLazy(STM.dieMessage)),
+      testM("done")(assertLazy(STM.done)),
+      testM("fail")(assertLazy(STM.fail)),
+      testM("fromEither")(assertLazy(STM.fromEither)),
+      testM("fromTry")(assertLazy(STM.fromTry)),
+      testM("succeed")(assertLazy(STM.succeed))
     ),
     suite("ZSTM")(
-      test("check")(assertLazy(ZSTM.check)),
-      test("die")(assertLazy(ZSTM.die)),
-      test("dieMessage")(assertLazy(ZSTM.dieMessage)),
-      test("done")(assertLazy(ZSTM.done)),
-      test("fail")(assertLazy(ZSTM.fail)),
-      test("fromEither")(assertLazy(ZSTM.fromEither)),
-      test("fromTry")(assertLazy(ZSTM.fromTry)),
-      test("succeed")(assertLazy(ZSTM.succeed))
+      testM("check")(assertLazy(ZSTM.check)),
+      testM("die")(assertLazy(ZSTM.die)),
+      testM("dieMessage")(assertLazy(ZSTM.dieMessage)),
+      testM("done")(assertLazy(ZSTM.done)),
+      testM("fail")(assertLazy(ZSTM.fail)),
+      testM("fromEither")(assertLazy(ZSTM.fromEither)),
+      testM("fromTry")(assertLazy(ZSTM.fromTry)),
+      testM("succeed")(assertLazy(ZSTM.succeed))
     )
   )
 }

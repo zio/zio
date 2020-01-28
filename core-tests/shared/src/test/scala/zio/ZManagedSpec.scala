@@ -845,7 +845,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("tap")(
       testM("Doesn't change the managed resource") {
         ZManaged
-          .succeed(1)
+          .succeedNow(1)
           .tap(n => ZManaged.succeedNow(n + 1))
           .map(actual => assert(1)(equalTo(actual)))
           .use(ZIO.succeedNow)
