@@ -228,6 +228,12 @@ object Stream extends Serializable {
     ZStream.fromIterable(as)
 
   /**
+   * See [[ZStream.fromIterableM]]
+   */
+  def fromIterableM[E, A](iterable: IO[E, Iterable[A]]): Stream[E, A] =
+    ZStream.fromIterableM(iterable)
+
+  /**
    * See [[ZStream.fromIterator]]
    */
   def fromIterator[E, A](iterator: IO[E, Iterator[A]]): Stream[E, A] =
