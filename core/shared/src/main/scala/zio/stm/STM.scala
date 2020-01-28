@@ -31,7 +31,7 @@ object STM {
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
-  def check(p: Boolean): STM[Nothing, Unit] = ZSTM.check(p)
+  def check(p: => Boolean): STM[Nothing, Unit] = ZSTM.check(p)
 
   /**
    * Collects all the transactional effects in a list, returning a single
@@ -43,26 +43,26 @@ object STM {
   /**
    * Kills the fiber running the effect.
    */
-  def die(t: Throwable): STM[Nothing, Nothing] =
+  def die(t: => Throwable): STM[Nothing, Nothing] =
     ZSTM.die(t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
    * the specified message.
    */
-  def dieMessage(m: String): STM[Nothing, Nothing] =
+  def dieMessage(m: => String): STM[Nothing, Nothing] =
     ZSTM.dieMessage(m)
 
   /**
    * Returns a value modelled on provided exit status.
    */
-  def done[E, A](exit: ZSTM.internal.TExit[E, A]): STM[E, A] =
+  def done[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
     ZSTM.done(exit)
 
   /**
    * Returns a value that models failure in the transaction.
    */
-  def fail[E](e: E): STM[E, Nothing] =
+  def fail[E](e: => E): STM[E, Nothing] =
     ZSTM.fail(e)
 
   /**
@@ -86,7 +86,7 @@ object STM {
    * the list of results.
    */
   def foreach_[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, Unit] =
-    STM.succeed(as.iterator).flatMap { it =>
+    STM.succeedNow(as.iterator).flatMap { it =>
       def loop: STM[E, Unit] =
         if (it.hasNext) f(it.next) *> loop
         else STM.unit
@@ -122,7 +122,7 @@ object STM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  def succeed[A](a: A): STM[Nothing, A] =
+  def succeed[A](a: => A): STM[Nothing, A] =
     ZSTM.succeed(a)
 
   /**
@@ -134,7 +134,7 @@ object STM {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[E](b: Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+  def when[E](b: => Boolean)(stm: STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
@@ -146,4 +146,16 @@ object STM {
    */
   val unit: STM[Nothing, Unit] =
     ZSTM.unit
+
+  private[zio] def dieNow(t: Throwable): STM[Nothing, Nothing] =
+    ZSTM.dieNow(t)
+
+  private[zio] def doneNow[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
+    ZSTM.doneNow(exit)
+
+  private[zio] def failNow[E](e: E): STM[E, Nothing] =
+    ZSTM.failNow(e)
+
+  private[zio] def succeedNow[A](a: A): STM[Nothing, A] =
+    ZSTM.succeedNow(a)
 }

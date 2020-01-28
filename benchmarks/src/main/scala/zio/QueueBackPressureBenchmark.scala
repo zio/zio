@@ -36,7 +36,7 @@ class QueueBackPressureBenchmark {
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](queueSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](queueSize).unsafeRunSync()
-    zioTQ = unsafeRun(TQueue.make(queueSize).commit)
+    zioTQ = unsafeRun(TQueue.bounded(queueSize).commit)
     monixQ = monix.catnap.ConcurrentQueue.bounded[MTask, Int](queueSize).runSyncUnsafe()
   }
 

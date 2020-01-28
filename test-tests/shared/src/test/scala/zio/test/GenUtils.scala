@@ -5,7 +5,7 @@ import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion.{ equalTo, forall }
 import zio.test.environment.TestRandom
-import zio.{ Exit, UIO, ZIO, ZLayer }
+import zio.{ Exit, UIO, ZIO }
 
 object GenUtils {
 
@@ -67,7 +67,7 @@ object GenUtils {
     }
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): ZIO[Random, Nothing, A] =
-    zio.provideLayer[Nothing, Random, Random with Sized](ZLayer.identity[Random] ++ Sized.live(n))
+    zio.provideLayer[Nothing, Random, Random with Sized](Random.any ++ Sized.live(n))
 
   val random: Gen[Any, Gen[Random, Int]] =
     Gen.const(Gen.int(-10, 10))

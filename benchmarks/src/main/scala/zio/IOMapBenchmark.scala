@@ -103,10 +103,10 @@ class IOMapBenchmark {
   }
 
   @Benchmark
-  def scalazMap(): BigInt = zioMap(IOBenchmarks)
+  def zioMap(): BigInt = zioMap(IOBenchmarks)
 
   @Benchmark
-  def scalazTracedMap(): BigInt = zioMap(TracedRuntime)
+  def zioTracedMap(): BigInt = zioMap(TracedRuntime)
 
   private[this] def zioMap(runtime: Runtime[Any]): BigInt = {
     @tailrec

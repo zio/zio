@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 
 import zio.IOBenchmarks._
-import zio.ZIO.succeed
+import zio.ZIO.succeedNow
 import zio._
 
 @State(Scope.Thread)
@@ -27,5 +27,5 @@ private[this] class MergeAllParBenchmark {
   private def naiveMergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
+    in.foldLeft[ZIO[R, E, B]](succeedNow[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
 }

@@ -165,17 +165,17 @@ object RIO {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
    */
-  def dieMessage(message: String): UIO[Nothing] = ZIO.dieMessage(message)
+  def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
    * @see See [[zio.ZIO.done]]
    */
-  def done[A](r: Exit[Throwable, A]): Task[A] = ZIO.done(r)
+  def done[A](r: => Exit[Throwable, A]): Task[A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
@@ -248,12 +248,18 @@ object RIO {
   /**
    * @see See [[zio.ZIO.fail]]
    */
-  def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
+  def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
+
+  /**
+   * @see [[zio.ZIO.filter]]
+   */
+  def filter[R, A](as: Iterable[A])(f: A => RIO[R, Boolean]): RIO[R, List[A]] =
+    ZIO.filter(as)(f)
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
@@ -320,7 +326,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.forkAll]]
    */
-  def forkAll[R, A](as: Iterable[RIO[R, A]]): ZIO[R, Nothing, Fiber[Throwable, List[A]]] =
+  def forkAll[R, A](as: Iterable[RIO[R, A]]): ZIO[R, Nothing, Fiber.Synthetic[Throwable, List[A]]] =
     ZIO.forkAll(as)
 
   /**
@@ -388,7 +394,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt(cause: Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
+  def halt(cause: => Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -409,7 +415,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
@@ -426,13 +432,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  def lock[R, A](executor: Executor)(taskr: RIO[R, A]): RIO[R, A] =
+  def lock[R, A](executor: => Executor)(taskr: RIO[R, A]): RIO[R, A] =
     ZIO.lock(executor)(taskr)
 
   /**
    *  @see See [[zio.ZIO.left]]
    */
-  def left[R, A](a: A): RIO[R, Either[A, Nothing]] = ZIO.left(a)
+  def left[R, A](a: => A): RIO[R, Either[A, Nothing]] = ZIO.left(a)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
@@ -505,29 +511,29 @@ object RIO {
   val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
-   * @see See [[zio.ZIO.partitionM]]
+   * @see See [[zio.ZIO.partition]]
    */
-  def partitionM[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
-    ZIO.partitionM(in)(f)
+  def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+    ZIO.partition(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMPar]]
+   * @see See [[zio.ZIO.partitionPar]]
    */
-  def partitionMPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
-    ZIO.partitionMPar(in)(f)
+  def partitionPar[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
+    ZIO.partitionPar(in)(f)
 
   /**
-   * @see See [[zio.ZIO.partitionMParN]]
+   * @see See [[zio.ZIO.partitionParN]]
    */
-  def partitionMParN[R, A, B](n: Int)(
+  def partitionParN[R, A, B](n: Int)(
     in: Iterable[A]
   )(f: A => RIO[R, B]): RIO[Nothing, (List[Throwable], List[B])] =
-    ZIO.partitionMParN(n)(in)(f)
+    ZIO.partitionParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.provide]]
    */
-  def provide[R, A](r: R): RIO[R, A] => Task[A] =
+  def provide[R, A](r: => R): RIO[R, A] => Task[A] =
     ZIO.provide(r)
 
   /**
@@ -557,7 +563,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.require]]
    */
-  def require[A](error: Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
+  def require[A](error: => Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
     ZIO.require[Any, Throwable, A](error)
 
   /**
@@ -569,7 +575,7 @@ object RIO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[R, B](b: B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
+  def right[R, B](b: => B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -579,34 +585,37 @@ object RIO {
   /**
    * @see See [[zio.ZIO.sleep]]
    */
-  def sleep(duration: Duration): RIO[Clock, Unit] =
+  def sleep(duration: => Duration): RIO[Clock, Unit] =
     ZIO.sleep(duration)
 
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[R, A](a: A): RIO[R, Option[A]] = ZIO.some(a)
+  def some[R, A](a: => A): RIO[R, Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
+  def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
    *  See [[zio.ZIO.sequence]]
    */
+  @deprecated("use collectAll", "1.0.0")
   def sequence[R, A](in: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequence(in)
 
   /**
    *  See [[zio.ZIO.sequencePar]]
    */
+  @deprecated("use collectAllPar", "1.0.0")
   def sequencePar[R, A](as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequencePar(as)
 
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
+  @deprecated("use collectAllParN", "1.0.0")
   def sequenceParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequenceParN(n)(as)
 
@@ -629,18 +638,21 @@ object RIO {
   /**
    * @see See [[zio.ZIO.traverse]]
    */
+  @deprecated("use foreach", "1.0.0")
   def traverse[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.traverse(in)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar]]
    */
+  @deprecated("use foreachPar", "1.0.0")
   def traversePar[R, A, B](as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.traversePar(as)(fn)
 
   /**
    * Alias for [[ZIO.foreachParN]]
    */
+  @deprecated("use foreachParN", "1.0.0")
   def traverseParN[R, A, B](
     n: Int
   )(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
@@ -649,18 +661,21 @@ object RIO {
   /**
    * @see See [[zio.ZIO.traverse_]]
    */
+  @deprecated("use foreach_", "1.0.0")
   def traverse_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.traverse_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traversePar_]]
    */
+  @deprecated("use foreachPar_", "1.0.0")
   def traversePar_[R, A](as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.traversePar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.traverseParN_]]
    */
+  @deprecated("use foreachParN_", "1.0.0")
   def traverseParN_[R, A](
     n: Int
   )(as: Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
@@ -696,13 +711,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when[R](b: Boolean)(rio: RIO[R, Any]): RIO[R, Unit] =
+  def when[R](b: => Boolean)(rio: RIO[R, Any]): RIO[R, Unit] =
     ZIO.when(b)(rio)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**
@@ -732,4 +747,13 @@ object RIO {
    */
   def _2[R, A, B](implicit ev: R <:< (A, B)): RIO[R, B] = ZIO._2
 
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+
+  private[zio] def doneNow[A](r: Exit[Throwable, A]): Task[A] = ZIO.doneNow(r)
+
+  private[zio] def failNow(error: Throwable): Task[Nothing] = ZIO.failNow(error)
+
+  private[zio] def haltNow(cause: Cause[Throwable]): Task[Nothing] = ZIO.haltNow(cause)
+
+  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

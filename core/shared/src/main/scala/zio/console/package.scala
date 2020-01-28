@@ -32,6 +32,10 @@ package object console {
 
       val getStrLn: IO[IOException, String]
     }
+
+    val any: ZLayer[Console, Nothing, Console] =
+      ZLayer.requires[Console]
+
     val live: ZLayer.NoDeps[Nothing, Console] = ZLayer.succeed {
       new Service {
 
@@ -84,13 +88,13 @@ package object console {
   /**
    * Prints text to the console.
    */
-  def putStr(line: String): ZIO[Console, Nothing, Unit] =
+  def putStr(line: => String): ZIO[Console, Nothing, Unit] =
     ZIO.accessM(_.get putStr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
+  def putStrLn(line: => String): ZIO[Console, Nothing, Unit] =
     ZIO.accessM(_.get putStrLn line)
 
   /**

@@ -22,6 +22,7 @@ import java.{ util => ju }
 import zio.Cause
 import zio._
 import zio.clock.Clock
+import zio.stm.TQueue
 
 object Stream extends Serializable {
   import ZStream.Pull
@@ -90,13 +91,13 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.die]]
    */
-  def die(ex: Throwable): Stream[Nothing, Nothing] =
+  def die(ex: => Throwable): Stream[Nothing, Nothing] =
     ZStream.die(ex)
 
   /**
    * See [[ZStream.dieMessage]]
    */
-  def dieMessage(msg: String): Stream[Nothing, Nothing] =
+  def dieMessage(msg: => String): Stream[Nothing, Nothing] =
     ZStream.dieMessage(msg)
 
   /**
@@ -138,7 +139,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.fail]]
    */
-  def fail[E](error: E): Stream[E, Nothing] =
+  def fail[E](error: => E): Stream[E, Nothing] =
     ZStream.fail(error)
 
   /**
@@ -165,7 +166,7 @@ object Stream extends Serializable {
    * See [[ZStream.fromInputStream]]
    */
   def fromInputStream(
-    is: InputStream,
+    is: => InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
   ): StreamEffectChunk[Any, IOException, Byte] =
     ZStream.fromInputStream(is, chunkSize)
@@ -173,7 +174,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.fromChunk]]
    */
-  def fromChunk[A](c: Chunk[A]): Stream[Nothing, A] =
+  def fromChunk[A](c: => Chunk[A]): Stream[Nothing, A] =
     ZStream.fromChunk(c)
 
   /**
@@ -223,8 +224,14 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.fromIterable]]
    */
-  def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
+  def fromIterable[A](as: => Iterable[A]): Stream[Nothing, A] =
     ZStream.fromIterable(as)
+
+  /**
+   * See [[ZStream.fromIterableM]]
+   */
+  def fromIterableM[E, A](iterable: IO[E, Iterable[A]]): Stream[E, A] =
+    ZStream.fromIterableM(iterable)
 
   /**
    * See [[ZStream.fromIterator]]
@@ -263,9 +270,16 @@ object Stream extends Serializable {
     ZStream.fromQueueWithShutdown(queue)
 
   /**
+   * See [[ZStream.fromTQueue]]
+   */
+  def fromTQueue[A](queue: TQueue[A]): Stream[Nothing, A] =
+    ZStream.fromTQueue(queue)
+
+  /**
    * See [[ZStream.halt]]
    */
-  def halt[E](cause: Cause[E]): Stream[E, Nothing] = fromEffect(ZIO.halt(cause))
+  def halt[E](cause: => Cause[E]): Stream[E, Nothing] =
+    ZStream.halt(cause)
 
   /**
    * See [[ZStream.iterate]]
@@ -295,7 +309,7 @@ object Stream extends Serializable {
   /**
    * See [[ZStream.succeed]]
    */
-  def succeed[A](a: A): Stream[Nothing, A] =
+  def succeed[A](a: => A): Stream[Nothing, A] =
     ZStream.succeed(a)
 
   /**
@@ -349,4 +363,15 @@ object Stream extends Serializable {
   ): Stream[E, F] =
     ZStream.zipN(stream1, stream2, stream3, stream4)(f)
 
+  private[zio] def dieNow(ex: Throwable): Stream[Nothing, Nothing] =
+    ZStream.dieNow(ex)
+
+  private[zio] def failNow[E](error: E): Stream[E, Nothing] =
+    ZStream.failNow(error)
+
+  private[zio] def haltNow[E](cause: Cause[E]): Stream[E, Nothing] =
+    ZStream.haltNow(cause)
+
+  private[zio] def succeedNow[A](a: A): Stream[Nothing, A] =
+    ZStream.succeedNow(a)
 }

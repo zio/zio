@@ -76,13 +76,13 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def die(e: Throwable): UIO[Boolean] = completeWith(IO.die(e))
+  def die(e: Throwable): UIO[Boolean] = completeWith(IO.dieNow(e))
 
   /**
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.done(e))
+  def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.doneNow(e))
 
   /**
    * Completes the promise with the result of the specified effect. If the
@@ -137,13 +137,13 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
+  def fail(e: E): UIO[Boolean] = completeWith(IO.failNow(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
+  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.haltNow(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
@@ -173,14 +173,14 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    */
   def poll: UIO[Option[IO[E, A]]] =
     IO.effectTotal(state.get).flatMap {
-      case Pending(_) => IO.succeed(None)
-      case Done(io)   => IO.succeed(Some(io))
+      case Pending(_) => IO.succeedNow(None)
+      case Done(io)   => IO.succeedNow(Some(io))
     }
 
   /**
    * Completes the promise with the specified value.
    */
-  def succeed(a: A): UIO[Boolean] = completeWith(IO.succeed(a))
+  def succeed(a: A): UIO[Boolean] = completeWith(IO.succeedNow(a))
 
   private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler[Any] = IO.effectTotal {
     var retry = true

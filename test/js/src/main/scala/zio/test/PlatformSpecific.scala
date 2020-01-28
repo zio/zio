@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-package zio.test.environment
+package zio.test
 
 import zio._
-import zio.test.Annotations
-import zio.test.Sized
+import zio.test.environment._
 
-trait PlatformSpecific {
+private[test] trait PlatformSpecific {
   type TestEnvironment =
     ZEnv with Annotations with TestClock with TestConsole with Live with TestRandom with Sized with TestSystem
 
   object TestEnvironment {
-    def live: ZLayer[ZEnv, Nothing, TestEnvironment] =
+    val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
+      ZLayer.requires[TestEnvironment]
+    val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
       Annotations.live ++
         (Live.default >>> TestClock.default) ++
         TestConsole.default ++

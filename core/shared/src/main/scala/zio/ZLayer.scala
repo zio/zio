@@ -86,11 +86,6 @@ object ZLayer {
   type NoDeps[+E, +B <: Has[_]] = ZLayer[Any, E, B]
 
   /**
-   * Constructs a layer that passes along the specified environment as an output.
-   */
-  def environment[A <: Has[_]]: ZLayer[A, Nothing, A] = ZLayer(ZManaged.environment[A])
-
-  /**
    * Constructs a layer from the specified effect, which must produce one or
    * more services.
    */
@@ -101,7 +96,7 @@ object ZLayer {
    * which must return one or more services.
    */
   def fromEnvironment[A, B <: Has[_]](f: A => B): ZLayer[A, Nothing, B] =
-    fromEnvironmentM(a => ZIO.succeed(f(a)))
+    fromEnvironmentM(a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -329,7 +324,12 @@ object ZLayer {
   /**
    * An identity layer that passes along its inputs.
    */
-  def identity[A <: Has[_]]: ZLayer[A, Nothing, A] = ZLayer.environment[A]
+  def identity[A <: Has[_]]: ZLayer[A, Nothing, A] = ZLayer.requires[A]
+
+  /**
+   * Constructs a layer that passes along the specified environment as an output.
+   */
+  def requires[A <: Has[_]]: ZLayer[A, Nothing, A] = ZLayer(ZManaged.environment[A])
 
   /**
    * Constructs a layer that accesses and returns the specified service from

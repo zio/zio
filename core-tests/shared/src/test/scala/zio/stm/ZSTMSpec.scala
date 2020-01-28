@@ -13,69 +13,69 @@ object ZSTMSpec extends ZIOBaseSpec {
   def spec = suite("ZSTMSpec")(
     suite("Using `STM.atomically` to perform different computations and call:")(
       testM("`STM.succeed` to make a successful computation and check the value") {
-        assertM(STM.succeed("Hello World").commit)(equalTo("Hello World"))
+        assertM(STM.succeedNow("Hello World").commit)(equalTo("Hello World"))
       },
       testM("`STM.failed` to make a failed computation and check the value") {
-        assertM(STM.fail("Bye bye World").commit.run)(fails(equalTo("Bye bye World")))
+        assertM(STM.failNow("Bye bye World").commit.run)(fails(equalTo("Bye bye World")))
       },
       suite("`either` to convert")(
         testM("A successful computation into Right(a)") {
           import zio.CanFail.canFail
-          assertM(STM.succeed(42).either.commit)(isRight(equalTo(42)))
+          assertM(STM.succeedNow(42).either.commit)(isRight(equalTo(42)))
         },
         testM("A failed computation into Left(e)") {
-          assertM(STM.fail("oh no!").either.commit)(isLeft(equalTo("oh no!")))
+          assertM(STM.failNow("oh no!").either.commit)(isLeft(equalTo("oh no!")))
         }
       ),
       suite("fallback")(
         testM("Tries this effect first") {
           import zio.CanFail.canFail
-          assertM(STM.succeed(1).fallback(2).commit)(equalTo(1))
+          assertM(STM.succeedNow(1).fallback(2).commit)(equalTo(1))
         },
         testM("If it fails, succeeds with the specified value") {
-          assertM(STM.fail("fail").fallback(1).commit)(equalTo(1))
+          assertM(STM.failNow("fail").fallback(1).commit)(equalTo(1))
         }
       ),
       testM("`fold` to handle both failure and success") {
         import zio.CanFail.canFail
         val stm = for {
-          s <- STM.succeed("Yes!").fold(_ => -1, _ => 1)
-          f <- STM.fail("No!").fold(_ => -1, _ => 1)
+          s <- STM.succeedNow("Yes!").fold(_ => -1, _ => 1)
+          f <- STM.failNow("No!").fold(_ => -1, _ => 1)
         } yield (s, f)
         assertM(stm.commit)(equalTo((1, -1)))
       },
       testM("`foldM` to fold over the `STM` effect, and handle failure and success") {
         import zio.CanFail.canFail
         val stm = for {
-          s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
-          f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
+          s <- STM.succeedNow("Yes!").foldM(_ => STM.succeedNow("No!"), STM.succeedNow)
+          f <- STM.failNow("No!").foldM(STM.succeedNow, _ => STM.succeedNow("Yes!"))
         } yield (s, f)
         assertM(stm.commit)(equalTo(("Yes!", "No!")))
       },
       testM("`mapError` to map from one error to another") {
-        assertM(STM.fail(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
+        assertM(STM.failNow(-1).mapError(_ => "oh no!").commit.run)(fails(equalTo("oh no!")))
       },
       testM("`orElse` to try another computation when the computation is failed") {
         import zio.CanFail.canFail
         (for {
-          s <- STM.succeed(1) orElse STM.succeed(2)
-          f <- STM.fail("failed") orElse STM.succeed("try this")
+          s <- STM.succeedNow(1) orElse STM.succeedNow(2)
+          f <- STM.failNow("failed") orElse STM.succeedNow("try this")
         } yield assert((s, f))(equalTo((1, "try this")))).commit
       },
       suite("`option` to convert:")(
         testM("A successful computation into Some(a)") {
           import zio.CanFail.canFail
-          assertM(STM.succeed(42).option.commit)(isSome(equalTo(42)))
+          assertM(STM.succeedNow(42).option.commit)(isSome(equalTo(42)))
         },
         testM("A failed computation into None") {
-          assertM(STM.fail("oh no!").option.commit)(isNone)
+          assertM(STM.failNow("oh no!").option.commit)(isNone)
         }
       ),
       testM("`zip` to return a tuple of two computations") {
-        assertM((STM.succeed(1) <*> STM.succeed('A')).commit)(equalTo((1, 'A')))
+        assertM((STM.succeedNow(1) <*> STM.succeedNow('A')).commit)(equalTo((1, 'A')))
       },
       testM("`zipWith` to perform an action to two computations") {
-        assertM(STM.succeed(578).zipWith(STM.succeed(2))(_ + _).commit)(equalTo(580))
+        assertM(STM.succeedNow(578).zipWith(STM.succeedNow(2))(_ + _).commit)(equalTo(580))
       }
     ),
     suite("Make a new `TRef` and")(
@@ -150,7 +150,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             fiber <- (STM.atomically {
                       for {
                         v1 <- tvar1.get
-                        _  <- STM.succeed(barrier.open())
+                        _  <- STM.succeedNow(barrier.open())
                         _  <- STM.check(v1 > 42)
                         _  <- tvar2.set("Succeeded!")
                         v2 <- tvar2.get
@@ -228,13 +228,12 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar <- TRef.makeCommit(0)
           fiber <- IO.forkAll(
-                    (0 to 20).map(
-                      i =>
-                        (for {
-                          v <- tvar.get
-                          _ <- STM.check(v == i)
-                          _ <- tvar.update(_ + 1)
-                        } yield ()).commit
+                    (0 to 20).map(i =>
+                      (for {
+                        v <- tvar.get
+                        _ <- STM.check(v == i)
+                        _ <- tvar.update(_ + 1)
+                      } yield ()).commit
                     )
                   )
           _ <- fiber.join
@@ -248,7 +247,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             tvar <- TRef.makeCommit(0)
             fiber <- (for {
                       v <- tvar.get
-                      _ <- STM.succeed(barrier.open())
+                      _ <- STM.succeedNow(barrier.open())
                       _ <- STM.check(v > 0)
                       _ <- tvar.update(10 / _)
                     } yield ()).commit.fork
@@ -266,7 +265,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             tvar <- TRef.makeCommit(0)
             fiber <- IO.forkAll(List.fill(100)((for {
                       v <- tvar.get
-                      _ <- STM.succeed(barrier.open())
+                      _ <- STM.succeedNow(barrier.open())
                       _ <- STM.check(v < 0)
                       _ <- tvar.set(10)
                     } yield ()).commit))
@@ -287,7 +286,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         }
       ),
       testM("Using `collect` filter and map simultaneously the value produced by the transaction") {
-        assertM(STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.commit)(
+        assertM(STM.succeedNow((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.commit)(
           equalTo("Positive")
         )
       },
@@ -295,7 +294,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(
           STM
             .succeed((1 to 20).toList)
-            .collectM[Any, Nothing, String] { case l if l.forall(_ > 0) => STM.succeed("Positive") }
+            .collectM[Any, Nothing, String] { case l if l.forall(_ > 0) => STM.succeedNow("Positive") }
             .commit
         )(equalTo("Positive"))
       }
@@ -353,10 +352,10 @@ object ZSTMSpec extends ZIOBaseSpec {
     ) {
       import zio.CanFail.canFail
       for {
-        rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).commit
-        leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
-        leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
-        failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
+        rightV  <- STM.failNow("oh no!").orElseEither(STM.succeedNow(42)).commit
+        leftV1  <- STM.succeedNow(1).orElseEither(STM.succeedNow("No me!")).commit
+        leftV2  <- STM.succeedNow(2).orElseEither(STM.failNow("No!")).commit
+        failedV <- STM.failNow(-1).orElseEither(STM.failNow(-2)).commit.either
       } yield assert(rightV)(isRight(equalTo(42))) &&
         assert(leftV1)(isLeft(equalTo(1))) &&
         assert(leftV2)(isLeft(equalTo(2))) &&
@@ -368,7 +367,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           tvar <- TRef.makeCommit(0)
           e <- (for {
                 _ <- tvar.update(_ + 10)
-                _ <- STM.fail("Error!")
+                _ <- STM.failNow("Error!")
               } yield ()).commit.either
           v <- tvar.get.commit
         } yield assert(e)(isLeft(equalTo("Error!"))) && assert(v)(equalTo(0))
@@ -378,7 +377,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           tvar <- TRef.makeCommit(0)
           e <- (for {
                 _ <- tvar.update(_ + 10)
-                _ <- STM.fail("Error!")
+                _ <- STM.failNow("Error!")
               } yield ()).commit.ignore
           v <- tvar.get.commit
         } yield assert(e)(equalTo(())) && assert(v)(equalTo(0))
@@ -398,7 +397,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("rollback left failure") {
         for {
           tvar  <- TRef.makeCommit(0)
-          left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
+          left  = tvar.update(_ + 100) *> STM.failNow("Uh oh!")
           right = tvar.update(_ + 100).unit
           _     <- (left orElse right).commit
           v     <- tvar.get.commit
@@ -463,10 +462,10 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(chain(10000)(_.collect { case a: Int => a + 1 }))(equalTo(10000))
       },
       testM("long collectM chains") {
-        assertM(chain(10000)(_.collectM { case a: Int => STM.succeed(a + 1) }))(equalTo(10000))
+        assertM(chain(10000)(_.collectM { case a: Int => STM.succeedNow(a + 1) }))(equalTo(10000))
       },
       testM("long flatMap chains") {
-        assertM(chain(10000)(_.flatMap(a => STM.succeed(a + 1))))(equalTo(10000))
+        assertM(chain(10000)(_.flatMap(a => STM.succeedNow(a + 1))))(equalTo(10000))
       },
       testM("long fold chains") {
         import zio.CanFail.canFail
@@ -474,7 +473,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       },
       testM("long foldM chains") {
         import zio.CanFail.canFail
-        assertM(chain(10000)(_.foldM(_ => STM.succeed(0), a => STM.succeed(a + 1))))(equalTo(10000))
+        assertM(chain(10000)(_.foldM(_ => STM.succeedNow(0), a => STM.succeedNow(a + 1))))(equalTo(10000))
       },
       testM("long mapError chains") {
         def chain(depth: Int): ZIO[Any, Int, Nothing] = {
@@ -482,7 +481,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           def loop(n: Int, acc: STM[Int, Nothing]): ZIO[Any, Int, Nothing] =
             if (n <= 0) acc.commit else loop(n - 1, acc.mapError(_ + 1))
 
-          loop(depth, STM.fail(0))
+          loop(depth, STM.failNow(0))
         }
 
         assertM(chain(10000).run)(fails(equalTo(10000)))
@@ -494,10 +493,10 @@ object ZSTMSpec extends ZIOBaseSpec {
             if (n <= 0) acc.commit
             else {
               val inc = curr + 1
-              loop(n - 1, inc, acc.orElse(STM.fail(inc)))
+              loop(n - 1, inc, acc.orElse(STM.failNow(inc)))
             }
 
-          loop(depth, 0, STM.fail(0))
+          loop(depth, 0, STM.failNow(0))
         }
 
         assertM(chain(10000).run)(fails(equalTo(10000)))
@@ -519,7 +518,17 @@ object ZSTMSpec extends ZIOBaseSpec {
             assertM(env.ref.get.commit)(equalTo(1))
         }
       }
-    )
+    ),
+    testM("STM collectAll ordering") {
+      val tx = for {
+        tq  <- TQueue.bounded[Int](3)
+        _   <- tq.offer(1)
+        _   <- tq.offer(2)
+        _   <- tq.offer(3)
+        ans <- ZSTM.collectAll(List(tq.take, tq.take, tq.take))
+      } yield ans
+      assertM(tx.commit)(equalTo(List(1, 2, 3)))
+    }
   )
 
   trait STMEnv {
@@ -602,6 +611,6 @@ object ZSTMSpec extends ZIOBaseSpec {
     def loop(n: Int, acc: STM[Nothing, Int]): UIO[Int] =
       if (n <= 0) acc.commit else loop(n - 1, next(acc))
 
-    loop(depth, STM.succeed(0))
+    loop(depth, STM.succeedNow(0))
   }
 }

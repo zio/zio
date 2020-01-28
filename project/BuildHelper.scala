@@ -1,7 +1,6 @@
 import sbt._
 import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
-import sbtcrossproject.Platform
 import sbtcrossproject.CrossPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._

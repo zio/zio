@@ -5,7 +5,12 @@ import ExpectationSpecUtils._
 import zio.duration._
 import zio.test.Assertion.{ equalTo, isNone, isUnit, isWithin }
 import zio.test.mock.Expectation.{ failure, failureF, failureM, never, unit, value, valueF, valueM }
-import zio.test.mock.MockException.{ InvalidArgumentsException, InvalidMethodException, UnmetExpectationsException }
+import zio.test.mock.MockException.{
+  InvalidArgumentsException,
+  InvalidMethodException,
+  UnexpectedCallExpection,
+  UnmetExpectationsException
+}
 import zio.test.{ suite, ZIOBaseSpec }
 import zio.{ IO, UIO }
 
@@ -61,7 +66,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo("foo 1")
       ),
       testSpec("returns valueM")(
-        Module.singleParam(equalTo(1)) returns valueM(i => UIO.succeed(s"foo $i")),
+        Module.singleParam(equalTo(1)) returns valueM(i => UIO.succeedNow(s"foo $i")),
         Module.>.singleParam(1),
         equalTo("foo 1")
       ),
@@ -76,7 +81,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo("foo 1")
       ),
       testSpec("returns failureM")(
-        Module.singleParam(equalTo(1)) returns failureM(i => IO.fail(s"foo $i")),
+        Module.singleParam(equalTo(1)) returns failureM(i => IO.failNow(s"foo $i")),
         Module.>.singleParam(1).flip,
         equalTo("foo 1")
       )
@@ -93,7 +98,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo("foo (1,2,3)")
       ),
       testSpec("returns valueM")(
-        Module.manyParams(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeed(s"foo $i")),
+        Module.manyParams(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeedNow(s"foo $i")),
         Module.>.manyParams(1, "2", 3L),
         equalTo("foo (1,2,3)")
       ),
@@ -108,7 +113,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo("foo (1,2,3)")
       ),
       testSpec("returns failureM")(
-        Module.manyParams(equalTo((1, "2", 3L))) returns failureM(i => IO.fail(s"foo $i")),
+        Module.manyParams(equalTo((1, "2", 3L))) returns failureM(i => IO.failNow(s"foo $i")),
         Module.>.manyParams(1, "2", 3L).flip,
         equalTo("foo (1,2,3)")
       )
@@ -125,7 +130,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo("foo (1,2,3)")
       ),
       testSpec("returns valueM")(
-        Module.manyParamLists(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeed(s"foo $i")),
+        Module.manyParamLists(equalTo((1, "2", 3L))) returns valueM(i => UIO.succeedNow(s"foo $i")),
         Module.>.manyParamLists(1)("2")(3L),
         equalTo("foo (1,2,3)")
       ),
@@ -140,7 +145,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo("foo (1,2,3)")
       ),
       testSpec("returns failureM")(
-        Module.manyParamLists(equalTo((1, "2", 3L))) returns failureM(i => IO.fail(s"foo $i")),
+        Module.manyParamLists(equalTo((1, "2", 3L))) returns failureM(i => IO.failNow(s"foo $i")),
         Module.>.manyParamLists(1)("2")(3L).flip,
         equalTo("foo (1,2,3)")
       )
@@ -165,7 +170,7 @@ object ExpectationSpec extends ZIOBaseSpec {
           equalTo("foo 1")
         ),
         testSpec("returns valueM")(
-          Module.overloaded._0(equalTo(1)) returns valueM(i => UIO.succeed(s"foo $i")),
+          Module.overloaded._0(equalTo(1)) returns valueM(i => UIO.succeedNow(s"foo $i")),
           Module.>.overloaded(1),
           equalTo("foo 1")
         ),
@@ -180,7 +185,7 @@ object ExpectationSpec extends ZIOBaseSpec {
           equalTo("foo 1")
         ),
         testSpec("returns failureM")(
-          Module.overloaded._0(equalTo(1)) returns failureM(i => IO.fail(s"foo $i")),
+          Module.overloaded._0(equalTo(1)) returns failureM(i => IO.failNow(s"foo $i")),
           Module.>.overloaded(1).flip,
           equalTo("foo 1")
         )
@@ -197,7 +202,7 @@ object ExpectationSpec extends ZIOBaseSpec {
           equalTo("foo 1")
         ),
         testSpec("returns valueM")(
-          Module.overloaded._1(equalTo(1L)) returns valueM(i => UIO.succeed(s"foo $i")),
+          Module.overloaded._1(equalTo(1L)) returns valueM(i => UIO.succeedNow(s"foo $i")),
           Module.>.overloaded(1L),
           equalTo("foo 1")
         ),
@@ -212,7 +217,7 @@ object ExpectationSpec extends ZIOBaseSpec {
           equalTo("foo 1")
         ),
         testSpec("returns failureM")(
-          Module.overloaded._1(equalTo(1L)) returns failureM(i => IO.fail(s"foo $i")),
+          Module.overloaded._1(equalTo(1L)) returns failureM(i => IO.failNow(s"foo $i")),
           Module.>.overloaded(1L).flip,
           equalTo("foo 1")
         )
@@ -230,7 +235,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
       ),
       testSpec("returns valueM")(
-        Module.maxParams(equalTo(intTuple22)) returns valueM(i => UIO.succeed(s"foo $i")),
+        Module.maxParams(equalTo(intTuple22)) returns valueM(i => UIO.succeedNow(s"foo $i")),
         (Module.>.maxParams _).tupled(intTuple22),
         equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
       ),
@@ -245,7 +250,7 @@ object ExpectationSpec extends ZIOBaseSpec {
         equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
       ),
       testSpec("returns failureM")(
-        Module.maxParams(equalTo(intTuple22)) returns failureM(i => IO.fail(s"foo $i")),
+        Module.maxParams(equalTo(intTuple22)) returns failureM(i => IO.failNow(s"foo $i")),
         (Module.>.maxParams _).tupled(intTuple22).flip,
         equalTo("foo (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)")
       )
@@ -273,6 +278,14 @@ object ExpectationSpec extends ZIOBaseSpec {
       testSpec("*>")(
         (
           (Module.singleParam(equalTo(1)) returns value("foo")) *>
+            (Module.static returns value("bar"))
+        ),
+        Module.>.singleParam(1) *> Module.>.static,
+        equalTo("bar")
+      ),
+      testSpec("zipRight")(
+        (
+          (Module.singleParam(equalTo(1)) returns value("foo")) zipRight
             (Module.static returns value("bar"))
         ),
         Module.>.singleParam(1) *> Module.>.static,
@@ -307,6 +320,11 @@ object ExpectationSpec extends ZIOBaseSpec {
             )
           )
         )
+      ),
+      testSpecDied("unexpected call")(
+        Module.singleParam(equalTo(1)) returns value("foo"),
+        Module.>.singleParam(1) *> Module.>.manyParams(2, "3", 4L),
+        equalTo(UnexpectedCallExpection(Module.manyParams, (2, "3", 4L)))
       )
     )
   )

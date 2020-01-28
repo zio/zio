@@ -38,7 +38,7 @@ object SummaryBuilder {
 
     def hasFailures(spec: ExecutedSpec[E, L, S]): UIO[Boolean] = spec.exists {
       case Spec.TestCase(_, test) => test.map(_._1.isLeft)
-      case _                      => UIO.succeed(false)
+      case _                      => UIO.succeedNow(false)
     }
 
     def loop(current: ExecutedSpec[E, L, S], accM: UIO[Seq[ExecutedSpec[E, L, S]]]): UIO[Seq[ExecutedSpec[E, L, S]]] =
@@ -55,6 +55,6 @@ object SummaryBuilder {
         accM
       }
 
-    loop(executedSpec, UIO.succeed(Vector.empty[ExecutedSpec[E, L, S]]))
+    loop(executedSpec, UIO.succeedNow(Vector.empty[ExecutedSpec[E, L, S]]))
   }
 }

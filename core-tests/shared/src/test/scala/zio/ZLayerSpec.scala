@@ -13,7 +13,7 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def testSize[R <: Has[_]](layer: ZLayer.NoDeps[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
     layer.build.use { env =>
-      ZIO.succeed(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label))
+      ZIO.succeedNow(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label))
     }
 
   def spec = suite("ZLayerSpec")(

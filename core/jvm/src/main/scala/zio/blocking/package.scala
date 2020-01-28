@@ -119,13 +119,13 @@ package object blocking {
 
                                 try {
                                   val a = effect
-                                  ZIO.succeed(a)
+                                  ZIO.succeedNow(a)
                                 } catch {
                                   case _: InterruptedException =>
                                     Thread.interrupted // Clear interrupt status
                                     ZIO.interrupt
                                   case t: Throwable =>
-                                    ZIO.fail(t)
+                                    ZIO.failNow(t)
                                 } finally {
                                   withMutex { thread.set(None); barrier.set(()) }
                                 }
@@ -137,6 +137,9 @@ package object blocking {
           }
         }
     }
+
+    val any: ZLayer[Blocking, Nothing, Blocking] =
+      ZLayer.requires[Blocking]
 
     val live: ZLayer.NoDeps[Nothing, Blocking] = ZLayer.succeed {
       new Service {
@@ -164,8 +167,8 @@ package object blocking {
     private[blocking] val blockingExecutor0 =
       Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
         val corePoolSize  = 0
-        val maxPoolSize   = Int.MaxValue
-        val keepAliveTime = 1000L
+        val maxPoolSize   = 1000
+        val keepAliveTime = 60000L
         val timeUnit      = TimeUnit.MILLISECONDS
         val workQueue     = new SynchronousQueue[Runnable]()
         val threadFactory = new NamedThreadFactory("zio-default-blocking", true)

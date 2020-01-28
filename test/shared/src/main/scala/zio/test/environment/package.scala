@@ -180,10 +180,10 @@ package object environment extends PlatformSpecific {
    * involving the passage of time.
    *
    * Instead of waiting for actual time to pass, `sleep` and methods implemented
-   * in terms of it schedule effects to take place at a given clock time. Users
-   * can adjust the clock time using the `adjust` and `setTime` methods, and all
-   * effects scheduled to take place on or before that time will automically be
-   * run.
+   * in terms of it schedule effects to take place at a given wall clock time.
+   * Users can adjust the wall clock time using the `adjust` and `setTime`
+   * methods, and all effects scheduled to take place on or before that wall
+   * clock time will automically be run.
    *
    * For example, here is how we can test [[ZIO.timeout]] using `TestClock:
    *
@@ -200,12 +200,13 @@ package object environment extends PlatformSpecific {
    * }}}
    *
    * Note how we forked the fiber that `sleep` was invoked on. Calls to `sleep`
-   * and methods derived from it will semantically block until the time is
-   * set to on or after the time they are scheduled to run. If we didn't fork the
-   * fiber on which we called sleep we would never get to set the the time on the
-   * line below. Thus, a useful pattern when using `TestClock` is to fork the
-   * effect being tested, then adjust the clock to the desired time, and finally
-   * verify that the expected effects have been performed.
+   * and methods derived from it will semantically block until the wall clock
+   * time is set to on or after the time they are scheduled to run. If we
+   * didn't fork the fiber on which we called sleep we would never get to set
+   * the the wall clock time on the line below. Thus, a useful pattern when
+   * using `TestClock` is to fork the effect being tested, then adjust the wall
+   * clock time, and finally verify that the expected effects have been
+   * performed.
    *
    * Sleep and related combinators schedule events to occur at a specified
    * duration in the future relative to the current fiber time (e.g. 10 seconds
@@ -239,9 +240,9 @@ package object environment extends PlatformSpecific {
    * that an effect is performed after the recurrence period, and that the effect
    * is performed exactly once. The key thing to note here is that after each
    * recurrence the next recurrence is scheduled to occur at the appropriate time
-   * in the future, so when we adjust the clock by 60 minutes exactly one value
-   * is placed in the queue, and when we adjust the clock by another 60 minutes
-   * exactly one more value is placed in the queue.
+   * in the future, so when we adjust the wall clock time by 60 minutes exactly
+   * one value is placed in the queue, and when we adjust the wall clock time
+   * by another 60 minutes exactly one more value is placed in the queue.
    */
   object TestClock extends Serializable {
 
@@ -264,34 +265,32 @@ package object environment extends PlatformSpecific {
         with TestClock.Service {
 
       /**
-       * Increments the current clock time by the specified duration. Any effects
-       * that were scheduled to occur on or before the new time will immediately
-       * be run.
+       * Increments the wall clock time by the specified duration. Any effects
+       * that were scheduled to occur on or before the new wall clock time will
+       * immediately be run.
        */
       def adjust(duration: Duration): UIO[Unit] =
         warningDone *> clockState.modify { data =>
-          val nanoTime          = data.nanoTime + duration.toNanos
-          val currentTimeMillis = data.currentTimeMillis + duration.toMillis
-          val (wakes, sleeps)   = data.sleeps.partition(_._1 <= Duration.fromNanos(nanoTime))
+          val nanoTime        = data.nanoTime + duration.toNanos
+          val (wakes, sleeps) = data.sleeps.partition(_._1 <= Duration.fromNanos(nanoTime))
           val updated = data.copy(
             nanoTime = nanoTime,
-            currentTimeMillis = currentTimeMillis,
             sleeps = sleeps
           )
           (wakes, updated)
         }.flatMap(run)
 
       /**
-       * Returns the current clock time as an `OffsetDateTime`.
+       * Returns the current fiber time as an `OffsetDateTime`.
        */
       def currentDateTime: UIO[OffsetDateTime] =
-        clockState.get.map(data => toDateTime(data.currentTimeMillis, data.timeZone))
+        fiberState.get.map(data => toDateTime(data.currentTimeMillis, data.timeZone))
 
       /**
-       * Returns the current clock time in the specified time unit.
+       * Returns the current fiber time in the specified time unit.
        */
       def currentTime(unit: TimeUnit): UIO[Long] =
-        clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
+        fiberState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
       /**
        * Returns the current fiber time for this fiber. The fiber time is backed
@@ -313,14 +312,14 @@ package object environment extends PlatformSpecific {
         fiberState.get.map(_.nanoTime.nanos)
 
       /**
-       * Returns the current clock time in nanoseconds.
+       * Returns the current fiber time in nanoseconds.
        */
       val nanoTime: UIO[Long] =
-        clockState.get.map(_.nanoTime)
+        fiberState.get.map(_.nanoTime)
 
       /**
-       * Saves the `TestClock`'s current state in an effect which, when run, will restore the `TestClock`
-       * state to the saved state
+       * Saves the `TestClock`'s current state in an effect which, when run,
+       * will restore the `TestClock` state to the saved state
        */
       val save: UIO[UIO[Unit]] =
         for {
@@ -338,7 +337,7 @@ package object environment extends PlatformSpecific {
        * `TestClock`.
        */
       val scheduler: UIO[Scheduler.Service] =
-        ZIO.succeed {
+        ZIO.succeedNow {
           new Scheduler.Service {
             override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
               sleep(duration) *> task
@@ -346,7 +345,7 @@ package object environment extends PlatformSpecific {
         }
 
       /**
-       * Sets the current clock time to the specified `OffsetDateTime`. Any
+       * Sets the wall clock time to the specified `OffsetDateTime`. Any
        * effects that were scheduled to occur on or before the new time will
        * immediately be run.
        */
@@ -354,7 +353,7 @@ package object environment extends PlatformSpecific {
         setTime(fromDateTime(dateTime))
 
       /**
-       * Sets the current clock time to the specified time in terms of duration
+       * Sets the wall clock time to the specified time in terms of duration
        * since the epoch. Any effects that were scheduled to occur on or before
        * the new time will immediately be run.
        */
@@ -363,30 +362,32 @@ package object environment extends PlatformSpecific {
           val (wakes, sleeps) = data.sleeps.partition(_._1 <= duration)
           val updated = data.copy(
             nanoTime = duration.toNanos,
-            currentTimeMillis = duration.toMillis,
             sleeps = sleeps
           )
           (wakes, updated)
         }.flatMap(run)
 
       /**
-       * Sets the time zone to the specified time zone. The clock time in terms
-       * of nanoseconds since the epoch will not be adjusted and no scheduled
-       * effects will be run as a result of this method.
+       * Sets the time zone to the specified time zone. The wall clock time in
+       * terms of nanoseconds since the epoch will not be adjusted and no
+       * scheduled effects will be run as a result of this method.
        */
       def setTimeZone(zone: ZoneId): UIO[Unit] =
-        clockState.update(_.copy(timeZone = zone)).unit
+        fiberState.update(_.copy(timeZone = zone)).unit
 
       /**
-       * Semantically blocks the current fiber until the clock time is equal to
-       * or greater than the specified duration. Once the clock time is adjusted
-       * to on or after the duration, the fiber will automatically be resumed.
+       * Semantically blocks the current fiber until the wall clock time is
+       * equal to or greater than the specified duration. Once the wall clock
+       * time is adjusted to on or after the duration, the fiber will
+       * automatically be resumed.
        */
       def sleep(duration: Duration): UIO[Unit] =
         for {
           latch <- Promise.make[Nothing, Unit]
           start <- fiberState.modify { data =>
-                    (data.nanoTime, data.copy(nanoTime = data.nanoTime + duration.toNanos))
+                    val nanoTime          = data.nanoTime + duration.toNanos
+                    val currentTimeMillis = data.currentTimeMillis + duration.toMillis
+                    (data.nanoTime, FiberData(nanoTime, currentTimeMillis, data.timeZone))
                   }
           await <- clockState.modify { data =>
                     val end = Duration.fromNanos(start) + duration
@@ -399,8 +400,8 @@ package object environment extends PlatformSpecific {
         } yield ()
 
       /**
-       * Returns a list of the times at which all queued effects are scheduled to
-       * resume.
+       * Returns a list of the wall clock times at which all queued effects are
+       * scheduled to resume.
        */
       val sleeps: UIO[List[Duration]] = clockState.get.map(_.sleeps.map(_._1))
 
@@ -408,7 +409,7 @@ package object environment extends PlatformSpecific {
        * Returns the time zone.
        */
       val timeZone: UIO[ZoneId] =
-        clockState.get.map(_.timeZone)
+        fiberState.get.map(_.timeZone)
 
       private def run(wakes: List[(Duration, Promise[Nothing, Unit])]): UIO[Unit] =
         UIO.forkAll_(wakes.sortBy(_._1).map(_._2.succeed(()))).fork.unit
@@ -416,7 +417,7 @@ package object environment extends PlatformSpecific {
       private[TestClock] val warningDone: UIO[Unit] =
         warningState
           .updateSome[Any, Nothing] {
-            case WarningData.Start          => ZIO.succeed(WarningData.done)
+            case WarningData.Start          => ZIO.succeedNow(WarningData.done)
             case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
           }
           .unit
@@ -432,11 +433,11 @@ package object environment extends PlatformSpecific {
     }
 
     /**
-     * Accesses a `TestClock` instance in the environment and increments the time
-     * by the specified duration, running any actions scheduled for on or before
-     * the new time.
+     * Accesses a `TestClock` instance in the environment and increments the
+     * wall clock time by the specified duration, running any actions scheduled
+     * for on or before the new time.
      */
-    def adjust(duration: Duration): ZIO[TestClock, Nothing, Unit] =
+    def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
 
     /**
@@ -454,50 +455,54 @@ package object environment extends PlatformSpecific {
       ZLayer.fromServiceManaged { (live: Live.Service) =>
         for {
           ref       <- Ref.make(data).toManaged_
-          fiberRef  <- FiberRef.make(FiberData(data.nanoTime), FiberData.combine).toManaged_
+          fiberRef  <- FiberRef.make(FiberData(0, 0, ZoneId.of("UTC")), FiberData.combine).toManaged_
           refM      <- RefM.make(WarningData.start).toManaged_
           test      <- Managed.make(UIO(Test(ref, fiberRef, live, refM)))(_.warningDone)
           scheduler <- test.scheduler.toManaged_
         } yield Has.allOf[Clock.Service, TestClock.Service, Scheduler.Service](test, test, scheduler)
       }
 
+    val any: ZLayer[Clock with TestClock with Scheduler, Nothing, Clock with TestClock with Scheduler] =
+      ZLayer.requires[Clock with TestClock with Scheduler]
+
     val default: ZLayer[Live, Nothing, Clock with TestClock with Scheduler] =
-      live(Data(0, 0, Nil, ZoneId.of("UTC")))
+      live(Data(0, Nil))
 
     /**
-     * Accesses a `TestClock` instance in the environment and saves the clock state in an effect which, when run,
-     * will restore the `TestClock` to the saved state
+     * Accesses a `TestClock` instance in the environment and saves the clock
+     * state in an effect which, when run, will restore the `TestClock` to the
+     * saved state
      */
     val save: ZIO[TestClock, Nothing, UIO[Unit]] = ZIO.accessM[TestClock](_.get.save)
 
     /**
-     * Accesses a `TestClock` instance in the environment and sets the clock time
-     * to the specified `OffsetDateTime`, running any actions scheduled for on or
-     * before the new time.
+     * Accesses a `TestClock` instance in the environment and sets the wall
+     * clock time to the specified `OffsetDateTime`, running any actions
+     * scheduled for on or before the new time.
      */
-    def setDateTime(dateTime: OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
+    def setDateTime(dateTime: => OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setDateTime(dateTime))
 
     /**
-     * Accesses a `TestClock` instance in the environment and sets the clock time
-     * to the specified time in terms of duration since the epoch, running any
-     * actions scheduled for on or before the new time.
+     * Accesses a `TestClock` instance in the environment and sets the wall
+     * clock time to the specified time in terms of duration since the epoch,
+     * running any actions scheduled for on or before the new time.
      */
-    def setTime(duration: Duration): ZIO[TestClock, Nothing, Unit] =
+    def setTime(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTime(duration))
 
     /**
      * Accesses a `TestClock` instance in the environment, setting the time zone
-     * to the specified time zone. The clock time in terms of nanoseconds since
-     * the epoch will not be altered and no scheduled actions will be run as a
-     * result of this effect.
+     * to the specified time zone. The wall clock time in terms of nanoseconds
+     * since the epoch will not be altered and no scheduled actions will be run
+     * as a result of this effect.
      */
-    def setTimeZone(zone: ZoneId): ZIO[TestClock, Nothing, Unit] =
+    def setTimeZone(zone: => ZoneId): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTimeZone(zone))
 
     /**
      * Accesses a `TestClock` instance in the environment and returns a list of
-     * times that effects are scheduled to run.
+     * wall clock times that effects are scheduled to run.
      */
     val sleeps: ZIO[TestClock, Nothing, List[Duration]] =
       ZIO.accessM(_.get.sleeps)
@@ -512,18 +517,17 @@ package object environment extends PlatformSpecific {
     /**
      * The state of the `TestClock`.
      */
-    final case class Data(
-      nanoTime: Long,
-      currentTimeMillis: Long,
-      sleeps: List[(Duration, Promise[Nothing, Unit])],
-      timeZone: ZoneId
-    )
+    final case class Data(nanoTime: Long, sleeps: List[(Duration, Promise[Nothing, Unit])])
 
-    final case class FiberData(nanoTime: Long)
+    final case class FiberData(nanoTime: Long, currentTimeMillis: Long, timeZone: ZoneId)
 
     object FiberData {
       def combine(first: FiberData, last: FiberData): FiberData =
-        FiberData(first.nanoTime max last.nanoTime)
+        FiberData(
+          first.nanoTime max last.nanoTime,
+          first.currentTimeMillis max last.currentTimeMillis,
+          last.timeZone
+        )
     }
 
     sealed trait WarningData
@@ -622,10 +626,9 @@ package object environment extends PlatformSpecific {
        */
       val getStrLn: ZIO[Any, IOException, String] = {
         for {
-          input <- consoleState.get.flatMap(
-                    d =>
-                      IO.fromOption(d.input.headOption)
-                        .mapError(_ => new EOFException("There is no more input left to read"))
+          input <- consoleState.get.flatMap(d =>
+                    IO.fromOption(d.input.headOption)
+                      .mapError(_ => new EOFException("There is no more input left to read"))
                   )
           _ <- consoleState.update { data =>
                 Data(data.input.tail, data.output)
@@ -676,6 +679,9 @@ package object environment extends PlatformSpecific {
       ZLayer.fromEffect(
         Ref.make(data).map(ref => Has.allOf[Console.Service, TestConsole.Service](Test(ref), Test(ref)))
       )
+
+    val any: ZLayer[Console with TestConsole, Nothing, Console with TestConsole] =
+      ZLayer.requires[Console with TestConsole]
 
     val default: ZLayer.NoDeps[Nothing, Console with TestConsole] =
       live(Data(Nil, Vector()))
@@ -914,11 +920,11 @@ package object environment extends PlatformSpecific {
           if (i == length)
             acc.map(_.reverse)
           else if (n > 0)
-            rnd.flatMap(rnd => loop(i + 1, UIO.succeed(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
+            rnd.flatMap(rnd => loop(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
           else
             loop(i, nextInt, (length - i) min 4, acc)
 
-        loop(0, randomInt, length min 4, UIO.succeed(List.empty[Byte])).map(Chunk.fromIterable)
+        loop(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
       }
 
       private val randomDouble: UIO[Double] =
@@ -940,7 +946,7 @@ package object environment extends PlatformSpecific {
               case (d, queue) => (Some(d), Data(seed1, seed2, queue))
             }
         }.flatMap {
-          case Some(nextNextGaussian) => UIO.succeed(nextNextGaussian)
+          case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
           case None =>
             def loop: UIO[(Double, Double, Double)] =
               randomDouble.zip(randomDouble).flatMap {
@@ -948,7 +954,7 @@ package object environment extends PlatformSpecific {
                   val x      = 2 * d1 - 1
                   val y      = 2 * d2 - 1
                   val radius = x * x + y * y
-                  if (radius >= 1 || radius == 0) loop else UIO.succeed((x, y, radius))
+                  if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
               }
             loop.flatMap {
               case (x, y, radius) =>
@@ -965,7 +971,7 @@ package object environment extends PlatformSpecific {
 
       private def randomInt(n: Int): UIO[Int] =
         if (n <= 0)
-          UIO.die(new IllegalArgumentException("n must be positive"))
+          UIO.dieNow(new IllegalArgumentException("n must be positive"))
         else if ((n & -n) == n)
           randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
         else {
@@ -973,7 +979,7 @@ package object environment extends PlatformSpecific {
             randomBits(31).flatMap { i =>
               val value = i % n
               if (i - value + (n - 1) < 0) loop
-              else UIO.succeed(value)
+              else UIO.succeedNow(value)
             }
           loop
         }
@@ -1154,7 +1160,7 @@ package object environment extends PlatformSpecific {
         )
 
       private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: UIO[A]): UIO[A] =
-        bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeed))
+        bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeedNow))
 
       @inline
       private def leastSignificantBits(x: Double): Int =
@@ -1320,6 +1326,9 @@ package object environment extends PlatformSpecific {
         test   = Test(data, buffer)
       } yield Has.allOf[Random.Service, TestRandom.Service](test, test))
 
+    val any: ZLayer[Random with TestRandom, Nothing, Random with TestRandom] =
+      ZLayer.requires[Random with TestRandom]
+
     val deterministic: ZLayer.NoDeps[Nothing, Random with TestRandom] =
       make(DefaultData)
 
@@ -1355,7 +1364,7 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestRandom` instance in the environment and sets the seed to
      * the specified value.
      */
-    def setSeed(seed: Long): ZIO[TestRandom, Nothing, Unit] =
+    def setSeed(seed: => Long): ZIO[TestRandom, Nothing, Unit] =
       ZIO.accessM(_.get.setSeed(seed))
 
     /**
@@ -1479,6 +1488,9 @@ package object environment extends PlatformSpecific {
     def live(data: Data): ZLayer.NoDeps[Nothing, System with TestSystem] =
       ZLayer.fromEffect(Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref))))
 
+    val any: ZLayer[System with TestSystem, Nothing, System with TestSystem] =
+      ZLayer.requires[System with TestSystem]
+
     val default: ZLayer.NoDeps[Nothing, System with TestSystem] =
       live(DefaultData)
 
@@ -1486,14 +1498,14 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of environment variables.
      */
-    def putEnv(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
+    def putEnv(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.putEnv(name, value))
 
     /**
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of system properties.
      */
-    def putProperty(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
+    def putProperty(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.putProperty(name, value))
 
     /**
@@ -1506,21 +1518,21 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and sets the line
      * separator to the specified value.
      */
-    def setLineSeparator(lineSep: String): ZIO[TestSystem, Nothing, Unit] =
+    def setLineSeparator(lineSep: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.setLineSeparator(lineSep))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of environment variables.
      */
-    def clearEnv(variable: String): ZIO[TestSystem, Nothing, Unit] =
+    def clearEnv(variable: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.clearEnv(variable))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of system properties.
      */
-    def clearProperty(prop: String): ZIO[TestSystem, Nothing, Unit] =
+    def clearProperty(prop: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.clearProperty(prop))
 
     /**

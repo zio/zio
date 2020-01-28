@@ -26,10 +26,10 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
       ZStream.Structure.Iterator(
         processEffect.map { thunk =>
           UIO.effectTotal {
-            try UIO.succeed(thunk())
+            try UIO.succeedNow(thunk())
             catch {
-              case StreamEffect.Failure(e) => IO.fail(Some(e.asInstanceOf[E]))
-              case StreamEffect.End        => IO.fail(None)
+              case StreamEffect.Failure(e) => IO.failNow(Some(e.asInstanceOf[E]))
+              case StreamEffect.End        => IO.failNow(None)
             }
           }.flatten
         }
@@ -40,15 +40,13 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
     StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
-          {
-            var b = null.asInstanceOf[B]
+          var b = null.asInstanceOf[B]
 
-            while (b == null) {
-              b = pf.applyOrElse(thunk(), (_: A) => null.asInstanceOf[B])
-            }
-
-            b
+          while (b == null) {
+            b = pf.applyOrElse(thunk(), (_: A) => null.asInstanceOf[B])
           }
+
+          b
         }
       }
     }
@@ -222,11 +220,9 @@ private[stream] final class StreamEffect[-R, +E, +A](val processEffect: ZManaged
     StreamEffect {
       self.processEffect.flatMap { thunk =>
         Managed.effectTotal { () =>
-          {
-            val a = thunk()
-            if (pred(a)) a
-            else StreamEffect.end
-          }
+          val a = thunk()
+          if (pred(a)) a
+          else StreamEffect.end
         }
       }
     }
@@ -350,7 +346,7 @@ private[stream] object StreamEffect extends Serializable {
   def apply[R, E, A](pull: ZManaged[R, Nothing, () => A]): StreamEffect[R, E, A] =
     new StreamEffect(pull)
 
-  def fail[E](e: E): StreamEffect[Any, E, Nothing] =
+  def fail[E](e: => E): StreamEffect[Any, E, Nothing] =
     StreamEffect {
       Managed.effectTotal {
         var done = false
@@ -363,7 +359,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromChunk[A](c: Chunk[A]): StreamEffect[Any, Nothing, A] =
+  def fromChunk[A](c: => Chunk[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var index = 0
@@ -380,7 +376,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromIterable[A](as: Iterable[A]): StreamEffect[Any, Nothing, A] =
+  def fromIterable[A](as: => Iterable[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         val thunk = as.iterator
@@ -389,7 +385,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def fromIterator[A](iterator: Iterator[A]): StreamEffect[Any, Nothing, A] =
+  def fromIterator[A](iterator: => Iterator[A]): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal { () =>
         if (iterator.hasNext) iterator.next() else end
@@ -397,17 +393,17 @@ private[stream] object StreamEffect extends Serializable {
     }
 
   def fromJavaIterator[A](iterator: ju.Iterator[A]): StreamEffect[Any, Nothing, A] = {
-    val _ = iterator // Scala 2.13 wrongly warns that iterator is unused
+    val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
     fromIterator(
       new Iterator[A] {
-        def next(): A        = iterator.next()
-        def hasNext: Boolean = iterator.hasNext
+        def next(): A        = it.next()
+        def hasNext: Boolean = it.hasNext
       }
     )
   }
 
   def fromInputStream(
-    is: InputStream,
+    is: => InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
   ): StreamEffectChunk[Any, IOException, Byte] =
     StreamEffectChunk {
@@ -483,7 +479,7 @@ private[stream] object StreamEffect extends Serializable {
       }
     }
 
-  def succeed[A](a: A): StreamEffect[Any, Nothing, A] =
+  def succeed[A](a: => A): StreamEffect[Any, Nothing, A] =
     StreamEffect {
       Managed.effectTotal {
         var done = false
