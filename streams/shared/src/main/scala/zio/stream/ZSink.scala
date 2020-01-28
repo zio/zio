@@ -1848,16 +1848,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors with Serializable {
       def cont(state: State)           = false
     }
 
-  val sumLong: ZSink[Any, Nothing, Nothing, Long, Long] = {
-    new SinkPure[Nothing, Nothing, Long, Long] {
-      type State = Long
-      val initialPure: State              = 0L
-      def stepPure(state: State, a: Long) = state + a
-      def extractPure(state: State)       = Right((state, Chunk.empty))
-      def cont(state: State)              = true
-    }
-  }
-
+  /**
+   * Creates a sink which sums elements, provided they are Numeric
+   */
   def sum[A](implicit ev: Numeric[A]): ZSink[Any, Nothing, Nothing, A, A] = {
     val numeric = ev
     new SinkPure[Nothing, Nothing, A, A] {
