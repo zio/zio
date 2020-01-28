@@ -3198,8 +3198,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors with Serializable {
   /**
    * Creates a stream from an effect producing a value of type `Iterable[A]`
    */
-  def fromIterableEffect[R, E, A](iterable: ZIO[R, E, Iterable[A]]): ZStream[R, E, A] =
-    fromEffect(iterable).flatMap(Stream.fromIterable)
+  def fromIterableM[R, E, A](iterable: ZIO[R, E, Iterable[A]]): ZStream[R, E, A] =
+    fromEffect(iterable).mapConcat(identity)
 
   /**
    * Creates a stream from an iterator

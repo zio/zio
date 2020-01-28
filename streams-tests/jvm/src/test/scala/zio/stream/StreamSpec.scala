@@ -1028,8 +1028,8 @@ object StreamSpec extends ZIOBaseSpec {
     testM("Stream.fromIterable")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
       assertM(Stream.fromIterable(l).runCollect)(equalTo(l))
     }),
-    testM("Stream.fromIterableEffect")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
-      assertM(Stream.fromIterableEffect(UIO.effectTotal(l)).runCollect)(equalTo(l))
+    testM("Stream.fromIterableM")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
+      assertM(Stream.fromIterableM(UIO.effectTotal(l)).runCollect)(equalTo(l))
     }),
     testM("Stream.fromIterator")(checkM(Gen.small(Gen.listOfN(_)(Gen.anyInt))) { l =>
       assertM(Stream.fromIterator(UIO.effectTotal(l.iterator)).runCollect)(equalTo(l))

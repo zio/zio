@@ -228,10 +228,10 @@ object Stream extends Serializable {
     ZStream.fromIterable(as)
 
   /**
-   * See [[ZStream.fromIterableEffect]]
+   * See [[ZStream.fromIterableM]]
    */
-  def fromIterableEffect[E, A](iterable: IO[E, Iterable[A]]): Stream[E, A] =
-    ZStream.fromIterableEffect(iterable)
+  def fromIterableM[E, A](iterable: IO[E, Iterable[A]]): Stream[E, A] =
+    ZStream.fromIterableM(iterable)
 
   /**
    * See [[ZStream.fromIterator]]
