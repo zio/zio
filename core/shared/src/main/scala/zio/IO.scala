@@ -176,17 +176,17 @@ object IO {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  def die(t: Throwable): UIO[Nothing] = ZIO.die(t)
+  def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
    */
-  def dieMessage(message: String): UIO[Nothing] = ZIO.dieMessage(message)
+  def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
    * @see See [[zio.ZIO.done]]
    */
-  def done[E, A](r: Exit[E, A]): IO[E, A] = ZIO.done(r)
+  def done[E, A](r: => Exit[E, A]): IO[E, A] = ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
@@ -252,7 +252,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.fail]]
    */
-  def fail[E](error: E): IO[E, Nothing] = ZIO.fail(error)
+  def fail[E](error: => E): IO[E, Nothing] = ZIO.fail(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -399,7 +399,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt[E](cause: Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
+  def halt[E](cause: => Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -420,7 +420,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
@@ -449,12 +449,12 @@ object IO {
   /**
    *  @see See [[zio.ZIO.left]]
    */
-  def left[E, A](a: A): IO[E, Either[A, Nothing]] = ZIO.left(a)
+  def left[E, A](a: => A): IO[E, Either[A, Nothing]] = ZIO.left(a)
 
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  def lock[E, A](executor: Executor)(io: IO[E, A]): IO[E, A] =
+  def lock[E, A](executor: => Executor)(io: IO[E, A]): IO[E, A] =
     ZIO.lock(executor)(io)
 
   /**
@@ -587,7 +587,7 @@ object IO {
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[E, B](b: B): IO[E, Either[Nothing, B]] = ZIO.right(b)
+  def right[E, B](b: => B): IO[E, Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -618,12 +618,12 @@ object IO {
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[E, A](a: A): IO[E, Option[A]] = ZIO.some(a)
+  def some[E, A](a: => A): IO[E, Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  def succeed[A](a: A): UIO[A] = ZIO.succeed(a)
+  def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -735,13 +735,13 @@ object IO {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when[E](b: Boolean)(io: IO[E, Any]): IO[E, Unit] =
+  def when[E](b: => Boolean)(io: IO[E, Any]): IO[E, Unit] =
     ZIO.when(b)(io)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
     ZIO.whenCase(a)(pf)
 
   /**
@@ -797,4 +797,13 @@ object IO {
       ZIO.bracketFork(acquire, release, use)
   }
 
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+
+  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = ZIO.doneNow(r)
+
+  private[zio] def failNow[E](error: E): IO[E, Nothing] = ZIO.failNow(error)
+
+  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = ZIO.haltNow(cause)
+
+  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

@@ -123,7 +123,7 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   final def bothWith[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
     that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
   )(f: (B, C) => D): ZQueue[RA1, EA1, RB1, EB1, A1, D] =
-    bothWithM(that)((a, b) => IO.succeed(f(a, b)))
+    bothWithM(that)((a, b) => IO.succeedNow(f(a, b)))
 
   /**
    * Creates a new queue from this queue and another. Offering to the composite queue
@@ -221,12 +221,12 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
 
       def offer(a: A1): ZIO[RA, EA, Boolean] =
         if (f(a)) self.offer(a)
-        else IO.succeed(false)
+        else IO.succeedNow(false)
 
       def offerAll(as: Iterable[A1]): ZIO[RA, EA, Boolean] = {
         val filtered = as filter f
 
-        if (filtered.isEmpty) ZIO.succeed(false)
+        if (filtered.isEmpty) ZIO.succeedNow(false)
         else self.offerAll(filtered)
       }
 
@@ -249,13 +249,13 @@ trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
       def offer(a: A1): ZIO[R2, E2, Boolean] =
         f(a) flatMap {
           if (_) self.offer(a)
-          else IO.succeed(false)
+          else IO.succeedNow(false)
         }
 
       def offerAll(as: Iterable[A1]): ZIO[R2, E2, Boolean] =
         ZIO.foreach(as)(a => f(a).map(if (_) Some(a) else None)).flatMap { maybeAs =>
           val filtered = maybeAs.flatten
-          if (filtered.isEmpty) ZIO.succeed(false)
+          if (filtered.isEmpty) ZIO.succeedNow(false)
           else self.offerAll(filtered)
         }
 
@@ -363,7 +363,7 @@ object ZQueue {
     }
 
     def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
-      p.unsafeDone(IO.succeed(a))
+      p.unsafeDone(IO.succeedNow(a))
 
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A], checkShutdownState: UIO[Unit]): UIO[Boolean]
@@ -408,7 +408,7 @@ object ZQueue {
         as: List[A],
         queue: MutableConcurrentQueue[A],
         checkShutdownState: UIO[Unit]
-      ): UIO[Boolean] = IO.succeed(false)
+      ): UIO[Boolean] = IO.succeedNow(false)
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
 
@@ -551,12 +551,12 @@ object ZQueue {
                                   unsafeCompleteTakers()
                                   as
                                 }
-                      res <- if (surplus.isEmpty) IO.succeed(true)
+                      res <- if (surplus.isEmpty) IO.succeedNow(true)
                             else
                               strategy.handleSurplus(surplus, queue, checkShutdownState) <*
                                 IO.effectTotal(unsafeCompleteTakers())
                     } yield res
-                  } else IO.succeed(true)
+                  } else IO.succeedNow(true)
         } yield added
       }
 
@@ -585,7 +585,7 @@ object ZQueue {
                    item
                  }
 
-          a <- if (item != null) IO.succeed(item)
+          a <- if (item != null) IO.succeedNow(item)
               else
                 for {
                   p <- Promise.make[Nothing, A]

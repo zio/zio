@@ -337,7 +337,7 @@ package object environment extends PlatformSpecific {
        * `TestClock`.
        */
       val scheduler: UIO[Scheduler.Service] =
-        ZIO.succeed {
+        ZIO.succeedNow {
           new Scheduler.Service {
             override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
               sleep(duration) *> task
@@ -417,7 +417,7 @@ package object environment extends PlatformSpecific {
       private[TestClock] val warningDone: UIO[Unit] =
         warningState
           .updateSome[Any, Nothing] {
-            case WarningData.Start          => ZIO.succeed(WarningData.done)
+            case WarningData.Start          => ZIO.succeedNow(WarningData.done)
             case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
           }
           .unit
@@ -437,7 +437,7 @@ package object environment extends PlatformSpecific {
      * wall clock time by the specified duration, running any actions scheduled
      * for on or before the new time.
      */
-    def adjust(duration: Duration): ZIO[TestClock, Nothing, Unit] =
+    def adjust(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.adjust(duration))
 
     /**
@@ -480,7 +480,7 @@ package object environment extends PlatformSpecific {
      * clock time to the specified `OffsetDateTime`, running any actions
      * scheduled for on or before the new time.
      */
-    def setDateTime(dateTime: OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
+    def setDateTime(dateTime: => OffsetDateTime): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setDateTime(dateTime))
 
     /**
@@ -488,7 +488,7 @@ package object environment extends PlatformSpecific {
      * clock time to the specified time in terms of duration since the epoch,
      * running any actions scheduled for on or before the new time.
      */
-    def setTime(duration: Duration): ZIO[TestClock, Nothing, Unit] =
+    def setTime(duration: => Duration): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTime(duration))
 
     /**
@@ -497,7 +497,7 @@ package object environment extends PlatformSpecific {
      * since the epoch will not be altered and no scheduled actions will be run
      * as a result of this effect.
      */
-    def setTimeZone(zone: ZoneId): ZIO[TestClock, Nothing, Unit] =
+    def setTimeZone(zone: => ZoneId): ZIO[TestClock, Nothing, Unit] =
       ZIO.accessM(_.get.setTimeZone(zone))
 
     /**
@@ -920,11 +920,11 @@ package object environment extends PlatformSpecific {
           if (i == length)
             acc.map(_.reverse)
           else if (n > 0)
-            rnd.flatMap(rnd => loop(i + 1, UIO.succeed(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
+            rnd.flatMap(rnd => loop(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
           else
             loop(i, nextInt, (length - i) min 4, acc)
 
-        loop(0, randomInt, length min 4, UIO.succeed(List.empty[Byte])).map(Chunk.fromIterable)
+        loop(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
       }
 
       private val randomDouble: UIO[Double] =
@@ -946,7 +946,7 @@ package object environment extends PlatformSpecific {
               case (d, queue) => (Some(d), Data(seed1, seed2, queue))
             }
         }.flatMap {
-          case Some(nextNextGaussian) => UIO.succeed(nextNextGaussian)
+          case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
           case None =>
             def loop: UIO[(Double, Double, Double)] =
               randomDouble.zip(randomDouble).flatMap {
@@ -954,7 +954,7 @@ package object environment extends PlatformSpecific {
                   val x      = 2 * d1 - 1
                   val y      = 2 * d2 - 1
                   val radius = x * x + y * y
-                  if (radius >= 1 || radius == 0) loop else UIO.succeed((x, y, radius))
+                  if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
               }
             loop.flatMap {
               case (x, y, radius) =>
@@ -971,7 +971,7 @@ package object environment extends PlatformSpecific {
 
       private def randomInt(n: Int): UIO[Int] =
         if (n <= 0)
-          UIO.die(new IllegalArgumentException("n must be positive"))
+          UIO.dieNow(new IllegalArgumentException("n must be positive"))
         else if ((n & -n) == n)
           randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
         else {
@@ -979,7 +979,7 @@ package object environment extends PlatformSpecific {
             randomBits(31).flatMap { i =>
               val value = i % n
               if (i - value + (n - 1) < 0) loop
-              else UIO.succeed(value)
+              else UIO.succeedNow(value)
             }
           loop
         }
@@ -1160,7 +1160,7 @@ package object environment extends PlatformSpecific {
         )
 
       private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: UIO[A]): UIO[A] =
-        bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeed))
+        bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeedNow))
 
       @inline
       private def leastSignificantBits(x: Double): Int =
@@ -1364,7 +1364,7 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestRandom` instance in the environment and sets the seed to
      * the specified value.
      */
-    def setSeed(seed: Long): ZIO[TestRandom, Nothing, Unit] =
+    def setSeed(seed: => Long): ZIO[TestRandom, Nothing, Unit] =
       ZIO.accessM(_.get.setSeed(seed))
 
     /**
@@ -1498,14 +1498,14 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of environment variables.
      */
-    def putEnv(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
+    def putEnv(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.putEnv(name, value))
 
     /**
      * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of system properties.
      */
-    def putProperty(name: String, value: String): ZIO[TestSystem, Nothing, Unit] =
+    def putProperty(name: => String, value: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.putProperty(name, value))
 
     /**
@@ -1518,21 +1518,21 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestSystem` instance in the environment and sets the line
      * separator to the specified value.
      */
-    def setLineSeparator(lineSep: String): ZIO[TestSystem, Nothing, Unit] =
+    def setLineSeparator(lineSep: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.setLineSeparator(lineSep))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of environment variables.
      */
-    def clearEnv(variable: String): ZIO[TestSystem, Nothing, Unit] =
+    def clearEnv(variable: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.clearEnv(variable))
 
     /**
      * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of system properties.
      */
-    def clearProperty(prop: String): ZIO[TestSystem, Nothing, Unit] =
+    def clearProperty(prop: => String): ZIO[TestSystem, Nothing, Unit] =
       ZIO.accessM(_.get.clearProperty(prop))
 
     /**

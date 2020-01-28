@@ -25,7 +25,7 @@ object CheckSpec extends ZIOBaseSpec {
     testM("error in checkM is test failure") {
       checkM(Gen.int(1, 100)) { n =>
         for {
-          _ <- ZIO.fail("fail")
+          _ <- ZIO.failNow("fail")
           r <- random.nextInt(n)
         } yield assert(r)(isLessThan(n))
       }

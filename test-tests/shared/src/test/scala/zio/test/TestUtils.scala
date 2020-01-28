@@ -12,7 +12,7 @@ object TestUtils {
     execSpec: UIO[ExecutedSpec[E, L, S]]
   )(f: Either[TestFailure[E], TestSuccess[S]] => Boolean): ZIO[Any, Nothing, Boolean] =
     execSpec.flatMap { results =>
-      results.forall { case Spec.TestCase(_, test) => test.map(r => f(r._1)); case _ => ZIO.succeed(true) }
+      results.forall { case Spec.TestCase(_, test) => test.map(r => f(r._1)); case _ => ZIO.succeedNow(true) }
     }
 
   def isIgnored[E, L, S](spec: ZSpec[environment.TestEnvironment, E, L, S]): ZIO[Any, Nothing, Boolean] = {

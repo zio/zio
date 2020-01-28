@@ -39,7 +39,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   def last: STM[Nothing, A] =
     ref.get.flatMap(
       _.lastOption match {
-        case Some(a) => STM.succeed(a)
+        case Some(a) => STM.succeedNow(a)
         case None    => STM.retry
       }
     )
@@ -65,7 +65,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     ref.get.flatMap { q =>
       if (forQueue.size <= capacity - q.length) ref.update(_.enqueue(forQueue.toList))
       else STM.retry
-    } *> STM.succeed(remaining)
+    } *> STM.succeedNow(remaining)
   }
 
   /**
@@ -75,7 +75,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   def peek: STM[Nothing, A] =
     ref.get.flatMap(
       _.headOption match {
-        case Some(a) => STM.succeed(a)
+        case Some(a) => STM.succeedNow(a)
         case None    => STM.retry
       }
     )
@@ -104,7 +104,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     def go(q: ScalaQueue[A]): STM[Nothing, A] =
       q.dequeueOption match {
         case Some((a, as)) =>
-          if (f(a)) ref.set(as) *> STM.succeed(a)
+          if (f(a)) ref.set(as) *> STM.succeedNow(a)
           else go(as)
         case None => STM.retry
       }
@@ -125,7 +125,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     ref.get.flatMap { q =>
       q.dequeueOption match {
         case Some((a, as)) =>
-          ref.set(as) *> STM.succeed(a)
+          ref.set(as) *> STM.succeedNow(a)
         case _ => STM.retry
       }
     }
@@ -142,7 +142,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   def takeUpTo(max: Int): STM[Nothing, List[A]] =
     ref.get
       .map(_.splitAt(max))
-      .flatMap(split => ref.set(split._2) *> STM.succeed(split._1))
+      .flatMap(split => ref.set(split._2) *> STM.succeedNow(split._1))
       .map(_.toList)
 }
 
