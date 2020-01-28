@@ -119,7 +119,7 @@ class IODeepAttemptBenchmark {
   @Benchmark
   def zioDeepAttampt(): BigInt = {
     def descend(n: Int): IO[ZIOError, BigInt] =
-      if (n == depth) IO.fail(ZIOError("Oh noes!"))
+      if (n == depth) IO.failNow(ZIOError("Oh noes!"))
       else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 
@@ -129,7 +129,7 @@ class IODeepAttemptBenchmark {
   @Benchmark
   def zioDeepAttemptBaseline(): BigInt = {
     def descend(n: Int): IO[Error, BigInt] =
-      if (n == depth) IO.fail(new Error("Oh noes!"))
+      if (n == depth) IO.failNow(new Error("Oh noes!"))
       else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 

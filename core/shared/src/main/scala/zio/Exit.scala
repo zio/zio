@@ -83,7 +83,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def flatMapM[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
     self match {
       case Success(a)     => f(a)
-      case e @ Failure(_) => ZIO.succeed(e)
+      case e @ Failure(_) => ZIO.succeedNow(e)
     }
 
   /**
@@ -109,7 +109,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
    * returns the result in a new `Exit`.
    */
   final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
-    fold(c => ZIO.succeed(halt(c)), a => f(a).run)
+    fold(c => ZIO.succeedNow(halt(c)), a => f(a).run)
 
   /**
    * Retrieves the `A` if succeeded, or else returns the specified default `A`.

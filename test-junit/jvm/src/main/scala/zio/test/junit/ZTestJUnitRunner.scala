@@ -109,7 +109,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Defa
         case SuiteCase(label, specs, es) =>
           @silent("inferred to be `Any`")
           val instrumented =
-            specs.flatMap(ZIO.foreach(_)(s => ZIO.succeed(Spec(loop(s.caseValue, path :+ label.toString)))))
+            specs.flatMap(ZIO.foreach(_)(s => ZIO.succeedNow(Spec(loop(s.caseValue, path :+ label.toString)))))
           SuiteCase(label, instrumented.map(_.toVector), es)
       }
     Spec(loop(zspec.caseValue))

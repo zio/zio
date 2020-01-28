@@ -7,17 +7,17 @@ import zio.{ Chunk, IO, UIO }
 trait SinkUtils {
   def initErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
-    val initial                    = IO.fail("Ouch")
-    def step(state: State, a: Int) = IO.fail("Ouch")
-    def extract(state: State)      = IO.fail("Ouch")
+    val initial                    = IO.failNow("Ouch")
+    def step(state: State, a: Int) = IO.failNow("Ouch")
+    def extract(state: State)      = IO.failNow("Ouch")
     def cont(state: State)         = false
   }
 
   def stepErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
     val initial                    = UIO.unit
-    def step(state: State, a: Int) = IO.fail("Ouch")
-    def extract(state: State)      = IO.fail("Ouch")
+    def step(state: State, a: Int) = IO.failNow("Ouch")
+    def extract(state: State)      = IO.failNow("Ouch")
     def cont(state: State)         = false
   }
 
@@ -25,7 +25,7 @@ trait SinkUtils {
     type State = Unit
     val initial                    = UIO.unit
     def step(state: State, a: Int) = UIO.unit
-    def extract(state: State)      = IO.fail("Ouch")
+    def extract(state: State)      = IO.failNow("Ouch")
     def cont(state: State)         = false
   }
 
@@ -36,20 +36,20 @@ trait SinkUtils {
   def sinkWithLeftover[A](target: A, accumulateAfterMet: Int, default: A) = new ZSink[Any, String, A, A, A] {
     type State = (Option[List[A]], Chunk[A])
 
-    def extract(state: State) = UIO.succeed((if (state._1.isEmpty) default else target, state._2))
+    def extract(state: State) = UIO.succeedNow((if (state._1.isEmpty) default else target, state._2))
 
-    def initial = UIO.succeed((None, Chunk.empty))
+    def initial = UIO.succeedNow((None, Chunk.empty))
 
     def step(state: State, a: A) =
       state match {
         case (None, _) =>
           val st = if (a == target) Some(Nil) else None
-          UIO.succeed((st, state._2))
+          UIO.succeedNow((st, state._2))
         case (Some(acc), _) =>
           if (acc.length >= accumulateAfterMet)
-            UIO.succeed((state._1, Chunk.fromIterable(acc)))
+            UIO.succeedNow((state._1, Chunk.fromIterable(acc)))
           else
-            UIO.succeed((Some(acc :+ a), state._2))
+            UIO.succeedNow((Some(acc :+ a), state._2))
       }
 
     def cont(state: State) = state._2.isEmpty
@@ -89,7 +89,7 @@ trait SinkUtils {
         // assert(longer, equalTo(rem))
         assert(rem.endsWith(shorter))(isTrue)
       }
-      maybeProp.catchAll(_ => UIO.succeed(assert(true)(isTrue)))
+      maybeProp.catchAll(_ => UIO.succeedNow(assert(true)(isTrue)))
     }
 
     def laws[A, B, C](

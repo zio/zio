@@ -65,8 +65,8 @@ object Take {
 
   def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
     io.flatMap {
-      case Take.End      => IO.succeed(None)
-      case Take.Value(a) => IO.succeed(Some(a))
-      case Take.Fail(e)  => IO.halt(e)
+      case Take.End      => IO.succeedNow(None)
+      case Take.Value(a) => IO.succeedNow(Some(a))
+      case Take.Fail(e)  => IO.haltNow(e)
     }
 }

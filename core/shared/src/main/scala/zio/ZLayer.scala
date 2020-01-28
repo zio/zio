@@ -96,7 +96,7 @@ object ZLayer {
    * which must return one or more services.
    */
   def fromEnvironment[A, B <: Has[_]](f: A => B): ZLayer[A, Nothing, B] =
-    fromEnvironmentM(a => ZIO.succeed(f(a)))
+    fromEnvironmentM(a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a layer from the environment using the specified effectful

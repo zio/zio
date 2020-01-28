@@ -59,13 +59,13 @@ package object clock {
   /**
    * Returns the current time, relative to the Unix epoch.
    */
-  def currentTime(unit: TimeUnit): ZIO[Clock, Nothing, Long] =
+  def currentTime(unit: => TimeUnit): ZIO[Clock, Nothing, Long] =
     ZIO.accessM(_.get.currentTime(unit))
 
   /**
    * Get the current time, represented in the current timezone.
    */
-  def currentDateTime: ZIO[Clock, Nothing, OffsetDateTime] =
+  val currentDateTime: ZIO[Clock, Nothing, OffsetDateTime] =
     ZIO.accessM(_.get.currentDateTime)
 
   /**
@@ -77,7 +77,7 @@ package object clock {
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
+  def sleep(duration: => Duration): ZIO[Clock, Nothing, Unit] =
     ZIO.accessM(_.get.sleep(duration))
 
 }
