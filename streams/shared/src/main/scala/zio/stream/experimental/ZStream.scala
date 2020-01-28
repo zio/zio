@@ -46,7 +46,7 @@ object ZStream {
           if (_) Pull.endUnit
           else
             (for {
-              _ <- done.set(false)
+              _ <- done.set(true)
               a <- zio
             } yield a).mapError(Left(_))
         }
