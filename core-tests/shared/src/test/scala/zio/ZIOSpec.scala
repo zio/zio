@@ -892,7 +892,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           ref <- Ref.make(false)
           _ <- ZIO
-                .die(new RuntimeException)
+                .dieNow(new RuntimeException)
                 .onExit {
                   case Exit.Failure(c) if c.died => ref.set(true)
                   case _                         => UIO.unit
@@ -1441,7 +1441,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("catch failing finalizers with fail") {
         val io = IO
-          .fail(ExampleError)
+          .failNow(ExampleError)
           .ensuring(IO.effectTotal(throw InterruptCause1))
           .ensuring(IO.effectTotal(throw InterruptCause2))
           .ensuring(IO.effectTotal(throw InterruptCause3))
@@ -1455,7 +1455,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("catch failing finalizers with terminate") {
         val io = IO
-          .die(ExampleError)
+          .dieNow(ExampleError)
           .ensuring(IO.effectTotal(throw InterruptCause1))
           .ensuring(IO.effectTotal(throw InterruptCause2))
           .ensuring(IO.effectTotal(throw InterruptCause3))
@@ -2265,7 +2265,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           cont <- Promise.make[Nothing, Unit]
           p1   <- Promise.make[Nothing, Boolean]
-          f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
+          f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.failNow).ensuring(p1.succeed(true)).fork
           _    <- cont.await
           _    <- f1.interrupt
           res  <- p1.await

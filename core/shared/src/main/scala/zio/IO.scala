@@ -176,12 +176,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.die]]
    */
-  def die(t: => Throwable): UIO[Nothing] = ZIO.dieNow(t)
-
-  /**
-   * @see See [[zio.ZIO.dieNow]]
-   */
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+  def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
@@ -192,11 +187,6 @@ object IO {
    * @see See [[zio.ZIO.done]]
    */
   def done[E, A](r: => Exit[E, A]): IO[E, A] = ZIO.done(r)
-
-  /**
-   * @see See [[zio.ZIO.doneNow]]
-   */
-  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = ZIO.doneNow(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
@@ -263,11 +253,6 @@ object IO {
    * @see See [[zio.ZIO.fail]]
    */
   def fail[E](error: => E): IO[E, Nothing] = ZIO.fail(error)
-
-  /**
-   * @see See [[zio.ZIO.failNow]]
-   */
-  private[zio] def failNow[E](error: E): IO[E, Nothing] = ZIO.failNow(error)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -415,11 +400,6 @@ object IO {
    * @see See [[zio.ZIO.halt]]
    */
   def halt[E](cause: => Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
-
-  /**
-   * @see See [[zio.ZIO.haltNow]]
-   */
-  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = ZIO.haltNow(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
@@ -646,11 +626,6 @@ object IO {
   def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
-   * @see See [[zio.ZIO.succeedNow]]
-   */
-  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
-
-  /**
    * @see See [[zio.ZIO.trace]]
    * */
   def trace: UIO[ZTrace] = ZIO.trace
@@ -822,4 +797,13 @@ object IO {
       ZIO.bracketFork(acquire, release, use)
   }
 
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+
+  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = ZIO.doneNow(r)
+
+  private[zio] def failNow[E](error: E): IO[E, Nothing] = ZIO.failNow(error)
+
+  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = ZIO.haltNow(cause)
+
+  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

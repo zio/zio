@@ -695,7 +695,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             retries1.update(_ + 1).flatMap { r1 =>
               if (r1 < 3) ZIO.failNow(())
               else
-                ZIO.succeed {
+                ZIO.succeedNow {
                   Reservation(
                     retries2.update(_ + 1).flatMap(r2 => if (r2 == 3) ZIO.unit else ZIO.failNow(())),
                     _ => ZIO.unit
@@ -808,14 +808,14 @@ object ZManagedSpec extends ZIOBaseSpec {
       testM("propagates failures in acquire") {
         ZManaged.scope.use { scope =>
           for {
-            exit <- scope(ZManaged.fromEffect(ZIO.fail("boom"))).either
+            exit <- scope(ZManaged.fromEffect(ZIO.failNow("boom"))).either
           } yield assert(exit)(isLeft(equalTo("boom")))
         }
       },
       testM("propagates failures in reserve") {
         ZManaged.scope.use { scope =>
           for {
-            exit <- scope(ZManaged.make(ZIO.fail("boom"))(_ => ZIO.unit)).either
+            exit <- scope(ZManaged.make(ZIO.failNow("boom"))(_ => ZIO.unit)).either
           } yield assert(exit)(isLeft(equalTo("boom")))
         }
       },
@@ -896,7 +896,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val causes = Gen.causes(Gen.anyString, Gen.throwable)
         checkM(causes, causes) { (c1, c2) =>
           for {
-            exit <- ZManaged.haltNow(c1).tapCause(_ => ZManaged.haltNow(c2)).use(ZIO.succeed).run
+            exit <- ZManaged.haltNow(c1).tapCause(_ => ZManaged.haltNow(c2)).use(ZIO.succeedNow).run
           } yield assert(exit)(failsCause(equalTo(Cause.Then(c1, c2))))
         }
       }

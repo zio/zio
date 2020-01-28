@@ -1473,7 +1473,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def timeoutFork(d: Duration): ZIO[R with Clock, E, Either[Fiber.Runtime[E, A], A]] =
     raceWith(ZIO.sleep(d))(
-      (exit, timeoutFiber) => ZIO.done(exit).map(Right(_)) <* timeoutFiber.interrupt,
+      (exit, timeoutFiber) => ZIO.doneNow(exit).map(Right(_)) <* timeoutFiber.interrupt,
       (_, fiber) => fiber.interrupt.flatMap(ZIO.doneNow).fork.map(Left(_))
     )
 
@@ -2019,20 +2019,12 @@ object ZIO {
     new ZIO.Descriptor(f)
 
   /**
-   * Returns an effect that dies with the specified lazily evaluated
-   * `Throwable`. This method can be used for terminating a fiber because a
-   * defect has been detected in the code.
+   * Returns an effect that dies with the specified `Throwable`.
+   * This method can be used for terminating a fiber because a defect has been
+   * detected in the code.
    */
   def die(t: => Throwable): UIO[Nothing] =
     haltWith(trace => Cause.Traced(Cause.Die(t), trace()))
-
-  /**
-   * Returns an effect that dies with the specified eagerly evaluated
-   * `Throwable`. This method can be used for terminating a fiber because a
-   * defect has been detected in the code.
-   */
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] =
-    die(t)
 
   /**
    * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
@@ -2043,23 +2035,15 @@ object ZIO {
     die(new RuntimeException(message))
 
   /**
-   * Returns an effect from a lazily evaluated [[zio.Exit]] value.
+   * Returns an effect from a [[zio.Exit]] value.
    */
   def done[E, A](r: => Exit[E, A]): IO[E, A] =
     ZIO.effectSuspendTotal {
       r match {
-        case Exit.Success(b)     => succeed(b)
-        case Exit.Failure(cause) => halt(cause)
+        case Exit.Success(b)     => succeedNow(b)
+        case Exit.Failure(cause) => haltNow(cause)
       }
     }
-
-  /**
-   * Returns an effect from an eagerly evaluated [[zio.Exit]] value.
-   */
-  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = r match {
-    case Exit.Success(b)     => succeed(b)
-    case Exit.Failure(cause) => halt(cause)
-  }
 
   /**
    *
@@ -2205,18 +2189,11 @@ object ZIO {
   def environment[R]: URIO[R, R] = access(r => r)
 
   /**
-   * Returns an effect that models failure with the specified lazily evaluated
-   * error. The moral equivalent of `throw` for pure code.
+   * Returns an effect that models failure with the specified error.
+   * The moral equivalent of `throw` for pure code.
    */
   def fail[E](error: => E): IO[E, Nothing] =
     haltWith(trace => Cause.Traced(Cause.Fail(error), trace()))
-
-  /**
-   * Returns an effect that models failure with the specified eagerly evaluated
-   * error. The moral equivalent of `throw` for pure code.
-   */
-  private[zio] def failNow[E](error: E): IO[E, Nothing] =
-    fail(error)
 
   /**
    * Returns the `Fiber.Id` of the fiber executing the effect that calls this method.
@@ -2227,7 +2204,7 @@ object ZIO {
    * Filters the collection using the specified effectual predicate.
    */
   def filter[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, List[A]] =
-    as.foldRight[ZIO[R, E, List[A]]](ZIO.succeed(Nil)) { (a, zio) =>
+    as.foldRight[ZIO[R, E, List[A]]](ZIO.succeedNow(Nil)) { (a, zio) =>
       f(a).zipWith(zio)((p, as) => if (p) a :: as else as)
     }
 
@@ -2414,7 +2391,7 @@ object ZIO {
    * composite fiber that produces a list of their results, in order.
    */
   def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Fiber.Synthetic[E, List[A]]] =
-    as.foldRight[URIO[R, Fiber.Synthetic[E, List[A]]]](succeed(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
+    as.foldRight[URIO[R, Fiber.Synthetic[E, List[A]]]](succeedNow(Fiber.succeed(Nil))) { (aIO, asFiberIO) =>
       asFiberIO.zip(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
@@ -2530,7 +2507,7 @@ object ZIO {
    * Lifts an `Option` into a `ZIO`.
    */
   def fromOption[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
+    effectTotal(v).flatMap(_.fold[IO[Unit, A]](failNow(()))(succeedNow))
 
   /**
    * Lifts a `Try` into a `ZIO`.
@@ -2542,17 +2519,9 @@ object ZIO {
     }
 
   /**
-   * Returns an effect that models failure with the specified eagerly evaluated
-   * `Cause`.
+   * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): IO[E, Nothing] =
-    new ZIO.Fail(_ => cause)
-
-  /**
-   * Returns an effect that models failure with the specified lazily evaluated
-   * `Cause`.
-   */
-  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] =
     new ZIO.Fail(_ => cause)
 
   /**
@@ -2701,7 +2670,7 @@ object ZIO {
   def mergeAll[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
+    in.foldLeft[ZIO[R, E, B]](succeedNow[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
@@ -2731,7 +2700,7 @@ object ZIO {
   /**
    * Returns an effect with the empty value.
    */
-  val none: UIO[Option[Nothing]] = succeed(None)
+  val none: UIO[Option[Nothing]] = succeedNow(None)
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
@@ -2832,7 +2801,7 @@ object ZIO {
    * value, then the specified error will be raised.
    */
   def require[R, E, A](error: => E): ZIO[R, E, Option[A]] => ZIO[R, E, A] =
-    (io: ZIO[R, E, Option[A]]) => io.flatMap(_.fold[ZIO[R, E, A]](fail[E](error))(succeedNow))
+    (io: ZIO[R, E, Option[A]]) => io.flatMap(_.fold[ZIO[R, E, A]](failNow[E](error))(succeedNow))
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
@@ -2898,18 +2867,10 @@ object ZIO {
     succeed(Some(a))
 
   /**
-   * Returns an effect that models success with the specified lazily evaluated
-   * value.
+   * Returns an effect that models success with the specified value.
    */
   def succeed[A](a: => A): UIO[A] =
     effectTotal(a)
-
-  /**
-   * Returns an effect that models success with the specified eagerly evaluated
-   * value.
-   */
-  private[zio] def succeedNow[A](a: A): UIO[A] =
-    new ZIO.Succeed(a)
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
@@ -3252,7 +3213,7 @@ object ZIO {
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): URIO[R, A] =
-      new ZIO.Read(r => succeed(f(r)))
+      new ZIO.Read(r => succeedNow(f(r)))
   }
 
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
@@ -3513,4 +3474,17 @@ object ZIO {
   ) extends ZIO[R, E, C] {
     override def tag: Int = Tags.RaceWith
   }
+
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] = die(t)
+
+  private[zio] def doneNow[E, A](r: Exit[E, A]): IO[E, A] = r match {
+    case Exit.Success(b)     => succeed(b)
+    case Exit.Failure(cause) => halt(cause)
+  }
+
+  private[zio] def failNow[E](error: E): IO[E, Nothing] = fail(error)
+
+  private[zio] def haltNow[E](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
+
+  private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)
 }

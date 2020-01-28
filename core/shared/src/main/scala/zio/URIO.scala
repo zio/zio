@@ -159,27 +159,17 @@ object URIO {
   /**
    * @see [[zio.ZIO.die]]
    */
-  def die(t: => Throwable): UIO[Nothing] = ZIO.dieNow(t)
-
-  /**
-   * @see [[zio.ZIO.dieNow]]
-   */
-  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+  def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
 
   /**
    * @see [[zio.ZIO.dieMessage]]
    */
-  def dieMessage(message: String): UIO[Nothing] = ZIO.dieMessage(message)
+  def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
 
   /**
    * @see [[zio.ZIO.done]]
    */
   def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)
-
-  /**
-   * @see [[zio.ZIO.doneNow]]
-   */
-  private[zio] def doneNow[A](r: Exit[Nothing, A]): UIO[A] = ZIO.doneNow(r)
 
   /**
    * @see [[zio.ZIO.effectAsync]]
@@ -353,11 +343,6 @@ object URIO {
   def halt(cause: => Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
 
   /**
-   * @see [[zio.ZIO.haltNow]]
-   */
-  private[zio] def haltNow(cause: Cause[Nothing]): UIO[Nothing] = ZIO.haltNow(cause)
-
-  /**
    * @see [[zio.ZIO.haltWith]]
    */
   def haltWith[R](function: (() => ZTrace) => Cause[Nothing]): URIO[R, Nothing] =
@@ -476,7 +461,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.provide]]
    */
-  def provide[R, A](r: R): URIO[R, A] => UIO[A] =
+  def provide[R, A](r: => R): URIO[R, A] => UIO[A] =
     ZIO.provide(r)
 
   /**
@@ -533,11 +518,6 @@ object URIO {
    * @see [[zio.ZIO.succeed]]
    */
   def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
-
-  /**
-   * @see See [[zio.ZIO.succeedNow]]
-   */
-  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 
   /**
    *  [[zio.ZIO.sequence]]
@@ -672,4 +652,11 @@ object URIO {
    */
   def _2[R, A, B](implicit ev: R <:< (A, B)): URIO[R, B] = ZIO._2
 
+  private[zio] def dieNow(t: Throwable): UIO[Nothing] = ZIO.dieNow(t)
+
+  private[zio] def doneNow[A](r: Exit[Nothing, A]): UIO[A] = ZIO.doneNow(r)
+
+  private[zio] def haltNow(cause: Cause[Nothing]): UIO[Nothing] = ZIO.haltNow(cause)
+
+  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
 }

@@ -1658,7 +1658,7 @@ object ZManaged {
       // we abuse the fact that Function1 will use reference equality
       Ref.make(Set.empty[Exit[Any, Any] => UIO[Any]]).map { finalizers =>
         Reservation(
-          acquire = ZIO.succeed {
+          acquire = ZIO.succeedNow {
             new Scope {
               override def apply[R, E, A](managed: ZManaged[R, E, A]) =
                 ZIO.uninterruptibleMask { restore =>
@@ -1679,7 +1679,7 @@ object ZManaged {
             for {
               fs    <- finalizers.get
               exits <- ZIO.foreachPar(fs)(_(exitU).run)
-              _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+              _     <- ZIO.doneNow(Exit.collectAllPar(exits).getOrElse(Exit.unit))
             } yield ()
         )
       }
@@ -1877,7 +1877,7 @@ object ZManaged {
     halt(Cause.die(t))
 
   private[zio] def doneNow[E, A](r: Exit[E, A]): ZManaged[Any, E, A] =
-    ZManaged.fromEffect(ZIO.done(r))
+    ZManaged.fromEffect(ZIO.doneNow(r))
 
   private[zio] def failNow[E](error: E): ZManaged[Any, E, Nothing] =
     haltNow(Cause.fail(error))

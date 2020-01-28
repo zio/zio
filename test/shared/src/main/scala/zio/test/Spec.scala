@@ -350,7 +350,7 @@ final case class Spec[-R, +E, +L, +T](caseValue: SpecCase[R, E, L, T, Spec[R, E,
             Spec.suite(label, ZIO.doneNow(result).flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector), exec)
           }
         case TestCase(label, test) =>
-          test.provide(r).run.map(result => Spec.test(label, ZIO.done(result)))
+          test.provide(r).run.map(result => Spec.test(label, ZIO.doneNow(result)))
       }
     caseValue match {
       case SuiteCase(label, specs, exec) =>

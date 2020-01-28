@@ -337,7 +337,7 @@ package object environment extends PlatformSpecific {
        * `TestClock`.
        */
       val scheduler: UIO[Scheduler.Service] =
-        ZIO.succeed {
+        ZIO.succeedNow {
           new Scheduler.Service {
             override def schedule[R, E, A](task: ZIO[R, E, A], duration: Duration): ZIO[R, E, A] =
               sleep(duration) *> task
